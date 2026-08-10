@@ -1,18 +1,18 @@
 use std::{
     env,
     ffi::{OsStr, OsString},
-    fs::{DirEntry, read_dir, remove_dir_all, rename},
     path::{Path, PathBuf},
     time::Duration,
 };
 
 use anyhow::Result;
+use fs_err::{DirEntry, read_dir, remove_dir_all, rename};
 
 /// Information gathered by `vergen_gitcl` in the top-level binary crate and passed down. This
 /// information must be computed in the top-level crate for cargo incremental compilation to work
 /// correctly.
 ///
-/// See `crates/napi/build.rs` for details.
+/// See `crates/next-napi-bindings/build.rs` for details.
 pub struct GitVersionInfo<'a> {
     /// Output of `git describe --match 'v[0-9]' --dirty`.
     pub describe: &'a str,

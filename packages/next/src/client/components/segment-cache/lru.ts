@@ -1,16 +1,11 @@
-import type { MapEntry } from './cache-map'
-import { deleteFromCacheMap } from './cache-map'
+import { deleteMapEntry } from './cache-map'
+import type { UnknownMapEntry } from './cache-map'
+import { pingPrefetchScheduler } from './scheduler'
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
 
-// The MapEntry type is used as an LRU node, too. We choose this one instead of
-// the inner cache entry type (RouteCacheEntry, SegmentCacheEntry) because it's
-// monomorphic and can be optimized by the VM.
-type LRUNode = MapEntry<any>
-
-let head: LRUNode | null = null
-let didScheduleCleanup: boolean = false
+let head: UnknownMapEntry | null = null
 let lruSize: number = 0
 
 // TODO: I chose the max size somewhat arbitrarily. Consider setting this based
@@ -18,7 +13,7 @@ let lruSize: number = 0
 // customizable via the Next.js config, too.
 const maxLruSize = 50 * 1024 * 1024 // 50 MB
 
-export function lruPut(node: LRUNode) {
+export function lruPut(node: UnknownMapEntry) {
   if (head === node) {
     // Already at the head
     return
@@ -57,7 +52,7 @@ export function lruPut(node: LRUNode) {
   head = node
 }
 
-export function updateLruSize(node: LRUNode, newNodeSize: number) {
+export function updateLruSize(node: UnknownMapEntry, newNodeSize: number) {
   // This is a separate function from `put` so that we can resize the entry
   // regardless of whether it's currently being tracked by the LRU.
   const prevNodeSize = node.size
@@ -71,7 +66,7 @@ export function updateLruSize(node: LRUNode, newNodeSize: number) {
   ensureCleanupIsScheduled()
 }
 
-export function deleteFromLru(deleted: LRUNode) {
+export function deleteFromLru(deleted: UnknownMapEntry) {
   const next = deleted.next
   const prev = deleted.prev
   if (next !== null && prev !== null) {
@@ -88,6 +83,8 @@ export function deleteFromLru(deleted: LRUNode) {
         head = null
       } else {
         head = next
+        prev.next = next
+        next.prev = prev
       }
     } else {
       prev.next = next
@@ -99,15 +96,20 @@ export function deleteFromLru(deleted: LRUNode) {
 }
 
 function ensureCleanupIsScheduled() {
-  if (didScheduleCleanup || lruSize <= maxLruSize) {
+  if (lruSize <= maxLruSize) {
     return
   }
-  didScheduleCleanup = true
-  requestCleanupCallback(cleanup)
+
+  // To schedule cleanup, ping the prefetch scheduler. At the end of its work
+  // loop, once there are no queued tasks and no in-progress requests, it will
+  // call cleanup().
+  pingPrefetchScheduler()
 }
 
-function cleanup() {
-  didScheduleCleanup = false
+export function cleanup() {
+  if (lruSize <= maxLruSize) {
+    return
+  }
 
   // Evict entries until we're at 90% capacity. We can assume this won't
   // infinite loop because even if `maxLruSize` were 0, eventually
@@ -119,12 +121,7 @@ function cleanup() {
     if (tail !== null) {
       // Delete the entry from the map. In turn, this will remove it from
       // the LRU.
-      deleteFromCacheMap(tail.value)
+      deleteMapEntry(tail)
     }
   }
 }
-
-const requestCleanupCallback =
-  typeof requestIdleCallback === 'function'
-    ? requestIdleCallback
-    : (cb: () => void) => setTimeout(cb, 0)

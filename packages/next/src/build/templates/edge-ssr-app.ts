@@ -9,9 +9,14 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import * as pageMod from 'VAR_USERLAND'
 
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type {
@@ -26,9 +31,13 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -82,15 +91,17 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   // Initialize the cache handlers interface.
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
+    req.headers,
     prerenderManifest.preview
   )
 
@@ -103,6 +114,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
+      deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 
@@ -117,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,
@@ -138,27 +150,44 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
+      logServerFunctions:
+        typeof nextConfig.logging === 'object' &&
+        Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        // Edge has no Node response-close signal, so HMR cancellation is a
+        // no-op.
+        serverComponentsHmrCancellation: false,
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          nextConfig.experimental.maxPostponedStateSize
+        ),
+        exposeTestingApi:
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -187,7 +216,6 @@ async function requestHandler(
           silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200
@@ -284,6 +312,16 @@ async function requestHandler(
             'next.rsc': false,
           })
 
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
+
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
           if (!rootSpanAttributes) {
@@ -355,7 +393,7 @@ async function requestHandler(
   )
 }
 
-const handler: EdgeHandler = (opts) => {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
@@ -364,4 +402,50 @@ const handler: EdgeHandler = (opts) => {
     page: 'VAR_PAGE',
   })
 }
-export default handler
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_PAGE',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

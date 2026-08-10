@@ -3,6 +3,7 @@ pub mod svg;
 use std::{io::Cursor, str::FromStr};
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use bincode::{Decode, Encode};
 use image::{
@@ -16,34 +17,20 @@ use image::{
     imageops::FilterType,
 };
 use mime::Mime;
-use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, PrettyPrintError, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,
@@ -64,7 +51,6 @@ impl BlurPlaceholder {
 
 /// Gathered meta information about an image.
 #[allow(clippy::manual_non_exhaustive)]
-#[serde_as]
 #[turbo_tasks::value]
 #[derive(Default)]
 #[non_exhaustive]
@@ -72,7 +58,6 @@ pub struct ImageMetaData {
     pub width: u32,
     pub height: u32,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    #[serde_as(as = "Option<DisplayFromStr>")]
     #[bincode(with = "turbo_bincode::mime_option")]
     pub mime_type: Option<Mime>,
     pub blur_placeholder: Option<BlurPlaceholder>,
@@ -138,7 +123,7 @@ fn result_to_issue<T>(source: ResolvedVc<Box<dyn Source>>, result: Result<T>) ->
 fn load_image(
     path: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: &str,
+    extension: Option<&str>,
 ) -> Option<(ImageBuffer, Option<ImageFormat>)> {
     result_to_issue(path, load_image_internal(path, bytes, extension))
 }
@@ -153,7 +138,7 @@ enum ImageBuffer {
 fn load_image_internal(
     image: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: &str,
+    extension: Option<&str>,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
     let reader = image::ImageReader::new(Cursor::new(&bytes));
     let mut reader = reader
@@ -161,7 +146,8 @@ fn load_image_internal(
         .context("unable to determine image format from file content")?;
     let mut format = reader.format();
     if format.is_none()
-        && let Some(new_format) = extension_to_image_format(extension)
+        && let Some(ext) = extension
+        && let Some(new_format) = extension_to_image_format(ext)
     {
         format = Some(new_format);
         reader.set_format(new_format);
@@ -360,10 +346,10 @@ pub async fn get_meta_data(
         bail!("Input image not found");
     };
     let bytes = content.content().to_bytes();
-    let path = image.ident().path().await?;
-    let extension = path.extension();
+    let ident = image.ident().await?;
+    let extension = ident.path.extension();
 
-    if extension == "svg" {
+    if extension == Some("svg") {
         let content = result_to_issue(
             image,
             std::str::from_utf8(&bytes).context("Input image is not valid utf-8"),
@@ -443,8 +429,8 @@ pub async fn optimize(
         return Ok(FileContent::NotFound.cell());
     };
     let bytes = content.content().to_bytes();
-    let path = source.ident().path().await?;
-    let extension = path.extension();
+    let ident = source.ident().await?;
+    let extension = ident.path.extension();
 
     let Some((image, format)) = load_image(source, &bytes, extension) else {
         return Ok(FileContent::NotFound.cell());
@@ -504,36 +490,33 @@ struct ImageProcessingIssue {
     source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ImageProcessingIssue {
     fn severity(&self) -> IssueSeverity {
         self.issue_severity.unwrap_or(IssueSeverity::Error)
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self
-            .title
-            .unwrap_or(StyledString::Text(rcstr!("Processing image failed")).resolved_cell())
+    async fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(match self.title {
+            Some(t) => (*t.await?).clone(),
+            None => StyledString::Text(rcstr!("Processing image failed")),
+        })
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+    async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some((*self.message.await?).clone()))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

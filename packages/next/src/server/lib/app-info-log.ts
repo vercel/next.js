@@ -2,48 +2,37 @@ import { loadEnvConfig } from '@next/env'
 import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../../shared/lib/constants'
-import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { getAgentName } from '../../telemetry/agent-name'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
+import {
+  hasCurrentAgentRules,
+  writeAgentFiles,
+  type AgentFilesResult,
+} from './generate-agent-files'
 
+// Re-export the type for consumers
+export type { ConfiguredExperimentalFeature }
+
+/**
+ * Logs basic startup info that doesn't require config.
+ * Called before "Ready in X" to show immediate feedback.
+ */
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
-  experimentalFeatures,
   logBundler,
-  cacheComponents,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
   logBundler: boolean
-  cacheComponents?: boolean
 }) {
-  let versionSuffix = ''
-  const parts = []
-
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      parts.push('Turbopack')
-    } else if (process.env.NEXT_RSPACK) {
-      parts.push('Rspack')
-    } else {
-      parts.push('webpack')
-    }
-  }
-
-  if (cacheComponents) {
-    parts.push('Cache Components')
-  }
-
-  if (parts.length > 0) {
-    versionSuffix = ` (${parts.join(', ')})`
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(
@@ -66,6 +55,30 @@ export function logStartInfo({
     Log.bootstrap(`- Debugger port: ${debugPort}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+}
+
+/**
+ * Logs experimental features and config-dependent info.
+ * Called after getRequestHandlers completes.
+ */
+export function logExperimentalInfo({
+  experimentalFeatures,
+  cacheComponents,
+  partialPrefetching,
+}: {
+  experimentalFeatures?: ConfiguredExperimentalFeature[]
+  cacheComponents?: boolean
+  partialPrefetching?: boolean | 'unstable_eager'
+}) {
+  if (cacheComponents) {
+    Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    const mode =
+      partialPrefetching === 'unstable_eager' ? ' (unstable_eager)' : ''
+    Log.bootstrap(`- Partial Prefetching enabled${mode}`)
+  }
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
@@ -102,49 +115,30 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo({
-  dir,
-  dev,
-  debugPrerender,
-}: {
+/**
+ * When `next dev` detects an AI coding agent but the managed
+ * agent-rules block is missing from AGENTS.md / CLAUDE.md — or an
+ * outdated version of it is installed — auto-generate or refresh the
+ * files so the agent has access to version-matched docs. Returns the
+ * write result when files were touched, or `null` when no action was
+ * needed.
+ *
+ * Callers gate this on `config.agentRules !== false` — opt-out is
+ * declarative in next.config, not inside this function.
+ */
+export async function ensureAgentRulesForDev(
   dir: string
-  dev: boolean
-  debugPrerender?: boolean
-}): Promise<{
-  envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
-  cacheComponents?: boolean
-}> {
-  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  let cacheComponents = false
-  const config = await loadConfig(
-    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
-    dir,
-    {
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-      debugPrerender,
-      silent: false,
-    }
-  )
+): Promise<AgentFilesResult | null> {
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentRules(dir)) return null
 
-  cacheComponents = !!config.cacheComponents
+  return writeAgentFiles(dir)
+}
 
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
+/**
+ * Gets environment info for logging. Fast operation that doesn't require config.
+ */
+export function getEnvInfo(dir: string): string[] {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
-
-  return {
-    envInfo,
-    experimentalFeatures,
-    cacheComponents,
-  }
+  return loadedEnvFiles.map((f) => f.path)
 }

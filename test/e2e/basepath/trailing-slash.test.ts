@@ -1,30 +1,24 @@
-import webdriver from 'next-webdriver'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
 describe('basePath + trailingSlash', () => {
-  let next: NextInstance
   const basePath = '/docs'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-      nextConfig: {
-        trailingSlash: true,
-        basePath,
-        onDemandEntries: {
-          // Make sure entries are not getting disposed.
-          maxInactiveAge: 1000 * 60 * 60,
-        },
+  const { next } = nextTestSetup({
+    files: __dirname,
+    nextConfig: {
+      trailingSlash: true,
+      basePath,
+      onDemandEntries: {
+        // Make sure entries are not getting disposed.
+        maxInactiveAge: 1000 * 60 * 60,
       },
-    })
+    },
   })
-  afterAll(() => next.destroy())
 
   const runTests = (dev = false) => {
     it('should allow URL query strings without refresh', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello/?query=true`)
+      const browser = await next.browser(`${basePath}/hello/?query=true`)
       try {
         await browser.eval('window.itdidnotrefresh = "hello"')
         await new Promise((resolve, reject) => {
@@ -50,7 +44,7 @@ describe('basePath + trailingSlash', () => {
     })
 
     it('should allow URL query strings on index without refresh', async () => {
-      const browser = await webdriver(next.url, `${basePath}/?query=true`)
+      const browser = await next.browser(`${basePath}/?query=true`)
       try {
         await browser.eval('window.itdidnotrefresh = "hello"')
         await new Promise((resolve, reject) => {
@@ -76,7 +70,7 @@ describe('basePath + trailingSlash', () => {
     })
 
     it('should correctly replace state when same asPath but different url', async () => {
-      const browser = await webdriver(next.url, `${basePath}/`)
+      const browser = await next.browser(`${basePath}/`)
       try {
         await browser.elementByCss('#hello-link').click()
         await browser.waitForElementByCss('#something-else-link')

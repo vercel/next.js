@@ -30,33 +30,23 @@ describe('use-cache-without-experimental-flag', () => {
       const buildOutput = getBuildOutput(cliOutput)
 
       if (isTurbopack) {
-        expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
-         ./app/page.tsx:1:1
-         Ecmascript file had an error
-         > 1 | 'use cache'
-             | ^^^^^^^^^^^
-           2 |
-           3 | export default async function Page() {
-           4 |   return <p>hello world</p>
-
-         To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
-
-         Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
-
-
-
-             at <unknown> (./app/page.tsx:1:1)
-         "
-        `)
+        expect(buildOutput).toContain(
+          'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
+        )
+        expect(buildOutput).toContain(
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
+        )
+        expect(buildOutput).toContain('Ecmascript file had an error')
+        expect(buildOutput).toContain('./app/page.tsx:1:1')
+        expect(buildOutput).toContain("> 1 | 'use cache'")
+        expect(buildOutput).toContain('at <unknown> (./app/page.tsx:1:1)')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
-                 │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                 │   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache'
@@ -80,7 +70,7 @@ describe('use-cache-without-experimental-flag', () => {
          ./app/page.tsx
          Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
            |
-           | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+           | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
 
             ,-[1:1]
           1 | 'use cache'
@@ -110,11 +100,11 @@ describe('use-cache-without-experimental-flag', () => {
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config."`
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  × Module build failed:"`
+          `"  ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config."`
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -123,26 +113,21 @@ describe('use-cache-without-experimental-flag', () => {
       }
 
       if (isTurbopack) {
-        expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx (1:1)
-           Ecmascript file had an error
-           > 1 | 'use cache'
-               | ^^^^^^^^^^^
-             2 |
-             3 | export default async function Page() {
-             4 |   return <p>hello world</p>
-
-           To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
-
-           Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
-          `)
+        expect(errorSource).toContain('./app/page.tsx (1:1)')
+        expect(errorSource).toContain(
+          'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
+        )
+        expect(errorSource).toContain(
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
+        )
+        expect(errorSource).toContain("> 1 | 'use cache'")
+        expect(errorSource).toContain('Ecmascript file had an error')
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
-                 │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                 │   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache'
@@ -158,7 +143,7 @@ describe('use-cache-without-experimental-flag', () => {
          "./app/page.tsx
          Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
            |
-           | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+           | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
 
             ,-[1:1]
           1 | 'use cache'

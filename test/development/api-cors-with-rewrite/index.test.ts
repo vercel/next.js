@@ -1,37 +1,31 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Rewritten API Requests should pass OPTIONS requests to the api function', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/some-endpoint.js': `
-          export default (req, res) => {
-            res.end("successfully hit some-endpoint!")
-          } 
-        `,
-      },
-      nextConfig: {
-        rewrites: () =>
-          Promise.resolve({
-            beforeFiles: [
-              // Nextjs by default requires a /api prefix, let's remove that
-              {
-                source: '/:path*',
-                destination: '/api/:path*',
-              },
-            ],
-            afterFiles: [],
-            fallback: [],
-          }),
-      },
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'pages/api/some-endpoint.js': `
+        export default (req, res) => {
+          res.end("successfully hit some-endpoint!")
+        } 
+      `,
+    },
+    nextConfig: {
+      rewrites: () =>
+        Promise.resolve({
+          beforeFiles: [
+            // Nextjs by default requires a /api prefix, let's remove that
+            {
+              source: '/:path*',
+              destination: '/api/:path*',
+            },
+          ],
+          afterFiles: [],
+          fallback: [],
+        }),
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('should pass OPTIONS requests to the api function', async () => {
     const res = await fetchViaHTTP(next.url, '/some-endpoint', null, {

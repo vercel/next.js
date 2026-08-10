@@ -258,7 +258,6 @@ export default function RootLayout({ children }) {
 - [Styled Components](https://github.com/vercel/next.js/tree/canary/examples/with-styled-components)
 - [Emotion](https://github.com/vercel/next.js/tree/canary/examples/with-emotion)
 - [Linaria](https://github.com/vercel/next.js/tree/canary/examples/with-linaria)
-- [Styletron](https://github.com/vercel/next.js/tree/canary/examples/with-styletron)
 - [Cxs](https://github.com/vercel/next.js/tree/canary/examples/with-cxs)
 - [Fela](https://github.com/vercel/next.js/tree/canary/examples/with-fela)
 - [Stitches](https://github.com/vercel/next.js/tree/canary/examples/with-stitches)

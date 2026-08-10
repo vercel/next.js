@@ -12,6 +12,31 @@ describe('app-dir - metadata-icons-parallel-routes', () => {
     expect($('link[rel="apple-touch-icon"]').length).toBe(1)
   })
 
+  it('should render both icon.png and icon.svg when both are present', async () => {
+    const $ = await next.render$('/')
+
+    // Should have both PNG and SVG icons for browser fallback support
+    const pngIcon = $('link[rel="icon"][type="image/png"]')
+    const svgIcon = $('link[rel="icon"][type="image/svg+xml"]')
+
+    expect(pngIcon.length).toBe(1)
+    expect(svgIcon.length).toBe(1)
+
+    // Verify the URLs are distinct
+    expect(pngIcon.attr('href')).toMatch(/icon\.png/)
+    expect(svgIcon.attr('href')).toMatch(/icon\.svg/)
+  })
+
+  it('should serve both icon formats', async () => {
+    const pngRes = await next.fetch('/icon.png')
+    expect(pngRes.status).toBe(200)
+    expect(pngRes.headers.get('content-type')).toContain('image/png')
+
+    const svgRes = await next.fetch('/icon.svg')
+    expect(svgRes.status).toBe(200)
+    expect(svgRes.headers.get('content-type')).toContain('image/svg+xml')
+  })
+
   it('should override parent icon when both static icon presented', async () => {
     const $ = await next.render$('/nested')
     expect($('link[type="image/x-icon"]').length).toBe(1)

@@ -6,7 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 describe('ReactRefreshRegression', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, isRspack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
     dependencies: {
@@ -284,6 +284,7 @@ describe('ReactRefreshRegression', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -295,9 +296,25 @@ describe('ReactRefreshRegression', () => {
          ],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "code": "E394",
+         "description": "boom",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (1:36) @ __rspack_default_export
+       > 1 | export default function () { throw new Error('boom'); }
+           |                                    ^",
+         "stack": [
+           "__rspack_default_export pages/index.js (1:36)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",

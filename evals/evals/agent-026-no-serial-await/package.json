@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@ai-sdk/react": "2.0.0-beta.28",
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "ai": "5.0.59",
+    "next": "^16",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "^4.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vitest": "^3.1.3",
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
+}

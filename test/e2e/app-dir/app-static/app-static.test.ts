@@ -6,6 +6,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
+  getCacheHeader,
   normalizeRegEx,
   retry,
   waitFor,
@@ -68,10 +69,9 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      // custom cache handler is in memory only
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -95,12 +95,10 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
       // "default" cache does not impact ISR handling on a page, similar to the above test
       // case for no fetch config
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -1355,15 +1353,20 @@ describe('app-dir static/dynamic handling', () => {
       }
 
       for (const key of Object.keys(curManifest.routes)) {
+        const item = curManifest.routes[key]
+        if (item.htmlSize !== undefined) {
+          expect(item.htmlSize).toBeGreaterThan(0)
+          delete item.htmlSize
+        }
+
         const newKey = key.replace(
           /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
           'partial-gen-params-no-additional-$1/$2/RAND'
         )
         if (newKey !== key) {
-          const route = curManifest.routes[key]
           delete curManifest.routes[key]
           curManifest.routes[newKey] = {
-            ...route,
+            ...item,
             dataRoute: `${newKey}.rsc`,
           }
         }
@@ -1381,6 +1384,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/index.rsc",
            "experimentalBypassFor": [
              {
@@ -1394,6 +1398,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/",
          },
          "/_not-found": {
@@ -1405,6 +1411,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/_not-found.rsc",
            "experimentalBypassFor": [
              {
@@ -1419,6 +1426,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "initialStatus": 404,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/_not-found",
          },
          "/api/large-data": {
@@ -1430,6 +1439,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": null,
            "experimentalBypassFor": [
              {
@@ -1447,6 +1457,8 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
            },
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "route",
            "srcRoute": "/api/large-data",
          },
          "/articles/works": {
@@ -1458,6 +1470,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/articles/works.rsc",
            "experimentalBypassFor": [
              {
@@ -1472,6 +1485,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 1,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/articles/[slug]",
          },
          "/blog/seb": {
@@ -1483,6 +1498,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/seb.rsc",
            "experimentalBypassFor": [
              {
@@ -1497,6 +1513,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]",
          },
          "/blog/seb/second-post": {
@@ -1508,6 +1526,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/seb/second-post.rsc",
            "experimentalBypassFor": [
              {
@@ -1521,6 +1540,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/styfle": {
@@ -1532,6 +1553,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/styfle.rsc",
            "experimentalBypassFor": [
              {
@@ -1546,6 +1568,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]",
          },
          "/blog/styfle/first-post": {
@@ -1557,6 +1581,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/styfle/first-post.rsc",
            "experimentalBypassFor": [
              {
@@ -1570,6 +1595,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/styfle/second-post": {
@@ -1581,6 +1608,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/styfle/second-post.rsc",
            "experimentalBypassFor": [
              {
@@ -1594,6 +1622,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/tim": {
@@ -1605,6 +1635,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/tim.rsc",
            "experimentalBypassFor": [
              {
@@ -1619,6 +1650,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]",
          },
          "/blog/tim/first-post": {
@@ -1630,6 +1663,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/blog/tim/first-post.rsc",
            "experimentalBypassFor": [
              {
@@ -1643,6 +1677,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/default-config-fetch": {
@@ -1654,6 +1690,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/default-config-fetch.rsc",
            "experimentalBypassFor": [
              {
@@ -1667,6 +1704,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/default-config-fetch",
          },
          "/force-cache": {
@@ -1678,6 +1717,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/force-cache.rsc",
            "experimentalBypassFor": [
              {
@@ -1692,6 +1732,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/force-cache",
          },
          "/force-static-fetch-no-store": {
@@ -1703,6 +1745,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/force-static-fetch-no-store.rsc",
            "experimentalBypassFor": [
              {
@@ -1716,6 +1759,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/force-static-fetch-no-store",
          },
          "/force-static/first": {
@@ -1727,6 +1772,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/force-static/first.rsc",
            "experimentalBypassFor": [
              {
@@ -1740,6 +1786,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/force-static/[slug]",
          },
          "/force-static/second": {
@@ -1751,6 +1799,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/force-static/second.rsc",
            "experimentalBypassFor": [
              {
@@ -1764,6 +1813,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/force-static/[slug]",
          },
          "/gen-params-catch-all-unique/foo/bar": {
@@ -1775,6 +1826,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/gen-params-catch-all-unique/foo/bar.rsc",
            "experimentalBypassFor": [
              {
@@ -1788,6 +1840,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/gen-params-catch-all-unique/[...slug]",
          },
          "/gen-params-catch-all-unique/foo/foo": {
@@ -1799,6 +1853,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/gen-params-catch-all-unique/foo/foo.rsc",
            "experimentalBypassFor": [
              {
@@ -1812,6 +1867,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/gen-params-catch-all-unique/[...slug]",
          },
          "/gen-params-dynamic-revalidate/one": {
@@ -1823,6 +1880,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
            "experimentalBypassFor": [
              {
@@ -1837,6 +1895,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
          },
          "/hooks/use-pathname/slug": {
@@ -1848,6 +1908,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/hooks/use-pathname/slug.rsc",
            "experimentalBypassFor": [
              {
@@ -1861,6 +1922,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/hooks/use-pathname/[slug]",
          },
          "/hooks/use-search-params/force-static": {
@@ -1872,6 +1935,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/hooks/use-search-params/force-static.rsc",
            "experimentalBypassFor": [
              {
@@ -1885,6 +1949,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/hooks/use-search-params/force-static",
          },
          "/hooks/use-search-params/with-suspense": {
@@ -1896,6 +1962,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
            "experimentalBypassFor": [
              {
@@ -1909,6 +1976,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/hooks/use-search-params/with-suspense",
          },
          "/isr-error-handling": {
@@ -1920,6 +1989,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/isr-error-handling.rsc",
            "experimentalBypassFor": [
              {
@@ -1934,6 +2004,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/isr-error-handling",
          },
          "/no-config-fetch": {
@@ -1945,6 +2017,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/no-config-fetch.rsc",
            "experimentalBypassFor": [
              {
@@ -1958,6 +2031,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/no-config-fetch",
          },
          "/no-store/static": {
@@ -1969,6 +2044,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/no-store/static.rsc",
            "experimentalBypassFor": [
              {
@@ -1982,6 +2058,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/no-store/static",
          },
          "/partial-gen-params-no-additional-lang/en/RAND": {
@@ -1993,6 +2071,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
            "experimentalBypassFor": [
              {
@@ -2006,6 +2085,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/en/first": {
@@ -2017,6 +2098,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
            "experimentalBypassFor": [
              {
@@ -2030,6 +2112,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/en/second": {
@@ -2041,6 +2125,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
            "experimentalBypassFor": [
              {
@@ -2054,6 +2139,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/RAND": {
@@ -2065,6 +2152,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
@@ -2078,6 +2166,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/first": {
@@ -2089,6 +2179,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
            "experimentalBypassFor": [
              {
@@ -2102,6 +2193,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/second": {
@@ -2113,6 +2206,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
            "experimentalBypassFor": [
              {
@@ -2126,6 +2220,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/RAND": {
@@ -2137,6 +2233,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
            "experimentalBypassFor": [
              {
@@ -2150,6 +2247,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/first": {
@@ -2161,6 +2260,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
            "experimentalBypassFor": [
              {
@@ -2174,6 +2274,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/second": {
@@ -2185,6 +2287,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
            "experimentalBypassFor": [
              {
@@ -2198,6 +2301,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/RAND": {
@@ -2209,6 +2314,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
@@ -2222,6 +2328,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/first": {
@@ -2233,6 +2341,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
            "experimentalBypassFor": [
              {
@@ -2246,6 +2355,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/second": {
@@ -2257,6 +2368,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
            "experimentalBypassFor": [
              {
@@ -2270,6 +2382,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-params-false/en/static": {
@@ -2281,6 +2395,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-params-false/en/static.rsc",
            "experimentalBypassFor": [
              {
@@ -2294,6 +2409,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/partial-params-false/fr/static": {
@@ -2305,6 +2422,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/partial-params-false/fr/static.rsc",
            "experimentalBypassFor": [
              {
@@ -2318,6 +2436,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/prerendered-not-found/first": {
@@ -2329,6 +2449,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/prerendered-not-found/first.rsc",
            "experimentalBypassFor": [
              {
@@ -2342,6 +2463,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/prerendered-not-found/[slug]",
          },
          "/prerendered-not-found/second": {
@@ -2353,6 +2476,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/prerendered-not-found/second.rsc",
            "experimentalBypassFor": [
              {
@@ -2366,6 +2490,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/prerendered-not-found/[slug]",
          },
          "/prerendered-not-found/segment-revalidate": {
@@ -2377,6 +2503,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/prerendered-not-found/segment-revalidate.rsc",
            "experimentalBypassFor": [
              {
@@ -2391,6 +2518,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/prerendered-not-found/segment-revalidate",
          },
          "/route-handler/no-store-force-static": {
@@ -2402,6 +2531,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": null,
            "experimentalBypassFor": [
              {
@@ -2420,6 +2550,8 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
            },
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "route",
            "srcRoute": "/route-handler/no-store-force-static",
          },
          "/route-handler/revalidate-360-isr": {
@@ -2431,6 +2563,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": null,
            "experimentalBypassFor": [
              {
@@ -2449,6 +2582,8 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
            },
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "route",
            "srcRoute": "/route-handler/revalidate-360-isr",
          },
          "/route-handler/static-cookies": {
@@ -2460,6 +2595,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": null,
            "experimentalBypassFor": [
              {
@@ -2477,6 +2613,8 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
            },
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "route",
            "srcRoute": "/route-handler/static-cookies",
          },
          "/ssg-draft-mode": {
@@ -2488,6 +2626,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/ssg-draft-mode.rsc",
            "experimentalBypassFor": [
              {
@@ -2501,6 +2640,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/ssg-draft-mode/test": {
@@ -2512,6 +2653,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/ssg-draft-mode/test.rsc",
            "experimentalBypassFor": [
              {
@@ -2525,6 +2667,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/ssg-draft-mode/test-2": {
@@ -2536,6 +2680,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/ssg-draft-mode/test-2.rsc",
            "experimentalBypassFor": [
              {
@@ -2549,6 +2694,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/strip-w3c-trace-context-headers": {
@@ -2560,6 +2707,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/strip-w3c-trace-context-headers.rsc",
            "experimentalBypassFor": [
              {
@@ -2574,6 +2722,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 50,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/strip-w3c-trace-context-headers",
          },
          "/unstable-cache/fetch/no-cache": {
@@ -2585,6 +2735,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
            "experimentalBypassFor": [
              {
@@ -2598,6 +2749,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/unstable-cache/fetch/no-cache",
          },
          "/unstable-cache/fetch/no-store": {
@@ -2609,6 +2762,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
            "experimentalBypassFor": [
              {
@@ -2622,6 +2776,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/unstable-cache/fetch/no-store",
          },
          "/update-tag-test": {
@@ -2633,6 +2789,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/update-tag-test.rsc",
            "experimentalBypassFor": [
              {
@@ -2646,6 +2803,8 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/update-tag-test",
          },
          "/variable-config-revalidate/revalidate-3": {
@@ -2657,6 +2816,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
@@ -2671,6 +2831,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-config-revalidate/revalidate-3",
          },
          "/variable-revalidate-stable/revalidate-3": {
@@ -2682,6 +2844,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
@@ -2696,6 +2859,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate-stable/revalidate-3",
          },
          "/variable-revalidate/authorization": {
@@ -2707,6 +2872,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/authorization.rsc",
            "experimentalBypassFor": [
              {
@@ -2721,6 +2887,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/authorization",
          },
          "/variable-revalidate/cookie": {
@@ -2732,6 +2900,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/cookie.rsc",
            "experimentalBypassFor": [
              {
@@ -2746,6 +2915,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/cookie",
          },
          "/variable-revalidate/encoding": {
@@ -2757,6 +2928,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/encoding.rsc",
            "experimentalBypassFor": [
              {
@@ -2771,6 +2943,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/encoding",
          },
          "/variable-revalidate/headers-instance": {
@@ -2782,6 +2956,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/headers-instance.rsc",
            "experimentalBypassFor": [
              {
@@ -2796,6 +2971,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/headers-instance",
          },
          "/variable-revalidate/revalidate-3": {
@@ -2807,6 +2984,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
@@ -2821,6 +2999,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/revalidate-3",
          },
          "/variable-revalidate/revalidate-360-isr": {
@@ -2832,6 +3012,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "static",
            "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
            "experimentalBypassFor": [
              {
@@ -2846,6 +3027,8 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
+           "response": "complete",
+           "routeType": "page",
            "srcRoute": "/variable-revalidate/revalidate-360-isr",
          },
        }
@@ -2861,6 +3044,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/articles/[slug].rsc",
            "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -2875,9 +3059,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/blog/[author]": {
            "allowHeader": [
@@ -2902,6 +3089,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
@@ -2915,6 +3103,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/blog/[author]/[slug].rsc",
            "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -2929,9 +3118,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/dynamic-error/[id]": {
            "allowHeader": [
@@ -2942,6 +3134,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/dynamic-error/[id].rsc",
            "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -2956,9 +3149,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/force-static/[slug]": {
            "allowHeader": [
@@ -2969,6 +3165,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/force-static/[slug].rsc",
            "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -2983,9 +3180,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/gen-params-catch-all-unique/[...slug]": {
            "allowHeader": [
@@ -3010,6 +3210,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)(?:\\/)?$",
@@ -3023,6 +3224,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
            "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -3037,9 +3239,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/hooks/use-pathname/[slug]": {
            "allowHeader": [
@@ -3050,6 +3255,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/hooks/use-pathname/[slug].rsc",
            "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -3064,9 +3270,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
            "allowHeader": [
@@ -3091,6 +3300,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
@@ -3118,6 +3328,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
@@ -3145,6 +3356,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static(?:\\/)?$",
@@ -3158,6 +3370,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/prerendered-not-found/[slug].rsc",
            "dataRouteRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -3172,9 +3385,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
          "/ssg-draft-mode/[[...route]]": {
            "allowHeader": [
@@ -3185,6 +3401,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
            "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
            "experimentalBypassFor": [
@@ -3199,9 +3416,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
+           "routeType": "page",
          },
          "/static-to-dynamic-error-forced/[id]": {
            "allowHeader": [
@@ -3212,6 +3432,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
+           "compute": "blocking",
            "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
            "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
@@ -3226,9 +3447,12 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
+           "response": "empty",
            "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
+           "routeType": "page",
          },
        }
       `)
@@ -3330,9 +3554,6 @@ describe('app-dir static/dynamic handling', () => {
     // Prime the cache.
     let res = await next.fetch(path)
     expect(res.status).toBe(200)
-
-    // Consume the cache, the revalidations are completed on the end of the
-    // stream so we need to wait for that to complete.
     await res.text()
 
     for (let i = 0; i < 6; i++) {
@@ -3362,6 +3583,7 @@ describe('app-dir static/dynamic handling', () => {
           )
         }
       }
+      const finishedAt = Date.now()
 
       const startedResponding = +data.start
       if (Number.isNaN(startedResponding)) {
@@ -3375,12 +3597,17 @@ describe('app-dir static/dynamic handling', () => {
         )
       }
 
-      // We just want to ensure the response isn't blocked on revalidating the fetch.
-      // So we use the start time when route started processing not when we
-      // send off the response because that includes cold boots of the infra.
+      // The response must not be blocked on the 3s background revalidation:
+      // neither the first byte (TTFB) nor the terminating chunk (res.end).
+      // Using the route-start time excludes cold-boot/infra latency.
       if (startedStreaming - startedResponding >= 3000) {
         throw new Error(
-          `Response #${i} took too long to complete: ${startedStreaming - startedResponding}ms`
+          `Response #${i} first byte took too long: ${startedStreaming - startedResponding}ms`
+        )
+      }
+      if (finishedAt - startedResponding >= 3000) {
+        throw new Error(
+          `Response #${i} took too long to complete: ${finishedAt - startedResponding}ms`
         )
       }
     }
@@ -4047,6 +4274,53 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body5').text()).toBe(dataBody5)
       return 'success'
     }, 'success')
+  })
+
+  it('should not cache similar iterable request bodies', async () => {
+    const clearCacheResponse = await next.fetch(
+      '/variable-revalidate/post-method-iterable/revalidate',
+      { method: 'POST' }
+    )
+    expect(clearCacheResponse.status).toBe(200)
+
+    await retry(
+      async () => {
+        const res = await next.fetch(
+          '/variable-revalidate/post-method-iterable'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const dataEmptyBody1 = $('#data-empty-body1').text()
+        const dataEmptyBody2 = $('#data-empty-body2').text()
+        const dataEmptyBody3 = $('#data-empty-body3').text()
+        const dataIterableBody1 = $('#data-iterable-body1').text()
+        const dataIterableBody2 = $('#data-iterable-body2').text()
+
+        expect(dataEmptyBody1).not.toBe(dataEmptyBody2)
+        expect(dataEmptyBody1).not.toBe(dataEmptyBody3)
+        expect(dataEmptyBody2).not.toBe(dataEmptyBody3)
+
+        expect(dataIterableBody1).not.toBe(dataIterableBody2)
+
+        const res2 = await next.fetch(
+          '/variable-revalidate/post-method-iterable'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#data-empty-body1').text()).toBe(dataEmptyBody1)
+        expect($2('#data-empty-body2').text()).toBe(dataEmptyBody2)
+        expect($2('#data-empty-body3').text()).toBe(dataEmptyBody3)
+        expect($2('#data-iterable-body1').text()).toBe(dataIterableBody1)
+        expect($2('#data-iterable-body2').text()).toBe(dataIterableBody2)
+      },
+      // TODO: Unreliable on Vercel
+      isNextDeploy ? 3000 : 500,
+      500
+    )
   })
 
   it('should cache correctly with post method and revalidate edge', async () => {

@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const instant = true
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

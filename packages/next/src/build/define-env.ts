@@ -41,14 +41,19 @@ export interface DefineEnvOptions {
   }
 }
 
+const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
+
 interface DefineEnv {
   [key: string]:
     | string
+    | number
     | string[]
     | boolean
+    | { [DEFINE_ENV_EXPRESSION]: string }
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
@@ -64,7 +69,9 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
     Object.entries(defineEnv).map(([key, value]) => [
       key,
-      JSON.stringify(value),
+      typeof value === 'object' && DEFINE_ENV_EXPRESSION in value
+        ? value[DEFINE_ENV_EXPRESSION]
+        : JSON.stringify(value),
     ])
   )
   return defineEnvStringified
@@ -147,13 +154,14 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
-    // minimal mode is enforced when an adapter is configured
-    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
+    'process.env.__NEXT_DISABLE_DEV_OVERLAY_UX':
+      process.env.NEXT_PRIVATE_DISABLE_DEV_OVERLAY_UX === '1',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -163,27 +171,49 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME':
+      config.experimental.turbopackSharedRuntime !== false,
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
+      config.experimental.cachedNavigations
+    ),
+    'process.env.__NEXT_INSTANT_NAV_TOGGLE': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE': Boolean(
+      config.experimental.coldCacheBadge
+    ),
+    'process.env.__NEXT_REQUEST_INSIGHTS':
+      dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
-    ...(isClient
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.supportsImmutableAssets || false,
+
+    ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
-          // TODO use `globalThis.NEXT_DEPLOYMENT_ID` on client to still support accessing
-          // process.env.NEXT_DEPLOYMENT_ID in userland
-          'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-            ? false
-            : config.deploymentId || false,
+          'process.env.NEXT_DEPLOYMENT_ID': false,
         }
-      : config.experimental?.runtimeServerDeploymentId
-        ? {
-            // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
-          }
-        : {
-            'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-              ? false
-              : config.deploymentId || false,
-          }),
+      : isClient
+        ? isTurbopack
+          ? {
+              // This is set at runtime by packages/next/src/client/register-deployment-id-global.ts
+              'process.env.NEXT_DEPLOYMENT_ID': {
+                [DEFINE_ENV_EXPRESSION]: 'globalThis.NEXT_DEPLOYMENT_ID',
+              },
+            }
+          : {
+              // For Webpack, we currently don't use the non-inlining globalThis.NEXT_DEPLOYMENT_ID
+              // approach because we cannot forward this global variable to web workers easily.
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }
+        : config.experimental?.runtimeServerDeploymentId
+          ? {
+              // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
+            }
+          : {
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }),
 
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
@@ -216,8 +246,15 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
+      config.experimental.serverComponentsHmrCancellation
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
+    ),
+    'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_PREFETCH_INLINING': Boolean(
+      config.experimental.prefetchInlining
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
@@ -266,7 +303,7 @@ export function getDefineEnv({
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
-    'process.env.__NEXT_CONFIG_OUTPUT': config.output,
+    'process.env.__NEXT_CONFIG_OUTPUT': config.output || '',
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
@@ -322,7 +359,7 @@ export function getDefineEnv({
       : {}),
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
-      config.experimental.browserDebugInfoInTerminal || false
+      (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
@@ -345,6 +382,19 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_GESTURE_TRANSITION':
+      config.experimental.gestureTransition ?? false,
+    'process.env.__NEXT_OPTIMISTIC_ROUTING':
+      config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
+      config.experimental.instrumentationClientRouterTransitionEvents ?? false,
+    'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
+    'process.env.__NEXT_EXPOSE_TESTING_API':
+      isCacheComponentsEnabled &&
+      (dev || config.experimental.exposeTestingApiInProductionBuild === true),
+    'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
+    'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
+      config.experimental.clientParamParsingOrigins || [],
   }
 
   const userDefines = config.compiler?.define ?? {}

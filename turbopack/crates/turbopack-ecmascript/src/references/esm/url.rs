@@ -1,26 +1,21 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     environment::Rendering,
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
+        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
+        url_resolve,
     },
 };
 
@@ -37,21 +32,8 @@ use crate::{
 /// Determines how to treat `new URL(...)` rewrites.
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,
@@ -67,12 +49,14 @@ pub enum UrlRewriteBehavior {
 /// It's responsible rewriting the `URL` constructor's arguments to allow the
 /// referenced file to be imported/fetched/etc.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("new URL({request})")]
 pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     rendering: Rendering,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
@@ -82,7 +66,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: Rendering,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Self {
         UrlAssetReference {
@@ -90,12 +74,14 @@ impl UrlAssetReference {
             request,
             rendering,
             issue_source,
-            in_try,
+            error_mode,
             url_rewrite_behavior,
         }
     }
 
-    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+    pub(crate) fn get_referenced_asset(
+        self: Vc<Self>,
+    ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
@@ -109,29 +95,19 @@ impl ModuleReference for UrlAssetReference {
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for UrlAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("new URL({})", self.request.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
@@ -149,17 +125,7 @@ impl IntoCodeGenReference for UrlAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
@@ -202,7 +168,7 @@ impl UrlAssetReferenceCodeGen {
                 // pseudo url object `__turbopack_relative_url__`
                 // which is injected by turbopack's runtime to resolve into the relative path
                 // omitting the base.
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
@@ -250,7 +216,9 @@ impl UrlAssetReferenceCodeGen {
                             request
                         )
                     }
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::Full => {
@@ -267,7 +235,7 @@ impl UrlAssetReferenceCodeGen {
                     Rendering::None | Rendering::Server => None,
                 };
 
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
@@ -367,7 +335,9 @@ impl UrlAssetReferenceCodeGen {
                             request
                         )
                     }
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::None => {

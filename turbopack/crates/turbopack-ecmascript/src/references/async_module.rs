@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
@@ -8,11 +7,11 @@ use swc_core::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -26,19 +25,7 @@ use crate::{
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(
-    PartialEq,
-    Eq,
-    Default,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -79,15 +66,15 @@ impl OptionAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
-        if let Some(async_module) = &*self.await? {
-            return Ok(async_module.module_options(async_module_info));
+    ) -> Vc<OptionAsyncModuleOptions> {
+        if let Some(async_module) = &self.0 {
+            return async_module.module_options(async_module_info);
         }
 
-        Ok(OptionAsyncModuleOptions::none())
+        OptionAsyncModuleOptions::none()
     }
 }
 
@@ -100,11 +87,9 @@ struct AsyncModuleIdents(
 
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,
-) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(r) else {
-        return Ok(None);
-    };
-    let Some(ty) = &*r.chunking_type().await? else {
+) -> Result<Option<ReferencedAsset>> {
+    let trait_ref = r.into_trait_ref().await?;
+    let Some(ty) = &trait_ref.chunking_type() else {
         return Ok(None);
     };
     if !matches!(
@@ -116,7 +101,7 @@ async fn get_inherit_async_referenced_asset(
     ) {
         return Ok(None);
     };
-    let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =
+    let referenced_asset: ReferencedAsset =
         ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
     Ok(Some(referenced_asset))
 }
@@ -139,7 +124,7 @@ impl AsyncModule {
                 let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
-                Ok(match &*referenced_asset {
+                Ok(match &referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset
@@ -166,7 +151,9 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
@@ -192,7 +179,7 @@ impl AsyncModule {
                             return Ok(false);
                         };
                         Ok(matches!(
-                            &*referenced_asset,
+                            &referenced_asset,
                             ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
                         ))
                     })

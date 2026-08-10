@@ -50,7 +50,7 @@ function isCacheableResponse(res) {
   return !res.headers['cache-control']?.includes('no-store')
 }
 
-async function createFakeCDN(destPort) {
+export async function createFakeCDN(destPort) {
   const fakeCDNCache = new Map()
 
   const proxy = httpProxy.createProxyServer()

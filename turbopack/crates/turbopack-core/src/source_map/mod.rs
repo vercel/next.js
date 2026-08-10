@@ -1,4 +1,9 @@
-use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
+use std::{
+    borrow::Cow,
+    io::Write,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::Result;
 use bincode::{
@@ -9,13 +14,11 @@ use bincode::{
 };
 use bytes_str::BytesStr;
 use either::Either;
-use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
@@ -28,6 +31,7 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
@@ -49,16 +53,8 @@ pub trait GenerateSourceMap {
     }
 }
 
-/// Implements the source map specification as either a decoded or sectioned sourcemap.
-///
-/// - A "decoded" map represents a source map as if it was came out of a JSON
-/// decode.
-/// - A "sectioned" source map is a tree of many [SourceMap]
-/// covering regions of an output file.
-///
-/// The distinction between the source map spec's [sourcemap::Index] and our
-/// [SourceMap::Sectioned] is whether the sections are represented with Vcs
-/// pointers.
+/// Implements the source map specification as a [decoded][`DecodedMap`] sourcemap. A "decoded" map
+/// represents a source map as if it was came out of a JSON decode.
 #[turbo_tasks::value(shared, cell = "new", eq = "manual")]
 #[derive(Debug)]
 pub struct SourceMap {
@@ -130,6 +126,8 @@ pub struct OriginalToken {
     pub original_line: u32,
     pub original_column: u32,
     pub name: Option<RcStr>,
+    /// Whether this token's source is in the sourcemap's `ignoreList`.
+    pub is_ignored: bool,
 }
 
 impl Token {
@@ -160,6 +158,7 @@ impl Token {
                 original_line: t.original_line,
                 original_column: t.original_column,
                 name: t.name.clone(),
+                is_ignored: t.is_ignored,
             }),
             Self::Synthetic(t) => Self::Synthetic(SyntheticToken {
                 generated_line: t.generated_line + line_offset,
@@ -188,6 +187,10 @@ impl From<swc_sourcemap::Token<'_>> for Token {
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
                 name: t.get_name().cloned().map(RcStr::from),
+                // Set to false initially; will be updated by
+                // lookup_token_and_source_internal which has access to the full
+                // source map's ignoreList.
+                is_ignored: false,
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -230,12 +233,10 @@ impl TryInto<swc_sourcemap::RawToken> for Token {
 }
 
 impl SourceMap {
-    /// Creates a new SourceMap::Decoded Vc out of a [RegularMap] instance.
     fn new_regular(map: RegularMap) -> Self {
         Self::new_decoded(DecodedMap::Regular(map))
     }
 
-    /// Creates a new SourceMap::Decoded Vc out of a [DecodedMap] instance.
     fn new_decoded(map: DecodedMap) -> Self {
         SourceMap {
             map: Arc::new(CrateMapWrapper(map)),
@@ -270,8 +271,8 @@ impl SourceMap {
     }
 }
 
-static EMPTY_SOURCE_MAP_ROPE: Lazy<Rope> =
-    Lazy::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
+static EMPTY_SOURCE_MAP_ROPE: LazyLock<Rope> =
+    LazyLock::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
 
 impl SourceMap {
     /// A source map that contains no actual source location information (no
@@ -384,7 +385,7 @@ impl SourceMap {
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = origin.parent().try_join(&source_request) {
-                    let path_str = path.value_to_string().await?;
+                    let path_str = path.to_string_ref().await?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
@@ -396,9 +397,9 @@ impl SourceMap {
                     };
                     (source.into(), source_content)
                 } else {
-                    let origin_str = origin.value_to_string().await?;
-                    static INVALID_REGEX: Lazy<Regex> =
-                        Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                    let origin_str = origin.to_string_ref().await?;
+                    static INVALID_REGEX: LazyLock<Regex> =
+                        LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")
@@ -431,7 +432,7 @@ impl SourceMap {
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
-            for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
+            for (source, source_content) in sources.into_iter().zip(source_contents) {
                 let (source, source_content) =
                     resolve_source(source, source_content, origin.clone()).await?;
                 new_sources.push(source);
@@ -547,22 +548,32 @@ impl SourceMap {
                 *guessed_original_file = Some(RcStr::from(source));
             }
 
-            if need_source_content
-                && content.is_none()
-                && let Some(map) = map.as_regular_source_map()
-            {
-                content = tok.and_then(|tok| {
-                    let src_id = tok.get_src_id();
+            // Check ignoreList and resolve source content using the regular
+            // (possibly flattened) source map. For Index maps,
+            // SourceMapIndex::flatten() correctly transfers ignoreList entries
+            // from each section into the flattened map.
+            if let Some(flat_map) = map.as_regular_source_map() {
+                if let Token::Original(ref mut orig) = token
+                    && let Some(source_name) = tok.and_then(|t| t.get_source().cloned())
+                    && let Some(idx) = flat_map.sources().position(|s| *s == *source_name)
+                {
+                    orig.is_ignored = flat_map.ignore_list().any(|id| *id == idx as u32);
+                }
 
-                    let name = map.get_source(src_id);
-                    let content = map.get_source_contents(src_id);
+                if need_source_content && content.is_none() {
+                    content = tok.and_then(|tok| {
+                        let src_id = tok.get_src_id();
 
-                    let (name, content) = name.zip(content)?;
-                    Some(sourcemap_content_source(
-                        name.clone().into(),
-                        content.clone().into(),
-                    ))
-                });
+                        let name = flat_map.get_source(src_id);
+                        let content = flat_map.get_source_contents(src_id);
+
+                        let (name, content) = name.zip(content)?;
+                        Some(sourcemap_content_source(
+                            name.clone().into(),
+                            content.clone().into(),
+                        ))
+                    });
+                }
             }
 
             token
@@ -679,24 +690,6 @@ impl Deref for CrateMapWrapper {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl Serialize for CrateMapWrapper {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let mut bytes = vec![];
-        self.0.to_writer(&mut bytes).map_err(Error::custom)?;
-        serializer.serialize_bytes(bytes.as_slice())
-    }
-}
-
-impl<'de> Deserialize<'de> for CrateMapWrapper {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let bytes = <&[u8]>::deserialize(deserializer)?;
-        let map = DecodedMap::from_reader(bytes).map_err(Error::custom)?;
-        Ok(CrateMapWrapper(map))
     }
 }
 

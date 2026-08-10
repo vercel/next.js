@@ -1,0 +1,527 @@
+/**
+ * Optimistic Routing Tests
+ *
+ * These tests verify that route prediction works correctly. The key behavior
+ * being tested is that after learning a route pattern from one URL, navigating
+ * to a different URL with the same pattern should show the loading state
+ * instantly - without waiting for a tree prefetch.
+ *
+ * The testing strategy uses the fact that loading boundaries are cached and
+ * can be reused across different param values. If route prediction works:
+ * 1. We predict the route structure without a tree prefetch
+ * 2. We know there's a loading boundary from the predicted structure
+ * 3. The loading boundary segment is already cached
+ * 4. The loading UI appears instantly with the new param value
+ *
+ * We use RouterAct and assert on the loading state inside the act scope,
+ * where network responses haven't reached the client yet.
+ */
+
+import { nextTestSetup, type Playwright } from 'e2e-utils'
+import { createRouterAct } from 'router-act'
+
+/**
+ * Reads the rendered route history from the page and returns an array of
+ * {url, params} objects representing every route state the app rendered.
+ */
+async function getRenderedRouteHistory(
+  browser: Playwright
+): Promise<Array<{ url: string; params: Record<string, unknown> }>> {
+  const el = await browser.elementById('rendered-route-history')
+  const attr = await el.getAttribute('data-history')
+  return JSON.parse(attr).map((h: string) => JSON.parse(h))
+}
+
+describe('optimistic-routing', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+  })
+
+  if (isNextDev) {
+    // Route prediction with static siblings requires production build
+    // because dev mode uses on-demand compilation (staticChildren is null)
+    test('skipped in dev mode', () => {})
+    return
+  }
+
+  it('basic dynamic route prediction: shows loading state instantly for unprefetched route', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Reveal and prefetch the first blog post link.
+    // This learns the /blog/[slug] route pattern and caches the loading boundary.
+    const revealPost1 = await browser.elementByCss(
+      'input[data-link-accordion="/blog/post-1"]'
+    )
+    await act(
+      async () => {
+        await revealPost1.click()
+      },
+      {
+        // Wait for prefetch to complete by matching loading boundary text in response
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Reveal the second link and navigate to it.
+    // This link has prefetch={false} to test route prediction - we want to
+    // confirm the loading state appears instantly WITHOUT any prefetch.
+    await act(async () => {
+      const revealPost2 = await browser.elementByCss(
+        'input[data-link-accordion="/blog/post-2"]'
+      )
+      await revealPost2.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkPost2 = await browser.elementByCss('a[href="/blog/post-2"]')
+    await act(async () => {
+      await linkPost2.click()
+
+      // Assert inside the act scope - at this point, network responses haven't
+      // reached the client yet. If the loading state is visible, it proves
+      // route prediction worked.
+      const loadingMessage = await browser.elementById('loading-message')
+      expect(await loadingMessage.text()).toBe('Loading post-2...')
+    })
+
+    // Step 3: After act completes, verify the full page eventually loads
+    const postTitle = await browser.elementById('post-title')
+    expect(await postTitle.text()).toBe('Blog Post: post-2')
+  })
+
+  it('nested dynamic routes: predicts through multiple dynamic segments', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Reveal and prefetch the first product link.
+    // This learns the /products/[category]/[id] route pattern.
+    const revealProduct1 = await browser.elementByCss(
+      'input[data-link-accordion="/products/electronics/phone-1"]'
+    )
+    await act(
+      async () => {
+        await revealProduct1.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Navigate to a different product with different category AND id.
+    // This link has prefetch={false} to test route prediction - we want to
+    // confirm the loading state appears instantly WITHOUT any prefetch.
+    await act(async () => {
+      const revealProduct2 = await browser.elementByCss(
+        'input[data-link-accordion="/products/clothing/shirt-1"]'
+      )
+      await revealProduct2.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkProduct2 = await browser.elementByCss(
+      'a[href="/products/clothing/shirt-1"]'
+    )
+    await act(async () => {
+      await linkProduct2.click()
+
+      // Both category and id should be predicted correctly
+      const loadingMessage = await browser.elementById('loading-message')
+      expect(await loadingMessage.text()).toBe('Loading clothing/shirt-1...')
+    })
+
+    // Verify final page content
+    const productTitle = await browser.elementById('product-title')
+    expect(await productTitle.text()).toBe('Product: clothing/shirt-1')
+  })
+
+  it('optional catch-all: predicts from index to path with segments', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /docs (index route, no slug segments)
+    const revealDocsIndex = await browser.elementByCss(
+      'input[data-link-accordion="/docs"]'
+    )
+    await act(
+      async () => {
+        await revealDocsIndex.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Navigate to /docs/intro (one segment)
+    const revealDocsIntro = await browser.elementByCss(
+      'input[data-link-accordion="/docs/intro"]'
+    )
+    await revealDocsIntro.click()
+
+    const linkDocsIntro = await browser.elementByCss('a[href="/docs/intro"]')
+    await act(async () => {
+      await linkDocsIntro.click()
+
+      const loadingMessage = await browser.elementById('loading-message')
+      expect(await loadingMessage.text()).toBe('Loading docs intro...')
+    })
+
+    const docsTitle = await browser.elementById('docs-title')
+    expect(await docsTitle.text()).toBe('Docs: intro')
+  })
+
+  it('optional catch-all: predicts between paths with different segment counts', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /docs/intro (one segment)
+    const revealDocsIntro = await browser.elementByCss(
+      'input[data-link-accordion="/docs/intro"]'
+    )
+    await act(
+      async () => {
+        await revealDocsIntro.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Navigate to /docs/guide/getting-started (two segments).
+    // This link has prefetch={false} to test route prediction - we want to
+    // confirm the loading state appears instantly WITHOUT any prefetch.
+    await act(async () => {
+      const revealDocsGuide = await browser.elementByCss(
+        'input[data-link-accordion="/docs/guide/getting-started"]'
+      )
+      await revealDocsGuide.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkDocsGuide = await browser.elementByCss(
+      'a[href="/docs/guide/getting-started"]'
+    )
+    await act(async () => {
+      await linkDocsGuide.click()
+
+      const loadingMessage = await browser.elementById('loading-message')
+      expect(await loadingMessage.text()).toBe(
+        'Loading docs guide/getting-started...'
+      )
+    })
+
+    const docsTitle = await browser.elementById('docs-title')
+    expect(await docsTitle.text()).toBe('Docs: guide/getting-started')
+  })
+
+  it('required catch-all: predicts between paths with different segment counts', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /files/documents/report.pdf (three segments)
+    const revealFiles1 = await browser.elementByCss(
+      'input[data-link-accordion="/files/documents/report.pdf"]'
+    )
+    await act(
+      async () => {
+        await revealFiles1.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Navigate to /files/a/b/c/d (four segments).
+    // This link has prefetch={false} to test route prediction - we want to
+    // confirm the loading state appears instantly WITHOUT any prefetch.
+    await act(async () => {
+      const revealFiles2 = await browser.elementByCss(
+        'input[data-link-accordion="/files/a/b/c/d"]'
+      )
+      await revealFiles2.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkFiles2 = await browser.elementByCss('a[href="/files/a/b/c/d"]')
+    await act(async () => {
+      await linkFiles2.click()
+
+      const loadingMessage = await browser.elementById('loading-message')
+      expect(await loadingMessage.text()).toBe('Loading file a/b/c/d...')
+    })
+
+    const filesTitle = await browser.elementById('files-title')
+    expect(await filesTitle.text()).toBe('File: a/b/c/d')
+  })
+
+  it('static sibling detection: does not incorrectly match static route to dynamic pattern', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /blog/post-1 to learn the /blog/[slug] pattern.
+    // This also learns that /blog/featured is a static sibling.
+    const revealPost1 = await browser.elementByCss(
+      'input[data-link-accordion="/blog/post-1"]'
+    )
+    await act(
+      async () => {
+        await revealPost1.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Navigate to /blog/featured (static sibling).
+    // This link has prefetch={false} - route prediction should NOT apply because
+    // /blog/featured is recognized as a static sibling of /blog/[slug].
+    await act(async () => {
+      const revealFeatured = await browser.elementByCss(
+        'input[data-link-accordion="/blog/featured"]'
+      )
+      await revealFeatured.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkFeatured = await browser.elementByCss('a[href="/blog/featured"]')
+    await act(async () => {
+      await linkFeatured.click()
+
+      // The loading message should NOT be visible because:
+      // 1. /blog/featured is recognized as a static sibling
+      // 2. Route prediction doesn't apply
+      // 3. We need to wait for server response
+      const loadingMessage = await browser
+        .elementById('loading-message')
+        .catch(() => null)
+      expect(loadingMessage).toBeNull()
+    })
+
+    // After navigation completes, we should see the featured page
+    const featuredTitle = await browser.elementById('featured-title')
+    expect(await featuredTitle.text()).toBe('Featured Blog Post')
+  })
+
+  it('rewrite detection: detects dynamic rewrite when URL does not match route structure', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Navigate to /rewritten/first.
+    // This URL is rewritten by proxy to /actual/first.
+    // Because the URL path part ("rewritten") doesn't match the route segment
+    // ("actual"), the route is marked as having a dynamic rewrite.
+    await act(async () => {
+      const revealFirst = await browser.elementByCss(
+        'input[data-link-accordion="/rewritten/first"]'
+      )
+      await revealFirst.click()
+      const linkFirst = await browser.elementByCss('a[href="/rewritten/first"]')
+      await linkFirst.click()
+    })
+
+    // Wait for navigation to complete
+    await browser.elementById('actual-page')
+
+    // Step 2: Navigate forward to /hub. We use a hub page rather than
+    // browser.back() so that the previously-revealed /rewritten/first
+    // accordion can't be re-mounted from BFCache and trigger an
+    // uncontrolled prefetch outside any `act` scope. See
+    // .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
+
+    // Step 3: From /hub, reveal /rewritten/second. This link has
+    // prefetch={false}. Even though /rewritten/first was visited in
+    // step 1, that response was marked as a dynamic rewrite, so the
+    // router must not reuse it as a prediction for /rewritten/second —
+    // meaning no prefetch should fire on reveal.
+    await act(async () => {
+      const revealSecond = await browser.elementByCss(
+        'input[data-link-accordion="/rewritten/second"]'
+      )
+      await revealSecond.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkSecond = await browser.elementByCss('a[href="/rewritten/second"]')
+    await act(async () => {
+      await linkSecond.click()
+    })
+
+    // Wait for navigation to complete
+    await browser.elementById('actual-page')
+
+    // Verify using rendered route history that no wrong params were rendered.
+    // If the router had reused step 1's response as a prediction, we'd see
+    // "first" briefly flash before "second".
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/rewritten/first', params: { slug: 'first' } },
+      { url: '/hub', params: {} },
+      // Should go directly to "second" with no intermediate wrong params
+      { url: '/rewritten/second', params: { slug: 'second' } },
+    ])
+  })
+
+  it('rewrite detection (search params): does not use cached pattern when search params cause different rewrite', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Navigate to /search-rewrite?v=alpha
+    // This is rewritten by proxy to /rewrite-target?content=alpha
+    // The page is fully static, displaying the content param.
+    await act(async () => {
+      const revealAlpha = await browser.elementByCss(
+        'input[data-link-accordion="/search-rewrite?v=alpha"]'
+      )
+      await revealAlpha.click()
+      const linkAlpha = await browser.elementByCss(
+        'a[href="/search-rewrite?v=alpha"]'
+      )
+      await linkAlpha.click()
+    })
+
+    // Wait for navigation and verify we see "alpha"
+    const contentAlpha = await browser.elementById('rewrite-content')
+    expect(await contentAlpha.getAttribute('data-content')).toBe('alpha')
+
+    // Step 2: Navigate forward to /hub instead of using browser.back() to
+    // avoid BFCache restoring previously-opened accordions and triggering
+    // uncontrolled prefetches. See .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
+
+    // Step 3: From /hub, reveal /search-rewrite?v=beta.
+    // This link has prefetch={false} - if the router had reused step 1's
+    // response as a prediction, we'd see "alpha" instead of "beta" because
+    // the static page would be served from cache.
+    await act(async () => {
+      const revealBeta = await browser.elementByCss(
+        'input[data-link-accordion="/search-rewrite?v=beta"]'
+      )
+      await revealBeta.click()
+    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+
+    const linkBeta = await browser.elementByCss(
+      'a[href="/search-rewrite?v=beta"]'
+    )
+    await act(async () => {
+      await linkBeta.click()
+    })
+
+    // Verify we see "beta", not "alpha".
+    // If this shows "alpha", the router incorrectly reused step 1's
+    // response as a prediction for /search-rewrite?v=beta.
+    const contentBeta = await browser.elementById('rewrite-content')
+    expect(await contentBeta.getAttribute('data-content')).toBe('beta')
+  })
+
+  it('static route with catch-all sibling: does not match sub-route against catch-all', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /dashboard/anything/here to learn the catch-all pattern
+    // at the "dashboard" trie level.
+    const revealCatchAll = await browser.elementByCss(
+      'input[data-link-accordion="/dashboard/anything/here"]'
+    )
+    await act(
+      async () => {
+        await revealCatchAll.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Prefetch /dashboard/settings to populate the static child
+    // "settings" in the trie at the "dashboard" level. At this point the
+    // trie knows about the settings page but not its children (like profile).
+    const revealSettings = await browser.elementByCss(
+      'input[data-link-accordion="/dashboard/settings"]'
+    )
+    await act(
+      async () => {
+        await revealSettings.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 3: Navigate to /dashboard/settings/profile (prefetch={false}).
+    // The static child "settings" matches at the dashboard level, but its
+    // subtree doesn't yet know about "profile". The matcher should treat the
+    // static match as authoritative and bail out to server resolution rather
+    // than falling through to the catch-all sibling.
+    await act(async () => {
+      const revealProfile = await browser.elementByCss(
+        'input[data-link-accordion="/dashboard/settings/profile"]'
+      )
+      await revealProfile.click()
+    }, 'no-requests')
+
+    const linkProfile = await browser.elementByCss(
+      'a[href="/dashboard/settings/profile"]'
+    )
+    await act(async () => {
+      await linkProfile.click()
+    })
+
+    // Verify the profile page renders correctly after server resolution.
+    const profileTitle = await browser.elementById('profile-title')
+    expect(await profileTitle.text()).toBe('Profile Settings')
+
+    // Verify the route history doesn't contain any catch-all param entries.
+    // If the matcher incorrectly fell through to the catch-all, we'd see
+    // an entry with catchall=["settings","profile"].
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/dashboard/settings/profile', params: {} },
+    ])
+  })
+})

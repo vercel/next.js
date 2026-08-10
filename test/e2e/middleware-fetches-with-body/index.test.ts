@@ -1,52 +1,46 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Middleware fetches with body', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/api/default.js': `
+        export default (req, res) => res.json({ body: req.body })
+      `,
+      'pages/api/size_limit_5kb.js': `
+        export const config = { api: { bodyParser: { sizeLimit: '5kb' } } }
+        export default (req, res) => res.json({ body: req.body })
+      `,
+      'pages/api/size_limit_5mb.js': `
+        export const config = { api: { bodyParser: { sizeLimit: '5mb' } } }
+        export default (req, res) => res.json({ body: req.body })
+      `,
+      'pages/api/body_parser_false.js': `
+        export const config = { api: { bodyParser: false } }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/default.js': `
-          export default (req, res) => res.json({ body: req.body })
-        `,
-        'pages/api/size_limit_5kb.js': `
-          export const config = { api: { bodyParser: { sizeLimit: '5kb' } } }
-          export default (req, res) => res.json({ body: req.body })
-        `,
-        'pages/api/size_limit_5mb.js': `
-          export const config = { api: { bodyParser: { sizeLimit: '5mb' } } }
-          export default (req, res) => res.json({ body: req.body })
-        `,
-        'pages/api/body_parser_false.js': `
-          export const config = { api: { bodyParser: false } }
-
-          async function buffer(readable) {
-            const chunks = []
-            for await (const chunk of readable) {
-              chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
-            }
-            return Buffer.concat(chunks)
+        async function buffer(readable) {
+          const chunks = []
+          for await (const chunk of readable) {
+            chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
           }
+          return Buffer.concat(chunks)
+        }
 
-          export default async (req, res) => {
-            const buf = await buffer(req)
-            const rawBody = buf.toString('utf8');
+        export default async (req, res) => {
+          const buf = await buffer(req)
+          const rawBody = buf.toString('utf8');
 
-            res.json({ rawBody, body: req.body })
-          }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server';
+          res.json({ rawBody, body: req.body })
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server';
 
-          export default async (req) => NextResponse.next();
-        `,
-      },
-      dependencies: {},
-    })
+        export default async (req) => NextResponse.next();
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   describe('with default bodyParser sizeLimit (1mb)', () => {
     it('should return 413 for body greater than 1mb', async () => {

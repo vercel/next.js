@@ -1,6 +1,6 @@
 /**
  * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
+ * Turbopack *browser* ECMAScript runtimes.
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
@@ -9,19 +9,26 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 
-// Used in WebWorkers to tell the runtime about the chunk base path
-declare var TURBOPACK_WORKER_LOCATION: string
 // Used in WebWorkers to tell the runtime about the chunk suffix
-declare var TURBOPACK_CHUNK_SUFFIX: string
-// Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
-// Note it's stored in reversed order to use push and pop
+declare var TURBOPACK_ASSET_SUFFIX: string
+// Used in WebWorkers to tell the runtime about the current chunk url since it
+// can't be detected via `document.currentScript`. Note it's stored in reversed
+// order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
+// Used in WebWorkers to override the regular chunk base path with the base
+// used for the worker entrypoint and its initial chunks.
+declare var TURBOPACK_CHUNK_BASE_PATH: string | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
-declare var CHUNK_SUFFIX: string
+declare var ASSET_SUFFIX: string
+declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
+declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
+declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
+declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
+declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -29,6 +36,11 @@ interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
 
 const browserContextPrototype =
   Context.prototype as TurbopackBrowserBaseContext<unknown>
+
+const RUNTIME_CHUNK_BASE_PATH =
+  typeof TURBOPACK_CHUNK_BASE_PATH === 'string'
+    ? TURBOPACK_CHUNK_BASE_PATH
+    : CHUNK_BASE_PATH
 
 // Provided by build or dev base
 declare function instantiateModule(
@@ -42,57 +54,36 @@ type RuntimeParams = {
   runtimeModuleIds: ModuleId[]
 }
 
+type ChunkRegistrationChunk =
+  | ChunkPath
+  | { getAttribute: (name: string) => string | null }
+  | undefined
+
 type ChunkRegistration = [
-  chunkPath: ChunkScript,
+  chunkPath: ChunkRegistrationChunk,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
-  script: ChunkListScript
+  script: ChunkRegistrationChunk
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
 }
 
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */
-  Parent = 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   * SourceData is an array of ModuleIds or undefined.
-   */
-  Update = 2,
-}
-
-type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
-  registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
+  /**
+   * Registers a chunk. `chunk` is `undefined` for an inlined entry-only registration
+   * (no source chunk): the params' other chunks are loaded and its runtime modules run
+   * with no self chunk identity.
+   */
+  registerChunk: (
+    chunk: ChunkPath | ChunkScript | undefined,
+    params?: RuntimeParams
+  ) => void
   /**
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
-  loadWebAssembly: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module,
-    importsObj: WebAssembly.Imports
-  ) => Promise<Exports>
-  loadWebAssemblyModule: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module
-  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -108,30 +99,29 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-function factoryNotAvailableMessage(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): string {
-  let instantiationReason
-  switch (sourceType) {
-    case SourceType.Runtime:
-      instantiationReason = `as a runtime entry of chunk ${sourceData}`
-      break
-    case SourceType.Parent:
-      instantiationReason = `because it was required from module ${sourceData}`
-      break
-    case SourceType.Update:
-      instantiationReason = 'because of an HMR update'
-      break
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
+// Registry mapping a merged chunk's path to its constituent component chunk paths.
+const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
+
+// Registry mapping a component chunk's path to its size in bytes, used by the
+// split-vs-whole cost heuristic.
+const componentChunkSizes: Map<ChunkPath, number> = new Map()
+
+function registerComponentChunkSizes(
+  componentChunks: ChunkPath[],
+  sizes: number[]
+): void {
+  for (let i = 0; i < componentChunks.length; i++) {
+    const size = sizes[i]
+    if (size !== undefined) {
+      componentChunkSizes.set(componentChunks[i], size)
+    }
   }
-  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
 }
+
+type ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]
+
+// Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
+const splitChunkPromises: Map<ChunkUrl, Promise<any>> = new Map()
 
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
@@ -141,7 +131,12 @@ function loadChunk(
 }
 browserContextPrototype.l = loadChunk
 
-function loadInitialChunk(chunkPath: ChunkPath, chunkData: ChunkData) {
+// `chunkPath` is the source chunk; it is `undefined` for entry-only registrations,
+// which have no self chunk.
+function loadInitialChunk(
+  chunkPath: ChunkPath | undefined,
+  chunkData: ChunkData
+) {
   return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData)
 }
 
@@ -165,50 +160,24 @@ async function loadChunkInternal(
     return
   }
 
-  const includedModuleChunksList = chunkData.moduleChunks || []
-  const moduleChunksPromises = includedModuleChunksList
-    .map((included) => {
-      // TODO(alexkirsz) Do we need this check?
-      // if (moduleFactories[included]) return true;
-      return availableModuleChunks.get(included)
-    })
-    .filter((p) => p)
-
   let promise: Promise<unknown>
-  if (moduleChunksPromises.length > 0) {
-    // Some module chunks are already loaded or loading.
-
-    if (moduleChunksPromises.length === includedModuleChunksList.length) {
-      // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      await Promise.all(moduleChunksPromises)
-      return
-    }
-
-    const moduleChunksToLoad: Set<ChunkPath> = new Set()
-    for (const moduleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(moduleChunk)) {
-        moduleChunksToLoad.add(moduleChunk)
-      }
-    }
-
-    for (const moduleChunkToLoad of moduleChunksToLoad) {
-      const promise = loadChunkPath(sourceType, sourceData, moduleChunkToLoad)
-
-      availableModuleChunks.set(moduleChunkToLoad, promise)
-
-      moduleChunksPromises.push(promise)
-    }
-
-    promise = Promise.all(moduleChunksPromises)
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    const componentChunks = chunkData.moduleChunks || []
+    // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
+    // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
+    // chunkComponents-registry lookup, which would just repeat the same split decision.
+    promise = loadComponentChunksOrWhole(
+      sourceType,
+      sourceData,
+      componentChunks,
+      getChunkRelativeUrl(chunkData.path)
+    )
   } else {
-    promise = loadChunkPath(sourceType, sourceData, chunkData.path)
-
-    // Mark all included module chunks as loading if they are not already loaded or loading.
-    for (const includedModuleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(includedModuleChunk)) {
-        availableModuleChunks.set(includedModuleChunk, promise)
-      }
-    }
+    promise = loadChunkByUrlWhole(
+      sourceType,
+      sourceData,
+      getChunkRelativeUrl(chunkData.path)
+    )
   }
 
   for (const included of includedList) {
@@ -222,6 +191,85 @@ async function loadChunkInternal(
   await promise
 }
 
+/**
+ * Approximate cost of an extra HTTP request, expressed in emitted (minified, uncompressed) chunk
+ * bytes, used to decide whether splitting a merged chunk into individually-cached component
+ * chunks is worthwhile.
+ */
+const REQUEST_COST_BYTES = 20_000
+
+/**
+ * Decides whether to load a merged chunk's component chunks individually instead of the whole
+ * merged chunk, weighing the bytes saved (the available components we avoid re-downloading)
+ * against the extra network requests splitting incurs.
+ *
+ * Splitting issues one request per unavailable component vs. a single request for the merged
+ * chunk, so it adds `unavailableCount - 1` extra requests. When at most one component needs the
+ * network, splitting never costs more requests than the merged load (and transfers fewer bytes),
+ * so it always wins. Otherwise it's only worth it when the available bytes exceed the extra
+ * request cost.
+ */
+function shouldLoadComponentChunks(
+  availableBytes: number,
+  unavailableCount: number
+): boolean {
+  if (unavailableCount <= 1) {
+    return true
+  }
+  return availableBytes > REQUEST_COST_BYTES * (unavailableCount - 1)
+}
+
+/**
+ * Loads a chunk's component chunks individually when enough of them are already available
+ * in memory (avoiding re-downloading the ones we have, per `shouldLoadComponentChunks`),
+ * otherwise loads the whole chunk from `chunkUrl` and records its component chunks as available.
+ */
+function loadComponentChunksOrWhole(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  componentChunks: ChunkPath[],
+  chunkUrl: ChunkUrl
+): Promise<unknown> {
+  const componentChunkPromises: Array<Promise<any> | true> = []
+  let availableBytes = 0
+  let unavailableCount = 0
+  for (const componentChunk of componentChunks) {
+    const available = availableModuleChunks.get(componentChunk)
+    if (available) {
+      componentChunkPromises.push(available)
+      availableBytes += componentChunkSizes.get(componentChunk) ?? 0
+    } else {
+      unavailableCount++
+    }
+  }
+
+  if (
+    componentChunkPromises.length > 0 &&
+    shouldLoadComponentChunks(availableBytes, unavailableCount)
+  ) {
+    // Enough component chunks are already loaded or loading that splitting saves more
+    // bytes than the extra requests cost.
+    for (const componentChunk of componentChunks) {
+      if (!availableModuleChunks.has(componentChunk)) {
+        const promise = loadChunkPath(sourceType, sourceData, componentChunk)
+        availableModuleChunks.set(componentChunk, promise)
+        componentChunkPromises.push(promise)
+      }
+    }
+    return Promise.all(componentChunkPromises)
+  }
+
+  // Not enough is available in memory for splitting to pay off. Load the
+  // whole chunk in a single request and record its component chunks as available.
+  const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
+  for (const componentChunk of componentChunks) {
+    if (!availableModuleChunks.has(componentChunk)) {
+      availableModuleChunks.set(componentChunk, promise)
+    }
+  }
+  return promise
+}
+
 const loadedChunk = Promise.resolve(undefined)
 const instrumentedBackendLoadChunks = new WeakMap<
   Promise<any>,
@@ -230,14 +278,102 @@ const instrumentedBackendLoadChunks = new WeakMap<
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
-  chunkUrl: ChunkUrl
+  chunkEntry: ChunkUrlOrMerged
 ) {
-  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl)
+  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
 
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkEntry: ChunkUrlOrMerged
+): Promise<any> {
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
+    // the components so a by-URL load of this merged chunk — now or from a later navigation — can
+    // be split, and so `registerChunk` can mark them available when the whole chunk loads.
+    let chunkUrl: ChunkUrl
+    let components: ChunkPath[] | undefined
+    if (typeof chunkEntry === 'string') {
+      chunkUrl = chunkEntry
+    } else {
+      let componentSizes: number[]
+      ;[chunkUrl, components, componentSizes] = chunkEntry
+      registerComponentChunkSizes(components, componentSizes)
+    }
+    const chunkPath = chunkUrlToPath(chunkUrl)
+    if (components !== undefined) {
+      chunkComponents.set(chunkPath, components)
+    } else {
+      // A plain URL may still be a merged chunk we already registered from its array.
+      components = chunkComponents.get(chunkPath)
+    }
+
+    // If we have component chunks for this merged chunk, load only the ones we don't already have
+    // instead of the whole merged chunk.
+    if (components !== undefined) {
+      let promise = splitChunkPromises.get(chunkUrl)
+      if (promise === undefined) {
+        promise = loadComponentChunksOrWhole(
+          sourceType,
+          sourceData,
+          components,
+          chunkUrl
+        )
+        splitChunkPromises.set(chunkUrl, promise)
+      }
+      return promise
+    }
+
+    // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a
+    // component of a merged chunk fetched on a previous navigation — reuse that load instead of
+    // re-downloading.
+    const existing = availableModuleChunks.get(chunkPath)
+    if (existing !== undefined) {
+      return existing === true ? loadedChunk : existing
+    }
+    const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
+    availableModuleChunks.set(chunkPath, promise)
+    return promise
+  }
+
+  // Component chunks are disabled, so the chunking context never emits merged arrays and every
+  // entry is a plain chunk URL. Load it whole; the backend dedupes repeated URLs.
+  return loadChunkByUrlWhole(sourceType, sourceData, chunkEntry as ChunkUrl)
+}
+
+// Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
+// match the keys stored in `chunkComponents`.
+function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
+  const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
+  return (
+    src.startsWith(RUNTIME_CHUNK_BASE_PATH)
+      ? src.slice(RUNTIME_CHUNK_BASE_PATH.length)
+      : src
+  ) as ChunkPath
+}
+
+/**
+ * When a merged chunk finishes registering (e.g. an initial-load `<script>`), mark its
+ * component chunks as available so a later by-URL load of a *different* merged chunk that
+ * shares a component skips re-downloading it. Called from `registerChunk`.
+ */
+
+function markChunkComponentsAvailable(chunk: ChunkPath | ChunkScript) {
+  if (chunkComponents.size === 0) return
+  const components = chunkComponents.get(getPathFromScript(chunk))
+  if (components === undefined) return
+  for (const componentChunk of components) {
+    if (!availableModuleChunks.has(componentChunk)) {
+      availableModuleChunks.set(componentChunk, true)
+    }
+  }
+}
+
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlWhole(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkUrl: ChunkUrl
@@ -315,20 +451,30 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
- * Returns a blob URL for the worker.
- * @param chunks list of chunks to load
+ * Returns a placeholder `file://` URL for the given module path. The browser
+ * runtime intentionally does not expose the real filesystem path. Path
+ * segments are percent-encoded so the result is always a valid file URI.
  */
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  // It is important to reverse the array so when bootstrapping we can infer what chunk is being
-  // evaluated by poping urls off of this array.  See `getPathFromScript`
-  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
-  let blob = new Blob([bootstrap], { type: 'text/javascript' })
-  return URL.createObjectURL(blob)
+function resolveFileUrl(modulePath?: string): string {
+  if (!modulePath) return 'file:///ROOT/'
+  return `file:///ROOT/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
 }
-browserContextPrototype.b = getWorkerBlobURL
+browserContextPrototype.F = resolveFileUrl
+
+/**
+ * Exports a URL with the static suffix appended.
+ */
+function exportUrl(
+  this: TurbopackBrowserBaseContext<Module>,
+  url: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, `${url}${ASSET_SUFFIX}`, id)
+}
+browserContextPrototype.q = exportUrl
 
 /**
  * Instantiates a runtime module.
@@ -340,14 +486,33 @@ function instantiateRuntimeModule(
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */
+const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/
+
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
-function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
-  return `${CHUNK_BASE_PATH}${chunkPath
-    .split('/')
-    .map((p) => encodeURIComponent(p))
-    .join('/')}${CHUNK_SUFFIX}` as ChunkUrl
+function getChunkRelativeUrl(
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath: string = RUNTIME_CHUNK_BASE_PATH
+): ChunkUrl {
+  // Most chunk paths need no escaping.
+  const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
+    ? chunkPath.split('/').map(encodeURIComponent).join('/')
+    : chunkPath
+  return `${basePath}${encodedPath}${ASSET_SUFFIX}` as ChunkUrl
 }
+
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = RUNTIME_CHUNK_BASE_PATH as ChunkBasePath
+browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
+
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl
 
 /**
  * Return the ChunkPath from a ChunkScript.
@@ -362,59 +527,70 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl =
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
-      : chunkScript.getAttribute('src')!
+  const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(CHUNK_BASE_PATH)
-    ? src.slice(CHUNK_BASE_PATH.length)
+  const path = src.startsWith(RUNTIME_CHUNK_BASE_PATH)
+    ? src.slice(RUNTIME_CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
 }
 
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ * Return the ChunkUrl from a ChunkScript.
  */
+function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
+  if (typeof chunk === 'string') {
+    return getChunkRelativeUrl(chunk)
+  } else {
+    // This is already exactly what we want
+    return chunk.src! as ChunkUrl
+  }
+}
+
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */
+function getChunkFromRegistration(
+  chunk: ChunkRegistrationChunk
+): ChunkPath | CurrentScript {
+  if (typeof chunk === 'string') {
+    return chunk
+  } else if (!chunk) {
+    if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+      return { src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as CurrentScript
+    } else {
+      throw new Error('chunk path empty but not in a worker')
+    }
+  } else {
+    return { src: chunk.getAttribute('src')! } as CurrentScript
+  }
+}
+
+/**
+ * Checks if a given path/URL ends with the given extension,
+ * optionally followed by ?query or #fragment.
+ */
+function endsWithExtension(
+  chunkUrlOrPath: ChunkUrl | ChunkPath,
+  ext: string
+): boolean {
+  // Find where the path ends (before query or fragment)
+  const q = chunkUrlOrPath.indexOf('?')
+  let end: number
+  if (q !== -1) {
+    end = q
+  } else {
+    const h = chunkUrlOrPath.indexOf('#')
+    end = h !== -1 ? h : chunkUrlOrPath.length
+  }
+  // Check if the path portion ends with the extension
+  return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length)
+}
+
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
-  return regexJsUrl.test(chunkUrlOrPath)
+  return endsWithExtension(chunkUrlOrPath, '.js')
 }
 
-const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
-/**
- * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */
 function isCss(chunkUrl: ChunkUrl): boolean {
-  return regexCssUrl.test(chunkUrl)
+  return endsWithExtension(chunkUrl, '.css')
 }
-
-function loadWebAssembly(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  return BACKEND.loadWebAssembly(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule,
-    importsObj
-  )
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  return BACKEND.loadWebAssemblyModule(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule
-  )
-}
-contextPrototype.u = loadWebAssemblyModule

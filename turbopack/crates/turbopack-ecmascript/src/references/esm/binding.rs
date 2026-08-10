@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
     visit::fields::{CalleeField, PropField},
@@ -22,19 +21,7 @@ use crate::{
     },
 };
 
-#[derive(
-    Hash,
-    Clone,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
@@ -75,6 +62,14 @@ impl EsmBinding {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.reference))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         let mut visitors = vec![];
 
         let export = self.export.clone();
@@ -86,7 +81,7 @@ impl EsmBinding {
             Unresolvable,
         }
 
-        let imported_ident = match &*imported_module {
+        let imported_ident = match &imported_module {
             ReferencedAsset::None => ImportedIdent::None,
             imported_module => imported_module
                 .get_ident(chunking_context, export, scope_hoisting_context)
