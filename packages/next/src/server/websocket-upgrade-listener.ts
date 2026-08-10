@@ -24,7 +24,7 @@ function isOwnedUpgradeListener(
 }
 
 export function classifyWebSocketUpgradeOwnership(
-  listeners: unknown[] | undefined,
+  listeners: readonly unknown[] | undefined,
   ownListener: object,
   additionalOwnListeners: readonly object[] = []
 ): WebSocketUpgradeOwnership {
