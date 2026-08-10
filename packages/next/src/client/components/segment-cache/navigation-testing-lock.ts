@@ -26,11 +26,7 @@ import {
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 import { subtreeHasSpeculativePrefetch } from './scheduler'
-import {
-  waitForSegmentCacheEntry,
-  type PendingSegmentCacheEntry,
-  type SegmentCacheEntry,
-} from './cache'
+import type { SegmentCacheEntry } from './cache'
 import { createCacheMap, type CacheMap } from './cache-map'
 import type { FetchStrategy } from './types'
 
@@ -101,22 +97,18 @@ function writeCookieValue(value: InstantCookie): void {
 
 /**
  * The "wait for the locked navigation's prefetch to fulfill" state for a single
- * locked navigation. `promise` resolves once that prefetch has spawned every
- * request and all of them have fulfilled, so the navigation reads present data
- * rather than a still-in-flight entry. Owned by the prefetch task (one per
- * navigation, so successive navigations in a scope resolve independently) and
- * also tracked in `NavigationLockState.activePrefetches` so the lock can
- * force-resolve any that are still pending when it's released.
- *
- * `pendingCount` holds one reference for the scheduler while it is still
- * spawning, plus one per in-flight entry; `promise` resolves when it drains to
- * 0. `trackedEntries` dedupes entry registration.
+ * locked navigation. `promise` resolves when the driving prefetch task
+ * completes — which the scheduler only allows after a full pass has observed
+ * every segment response it cares about (see `blockTaskOnPendingResponse` in
+ * scheduler.ts) — so the navigation reads present data rather than a
+ * still-in-flight entry. Owned by the prefetch task (one per navigation, so
+ * successive navigations in a scope resolve independently) and also tracked
+ * in `NavigationLockState.activePrefetches` so the lock can force-resolve any
+ * that are still pending when it's released.
  */
 export type NavigationLockPrefetch = {
   promise: Promise<void>
   resolve: () => void
-  pendingCount: number
-  trackedEntries: Set<PendingSegmentCacheEntry>
 }
 
 export type NavigationLockState = {
@@ -132,9 +124,9 @@ export type NavigationLockState = {
   // during a lock scope.
   fetch: typeof fetch
   // Every prefetch-completion state for this scope that hasn't resolved yet.
-  // A prefetch removes itself when it drains; on release, any still here are
-  // force-resolved so no navigation hangs waiting on a prefetch that the scope
-  // ended before it could finish.
+  // A prefetch removes itself when its driving task completes; on release, any
+  // still here are force-resolved so no navigation hangs waiting on a prefetch
+  // that the scope ended before it could finish.
   activePrefetches: Set<NavigationLockPrefetch>
   // The scope's private segment cache. Prefetch tasks scheduled while the
   // lock is held are bound to this map instead of the shared one, and a
@@ -171,12 +163,8 @@ export function getPreLockFetch(): typeof fetch | null {
  * Creates the "wait for prefetch to fulfill" state for one locked navigation,
  * registers it on the current lock, and returns it (the caller stores it on the
  * prefetch task and awaits `.promise`). Returns null if no lock is held.
- *
- * `pendingCount` starts at 1, representing the scheduler itself while it is
- * still spawning requests; that reference is released by
- * `finishNavigationLockPrefetchSpawning`. Each spawned pending entry adds
- * another (see `trackNavigationLockPrefetchEntry`). `promise` resolves when the
- * count drains to 0 — i.e. spawning finished and every entry fulfilled.
+ * Resolved by the scheduler via `resolveNavigationLockPrefetch` when the
+ * driving prefetch task completes.
  */
 export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
   if (lockState !== null) {
@@ -187,8 +175,6 @@ export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
     const prefetch: NavigationLockPrefetch = {
       promise,
       resolve: resolve!,
-      pendingCount: 1,
-      trackedEntries: new Set(),
     }
     lockState.activePrefetches.add(prefetch)
     return prefetch
@@ -205,53 +191,20 @@ export function getNavigationLockSegmentCacheMap(): CacheMap<SegmentCacheEntry> 
 }
 
 /**
- * Called by `upgradeToPendingSegment` whenever the locked-navigation prefetch
- * spawns a pending segment entry. Adds the entry to the prefetch's ref count and
- * decrements when it fulfills (or rejects — `waitForSegmentCacheEntry` resolves
- * to null). Deduped so the same entry never double-counts.
+ * Called by the scheduler when the locked-navigation prefetch task completes.
+ * A task only completes after a full pass observed every segment response it
+ * cares about, so the data the navigation will read has settled by this
+ * point. Unregisters from the lock (if still held) and resolves. Resolving is
+ * idempotent, so it's safe even if the lock already force-resolved this on
+ * release.
  */
-export function trackNavigationLockPrefetchEntry(
-  prefetch: NavigationLockPrefetch,
-  entry: PendingSegmentCacheEntry
-): void {
-  if (prefetch.trackedEntries.has(entry)) {
-    return
-  }
-  prefetch.trackedEntries.add(entry)
-  prefetch.pendingCount++
-  const onSettled = () => {
-    prefetch.pendingCount--
-    settleNavigationLockPrefetchIfDrained(prefetch)
-  }
-  // Decrement whether the entry fulfills or its request rejects, so a failed
-  // segment can't leave the navigation waiting forever.
-  waitForSegmentCacheEntry(entry).then(onSettled, onSettled)
-}
-
-/**
- * Called once the scheduler has finished spawning every request for the
- * locked-navigation prefetch, releasing the scheduler's reference from the ref
- * count. The prefetch resolves here if every spawned entry already fulfilled.
- */
-export function finishNavigationLockPrefetchSpawning(
+export function resolveNavigationLockPrefetch(
   prefetch: NavigationLockPrefetch
 ): void {
-  prefetch.pendingCount--
-  settleNavigationLockPrefetchIfDrained(prefetch)
-}
-
-function settleNavigationLockPrefetchIfDrained(
-  prefetch: NavigationLockPrefetch
-): void {
-  if (prefetch.pendingCount === 0) {
-    // Unregister from the lock (if still held) and resolve. Resolving is
-    // idempotent, so it's safe even if the lock already force-resolved this on
-    // release.
-    if (lockState !== null) {
-      lockState.activePrefetches.delete(prefetch)
-    }
-    prefetch.resolve()
+  if (lockState !== null) {
+    lockState.activePrefetches.delete(prefetch)
   }
+  prefetch.resolve()
 }
 
 function acquireLock(): void {

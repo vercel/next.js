@@ -892,9 +892,9 @@ async function ensurePrefetchThenNavigate(
 
   // Create this navigation's "wait for prefetch to fulfill" state and schedule
   // the prefetch as a locked-navigation prefetch. The prefetch's promise
-  // resolves once it has spawned every request and all of them have fulfilled,
-  // so the navigation below reads present data rather than a still-in-flight
-  // entry.
+  // resolves when the task completes — after every segment response the task
+  // cares about has settled — so the navigation below reads present data
+  // rather than a still-in-flight entry.
   const { beginNavigationLockPrefetch } =
     require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
   const navigationLockPrefetch = beginNavigationLockPrefetch()

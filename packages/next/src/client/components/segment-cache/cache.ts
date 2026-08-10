@@ -37,7 +37,6 @@ import {
   type PrefetchTask,
   type PrefetchSubtaskResult,
 } from './scheduler'
-import type { NavigationLockPrefetch } from './navigation-testing-lock'
 import {
   type RouteVaryPath,
   type SegmentVaryPath,
@@ -904,53 +903,7 @@ export function readOrCreateSegmentCacheEntry(
   // captured when the task was scheduled).
   map: CacheMap<SegmentCacheEntry>,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>,
-  // Non-null when this read is part of a locked navigation's prefetch (Instant
-  // Navigation Testing API only; always null in production). See below.
-  navigationLockPrefetch: NavigationLockPrefetch | null
-): SegmentCacheEntry {
-  if (
-    process.env.__NEXT_EXPOSE_TESTING_API &&
-    navigationLockPrefetch !== null
-  ) {
-    return readOrCreateSegmentCacheEntryDuringLockedNavigation(
-      now,
-      map,
-      fetchStrategy,
-      tree,
-      navigationLockPrefetch
-    )
-  }
-  const existingEntry = getFromCacheMap(
-    now,
-    getCurrentSegmentCacheVersion(),
-    map,
-    tree.varyPath,
-    false,
-    false
-  )
-  if (existingEntry !== null) {
-    return existingEntry
-  }
-  return insertEmptySegmentCacheEntry(now, map, fetchStrategy, tree)
-}
-
-/**
- * Testing-only fork of `readOrCreateSegmentCacheEntry` for prefetches that
- * drive a locked navigation. The only difference is track-on-reuse: a Pending
- * entry the navigation didn't spawn is registered on the navigation's
- * prefetch so the navigation awaits it before reading. (Reads targeting the
- * lock scope's private map is not fork-specific — like any task read, `map`
- * is the task's captured `PrefetchTask.segmentCacheMap`, which is the scope
- * map because a locked navigation's prefetch task is scheduled inside
- * the scope.)
- */
-function readOrCreateSegmentCacheEntryDuringLockedNavigation(
-  now: number,
-  map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>,
-  navigationLockPrefetch: NavigationLockPrefetch
+  tree: RouteTree<RSCSegmentData | null>
 ): SegmentCacheEntry {
   const existingEntry = getFromCacheMap(
     now,
@@ -961,17 +914,6 @@ function readOrCreateSegmentCacheEntryDuringLockedNavigation(
     false
   )
   if (existingEntry !== null) {
-    // If this is an in-flight entry the navigation didn't spawn — e.g. a
-    // runtime-prefetch upgrade started by an earlier prefetch in the scope —
-    // register it on the navigation's prefetch so the navigation awaits it
-    // before reading, rather than falling back to a less-specific fulfilled
-    // entry (the shell) while the upgrade is still pending. Tracking is
-    // deduped, so it's a no-op for entries we spawned.
-    if (existingEntry.status === EntryStatus.Pending) {
-      const { trackNavigationLockPrefetchEntry } =
-        require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-      trackNavigationLockPrefetchEntry(navigationLockPrefetch, existingEntry)
-    }
     return existingEntry
   }
   return insertEmptySegmentCacheEntry(now, map, fetchStrategy, tree)
@@ -1309,8 +1251,7 @@ export function createDetachedSegmentCacheEntry(
 
 export function upgradeToPendingSegment(
   emptyEntry: EmptySegmentCacheEntry,
-  fetchStrategy: FetchStrategy,
-  navigationLockPrefetch: NavigationLockPrefetch | null
+  fetchStrategy: FetchStrategy
 ): PendingSegmentCacheEntry {
   const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
   pendingEntry.status = EntryStatus.Pending
@@ -1329,22 +1270,6 @@ export function upgradeToPendingSegment(
   // than when receiving the response, because it's guaranteed to happen
   // before the data is read on the server.
   pendingEntry.version = getCurrentSegmentCacheVersion()
-
-  if (
-    process.env.__NEXT_EXPOSE_TESTING_API &&
-    // Instant Navigation Testing API only. Non-null when the requesting
-    // prefetch is driving a locked navigation, in which case the
-    // freshly-spawned pending entry is tracked against that navigation's
-    // prefetch state so the navigation waits for it to fulfill before reading
-    // it. Null at non-scheduler call sites (BFCache fulfillment, response
-    // processing), which don't spawn an in-flight request to wait on, and
-    // always in production.
-    navigationLockPrefetch !== null
-  ) {
-    const { trackNavigationLockPrefetchEntry } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-    trackNavigationLockPrefetchEntry(navigationLockPrefetch, pendingEntry)
-  }
 
   return pendingEntry
 }
@@ -1379,13 +1304,7 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
       return null
     }
 
-    const pendingSegment = upgradeToPendingSegment(
-      segment,
-      FetchStrategy.Full,
-      // Fulfilled synchronously from the BFCache; nothing for a locked
-      // navigation to wait on.
-      null
-    )
+    const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
     const isPartial = false
     return fulfillSegmentCacheEntry(
       pendingSegment,
@@ -1422,10 +1341,7 @@ export function attemptToUpgradeSegmentFromBFCache(
     }
     const pendingSegment = upgradeToPendingSegment(
       createDetachedSegmentCacheEntry(now),
-      FetchStrategy.Full,
-      // Fulfilled synchronously from the BFCache; nothing for a locked
-      // navigation to wait on.
-      null
+      FetchStrategy.Full
     )
     const isPartial = false
     const newEntry = fulfillSegmentCacheEntry(
@@ -2900,12 +2816,7 @@ function writeSegmentBundleResponse(
       // upsert it into this payload's slot.
       const detachedEntry = createDetachedSegmentCacheEntry(now)
       const fulfilledEntry = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(
-          detachedEntry,
-          fetchStrategy,
-          // Response-write path, not a locked-navigation prefetch.
-          null
-        ),
+        upgradeToPendingSegment(detachedEntry, fetchStrategy),
         data.rsc,
         entryStaleAt,
         isPartial,
@@ -3874,8 +3785,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
       const fulfilledEntry = fulfillSegmentCacheEntry(
-        // Response-write path, not a locked-navigation prefetch.
-        upgradeToPendingSegment(newEntry, fetchStrategy, null),
+        upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
         staleAt,
         isPartial,
@@ -3899,9 +3809,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       const newEntry = fulfillSegmentCacheEntry(
         upgradeToPendingSegment(
           createDetachedSegmentCacheEntry(now),
-          fetchStrategy,
-          // Response-write path, not a locked-navigation prefetch.
-          null
+          fetchStrategy
         ),
         rsc,
         staleAt,

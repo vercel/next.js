@@ -13,7 +13,7 @@
  */
 
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
-import type { PendingSegmentCacheEntry, SegmentCacheEntry } from './cache'
+import type { SegmentCacheEntry } from './cache'
 import type { CacheMap } from './cache-map'
 import type { FetchStrategy } from './types'
 import type { NavigationLockPrefetch } from './navigation-testing-lock'
@@ -35,12 +35,7 @@ export function getNavigationLockSegmentCacheMap(): CacheMap<SegmentCacheEntry> 
   return null
 }
 
-export function trackNavigationLockPrefetchEntry(
-  _prefetch: NavigationLockPrefetch,
-  _entry: PendingSegmentCacheEntry
-): void {}
-
-export function finishNavigationLockPrefetchSpawning(
+export function resolveNavigationLockPrefetch(
   _prefetch: NavigationLockPrefetch
 ): void {}
 
