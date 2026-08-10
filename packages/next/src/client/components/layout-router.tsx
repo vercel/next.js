@@ -85,12 +85,8 @@ function getScrollPaddingTopInPixels(
   return 0
 }
 
-/**
- * Fixed/sticky hosts pass the in-viewport check even when the actual page
- * content is offscreen (e.g. a parallel route that only renders a fixed
- * header). Ignore them when selecting a scroll target, matching the legacy
- * scroll handler.
- */
+// Fixed/sticky elements stay in-viewport and must not claim scroll ownership
+// (e.g. a parallel slot that only renders a fixed header).
 function isFixedOrStickyElement(element: Element): boolean {
   if (!(element instanceof HTMLElement)) {
     return false
@@ -99,18 +95,11 @@ function isFixedOrStickyElement(element: Element): boolean {
   return position === 'fixed' || position === 'sticky'
 }
 
-/**
- * Whether `node` is a host descendant of the FragmentInstance.
- *
- * Prefer this over `observeUsing`: React logs a dev `console.error` when
- * `observeUsing` is called on a text-only Fragment. `compareDocumentPosition`
- * exists on FragmentInstance at runtime but is missing from current React
- * type definitions.
- */
 function isFragmentHostDescendant(
   instance: FragmentInstance,
   node: Node
 ): boolean {
+  // Runtime API; not yet on the FragmentInstance type definitions.
   const position = (
     instance as FragmentInstance & {
       compareDocumentPosition(other: Node): number
@@ -119,11 +108,8 @@ function isFragmentHostDescendant(
   return (position & Node.DOCUMENT_POSITION_CONTAINED_BY) !== 0
 }
 
-/**
- * `elementFromPoint` returns the innermost element, which may be a static
- * child inside a fixed/sticky ancestor. Walk ancestors that still belong to
- * the Fragment before deciding the hit is scroll-relevant.
- */
+// elementFromPoint hits the innermost node; walk to a fixed/sticky ancestor
+// still inside the Fragment.
 function isFixedOrStickyWithinFragment(
   instance: FragmentInstance,
   element: Element
@@ -138,14 +124,6 @@ function isFixedOrStickyWithinFragment(
   return false
 }
 
-/**
- * Client rects that should participate in scroll-target selection.
- *
- * If a Fragment's in-fragment host geometry is only from fixed/sticky
- * elements, return no rects so the segment does not claim scroll ownership
- * (e.g. a parallel slot that only renders a fixed header). Text-only
- * Fragments have no in-fragment host Elements, so their rects are kept.
- */
 function getScrollRelevantClientRects(
   instance: HTMLElement | FragmentInstance
 ): ArrayLike<DOMRect> {
@@ -167,7 +145,6 @@ function getScrollRelevantClientRects(
       continue
     }
 
-    // Off-viewport geometry is document content, not fixed chrome.
     if (rect.bottom < 0 || rect.top > window.innerHeight) {
       sawScrollRelevantHost = true
       break
@@ -182,7 +159,6 @@ function getScrollRelevantClientRects(
       Math.max(window.innerHeight - 1, 0)
     )
     const el = document.elementFromPoint(x, y)
-    // Text-only Fragments resolve to an ancestor outside the Fragment.
     if (el == null || !isFragmentHostDescendant(instance, el)) {
       continue
     }
