@@ -86,6 +86,82 @@ function getScrollPaddingTopInPixels(
 }
 
 /**
+ * Fixed/sticky hosts pass the in-viewport check even when the actual page
+ * content is offscreen (e.g. a parallel route that only renders a fixed
+ * header). Ignore them when selecting a scroll target, matching the legacy
+ * scroll handler.
+ */
+function isFixedOrStickyElement(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false
+  }
+  const position = getComputedStyle(element).position
+  return position === 'fixed' || position === 'sticky'
+}
+
+/**
+ * Enumerate host Element children of a FragmentInstance.
+ *
+ * FragmentInstance has no children getter; `observeUsing` is the public API
+ * that visits each host child. Use a duck-typed observer so we do not attach a
+ * real IntersectionObserver/ResizeObserver.
+ */
+function forEachFragmentHostElement(
+  instance: FragmentInstance,
+  callback: (element: Element) => void
+): void {
+  const observer = {
+    observe(target: Element) {
+      callback(target)
+    },
+    unobserve() {},
+  } as IntersectionObserver
+  instance.observeUsing(observer)
+  instance.unobserveUsing(observer)
+}
+
+/**
+ * Client rects that should participate in scroll-target selection.
+ *
+ * For Fragments, skip fixed/sticky host children. If every host child is
+ * skipped, return no rects so the segment does not claim scroll ownership.
+ */
+function getScrollRelevantClientRects(
+  instance: HTMLElement | FragmentInstance
+): ArrayLike<DOMRect> {
+  if (instance instanceof HTMLElement) {
+    return instance.getClientRects()
+  }
+
+  const rects: DOMRect[] = []
+  let hostElementCount = 0
+  let skippedHostElementCount = 0
+
+  forEachFragmentHostElement(instance, (element) => {
+    hostElementCount++
+    if (isFixedOrStickyElement(element)) {
+      skippedHostElementCount++
+      return
+    }
+    const elementRects = element.getClientRects()
+    for (let i = 0; i < elementRects.length; i++) {
+      rects.push(elementRects[i])
+    }
+  })
+
+  if (hostElementCount > 0 && hostElementCount === skippedHostElementCount) {
+    return []
+  }
+
+  if (rects.length > 0 || hostElementCount > skippedHostElementCount) {
+    return rects
+  }
+
+  // No host elements (empty or text-only): preserve Fragment getClientRects.
+  return instance.getClientRects()
+}
+
+/**
  * Check where the top corner of the HTMLElement is relative to the usable
  * viewport.
  *
@@ -97,7 +173,7 @@ function getScrollTargetState(
   viewportHeight: number,
   getScrollPaddingTop: () => number
 ): ScrollTargetState {
-  const rects = instance.getClientRects()
+  const rects = getScrollRelevantClientRects(instance)
   if (rects.length === 0) {
     return ScrollTargetState.NoClientRects
   }
