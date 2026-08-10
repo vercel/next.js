@@ -1379,6 +1379,7 @@ export async function renderToHTMLImpl(
       return await renderToInitialFizzStream({
         ReactDOMServer: ReactDOMServerPages,
         element: content,
+        streamOptions: { nonce },
       })
     }
 
