@@ -18,7 +18,7 @@ Instead of unmounting pages on navigation, Next.js hides them using React's [`<A
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
-> **Good to know:** Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
+> **Good to know:** Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. It is not a complete opt-out from state preservation. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
 
 ## Choosing what to preserve
 
@@ -514,6 +514,34 @@ function VideoPlayer({ src }: { src: string }) {
 ```
 
 When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
+
+### Imperative canvas, map, and editor libraries
+
+Libraries that own DOM state outside React need an explicit hide/show strategy. A map, diagram editor, chart, or canvas may measure its container while it is visible and keep those dimensions internally. Activity preserves that DOM while hiding its container with `display: none`, so the library may need to recalculate its viewport when the route becomes visible again.
+
+For libraries that are inexpensive to initialize, the simplest migration is to create the instance in a layout Effect and destroy it in the cleanup. Activity runs that cleanup when the route is hidden and runs the Effect again when it is shown:
+
+```tsx filename="app/diagram.tsx" highlight={8-14}
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+export function Diagram() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const diagram = createDiagram(container)
+    return () => diagram.destroy()
+  }, [])
+
+  return <div ref={containerRef} />
+}
+```
+
+If recreating the instance is too expensive, keep it in a ref, pause subscriptions in the cleanup, and call the library's resize or viewport method when the layout Effect runs again. Test both returning through a link and browser back/forward because both paths can restore preserved UI.
 
 ### Distinguishing first mount from re-show
 
