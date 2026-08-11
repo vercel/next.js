@@ -9,6 +9,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
+import { readFileSync } from 'fs'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
@@ -37,6 +38,7 @@ import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
   REQUEST_INSIGHTS_DEV_ENDPOINT,
+  SERVER_FILES_MANIFEST,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -75,6 +77,33 @@ import {
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
+
+function validateCacheComponentsConfig(
+  dir: string,
+  config: Pick<NextConfigComplete, 'cacheComponents' | 'distDir'>
+): void {
+  let buildConfig: { cacheComponents?: boolean }
+
+  try {
+    buildConfig = JSON.parse(
+      readFileSync(
+        path.join(dir, config.distDir, SERVER_FILES_MANIFEST + '.json'),
+        'utf8'
+      )
+    ).config
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return
+    }
+    throw error
+  }
+
+  if (!!buildConfig.cacheComponents !== config.cacheComponents) {
+    throw new Error(
+      `The production build was created with \`cacheComponents: ${!!buildConfig.cacheComponents}\`, but the runtime configuration has \`cacheComponents: ${config.cacheComponents}\`. \`next start\` must use the same Cache Components setting as \`next build\`. Ensure the same Next.js configuration is available at build time and runtime, or rebuild the application after changing it.\nLearn more: https://nextjs.org/docs/app/guides/self-hosting`
+    )
+  }
+}
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -126,6 +155,9 @@ export async function initialize(opts: {
       },
     }
   )
+  if (!opts.dev) {
+    validateCacheComponentsConfig(opts.dir, config)
+  }
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
