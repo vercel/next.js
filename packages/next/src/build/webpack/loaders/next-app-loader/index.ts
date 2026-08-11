@@ -120,6 +120,19 @@ export type AppDirModules = {
   readonly metadata?: CollectedMetadata
 } & {
   readonly defaultPage?: ModuleTuple
+} & {
+  /**
+   * The page segment's `searchParams` (Turbopack-only): a promise-like object
+   * exported by the generated page entry that resolves to the current
+   * request's search params. Always emitted; under the experimental React
+   * channel (when this mechanism is enabled) it's additionally registered as
+   * a Server Object Reference so it serializes to clients by reference. The
+   * tree literal references the entry's own export directly, so this is the
+   * value itself rather than a module getter.
+   */
+  readonly searchParams?: PromiseLike<{
+    [key: string]: string | string[] | undefined
+  }>
 }
 
 const normalizeParallelKey = (key: string) =>

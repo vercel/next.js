@@ -246,6 +246,7 @@ describe('dynamic-data with dynamic = "error"', () => {
          > 12 |         {Object.entries(await searchParams).map(([key, value]) => {
               |                               ^",
            "stack": [
+             "Reflect.get <anonymous>",
              "Page app/search/page.js (12:31)",
            ],
          }

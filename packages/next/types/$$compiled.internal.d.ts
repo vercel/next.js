@@ -208,6 +208,17 @@ declare module 'react-server-dom-webpack/server.edge' {
     exportName: string | null
   ): unknown
 
+  /**
+   * Registers a non-function value (object or Promise) as a Server Object
+   * Reference. Only available in the experimental React channel
+   * (`enableFlightObjectReferences`).
+   */
+  export function registerServerObjectReference<T extends object>(
+    reference: T,
+    id: string,
+    exportName: string | null
+  ): T
+
   export function createClientModuleProxy(moduleId: string): unknown
 }
 
@@ -222,6 +233,7 @@ declare module 'react-server-dom-webpack/server.node' {
     createClientModuleProxy,
     decodeReplyFromAsyncIterable,
     registerServerReference,
+    registerServerObjectReference,
     renderToReadableStream,
   } from 'react-server-dom-webpack/server.edge'
 

@@ -110,9 +110,10 @@ export function createServerSearchParamsForMetadata(): Promise<SearchParams> {
  * store (`workUnitStore.searchParams` — the single source of truth), so the
  * caller supplies only the vary-params accumulator to record access into (the
  * segment's, or metadata's head accumulator). What a read means is decided per
- * scope: real values in a request render or runtime prerender; and hang /
- * postpone / interrupt / error in the scopes where the values are never
- * observable.
+ * scope: real values in a request render or runtime prerender; a direct
+ * resolve in a request's `action`/`after` phases (a server-function read, with
+ * no render driving the staged rendering); and hang / postpone / interrupt /
+ * error in the scopes where the values are never observable.
  */
 export function createServerSearchParamsForServerPage(
   varyParamsAccumulator: VaryParamsAccumulator | null
@@ -150,6 +151,14 @@ export function createServerSearchParamsForServerPage(
           varyParamsAccumulator
         )
       case 'request':
+        if (workUnitStore.phase !== 'render') {
+          // A server-function read in the `action`/`after` phases: React
+          // resolved a search params reference from a round-tripped token,
+          // outside of any render. No render is driving the staged rendering,
+          // so the staged path would await a stage that never advances and
+          // deadlock — resolve the values directly instead.
+          return makeUntrackedSearchParams(workUnitStore.searchParams)
+        }
         return createRenderSearchParams(
           workUnitStore.searchParams,
           workStore,

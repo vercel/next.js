@@ -23,6 +23,7 @@ import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
+import type { SearchParams } from '../request/search-params'
 import type { AppRenderContext, GetDynamicParamFromSegment } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
@@ -172,7 +173,7 @@ async function createComponentTreeInternal(
       RenderFromTemplateContext,
       ClientPageRoot,
       ClientSegmentRoot,
-      createServerSearchParamsForServerPage,
+      createSearchParamsReference,
       createPrerenderSearchParamsForClientPage,
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
@@ -810,12 +811,27 @@ async function createComponentTreeInternal(
   const Component = MaybeComponent
   const isClientComponent = isClientReference(layoutOrPageMod)
 
+  // A page's `searchParams` is delivered as a stable per-segment reference:
+  // the generated entry's export when present (Turbopack), or a synthesized
+  // unregistered one otherwise (webpack, or when the mechanism is off — the
+  // unregistered object still works, it just serializes by value). It's both
+  // the segment's accumulator key and its `searchParams` prop, so the render
+  // pipeline and the reference's dereference rendezvous on one object. Only
+  // pages have one; layouts key their accumulator on the loader tree node.
+  const searchParamsReference: Promise<SearchParams> | null = isPage
+    ? ((modules.searchParams as Promise<SearchParams> | undefined) ??
+      createSearchParamsReference())
+    : null
+
   const varyParamsAccumulator: VaryParamsAccumulator | null =
     isClientComponent && cacheComponents
       ? // Client components with Cache Components enabled don't receive params
         // from the server, so they have an empty vary params set.
         emptyVaryParamsAccumulator
-      : getSegmentVaryParamsAccumulator(workUnitStore, tree)
+      : getSegmentVaryParamsAccumulator(
+          workUnitStore,
+          searchParamsReference ?? tree
+        )
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -870,13 +886,12 @@ async function createComponentTreeInternal(
         varyParamsAccumulator
       )
 
-      // If we are passing searchParams to a server component Page we need to
-      // track their usage in case the current render mode tracks dynamic API
-      // usage. The raw values are read from the ambient work unit store; the
-      // segment contributes only its vary-params accumulator.
-      const searchParams = createServerSearchParamsForServerPage(
-        varyParamsAccumulator
-      )
+      // The segment's `searchParams` reference (see above). Awaiting it
+      // dereferences, per request, to the real values; when registered (see
+      // `registerSearchParamsServerReference`) it serializes to client
+      // components by reference as an opaque token. Non-null here because
+      // `isPage`.
+      const searchParams = searchParamsReference!
 
       if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: ComponentType<UseCachePageProps> =

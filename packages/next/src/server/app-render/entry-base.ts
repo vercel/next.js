@@ -52,6 +52,10 @@ export {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
 } from '../request/search-params'
+// The reference-proxy machinery lives in the react-server-dom module; entry
+// base is the RSC-layer boundary that's allowed to import it (create-component
+// -tree reaches this through `componentMod` at runtime, never statically).
+export { createSearchParamsReference } from '../request/server-params-references'
 export {
   createServerParamsForServerSegment,
   createPrerenderParamsForClientSegment,
