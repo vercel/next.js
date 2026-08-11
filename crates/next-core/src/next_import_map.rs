@@ -1216,6 +1216,13 @@ async fn insert_next_shared_aliases(
         ),
     );
     import_map.insert_exact_alias(
+        rcstr!("private-next-server-params-references"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/server/request/server-params-references"),
+        ),
+    );
+    import_map.insert_exact_alias(
         rcstr!("private-next-rsc-action-client-wrapper"),
         request_to_import_mapping(
             project_path.clone(),

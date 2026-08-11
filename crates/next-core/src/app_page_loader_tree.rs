@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
+use sha1::{Digest, Sha1};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -31,6 +32,12 @@ pub struct AppPageLoaderTreeBuilder {
     loader_tree_code: String,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
+    /// The project's encryption key; salts the server params reference
+    /// reference ids exactly like the SWC server-actions transform does.
+    encryption_key: RcStr,
+    /// The server params reference exports emitted so far, as (reference id, export
+    /// name) pairs. Feeds the server-actions discovery comment on the entry.
+    server_params_reference_exports: Vec<(String, String)>,
 }
 
 impl AppPageLoaderTreeBuilder {
@@ -38,11 +45,14 @@ impl AppPageLoaderTreeBuilder {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        encryption_key: RcStr,
     ) -> Self {
         AppPageLoaderTreeBuilder {
             base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
             loader_tree_code: String::new(),
             base_path,
+            encryption_key,
+            server_params_reference_exports: Vec::new(),
         }
     }
 
@@ -325,6 +335,77 @@ impl AppPageLoaderTreeBuilder {
         Ok(())
     }
 
+    /// Emits a `searchParams` Server Reference export for this page segment
+    /// into the app page entry module — the same generated module that
+    /// constructs the loader tree. The export is a Server Object Reference.
+    ///
+    /// The entry carries a hand-written
+    /// `__next_internal_action_entry_do_not_use__` comment (see `build`)
+    /// listing every segment's export, so the existing server-actions
+    /// collection pass discovers them, re-exports them from the page's
+    /// actions loader under their reference ids, and includes them in the
+    /// server reference manifest. This mirrors how the SWC transform
+    /// registers `'use server'` functions, but the registration is
+    /// framework-only: `registerSearchParamsServerReference` (imported via
+    /// `private-next-server-params-references`) performs it.
+    fn write_search_params_reference_entry(
+        &mut self,
+        page_path: &FileSystemPath,
+        depth: u32,
+    ) -> Result<()> {
+        let i = self.base.unique_number();
+        let export_name = format!("searchParamsRef{i}");
+
+        // The id is computed with the same recipe as the SWC server-actions
+        // transform: hex(info_byte ++ sha1(hash_salt + file_name + ':' + export_name)).
+        // The page *file* path (not the route) is hashed so that sibling
+        // pages in parallel routes get distinct reference ids. The info byte
+        // is zero: not a cache function, and the arg mask is meaningless for
+        // an object reference (it is only ever consulted for the id of an
+        // *invoked* server function).
+        let mut hasher = Sha1::new();
+        hasher.update(self.encryption_key.as_bytes());
+        hasher.update(page_path.path.as_bytes());
+        hasher.update(b":");
+        hasher.update(export_name.as_bytes());
+        let mut hash = hasher.finalize().to_vec();
+        hash.push(0u8);
+        hash.rotate_right(1);
+        let id = hex::encode(hash);
+
+        if self.server_params_reference_exports.is_empty() {
+            // ESM imports are hoisted, so the relative order of these lines
+            // and the const declarations below doesn't matter.
+            self.base.imports.push((
+                depth,
+                "import { registerSearchParamsServerReference } from \
+                 'private-next-server-params-references';"
+                    .into(),
+            ));
+        }
+
+        // `registerSearchParamsServerReference` creates the segment's
+        // deferred `searchParams` and, under the experimental React channel
+        // (which `experimental.serverQueries` opts into), registers it as a
+        // Server Object Reference so it serializes to clients by reference.
+        // The channel gate lives inside the helper, so codegen just passes
+        // the reference id.
+        self.base.imports.push((
+            depth,
+            format!(
+                "export const {export_name} = registerSearchParamsServerReference({id_str});",
+                id_str = StringifyJs(&id)
+            )
+            .into(),
+        ));
+
+        writeln!(self.loader_tree_code, "  searchParams: {export_name},")?;
+
+        self.server_params_reference_exports.push((id, export_name));
+
+        Ok(())
+    }
+
     async fn walk_tree(
         &mut self,
         loader_tree: &AppPageLoaderTree,
@@ -393,6 +474,9 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::Page, page.clone(), depth)
             .await?;
+        if let Some(page_path) = page {
+            self.write_search_params_reference_entry(page_path, depth)?;
+        }
         self.write_modules_entry(AppDirModuleType::DefaultPage, default.clone(), depth)
             .await?;
         self.write_modules_entry(AppDirModuleType::GlobalError, global_error.clone(), depth)
@@ -453,6 +537,27 @@ impl AppPageLoaderTreeBuilder {
         };
 
         self.walk_tree(loader_tree, true, 0).await?;
+
+        // The server-actions discovery comment for the entry's server
+        // params exports. It must be the entry's first leading comment, so
+        // the entry generation emits it before everything else.
+        let server_reference_entry_comment = if self.server_params_reference_exports.is_empty() {
+            None
+        } else {
+            let entries = self
+                .server_params_reference_exports
+                .iter()
+                .map(|(id, export_name)| format!("\"{id}\":{{\"name\":\"{export_name}\"}}"))
+                .collect::<Vec<_>>()
+                .join(",");
+            Some(
+                format!(
+                    "/* __next_internal_action_entry_do_not_use__ [{{{entries}}}, \"\", \"\"] */"
+                )
+                .into(),
+            )
+        };
+
         let mut imports = self.base.imports;
         imports.sort_by_key(|(position, _)| *position);
         Ok(AppPageLoaderTreeModule {
@@ -465,6 +570,7 @@ impl AppPageLoaderTreeBuilder {
             .collect(),
             loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.base.inner_assets,
+            server_reference_entry_comment,
         })
     }
 }
@@ -473,6 +579,11 @@ pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+    /// A `__next_internal_action_entry_do_not_use__` comment declaring the
+    /// entry's server params reference exports, if any. Must be emitted as
+    /// the entry's first leading comment so the server-actions collection
+    /// pass finds it.
+    pub server_reference_entry_comment: Option<RcStr>,
 }
 
 impl AppPageLoaderTreeModule {
@@ -481,10 +592,16 @@ impl AppPageLoaderTreeModule {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        encryption_key: RcStr,
     ) -> Result<Self> {
-        AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
-            .build(loader_tree)
-            .await
+        AppPageLoaderTreeBuilder::new(
+            module_asset_context,
+            server_component_transition,
+            base_path,
+            encryption_key,
+        )
+        .build(loader_tree)
+        .await
     }
 }
 

@@ -36,6 +36,7 @@ pub async fn get_app_page_entry(
     page: AppPage,
     project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
+    encryption_key: RcStr,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
@@ -54,6 +55,7 @@ pub async fn get_app_page_entry(
         module_asset_context,
         server_component_transition,
         base_path,
+        encryption_key,
     )
     .await?;
 
@@ -61,9 +63,16 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
+        server_reference_entry_comment,
     } = loader_tree;
 
     let mut result = RopeBuilder::default();
+
+    // Must be the entry's first leading comment — the server-actions
+    // collection pass reads it off the top of the module.
+    if let Some(server_reference_entry_comment) = server_reference_entry_comment {
+        writeln!(result, "{server_reference_entry_comment}")?;
+    }
 
     for import in imports {
         writeln!(result, "{import}")?;
