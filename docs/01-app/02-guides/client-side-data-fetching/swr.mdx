@@ -247,7 +247,9 @@ export function ProductView({ id }) {
 
 The `fallback` provides the hook's initial value. By default, SWR treats fallback data as stale and starts a browser revalidation after hydration.
 
-SWR does not track when fallback data becomes stale after a duration. Setting `revalidateIfStale: false` skips automatic revalidation on mount whenever cached data exists; it does not create a temporary freshness window like TanStack Query's `staleTime`. Focus, reconnect, polling, and `mutate` can still revalidate the key. To refresh on a schedule, set [`refreshInterval`](https://swr.vercel.app/docs/revalidation#revalidate-on-interval).
+SWR does not provide a time-based freshness window for fallback data. Setting `revalidateIfStale: false` skips revalidation when the hook mounts with cached data. This setting applies to every mount, unlike TanStack Query's `staleTime`.
+
+Focus, reconnect, polling, and `mutate` can still revalidate the key. To refresh on a schedule, set [`refreshInterval`](https://swr.vercel.app/docs/revalidation#revalidate-on-interval).
 
 The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions/route) with a `GET` method. The Route Handler can call the same `getProduct` function that provides the fallback, while the browser uses the URL for revalidation and polling.
 
