@@ -503,6 +503,20 @@ mod tests {
         Ok(())
     }
 
+    /// Reads the TaskIds stored under `hash` in `TaskCache`, sorted for stable comparison.
+    fn task_cache_ids(db: &TurboKeyValueDatabase, hash: u64) -> Result<Vec<TaskId>> {
+        let mut ids: Vec<TaskId> = db
+            .get_multiple(KeySpace::TaskCache, &hash.to_le_bytes())?
+            .iter()
+            .map(|bytes| {
+                let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
+                TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
+            })
+            .collect();
+        ids.sort_by_key(|id| **id);
+        Ok(ids)
+    }
+
     /// Tests that `get_multiple` correctly returns multiple TaskIds when the same hash key
     /// is used (simulating a hash collision scenario).
     ///
@@ -530,25 +544,11 @@ mod tests {
         write_task_cache_entry(&db, collision_hash, task_id_3)?;
 
         // Now query using get_multiple - should return all three TaskIds
-        let results = db.get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
-
         assert_eq!(
-            results.len(),
-            3,
+            task_cache_ids(&db, collision_hash)?,
+            vec![task_id_1, task_id_2, task_id_3],
             "Should return all 3 task IDs for the colliding hash"
         );
-
-        // Convert results to TaskIds and verify all three are present
-        let mut found_ids: Vec<TaskId> = results
-            .iter()
-            .map(|bytes| {
-                let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
-                TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
-            })
-            .collect();
-        found_ids.sort_by_key(|id| **id);
-
-        assert_eq!(found_ids, vec![task_id_1, task_id_2, task_id_3]);
 
         db.shutdown()?;
         Ok(())
@@ -609,180 +609,53 @@ mod tests {
         Ok(())
     }
 
-    fn task_data_key(task_id: TaskId) -> [u8; 4] {
-        (*task_id).to_le_bytes()
-    }
-
-    /// GC tombstone path: deleting a task must erase its `TaskMeta` and `TaskData`
-    /// (`SingleValue`) entries and its `TaskCache` (`MultiValue`) mapping, and the deletion must
-    /// survive a reopen. Written first so the persistence-layer semantics the sweep relies on are
-    /// pinned down independently of the mark/sweep logic (Stage 0).
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_gc_delete_tombstones_meta_data_and_cache() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
-        let path = tempdir.path();
-
-        let hash: u64 = 0xABCD_1234;
-        let task_id = TaskId::try_from(42u32).unwrap();
-
-        // Write the task's meta, data, and cache entries in one committed batch.
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let batch = db.write_batch()?;
-            let key = task_data_key(task_id);
-            batch.put(
-                KeySpace::TaskMeta,
-                WriteBuffer::Borrowed(&key),
-                WriteBuffer::Borrowed(b"meta-bytes"),
-            )?;
-            batch.put(
-                KeySpace::TaskData,
-                WriteBuffer::Borrowed(&key),
-                WriteBuffer::Borrowed(b"data-bytes"),
-            )?;
-            batch.put(
-                KeySpace::TaskCache,
-                WriteBuffer::Borrowed(&hash.to_le_bytes()),
-                WriteBuffer::Borrowed(&key),
-            )?;
-            batch.commit()?;
-            db.shutdown()?;
-        }
-
-        // Sanity: everything is present before deletion.
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let key = task_data_key(task_id);
-            assert!(db.get(KeySpace::TaskMeta, &key)?.is_some());
-            assert!(db.get(KeySpace::TaskData, &key)?.is_some());
-            assert_eq!(
-                db.get_multiple(KeySpace::TaskCache, &hash.to_le_bytes())?
-                    .len(),
-                1
-            );
-            db.shutdown()?;
-        }
-
-        // Tombstone the task in a single committed batch (the shape save_snapshot uses for a
-        // delete list with no colliding survivors).
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let batch = db.write_batch()?;
-            let key = task_data_key(task_id);
-            batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(&key))?;
-            batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(&key))?;
-            batch.delete(
-                KeySpace::TaskCache,
-                WriteBuffer::Borrowed(&hash.to_le_bytes()),
-            )?;
-            batch.commit()?;
-            db.shutdown()?;
-        }
-
-        // Reopen: all three entries must be gone.
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let key = task_data_key(task_id);
-            assert!(
-                db.get(KeySpace::TaskMeta, &key)?.is_none(),
-                "TaskMeta should be tombstoned"
-            );
-            assert!(
-                db.get(KeySpace::TaskData, &key)?.is_none(),
-                "TaskData should be tombstoned"
-            );
-            assert!(
-                db.get_multiple(KeySpace::TaskCache, &hash.to_le_bytes())?
-                    .is_empty(),
-                "TaskCache mapping should be tombstoned"
-            );
-            db.shutdown()?;
-        }
-
-        Ok(())
-    }
-
-    /// Deleting one id from a shared `TaskCache` hash bucket must leave the colliding id
-    /// readable after a reopen — the tombstone is persisted and applied on read, not just held
-    /// in memory.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_gc_delete_task_cache_keeps_collision() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
-        let path = tempdir.path();
-
-        let collision_hash: u64 = 0xDEAD_DEAD;
-        let deleted_id = TaskId::try_from(111u32).unwrap();
-        let survivor_id = TaskId::try_from(222u32).unwrap();
-
-        // Two ids share one hash bucket (each write is its own SST so both are stored).
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            write_task_cache_entry(&db, collision_hash, deleted_id)?;
-            write_task_cache_entry(&db, collision_hash, survivor_id)?;
-            let results = db.get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
-            assert_eq!(results.len(), 2, "both colliding ids should be present");
-            db.shutdown()?;
-        }
-
-        // Delete just `deleted_id` from the bucket.
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let batch = db.write_batch()?;
-            batch.delete_value(
-                KeySpace::TaskCache,
-                WriteBuffer::Borrowed(&collision_hash.to_le_bytes()),
-                WriteBuffer::Vec(task_data_key(deleted_id).to_vec()),
-            )?;
-            batch.commit()?;
-            db.shutdown()?;
-        }
-
-        // Reopen: exactly the colliding id remains under the bucket.
-        {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-            let results = db.get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
-            let found_ids: Vec<TaskId> = results
-                .iter()
-                .map(|bytes| {
-                    let bytes: [u8; 4] = Borrow::<[u8]>::borrow(bytes).try_into().unwrap();
-                    TaskId::try_from(u32::from_le_bytes(bytes)).unwrap()
-                })
-                .collect();
-            assert_eq!(
-                found_ids,
-                vec![survivor_id],
-                "only the colliding id should remain after deleting the other"
-            );
-            db.shutdown()?;
-        }
-
-        Ok(())
-    }
-
-    /// End-to-end coverage of collision handling in `save_snapshot`: a `Delete` item must remove
-    /// only the deleted id from its `TaskCache` bucket, leaving a colliding entry that exists
-    /// *only on disk* intact.
+    /// `save_snapshot` delete path: a `Delete` item must erase the task's `TaskMeta` and
+    /// `TaskData` (`SingleValue`) entries and remove *only* that id from its `TaskCache`
+    /// (`MultiValue`) bucket.
     ///
-    /// The survivor is never read or rewritten — the key-value tombstone names the single id it
-    /// deletes, so anything else in the bucket is untouched whether or not this commit knows
-    /// about it.
+    /// The colliding survivor is never read or rewritten — the key-value tombstone names the
+    /// single id it deletes, so anything else in the bucket is untouched whether or not this
+    /// commit knows about it.
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_save_snapshot_keeps_disk_only_collision() -> Result<()> {
+    async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
 
         let collision_hash: u64 = 0xC0FFEE;
         let deleted_id = TaskId::try_from(111u32).unwrap();
         let survivor_id = TaskId::try_from(222u32).unwrap();
+        let deleted_key = (*deleted_id).to_le_bytes();
 
         let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
-        // Both ids live in the bucket purely on disk; nothing is in an in-memory task cache.
+
+        // Both ids collide in one TaskCache bucket, purely on disk; the deleted task also has
+        // meta and data entries.
         write_task_cache_entry(&db, collision_hash, deleted_id)?;
         write_task_cache_entry(&db, collision_hash, survivor_id)?;
+        let batch = db.write_batch()?;
+        batch.put(
+            KeySpace::TaskMeta,
+            WriteBuffer::Borrowed(&deleted_key),
+            WriteBuffer::Borrowed(b"meta-bytes"),
+        )?;
+        batch.put(
+            KeySpace::TaskData,
+            WriteBuffer::Borrowed(&deleted_key),
+            WriteBuffer::Borrowed(b"data-bytes"),
+        )?;
+        batch.commit()?;
+
+        // Sanity: everything is present before the delete.
+        assert!(db.get(KeySpace::TaskMeta, &deleted_key)?.is_some());
+        assert!(db.get(KeySpace::TaskData, &deleted_key)?.is_some());
+        assert_eq!(
+            task_cache_ids(&db, collision_hash)?,
+            vec![deleted_id, survivor_id],
+        );
 
         let storage = TurboBackingStorage::new_in_memory(db);
 
-        // Snapshot with no task data, just the one deletion (carried inline as a delete item).
+        // Snapshot with no task data, just the one deletion.
         storage.save_snapshot(
             Vec::new(),
             vec![vec![SnapshotItem::Delete {
@@ -791,22 +664,22 @@ mod tests {
             }]],
         )?;
 
-        // The deleted id is gone; the disk-only collision is untouched.
-        let results = storage
-            .inner
-            .database
-            .get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
-        let found_ids: Vec<TaskId> = results
-            .into_iter()
-            .map(|bytes| TaskId::try_from(as_u32(bytes).unwrap()).unwrap())
-            .collect();
+        let db = &storage.inner.database;
+        assert!(
+            db.get(KeySpace::TaskMeta, &deleted_key)?.is_none(),
+            "TaskMeta should be tombstoned"
+        );
+        assert!(
+            db.get(KeySpace::TaskData, &deleted_key)?.is_none(),
+            "TaskData should be tombstoned"
+        );
         assert_eq!(
-            found_ids,
+            task_cache_ids(db, collision_hash)?,
             vec![survivor_id],
             "save_snapshot should delete only the named id from the bucket"
         );
 
-        storage.inner.database.shutdown()?;
+        db.shutdown()?;
         Ok(())
     }
 }
