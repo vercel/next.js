@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   ScrollRef,
+  Segment,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
@@ -47,6 +48,11 @@ import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
+import { matchSegment } from '../match-segments'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -404,6 +410,8 @@ function navigateUsingPrefetchedRouteTree(
     data: null,
     head: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+    // Not derived from a server response; no base to diverge from.
+    treeDivergedFromBase: false,
   }
   return navigateToKnownRoute(
     now,
@@ -862,6 +870,16 @@ export type NavigationSeed = {
   data: CacheNodeSeedData | null
   head: HeadData | null
   dynamicStaleAt: number
+  // Whether the response rendered a segment whose identity differs from the
+  // base tree's at the same position (inactive parallel route branches are
+  // expected to differ and don't count). Only meaningful when the base is a
+  // request tree derived from a cached route entry, as during a prefetch:
+  // divergence then means the entry doesn't describe what the server renders
+  // — the URL has a rewrite that behaves dynamically (see
+  // fetchSegmentPrefetchesUsingDynamicRequest). During a navigation the base
+  // is the current page's tree, so divergence carries no signal. False when
+  // there was no base to compare against.
+  treeDivergedFromBase: boolean
 }
 
 export function convertServerPatchToFullTree(
@@ -890,6 +908,11 @@ export function convertServerPatchToFullTree(
   let baseTree: FlightRouterState = currentTree
   let baseData: CacheNodeSeedData | null = null
   let head: HeadData | null = null
+  // Whether any patch rendered a segment whose identity differs from the base
+  // (request) tree at the same position. See NavigationSeed.treeDivergedFromBase.
+  // Compared against the original `currentTree`, not the progressively-merged
+  // `baseTree`, so each patch is checked against what was actually requested.
+  let treeDivergedFromBase = false
   if (flightData !== null) {
     for (const {
       segmentPath,
@@ -897,6 +920,13 @@ export function convertServerPatchToFullTree(
       seedData: dataPatch,
       head: headPatch,
     } of flightData) {
+      if (!treeDivergedFromBase) {
+        treeDivergedFromBase = didServerPatchDivergeFromBase(
+          currentTree,
+          segmentPath,
+          treePatch
+        )
+      }
       const result = convertServerPatchToFullTreeImpl(
         baseTree,
         baseData,
@@ -921,7 +951,7 @@ export function convertServerPatchToFullTree(
   // TODO: Eventually, FlightRouterState will evolve to being a transport format
   // only. The RouteTree type will become the main type used for dealing with
   // routes on the client, and we'll store it in the state directly.
-  const acc = { metadataVaryPath: null }
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
   const routeTree = convertRootFlightRouterStateToRouteTree(
     finalFlightRouterState,
     renderedSearch as NormalizedSearch,
@@ -935,7 +965,97 @@ export function convertServerPatchToFullTree(
     renderedSearch,
     head,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
+    treeDivergedFromBase,
   }
+}
+
+// Whether a server patch's rendered tree diverges in segment identity from the
+// base (request) tree it was applied to. Mirrors the comparison performed while
+// decoding a server response in newer versions of the client (see
+// NavigationSeed.treeDivergedFromBase). Divergence means the server rendered a
+// different route than the one we requested — e.g. a URL rewrite that behaves
+// dynamically — so a prefetch built from the base tree can never be fulfilled.
+//
+// The base-tree descent mirrors convertServerPatchToFullTreeImpl: segmentPath
+// is a repeating [parallelRouteKey, segment, ...] pattern; segmentPath[i] keys
+// into the children, segmentPath[i + 1] is the server's segment at that
+// position.
+function didServerPatchDivergeFromBase(
+  currentTree: FlightRouterState,
+  segmentPath: FlightSegmentPath,
+  treePatch: FlightRouterState
+): boolean {
+  let baseNode: FlightRouterState = currentTree
+  for (let i = 0; i + 1 < segmentPath.length; i += 2) {
+    const parallelRouteKey: string = segmentPath[i]
+    const serverSegment: Segment = segmentPath[i + 1]
+    const childBase: FlightRouterState | undefined =
+      baseNode[1][parallelRouteKey]
+    if (childBase === undefined) {
+      // The base tree doesn't have this branch. Unless the server merely
+      // filled it with a default, the trees have different structures.
+      return serverSegment !== DEFAULT_SEGMENT_KEY
+    }
+    if (segmentIdentityDivergesFromBase(serverSegment, childBase[0])) {
+      return true
+    }
+    baseNode = childBase
+  }
+  return detectTreeDivergenceFromBase(treePatch, baseNode)
+}
+
+// Recursively compares a server-rendered subtree against the base subtree at
+// the same position. Inactive parallel route branches — which carry a refresh
+// state in the base — are expected to differ and are skipped.
+function detectTreeDivergenceFromBase(
+  serverNode: FlightRouterState,
+  baseNode: FlightRouterState
+): boolean {
+  if (segmentIdentityDivergesFromBase(serverNode[0], baseNode[0])) {
+    return true
+  }
+  const serverChildren = serverNode[1]
+  const baseChildren = baseNode[1]
+  for (const parallelRouteKey in serverChildren) {
+    const childServer = serverChildren[parallelRouteKey]
+    const childBase = baseChildren[parallelRouteKey]
+    if (childBase === undefined) {
+      // A slot the base tree doesn't have. Unless the server merely filled it
+      // with a default, the trees have different structures.
+      if (childServer[0] !== DEFAULT_SEGMENT_KEY) {
+        return true
+      }
+    } else if ((childBase[2] ?? null) !== null) {
+      // The base branch carries a refresh state: an inactive parallel route
+      // reused from a different route (e.g. a "default" slot). The server's
+      // answer is expected to differ, so skip the branch.
+    } else if (detectTreeDivergenceFromBase(childServer, childBase)) {
+      return true
+    }
+  }
+  return false
+}
+
+// Whether two segments at the same position claim different identities. Page
+// segments match modulo embedded search params (validated separately, see
+// getRenderedSearch), and a default filled in by the server is not a claim
+// about the position's identity.
+function segmentIdentityDivergesFromBase(
+  serverSegment: Segment,
+  baseSegment: Segment
+): boolean {
+  if (
+    typeof serverSegment === 'string' &&
+    typeof baseSegment === 'string' &&
+    serverSegment.startsWith(PAGE_SEGMENT_KEY) &&
+    baseSegment.startsWith(PAGE_SEGMENT_KEY)
+  ) {
+    return false
+  }
+  if (serverSegment === DEFAULT_SEGMENT_KEY) {
+    return false
+  }
+  return !matchSegment(baseSegment, serverSegment)
 }
 
 function convertServerPatchToFullTreeImpl(
