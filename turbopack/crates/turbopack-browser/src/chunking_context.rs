@@ -12,9 +12,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
         ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
-        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        HmrChunkListSource, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -1075,6 +1075,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         chunks: Vc<OutputAssets>,
+        source: HmrChunkListSource,
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if !this.enable_hot_module_replacement {
@@ -1088,7 +1089,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 ident,
                 EvaluatableAssets::empty(),
                 chunks,
-                EcmascriptDevChunkListSource::Entry,
+                match source {
+                    HmrChunkListSource::Entry => EcmascriptDevChunkListSource::Entry,
+                    HmrChunkListSource::Dynamic => EcmascriptDevChunkListSource::Dynamic,
+                },
             )
             .to_resolved()
             .await?,

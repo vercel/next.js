@@ -939,6 +939,13 @@ export interface ExperimentalConfig {
   turbopackServerSideNestedAsyncChunking?: boolean
 
   /**
+   * Compile client dynamic import targets when they are first used in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImports?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.

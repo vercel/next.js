@@ -15,7 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -24,6 +24,8 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    async_chunk::proxy::{LazyCompilationProxyModule, activation_key},
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -46,6 +48,8 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Whether the target is compiled only after its runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -59,6 +63,7 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -79,6 +84,7 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            lazy_compilation,
         })
     }
 }
@@ -87,18 +93,46 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        let result = if let Some(resolved) = &self.resolve_override {
+            *ModuleResolveResult::module(*resolved)
+        } else {
+            esm_resolve(
+                *self.origin,
+                *self.request,
+                EcmaScriptModulesReferenceSubType::DynamicImport,
+                self.error_mode,
+                Some(self.issue_source),
+            )
+            .await?
+        };
+
+        if !self.lazy_compilation {
+            return Ok(result);
         }
 
-        esm_resolve(
-            *self.origin,
-            *self.request,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
-            self.error_mode,
-            Some(self.issue_source),
-        )
-        .await
+        let result = result.await?;
+        let mut primary = Vec::with_capacity(result.primary.len());
+        for (key, item) in result.primary.iter() {
+            let item = if let ModuleResolveResultItem::Module(module) = item
+                && let Some(target) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+            {
+                let ident = target.ident().to_string().await?;
+                let proxy = LazyCompilationProxyModule::new(*target, activation_key(&ident))
+                    .to_resolved()
+                    .await?;
+                ModuleResolveResultItem::Module(ResolvedVc::upcast(proxy))
+            } else {
+                item.clone()
+            };
+            primary.push((key.clone(), item));
+        }
+
+        Ok(ModuleResolveResult {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: result.affecting_sources.clone(),
+        }
+        .cell())
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

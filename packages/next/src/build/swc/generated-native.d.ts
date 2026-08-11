@@ -471,7 +471,6 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-
 /** Keep in sync with [`next_core::next_config::Rewrites`] */
 export interface NapiRewrites {
   fallback: Array<NapiRewrite>
@@ -699,6 +698,11 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
 
 /**
  * Subscribes to lifecycle events of the compilation.
