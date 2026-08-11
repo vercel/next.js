@@ -4,8 +4,9 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 
 const assetPrefix = 'https://example.vercel.sh'
 
-function expectCrossOriginAttributesToBeOmitted(html: string) {
-  const $ = cheerio.load(html)
+function expectCrossOriginAttributesToBeOmitted(
+  $: ReturnType<typeof cheerio.load>
+) {
   const scripts = $(`script[src^="${assetPrefix}"]`)
 
   expect(scripts.length).toBeGreaterThan(0)
@@ -63,13 +64,11 @@ if (!isNextStart) {
       })
 
       it('does not add crossorigin attributes to statically generated scripts', async () => {
-        expectCrossOriginAttributesToBeOmitted(
-          await next.readFile('.next/server/app/index.html')
-        )
+        expectCrossOriginAttributesToBeOmitted(await next.render$('/'))
       })
 
       it('does not add crossorigin attributes to dynamically rendered scripts', async () => {
-        expectCrossOriginAttributesToBeOmitted(await next.render('/dynamic'))
+        expectCrossOriginAttributesToBeOmitted(await next.render$('/dynamic'))
       })
     })
 
@@ -82,17 +81,16 @@ if (!isNextStart) {
           },
           skipStart: true,
           skipDeployment: true,
+          startCommand: 'node server.mjs',
+          serverReadyPattern: /- Local:/,
         })
 
         it('does not add crossorigin attributes to exported scripts', async () => {
           await next.build()
+          await next.start({ skipBuild: true })
 
-          expectCrossOriginAttributesToBeOmitted(
-            await next.readFile('out/index.html')
-          )
-          expectCrossOriginAttributesToBeOmitted(
-            await next.readFile('out/dynamic.html')
-          )
+          expectCrossOriginAttributesToBeOmitted(await next.render$('/'))
+          expectCrossOriginAttributesToBeOmitted(await next.render$('/dynamic'))
         })
       })
     }
