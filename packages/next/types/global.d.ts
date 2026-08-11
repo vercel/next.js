@@ -131,7 +131,7 @@ interface ImportMeta {
    * // Eager — values are module objects
    * const modules = import.meta.glob('./dir/*.js', { eager: true })
    *
-   * // The module type can be provided, as in Vite
+   * // The module type can be provided
    * const modules = import.meta.glob<{ name: string }>('./dir/*.js')
    */
   glob<M = unknown>(
