@@ -11,7 +11,6 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
@@ -1096,7 +1095,7 @@ export interface ExperimentalConfig {
    * @deprecated This configuration option has been merged into `cacheComponents`.
    * The Partial Prerendering feature is still available via `cacheComponents`.
    */
-  ppr?: ExperimentalPPRConfig
+  ppr?: boolean | 'incremental'
 
   /**
    * Enables experimental taint APIs in React.
@@ -1513,7 +1512,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `cacheComponents` enabled, and
+     * the app has Cache Components enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -2307,7 +2306,6 @@ export async function normalizeConfig(phase: string, config: any) {
 //     cacheComponents?: boolean;
 //     clientParamParsingOrigins?: string[];
 //     clientSegmentCache?: boolean;
-//     ppr?: boolean | 'incremental';
 //     serverActions?: Record<string, never>;
 //   };
 // };
@@ -2351,7 +2349,6 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
-    | 'ppr'
     | 'taint'
     | 'serverActions'
     | 'staleTimes'
@@ -2418,7 +2415,6 @@ export function getNextConfigRuntime(
   }
 
   const experimental = {
-    ppr: ex.ppr,
     taint: ex.taint,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
