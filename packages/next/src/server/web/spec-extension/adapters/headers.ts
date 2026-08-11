@@ -25,6 +25,102 @@ export type ReadonlyHeaders = Headers & {
   /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
   delete(...args: any[]): void
 }
+
+type ForEachCallback = (value: string, name: string, parent: Headers) => void
+
+/**
+ * Blocks the mutating methods of a sealed `Headers` instance.
+ *
+ * `forEach` is reimplemented so that the callback receives the sealed proxy as
+ * its `parent` argument. The native method passes the unsealed target, which
+ * gives the callback a mutable handle on the underlying headers.
+ */
+const sealHandler: ProxyHandler<ReadonlyHeaders> = {
+  get(target, prop, receiver) {
+    switch (prop) {
+      case 'append':
+      case 'delete':
+      case 'set':
+        return ReadonlyHeadersError.callable
+      case 'forEach':
+        return (callbackfn: ForEachCallback, thisArg?: any): void => {
+          for (const [name, value] of target.entries()) {
+            callbackfn.call(thisArg, value, name, receiver)
+          }
+        }
+      default:
+        return ReflectAdapter.get(target, prop, receiver)
+    }
+  },
+}
+
+/**
+ * Blocks the mutating methods of a sealed `Headers` instance, and omits the
+ * given header names from every read operation.
+ *
+ * The names in `hidden` must be lowercase.
+ */
+function createHidingSealHandler(
+  hidden: ReadonlySet<string>
+): ProxyHandler<ReadonlyHeaders> {
+  const isHidden = (name: string): boolean => hidden.has(name.toLowerCase())
+
+  return {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case 'append':
+        case 'delete':
+        case 'set':
+          return ReadonlyHeadersError.callable
+        case 'get':
+          return (name: string): string | null =>
+            isHidden(name) ? null : target.get(name)
+        case 'has':
+          return (name: string): boolean =>
+            isHidden(name) ? false : target.has(name)
+        case 'getSetCookie':
+          return (): string[] =>
+            isHidden('set-cookie') ? [] : target.getSetCookie()
+        case 'entries':
+        case Symbol.iterator:
+          return function* (): HeadersIterator<[string, string]> {
+            for (const entry of target.entries()) {
+              if (!isHidden(entry[0])) {
+                yield entry
+              }
+            }
+          }
+        case 'keys':
+          return function* (): HeadersIterator<string> {
+            for (const name of target.keys()) {
+              if (!isHidden(name)) {
+                yield name
+              }
+            }
+          }
+        case 'values':
+          return function* (): HeadersIterator<string> {
+            for (const [name, value] of target.entries()) {
+              if (!isHidden(name)) {
+                yield value
+              }
+            }
+          }
+        case 'forEach':
+          return (callbackfn: ForEachCallback, thisArg?: any): void => {
+            for (const [name, value] of target.entries()) {
+              if (!isHidden(name)) {
+                callbackfn.call(thisArg, value, name, receiver)
+              }
+            }
+          }
+        default:
+          return ReflectAdapter.get(target, prop, receiver)
+      }
+    },
+  }
+}
+
 export class HeadersAdapter extends Headers {
   private readonly headers: IncomingHttpHeaders
 
@@ -117,20 +213,23 @@ export class HeadersAdapter extends Headers {
   /**
    * Seals a Headers instance to prevent modification by throwing an error when
    * any mutating method is called.
+   *
+   * The sealed view stays live. Later writes to `headers` remain visible
+   * through it.
+   *
+   * `hidden` omits the given header names from every read operation (`get`,
+   * `has`, `getSetCookie`, `forEach`, and iteration). The names must be
+   * lowercase. The underlying headers are neither copied nor mutated, so hidden
+   * headers remain available to the framework.
    */
-  public static seal(headers: Headers): ReadonlyHeaders {
-    return new Proxy<ReadonlyHeaders>(headers, {
-      get(target, prop, receiver) {
-        switch (prop) {
-          case 'append':
-          case 'delete':
-          case 'set':
-            return ReadonlyHeadersError.callable
-          default:
-            return ReflectAdapter.get(target, prop, receiver)
-        }
-      },
-    })
+  public static seal(
+    headers: Headers,
+    hidden?: ReadonlySet<string>
+  ): ReadonlyHeaders {
+    return new Proxy<ReadonlyHeaders>(
+      headers,
+      hidden && hidden.size > 0 ? createHidingSealHandler(hidden) : sealHandler
+    )
   }
 
   /**
