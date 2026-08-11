@@ -218,12 +218,12 @@ const unrenderedSegmentCards: FixCard[] = [
   },
   {
     id: 'skip-validation-on-the-segment',
-    title: 'Skip validation on the segment',
+    title: 'Skip only this validation',
     group: 'ignore',
     link: 'https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment',
     snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: '' },
+      { text: '// Server page.tsx or layout.tsx' },
+      { text: '// Prerendering still runs' },
       { text: 'export const instant = false', highlight: true },
     ],
     copyable: true,

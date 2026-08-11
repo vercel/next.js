@@ -423,9 +423,20 @@ describe('card sets for all error families', () => {
   })
 
   it('unrendered-segment', () => {
-    expect(
-      getCards('unrendered-segment', 'runtime').map((card) => card.id)
-    ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
+    const cards = getCards('unrendered-segment', 'runtime')
+
+    expect(cards.map((card) => card.id)).toEqual([
+      'render-the-dropped-segment',
+      'skip-validation-on-the-segment',
+    ])
+    expect(cards[1]).toMatchObject({
+      title: 'Skip only this validation',
+      snippets: [
+        { text: '// Server page.tsx or layout.tsx' },
+        { text: '// Prerendering still runs' },
+        { text: 'export const instant = false', highlight: true },
+      ],
+    })
   })
 
   it('link-prefetch-partial', () => {
@@ -517,7 +528,7 @@ describe('getUnrenderedSegmentErrorDetails', () => {
         `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
         `\n\nWays to fix this:` +
         `\n  - [render] Render the dropped segment` +
-        `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
+        `\n  - [ignore] Set \`export const instant = false\` in the dropped segment's Server Component to skip only this validation (prerendering still runs)` +
         `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
     }
     return new Error(message)
