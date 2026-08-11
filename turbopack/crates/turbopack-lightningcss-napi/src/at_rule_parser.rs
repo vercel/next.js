@@ -79,7 +79,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
         &mut self,
         name: CowRcStr<'i>,
         input: &mut Parser<'i, 't>,
-        _options: &ParserOptions<'_, 'i>,
+        _options: &ParserOptions<'i>,
     ) -> Result<Self::Prelude, ParseError<'i, Self::Error>> {
         if let Some(config) = self.configs.get(name.as_ref()) {
             let prelude = if let Some(prelude) = &config.prelude {
@@ -101,7 +101,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
         prelude: Self::Prelude,
         start: &ParserState,
         input: &mut Parser<'i, 't>,
-        options: &ParserOptions<'_, 'i>,
+        options: &ParserOptions<'i>,
         is_nested: bool,
     ) -> Result<Self::AtRule, ParseError<'i, Self::Error>> {
         let config = self.configs.get(prelude.name.as_ref()).unwrap();
@@ -138,7 +138,7 @@ impl<'i> AtRuleParser<'i> for CustomAtRuleParser {
         &mut self,
         prelude: Self::Prelude,
         start: &ParserState,
-        options: &ParserOptions<'_, 'i>,
+        options: &ParserOptions<'i>,
         _is_nested: bool,
     ) -> Result<Self::AtRule, ()> {
         let config = self.configs.get(prelude.name.as_ref()).unwrap();

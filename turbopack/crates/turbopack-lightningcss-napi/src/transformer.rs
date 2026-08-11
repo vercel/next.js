@@ -305,7 +305,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
 
     fn visit_stylesheet<'o>(
         &mut self,
-        stylesheet: &mut StyleSheet<'i, 'o, AtRule<'i>>,
+        stylesheet: &mut StyleSheet<'i, AtRule<'i>>,
     ) -> Result<(), Self::Error> {
         if self.types.contains(VisitTypes::RULES) {
             let env = self.env;
@@ -364,6 +364,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                         CssRule::Viewport(..) => "viewport",
                         CssRule::StartingStyle(..) => "starting-style",
                         CssRule::ViewTransition(..) => "view-transition",
+                        CssRule::PositionTry(..) => "position-try",
                         CssRule::Unknown(v) => {
                             let name = v.name.as_ref();
                             if let Some(visit) = rule_map.custom(stage, "unknown", name) {
