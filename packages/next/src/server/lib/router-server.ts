@@ -296,13 +296,10 @@ export async function initialize(opts: {
       filterInternalHeaders(req.headers)
     }
 
-    if (opts.dev) {
-      filterInvalidDevRequestIdHeaders(req.headers)
-    }
-
     if (opts.dev && req.url) {
       if (config.experimental.requestInsights) {
         process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+        filterInvalidDevRequestIdHeaders(req.headers)
         const identity = resolveRequestInsightsIdentity({
           previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
           requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
