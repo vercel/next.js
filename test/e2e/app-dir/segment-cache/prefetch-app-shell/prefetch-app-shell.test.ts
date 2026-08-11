@@ -377,6 +377,220 @@ describe('App Shell prefetching', () => {
     )
   })
 
+  describe('navigation()', () => {
+    it('excludes navigation() from a static App Shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /static-navigation/1. This caches the App Shell
+      // for the route. The page renders a component that uses navigation(),
+      // which should be excluded from the shell.
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-navigation/1"]')
+          .click()
+      }, [{ includes: 'App shell for navigation', kind: 'static' }])
+
+      await act(async () => {
+        // Click the link to /static-navigation/2. This link is rendered with
+        // prefetch={false}, so it was never prefetched. The cached App Shell
+        // should render immediately, before any navigation response arrives.
+        await browser.elementByCss('a[href="/static-navigation/2"]').click()
+
+        // While the navigation response is blocked (we're still in the `act`
+        // block), the cached App Shell should already be visible.
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for navigation'
+        )
+        // The navigation-gated content is NOT part of the App Shell, only its fallback.
+        expect(await browser.locator('#navigation-content').count()).toBe(0)
+        expect(await browser.elementByCss('#navigation-loading').text()).toBe(
+          'Loading navigation...'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the navigation-gated
+      // content streams in with the navigation response, along with the
+      // dynamic content.
+      expect(await browser.elementById('navigation-content').text()).toEqual(
+        'Navigation content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 2'
+      )
+    })
+
+    it('excludes navigation() from a runtime App Shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /runtime-navigation/1. This caches the App Shell
+      // for the route. The page renders a component that uses navigation(),
+      // which should be excluded from the runtime shell.
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/runtime-navigation/1"]')
+          .click()
+      }, [
+        { includes: 'App shell for navigation', kind: 'runtime' },
+        { includes: 'param-value', block: 'reject' }, // Only a shell, no URL data.
+      ])
+
+      await act(async () => {
+        // Click the link to /runtime-navigation/2. This link is rendered with
+        // prefetch={false}, so it was never prefetched. The cached App Shell
+        // should render immediately, before any navigation response arrives.
+        await browser.elementByCss('a[href="/runtime-navigation/2"]').click()
+
+        // While the navigation response is blocked (we're still in the `act`
+        // block), the cached App Shell should already be visible.
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for navigation'
+        )
+        // The navigation-gated content is NOT part of the App Shell, only its fallback.
+        expect(await browser.locator('#navigation-content').count()).toBe(0)
+        expect(await browser.elementByCss('#navigation-loading').text()).toBe(
+          'Loading navigation...'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the navigation-gated
+      // content streams in with the navigation response, along with the
+      // dynamic content.
+      expect(await browser.elementById('navigation-content').text()).toEqual(
+        'Navigation content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 2'
+      )
+    })
+
+    it('includes navigation() in a static prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /static-navigation/1,
+      // Triggering a static prefetch request.
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-navigation/1"]')
+          .click()
+      }, [{ includes: 'App shell for navigation', kind: 'static' }])
+
+      await act(async () => {
+        // Navigate to the prefetched route.
+        await browser.elementByCss('a[href="/static-navigation/1"]').click()
+
+        // While the navigation response is blocked (we're still in the `act`
+        // block), the prefetched content should already be visible.
+
+        // Param-dependent content is visible because the params are static.
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Post 1'
+        )
+        // The navigation-gated content is included.
+        expect(await browser.locator('#navigation-loading').count()).toBe(0)
+        expect(await browser.elementByCss('#navigation-content').text()).toBe(
+          'Navigation content'
+        )
+        // Dynamic content is not included.
+        expect(await browser.locator('#dynamic-content').count()).toBe(0)
+        expect(await browser.elementByCss('#dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      })
+
+      expect(await browser.elementById('navigation-content').text()).toEqual(
+        'Navigation content'
+      )
+      // After the outer act unblocks the navigation, the dynamic content streams in.
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 1'
+      )
+    })
+
+    it('excludes navigation() from a speculative runtime prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /runtime-navigation/speculative-1,
+      // Triggering a shell request and then a speculative prefetch request.
+      // The page renders a component that uses navigation(),
+      // which should be excluded from both.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/runtime-navigation/speculative-1"]'
+          )
+          .click()
+      }, [
+        // Two runtime responses carry the shell text, in order: the Shell
+        // phase's runtime App Shell request, then the Speculative phase's
+        // batched per-link runtime prefetch. The route reads request data,
+        // so its static-attempt hint is unset and the prefetch deopts to
+        // runtime requests — the runtime-completeness contract of Partial
+        // Prefetching routes.
+        { includes: 'App shell for navigation', kind: 'runtime' }, // Shell
+        { includes: 'Post speculative-1', kind: 'runtime' }, // Speculative
+      ])
+
+      await act(async () => {
+        // Navigate to the prefetched route.
+        await browser
+          .elementByCss('a[href="/runtime-navigation/speculative-1"]')
+          .click()
+
+        // While the navigation response is blocked (we're still in the `act`
+        // block), the prefetched content should already be visible.
+
+        // Param-dependent content is visible because we used a speculative prefetch.
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Post speculative-1'
+        )
+        // The navigation-gated content is not included.
+        expect(await browser.locator('#navigation-content').count()).toBe(0)
+        expect(await browser.elementByCss('#navigation-loading').text()).toBe(
+          'Loading navigation...'
+        )
+        // Dynamic content is not included.
+        expect(await browser.locator('#dynamic-content').count()).toBe(0)
+        expect(await browser.elementByCss('#dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the navigation-gated
+      // content streams in with the navigation response, along with the
+      // dynamic content.
+      expect(await browser.elementById('navigation-content').text()).toEqual(
+        'Navigation content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for speculative-1'
+      )
+    })
+  })
+
   describe('root params', () => {
     it('includes root params in a runtime App Shell', async () => {
       let page: Playwright.Page
