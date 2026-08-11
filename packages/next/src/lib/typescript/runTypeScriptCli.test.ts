@@ -1,6 +1,9 @@
 import type { ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 const mockSpawn = jest.fn()
 
@@ -9,7 +12,7 @@ jest.mock('next/dist/compiled/cross-spawn', () => ({
   default: (...args: unknown[]) => mockSpawn(...args),
 }))
 
-const { runTypeScriptCli } =
+const { runTypeScriptCli, getTypeScriptPackageInfo } =
   require('./runTypeScriptCli') as typeof import('./runTypeScriptCli')
 
 const processEvents = ['exit', 'SIGINT', 'SIGTERM', 'SIGHUP'] as const
@@ -248,5 +251,56 @@ describe('runTypeScriptCli', () => {
       stderr: 'avertissement 💡',
     })
     expectListenersRestored()
+  })
+})
+
+describe('getTypeScriptPackageInfo', () => {
+  let fixtureDir: string
+
+  beforeEach(() => {
+    fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-package-info-'))
+    const pkgDir = path.join(fixtureDir, 'node_modules', 'typescript')
+    fs.mkdirSync(path.join(pkgDir, 'bin'), { recursive: true })
+    fs.mkdirSync(path.join(pkgDir, 'lib'), { recursive: true })
+
+    // `typescript` aliased to `@typescript/typescript6` — the package the
+    // TypeScript team recommends for adopting the native compiler
+    // incrementally. Its CLI ships as `tsc6` (not `tsc`) so it can coexist
+    // with the native compiler's bin.
+    fs.writeFileSync(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({
+        name: '@typescript/typescript6',
+        version: '6.0.2',
+        main: './lib/typescript.js',
+        bin: { tsc6: './bin/tsc6' },
+      })
+    )
+    fs.writeFileSync(
+      path.join(pkgDir, 'bin', 'tsc6'),
+      "#!/usr/bin/env node\nrequire('../lib/tsc.js')\n"
+    )
+    fs.writeFileSync(path.join(pkgDir, 'lib', 'tsc.js'), '// tsc entry\n')
+    fs.writeFileSync(path.join(pkgDir, 'lib', 'typescript.js'), '// api\n')
+  })
+
+  afterEach(() => {
+    fs.rmSync(fixtureDir, { recursive: true, force: true })
+  })
+
+  it('detects a CLI entry when `typescript` is aliased to a fork whose bin is not named `tsc`', () => {
+    const info = getTypeScriptPackageInfo(fixtureDir)
+
+    // Regression test for https://github.com/vercel/next.js/issues/97015.
+    // With the default `experimental.useTypeScriptCli`, Next runs
+    // `tsc --showConfig` to load tsconfig `paths` under `next build --webpack`.
+    // A `typescript` alias that only ships a `tsc6` bin must still be detected;
+    // otherwise `useTypeScript` resolves to false, the tsconfig `paths` are
+    // never loaded, and webpack fails to resolve every path alias.
+    expect(info).not.toBeNull()
+    expect(info!.version).toBe('6.0.2')
+    expect(info!.tscPath).toBeTruthy()
+    expect(path.basename(info!.tscPath!)).toBe('tsc.js')
+    expect(fs.existsSync(info!.tscPath!)).toBe(true)
   })
 })

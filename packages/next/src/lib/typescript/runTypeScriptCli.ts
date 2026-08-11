@@ -52,6 +52,17 @@ export function getTypeScriptPackageInfo(
     }
   }
 
+  // `typescript` may be aliased to a fork that ships its CLI under a different
+  // bin name so it can coexist with the native compiler (e.g.
+  // `npm:@typescript/typescript6` exposes only a `tsc6` bin). When no `tsc` bin
+  // is declared, fall back to the conventional `lib/tsc.js` entry so the CLI
+  // path (`experimental.useTypeScriptCli`) still finds a runnable `tsc` and
+  // keeps loading `paths` from the tsconfig under `next build --webpack`.
+  const fallbackTscJsPath = path.join(packageDir, 'lib', 'tsc.js')
+  if (!tscPath && existsSync(fallbackTscJsPath)) {
+    tscPath = fallbackTscJsPath
+  }
+
   return {
     packageJsonPath,
     packageDir,
