@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -16,13 +15,13 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBui
 
 use crate::versioned_content_map::VersionedContentMap;
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct HmrChunkWithContent {
     pub path: RcStr,
     pub content: ResolvedVc<Box<dyn VersionedContent>>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct HmrChunksWithContent(Vec<HmrChunkWithContent>);
 
 /// Whether `content` is a chunk list, i.e. an entry point of the chunk graph that

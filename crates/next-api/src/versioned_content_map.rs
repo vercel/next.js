@@ -45,21 +45,8 @@ pub struct PathToOutputOperation(
     FxHashMap<FileSystemPath, ExpandedOutputAssetsOperationSet>,
 );
 
-#[derive(
-    Clone,
-    Default,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
-struct ExpandedOutputAssetsOperationSet(
-    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<OperationVc<ExpandedOutputAssets>>,
-);
+#[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
+struct ExpandedOutputAssetsOperationSet(FxIndexSet<OperationVc<ExpandedOutputAssets>>);
 
 // HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
@@ -194,7 +181,7 @@ impl VersionedContentMap {
 
     /// Creates a [`MapEntry`] (a pre-computed map for optimized lookup) for an output assets
     /// operation. When assets change, map_path_to_op is updated.
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     async fn compute_entry(
         &self,
         assets_operation: OperationVc<ExpandedOutputAssets>,
