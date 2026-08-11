@@ -136,6 +136,7 @@ export interface ImageParamsResult {
   mimeType: string
   sizes: number[]
   minimumCacheTTL: number
+  preserveColorProfile: boolean
 }
 
 interface ImageUpstream {
@@ -382,7 +383,7 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
-    const { url, w, q } = query
+    const { url, w, q, pcp } = query
     let href: string
 
     if (domains.length > 0) {
@@ -526,6 +527,7 @@ export class ImageOptimizerCache {
       quality,
       mimeType,
       minimumCacheTTL,
+      preserveColorProfile: pcp === '1',
     }
   }
 
@@ -798,6 +800,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  preserveColorProfile,
 }: {
   buffer: Buffer
   contentType: string
@@ -809,6 +812,7 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  preserveColorProfile?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
@@ -819,6 +823,10 @@ export async function optimizeImage({
       seconds: timeoutInSeconds ?? 7,
     })
     .rotate()
+
+  if (preserveColorProfile) {
+    transformer.keepIccProfile()
+  }
 
   if (height) {
     transformer.resize(width, height)
@@ -837,11 +845,20 @@ export async function optimizeImage({
       effort: 3,
     })
   } else if (contentType === WEBP) {
-    transformer.webp({ quality })
+    transformer.webp({
+      quality,
+      ...(preserveColorProfile ? { smartSubsample: false } : {}),
+    })
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
+    transformer.jpeg({
+      quality,
+      mozjpeg: true,
+      ...(preserveColorProfile
+        ? { chromaSubsampling: '4:4:4' }
+        : {}),
+    })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -1041,7 +1058,7 @@ export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
-    'href' | 'width' | 'quality' | 'mimeType'
+    'href' | 'width' | 'quality' | 'mimeType' | 'preserveColorProfile'
   >,
   nextConfig: {
     experimental: Pick<
@@ -1054,7 +1071,7 @@ export async function imageOptimizer(
     >
     images: Pick<
       NextConfigComplete['images'],
-      'dangerouslyAllowSVG' | 'minimumCacheTTL'
+      'dangerouslyAllowSVG' | 'minimumCacheTTL' | 'preserveColorProfile'
     >
   },
   opts: {
@@ -1070,7 +1087,7 @@ export async function imageOptimizer(
   upstreamEtag: string
   error?: unknown
 }> {
-  const { href, quality, width, mimeType } = paramsResult
+  const { href, quality, width, mimeType, preserveColorProfile } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
   const maxAge = Math.max(
     nextConfig.images.minimumCacheTTL,
@@ -1170,6 +1187,8 @@ export async function imageOptimizer(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+      preserveColorProfile:
+        preserveColorProfile || nextConfig.images?.preserveColorProfile,
     })
     if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
