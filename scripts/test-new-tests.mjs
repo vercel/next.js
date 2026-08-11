@@ -4,7 +4,7 @@ import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
 import {
   assertPreviewTarballPublished,
-  getPreviewBuildsReadToken,
+  createPreviewBuildsReadTokenGetter,
   previewTarballUrl,
 } from './wait-for-preview-tarball.mjs'
 
@@ -112,7 +112,7 @@ async function main() {
     await assertPreviewTarballPublished({
       commitSha,
       previewBuildsBaseUrl,
-      readToken: await getPreviewBuildsReadToken(),
+      getReadToken: createPreviewBuildsReadTokenGetter(),
     })
   }
 

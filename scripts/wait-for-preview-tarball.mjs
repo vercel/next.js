@@ -42,27 +42,44 @@ async function mintGitHubActionsOidcToken(audience) {
 }
 
 /**
- * Token used to read private preview builds. vercel-packages accepts GitHub
- * Actions OIDC tokens minted for its audience, so we mint one here. Public
- * preview builds need no credentials and return null.
+ * Reads a preview-builds credential, minting a fresh one when needed.
+ * vercel-packages accepts GitHub Actions OIDC tokens minted for its audience.
+ * Public preview builds need no credentials and return null. Private builds
+ * mint a GitHub Actions OIDC token, which expires about five minutes after
+ * issuance, so the token is cached and re-minted before it expires rather
+ * than minted once up front.
  *
- * @returns {Promise<string | null>}
+ * @returns {() => Promise<string | null>}
  */
-export async function getPreviewBuildsReadToken() {
+export function createPreviewBuildsReadTokenGetter() {
   if (process.env.PREVIEW_BUILDS_ACCESS !== 'private') {
-    return null
+    return async () => null
   }
-  const token = await mintGitHubActionsOidcToken(
-    'https://vercel-packages.vercel.app'
-  )
-  if (token === null) {
-    throw new Error(
-      'Preview builds are private (PREVIEW_BUILDS_ACCESS=private) ' +
-        'but no GitHub Actions OIDC token can be minted. ' +
-        'Grant the job the `id-token: write` permission.'
+
+  let cachedToken = null
+  let cachedTokenExpiresAt = 0
+
+  return async () => {
+    if (cachedToken !== null && cachedTokenExpiresAt - 60_000 > Date.now()) {
+      return cachedToken
+    }
+    const token = await mintGitHubActionsOidcToken(
+      'https://vercel-packages.vercel.app'
     )
+    if (token === null) {
+      throw new Error(
+        'Preview builds are private (PREVIEW_BUILDS_ACCESS=private) ' +
+          'but no GitHub Actions OIDC token can be minted. ' +
+          'Grant the job the `id-token: write` permission.'
+      )
+    }
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString()
+    )
+    cachedToken = token
+    cachedTokenExpiresAt = payload.exp * 1000
+    return token
   }
-  return token
 }
 
 /**
@@ -145,10 +162,11 @@ async function probeTarball(url, headers) {
 }
 
 /**
- * @param {string | undefined} readToken
- * @returns {Record<string, string> | undefined}
+ * @param {() => Promise<string | null>} getReadToken
+ * @returns {Promise<Record<string, string> | undefined>}
  */
-function requestHeaders(readToken) {
+async function requestHeaders(getReadToken) {
+  const readToken = await getReadToken()
   return readToken ? { Authorization: `Bearer ${readToken}` } : undefined
 }
 
@@ -187,18 +205,18 @@ function notPublishedError({
  * @param {object} options
  * @param {string} options.commitSha
  * @param {string} [options.previewBuildsBaseUrl]
- * @param {string} [options.readToken]
+ * @param {() => Promise<string | null>} [options.getReadToken]
  * @returns {Promise<void>}
  */
 export async function assertPreviewTarballPublished({
   commitSha,
   previewBuildsBaseUrl,
-  readToken,
+  getReadToken,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
   const { published, lastResponse, responseHeaders } = await probeTarball(
     url,
-    requestHeaders(readToken)
+    await requestHeaders(getReadToken ?? (async () => null))
   )
 
   if (!published) {
@@ -218,7 +236,7 @@ export async function assertPreviewTarballPublished({
  * @param {string} options.commitSha
  * @param {string} [options.previewBuildsBaseUrl]
  * @param {number} options.timeoutMs
- * @param {string} [options.readToken]
+ * @param {() => Promise<string | null>} [options.getReadToken]
  * @param {number} [options.pollIntervalMs]
  * @returns {Promise<void>}
  */
@@ -226,11 +244,10 @@ export async function waitForPreviewTarball({
   commitSha,
   previewBuildsBaseUrl,
   timeoutMs,
-  readToken,
+  getReadToken = async () => null,
   pollIntervalMs = POLL_INTERVAL_MS,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
-  const headers = requestHeaders(readToken)
   const startedAt = Date.now()
   const deadline = startedAt + timeoutMs
   let lastProgressLogAt = startedAt
@@ -240,8 +257,10 @@ export async function waitForPreviewTarball({
   )
 
   for (;;) {
+    // A fresh token per probe: the OIDC token expires after five minutes,
+    // well before the overall timeout.
     const { published, status, lastResponse, responseHeaders } =
-      await probeTarball(url, headers)
+      await probeTarball(url, await requestHeaders(getReadToken))
     const now = Date.now()
 
     if (published) {
@@ -312,7 +331,7 @@ async function main() {
     commitSha,
     previewBuildsBaseUrl: values['preview-builds-base-url'],
     timeoutMs: timeoutMinutes * 60_000,
-    readToken: await getPreviewBuildsReadToken(),
+    getReadToken: createPreviewBuildsReadTokenGetter(),
   })
 }
 
