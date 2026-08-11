@@ -236,19 +236,13 @@ impl<'a> TurboWriteBatch<'a> {
 
     /// Writes a delete (tombstone) for `key` into the write batch.
     ///
-    /// For `SingleValue` families (`TaskMeta`, `TaskData`, `Infra`) this erases the key. For the
-    /// `MultiValue` `TaskCache` family this erases *all* values stored under the key (the whole
-    /// hash bucket), including task types that merely collide with the intended one — use
-    /// [`Self::delete_value`] to remove a single mapping.
+    /// Use [`Self::delete_value`] to remove a single mapping from a MultiValue KeySpace
     pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.batch.delete(key_space as u32, key.into_static())
     }
 
     /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
     /// intact. Only valid for `MultiValue` families (`TaskCache`).
-    ///
-    /// Unlike [`Self::delete`], this needs no read of the existing bucket: the tombstone carries
-    /// the value it deletes and is applied lazily by reads and compaction.
     pub fn delete_value(
         &self,
         key_space: KeySpace,

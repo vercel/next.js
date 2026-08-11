@@ -287,13 +287,9 @@ impl TurboBackingStorage {
                             } => {
                                 let key = IntKey::new(*task_id);
                                 let key = key.as_ref();
-                                // TaskMeta/TaskData are SingleValue, so a key-granular delete is
-                                // exact.
                                 batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
                                 batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
-                                // TaskCache is MultiValue and keyed by a hash, so a whole-key
-                                // delete would also drop any task type that collides with this
-                                // one. Delete just this id from the bucket.
+                                // TaskCache is MultiValue, delete just this id from the bucket.
                                 batch.delete_value(
                                     KeySpace::TaskCache,
                                     WriteBuffer::Borrowed(&task_type_hash[..]),
