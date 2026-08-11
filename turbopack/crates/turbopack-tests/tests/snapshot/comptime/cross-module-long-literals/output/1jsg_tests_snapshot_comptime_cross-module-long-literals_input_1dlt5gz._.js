@@ -17,17 +17,31 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
         throw e;
     })();
 }
+// TODO ideally would inline NaN and Infinity, but currently doesn't
+if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$long$2d$literals$2f$input$2f$other$2e$js__$5b$test$5d$__$28$ecmascript$29$__["NAN"] != undefined && __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$long$2d$literals$2f$input$2f$other$2e$js__$5b$test$5d$__$28$ecmascript$29$__["INFINITY"]) {
+    console.log('ok');
+} else {
+    (()=>{
+        const e = new Error("Cannot find module './dead-code'");
+        e.code = 'MODULE_NOT_FOUND';
+        throw e;
+    })();
+}
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
+    "INFINITY",
+    ()=>INFINITY,
     "LONG_BIG_NUMBER",
     ()=>LONG_BIG_NUMBER,
     "LONG_NUMBER",
     ()=>LONG_NUMBER,
     "LONG_STRING",
     ()=>LONG_STRING,
+    "NAN",
+    ()=>NAN,
     "REGEX",
     ()=>REGEX
 ]);
@@ -35,6 +49,8 @@ const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvw
 const LONG_NUMBER = 21345672345678345678901234567890;
 const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
 const REGEX = /ab/i;
+const NAN = NaN;
+const INFINITY = Infinity;
 }),
 ]);
 
