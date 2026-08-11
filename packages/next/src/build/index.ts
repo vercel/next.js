@@ -151,7 +151,10 @@ import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -2373,6 +2376,7 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
+                  const originalAppPaths: string[] = []
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
@@ -2380,13 +2384,16 @@ export default async function build(
                       normalizedPath === page &&
                       mappedAppPages[originalPath]
                     ) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
+                      originalAppPaths.push(originalPath)
                     }
+                  }
+
+                  if (originalAppPaths.length > 0) {
+                    originalAppPath = selectAppPageEntry(page, originalAppPaths)
+                    pagePath = mappedAppPages[originalAppPath].replace(
+                      /^private-next-app-dir/,
+                      ''
+                    )
                   }
                 }
 
