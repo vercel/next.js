@@ -44,12 +44,12 @@ pub enum CollectorEntryValue {
 impl CollectorEntryValue {
     pub fn len(&self) -> usize {
         match self {
-            CollectorEntryValue::Tiny { len, .. } => *len as usize,
+            CollectorEntryValue::KeyValueDeleted { len, .. }
+            | CollectorEntryValue::Tiny { len, .. } => *len as usize,
             CollectorEntryValue::Small { value } => value.len(),
             CollectorEntryValue::Medium { value } => value.len(),
             CollectorEntryValue::Large { blob: _ } => 0,
             CollectorEntryValue::KeyDeleted => 0,
-            CollectorEntryValue::KeyValueDeleted { .. } => 0,
         }
     }
 

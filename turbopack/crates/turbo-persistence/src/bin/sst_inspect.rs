@@ -102,7 +102,7 @@ struct SstStats {
     small_value_refs: u64,        // Count of references to value blocks
     medium_value_refs: u64,       // Count of references to medium values
     blob_refs: u64,               // Count of blob references
-    deleted_count: u64,           // Count of key tombstones
+    key_deleted_count: u64,       // Count of key tombstones
     key_value_deleted_count: u64, // Count of key-value tombstones
 
     /// File size in bytes
@@ -125,7 +125,7 @@ impl SstStats {
         self.small_value_refs += other.small_value_refs;
         self.medium_value_refs += other.medium_value_refs;
         self.blob_refs += other.blob_refs;
-        self.deleted_count += other.deleted_count;
+        self.key_deleted_count += other.key_deleted_count;
         self.key_value_deleted_count += other.key_value_deleted_count;
         self.file_size += other.file_size;
     }
@@ -150,7 +150,7 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
             stats.blob_refs += 1;
         }
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => {
-            stats.deleted_count += 1;
+            stats.key_deleted_count += 1;
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
@@ -696,11 +696,11 @@ fn print_value_storage(stats: &SstStats, prefix: &str) {
             format_number(stats.blob_refs)
         );
     }
-    if stats.deleted_count > 0 {
+    if stats.key_deleted_count > 0 {
         println!(
             "{}  Key tombstones: {} entries",
             prefix,
-            format_number(stats.deleted_count)
+            format_number(stats.key_deleted_count)
         );
     }
     if stats.key_value_deleted_count > 0 {

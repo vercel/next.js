@@ -106,7 +106,8 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Only meaningful for [`FamilyKind::MultiValue`] families. Deleting a pair written in the
     /// same batch is not supported; see [`WriteBatch::delete_value`][crate::WriteBatch].
     ///
-    /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers validate this.
+    /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers must validate this.  Larger
+    /// values could be supported in the future but there is currently no usecase.
     pub fn delete_value(&mut self, key: K, value: &[u8]) {
         debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
         let key = EntryKey {
