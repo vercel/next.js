@@ -14,7 +14,7 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TreeShakingMode, TypeofWindow,
+    AnalyzeMode, TypeofWindow,
     references::esm::UrlRewriteBehavior,
     transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
 };
@@ -217,7 +217,8 @@ pub struct ModuleOptionsContext {
     pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    pub follow_reexports: bool,
+    pub module_fragments_enabled: bool,
 
     pub static_url_tag: Option<RcStr>,
 
@@ -275,14 +276,16 @@ pub struct EcmascriptOptionsContext {
     /// Whether to enable `import bytes from 'module' with { type: "bytes" }` syntax.
     pub enable_import_as_bytes: bool,
 
-    /// Whether to enable `import text from 'module' with { type: "text" }` syntax.
-    pub enable_import_as_text: bool,
-
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
+    /// Whether to scope-hoist static CommonJS modules. Defaults to false.
+    pub cjs_scope_hoisting: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,

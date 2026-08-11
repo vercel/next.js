@@ -708,8 +708,7 @@ const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -724,8 +723,7 @@ const resolveMetadataItems = cache(async function (
     searchParams,
     errorConvention,
     errorMetadataItem,
-    interpolatedParams,
-    isRuntimePrefetchable
+    interpolatedParams
   )
 })
 
@@ -739,8 +737,7 @@ async function resolveMetadataItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -771,8 +768,7 @@ async function resolveMetadataItemsImpl(
 
   const params = createServerParamsForMetadata(
     currentParams,
-    optionalCatchAllParamName,
-    isRuntimePrefetchable
+    optionalCatchAllParamName
   )
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
@@ -799,8 +795,7 @@ async function resolveMetadataItemsImpl(
       searchParams,
       errorConvention,
       errorMetadataItem,
-      interpolatedParams,
-      isRuntimePrefetchable
+      interpolatedParams
     )
   }
 
@@ -818,8 +813,7 @@ const resolveViewportItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ) {
   const parentParams = {}
   const viewportItems: ViewportItems = []
@@ -836,8 +830,7 @@ const resolveViewportItems = cache(async function (
     searchParams,
     errorConvention,
     errorViewportItemRef,
-    interpolatedParams,
-    isRuntimePrefetchable
+    interpolatedParams
   )
 })
 
@@ -851,8 +844,7 @@ async function resolveViewportItemsImpl(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorViewportItemRef: ErrorViewportItemRef,
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ): Promise<ViewportItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -883,8 +875,7 @@ async function resolveViewportItemsImpl(
 
   const params = createServerParamsForMetadata(
     currentParams,
-    optionalCatchAllParamName,
-    isRuntimePrefetchable
+    optionalCatchAllParamName
   )
 
   let layerProps: LayoutProps | PageProps
@@ -922,8 +913,7 @@ async function resolveViewportItemsImpl(
       searchParams,
       errorConvention,
       errorViewportItemRef,
-      interpolatedParams,
-      isRuntimePrefetchable
+      interpolatedParams
     )
   }
 
@@ -1292,15 +1282,13 @@ export async function resolveMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
-  isRuntimePrefetchable: boolean
+  metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   const metadataItems = await resolveMetadataItems(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams,
-    isRuntimePrefetchable
+    interpolatedParams
   )
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -1319,15 +1307,13 @@ export async function resolveViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ): Promise<ResolvedViewport> {
   const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams,
-    isRuntimePrefetchable
+    interpolatedParams
   )
   return accumulateViewport(viewportItems)
 }

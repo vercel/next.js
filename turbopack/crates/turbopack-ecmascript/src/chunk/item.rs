@@ -20,7 +20,10 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
-    source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
+    source_map::{
+        structured::StructuredSourceMap,
+        utils::{absolute_fileify_source_map, relative_fileify_source_map},
+    },
 };
 
 use crate::{
@@ -46,7 +49,7 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<Rope>,
+    pub source_map: Option<StructuredSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -165,19 +168,14 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        let source_map = match &self.rewrite_source_path {
-            RewriteSourcePath::AbsoluteFilePath(path) => {
-                absolute_fileify_source_map(self.source_map.as_ref(), path.clone()).await?
+        let source_map = match (&self.rewrite_source_path, &self.source_map) {
+            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
+                Some(absolute_fileify_source_map(map, path.clone()).await?)
             }
-            RewriteSourcePath::RelativeFilePath(path, relative_path) => {
-                relative_fileify_source_map(
-                    self.source_map.as_ref(),
-                    path.clone(),
-                    relative_path.clone(),
-                )
-                .await?
+            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
+                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
             }
-            RewriteSourcePath::None => self.source_map.clone(),
+            (_, map) => map.clone(),
         };
 
         code.push_source(&self.inner_code, source_map);

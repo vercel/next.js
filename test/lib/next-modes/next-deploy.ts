@@ -2,10 +2,11 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
+import { FileRef } from '../e2e-utils'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -13,6 +14,17 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
+  }
 
   protected throwIfUnavailable(): void | never {
     if (this.isStopping !== null) {
@@ -325,7 +337,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -421,18 +433,13 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
-      )
-    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
@@ -508,6 +515,9 @@ export class NextDeployInstance extends NextInstance {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
 
     if (!token || !baseUrlRaw) {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+      )
       return
     }
 
@@ -516,6 +526,9 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
       `${registryKey}:_authToken=${token}\n`

@@ -526,138 +526,6 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
-/// <reference path="./runtime-types.d.ts" />
-/// <reference path="./runtime-utils.ts" />
-/**
- * Top-level-await / async-module machinery. This is only included in the runtime
- * when the module graph actually contains an async module (a module with
- * top-level await, or one that transitively depends on one). When no async
- * module is present, the chunk items never reference `__turbopack_context__.a`,
- * so this whole file can be omitted.
- *
- * everything below is adapted from webpack
- * https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
- */ const turbopackQueues = Symbol('turbopack queues');
-const turbopackExports = Symbol('turbopack exports');
-const turbopackError = Symbol('turbopack error');
-function isPromise(maybePromise) {
-    return maybePromise != null && typeof maybePromise === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    let resolve;
-    let reject;
-    const promise = new Promise((res, rej)=>{
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
-function resolveQueue(queue) {
-    if (queue && queue.status !== 1) {
-        queue.status = 1;
-        queue.forEach((fn)=>fn.queueCount--);
-        queue.forEach((fn)=>fn.queueCount-- ? fn.queueCount++ : fn());
-    }
-}
-function wrapDeps(deps) {
-    return deps.map((dep)=>{
-        if (dep !== null && typeof dep === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
-                const queue = Object.assign([], {
-                    status: 0
-                });
-                const obj = {
-                    [turbopackExports]: {},
-                    [turbopackQueues]: (fn)=>fn(queue)
-                };
-                dep.then((res)=>{
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
-                }, (err)=>{
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
-                });
-                return obj;
-            }
-        }
-        return {
-            [turbopackExports]: dep,
-            [turbopackQueues]: ()=>{}
-        };
-    });
-}
-function asyncModule(body, hasAwait) {
-    const module = this.m;
-    const queue = hasAwait ? Object.assign([], {
-        status: -1
-    }) : undefined;
-    const depQueues = new Set();
-    const { resolve, reject, promise: rawPromise } = createPromise();
-    const promise = Object.assign(rawPromise, {
-        [turbopackExports]: module.exports,
-        [turbopackQueues]: (fn)=>{
-            queue && fn(queue);
-            depQueues.forEach(fn);
-            promise['catch'](()=>{});
-        }
-    });
-    const attributes = {
-        get () {
-            return promise;
-        },
-        set (v) {
-            // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
-            }
-        }
-    };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        const currentDeps = wrapDeps(deps);
-        const getResult = ()=>currentDeps.map((d)=>{
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
-            });
-        const { promise, resolve } = createPromise();
-        const fn = Object.assign(()=>resolve(getResult), {
-            queueCount: 0
-        });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
-                if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
-                }
-            }
-        }
-        currentDeps.map((dep)=>dep[turbopackQueues](fnQueue));
-        return fn.queueCount ? promise : getResult();
-    }
-    function asyncResult(err) {
-        if (err) {
-            reject(promise[turbopackError] = err);
-        } else {
-            resolve(promise[turbopackExports]);
-        }
-        resolveQueue(queue);
-    }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
-    }
-}
-contextPrototype.a = asyncModule;
 /// <reference path="../shared/runtime/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -916,9 +784,11 @@ function formatDependencyChain(dependencyChain) {
             dependencyChain: []
         }
     ];
-    let nextItem;
-    while(nextItem = queue.shift()){
-        const { moduleId, dependencyChain } = nextItem;
+    let queueIndex = 0;
+    while(queueIndex < queue.length){
+        const { moduleId, dependencyChain } = queue[queueIndex];
+        // Release copied dependency chains as soon as their queue item is consumed.
+        queue[queueIndex++] = undefined;
         if (moduleId != null) {
             if (outdatedModules.has(moduleId)) {
                 continue;
@@ -1657,16 +1527,9 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
  * the handler is initialized first via ensureHmrClientInitialized().
  */ function emitMessage(msg) {
     if (serverHmrUpdateHandler == null) {
-        console.warn('[Server HMR] No update handler registered to receive message:', msg);
-        return false;
+        throw new Error('[Server HMR] No update handler registered to receive message');
     }
-    try {
-        serverHmrUpdateHandler(msg.data);
-        return true;
-    } catch (err) {
-        console.error('[Server HMR] Listener error:', err);
-        return false;
-    }
+    serverHmrUpdateHandler(msg.data);
 }
 /**
  * Handles server message updates and applies them to the Node.js runtime.
@@ -1676,33 +1539,62 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
         return;
     }
     const instruction = msg.instruction;
-    if (instruction.type !== 'EcmascriptMergedUpdate') {
-        return;
-    }
     try {
-        const { entries = {}, chunks = {} } = instruction;
-        const evalModuleEntry = (entry)=>{
-            // eslint-disable-next-line no-eval
-            return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
-        };
-        const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
-        );
-        // Use shared HMR update implementation
-        applyEcmascriptMergedUpdateShared({
-            added,
-            modified,
-            disposedModules: [],
-            evalModuleEntry,
-            instantiateModule,
-            applyModuleFactoryName: ()=>{},
-            moduleFactories,
-            devModuleCache,
-            autoAcceptRootModules: true
-        });
+        if (instruction.type === 'ChunkListUpdate') {
+            // All node ecmascript chunks are mergeable, so a `total`/`partial` here
+            // means a non-mergeable asset changed in an unsupported way. Escalate
+            // to a full clear() rather than leave stale factories in memory.
+            for (const [chunkPath, chunkUpdate] of Object.entries(instruction.chunks ?? {})){
+                if (chunkUpdate.type === 'total' || chunkUpdate.type === 'partial') {
+                    throw new Error(`unsupported '${chunkUpdate.type}' update for chunk ${chunkPath}`);
+                }
+            }
+            if (instruction.merged) {
+                for (const merged of instruction.merged){
+                    applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache);
+                }
+            }
+            return;
+        }
+        if (instruction.type === 'EcmascriptMergedUpdate') {
+            applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache);
+            return;
+        }
     } catch (e) {
         console.error('[Server HMR] Update failed, full reload needed:', e);
         throw e;
     }
+}
+function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache) {
+    const { entries = {}, chunks = {} } = instruction;
+    const evalModuleEntry = (entry)=>{
+        const code = entry.map ? inlineSourcemaps(entry) : entry.code;
+        // eslint-disable-next-line no-eval
+        return (0, eval)(`(require) => ${code}`)(require);
+    };
+    const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
+    );
+    // Modules that appear in an "added" chunk but already exist in the cache
+    // were moved to a renamed chunk. Treat them as modified so the dependency
+    // walk runs and they get re-instantiated with the new factory.
+    for (const [moduleId, entry] of added){
+        if (entry != null && devModuleCache[moduleId] != null) {
+            added.delete(moduleId);
+            modified.set(moduleId, entry);
+        }
+    }
+    // Use shared HMR update implementation
+    applyEcmascriptMergedUpdateShared({
+        added,
+        modified,
+        disposedModules: [],
+        evalModuleEntry,
+        instantiateModule,
+        applyModuleFactoryName: ()=>{},
+        moduleFactories,
+        devModuleCache,
+        autoAcceptRootModules: true
+    });
 }
 /// <reference path="../../shared/runtime/dev-protocol.d.ts" />
 /// <reference path="./hmr-client.ts" />
@@ -1720,27 +1612,32 @@ function ensureHmrClientInitialized() {
     initializeServerHmr(moduleFactories, devModuleCache);
 }
 function __turbopack_server_hmr_apply__(update) {
-    try {
-        ensureHmrClientInitialized();
-        // emitMessage returns false if any listener failed to apply the update
-        return emitMessage({
-            type: 'turbopack-message',
-            data: update
-        });
-    } catch (err) {
-        console.error('[Server HMR] Failed to apply update:', err);
-        return false;
-    }
+    ensureHmrClientInitialized();
+    // Throws if the update can't be applied in-process; the consumer catches it
+    // and falls back to evicting require.cache.
+    emitMessage({
+        type: 'turbopack-message',
+        data: update
+    });
 }
 const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+// Normalize to forward slashes so it matches the virtual chunk paths in
+// `update.instruction.chunks`, which always use `/` regardless of OS.
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename)).replaceAll(path.sep, '/');
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
         const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        // Chunk paths can appear either directly on the instruction (single-chunk
+        // updates) or nested inside `merged` entries (chunks covered by a
+        // merger). Collect both so routing isn't skipped just because a mergeable
+        // chunk's update only reports its paths inside `merged`.
+        const updateChunkPaths = new Set([
+            ...Object.keys(update.instruction?.chunks ?? {}),
+            ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
+        ]);
         const toCall = [];
-        if (updateChunkPaths.length === 0) {
+        if (updateChunkPaths.size === 0) {
             for (const entry of registry.values())toCall.push(entry);
         } else {
             const seen = new Set();
@@ -1754,15 +1651,12 @@ if (handlers.size === 0) {
                 }
             }
         }
-        let applied = false;
+        // No matching runtime loaded (e.g. editing a route not required yet this
+        // session): nothing live to patch, so this is a no-op. A handler that
+        // throws propagates to the consumer, which evicts require.cache.
         for (const { handler } of toCall){
-            try {
-                if (handler(update)) applied = true;
-            } catch (err) {
-                console.error('[Server HMR] Handler error:', err);
-            }
+            handler(update);
         }
-        return applied;
     };
 }
 globalThis.__turbopack_server_hmr_handlers__ = handlers;

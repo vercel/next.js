@@ -45,7 +45,11 @@
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
+import type {
+  RouteTree,
+  RSCSegmentData,
+  FulfilledRouteCacheEntry,
+} from './cache'
 import {
   EntryStatus,
   writeRouteIntoCache,
@@ -55,8 +59,12 @@ import {
   createMetadataRouteTree,
 } from './cache'
 import { isValueExpired } from './cache-map'
-import { doesStaticSegmentAppearInURL } from '../../route-params'
+import {
+  canonicalizeURLPart,
+  doesStaticSegmentAppearInURL,
+} from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
+import { splitPathnameIntoParts } from './cache-key'
 import {
   appendLayoutVaryPath,
   finalizeLayoutVaryPath,
@@ -111,8 +119,21 @@ type KnownRoutePartBase = {
   // learned its structure yet.
   pattern: FulfilledRouteCacheEntry | null
 
+  // True when parallel route branches disagree about the dynamic segment at
+  // this level — different param name or type, e.g. an @modal/[...catchAll]
+  // slot alongside [username]. The trie can only model one dynamic child per
+  // level, so prediction below this level would bind one branch's URL parts
+  // to another branch's params. Once set, discovery stops storing patterns
+  // beneath this level and matching bails out to server resolution.
+  //
+  // TODO: Consider including conflicting sibling dynamic params in the route
+  // tree, like we do for static siblings, and attempting to match both.
+  hasConflictingDynamicChildren: boolean
+
   // TODO: For prefix rewrite support. When true, this part may not appear in
-  // the candidate URL because it was injected by a rewrite.
+  // the candidate URL because it was injected by a rewrite. Today, discovery
+  // refuses to store a pattern for such routes (see the cache key comparison
+  // in discoverKnownRoutePart); this field would let them be predicted.
   // mayBeSkippedInURL: boolean
 }
 
@@ -136,10 +157,13 @@ type KnownRoutePart =
 
 /**
  * Param values extracted during URL matching. Used to reify the template.
- * - string for regular dynamic [param]
- * - string[] for catch-all [...param] and optional catch-all [[...param]]
+ * Values are always strings: catch-all [...param] and optional catch-all
+ * [[...param]] values are joined with '/' at the time they're resolved, which
+ * matches how the rest of the system models catch-all cache keys (an empty
+ * optional catch-all is the empty string). Keeping a single value type keeps
+ * reads of this map monomorphic.
  */
-type ResolvedParams = Map<string, string | string[]>
+type ResolvedParams = Map<string, string>
 
 /**
  * Read the pattern from a KnownRoutePart, evicting it if expired.
@@ -172,6 +196,7 @@ function createEmptyPart(): KnownRoutePart {
     dynamicChildParamName: null,
     dynamicChildParamType: null,
     pattern: null,
+    hasConflictingDynamicChildren: false,
   }
 }
 
@@ -202,7 +227,7 @@ export function discoverKnownRoute(
   search: NormalizedSearch,
   nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -211,7 +236,7 @@ export function discoverKnownRoute(
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const pathnameParts = splitPathnameIntoParts(pathname)
 
   if (pendingEntry !== null) {
     // Fulfill the pending entry first
@@ -283,7 +308,7 @@ function handleMismatchDueToRewrite(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -306,9 +331,11 @@ function handleMismatchDueToRewrite(
 }
 
 /**
- * Gets or creates the dynamic child node for a KnownRoutePart.
- * A node can have at most one dynamic child (you can't have both [slug] and
- * [id] at the same route level), so we either return existing or create new.
+ * Gets or creates the dynamic child node for a KnownRoutePart. A node can
+ * have at most one dynamic child. Sibling filesystem routes can't declare two
+ * different params at the same level, but parallel route branches can (e.g.
+ * @modal/[...catchAll] alongside [username]) — the caller detects that case
+ * and marks the level as conflicted instead of calling this.
  */
 function discoverDynamicChild(
   part: KnownRoutePart,
@@ -344,7 +371,7 @@ function discoverDynamicChild(
  */
 function discoverKnownRoutePart(
   parentKnownRoutePart: KnownRoutePart,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   pathnameParts: readonly string[],
   partIndex: number,
   existingEntry: FulfilledRouteCacheEntry | null,
@@ -353,7 +380,7 @@ function discoverKnownRoutePart(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -406,6 +433,7 @@ function discoverKnownRoutePart(
   } else {
     // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
     const paramName: string = segment[0]
+    const paramCacheKey: string = segment[1]
     const paramType: DynamicParamTypesShort = segment[2]
     const staticSiblings: readonly string[] | null = segment[3]
 
@@ -435,6 +463,102 @@ function discoverKnownRoutePart(
     ) {
       // The route tree says this is a dynamic sibling, but the canonical URL
       // is a known static sibling. This is a mismatch.
+      return handleMismatchDueToRewrite(
+        existingEntry,
+        now,
+        pathname,
+        search,
+        nextUrl,
+        fullTree,
+        metadataVaryPath,
+        couldBeIntercepted,
+        canonicalUrl,
+        supportsPerSegmentPrefetching
+      )
+    }
+
+    // The param's cache key holds the value parsed from the *rendered*
+    // pathname. If the URL part(s) this segment would consume don't equal
+    // that value, the response was rewrite-affected in a way that shifts
+    // which URL part maps to which segment (e.g. a proxy injected a leading
+    // locale segment). A static segment catches this above by failing to
+    // match its URL part; a dynamic segment consumes whatever part is in
+    // front of it, so compare against the rendered value instead. Bail out.
+    switch (paramType) {
+      case 'd': {
+        // Canonicalize the URL part to the same encoded form the server used
+        // for the cache key.
+        if (
+          urlPart !== null &&
+          canonicalizeURLPart(urlPart) !== paramCacheKey
+        ) {
+          return handleMismatchDueToRewrite(
+            existingEntry,
+            now,
+            pathname,
+            search,
+            nextUrl,
+            fullTree,
+            metadataVaryPath,
+            couldBeIntercepted,
+            canonicalUrl,
+            supportsPerSegmentPrefetching
+          )
+        }
+        break
+      }
+      case 'c':
+      case 'oc': {
+        // Catch-alls consume every remaining URL part; their cache keys are
+        // the rendered parts joined with '/' (empty string for an empty
+        // optional catch-all). Comparing the joined remainder also catches a
+        // rewrite that appended segments the URL doesn't have.
+        const joinedRemainingParts = pathnameParts
+          .slice(partIndex)
+          .map(canonicalizeURLPart)
+          .join('/')
+        if (joinedRemainingParts !== paramCacheKey) {
+          return handleMismatchDueToRewrite(
+            existingEntry,
+            now,
+            pathname,
+            search,
+            nextUrl,
+            fullTree,
+            metadataVaryPath,
+            couldBeIntercepted,
+            canonicalUrl,
+            supportsPerSegmentPrefetching
+          )
+        }
+        break
+      }
+      case 'ci(..)(..)':
+      case 'ci(.)':
+      case 'ci(..)':
+      case 'ci(...)':
+      case 'di(..)(..)':
+      case 'di(.)':
+      case 'di(..)':
+      case 'di(...)':
+        // Interception params embed relative markers in their values, and
+        // patterns containing them are never used for prediction anyway (see
+        // matchKnownRoutePart), so skip the comparison.
+        break
+      default:
+        paramType satisfies never
+    }
+
+    if (
+      parentKnownRoutePart.hasConflictingDynamicChildren ||
+      (parentKnownRoutePart.dynamicChild !== null &&
+        (parentKnownRoutePart.dynamicChildParamName !== paramName ||
+          parentKnownRoutePart.dynamicChildParamType !== paramType))
+    ) {
+      // A different parallel route branch already claimed the dynamic child
+      // at this level with a different param. Mark the level as conflicted
+      // so matching bails out, and don't store a pattern via this branch.
+      parentKnownRoutePart.hasConflictingDynamicChildren = true
       return handleMismatchDueToRewrite(
         existingEntry,
         now,
@@ -491,8 +615,7 @@ function discoverKnownRoutePart(
   const slots = routeTree.slots
   let resultFromChildren: FulfilledRouteCacheEntry | null = null
   if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childRouteTree = slots[parallelRouteKey]
+    for (const childRouteTree of slots.values()) {
       // Skip branches with refreshState set - these were reused from a
       // different route (e.g., a "default" parallel slot) and don't represent
       // the actual route structure for this URL.
@@ -609,7 +732,7 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const pathnameParts = splitPathnameIntoParts(pathname)
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
     now,
@@ -776,8 +899,10 @@ function matchKnownRoutePart(
     }
   }
 
-  // Try dynamic child
-  if (part.dynamicChild !== null) {
+  // Try dynamic child. Skip it entirely if parallel route branches disagree
+  // about the dynamic segment at this level — any pattern stored beneath it
+  // was learned under a conflicting model.
+  if (part.dynamicChild !== null && !part.hasConflictingDynamicChildren) {
     const dynamicPart = part.dynamicChild
     const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
@@ -791,7 +916,10 @@ function matchKnownRoutePart(
           !dynamicPattern.hasDynamicRewrite &&
           urlPart !== null
         ) {
-          resolvedParams.set(paramName, pathnameParts.slice(partIndex))
+          resolvedParams.set(
+            paramName,
+            pathnameParts.slice(partIndex).join('/')
+          )
           return { part: dynamicPart, pattern: dynamicPattern }
         }
         break
@@ -799,14 +927,17 @@ function matchKnownRoutePart(
         // Optional catch-all [[...param]]: consumes 0+ URL parts
         if (dynamicPattern !== null && !dynamicPattern.hasDynamicRewrite) {
           if (urlPart !== null) {
-            resolvedParams.set(paramName, pathnameParts.slice(partIndex))
+            resolvedParams.set(
+              paramName,
+              pathnameParts.slice(partIndex).join('/')
+            )
             return { part: dynamicPart, pattern: dynamicPattern }
           }
           // urlPart is null - can match with zero parts, but a direct pattern
           // (e.g., page.tsx alongside [[...param]]) takes precedence.
           const directPattern = readPattern(now, part)
           if (directPattern === null || directPattern.hasDynamicRewrite) {
-            resolvedParams.set(paramName, [])
+            resolvedParams.set(paramName, '')
             return { part: dynamicPart, pattern: dynamicPattern }
           }
         }
@@ -877,12 +1008,12 @@ type ReifyAccumulator = {
  * produces a tree where segment [slug] has cacheKey "hello".
  */
 function reifyRouteTree(
-  pattern: RouteTree,
+  pattern: RouteTree<null>,
   resolvedParams: ResolvedParams,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree {
+): RouteTree<null> {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -900,9 +1031,9 @@ function reifyRouteTree(
     const staticSiblings = originalSegment[3]
     const newValue = resolvedParams.get(paramName)
     if (newValue !== undefined) {
-      const newCacheKey = Array.isArray(newValue)
-        ? newValue.join('/')
-        : newValue
+      // Catch-all values are already joined into a single string when they're
+      // resolved in matchKnownRoutePart, so the value can be used directly.
+      const newCacheKey = newValue
       newSegment = [paramName, newCacheKey, paramType, staticSiblings]
       partialVaryPath = appendLayoutVaryPath(
         parentPartialVaryPath,
@@ -921,16 +1052,20 @@ function reifyRouteTree(
   }
 
   // Recurse into children with the (possibly updated) partial vary path
-  let newSlots: Record<string, RouteTree> | null = null
-  if (pattern.slots !== null) {
-    newSlots = {}
-    for (const key in pattern.slots) {
-      newSlots[key] = reifyRouteTree(
-        pattern.slots[key],
-        resolvedParams,
-        search,
-        partialVaryPath,
-        acc
+  let newSlots: Map<string, RouteTree<null>> | null = null
+  const patternSlots = pattern.slots
+  if (patternSlots !== null) {
+    newSlots = new Map()
+    for (const [key, childPattern] of patternSlots) {
+      newSlots.set(
+        key,
+        reifyRouteTree(
+          childPattern,
+          resolvedParams,
+          search,
+          partialVaryPath,
+          acc
+        )
       )
     }
   }
@@ -955,11 +1090,13 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: true,
+      // Route cache patterns never carry seed data (see
+      // stripDataFromRouteTree), so neither do trees reified from them.
+      data: null,
       varyPath: newVaryPath,
+      isPage: true,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   } else {
     // Layout segment: finalize without search params
@@ -972,11 +1109,11 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: false,
+      data: null,
       varyPath: newVaryPath,
+      isPage: false,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   }
 }

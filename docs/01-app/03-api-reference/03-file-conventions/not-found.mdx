@@ -42,11 +42,13 @@ export default function NotFound() {
 
 In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `not-found.js` renders between `loading.js` and `page.js`. It is wrapped by the `<Suspense>` boundary from `loading.js` and the error boundary from `error.js` in the same segment.
 
+> **Good to know**: The default not found UI follows the operating system's color scheme via `prefers-color-scheme` and does not read an app-level theme (such as a class or `data-theme` attribute on `<html>`). Because it renders inside your root layout, the quickest way to match an explicit theme is to add a higher-specificity rule pair in your global stylesheet, scoped to your theme selector — for example `html[data-theme='light'] body` and `html[data-theme='dark'] body`. For full control over the markup, provide your own `not-found.js`.
+
 ## `global-not-found.js` (experimental)
 
 The `global-not-found.js` file lets you define a 404 page for your entire application. Unlike `not-found.js`, which works at the route level, this is used when a requested URL doesn't match any route at all. Next.js **skips rendering** and directly returns this global page.
 
-The `global-not-found.js` file bypasses your app's normal rendering, which means you'll need to import any global styles, fonts, or other dependencies that your 404 page requires.
+The `global-not-found.js` file bypasses your app's normal rendering, which means you'll need to import any global styles, fonts, or other dependencies that your 404 page requires. This includes your theme: because `global-not-found.js` bypasses your layout, the OS color scheme is the only signal the default UI sees, so apply your theme (class or attribute) inside this file.
 
 > **Good to know**: A smaller version of your global styles, and a simpler font family could improve performance of this page.
 

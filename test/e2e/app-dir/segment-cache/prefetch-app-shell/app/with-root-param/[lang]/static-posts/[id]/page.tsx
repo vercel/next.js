@@ -3,6 +3,11 @@ import { Suspense } from 'react'
 
 type Params = { id: string }
 
+// Opt into Partial Prefetching so the fully-static route participates in the
+// App Shell flow: its shell prefix is extracted and cached at the Fallback
+// vary path, reusable for any param.
+export const prefetch = 'partial'
+
 // This page is fully static: no cookies, no `connection()`, no other dynamic
 // data. All params are statically known via `generateStaticParams`, so the
 // page is prerendered for every URL at build time. With default prefetch

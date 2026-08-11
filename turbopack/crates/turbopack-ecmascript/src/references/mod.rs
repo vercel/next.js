@@ -98,7 +98,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    ModuleTypeResult, TreeShakingMode, TypeofWindow,
+    ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
@@ -111,8 +111,10 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
+    chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
+    module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
         amd::{
@@ -148,7 +150,6 @@ use crate::{
         TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
-    tree_shake::{part_of_module, split_module},
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
 };
 
@@ -166,6 +167,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    /// Present when the module is a statically-analyzable CommonJS module;
+    /// carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 #[turbo_tasks::value_impl]
@@ -223,6 +227,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     side_effects: ModuleSideEffects,
+    cjs_static_exports: Option<CjsStaticExports>,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -242,6 +247,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             side_effects: ModuleSideEffects::SideEffectful,
+            cjs_static_exports: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -428,6 +434,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
+                cjs_static_exports: self.cjs_static_exports,
             },
         ))
     }
@@ -458,7 +465,8 @@ struct AnalysisState<'a> {
     // There can be many references to __webpack_exports_info__, but only the first should hoist
     // the object allocation.
     first_webpack_exports_info: bool,
-    tree_shaking_mode: Option<TreeShakingMode>,
+    module_fragments_enabled: bool,
+    cjs_tree_shaking: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -700,6 +708,7 @@ async fn analyze_ecmascript_module_internal(
     });
 
     let is_esm = eval_context.is_esm(specified_type);
+
     let compile_time_info = compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
@@ -822,6 +831,9 @@ async fn analyze_ecmascript_module_internal(
                 eval_context,
                 analyze_mode,
                 supports_block_scoping,
+                specified_type,
+                options.cjs_tree_shaking,
+                options.cjs_scope_hoisting,
             ));
         });
         graph.unwrap()
@@ -831,6 +843,10 @@ async fn analyze_ecmascript_module_internal(
     async {
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
         let effects = take(&mut var_graph.effects);
+        // How each `require("…")` call's result is used, keyed by call position.
+        let require_binding_usage = take(&mut var_graph.require_usage);
+        // The module's static CommonJS exports, if any, for scope hoisting.
+        analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
@@ -853,7 +869,8 @@ async fn analyze_ecmascript_module_internal(
             var_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
-            tree_shaking_mode: options.tree_shaking_mode,
+            module_fragments_enabled: options.module_fragments_enabled,
+            cjs_tree_shaking: options.cjs_tree_shaking,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1079,6 +1096,11 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *func), eval_context.imports.get_attributes(span))
                         .await?;
 
+                    let call_usage = require_binding_usage
+                        .get(&span.lo)
+                        .cloned()
+                        .unwrap_or(ExportUsage::All);
+
                     handle_call(
                         &ast_path,
                         span,
@@ -1090,6 +1112,7 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
+                        call_usage,
                     )
                     .await?;
                 }
@@ -1188,6 +1211,9 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
+                        // A member call (`obj.method(...)`) result isn't narrowed
+                        // for require export usage.
+                        ExportUsage::All,
                     )
                     .await?;
                 }
@@ -1307,10 +1333,7 @@ async fn analyze_ecmascript_module_internal(
                             ast_path.to_vec().into(),
                         )
                     } else {
-                        if matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ReexportsOnly)
-                        ) {
+                        if options.follow_reexports && !options.module_fragments_enabled {
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
                             let original_reference = r.await?;
@@ -1370,11 +1393,32 @@ async fn analyze_ecmascript_module_internal(
                     );
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
+                        let mode = analysis_state
+                            .compile_time_info_ref
+                            .defines
+                            .read_process_env(rcstr!("NODE_ENV"))
+                            .owned()
+                            .await?
+                            .unwrap_or_else(|| rcstr!("development"));
+                        let is_ssr = matches!(
+                            *analysis_state
+                                .compile_time_info_ref
+                                .environment
+                                .rendering()
+                                .await?,
+                            Rendering::Server
+                        );
                         analysis.add_code_gen(ImportMetaBinding::new(
                             source.ident().await?.path.clone(),
                             analysis_state
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
+                            mode,
+                            analysis_state
+                                .compile_time_info_ref
+                                .import_meta_env_base_url
+                                .clone(),
+                            is_ssr,
                         ));
                     }
 
@@ -1394,10 +1438,7 @@ async fn analyze_ecmascript_module_internal(
     analysis
         .build(
             import_references,
-            matches!(
-                options.tree_shaking_mode,
-                Some(TreeShakingMode::ReexportsOnly)
-            ),
+            options.follow_reexports && !options.module_fragments_enabled,
         )
         .await
 }
@@ -1519,6 +1560,7 @@ async fn compile_time_info_for_module_options(
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
         hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
+        import_meta_env_base_url: compile_time_info.import_meta_env_base_url.clone(),
     }
     .cell())
 }
@@ -1534,6 +1576,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     in_try: bool,
     new: bool,
     attributes: &ImportAttributes,
+    call_usage: ExportUsage,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1607,6 +1650,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         collect_affecting_sources,
                         tracing_only,
                         attributes,
+                        call_usage.clone(),
                     )
                     .await?;
                 }
@@ -1631,6 +1675,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 collect_affecting_sources,
                 tracing_only,
                 attributes,
+                call_usage,
             )
             .await?;
         }
@@ -1817,6 +1862,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     collect_affecting_sources: bool,
     tracing_only: bool,
     attributes: &ImportAttributes,
+    call_usage: ExportUsage,
 ) -> Result<()>
 where
     'a: 'l,
@@ -2126,6 +2172,8 @@ where
                         error_mode,
                         attributes.chunking_type,
                         resolve_override,
+                        call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2178,6 +2226,8 @@ where
                         error_mode,
                         attributes.chunking_type,
                         None,
+                        call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2279,6 +2329,7 @@ where
                     options.import,
                     options.query,
                     options.base,
+                    options.case_sensitive,
                     Some(issue_source(source, span)),
                     error_mode,
                 ),
@@ -2344,6 +2395,7 @@ where
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
+                        format!("fs.{name}").into(),
                     )
                     .to_resolved()
                     .await?,
@@ -2379,6 +2431,7 @@ where
                         get_traced_project_dir().await?,
                         Pattern::new(pat),
                         get_issue_source(),
+                        rcstr!("fs.readdir"),
                     )
                     .to_resolved()
                     .await?,
@@ -2435,6 +2488,7 @@ where
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
+                    rcstr!("path.resolve"),
                 )
                 .to_resolved()
                 .await?,
@@ -2486,6 +2540,7 @@ where
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
+                    rcstr!("path.join"),
                 )
                 .to_resolved()
                 .await?,
@@ -2552,6 +2607,7 @@ where
                                 span.lo.to_u32(),
                                 span.hi.to_u32(),
                             ),
+                            format!("child_process.{name}").into(),
                         )
                         .to_resolved()
                         .await?,
@@ -2788,6 +2844,7 @@ where
                                     get_traced_project_dir().await?,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
+                                    rcstr!("express().set"),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -2859,6 +2916,7 @@ where
                         get_traced_project_dir().await?,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
+                        rcstr!("strong-globalize.SetRootDir"),
                     )
                     .to_resolved()
                     .await?,
@@ -2929,6 +2987,7 @@ where
                             context_dir.clone(),
                             Pattern::new(Pattern::Constant(dir.into())),
                             get_issue_source(),
+                            rcstr!("protobufjs.load"),
                         )
                         .to_resolved()
                     })
@@ -3053,7 +3112,27 @@ where
                                 // No `scope` key: register at the default scope.
                                 None => rcstr!("/"),
                                 Some(JsValue::Constant(JsConstantValue::Str(value))) => {
-                                    value.as_str().into()
+                                    let scope = value.as_str();
+                                    // The scope must be an absolute path (starting with `/`) so
+                                    // it can be prefixed with the host's base path and served
+                                    // from a stable, root-relative URL. Reject relative scopes
+                                    // rather than silently registering at the wrong scope.
+                                    if !scope.starts_with('/') {
+                                        let (args, hints) = explain_args(args);
+                                        handler.span_warn_with_code(
+                                            span,
+                                            &format!(
+                                                "navigator.serviceWorker.register({args}) has a \
+                                                 `scope` that does not start with `/`{hints}",
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyze::ecmascript::NEW_WORKER
+                                                    .to_string(),
+                                            ),
+                                        );
+                                        return Ok(());
+                                    }
+                                    scope.into()
                                 }
                                 // A `scope` was provided but can't be analyzed statically;
                                 // don't silently register at the wrong scope.
@@ -3343,7 +3422,7 @@ async fn handle_free_var_reference(
                         // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
-                        state.tree_shaking_mode,
+                        state.module_fragments_enabled,
                         None,
                     )
                     .await?

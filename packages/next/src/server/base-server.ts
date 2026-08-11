@@ -49,6 +49,7 @@ import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
+import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -84,6 +85,8 @@ import {
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -92,6 +95,7 @@ import {
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
+import { nanoid } from 'next/dist/compiled/nanoid'
 import type {
   MatchOptions,
   RouteMatcherManager,
@@ -110,6 +114,8 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
+import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
+import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
@@ -135,7 +141,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -417,6 +422,15 @@ export default abstract class Server<
       : undefined
   }
 
+  /**
+   * The hash of the most recent server component change (dev only), used to
+   * revalidate `"use cache"` entries after an edit. Overridden by the dev
+   * server; returns `undefined` otherwise.
+   */
+  protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
@@ -465,6 +479,12 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
+    if (
+      (dev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    }
 
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
@@ -482,7 +502,7 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+      this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
         : `?dpl=${this.deploymentId}`
 
@@ -520,8 +540,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -567,8 +586,6 @@ export default abstract class Server<
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      // `htmlLimitedBots` is passed to server as serialized config in string format
-      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -591,14 +608,14 @@ export default abstract class Server<
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
-        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
         exposeTestingApi:
-          this.dev === true ||
-          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
-            true,
+          this.nextConfig.cacheComponents === true &&
+          (this.dev === true ||
+            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+              true),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -896,86 +913,111 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    return tracer.withPropagatedContext(req.headers, () => {
-      // Capture the parent span before creating the handleRequest span.
-      // When deployed with an adapter, the platform's runtime may create its
-      // own OTEL HTTP server span before Next.js runs. We propagate http.route
-      // to this parent span so APM tools (e.g. Datadog) can derive the
-      // resource name correctly.
-      const parentSpan = tracer.getActiveScopeSpan()
+    const handleRequest = () =>
+      tracer.withPropagatedContext(req.headers, () => {
+        // Capture the parent span before creating the handleRequest span.
+        // When deployed with an adapter, the platform's runtime may create its
+        // own OTEL HTTP server span before Next.js runs. We propagate http.route
+        // to this parent span so APM tools (e.g. Datadog) can derive the
+        // resource name correctly.
+        const parentSpan = tracer.getActiveScopeSpan()
 
-      return tracer.trace(
-        BaseServerSpan.handleRequest,
-        {
-          spanName: `${method}`,
-          kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': method,
-            'http.target': req.url,
+        return tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName: `${method}`,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': method,
+              'http.target': req.url,
+            },
           },
-        },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-            if (!span) return
+          async (span) =>
+            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+              if (!span) return
 
-            const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-            span.setAttributes({
-              'http.status_code': res.statusCode,
-              'next.rsc': isRSCRequest,
-            })
-
-            if (res.statusCode && res.statusCode >= 500) {
-              // For 5xx status codes: SHOULD be set to 'Error' span status.
-              // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-              })
-              // For span status 'Error', SHOULD set 'error.type' attribute.
-              span.setAttribute('error.type', res.statusCode.toString())
-            }
-
-            const rootSpanAttributes = tracer.getRootSpanAttributes()
-            // We were unable to get attributes, probably OTEL is not enabled
-            if (!rootSpanAttributes) return
-
-            if (
-              rootSpanAttributes.get('next.span_type') !==
-              BaseServerSpan.handleRequest
-            ) {
-              console.warn(
-                `Unexpected root span type '${rootSpanAttributes.get(
-                  'next.span_type'
-                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-              )
-              return
-            }
-
-            const route = rootSpanAttributes.get('next.route')
-            if (route) {
-              const name = isRSCRequest
-                ? `RSC ${method} ${route}`
-                : `${method} ${route}`
-
+              const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
               span.setAttributes({
-                'next.route': route,
-                'http.route': route,
-                'next.span_name': name,
+                'http.status_code': res.statusCode,
+                'next.rsc': isRSCRequest,
               })
-              span.updateName(name)
 
-              // Propagate http.route to the parent span if one exists and
-              // is different from the handleRequest span. This ensures APM
-              // tools that read attributes from the outermost span (e.g.
-              // a platform-created HTTP span) can derive the resource name.
-              if (parentSpan && parentSpan !== span) {
-                parentSpan.setAttribute('http.route', route)
+              if (res.statusCode && res.statusCode >= 500) {
+                // For 5xx status codes: SHOULD be set to 'Error' span status.
+                // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                span.setStatus({
+                  code: SpanStatusCode.ERROR,
+                })
+                // For span status 'Error', SHOULD set 'error.type' attribute.
+                span.setAttribute('error.type', res.statusCode.toString())
               }
-            } else {
-              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
-            }
-          })
-      )
-    })
+
+              const rootSpanAttributes = tracer.getRootSpanAttributes()
+              // We were unable to get attributes, probably OTEL is not enabled
+              if (!rootSpanAttributes) return
+
+              if (
+                rootSpanAttributes.get('next.span_type') !==
+                BaseServerSpan.handleRequest
+              ) {
+                console.warn(
+                  `Unexpected root span type '${rootSpanAttributes.get(
+                    'next.span_type'
+                  )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                )
+                return
+              }
+
+              const route = rootSpanAttributes.get('next.route')
+              if (route) {
+                const name = isRSCRequest
+                  ? `RSC ${method} ${route}`
+                  : `${method} ${route}`
+
+                span.setAttributes({
+                  'next.route': route,
+                  'http.route': route,
+                  'next.span_name': name,
+                })
+                span.updateName(name)
+
+                // Propagate http.route to the parent span if one exists and
+                // is different from the handleRequest span. This ensures APM
+                // tools that read attributes from the outermost span (e.g.
+                // a platform-created HTTP span) can derive the resource name.
+                if (parentSpan && parentSpan !== span) {
+                  parentSpan.setAttribute('http.route', route)
+                }
+              } else {
+                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+              }
+            })
+        )
+      })
+
+    if (!isRequestInsightsEnabled()) {
+      return handleRequest()
+    }
+
+    const requestIdHeader = req.headers[NEXT_REQUEST_ID_HEADER]
+    const requestId =
+      typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
+    const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
+
+    // The request root and route-matching spans start before App Render creates
+    // its workStore. Carry their identity in this outer scope; App Render copies
+    // it into the workStore so the complete timeline uses one request ID.
+    return runWithRequestInsightsIdentity(
+      {
+        requestId,
+        htmlRequestId:
+          typeof htmlRequestIdHeader === 'string'
+            ? htmlRequestIdHeader
+            : requestId,
+        url: req.url,
+      },
+      handleRequest
+    )
   }
 
   private async handleRequestImpl(
@@ -1509,6 +1551,20 @@ export default abstract class Server<
           req,
           'serverComponentsHmrCache',
           this.getServerComponentsHmrCache()
+        )
+      }
+
+      // Attach the server components HMR refresh hash here, alongside the HMR
+      // cache, so it reaches every render that passes through this request
+      // handling, including internal renders (e.g. dev validation/warmup) that
+      // don't re-enter the top-level request handler. It's included in `"use
+      // cache"` keys so cached entries revalidate after an edit, for every
+      // client.
+      if (!getRequestMeta(req, 'hmrRefreshHash')) {
+        addRequestMeta(
+          req,
+          'hmrRefreshHash',
+          this.getServerComponentsHmrRefreshHash()
         )
       }
 
@@ -2142,7 +2198,12 @@ export default abstract class Server<
         // generate the 5-character `_rsc` form.
         // Note: When no headers are present, expectedHash is empty string and client
         // must send `_rsc` param, otherwise actualHash is null and hash check fails.
-        const url = new URL(req.url || '', 'http://localhost')
+        // `req.url` may have had its basePath removed during normalization.
+        // Build the redirect from the original URL so it remains public-facing.
+        const url = new URL(
+          getRequestMeta(req, 'initURL') || req.url || '',
+          'http://localhost'
+        )
         setCacheBustingSearchParamWithHash(url, expectedHash)
         res.statusCode = 307
         res.setHeader('location', `${url.pathname}${url.search}`)
@@ -2291,6 +2352,21 @@ export default abstract class Server<
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
+
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.body('Not Found').send()
+        return null
+      }
     }
 
     // ensure correct status is set when visiting a status page

@@ -636,8 +636,7 @@ async function run(): Promise<void> {
           {
             type: 'toggle',
             name: 'agentsMd',
-            message:
-              'Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code?',
+            message: `Would you like to include ${blue('AGENTS.md')} to guide coding agents to write up-to-date Next.js code?`,
             initial: getPrefOrDefault('agentsMd'),
             active: 'Yes',
             inactive: 'No',

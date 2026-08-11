@@ -5949,17 +5949,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
     "passed": [],
     "failed": [],
@@ -8217,7 +8206,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
       "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
     ],
@@ -22006,9 +21995,9 @@
       "NEXT_HASH_SALT should produce chunk files",
       "NEXT_HASH_SALT should produce css files",
       "NEXT_HASH_SALT should produce image files",
-      "experimental.outputHashSalt combined salt differs from config-only salt",
-      "experimental.outputHashSalt combined salt differs from env-var-only salt",
-      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+      "outputHashSalt combined salt differs from config-only salt",
+      "outputHashSalt combined salt differs from env-var-only salt",
+      "outputHashSalt config salt changes filenames compared to no salt"
     ],
     "failed": [],
     "pending": [],

@@ -33,6 +33,7 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
+import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -606,6 +607,35 @@ program
       })
     }
   )
+  .usage('[directory] [options]')
+
+program
+  .command('experimental-request-insights')
+  .description(
+    'Inspect experimental Request Insights from a running Next.js dev server.'
+  )
+  .argument(
+    '[directory]',
+    `A directory containing the Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--url <url>',
+    'Override automatic discovery with the complete HTTP(S) URL of the running Next.js dev server.'
+  )
+  .option('--json', 'Print raw request insight JSON.')
+  .addOption(
+    new Option(
+      '--limit <count>',
+      'Maximum number of recent request summaries to print.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action((directory: string, options: NextRequestInsightsOptions) => {
+    return import('../cli/next-request-insights.js').then((mod) =>
+      mod.nextRequestInsights(options, directory)
+    )
+  })
   .usage('[directory] [options]')
 
 const internal = program

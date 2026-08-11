@@ -9,10 +9,6 @@ const nextConfig = {
   // shell.
   partialPrefetching: true,
   experimental: {
-    // App Shells must be enabled for the shell restriction to apply — with it
-    // off, every prefetch implicitly includes the speculative (non-shell) part
-    // of the target, so there is nothing to restrict.
-    appShells: true,
     // Enable the testing API in production builds for these tests.
     exposeTestingApiInProductionBuild: true,
     prefetchInlining: false,

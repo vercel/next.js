@@ -167,6 +167,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       previewProps: undefined,
       isHmrRefresh: msg.request.isHmrRefresh,
       serverComponentsHmrCache: undefined,
+      hmrRefreshHash: msg.request.hmrRefreshHash,
       fallbackParams: null,
     })
 
@@ -196,7 +197,6 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
   })
 
   return {
-    isStaticGeneration: false,
     page: msg.page,
     route: msg.route,
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },
@@ -207,6 +207,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     cacheLifeProfiles: msg.nextConfigSerializable.cacheLifeProfiles,
     buildId: msg.buildId,
     deploymentId: msg.deploymentId,
+    requestStartTime: msg.request.requestStartTime,
     // Empty values for cache-handler / RDC bookkeeping. The `useCacheProbeMode`
     // branch in `cache()` returns before any code that reads or writes these
     // fields, so the values can never be observed.
