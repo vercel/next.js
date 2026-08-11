@@ -1789,7 +1789,7 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     #[allow(clippy::type_complexity)]
-    /// (Map<Module, corresponding context for imports>, `eval_context.imports.export_spans`)
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
         FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
         FxHashMap<RcStr, (Id, Span)>,

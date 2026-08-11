@@ -78,6 +78,7 @@ pub enum ConstantString {
     Atom(#[turbo_tasks(trace_ignore)] Atom),
     RcStr(RcStr),
 }
+// SAFETY: ConstantString doesn't contain any Vcs
 unsafe impl NonLocalValue for ConstantString {}
 impl Encode for ConstantString {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
@@ -307,9 +308,9 @@ pub struct ModuleReferenceIndex(NonZeroU32);
 
 impl From<u32> for ModuleReferenceIndex {
     fn from(value: u32) -> Self {
-        // SAFETY: We add 1 to the value, so the only way this can overflow is if value == u32::MAX,
-        // which is unlikely since it would require us to have that many module references.
-        ModuleReferenceIndex(unsafe { NonZeroU32::new_unchecked(value + 1) })
+        // The only way this can overflow is if value == u32::MAX, which is unlikely since it would
+        // require us to have that many module references.
+        ModuleReferenceIndex(NonZeroU32::new(value + 1).unwrap())
     }
 }
 impl ModuleReferenceIndex {
@@ -426,6 +427,7 @@ impl Display for LogicalProperty {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ObjectMutability {
+    // Don't reorder these variants, as their order is used in `merge_with`.
     /// Known properties: frozen (= <value>)
     /// Missing properties: frozen (= Undefined)
     Frozen,
