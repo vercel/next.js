@@ -362,12 +362,6 @@ struct UnboundedInner<'run, T: Send + 'static, R> {
 }
 
 impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
-    /// Counts a newly-enqueued item. MUST run before the push; see [`enqueue`].
-    #[inline]
-    fn account_new_item(&self) {
-        self.remaining_tasks.fetch_add(1, Ordering::Relaxed);
-    }
-
     /// Closes the work queue by dropping the only sender, then wakes the main thread. Every blocked
     /// `recv` returns `Err` once this runs and the buffer is drained, which is how drainers learn
     /// the scope is finished. Idempotent.
@@ -470,9 +464,6 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
         });
     }
 
-    /// Park up to 1ms without `block_in_place` to avoid the overhead, then `block_in_place` so
-    /// tokio can reuse this core while we wait out the last in-flight items.
-    ///
     /// Waits for **both** counters. `remaining_tasks` covers items still being processed;
     /// `active_drainers` additionally covers the tail of each drain loop, where a drainer has
     /// finished its last item but not yet merged its accumulator. Returning on the first alone
@@ -482,28 +473,18 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
             && self.active_drainers.load(Ordering::Acquire) == 0
     }
 
+    /// Blocks until the scope has joined, handing the core back to tokio while we wait.
+    ///
+    /// Goes straight to `block_in_place` rather than parking briefly first: a caller reaching for
+    /// this API is doing enough blocking work that the hand-off cost is noise, and the calling
+    /// thread has already drained the queue itself before getting here — so what is left is the
+    /// tail of whatever helpers are still in flight, not a sub-millisecond wait.
     fn wait(&self) {
         if self.joined() {
             return;
         }
 
         let _span = info_span!("blocking").entered();
-
-        const TIMEOUT: Duration = Duration::from_millis(1);
-        let beginning_park = Instant::now();
-
-        let mut timeout_remaining = TIMEOUT;
-        loop {
-            thread::park_timeout(timeout_remaining);
-            if self.joined() {
-                return;
-            }
-            let elapsed = beginning_park.elapsed();
-            if elapsed >= TIMEOUT {
-                break;
-            }
-            timeout_remaining = TIMEOUT - elapsed;
-        }
 
         block_in_place(|| {
             while !self.joined() {
@@ -516,6 +497,13 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
 /// Handle passed to the `run` closure of [`scope_unbounded`], used to enqueue additional items into
 /// the same scope. Only borrows the scope's shared state; the items it enqueues are `T: 'static`,
 /// so it carries no `'env` lifetime of its own.
+///
+/// Unlike [`Scope`], this needs no `PhantomData<&'env mut &'env ()>` invariance marker. `Scope`
+/// requires one because `Scope::spawn` accepts a *closure* that can capture `&'env` data, so
+/// allowing `'env` to shrink would let a task outlive what it borrowed. `Spawner`'s only entry
+/// point is [`Spawner::spawn`], which takes `item: T` with `T: Send + 'static` — there is no way to
+/// pass in anything borrowed from `'env`, so the covariance this type has over `'scope` is not
+/// exploitable.
 pub struct Spawner<'scope, T: Send + 'static, R = ()> {
     inner: &'scope UnboundedInner<'scope, T, R>,
 }
@@ -538,7 +526,8 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
     if inner.aborted.load(Ordering::Acquire) {
         return;
     }
-    inner.account_new_item();
+    // Count the item before pushing it (see this function's doc comment).
+    inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
     // Take the send lock before testing the sender: `close` takes the sender under the *write*
     // side of the same lock, so either we get a live sender and our item is buffered, or the
     // sender is already gone. Either way the item cannot be counted and then stranded with nobody
@@ -718,7 +707,7 @@ where
     // Count the seeding loop itself as one outstanding item. Helpers are already draining, so
     // without this `remaining_tasks` could transiently hit zero between two seeds, close the queue,
     // and leave every remaining seed silently dropped.
-    inner.account_new_item();
+    inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
     for item in initial {
         enqueue(&inner, item);
     }
@@ -1362,6 +1351,27 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(total, 20);
+    }
+
+    /// `wait` must not reach `block_in_place` when the calling thread is the only drainer.
+    ///
+    /// Called **directly** on a `current_thread` runtime rather than through `spawn_blocking`:
+    /// `block_in_place` panics outside a multi-thread runtime, so if `wait` ever stopped
+    /// short-circuiting on `joined()` this test would panic instead of merely being slow. The other
+    /// `current_thread` tests wrap the call in `spawn_blocking`, where `block_in_place` is allowed,
+    /// so they cannot catch that regression.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_unbounded_current_thread_never_blocks_in_place() {
+        let processed = Arc::new(AtomicUsize::new(0));
+        let processed_clone = processed.clone();
+        scope_unbounded(0..8usize, move |spawner, item| {
+            processed_clone.fetch_add(1, Ordering::SeqCst);
+            if item < 3 {
+                spawner.spawn(100 + item);
+            }
+            ControlFlow::Continue(())
+        });
+        assert_eq!(processed.load(Ordering::SeqCst), 11);
     }
 
     /// Aborting returns the results accumulated up to that point rather than discarding them —
