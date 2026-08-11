@@ -1,4 +1,6 @@
+import http from 'http'
 import { nextTestSetup } from 'e2e-utils'
+import { findPort } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 describe('testmode', () => {
@@ -132,6 +134,38 @@ describe('testmode', () => {
     it('should handle rewrites', async () => {
       const text = await (await fetchForTest('/rewrite-1')).text()
       expect(text).toEqual('test1')
+    })
+  })
+
+  describe('passthrough body', () => {
+    it('should forward request body when handler returns continue', async () => {
+      const receivedBodies: string[] = []
+      const port = await findPort()
+      const echoServer = http.createServer(async (req, res) => {
+        const chunks: Buffer[] = []
+        for await (const chunk of req) {
+          chunks.push(chunk as Buffer)
+        }
+        receivedBodies.push(Buffer.concat(chunks).toString('utf-8'))
+        res.end()
+      })
+      await new Promise<void>((r) => echoServer.listen(port, '127.0.0.1', r))
+      const echoUrl = `http://127.0.0.1:${port}/`
+
+      // Replace the default proxy from the outer beforeEach with one that
+      // tells Next.js to pass the request through to the echo server.
+      proxyServer.close()
+      proxyServer = await createProxyServer({
+        onFetch: async (_testData, request) =>
+          request.url === echoUrl ? 'continue' : undefined,
+      })
+
+      await fetchForTest(
+        `/api/post-passthrough?target=${encodeURIComponent(echoUrl)}`
+      )
+
+      expect(receivedBodies).toEqual(['{"message":"hello"}'])
+      echoServer.close()
     })
   })
 })

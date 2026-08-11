@@ -93,6 +93,9 @@ export async function handleFetch(
   }
 
   const { testData, proxyPort } = testInfo
+  // Clone before `buildProxyRequest` consumes the body via `arrayBuffer()` so
+  // the `'continue'` path can forward the original request with body intact.
+  const clonedRequest = request.clone()
   const proxyRequest = await buildProxyRequest(testData, request)
 
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
@@ -119,7 +122,7 @@ export async function handleFetch(
   const { api } = proxyResponse
   switch (api) {
     case 'continue':
-      return originalFetch(request)
+      return originalFetch(clonedRequest)
     case 'abort':
     case 'unhandled':
       throw new Error(
