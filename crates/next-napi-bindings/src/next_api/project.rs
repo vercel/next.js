@@ -30,7 +30,7 @@ use next_api::{
     },
     project::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions,
+        ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -756,6 +756,23 @@ pub async fn project_update(
         .run(async move { container.update(options).await })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await
+}
+
+#[tracing::instrument(level = "info", name = "activate lazy chunk", skip_all)]
+#[napi]
+pub async fn project_activate_lazy_chunk(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
+    chunk_path: RcStr,
+) -> napi::Result<bool> {
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run(async move {
+            Ok(*activate_lazy_chunk_operation(chunk_path)
+                .read_strongly_consistent()
+                .await?)
+        })
+        .await
+        .map_err(|error| napi::Error::from_reason(PrettyPrintError(&error.into()).to_string()))
 }
 
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project

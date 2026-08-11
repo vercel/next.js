@@ -799,6 +799,22 @@ impl ModuleGraph {
         Ok(ReadRef::cell(graph))
     }
 
+    /// A graph containing nothing but `entry` and what it references, as an async chunk group
+    /// entry. Used to place modules that are synthesized during chunking and therefore are not
+    /// members of the graph they were synthesized from.
+    #[turbo_tasks::function]
+    pub fn isolated_async_entry(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::from_graphs(
+            vec![SingleModuleGraph::new_with_entry(
+                ChunkGroupEntry::Async(entry),
+                false,
+                false,
+            )],
+            None,
+        )
+        .connect()
+    }
+
     #[turbo_tasks::function(operation, root)]
     async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
