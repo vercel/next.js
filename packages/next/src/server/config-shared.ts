@@ -237,6 +237,77 @@ export type TurbopackRuleConfigCollection =
   | TurbopackRuleConfigItem
   | (TurbopackLoaderItem | TurbopackRuleConfigItem)[]
 
+export interface ModuleFederationExposeConfig {
+  /** Project-relative module requests. The last request provides the exposed module. */
+  import: string | string[]
+}
+
+interface ModuleFederationRemoteConfigBase {
+  /** Remote container name. Defaults to the key in `remotes`. */
+  name?: string
+  shareScope?: string
+}
+
+export type ModuleFederationRemoteConfig = ModuleFederationRemoteConfigBase &
+  (
+    | {
+        /** One or more Next.js application origins or base paths, tried in order. */
+        origin: string | string[]
+        entry?: never
+      }
+    | {
+        /** One or more explicit remote entry URLs, tried in order. */
+        entry: string | string[]
+        origin?: never
+      }
+  )
+
+export interface ModuleFederationSharedConfig {
+  import?: string | false
+  shareKey?: string
+  /** Must match the top-level `shareScope`; per-entry scopes are not supported. */
+  shareScope?: string
+  /**
+   * Provider version. Required when a locally imported shared module also sets
+   * `requiredVersion`.
+   */
+  version?: string | false
+  requiredVersion?: string | false
+  singleton?: boolean
+  strictVersion?: boolean
+  /** Only eager shared modules are currently supported. */
+  eager?: true
+}
+
+/**
+ * The experimental, client-only Turbopack Module Federation configuration.
+ *
+ * This enables Turbopack's first-class Module Federation support and
+ * interoperability with Webpack's built-in ModuleFederationPlugin. It applies
+ * to browser client graphs; React Server Components and server-side rendering
+ * do not consume remote modules.
+ */
+export interface TurbopackModuleFederationConfig {
+  /**
+   * Container name and browser global. Must be a non-reserved JavaScript
+   * identifier.
+   */
+  name: string
+  /**
+   * Output `.js` filename within the client `static/` directory.
+   * Defaults to `static/chunks/remoteEntry.js`.
+   */
+  filename?: `static/${string}.js`
+  /** Project-relative modules exposed by the container. */
+  exposes?: Record<string, string | ModuleFederationExposeConfig>
+  /** Remote Next.js origins, or explicit remote entry configuration. */
+  remotes?: Record<string, string | string[] | ModuleFederationRemoteConfig>
+  /** Eager shared modules, such as `{ react: { singleton: true } }`. */
+  shared?: Record<string, boolean | ModuleFederationSharedConfig>
+  /** Default share scope name. Defaults to `"default"`. */
+  shareScope?: string
+}
+
 export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
@@ -1352,6 +1423,38 @@ export interface ExperimentalConfig {
   turbopackRustReactCompiler?: boolean
 
   /**
+   * @experimental Turbopack Module Federation configuration
+   *
+   * Implements Turbopack Module Federation for interoperability with Webpack's
+   * built-in ModuleFederationPlugin. Remote modules are not consumed by React
+   * Server Components or during server-side rendering.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   experimental: {
+   *     turbopackModuleFederation: {
+   *       name: 'shell',
+   *       exposes: {
+   *         './Button': './components/Button'
+   *       },
+   *       remotes: {
+   *         remoteApp: 'http://localhost:3001'
+   *       },
+   *       shared: {
+   *         react: { singleton: true },
+   *         'react-dom': { singleton: true }
+   *       },
+   *       shareScope: 'default'
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  turbopackModuleFederation?: TurbopackModuleFederationConfig
+
+  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr.
    *
    * - `'warn'` (default): Forward warnings and errors to terminal
@@ -2401,6 +2504,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'turbopackModuleFederation'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2468,6 +2572,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    turbopackModuleFederation: ex.turbopackModuleFederation,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

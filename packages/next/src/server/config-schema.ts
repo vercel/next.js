@@ -14,6 +14,7 @@ import {
   type TurbopackRuleConfigCollection,
   type TurbopackRuleCondition,
   type TurbopackLoaderBuiltinCondition,
+  type TurbopackModuleFederationConfig,
 } from './config-shared'
 import type {
   Header,
@@ -190,6 +191,89 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     )
     .optional(),
 })
+
+const zModuleFederationImport = z.union([
+  z.string().min(1),
+  z.array(z.string().min(1)).min(1),
+])
+
+const zModuleFederationFilename = z.custom<`static/${string}.js`>((value) => {
+  if (typeof value !== 'string') return false
+  const segments = value.split('/')
+  const outputSegments = segments.slice(1)
+  const filename = outputSegments.at(-1) ?? ''
+  return (
+    segments[0] === 'static' &&
+    outputSegments.length > 0 &&
+    filename.endsWith('.js') &&
+    filename.length > 3 &&
+    outputSegments.every(
+      (segment) =>
+        /^[A-Za-z0-9._-]+$/.test(segment) &&
+        segment !== '.' &&
+        segment !== '..' &&
+        !segment.endsWith('.') &&
+        !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment)
+    )
+  )
+})
+
+const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationConfig> =
+  z.strictObject({
+    name: z.string().min(1),
+    filename: zModuleFederationFilename.optional(),
+    exposes: z
+      .record(
+        z.string(),
+        z.union([
+          z.string().min(1),
+          z.strictObject({ import: zModuleFederationImport }),
+        ])
+      )
+      .optional(),
+    remotes: z
+      .record(
+        z.string(),
+        z.union([
+          z.string().min(1),
+          z.array(z.string().min(1)).min(1),
+          z.union([
+            z.strictObject({
+              name: z.string().min(1).optional(),
+              origin: zModuleFederationImport,
+              shareScope: z.string().min(1).optional(),
+            }),
+            z.strictObject({
+              name: z.string().min(1).optional(),
+              entry: zModuleFederationImport,
+              shareScope: z.string().min(1).optional(),
+            }),
+          ]),
+        ])
+      )
+      .optional(),
+    shared: z
+      .record(
+        z.string(),
+        z.union([
+          z.boolean(),
+          z.strictObject({
+            import: z.union([z.string().min(1), z.literal(false)]).optional(),
+            shareKey: z.string().min(1).optional(),
+            shareScope: z.string().min(1).optional(),
+            version: z.union([z.string().min(1), z.literal(false)]).optional(),
+            requiredVersion: z
+              .union([z.string().min(1), z.literal(false)])
+              .optional(),
+            singleton: z.boolean().optional(),
+            strictVersion: z.boolean().optional(),
+            eager: z.literal(true).optional(),
+          }),
+        ])
+      )
+      .optional(),
+    shareScope: z.string().min(1).optional(),
+  })
 
 export const experimentalSchema = {
   outputHashSalt: z.string().optional(),
@@ -469,6 +553,7 @@ export const experimentalSchema = {
     .optional(),
   globalNotFound: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
+  turbopackModuleFederation: zTurbopackModuleFederationConfig.optional(),
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),
