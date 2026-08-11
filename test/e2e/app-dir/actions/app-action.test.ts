@@ -160,7 +160,7 @@ describe('app-dir action handling', () => {
     expect(new URL(actionRequestUrl).search).toBe('?invocation=1')
   })
 
-  it('should preserve the URL of an action in a retained parallel route', async () => {
+  it('should dispatch actions to active URLs, preferring the canonical URL', async () => {
     const browser = await next.browser('/parallel-action/one')
     const actionRequestPaths: string[] = []
 
@@ -174,14 +174,31 @@ describe('app-dir action handling', () => {
     await browser.elementByCss("[href='/parallel-action/two']").click()
     await retry(async () => {
       expect(new URL(await browser.url()).pathname).toBe('/parallel-action/two')
-      expect(await browser.hasElementByCssSelector('#retained-action')).toBe(
-        true
-      )
+      expect(
+        await browser.hasElementByCssSelector('#retained-shared-action')
+      ).toBe(true)
+      expect(
+        await browser.hasElementByCssSelector('#retained-only-action')
+      ).toBe(true)
     })
 
-    await browser.elementById('retained-action').click()
+    await browser.elementById('retained-shared-action').click()
     await retry(async () => {
-      expect(await browser.elementById('retained-action-result').text()).toBe(
+      expect(
+        await browser.elementById('retained-shared-action-result').text()
+      ).toBe('action invoked')
+    })
+
+    await browser.elementById('retained-only-action').click()
+    await retry(async () => {
+      expect(
+        await browser.elementById('retained-only-action-result').text()
+      ).toBe('retained action invoked')
+    })
+
+    await browser.elementById('shared-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('shared-action-result').text()).toBe(
         'action invoked'
       )
     })
@@ -194,7 +211,9 @@ describe('app-dir action handling', () => {
     })
 
     expect(actionRequestPaths).toEqual([
+      '/parallel-action/two',
       '/parallel-action/one',
+      '/parallel-action/two',
       '/parallel-action/two',
     ])
   })
@@ -982,7 +1001,7 @@ describe('app-dir action handling', () => {
   }
 
   it.each(['node', 'edge'])(
-    'should dispatch a delayed action to the route that owns it (%s)',
+    'should dispatch a delayed action to the active route (%s)',
     async (runtime) => {
       const cliOutputIndex = next.cliOutput.length
       const browser = await next.browser(`/delayed-action/${runtime}`)
@@ -1027,9 +1046,9 @@ describe('app-dir action handling', () => {
       // make sure that we still are rendering other-page content
       expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
 
-      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}/other`])
       expect(actionRequestHeaders?.['next-action-only']).toBeUndefined()
-      expect(actionRequestHeaders?.['next-router-state-tree']).toBeUndefined()
+      expect(actionRequestHeaders?.['next-router-state-tree']).toBeDefined()
 
       // make sure we didn't get any errors in the console
       expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
@@ -1039,7 +1058,7 @@ describe('app-dir action handling', () => {
   )
 
   it.each(['node', 'edge'])(
-    'should dispatch a delayed redirect action to the route that owns it (%s)',
+    'should dispatch a delayed redirect action to the active route (%s)',
     async (runtime) => {
       let redirectResponseCode
       const actionRequestPaths: string[] = []
@@ -1077,7 +1096,7 @@ describe('app-dir action handling', () => {
         expect(redirectResponseCode).toBe(200)
       })
 
-      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}/other`])
 
       // confirm that the redirect was handled
       await browser.waitForElementByCss('#run-action-redirect')

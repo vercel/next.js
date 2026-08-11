@@ -1,3 +1,6 @@
+import { action } from './actions'
+import { ActionButton } from './button'
+
 export default function Layout({
   children,
   slot,
@@ -7,6 +10,7 @@ export default function Layout({
 }) {
   return (
     <>
+      <ActionButton action={action} id="shared-action" />
       {children}
       {slot}
     </>
