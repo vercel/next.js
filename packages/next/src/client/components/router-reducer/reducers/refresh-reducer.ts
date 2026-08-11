@@ -6,7 +6,10 @@ import type {
 import { ScrollBehavior } from '../router-reducer-types'
 import { navigateToKnownRoute } from '../../segment-cache/navigation'
 import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
-import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
+import {
+  invalidateSegmentCacheEntries,
+  segmentCacheMap,
+} from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
 import {
@@ -98,6 +101,8 @@ export function refreshDynamicData(
     scrollBehavior,
     navigateType,
     navigationLock,
+    // A refresh is bound to the shared map.
+    segmentCacheMap,
     null,
     // Refresh navigations don't use route prediction, so there's no route
     // cache entry to mark as having a dynamic rewrite on mismatch. If a

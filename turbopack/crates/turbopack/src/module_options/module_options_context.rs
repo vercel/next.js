@@ -284,6 +284,8 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to scope-hoist static CommonJS modules. Defaults to false.
+    pub cjs_scope_hoisting: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,

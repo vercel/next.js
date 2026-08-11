@@ -186,17 +186,13 @@ export async function fetchServerResponse(
       }
     }
 
-    // Typically, during a navigation, we decode the response using Flight's
+    // During a navigation, we decode the response using Flight's
     // `createFromFetch` API, which accepts a `fetch` promise.
-    // TODO: Remove this check once the old PPR flag is removed
-    const isLegacyPPR =
-      process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
-    const shouldImmediatelyDecode = !isLegacyPPR
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode,
+      true,
       options.signal
     )
 
@@ -248,20 +244,9 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    let flightResponsePromise = res.flightResponsePromise
-    if (flightResponsePromise === null) {
-      // Typically, `createFetch` would have already started decoding the
-      // Flight response. If it hasn't, though, we need to decode it now.
-      // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
-      // without Cache Components). Remove this branch once legacy PPR
-      // is deleted.
-      flightResponsePromise =
-        createFromNextReadableStream<NavigationFlightResponse>(
-          res.body,
-          headers,
-          { allowPartialStream: postponed }
-        )
-    }
+    // This request passed `true` to `shouldImmediatelyDecode`, so the Flight
+    // response promise is always initialized.
+    const flightResponsePromise = res.flightResponsePromise!
 
     const [flightResponse, cacheData] = await Promise.all([
       flightResponsePromise,
