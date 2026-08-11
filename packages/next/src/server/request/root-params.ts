@@ -1,6 +1,6 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -11,7 +11,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
   type PrerenderStoreModernServer,
-  type PrerenderStorePPR,
+  type PrerenderStoreLegacyPPR,
 } from '../app-render/work-unit-async-storage.external'
 import { makeFallbackParamsHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
@@ -140,7 +140,7 @@ function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
   prerenderStore:
-    | PrerenderStorePPR
+    | PrerenderStoreLegacyPPR
     | PrerenderStoreLegacy
     | PrerenderStoreModernServer,
   apiName: string
@@ -205,7 +205,7 @@ function createPrerenderRootParamPromise(
 async function makeErroringRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy,
+  prerenderStore: PrerenderStoreLegacyPPR | PrerenderStoreLegacy,
   apiName: string
 ): Promise<ParamValue> {
   const expression = describeStringPropertyAccess(apiName, paramName)
@@ -215,7 +215,7 @@ async function makeErroringRootParamPromise(
   // TODO: remove this comment when cacheComponents is the default since there will be no `dynamic = "error"`
   switch (prerenderStore.type) {
     case 'prerender-ppr': {
-      return postponeWithTracking(
+      return postponeWithTrackingForLegacyPPR(
         workStore.route,
         expression,
         prerenderStore.dynamicTracking

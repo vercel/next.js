@@ -210,7 +210,7 @@ export function markCurrentScopeAsDynamic(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender-ppr':
-        return postponeWithTracking(
+        return postponeWithTrackingForLegacyPPR(
           store.route,
           expression,
           workUnitStore.dynamicTracking
@@ -394,22 +394,23 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
 }
 
 /**
- * This component will call `React.postpone` that throws the postponed error.
+ * This legacy PPR component calls `React.unstable_postpone`, which throws the
+ * postponed value.
  */
-type PostponeProps = {
+type LegacyPostponeProps = {
   reason: string
   route: string
 }
-export function Postpone({ reason, route }: PostponeProps): never {
+export function LegacyPostpone({ reason, route }: LegacyPostponeProps): never {
   const prerenderStore = workUnitAsyncStorage.getStore()
   const dynamicTracking =
     prerenderStore && prerenderStore.type === 'prerender-ppr'
       ? prerenderStore.dynamicTracking
       : null
-  postponeWithTracking(route, reason, dynamicTracking)
+  postponeWithTrackingForLegacyPPR(route, reason, dynamicTracking)
 }
 
-export function postponeWithTracking(
+export function postponeWithTrackingForLegacyPPR(
   route: string,
   expression: string,
   dynamicTracking: null | DynamicTrackingState
@@ -672,7 +673,7 @@ export function useDynamicRouteParams(expression: string) {
       case 'prerender-ppr': {
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams && fallbackParams.size > 0) {
-          return postponeWithTracking(
+          return postponeWithTrackingForLegacyPPR(
             workStore.route,
             expression,
             workUnitStore.dynamicTracking

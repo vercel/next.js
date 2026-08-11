@@ -15,7 +15,7 @@ import {
   type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -84,7 +84,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         case 'prerender-ppr':
           // We need track dynamic access here eagerly to keep continuity with
           // how cookies has worked in PPR without cacheComponents.
-          return postponeWithTracking(
+          return postponeWithTrackingForLegacyPPR(
             workStore.route,
             callingExpression,
             workUnitStore.dynamicTracking

@@ -13,7 +13,7 @@ import {
   type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -110,7 +110,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           // We are prerendering with PPR. We need track dynamic access here eagerly
           // to keep continuity with how headers has worked in PPR without cacheComponents.
           // TODO consider switching the semantic to throw on property access instead
-          return postponeWithTracking(
+          return postponeWithTrackingForLegacyPPR(
             workStore.route,
             callingExpression,
             workUnitStore.dynamicTracking

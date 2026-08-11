@@ -12,7 +12,7 @@ import {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -244,7 +244,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          return postponeWithTracking(
+          return postponeWithTrackingForLegacyPPR(
             workStore.route,
             expression,
             workUnitStore.dynamicTracking

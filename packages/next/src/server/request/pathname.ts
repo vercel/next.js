@@ -4,7 +4,7 @@ import {
 } from '../app-render/work-async-storage.external'
 
 import {
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
 
@@ -13,7 +13,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
   type PrerenderStoreModernServer,
-  type PrerenderStorePPR,
+  type PrerenderStoreLegacyPPR,
 } from '../app-render/work-unit-async-storage.external'
 import {
   makeDynamicHangingPromise,
@@ -98,7 +98,7 @@ function createPrerenderPathname(
   workStore: WorkStore,
   prerenderStore:
     | PrerenderStoreLegacy
-    | PrerenderStorePPR
+    | PrerenderStoreLegacyPPR
     | PrerenderStoreModernServer
 ): Promise<string> {
   switch (prerenderStore.type) {
@@ -150,7 +150,7 @@ function makeErroringPathname<T>(
   promise.then = (onfulfilled, onrejected) => {
     if (reject) {
       try {
-        postponeWithTracking(
+        postponeWithTrackingForLegacyPPR(
           workStore.route,
           'metadata relative url resolving',
           dynamicTracking
