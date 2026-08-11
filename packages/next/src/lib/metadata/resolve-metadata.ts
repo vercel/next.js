@@ -9,6 +9,7 @@ import type {
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
+import { encodeParamValue } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
@@ -752,7 +753,9 @@ async function resolveMetadataItemsImpl(
     if (value !== null && value !== undefined) {
       currentParams = {
         ...parentParams,
-        [segmentParam.paramName]: value,
+        // Match the encoding applied to params passed to page/layout
+        // components (see `getParamValue`) so both call sites are consistent.
+        [segmentParam.paramName]: encodeParamValue(value),
       }
     }
   }
@@ -859,7 +862,9 @@ async function resolveViewportItemsImpl(
     if (value !== null && value !== undefined) {
       currentParams = {
         ...parentParams,
-        [segmentParam.paramName]: value,
+        // Match the encoding applied to params passed to page/layout
+        // components (see `getParamValue`) so both call sites are consistent.
+        [segmentParam.paramName]: encodeParamValue(value),
       }
     }
   }
