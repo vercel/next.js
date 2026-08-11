@@ -42,7 +42,6 @@ if (!isNextStart) {
     describe('default output', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'default'),
-        skipStart: true,
         skipDeployment: true,
       })
 
@@ -56,11 +55,6 @@ if (!isNextStart) {
           expect($(script).attr('crossorigin')).toBeUndefined()
         })
       }
-
-      beforeAll(async () => {
-        await next.build()
-        await next.start()
-      })
 
       it('does not add crossorigin attributes to statically generated scripts', async () => {
         expectCrossOriginAttributesToBeOmitted(await next.render$('/'))
