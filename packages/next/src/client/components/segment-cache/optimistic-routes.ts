@@ -119,6 +119,17 @@ type KnownRoutePartBase = {
   // learned its structure yet.
   pattern: FulfilledRouteCacheEntry | null
 
+  // True when parallel route branches disagree about the dynamic segment at
+  // this level — different param name or type, e.g. an @modal/[...catchAll]
+  // slot alongside [username]. The trie can only model one dynamic child per
+  // level, so prediction below this level would bind one branch's URL parts
+  // to another branch's params. Once set, discovery stops storing patterns
+  // beneath this level and matching bails out to server resolution.
+  //
+  // TODO: Consider including conflicting sibling dynamic params in the route
+  // tree, like we do for static siblings, and attempting to match both.
+  hasConflictingDynamicChildren: boolean
+
   // TODO: For prefix rewrite support. When true, this part may not appear in
   // the candidate URL because it was injected by a rewrite. Today, discovery
   // refuses to store a pattern for such routes (see the cache key comparison
@@ -185,6 +196,7 @@ function createEmptyPart(): KnownRoutePart {
     dynamicChildParamName: null,
     dynamicChildParamType: null,
     pattern: null,
+    hasConflictingDynamicChildren: false,
   }
 }
 
@@ -319,9 +331,11 @@ function handleMismatchDueToRewrite(
 }
 
 /**
- * Gets or creates the dynamic child node for a KnownRoutePart.
- * A node can have at most one dynamic child (you can't have both [slug] and
- * [id] at the same route level), so we either return existing or create new.
+ * Gets or creates the dynamic child node for a KnownRoutePart. A node can
+ * have at most one dynamic child. Sibling filesystem routes can't declare two
+ * different params at the same level, but parallel route branches can (e.g.
+ * @modal/[...catchAll] alongside [username]) — the caller detects that case
+ * and marks the level as conflicted instead of calling this.
  */
 function discoverDynamicChild(
   part: KnownRoutePart,
@@ -533,6 +547,30 @@ function discoverKnownRoutePart(
         break
       default:
         paramType satisfies never
+    }
+
+    if (
+      parentKnownRoutePart.hasConflictingDynamicChildren ||
+      (parentKnownRoutePart.dynamicChild !== null &&
+        (parentKnownRoutePart.dynamicChildParamName !== paramName ||
+          parentKnownRoutePart.dynamicChildParamType !== paramType))
+    ) {
+      // A different parallel route branch already claimed the dynamic child
+      // at this level with a different param. Mark the level as conflicted
+      // so matching bails out, and don't store a pattern via this branch.
+      parentKnownRoutePart.hasConflictingDynamicChildren = true
+      return handleMismatchDueToRewrite(
+        existingEntry,
+        now,
+        pathname,
+        search,
+        nextUrl,
+        fullTree,
+        metadataVaryPath,
+        couldBeIntercepted,
+        canonicalUrl,
+        supportsPerSegmentPrefetching
+      )
     }
 
     // URL matches route structure. Build the known route tree.
@@ -861,8 +899,10 @@ function matchKnownRoutePart(
     }
   }
 
-  // Try dynamic child
-  if (part.dynamicChild !== null) {
+  // Try dynamic child. Skip it entirely if parallel route branches disagree
+  // about the dynamic segment at this level — any pattern stored beneath it
+  // was learned under a conflicting model.
+  if (part.dynamicChild !== null && !part.hasConflictingDynamicChildren) {
     const dynamicPart = part.dynamicChild
     const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
