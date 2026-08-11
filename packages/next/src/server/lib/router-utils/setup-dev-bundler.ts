@@ -352,6 +352,9 @@ async function startWatcher(
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
     const definition = item.route
+    // FsOutput also includes static assets, which do not need compilation.
+    if (!definition) return
+
     // Static-info lookup needs the concrete grouped or parallel app path to
     // discover segment configuration such as `runtime = 'edge'`.
     await hotReloader.ensurePage({
