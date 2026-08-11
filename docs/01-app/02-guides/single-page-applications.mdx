@@ -44,7 +44,7 @@ Starting the request on the server, before the rest of the app renders, lets the
 
 You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook.
 
-When a Client Component needs focus revalidation, polling, mutations, or request deduplication, use a library such as SWR or TanStack Query. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, optional Server Component seeding, and coordinating the library cache with the Next.js server and client caches.
+When a Client Component needs focus revalidation, polling, mutations, or request deduplication, use a library such as SWR or TanStack Query. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, providing initial data from a Server Component, and coordinating the library cache with the Next.js server and client caches.
 
 Start the request in a Server Component (here, the root layout) without awaiting it, and pass the Promise to the provider:
 
@@ -278,7 +278,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) a
 
 ### Mutating data with Server Actions
 
-Interactivity often requires writing data. A Client Component can call a [Server Action](/docs/app/guides/server-actions) to run the mutation on the server. A client data-fetching library can instead write through a Route Handler and update its browser cache with SWR's [`mutate`](https://swr.vercel.app/docs/mutation) or TanStack Query's [`setQueryData`](https://tanstack.com/query/latest/docs/reference/QueryClient#queryclientsetquerydata). The rest of this section uses Server Actions directly.
+Interactivity often requires writing data. A Client Component can call a [Server Action](/docs/app/guides/server-actions) to run the mutation on the server. A client data-fetching library can coordinate an optimistic browser update around the same Server Action, as shown in the [client-side data fetching guide](/docs/app/guides/client-side-data-fetching#coordinate-mutations). The rest of this section coordinates the Server Action with React's built-in state APIs.
 
 A Server Action takes time and can fail. React has useful tools to keep the UI responsive while it runs, so a mutation can feel as instant as a client-rendered SPA: [transitions](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), [`useActionState`](https://react.dev/reference/react/useActionState), and [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
 

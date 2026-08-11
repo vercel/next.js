@@ -17,7 +17,7 @@ Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide in
 
 ## Fetch data on the client
 
-SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
+SWR can fetch entirely in the browser when the initial view can wait for a browser request after hydration. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useSWR` when the component should render its own loading and error states. A conditional key delays the request until the interaction provides an input:
 
@@ -199,17 +199,7 @@ export const productCache = {
 }
 ```
 
-Resolve the route parameters inside the Suspense boundary:
-
-```tsx filename="app/products/[id]/page.tsx"
-<Suspense fallback={<p>Loading...</p>}>
-  {params.then(({ id }) => (
-    <ProductData id={id} />
-  ))}
-</Suspense>
-```
-
-The Promise returned by `params.then()` keeps the fallback visible until the route parameters resolve. Afterward, `ProductData` creates a separate, unawaited `getProduct(id)` Promise for the SWR `fallback`. React passes that Promise through the React Server Component payload, and the component reading the matching key suspends until the data resolves.
+In the page example, the Promise returned by `params.then()` keeps the fallback visible until the route parameters resolve. `ProductData` then creates a separate, unawaited `getProduct(id)` Promise for the SWR `fallback`. React passes that Promise through the React Server Component payload, and the component reading the matching key suspends until the data resolves.
 
 The Client Component reads the data with `useSWR` using the same key:
 
@@ -261,7 +251,7 @@ The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions
 
 Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
-## Provide initial data and cache server data with Cache Components
+## Cache server-provided data with Cache Components
 
 Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts` before using this pattern. You can then cache the server data used as the SWR fallback. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
 
@@ -273,7 +263,9 @@ export async function getProduct(id: string) {
   cacheLife('max')
   cacheTag(`product:${id}`)
 
-  return db.product.findUnique({ where: { id } })
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) throw new Error('Product not found')
+  return product
 }
 ```
 
@@ -285,7 +277,9 @@ export async function getProduct(id) {
   cacheLife('max')
   cacheTag(`product:${id}`)
 
-  return db.product.findUnique({ where: { id } })
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) throw new Error('Product not found')
+  return product
 }
 ```
 
@@ -352,6 +346,7 @@ export function MarkReadButton() {
         optimisticData: { count: 0 },
         revalidate: false,
         rollbackOnError: true,
+        throwOnError: false,
       }
     )
   }
@@ -381,6 +376,7 @@ export function MarkReadButton() {
         optimisticData: { count: 0 },
         revalidate: false,
         rollbackOnError: true,
+        throwOnError: false,
       }
     )
   }

@@ -52,17 +52,17 @@ Server Components, data-fetching libraries, and mutations manage different parts
 
 - **Server Components** provide the initial data, scoped to the segment that owns it.
 - **The data-fetching library** stores the browser value under a shared cache identity.
-- **Mutations** can update the browser cache immediately and refresh cached server data for the next render.
+- **Mutations** can update the browser cache immediately and invalidate cached server data so the next render can read a fresh value.
 
 An optimistic update should restore the previous browser value if the write fails. If the server read is not cached, there is no server tag to invalidate.
 
 After a mutation, invalidate any cached server read that provided the initial data:
 
-| Method                                                                                 | Use when                                            | Next server read                     |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------ |
-| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action's next read must reflect its write  | Waits for fresh data                 |
-| [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag)         | The update is passive or stale data is acceptable   | Serves stale data while revalidating |
-| [`revalidateTag(tag, { expire: 0 })`](/docs/app/api-reference/functions/revalidateTag) | A Route Handler must expire cached data immediately | Waits for fresh data                 |
+| Method                                                                                 | Use when                                                   | Next server read                     |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action's next read must reflect its write         | Waits for fresh data                 |
+| [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag)         | The update is passive or stale data is acceptable          | Serves stale data while revalidating |
+| [`revalidateTag(tag, { expire: 0 })`](/docs/app/api-reference/functions/revalidateTag) | A webhook or external system requires immediate expiration | Waits for fresh data                 |
 
 ## Apply these patterns with SWR or TanStack Query
 

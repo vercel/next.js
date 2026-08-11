@@ -57,7 +57,7 @@ See the [complete provider setup in the demo source](https://github.com/vercel-l
 
 ## Fetch data on the client
 
-TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
+TanStack Query can fetch entirely in the browser when the initial view can wait for a browser request after hydration. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 
@@ -153,7 +153,7 @@ If the initial request fails, `useSuspenseQuery` propagates the error to the nea
 
 After a query has data, later refetches for the same query keep the cached data rendered instead of showing the Suspense fallback again. Use `isFetching` to provide background refresh feedback.
 
-If the initial server render needs the data, provide it from a Server Component as shown below.
+If the initial view needs the data, provide it from a Server Component as shown below.
 
 > **Good to know:** Multiple `useSuspenseQuery` calls in one component run sequentially. Put independent queries in sibling components, or use [`useSuspenseQueries`](https://tanstack.com/query/latest/docs/framework/react/reference/useSuspenseQueries). Learn more about [request waterfalls](https://tanstack.com/query/latest/docs/framework/react/guides/request-waterfalls).
 
@@ -325,7 +325,7 @@ export function ProductView({ id }) {
 
 Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
-## Provide initial data and cache server data with Cache Components
+## Cache server-provided data with Cache Components
 
 Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts` before using this pattern. You can then cache the server data provided to TanStack Query. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
 
@@ -362,7 +362,7 @@ This example uses `cacheLife('max')` because writes invalidate the product tag. 
 
 TanStack Query owns a separate browser cache, so its `staleTime` does not need to match `cacheLife`.
 
-Cache Components also prerenders Client Components. For a query needed during the initial render, use `useSuspenseQuery` behind [Suspense](/docs/app/getting-started/fetching-data#streaming) so it does not block prerendering. TanStack Query can otherwise read the current time while creating active query state and cause a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+With Cache Components enabled, Next.js also prerenders Client Components. Keep a query needed during the initial render behind [Suspense](/docs/app/getting-started/fetching-data#streaming). TanStack Query can read the current time while creating active query state, and the boundary lets Next.js defer that work instead of raising a [current-time prerender error](/docs/messages/blocking-prerender-current-time-client).
 
 When the same mutation updates the browser cache and invalidates cached server data, you may define both identities in one shared contract:
 
