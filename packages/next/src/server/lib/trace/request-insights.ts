@@ -23,7 +23,7 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
 type RequestInsightsListener = (insight: RequestInsight) => void
-type RequestInsightIdentity = {
+type RequestInsightIdentity = Readonly<{
   requestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
@@ -31,7 +31,7 @@ type RequestInsightIdentity = {
   htmlRequestId?: string
   route?: string
   url?: string
-}
+}>
 
 const REDACTED_VALUE = 'redacted'
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
@@ -338,8 +338,7 @@ export function recordRequestInsightSource(
   identity: RequestInsightIdentity,
   source: RequestInsightSource
 ): void {
-  identity.source = source
-  getRequestInsightsStore().recordClassification(identity)
+  getRequestInsightsStore().recordClassification({ ...identity, source })
 }
 
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {

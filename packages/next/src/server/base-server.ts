@@ -117,6 +117,7 @@ import { BaseServerSpan } from './lib/trace/constants'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
 } from './lib/trace/request-insights-identity'
 import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { I18NProvider } from './lib/i18n-provider'
@@ -1004,7 +1005,7 @@ export default abstract class Server<
       return handleRequest()
     }
 
-    const requestInsightsIdentity = resolveRequestInsightsIdentity({
+    const resolvedRequestInsightsIdentity = resolveRequestInsightsIdentity({
       previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
       requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
       htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
@@ -1012,10 +1013,12 @@ export default abstract class Server<
       createRequestId: nanoid,
     })
     const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke') === true
-    const sourceBeforeMiddleware = requestInsightsIdentity.source
-    if (isMiddlewareInvoke) {
-      requestInsightsIdentity.source = 'proxy'
-    }
+    const requestInsightsIdentity: RequestInsightsIdentity = isMiddlewareInvoke
+      ? {
+          ...resolvedRequestInsightsIdentity,
+          source: 'proxy',
+        }
+      : resolvedRequestInsightsIdentity
     addRequestMeta(req, 'requestInsightsIdentity', requestInsightsIdentity)
 
     // The request root and route-matching spans start before App Render creates
@@ -1027,8 +1030,12 @@ export default abstract class Server<
         handleRequest
       )
     } finally {
-      if (isMiddlewareInvoke && requestInsightsIdentity.source === 'proxy') {
-        requestInsightsIdentity.source = sourceBeforeMiddleware
+      if (isMiddlewareInvoke) {
+        addRequestMeta(
+          req,
+          'requestInsightsIdentity',
+          resolvedRequestInsightsIdentity
+        )
       }
     }
   }

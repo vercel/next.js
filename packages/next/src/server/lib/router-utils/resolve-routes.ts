@@ -579,9 +579,10 @@ export function getResolveRoutes(
             'requestInsightsIdentity'
           )
           if (requestInsightsIdentity && match) {
-            requestInsightsIdentity.proxyStatus = matchesMiddleware
-              ? 'matched'
-              : 'bypassed'
+            addRequestMeta(req, 'requestInsightsIdentity', {
+              ...requestInsightsIdentity,
+              proxyStatus: matchesMiddleware ? 'matched' : 'bypassed',
+            })
           }
 
           if (matchesMiddleware) {
