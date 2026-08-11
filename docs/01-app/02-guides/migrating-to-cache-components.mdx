@@ -83,7 +83,9 @@ A validation insight or error tells you a route won't render instantly. Resolve 
 export const instant = false
 ```
 
-> **Good to know**: `instant = false` marks a segment as _allowed to block_. It does not force the route to be dynamic, so a genuinely prerenderable route still ships a static shell. It also does not clear synchronous IO build errors: calls like `new Date()`, `Math.random()`, and `crypto.randomUUID()` still fail the prerender. See [Adopting incrementally](#adopting-incrementally).
+Export `instant` from the segment's Server Component file (`page`, `layout`, or `default`). If that file has a `'use client'` directive, move the client code into a child component and keep the route file as a Server Component.
+
+> **Good to know**: `instant = false` skips instant-navigation validation and marks a segment as _allowed to block_. It does not opt the segment out of prerendering or force it to be dynamic, so a genuinely prerenderable route still ships a static shell. By contrast, [`connection()`](/docs/app/api-reference/functions/connection) defers the code below it until an actual request. Use `connection()` below a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary when the work itself must not run during prerendering. These APIs are not interchangeable.
 
 ## Adopting incrementally
 
