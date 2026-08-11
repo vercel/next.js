@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 
 /**
  * Both named slots cover the catch-all and this layout intentionally has no
- * children slot. The broad matcher is complete and must not be pruned because
- * of the synthesized, but unused, children fallback.
+ * children slot. The broad matcher is complete, and strict matching represents
+ * this level using only the declared left and right slots.
  */
 export default function NamedOnlyCatchallsLayout({
   left,
