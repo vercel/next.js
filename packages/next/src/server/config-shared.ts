@@ -517,8 +517,30 @@ export interface ExperimentalConfig {
    * Cache Components.
    */
   cachedNavigations?: boolean
+  /**
+   * Allows a Link with `unstable_dynamicOnHover` to upgrade its static
+   * prefetch to include dynamic route content when the user hovers or touches
+   * it.
+   *
+   * @internal This supports experimental Link behavior and is not a stable
+   * public configuration contract.
+   */
   dynamicOnHover?: boolean
+  /**
+   * Enables connectivity detection and automatic retries for failed
+   * navigations, prefetches, and Server Actions. It also enables the
+   * `useOffline` hook from `next/offline`.
+   *
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/useOffline
+   */
   useOffline?: boolean
+  /**
+   * Uses known route patterns to construct an optimistic route tree when a
+   * navigation does not have an exact prefetched route entry.
+   *
+   * @internal This is a migration flag for the Segment Cache routing
+   * implementation and is not a stable public configuration contract.
+   */
   optimisticRouting?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
