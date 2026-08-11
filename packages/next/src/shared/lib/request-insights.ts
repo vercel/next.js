@@ -17,12 +17,12 @@ export const REQUEST_INSIGHT_SOURCES = [
 export type RequestInsightSource = (typeof REQUEST_INSIGHT_SOURCES)[number]
 export type RequestInsightProxyStatus = 'matched' | 'bypassed'
 
-export type RequestInsightIdentity = {
+export type RequestInsightIdentity = Readonly<{
   requestId: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
-}
+}>
 
 export function getRequestInsightKind(
   insight: Pick<RequestInsightIdentity, 'kind'>
