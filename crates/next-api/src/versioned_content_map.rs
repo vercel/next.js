@@ -55,12 +55,12 @@ unsafe impl OperationValue for PathToOutputOperation {}
 type OutputOperationToComputeEntry =
     FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
 
-/// Tracks all the output assets produced in a session.  This allows us to compute fine grained
+/// Tracks all the output assets produced in a session. This allows us to compute fine grained
 /// change information which drives HMR sessions.
 ///
-/// `serialization = "skip"` so that HMR sessions fully restart on each new session
+/// `serialization = "skip"` so that HMR sessions fully restart on each new session.
 /// `evict = "never"` in order to ensure that we don't lose track of version state in the middle of
-/// a session
+/// a session.
 #[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionedContentMap {
     // TODO: turn into a bi-directional multimap, ExpandedOutputAssets ->
@@ -155,7 +155,6 @@ impl VersionedContentMap {
 
     /// Inserts output assets into the map and returns a completion that when
     /// awaited will emit the assets that were inserted.
-    //
     #[turbo_tasks::function(session_dependent)]
     pub async fn insert_output_assets(
         self: ResolvedVc<Self>,
