@@ -49,6 +49,7 @@ import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
+import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -140,7 +141,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -540,8 +540,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -587,8 +586,6 @@ export default abstract class Server<
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      // `htmlLimitedBots` is passed to server as serialized config in string format
-      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -615,9 +612,10 @@ export default abstract class Server<
           this.nextConfig.experimental.maxPostponedStateSize
         ),
         exposeTestingApi:
-          this.dev === true ||
-          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
-            true,
+          this.nextConfig.cacheComponents === true &&
+          (this.dev === true ||
+            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+              true),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -2354,6 +2352,21 @@ export default abstract class Server<
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
+
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.body('Not Found').send()
+        return null
+      }
     }
 
     // ensure correct status is set when visiting a status page

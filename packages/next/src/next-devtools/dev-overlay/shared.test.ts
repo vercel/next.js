@@ -5,11 +5,48 @@ import {
   createRuntimeBodyError,
   createRuntimeBodyErrorInNavigation,
 } from '../../server/app-render/blocking-route-messages'
-import { getInstantErrorRoute, routeTemplateMatchesPath } from './shared'
+import {
+  getInstantErrorRoute,
+  routeTemplateMatchesPath,
+  updateRequestInsights,
+} from './shared'
+import type { RequestInsight } from '../shared/request-insights'
 
 const STATIC_ROUTE = '/example'
 const DYNAMIC_ROUTE_TEMPLATE = '/posts/[slug]'
 const CATCH_ALL_ROUTE_TEMPLATE = '/docs/[...slug]'
+
+function createRequestInsight(
+  kind: RequestInsight['kind'],
+  durationMs: number
+): RequestInsight {
+  return {
+    requestId: 'shared-request',
+    kind,
+    htmlRequestId: 'shared-html',
+    route: '/dashboard',
+    startTime: 100,
+    durationMs,
+    status: 'ok',
+    spans: [],
+    fetches: [],
+  }
+}
+
+describe('updateRequestInsights', () => {
+  it('updates request kinds independently when request IDs match', () => {
+    const request = createRequestInsight('request', 25)
+    const instantInsights = createRequestInsight('instant-insights', 50)
+    const updatedInstantInsights = createRequestInsight('instant-insights', 75)
+
+    expect(
+      updateRequestInsights(
+        updateRequestInsights([request], instantInsights),
+        updatedInstantInsights
+      )
+    ).toEqual([request, updatedInstantInsights])
+  })
+})
 
 describe('getInstantErrorRoute', () => {
   it('returns the route for an in-navigation runtime body error', () => {

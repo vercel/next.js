@@ -126,6 +126,61 @@ Override with:
 pnpm bench:render-pipeline --scenario=e2e --routes=/,/streaming/heavy
 ```
 
+## Per-route document metrics
+
+Each run reports, per route, alongside latency:
+
+- **ttfb** — time to first body byte, from stream reading. Catches shell-flush
+  regressions that total latency hides on streaming routes.
+- **document bytes** — decompressed body size, plus the share of bytes inside
+  inline `self.__next_f.push(...)` Flight scripts and the inline script count.
+  Byte totals are deterministic per build (fixture data is seeded), so any
+  delta in an A/B comparison is a real payload change — no repeat runs needed.
+  They also double as a check that both sides of a comparison rendered the
+  same output. The script *count* is not stable: Fizz wraps whatever Flight
+  rows are pending into one script per flush, so the count varies with write
+  timing. Compare bytes, not counts.
+
+## Client trace pass (opt-in)
+
+```bash
+pnpm bench:render-pipeline:client --build=true
+```
+
+Drives Chromium over the production server with CDP tracing and CPU throttling
+(default 4x) and reports main-thread attribution buckets per route:
+
+- per-chunk script eval and compile time (with file counts)
+- inline script eval time (Flight `__next_f.push` scripts plus Fizz's tiny
+  `$RS`/`$RC` boundary-reveal scripts; Flight dominates duration)
+- off-main-thread streaming parse CPU (`v8.parseOnBackgroundParsing`) —
+  most parse cost for large external chunks lands here, not in the
+  main-thread compile bucket
+- time to the `bench:hydrated` mark (shell hydration commit)
+- long tasks / total blocking time before hydration, clipped to the
+  pre-hydration portion of each task (null when the mark is not
+  observed — there is no well-defined window without it)
+- GC time (top-level `MinorGC`/`MajorGC` pauses only; GC can fire inside
+  eval, so buckets overlap and are not meant to sum to wall time)
+- JS transferred vs parsed bytes
+
+The `bench:hydrated` mark comes from a small client component in the
+fixture root layout (`app/ui/hydration-mark.js`, the shape of an
+analytics provider). It is part of the measured payload on every route,
+so byte totals from builds before it was added are not comparable.
+
+FCP/LCP/DOMContentLoaded/load are extracted from the same trace as secondary
+rows — sanity anchors, not comparison metrics. Attribution buckets are stable
+at low sample counts (default 3 per route, cold visit each), so this pass adds
+minutes, not tens of minutes. Tracing perturbs timing: never use this pass for
+latency/throughput numbers, and never run it concurrently with the HTTP
+benchmark. Raw traces land in the artifact dir (`client-trace-<route>.json`,
+loadable in Chrome DevTools Performance panel or https://ui.perfetto.dev).
+
+Reuse a server started elsewhere with `--start-server=false --port=<port>`.
+Chromium comes from the repo's `playwright` dependency; if launch fails, run
+`pnpm exec playwright install chromium`.
+
 ## Measurement model
 
 The benchmark uses a **closed-loop** load generator: each concurrent worker

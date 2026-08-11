@@ -477,7 +477,7 @@ export function runDevWarmupTests({
             assertLog(logs, 'after first cache', 'Prerender')
             assertLog(logs, 'after cookies', 'Prefetch')
             if (hasRuntimePrefetch || partialPrefetching) {
-              // in partialPrefetching (either via allow-runtime or global flag),
+              // in partialPrefetching (via per-segment config or global flag),
               // sync IO in the runtime stage errors and advances to Server.
               assertLog(logs, 'after sync io', 'Server')
               assertLog(logs, 'after cache read - page', 'Server')

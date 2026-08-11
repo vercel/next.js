@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('ci-missing-typescript-deps', () => {
   describe('missing typescript dep', () => {
     const { next } = nextTestSetup({
+      nextConfig: {
+        experimental: { useTypeScriptCli: false },
+      },
       files: {
         'pages/index.tsx': `
           export default function Page() {
@@ -92,17 +95,9 @@ describe('ci-missing-typescript-deps', () => {
         '@types/react': 'npm:types-react@beta',
         '@types/react-dom': 'npm:types-react-dom@beta',
       },
-      packageJson: {
-        overrides: {
-          '@types/react': 'npm:types-react@beta',
-          '@types/react-dom': 'npm:types-react-dom@beta',
-        },
-        pnpm: {
-          overrides: {
-            '@types/react': 'npm:types-react@beta',
-            '@types/react-dom': 'npm:types-react-dom@beta',
-          },
-        },
+      resolutions: {
+        '@types/react': 'npm:types-react@beta',
+        '@types/react-dom': 'npm:types-react-dom@beta',
       },
     })
 

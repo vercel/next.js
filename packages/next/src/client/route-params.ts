@@ -64,7 +64,7 @@ export function getRenderedPathname(
 // `encodeURIComponent` percent-encodes them. To produce the same canonical
 // form on the client (and avoid double-encoding `%xx` sequences such as
 // `%2F` → `%252F`), we decode the URL part first and re-encode it.
-function canonicalizeURLPart(part: string): string {
+export function canonicalizeURLPart(part: string): string {
   try {
     return encodeURIComponent(decodeURIComponent(part))
   } catch {

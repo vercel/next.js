@@ -31,7 +31,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
+        utils::{ExprFactory, prepend_stmts, prop_name_eq, quote_ident, quote_str},
         visit::{
             Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
             visit_mut_pass,
@@ -1086,13 +1086,7 @@ impl ReactServerComponentValidator {
         let obj = ssr_arg.expr.as_object()?;
 
         for prop in obj.props.iter().filter_map(|v| v.as_prop()?.as_key_value()) {
-            let is_ssr = match &prop.key {
-                PropName::Ident(IdentName { sym, .. }) => sym == "ssr",
-                PropName::Str(s) => s.value == "ssr",
-                _ => false,
-            };
-
-            if is_ssr {
+            if prop_name_eq(&prop.key, "ssr") {
                 let value = prop.value.as_lit()?;
                 if let Lit::Bool(Bool { value: false, .. }) = value {
                     report_error(

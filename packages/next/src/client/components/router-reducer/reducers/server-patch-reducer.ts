@@ -10,6 +10,7 @@ import {
   completeHardNavigation,
   navigateToKnownRoute,
 } from '../../segment-cache/navigation'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { refreshReducer } from './refresh-reducer'
 import { getCurrentNavigationLock } from '../ppr-navigations'
 
@@ -65,6 +66,8 @@ export function serverPatchReducer(
     scrollBehavior,
     navigateType,
     navigationLock,
+    // A server-patch retry navigation is bound to the shared map.
+    segmentCacheMap,
     null,
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
