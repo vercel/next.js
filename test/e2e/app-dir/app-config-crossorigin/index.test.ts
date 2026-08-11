@@ -1,19 +1,7 @@
-import cheerio from 'cheerio'
 import path from 'path'
 import { isNextStart, nextTestSetup } from 'e2e-utils'
 
 const assetPrefix = 'https://example.vercel.sh'
-
-function expectCrossOriginAttributesToBeOmitted(
-  $: ReturnType<typeof cheerio.load>
-) {
-  const scripts = $(`script[src^="${assetPrefix}"]`)
-
-  expect(scripts.length).toBeGreaterThan(0)
-  scripts.each((_, script) => {
-    expect($(script).attr('crossorigin')).toBeUndefined()
-  })
-}
 
 if (!isNextStart) {
   describe('app dir - crossOrigin config', () => {
@@ -58,6 +46,17 @@ if (!isNextStart) {
         skipDeployment: true,
       })
 
+      function expectCrossOriginAttributesToBeOmitted(
+        $: Awaited<ReturnType<typeof next.render$>>
+      ) {
+        const scripts = $(`script[src^="${assetPrefix}"]`)
+
+        expect(scripts.length).toBeGreaterThan(0)
+        scripts.each((_, script) => {
+          expect($(script).attr('crossorigin')).toBeUndefined()
+        })
+      }
+
       beforeAll(async () => {
         await next.build()
         await next.start()
@@ -84,6 +83,17 @@ if (!isNextStart) {
           startCommand: 'node server.mjs',
           serverReadyPattern: /- Local:/,
         })
+
+        function expectCrossOriginAttributesToBeOmitted(
+          $: Awaited<ReturnType<typeof next.render$>>
+        ) {
+          const scripts = $(`script[src^="${assetPrefix}"]`)
+
+          expect(scripts.length).toBeGreaterThan(0)
+          scripts.each((_, script) => {
+            expect($(script).attr('crossorigin')).toBeUndefined()
+          })
+        }
 
         it('does not add crossorigin attributes to exported scripts', async () => {
           await next.build()
