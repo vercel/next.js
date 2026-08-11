@@ -5,17 +5,18 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, availability_info::AvailabilityInfo,
+        ChunksData, HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
-    output::OutputAssetsWithReferenced,
+    output::{OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
+    async_chunk::proxy::LazyCompilationProxyModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         data::EcmascriptChunkData, ecmascript_chunk_item,
@@ -94,11 +95,25 @@ impl ManifestAsyncModule {
                 .cell());
             }
         }
+        // The manifest module is synthesized while chunking, so it is not a member of
+        // `this.module_graph` and has to be placed in a graph of its own.
         Ok(this.chunking_context.chunk_group_assets(
             self.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self)),
-            *this.module_graph,
+            ModuleGraph::isolated_async_entry(*ResolvedVc::upcast(self)),
             this.availability_info,
+        ))
+    }
+
+    /// Without a chunk list of its own, modules that are only reachable through this dynamic
+    /// import never receive updates.
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        Ok(this.chunking_context.hmr_chunk_list(
+            self.ident(),
+            *self.chunk_group().await?.assets,
+            HmrChunkListSource::Dynamic,
         ))
     }
 
@@ -128,7 +143,10 @@ impl ManifestAsyncModule {
         let this = self.await?;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root().owned().await?,
-            *self.chunk_group().await?.assets,
+            self.chunk_group()
+                .await?
+                .assets
+                .concatenate(self.hmr_chunk_list()),
         ))
     }
 }
@@ -141,12 +159,22 @@ fn manifest_chunk_reference_description() -> RcStr {
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
+        let ident = self
             .inner
             .ident()
             .owned()
             .await?
-            .with_modifier(manifest_chunk_reference_description())
+            .with_modifier(manifest_chunk_reference_description());
+        // Requesting the manifest chunk of a lazily compiled dynamic import is what activates it,
+        // so the key has to survive into the file name, and the path is the only part of an ident
+        // that appears there literally. It must not move to the proxy's own ident, which also
+        // names chunks that ship with the entrypoint and would activate the import on page load.
+        let Some(proxy) = ResolvedVc::try_downcast_type::<LazyCompilationProxyModule>(self.inner)
+        else {
+            return Ok(ident.into_vc());
+        };
+        Ok(ident
+            .rename_as(&format!("*.{}.js", proxy.await?.key))
             .into_vc())
     }
 
@@ -225,5 +253,8 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
         _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         self.chunk_group()
+            .concatenate(OutputAssetsWithReferenced::from_assets(
+                self.hmr_chunk_list(),
+            ))
     }
 }
