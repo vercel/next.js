@@ -320,7 +320,7 @@ export function registerHeadAndReportingTests(
 
          Ways to fix this:
            - [render] Render the dropped segment
-           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+           - [ignore] Set \`export const instant = false\` in the dropped segment's Server Component to skip only this validation (prerendering still runs)
 
          Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
              at ignore-listed frames
@@ -378,7 +378,7 @@ export function registerHeadAndReportingTests(
 
          Ways to fix this:
            - [render] Render the dropped segment
-           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+           - [ignore] Set \`export const instant = false\` in the dropped segment's Server Component to skip only this validation (prerendering still runs)
 
          Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
              at ignore-listed frames
@@ -436,7 +436,7 @@ export function registerHeadAndReportingTests(
 
          Ways to fix this:
            - [render] Render the dropped segment
-           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+           - [ignore] Set \`export const instant = false\` in the dropped segment's Server Component to skip only this validation (prerendering still runs)
 
          Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
              at ignore-listed frames
