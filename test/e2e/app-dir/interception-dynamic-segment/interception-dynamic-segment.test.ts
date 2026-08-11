@@ -292,25 +292,51 @@ describe('interception-dynamic-segment', () => {
         expect(await browser.hasElementByCss('#named-host')).toBe(false)
       })
 
+      it('should send and render a real default for a newly entered slot owner', async () => {
+        const { act, browser } = await createBrowserWithRouterAct('/')
+
+        await act(async () => {
+          await navigate(browser, '/real-default')
+        })
+
+        expect(await browser.elementById('real-default-page').text()).toBe(
+          'Real default page'
+        )
+        expect(await browser.elementById('real-default-panel').text()).toBe(
+          'Real default panel'
+        )
+      })
+
       /**
        * Test Case 4: Has named slots but NO page.tsx (THE KEY BUG CASE)
-       * Structure: @modal/(.)test-nested has @sidebar/page.tsx and
-       * @panel/default.tsx, but NO page.tsx at root.
-       * Expected: Should work WITHOUT explicit default.tsx (auto null default)
-       * Reason: Legacy matching still injects a null children fallback inside
-       * the interception subtree. The real @panel default renders normally
-       * because it belongs to the newly entered subtree, not the host update.
+       * Structure: @modal/(.)test-nested has route targets only under the
+       * direct @sidebar and @panel slots, but NO ordinary route branch.
+       * Expected: Should work WITHOUT an explicit children default.
+       * Reason: The intercepted layout only declares named slots, so strict
+       * matching should not synthesize a missing children slot. Its real
+       * @panel default still renders because this is a newly entered owner,
+       * not a retained sibling at the interception host.
        *
-       * This is the critical test! Without the fix:
-       * 1. Server returns 404 (default.js calls notFound())
-       * 2. Client sees !res.ok in fetch-server-response.ts:229
-       * 3. Client triggers doMpaNavigation() - full page reload
-       * 4. Navigation still succeeds via MPA, hiding the 404 bug
+       * The outer children subtree, including client state, remains mounted
+       * because its host slot is represented by the interception retain marker.
        *
-       * With createRouterAct (no allowErrorStatusCodes), 404 fails the test.
+       * This must remain a controlled client-navigation test. Without omitting
+       * the undeclared children slot:
+       * 1. Its synthesized default calls notFound().
+       * 2. The server returns a 404 response for the soft navigation.
+       * 3. The client router falls back to an MPA navigation.
+       * 4. The hard navigation can succeed, hiding the broken soft response.
+       *
+       * createRouterAct rejects the 404 before the fallback can hide it. The
+       * retained counter remaining at 1 also proves that no MPA reload occurred.
        */
-      it('should navigate to /test-nested without 404 (auto null default)', async () => {
+      it('should omit undeclared children and preserve parent state', async () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
+
+        await browser.elementById('retained-counter').click()
+        expect(await browser.elementById('retained-counter').text()).toBe(
+          'Retained count: 1'
+        )
 
         await act(async () => {
           await navigate(browser, '/test-nested')
@@ -322,11 +348,17 @@ describe('interception-dynamic-segment', () => {
           expect(modalContent).toContain('Intercepted test-nested sidebar')
           expect(modalContent).toContain('Intercepted panel default')
         })
+        expect(await browser.hasElementByCss('#unexpected-children-slot')).toBe(
+          false
+        )
 
         await retry(async () => {
           // Children slot should still show original page (/)
           const childrenContent = await browser.elementByCss('#children').text()
           expect(childrenContent).toContain('CHILDREN SLOT')
+          expect(await browser.elementById('retained-counter').text()).toBe(
+            'Retained count: 1'
+          )
         })
       })
 
