@@ -82,6 +82,14 @@ This allows you to use a singular Docker image that can be promoted through mult
 >
 > - You can run code on server startup using the [`register` function](/docs/app/guides/instrumentation).
 
+## Build and runtime configuration
+
+`next build` and `next start` both load your Next.js configuration. Build-shaping options must have the same values in both processes. If you build an application in one Docker stage and run `next start` in another, copy the same `next.config.*` file into the runtime image along with the build output.
+
+Alternatively, use [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files). The generated `server.js` includes the resolved Next.js configuration, so you do not need to copy `next.config.*` separately.
+
+Runtime environment variables can still differ between environments as described above. The parity requirement applies to configuration that shapes the build. For example, a build created with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled cannot be started with Cache Components disabled. Next.js exits during startup when it detects that mismatch.
+
 ## Caching and ISR
 
 Next.js can cache responses, generated static pages, build outputs, and other static assets like images, fonts, and scripts.
