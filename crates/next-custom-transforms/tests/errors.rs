@@ -92,6 +92,7 @@ fn next_ssg_errors(input: PathBuf) {
 #[fixture("tests/errors/react-server-components/**/input.js")]
 #[fixture("tests/errors/react-server-components/**/page.js")]
 #[fixture("tests/errors/react-server-components/**/route.js")]
+#[fixture("tests/errors/react-server-components/**/sitemap.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
