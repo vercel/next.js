@@ -908,6 +908,13 @@ export interface ExperimentalConfig {
   turbopackFileSystemCacheForDev?: boolean
 
   /**
+   * When enabled, emits an app-wide manifest of the chunks each route
+   * references so the client runtime can warm HTTP-cached component chunks on a
+   * fresh visit instead of re-downloading whole merged chunks.
+   */
+  turbopackPreloadCachedChunks?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack build.
    *
    * Defaults to `true`.

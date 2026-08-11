@@ -47,6 +47,7 @@ import {
   createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin-utils'
 import type { SubresourceIntegrityManifest } from '../../../build'
+import { readRscManifest } from '../../../build/read-rsc-manifest'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -207,6 +208,7 @@ export class TurbopackManifestLoader {
   private readonly buildId: string
   private readonly dev: boolean
   private readonly sriEnabled: boolean
+  private readonly preloadCachedChunks: boolean
 
   constructor({
     distDir,
@@ -214,18 +216,21 @@ export class TurbopackManifestLoader {
     encryptionKey,
     dev,
     sriEnabled,
+    preloadCachedChunks,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
     dev: boolean
     sriEnabled: boolean
+    preloadCachedChunks: boolean
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dev = dev
     this.sriEnabled = sriEnabled
+    this.preloadCachedChunks = preloadCachedChunks
   }
 
   delete(key: EntryKey) {
@@ -409,7 +414,8 @@ export class TurbopackManifestLoader {
 
   private mergeBuildManifests(
     manifests: Iterable<BuildManifest>,
-    lowPriorityFiles: string[]
+    lowPriorityFiles: string[],
+    chunkPreloadManifestPath?: string
   ) {
     const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
       pages: {
@@ -422,6 +428,7 @@ export class TurbopackManifestLoader {
       rootMainFiles: [],
       rootMainFilesTree: {},
       pagesChunkGroupBootstrapParams: {},
+      chunkPreloadManifestPath,
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
@@ -498,13 +505,17 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private writeBuildManifest(lowPriorityFiles: string[]): void {
+  private writeBuildManifest(
+    lowPriorityFiles: string[],
+    chunkPreloadManifestPath?: string
+  ): void {
     if (!this.buildManifests.takeChanged()) {
       return
     }
     const buildManifest = this.mergeBuildManifests(
       this.buildManifests.values(),
-      lowPriorityFiles
+      lowPriorityFiles,
+      chunkPreloadManifestPath
     )
 
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
@@ -888,6 +899,53 @@ export class TurbopackManifestLoader {
     writeFileAtomic(pagesManifestPath, JSON.stringify(pagesManifest, null, 2))
   }
 
+  /** Every chunk a route references, plain and merged (URL + component paths). */
+  private collectRouteChunks(page: string): string[] {
+    const clientModules = readRscManifest(this.distDir, page)?.[page]
+      ?.clientModules
+    const chunks: string[] = []
+    for (const id in clientModules) {
+      for (const chunk of clientModules[id].chunks ?? []) {
+        if (Array.isArray(chunk)) {
+          // Merged chunk `[url, componentPaths, sizes]`: warm both the merged
+          // chunk and its component chunks. `url` is a full asset URL; strip its
+          // query/hash so it matches the path form the runtime probes under.
+          chunks.push(chunk[0].replace(/[?#].*$/, ''), ...chunk[1])
+        } else {
+          // Plain (unmerged) chunk URL.
+          chunks.push(chunk)
+        }
+      }
+    }
+    return chunks
+  }
+
+  /** Writes the app-wide chunk-preload manifest; returns its path. Production only. */
+  private writeChunkPreloadManifest(
+    entrypoints: Entrypoints
+  ): string | undefined {
+    if (this.dev || !this.preloadCachedChunks) return undefined
+
+    const preloadChunks = new Set<string>()
+    for (const page of entrypoints.app.keys()) {
+      for (const chunk of this.collectRouteChunks(page)) {
+        preloadChunks.add(chunk)
+      }
+    }
+    if (preloadChunks.size === 0) return undefined
+
+    const manifestPath = posix.join(
+      CLIENT_STATIC_FILES_PATH,
+      this.buildId,
+      '_chunkPreloadManifest.json'
+    )
+    writeFileAtomic(
+      join(this.distDir, manifestPath),
+      JSON.stringify([...preloadChunks])
+    )
+    return manifestPath
+  }
+
   writeManifests({
     devRewrites,
     productionRewrites,
@@ -899,13 +957,17 @@ export class TurbopackManifestLoader {
   }): void {
     this.writeActionManifest()
     this.writeAppPathsManifest()
+    const chunkPreloadManifestPath = this.writeChunkPreloadManifest(entrypoints)
     const lowPriorityFiles = this.writeClientBuildManifest(
       entrypoints,
       devRewrites,
       productionRewrites
     )
     const { clientMiddlewareManifestPath } = this.writeMiddlewareManifest()
-    this.writeBuildManifest([...lowPriorityFiles, clientMiddlewareManifestPath])
+    this.writeBuildManifest(
+      [...lowPriorityFiles, clientMiddlewareManifestPath],
+      chunkPreloadManifestPath
+    )
     this.writeInterceptionRouteRewriteManifest(devRewrites, productionRewrites)
     this.writeNextFontManifest()
     this.writePagesManifest()

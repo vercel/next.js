@@ -18,6 +18,7 @@ export type BuildManifest = {
   pagesChunkGroupBootstrapParams?: { [page: string]: object }
   // The chunk-loading global the runtime drains (default "TURBOPACK").
   chunkLoadingGlobal?: string
+  chunkPreloadManifestPath?: string
 }
 
 /**

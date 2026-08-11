@@ -227,6 +227,9 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       encryptionKey,
       dev: false,
       sriEnabled,
+      preloadCachedChunks: Boolean(
+        config.experimental.turbopackPreloadCachedChunks
+      ),
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
