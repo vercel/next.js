@@ -2017,7 +2017,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn strict_route_matching(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
+        Vc::cell(self.experimental.strict_route_matching.unwrap_or(true))
     }
 
     #[turbo_tasks::function]

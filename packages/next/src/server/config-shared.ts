@@ -2310,7 +2310,7 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    strictRouteMatching: false,
+    strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,
