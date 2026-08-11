@@ -21,6 +21,10 @@ declare global {
   var __turbopack_server_hmr_handlers__:
     | Map<string, { handler: (update: any) => void; chunkPrefix: string }>
     | undefined
+  /** Compiles an on-demand chunk before the runtime requires it. */
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: string) => void | Promise<void>)
+    | undefined
 }
 
 export {}

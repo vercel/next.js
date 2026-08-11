@@ -193,6 +193,12 @@ declare global {
    * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
    */
   var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+  /**
+   * Sync with `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
+   */
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: string) => void | Promise<void>)
+    | undefined
 }
 
 /**
@@ -606,6 +612,8 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+  /** Server assets are not tracked by `assetMapper`. */
+  const serverAssetMapper = new AssetMapper()
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -696,6 +704,13 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
+    if (lazyDynamicImports) {
+      serverAssetMapper.setPathsForKey(
+        key,
+        writtenEndpoint.serverPaths.map(({ path }) => path)
+      )
+    }
+
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps
@@ -2227,6 +2242,26 @@ export async function createHotReloaderTurbopack(
   })
 
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
+
+  if (lazyDynamicImports) {
+    // The Node.js runtime reads chunks from disk, so it asks the dev server to compile first.
+    globalThis.__turbopack_ensure_chunk__ = async (chunkPath: string) => {
+      if (!(await project.activateLazyChunk(chunkPath))) {
+        return
+      }
+      for (const key of serverAssetMapper.getKeysByAsset(chunkPath)) {
+        const { page } = splitEntryKey(key)
+        await hotReloader.ensurePage({
+          page,
+          clientOnly: false,
+          definition: undefined,
+        })
+      }
+      // The chunk existed in its inactive form, so a previous require of it is stale.
+      deleteCache([join(distDir, chunkPath)])
+    }
+  }
+
   if (serverFastRefresh) {
     serverHmr = setupServerHmr(project, {
       reEvaluateAllModulesExpensive: async () => {

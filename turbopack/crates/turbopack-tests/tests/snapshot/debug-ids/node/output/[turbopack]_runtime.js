@@ -1431,6 +1431,21 @@ nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
+// Coalesce concurrent requests for the same on-demand chunk.
+const chunksBeingEnsured = new Map();
+function loadChunkAsyncOnDemand(chunkData) {
+    const ensureChunk = globalThis.__turbopack_ensure_chunk__;
+    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
+    if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
+        return loadChunkAsync.call(this, chunkData);
+    }
+    const ensured = chunksBeingEnsured.get(chunkPath) ?? Promise.resolve(ensureChunk(chunkPath)).finally(()=>{
+        chunksBeingEnsured.delete(chunkPath);
+    });
+    chunksBeingEnsured.set(chunkPath, ensured);
+    return ensured.then(()=>loadChunkAsync.call(this, chunkData));
+}
+nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
 /**
  * Instantiates a module in development mode using shared HMR logic.
  */ function instantiateModule(id, sourceType, sourceData) {
