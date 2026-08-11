@@ -42,7 +42,7 @@ Providing initial data and caching it on the server are independent choices. Add
 | Next.js client cache         | React Server Component payloads for visited and prefetched routes | [`cacheLife`](/docs/app/api-reference/functions/cacheLife) `stale`                   |
 | Client data-fetching library | Browser data stored under an SWR key or TanStack query key        | The library's revalidation options and mutations                                     |
 
-Next.js [prefetching](/docs/app/guides/prefetching) can place the next route's server-rendered view in the client cache before navigation.
+Next.js [prefetching](/docs/app/guides/prefetching) can place a route's React Server Component payload in the client cache before navigation.
 
 The cache layers keep independent freshness policies and do not need matching durations. Cache identities and mutation invalidation must stay coordinated across layers.
 

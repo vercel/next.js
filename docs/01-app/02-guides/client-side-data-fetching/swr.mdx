@@ -245,7 +245,7 @@ export function ProductView({ id }) {
 
 > **Good to know:** The `fallback` key and the `useSWR` key must match exactly. If they drift, SWR ignores the fallback value and fetches on the client.
 
-The `fallback` provides the hook's initial value without populating SWR's browser cache. A later fetch or mutation for the same key updates the browser cache.
+The `fallback` provides the hook's initial value. After hydration, SWR can revalidate or mutate the same key in its browser cache.
 
 The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions/route) with a `GET` method. The Route Handler can call the same `getProduct` function that provides the fallback, while the browser uses the URL for revalidation and polling.
 
@@ -283,7 +283,7 @@ export async function getProduct(id) {
 }
 ```
 
-This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched view, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
+This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched payload, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
 
 SWR owns a separate browser cache, so its revalidation options do not need to match `cacheLife`.
 
