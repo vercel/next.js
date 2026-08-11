@@ -60,7 +60,7 @@ After a mutation, invalidate any cached server read that provided the initial da
 
 | Method                                                                                 | Use when                                                   | Next server read                     |
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------ |
-| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action's next read must reflect its write         | Waits for fresh data                 |
+| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action must make its update visible immediately   | Waits for fresh data                 |
 | [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag)         | The update is passive or stale data is acceptable          | Serves stale data while revalidating |
 | [`revalidateTag(tag, { expire: 0 })`](/docs/app/api-reference/functions/revalidateTag) | A webhook or external system requires immediate expiration | Waits for fresh data                 |
 
