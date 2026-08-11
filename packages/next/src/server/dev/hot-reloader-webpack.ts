@@ -1054,6 +1054,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                         .globalNotFound
                         ? true
                         : undefined,
+                      strictRouteMatching: this.config.experimental
+                        .strictRouteMatching
+                        ? true
+                        : undefined,
                     }).import
                   : undefined
 
@@ -1176,6 +1180,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     ).toString('base64'),
                     isGlobalNotFoundEnabled: this.config.experimental
                       .globalNotFound
+                      ? true
+                      : undefined,
+                    strictRouteMatching: this.config.experimental
+                      .strictRouteMatching
                       ? true
                       : undefined,
                   })

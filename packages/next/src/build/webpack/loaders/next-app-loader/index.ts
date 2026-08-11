@@ -64,6 +64,7 @@ export type AppLoaderOptions = {
   nextConfigOutput?: NextConfig['output']
   middlewareConfig: string
   isGlobalNotFoundEnabled: true | undefined
+  strictRouteMatching: true | undefined
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -140,12 +141,22 @@ const isDirectory = async (pathname: string) => {
   }
 }
 
+const containsPageOrDefaultMapMap: WeakMap<
+  Compilation,
+  Map<string, Promise<boolean>>
+> = new WeakMap()
+const hasDeclaredChildrenSlotMapMap: WeakMap<
+  Compilation,
+  Map<string, Promise<boolean>>
+> = new WeakMap()
+
 async function createTreeCodeFromPath(
   pagePath: string,
   {
     page,
     resolveDir,
     resolver,
+    loaderContext,
     resolveParallelSegments,
     hasChildRoutesForSegment,
     getStaticSiblingSegments,
@@ -154,6 +165,7 @@ async function createTreeCodeFromPath(
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
+    strictRouteMatching,
     isDev,
   }: {
     page: string
@@ -170,6 +182,7 @@ async function createTreeCodeFromPath(
     basePath: string
     collectedDeclarations: [string, string][]
     isGlobalNotFoundEnabled: boolean
+    strictRouteMatching: boolean
     isDev: boolean
   }
 ): Promise<{
@@ -189,6 +202,114 @@ async function createTreeCodeFromPath(
   let globalError: string = defaultGlobalErrorPath
   let globalNotFound: string = defaultNotFoundPath
 
+  const pageOrDefaultFileNames = new Set(
+    pageExtensions.flatMap((extension) => [
+      `page.${extension}`,
+      `default.${extension}`,
+    ])
+  )
+  const compilation = loaderContext._compilation
+  const containsPageOrDefaultCache = compilation
+    ? (containsPageOrDefaultMapMap.get(compilation) ??
+      new Map<string, Promise<boolean>>())
+    : new Map<string, Promise<boolean>>()
+  const hasDeclaredChildrenSlotCache = compilation
+    ? (hasDeclaredChildrenSlotMapMap.get(compilation) ??
+      new Map<string, Promise<boolean>>())
+    : new Map<string, Promise<boolean>>()
+
+  if (compilation) {
+    containsPageOrDefaultMapMap.set(compilation, containsPageOrDefaultCache)
+    hasDeclaredChildrenSlotMapMap.set(compilation, hasDeclaredChildrenSlotCache)
+  }
+
+  function containsPageOrDefault(
+    absoluteDirectoryPath: string
+  ): Promise<boolean> {
+    // Context dependencies are tracked per loader module, while the scan
+    // result is shared by every app loader in this compilation. Register the
+    // dependency even when another module already populated the cache.
+    loaderContext.addContextDependency(absoluteDirectoryPath)
+
+    let result = containsPageOrDefaultCache.get(absoluteDirectoryPath)
+    if (result) return result
+
+    result = (async () => {
+      let files
+      try {
+        files = await fs.opendir(absoluteDirectoryPath)
+      } catch {
+        return false
+      }
+
+      for await (const dirent of files) {
+        // A layout is only structure. Keep tracing through every route branch,
+        // including named slots, until we find content that can fill a slot.
+        if (dirent.isFile() && pageOrDefaultFileNames.has(dirent.name)) {
+          return true
+        }
+        if (
+          dirent.isDirectory() &&
+          !dirent.name.startsWith('_') &&
+          (await containsPageOrDefault(
+            path.join(absoluteDirectoryPath, dirent.name)
+          ))
+        ) {
+          return true
+        }
+      }
+
+      return false
+    })()
+    containsPageOrDefaultCache.set(absoluteDirectoryPath, result)
+    return result
+  }
+
+  function hasDeclaredChildrenSlot(
+    absoluteDirectoryPath: string
+  ): Promise<boolean> {
+    // See containsPageOrDefault. Every loader module that consumes this
+    // shared result must invalidate when the directory contents change.
+    loaderContext.addContextDependency(absoluteDirectoryPath)
+
+    let result = hasDeclaredChildrenSlotCache.get(absoluteDirectoryPath)
+    if (result) return result
+
+    result = (async () => {
+      let files
+      try {
+        files = await fs.opendir(absoluteDirectoryPath)
+      } catch {
+        return false
+      }
+
+      for await (const dirent of files) {
+        if (dirent.isFile() && pageOrDefaultFileNames.has(dirent.name)) {
+          return true
+        }
+        if (
+          !dirent.isDirectory() ||
+          dirent.name.startsWith('_') ||
+          dirent.name.startsWith('@')
+        ) {
+          continue
+        }
+
+        // A direct named slot belongs to this layout and does not declare its
+        // children. Once an ordinary branch is entered, named slots below it
+        // can provide that branch's actual route targets.
+        const subdirectory = path.join(absoluteDirectoryPath, dirent.name)
+        if (await containsPageOrDefault(subdirectory)) {
+          return true
+        }
+      }
+
+      return false
+    })()
+    hasDeclaredChildrenSlotCache.set(absoluteDirectoryPath, result)
+    return result
+  }
+
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
@@ -207,7 +328,17 @@ async function createTreeCodeFromPath(
     // We need to resolve all parallel routes in this level.
     const files = await fs.opendir(absoluteSegmentPath)
 
-    const parallelSegments: string[] = ['children']
+    const parallelSegments: string[] = []
+
+    // `children` is the ordinary route branch, not an implicit slot. Keep the
+    // legacy fallback available as an opt-out, but under strict matching only
+    // add it when the filesystem actually declares ordinary route content.
+    if (
+      !strictRouteMatching ||
+      (await hasDeclaredChildrenSlot(absoluteSegmentPath))
+    ) {
+      parallelSegments.push('children')
+    }
 
     for await (const dirent of files) {
       // Make sure name starts with "@" and is a directory.
@@ -614,17 +745,17 @@ async function createTreeCodeFromPath(
             : `/${adjacentParallelSegment}`
 
         // Use the default path if it's found, otherwise if it's a children
-        // slot, then use the fallback (which triggers a `notFound()`). If this
-        // isn't a children slot, then throw an error, as it produces a silent
-        // 404 if we'd used the fallback.
+        // slot, then use a built-in fallback. Under strict matching this can
+        // only be reached for a children slot declared by ordinary route
+        // content; layouts composed only from named slots omit children.
         const fullSegmentPath = `${appDirPrefix}${segmentPath}${actualSegment}`
         let defaultPath = await resolver(`${fullSegmentPath}/default`)
         if (!defaultPath) {
           if (adjacentParallelSegment === 'children') {
-            // Slot discovery can synthesize children inside an interception
-            // subtree even when no ordinary route declares it. Keep the
-            // historical null fallback for that structural child; host-slot
-            // retention above only applies outside the new subtree.
+            // Legacy slot discovery can synthesize children inside an
+            // interception subtree even when no ordinary route declares it.
+            // Strict route matching omits that structural child; this fallback
+            // remains for applications that explicitly disable the flag.
             defaultPath = isInterceptionRouteAppPath(page)
               ? PARALLEL_ROUTE_DEFAULT_NULL_PATH
               : PARALLEL_ROUTE_DEFAULT_PATH
@@ -728,6 +859,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   } = loaderOptions
 
   const isGlobalNotFoundEnabled = !!loaderOptions.isGlobalNotFoundEnabled
+  const strictRouteMatching = !!loaderOptions.strictRouteMatching
 
   // Update FILE_TYPES on the very top-level of the loader
   if (!isGlobalNotFoundEnabled) {
@@ -1061,6 +1193,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
+    strictRouteMatching,
     isDev: !!isDev,
   })
 
@@ -1121,6 +1254,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         basePath,
         collectedDeclarations,
         isGlobalNotFoundEnabled,
+        strictRouteMatching,
         isDev: !!isDev,
       })
     }

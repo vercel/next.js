@@ -470,6 +470,7 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
