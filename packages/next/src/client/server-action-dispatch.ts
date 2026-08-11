@@ -1,6 +1,7 @@
 'use client'
 
 import { createServerActionRoutingKey } from '../shared/lib/server-action-routing-key'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 import type { FlightRouterState } from '../shared/lib/app-router-types'
 import { getLastCommittedTree } from './components/router-reducer/reducers/committed-state'
 
@@ -33,6 +34,13 @@ type RegisteredServerActionDispatchContext = {
 const dispatchContextsByPathname = new Map<
   string,
   RegisteredServerActionDispatchContext[]
+>()
+// Client-imported Server References use the global `callServer` callback, so
+// they do not retain a decoder scope. Keep the most recently discovered owner
+// for each action as a fallback if the reference outlives its route tree.
+const fallbackDispatchContextByRoutingKey = new Map<
+  string,
+  ServerActionDispatchContext
 >()
 
 function normalizeDispatchUrl(url: string | URL): string {
@@ -158,6 +166,9 @@ export function registerServerActionDispatchContext(
     context,
     routingKeys: new Set(actionRoutingKeys),
   }
+  for (const routingKey of actionRoutingKeys) {
+    fallbackDispatchContextByRoutingKey.set(routingKey, context)
+  }
   const contexts = dispatchContextsByPathname.get(pathname)
   if (contexts === undefined) {
     dispatchContextsByPathname.set(pathname, [registeredContext])
@@ -214,5 +225,19 @@ export function getServerActionDispatchContext(
     if (context !== undefined) {
       return { url, nextUrl: context.nextUrl }
     }
+  }
+
+  // A Server Reference can outlive the route tree branch that created it,
+  // such as when an async event handler invokes an action after navigation.
+  // Prefer its decoder scope when available. Client-imported references use
+  // the global callServer callback, so fall back to their last discovered
+  // owner instead.
+  const fallbackContext =
+    scopedContext ?? fallbackDispatchContextByRoutingKey.get(routingKey)
+  if (fallbackContext !== undefined) {
+    warnOnce(
+      'A Server Action was invoked after the route that provided it was no longer active. Next.js is dispatching the action to a previously discovered route.'
+    )
+    return fallbackContext
   }
 }

@@ -1001,7 +1001,7 @@ describe('app-dir action handling', () => {
   }
 
   it.each(['node', 'edge'])(
-    'should dispatch a delayed action to the active route (%s)',
+    'should dispatch a delayed action to its original route when no active route owns it (%s)',
     async (runtime) => {
       const cliOutputIndex = next.cliOutput.length
       const browser = await next.browser(`/delayed-action/${runtime}`)
@@ -1041,14 +1041,24 @@ describe('app-dir action handling', () => {
           // matches a Math.random() string
           /0\.\d+/
         )
-      })
+      }, 10000)
 
       // make sure that we still are rendering other-page content
       expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
 
-      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}/other`])
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
       expect(actionRequestHeaders?.['next-action-only']).toBeUndefined()
-      expect(actionRequestHeaders?.['next-router-state-tree']).toBeDefined()
+      expect(actionRequestHeaders?.['next-router-state-tree']).toBeUndefined()
+
+      if (isNextDev) {
+        expect(
+          (await browser.log()).some(({ message }) =>
+            message.includes(
+              'A Server Action was invoked after the route that provided it was no longer active.'
+            )
+          )
+        ).toBe(true)
+      }
 
       // make sure we didn't get any errors in the console
       expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
@@ -1058,7 +1068,7 @@ describe('app-dir action handling', () => {
   )
 
   it.each(['node', 'edge'])(
-    'should dispatch a delayed redirect action to the active route (%s)',
+    'should dispatch a delayed redirect action to its original route when no active route owns it (%s)',
     async (runtime) => {
       let redirectResponseCode
       const actionRequestPaths: string[] = []
@@ -1094,9 +1104,9 @@ describe('app-dir action handling', () => {
       // confirm a successful response code on the redirected action
       await retry(async () => {
         expect(redirectResponseCode).toBe(200)
-      })
+      }, 10000)
 
-      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}/other`])
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
 
       // confirm that the redirect was handled
       await browser.waitForElementByCss('#run-action-redirect')
