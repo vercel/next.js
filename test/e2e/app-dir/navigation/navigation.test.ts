@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getTitle, retry, waitFor } from 'next-test-utils'
 
+// bump this every time you want to validate flakiness: 1
+
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -173,10 +175,12 @@ describe('app dir - navigation', () => {
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
 
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -230,10 +234,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -256,10 +262,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -355,6 +363,29 @@ describe('app dir - navigation', () => {
       await retry(() =>
         expect(browser.url()).resolves.toEqual(
           next.url + pathname + '?foo=1&bar=2#h3'
+        )
+      )
+    })
+  })
+
+  describe('cross-pathname Link then same-pathname hash change', () => {
+    const startPath = '/hash-cross-path-push'
+    const destinationPath = '/hash-cross-path-push/destination'
+
+    it('should replace (not concatenate) the hash when <Link> triggers the same-pathname hash change', async () => {
+      const browser = await next.browser(startPath)
+
+      await browser.elementByCss('#link-to-target-foo').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#foo'
+        )
+      )
+
+      await browser.elementByCss('#link-to-target-baz').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#baz'
         )
       )
     })

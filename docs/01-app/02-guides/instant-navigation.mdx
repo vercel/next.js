@@ -7,7 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/guides/runtime-prefetching
+    - app/guides/optimizing-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/guides/prefetching
@@ -36,7 +36,41 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 </details>
 
-Runtime prefetching extends the static shell with a link's URL data (`searchParams` and `params`) by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without runtime prefetching won't navigate instantly with it either. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
+With `prefetch={true}`, per-link prefetching resolves a link's URL data (`searchParams` and `params`) before navigation. First make the route instant with its App Shell. Per-link prefetching cannot fix a route that blocks without it. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for the patterns.
+
+## Quick start
+
+Getting the most out of Instant Navigation requires enabling [Cache Components](/docs/app/guides/migrating-to-cache-components) and [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), then following the [validation errors](#validate-instant-navigation) that appear:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+To help you automate this process with an agent, there's a Skill for each part, [next-cache-components-adoption](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) and [next-partial-prefetching-adoption](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption). If you'd like to enable everything, give your agent this prompt:
+
+```prompt
+Adopt Cache Components and Partial Prefetching in this app so its navigations become instant. There is a Skill for each migration.
+
+1. Before you change anything, explain to me in plain terms what Instant Navigation is and what adopting it will change.
+
+2. Install the Skills you need, then verify your changes against a running dev server with next-dev-loop and agent-browser as you go:
+   - next-cache-components-adoption: https://www.skills.sh/vercel/next.js/next-cache-components-adoption
+   - next-partial-prefetching-adoption: https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption
+   - next-dev-loop: https://www.skills.sh/vercel/next.js/next-dev-loop
+
+3. Each Skill leaves decisions to me, like how much of the work lands in each pull request. Put those questions to me and wait for my answers instead of deciding on my behalf. Adopt Cache Components first, then Partial Prefetching, following the workflow each Skill lays out. Don't rush to a passing build.
+
+4. When you finish a step, show me a table of the routes you touched and what changed on each, and talk me through what it means for the app. Keep it to the outcome, not the implementation details.
+```
+
+The rest of this guide covers the tools these migrations use, walks a navigation that blocks to instant, inspects what lands in the initial UI, and locks the result in with end-to-end tests.
 
 ## The tools
 
@@ -44,17 +78,17 @@ Runtime prefetching extends the static shell with a link's URL data (`searchPara
 
 With Cache Components, **caching directives** (`"use cache"` and its variants) assign a lifetime to an async function's result, which is what lets Next.js include it in the static shell.
 
-> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/runtime-prefetching#use-cache-private) in the runtime prefetching guide for how it pairs with prefetching.
+> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/optimizing-prefetching#use-cache-private) in the Optimizing prefetching guide for how it pairs with prefetching.
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
-> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. With [runtime prefetching](/docs/app/guides/runtime-prefetching), the information is available and such a fallback becomes part of the instant UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
+> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. For a link with `prefetch={true}`, [per-link prefetching](/docs/app/guides/optimizing-prefetching) makes URL data available before navigation, so the fallback can become part of the prefetched UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
 
-Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. [Runtime prefetching](/docs/app/guides/runtime-prefetching) builds on it, resolving a link's URL data on top.
+Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route, which renders during client navigations while remaining content streams. Partial Prefetching uses the App Shell as the default `<Link>` prefetch. A link with `prefetch={true}` can also resolve cached content that depends on that link's URL data.
 
-### Tune what `<Link>` prefetches
+### Prefetch URL data for a link
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. The shell is shared across every link to the same route, so rendering a `<Link>` is effectively free.
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. Links to the same route share one App Shell instead of triggering a separate App Shell request for each link.
 
 To prefetch the page content alongside the shell for a specific link, set [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch):
 
@@ -64,7 +98,7 @@ To prefetch the page content alongside the shell for a specific link, set [`pref
 </Link>
 ```
 
-With Partial Prefetching enabled, `prefetch={true}` also opts the link into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
+With Partial Prefetching enabled, `prefetch={true}` also opts the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
 
 ### Validate instant navigation
 
@@ -295,28 +329,64 @@ yarn add -D @next/playwright @playwright/test
 bun add -D @next/playwright @playwright/test
 ```
 
-Then use it in a test:
+A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
 
-```typescript filename="e2e/navigation.test.ts"
+- **Initial page load**: Use `page.goto()` to test the static UI from the document response.
+- **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
+
+```typescript filename="e2e/navigation.test.ts" highlight={6-14,20-25}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
-test('product title appears instantly', async ({ page }) => {
-  await page.goto('/store/shoes')
-
-  await instant(page, async () => {
-    await page.click('a[href="/store/hats"]')
-    await expect(page.locator('h1')).toContainText('Baseball Cap')
+test.describe('Product page (/store/[slug])', () => {
+  test('is instant on an initial page load', async ({ page, baseURL }) => {
+    await instant(
+      page,
+      async () => {
+        await page.goto('/store/hats')
+        await expect(page.locator('h1')).toContainText('Baseball Cap')
+        await expect(page.getByText('In stock')).toHaveCount(0)
+      },
+      { baseURL }
+    )
+    await expect(page.getByText('In stock')).toBeVisible()
   })
 
-  // After instant() exits, dynamic content streams in
-  await expect(page.locator('text=in stock')).toBeVisible()
+  test('is instant on a client navigation', async ({ page }) => {
+    await page.goto('/store/shoes')
+    await instant(page, async () => {
+      await page.click('a[href="/store/hats"]')
+      await page.waitForURL((url) => url.pathname === '/store/hats')
+      await expect(page.locator('h1')).toContainText('Baseball Cap')
+      await expect(page.getByText('In stock')).toHaveCount(0)
+    })
+    await expect(page.getByText('In stock')).toBeVisible()
+  })
 })
 ```
 
-Inside the `instant()` callback, only the static shell is visible. After the callback finishes, dynamic content streams in and you can assert on the full page.
+Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
-Focus these tests on the user flows that matter most. Run them against your dev server during development, and in CI against your build output so regressions fail the pipeline.
+Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
+
+> **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
+
+For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
+
+Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set `exposeTestingApiInProductionBuild` so `next start` exposes the same API:
+
+```ts filename="next.config.ts" highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: { exposeTestingApiInProductionBuild: true },
+}
+
+export default nextConfig
+```
+
+Focus these tests on the user flows that matter most.
 
 ## Fixing a navigation that blocks
 
@@ -454,27 +524,28 @@ Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see wh
 
 ## AI workflow
 
-The observe-fix-iterate loop is well suited to AI coding agents:
+At a high level, an agent optimizes a single navigation like this:
 
-- **Observe**: read validation insights in the dev overlay and dev server console.
-- **Fix**: validation errors name a specific component and suggest a fix (`use cache` or `<Suspense>`). The agent applies the fix and re-runs validation, whether that's in dev or a build.
-- **Iterate**: run an `instant()` test to check what appears in the shell. Because the output is deterministic, the agent can assert on it without flaky retries.
+- **Observe**: read validation insights and choose the exact navigation and UI that should appear immediately.
+- **Test**: confirm the target UI renders normally, then write an `instant()` test and verify that it fails before changing the route.
+- **Fix**: validation errors name a specific component and suggest a fix (`use cache` or `<Suspense>`). The agent applies the fix and re-runs validation.
+- **Verify**: run the test against a production-like build and keep the passing test as a regression guard.
 
-The agent doesn't need to understand the full caching model. It follows the insights and errors until they're gone.
+The agent doesn't need to understand the full caching model, only to follow the insights and errors until they're gone. It does need your app-specific intent, though. Tell it what should appear immediately, what can stream in, and what must stay fresh. When a caching decision is unclear, keep the data fresh behind `<Suspense>` rather than guessing a cache lifetime.
 
-For [iterating on loading states](#iterate-on-loading-states), a prompt like "maximize my content, and reduce the amount that needs to be behind a spinner" works well for pushing boundaries down. You can hint at what data needs to be fresh on load and what can be cached, and the agent will move the `<Suspense>` and `use cache` placement accordingly.
+For [iterating on loading states](#iterate-on-loading-states), a prompt like "maximize my content, and reduce the amount that needs to be behind a spinner" works well for pushing boundaries down.
 
 Agents working on a Cache Components route typically reach for three levers:
 
 - **Push down**: extract I/O into a Suspense-wrapped child so the parent stays static and static siblings lift into the shell.
 - **Cache**: pair `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to assign a freshness profile.
-- **Runtime prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [runtime prefetching](/docs/app/guides/runtime-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
+- **Per-link prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [per-link prefetching](/docs/app/guides/optimizing-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
 
 Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
 
 For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#step-2-give-agents-runtime-visibility) in the AI agents guide for the setup.
 
-The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill packages this loop: it encodes the goal as a failing `@next/playwright` `instant()` test and works it to green one route at a time, for both initial load (hard navigation) and client-side navigation (soft navigation), then ships the test as a regression guard.
+The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) Skill packages this loop. It confirms the target UI renders normally, writes an `instant()` test that fails before the fix, then works it to green against a production-like build and ships it as a regression guard. Use it for the initial load (hard navigation), client-side navigation (soft navigation), or both.
 
 ## Opting out
 
@@ -502,12 +573,12 @@ export const instant = false
 
 With `false` on `/dashboard/layout.tsx`, validation no longer flags navigations into `/dashboard` from outside; navigations between `/dashboard/a` and `/dashboard/b` are still checked.
 
-For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, caching it with [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) lets the App Shell carry it ahead of the click instead of opting out.
+For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, caching it with [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) lets the App Shell carry it ahead of the click instead of opting out, as long as its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is at least 5 minutes.
 
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
 - [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
-- [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and you want it in the shell
+- [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and should resolve before navigation
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

@@ -210,6 +210,11 @@ pub fn cache_describe(next_version: &str) -> String {
     format!("v{next_version}-{}", env!("VERGEN_GIT_SHA"))
 }
 
+#[napi]
+pub fn turbopack_cache_version(next_version: String) -> String {
+    cache_describe(&next_version)
+}
+
 /// Returns version info derived from the supplied Next.js version and compile-time git metadata.
 ///
 /// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the

@@ -144,7 +144,7 @@ function getIteratorFn(maybeIterable) {
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   isArrayImpl = Array.isArray,
   getPrototypeOf = Object.getPrototypeOf,
-  ObjectPrototype = Object.prototype,
+  ObjectPrototype$1 = Object.prototype,
   knownServerReferences = new WeakMap();
 function serializeNumber(number) {
   return Number.isFinite(number)
@@ -438,7 +438,7 @@ function processReply(
         return serializeAsyncIterable(value, key.call(value));
       key = getPrototypeOf(value);
       if (
-        key !== ObjectPrototype &&
+        key !== ObjectPrototype$1 &&
         (null === key || null !== getPrototypeOf(key))
       ) {
         if (void 0 === temporaryReferences)
@@ -706,6 +706,8 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   registerBoundServerReference(action, id, null, encodeFormAction);
   return action;
 }
+var ObjectPrototype = Object.prototype,
+  ArrayPrototype = Array.prototype;
 function ReactPromise(status, value, reason) {
   this.status = status;
   this.value = value;
@@ -729,6 +731,7 @@ Object.defineProperty(ReactPromise.prototype, "then", {
         "function" === typeof resolve && resolve(this.value);
         break;
       case "pending":
+      case "pending_weak":
       case "blocked":
         "function" === typeof resolve &&
           (null === this.value && (this.value = []), this.value.push(resolve));
@@ -755,15 +758,13 @@ function readChunk(chunk) {
     case "fulfilled":
       return chunk.value;
     case "pending":
+    case "pending_weak":
     case "blocked":
     case "halted":
       throw chunk;
     default:
       throw chunk.reason;
   }
-}
-function createPendingChunk() {
-  return new ReactPromise("pending", null, null);
 }
 function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
@@ -857,7 +858,11 @@ function wakeChunkIfInitialized(
   }
 }
 function triggerErrorOnChunk(response, chunk, error) {
-  if ("pending" !== chunk.status && "blocked" !== chunk.status)
+  if (
+    "pending" !== chunk.status &&
+    "pending_weak" !== chunk.status &&
+    "blocked" !== chunk.status
+  )
     chunk.reason.error(error);
   else {
     var listeners = chunk.reason;
@@ -881,7 +886,8 @@ function resolveIteratorResultChunk(response, chunk, value, done) {
   );
 }
 function resolveModelChunk(response, chunk, value) {
-  if ("pending" !== chunk.status) chunk.reason.enqueueModel(value);
+  if ("pending" !== chunk.status && "pending_weak" !== chunk.status)
+    chunk.reason.enqueueModel(value);
   else {
     var resolveListeners = chunk.value,
       rejectListeners = chunk.reason;
@@ -899,7 +905,11 @@ function resolveModelChunk(response, chunk, value) {
   }
 }
 function resolveModuleChunk(response, chunk, value) {
-  if ("pending" === chunk.status || "blocked" === chunk.status) {
+  if (
+    "pending" === chunk.status ||
+    "pending_weak" === chunk.status ||
+    "blocked" === chunk.status
+  ) {
     var resolveListeners = chunk.value,
       rejectListeners = chunk.reason;
     chunk.status = "resolved_module";
@@ -983,14 +993,11 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    (response._closed
+    ((chunk = response._closed
       ? response._allowPartialStream
-        ? ((response = chunk = createPendingChunk()),
-          (response.status = "halted"),
-          (response.value = null),
-          (response.reason = null))
-        : (chunk = new ReactPromise("rejected", null, response._closedReason))
-      : (chunk = createPendingChunk()),
+        ? new ReactPromise("halted", null, null)
+        : new ReactPromise("rejected", null, response._closedReason)
+      : new ReactPromise("pending", null, null)),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -1033,6 +1040,7 @@ function fulfillReference(response, reference, value) {
                 continue;
               }
             case "pending":
+            case "pending_weak":
               path.splice(0, i - 1);
               null === referencedChunk.value
                 ? (referencedChunk.value = [reference])
@@ -1287,6 +1295,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               break;
             case "blocked":
             case "pending":
+            case "pending_weak":
               return waitForReference(
                 id,
                 parentObject,
@@ -1327,7 +1336,16 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               );
           }
         }
-        id = id[reference[i]];
+        var name = reference[i];
+        if (
+          "object" !== typeof id ||
+          null === id ||
+          (getPrototypeOf(id) !== ObjectPrototype &&
+            getPrototypeOf(id) !== ArrayPrototype) ||
+          !hasOwnProperty.call(id, name)
+        )
+          throw Error("Invalid reference.");
+        id = id[name];
       }
       for (
         ;
@@ -1353,6 +1371,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
       }
       return map(response, id, parentObject, key);
     case "pending":
+    case "pending_weak":
     case "blocked":
       return waitForReference(id, parentObject, key, response, map, reference);
     case "halted":
@@ -1438,6 +1457,8 @@ function parseModelString(response, parentObject, key, value) {
           (parentObject = parseInt(value.slice(2), 16)),
           getChunk(response, parentObject)
         );
+      case "w":
+        return;
       case "S":
         return Symbol.for(value.slice(2));
       case "h":
@@ -1626,7 +1647,7 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$55 = createPendingChunk();
+        var chunk$55 = new ReactPromise("pending", null, null);
         chunk$55.then(
           function (v) {
             return controller.enqueue(v);
@@ -1694,7 +1715,7 @@ function startAsyncIterable(response, id, iterator) {
             { done: !0, value: void 0 },
             null
           );
-        buffer[nextReadIndex] = createPendingChunk();
+        buffer[nextReadIndex] = new ReactPromise("pending", null, null);
       }
       return buffer[nextReadIndex++];
     });
@@ -1775,7 +1796,11 @@ function startAsyncIterable(response, id, iterator) {
           for (
             closed = !0,
               nextWriteIndex === buffer.length &&
-                (buffer[nextWriteIndex] = createPendingChunk());
+                (buffer[nextWriteIndex] = new ReactPromise(
+                  "pending",
+                  null,
+                  null
+                ));
             nextWriteIndex < buffer.length;
 
           )
@@ -2114,10 +2139,13 @@ function reviveModel(response, value, parentObject, key) {
       : value;
   }
   for (i in value)
-    "__proto__" === i
-      ? delete value[i]
-      : ((parentObject = reviveModel(response, value[i], value, i)),
-        void 0 !== parentObject ? (value[i] = parentObject) : delete value[i]);
+    hasOwnProperty.call(value, i) &&
+      ("__proto__" === i
+        ? delete value[i]
+        : ((parentObject = reviveModel(response, value[i], value, i)),
+          void 0 !== parentObject
+            ? (value[i] = parentObject)
+            : delete value[i]));
   return value;
 }
 function close(weakResponse) {

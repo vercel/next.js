@@ -58,6 +58,7 @@ export interface Binding {
   parse(src: string, options: any): Promise<string>
 
   getTargetTriple(): string | undefined
+  turbopackCacheVersion(nextVersion: string): string | undefined
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void

@@ -72,8 +72,11 @@ import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-r
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { DetachedPromise } from '../../lib/detached-promise'
-import { isPostpone } from '../lib/router-utils/is-postpone'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -132,7 +135,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = new DetachedPromise<void>()
+  private ready? = createPromiseWithResolvers<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -378,14 +381,14 @@ export default class DevServer extends Server {
       setGlobal('telemetry', telemetry)
     }
 
-    process.on('unhandledRejection', (reason) => {
-      if (isPostpone(reason)) {
-        // React postpones that are unhandled might end up logged here but they're
-        // not really errors. They're just part of rendering.
-        return
-      }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
-    })
+    // The router server or the render server may run in the same process and
+    // have already registered the unhandled rejection listener, in which case
+    // we must not register another one, to avoid logging unhandled rejections
+    // multiple times.
+    if (!isUnhandledRejectionListenerRegistered()) {
+      registerUnhandledRejectionListener()
+    }
+
     process.on('uncaughtException', (err) => {
       this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
@@ -840,7 +843,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },

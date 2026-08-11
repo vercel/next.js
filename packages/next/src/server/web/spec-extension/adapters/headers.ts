@@ -134,6 +134,18 @@ export class HeadersAdapter extends Headers {
   }
 
   /**
+   * @param headers
+   * @returns A fresh object identity backed by the original value
+   */
+  public static fresh(headers: ReadonlyHeaders): ReadonlyHeaders {
+    return new Proxy<ReadonlyHeaders>(headers, {
+      get(target, prop, receiver) {
+        return ReflectAdapter.get(target, prop, receiver)
+      },
+    })
+  }
+
+  /**
    * Merges a header value into a string. This stores multiple values as an
    * array, so we need to merge them into a string.
    *

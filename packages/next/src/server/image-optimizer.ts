@@ -99,6 +99,7 @@ export function getSharp(
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',
+        'VipsForeignLoadSvg',
         'VipsForeignLoadTiff',
         'VipsForeignLoadWebp',
       ],

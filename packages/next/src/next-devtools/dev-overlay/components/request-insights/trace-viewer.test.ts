@@ -272,7 +272,7 @@ describe('request insights trace viewer', () => {
           attributes: { 'next.span_type': 'NextNodeServer.matchRoute' },
         },
         {
-          name: 'compile and prepare route',
+          name: 'prepare route',
           spanId: 'ensure',
           parentSpanId: 'match',
           startTime: 107,
@@ -289,6 +289,16 @@ describe('request insights trace viewer', () => {
           durationMs: 1.5,
           attributes: {
             'next.span_type': 'DevBundlerService.ensurePage',
+          },
+        },
+        {
+          name: 'reload route matchers',
+          spanId: 'reload-matchers',
+          parentSpanId: 'match',
+          startTime: 109,
+          durationMs: 1,
+          attributes: {
+            'next.span_type': 'DevRouteMatcherManager.reloadMatchers',
           },
         },
         {
@@ -392,7 +402,9 @@ describe('request insights trace viewer', () => {
     ).toEqual([
       { label: 'GET', depth: 0 },
       { label: 'match route', depth: 1 },
-      { label: 'compile and prepare route', depth: 2 },
+      { label: 'prepare route', depth: 2 },
+      { label: 'compile route', depth: 3 },
+      { label: 'reload route matchers', depth: 2 },
       { label: 'render', depth: 2 },
       { label: 'load components', depth: 3 },
       { label: 'prepare app page response', depth: 3 },
@@ -407,8 +419,9 @@ describe('request insights trace viewer', () => {
       'GET',
       'prepare request',
       'match route',
-      'compile and prepare route',
+      'prepare route',
       'compile route',
+      'reload route matchers',
       'render',
       'resolve page components',
       'load components',

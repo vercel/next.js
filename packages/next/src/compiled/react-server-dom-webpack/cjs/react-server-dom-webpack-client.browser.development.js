@@ -641,7 +641,7 @@
             return serializeAsyncIterable(value, parentReference.call(value));
           parentReference = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype &&
+            parentReference !== ObjectPrototype$1 &&
             (null === parentReference ||
               null !== getPrototypeOf(parentReference))
           ) {
@@ -1502,6 +1502,7 @@
         case "fulfilled":
           return chunk.value;
         case "pending":
+        case "pending_weak":
         case "blocked":
         case "halted":
           throw chunk;
@@ -1529,6 +1530,12 @@
           flushInitialRenderPerformance.bind(null, response),
           100
         )));
+    }
+    function haltChunk(response, chunk) {
+      releasePendingChunk(response, chunk);
+      chunk.status = "halted";
+      chunk.value = null;
+      chunk.reason = null;
     }
     function filterDebugInfo(response, value) {
       if (null !== response._debugEndTime) {
@@ -1660,12 +1667,19 @@
       }
     }
     function triggerErrorOnChunk(response, chunk, error) {
-      if ("pending" !== chunk.status && "blocked" !== chunk.status)
+      if (
+        "pending" !== chunk.status &&
+        "pending_weak" !== chunk.status &&
+        "blocked" !== chunk.status
+      )
         chunk.reason.error(error);
       else {
         releasePendingChunk(response, chunk);
         var listeners = chunk.reason;
-        if ("pending" === chunk.status && null != chunk._debugChunk) {
+        if (
+          ("pending" === chunk.status || "pending_weak" === chunk.status) &&
+          null != chunk._debugChunk
+        ) {
           var prevHandler = initializingHandler,
             prevChunk = initializingChunk;
           initializingHandler = null;
@@ -1721,7 +1735,8 @@
       );
     }
     function resolveModelChunk(response, chunk, value) {
-      if ("pending" !== chunk.status) chunk.reason.enqueueModel(value);
+      if ("pending" !== chunk.status && "pending_weak" !== chunk.status)
+        chunk.reason.enqueueModel(value);
       else {
         releasePendingChunk(response, chunk);
         var resolveListeners = chunk.value,
@@ -1740,7 +1755,11 @@
       }
     }
     function resolveModuleChunk(response, chunk, value) {
-      if ("pending" === chunk.status || "blocked" === chunk.status) {
+      if (
+        "pending" === chunk.status ||
+        "pending_weak" === chunk.status ||
+        "blocked" === chunk.status
+      ) {
         releasePendingChunk(response, chunk);
         var resolveListeners = chunk.value,
           rejectListeners = chunk.reason;
@@ -1841,6 +1860,7 @@
                 break;
               case "blocked":
               case "pending":
+              case "pending_weak":
                 waitForReference(
                   debugChunk,
                   debugInfo,
@@ -1860,6 +1880,7 @@
                 break;
               case "blocked":
               case "pending":
+              case "pending_weak":
                 waitForReference(
                   debugChunk,
                   {},
@@ -2042,18 +2063,11 @@
       var chunks = response._chunks,
         chunk = chunks.get(id);
       chunk ||
-        (response._closed
+        ((chunk = response._closed
           ? response._allowPartialStream
-            ? ((response = chunk = createPendingChunk(response)),
-              (response.status = "halted"),
-              (response.value = null),
-              (response.reason = null))
-            : (chunk = new ReactPromise(
-                "rejected",
-                null,
-                response._closedReason
-              ))
-          : (chunk = createPendingChunk(response)),
+            ? new ReactPromise("halted", null, null)
+            : new ReactPromise("rejected", null, response._closedReason)
+          : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -2096,6 +2110,7 @@
                     continue;
                   }
                 case "pending":
+                case "pending_weak":
                   path.splice(0, i - 1);
                   null === referencedChunk.value
                     ? (referencedChunk.value = [reference])
@@ -2441,6 +2456,7 @@
                   break;
                 case "blocked":
                 case "pending":
+                case "pending_weak":
                   return waitForReference(
                     value,
                     parentObject,
@@ -2483,7 +2499,16 @@
                   );
               }
             }
-            value = value[path[i]];
+            var name = path[i];
+            if (
+              "object" !== typeof value ||
+              null === value ||
+              (getPrototypeOf(value) !== ObjectPrototype &&
+                getPrototypeOf(value) !== ArrayPrototype) ||
+              !hasOwnProperty.call(value, name)
+            )
+              throw Error("Invalid reference.");
+            value = value[name];
           }
           for (
             ;
@@ -2516,6 +2541,7 @@
               transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
+        case "pending_weak":
         case "blocked":
           return waitForReference(
             reference,
@@ -2669,6 +2695,8 @@
                 initializingChunk._children.push(response),
               response
             );
+          case "w":
+            return;
           case "S":
             return Symbol.for(value.slice(2));
           case "h":
@@ -3090,8 +3118,8 @@
                   (previousBlockedChunk = chunk));
             } else {
               chunk = previousBlockedChunk;
-              var _chunk3 = createPendingChunk(response);
-              _chunk3.then(
+              var _chunk4 = createPendingChunk(response);
+              _chunk4.then(
                 function (v) {
                   return controller.enqueue(v);
                 },
@@ -3099,11 +3127,11 @@
                   return controller.error(e);
                 }
               );
-              previousBlockedChunk = _chunk3;
+              previousBlockedChunk = _chunk4;
               chunk.then(function () {
-                previousBlockedChunk === _chunk3 &&
+                previousBlockedChunk === _chunk4 &&
                   (previousBlockedChunk = null);
-                resolveModelChunk(response, _chunk3, json);
+                resolveModelChunk(response, _chunk4, json);
               });
             }
           },
@@ -3612,18 +3640,18 @@
                 ),
                 (response._blockedConsole = blockedChunk));
         else {
-          var _chunk4 = createPendingChunk(response);
-          _chunk4.then(
+          var _chunk5 = createPendingChunk(response);
+          _chunk5.then(
             function (v) {
               return replayConsoleWithCallStackInDEV(response, v);
             },
             function () {}
           );
-          response._blockedConsole = _chunk4;
+          response._blockedConsole = _chunk5;
           var unblock = function () {
-            response._blockedConsole === _chunk4 &&
+            response._blockedConsole === _chunk5 &&
               (response._blockedConsole = null);
-            resolveModelChunk(response, _chunk4, json);
+            resolveModelChunk(response, _chunk5, json);
           };
           blockedChunk.then(unblock, unblock);
         }
@@ -4545,26 +4573,21 @@
             id.reason.close("" === row ? '"$undefined"' : row));
           break;
         default:
-          if ("" === row) {
-            if (
-              ((streamState = response._chunks),
+          "" === row
+            ? ((streamState = response._chunks),
               (row = streamState.get(id)) ||
                 streamState.set(id, (row = createPendingChunk(response))),
-              "pending" === row.status || "blocked" === row.status)
-            )
-              releasePendingChunk(response, row),
-                (response = row),
-                (response.status = "halted"),
-                (response.value = null),
-                (response.reason = null);
-          } else
-            (tag = response._chunks),
+              ("pending" !== row.status &&
+                "pending_weak" !== row.status &&
+                "blocked" !== row.status) ||
+                haltChunk(response, row))
+            : ((tag = response._chunks),
               (chunk = tag.get(id))
                 ? (resolveChunkDebugInfo(response, streamState, chunk),
                   resolveModelChunk(response, chunk, row))
                 : ((row = createResolvedModelChunk(response, row)),
                   resolveChunkDebugInfo(response, streamState, row),
-                  tag.set(id, row));
+                  tag.set(id, row)));
       }
     }
     function processBinaryChunk(weakResponse, streamState, chunk) {
@@ -4760,12 +4783,13 @@
         return value;
       }
       for (i in value)
-        "__proto__" === i
-          ? delete value[i]
-          : ((parentObject = reviveModel(response, value[i], value, i)),
-            void 0 !== parentObject
-              ? (value[i] = parentObject)
-              : delete value[i]);
+        hasOwnProperty.call(value, i) &&
+          ("__proto__" === i
+            ? delete value[i]
+            : ((parentObject = reviveModel(response, value[i], value, i)),
+              void 0 !== parentObject
+                ? (value[i] = parentObject)
+                : delete value[i]));
       return value;
     }
     function close(weakResponse) {
@@ -4775,10 +4799,7 @@
           ? ((response._closed = !0),
             response._chunks.forEach(function (chunk) {
               "pending" === chunk.status
-                ? (releasePendingChunk(response, chunk),
-                  (chunk.status = "halted"),
-                  (chunk.value = null),
-                  (chunk.reason = null))
+                ? haltChunk(response, chunk)
                 : "fulfilled" === chunk.status &&
                   null !== chunk.reason &&
                   chunk.reason.close('"$undefined"');
@@ -5022,7 +5043,7 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      ObjectPrototype = Object.prototype,
+      ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
       fakeServerFunctionIdx = 0,
       v8FrameRegExp =
@@ -5045,7 +5066,9 @@
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-        ReactSharedInteralsServer;
+        ReactSharedInteralsServer,
+      ObjectPrototype = Object.prototype,
+      ArrayPrototype = Array.prototype;
     ReactPromise.prototype = Object.create(Promise.prototype);
     Object.defineProperty(ReactPromise.prototype, "then", {
       writable: !0,
@@ -5078,6 +5101,7 @@
             "function" === typeof resolve && resolve(this.value);
             break;
           case "pending":
+          case "pending_weak":
           case "blocked":
             "function" === typeof resolve &&
               (null === this.value && (this.value = []),
@@ -5211,10 +5235,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-96fcba90-20260728",
+      version: "19.3.0-canary-11eddecd-20260805",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-96fcba90-20260728",
+      reconcilerVersion: "19.3.0-canary-11eddecd-20260805",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

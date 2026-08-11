@@ -237,11 +237,11 @@ pub async fn make_production_chunks(
 
                 // Chunking-heuristics-derived constants for the maths below.
                 //
-                // The cost of a single request in transferred bytes, capped at 1MB.
+                // The cost of a single request in transferred bytes.
                 // Defaults to 200,000 bytes (200 KB).
                 let c_req = request_cost
                     .unwrap_or(DEFAULT_ESTIMATED_REQUEST_COST_BYTES)
-                    .min(1_000_000) as i64;
+                    .min(i64::MAX as u64) as i64;
 
                 // Default `P(N = 1)`: the probability that we request exactly 1 chunk group.
                 // `firstPageLoadPriority` (a config percentage) maps to it; the default is 0.67
@@ -597,6 +597,7 @@ pub async fn make_production_chunks(
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();
                 let mut remained_batch_groups = FxIndexSet::default();
+                let mut remained_components = Vec::new();
                 for MergeCandidate {
                     size,
                     chunk_items,
@@ -617,6 +618,7 @@ pub async fn make_production_chunks(
                         remained_size += size;
                         remained_chunk_items.extend(chunk_items);
                         remained_batch_groups.extend(batch_groups);
+                        remained_components.extend(components);
                     }
                 }
 
@@ -628,8 +630,7 @@ pub async fn make_production_chunks(
                         chunk_items: remained_chunk_items,
                         batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
-                        // The remained chunk holds unsharable left-overs; no split benefit.
-                        components: Vec::new(),
+                        components: remained_components,
                     });
                 }
             }

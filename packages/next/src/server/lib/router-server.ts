@@ -14,6 +14,10 @@ import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -26,7 +30,6 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { isPostpone } from './router-utils/is-postpone'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
@@ -874,24 +877,18 @@ export async function initialize(opts: {
     ),
   }
 
-  const logError = async (
-    type: 'uncaughtException' | 'unhandledRejection',
-    err: Error | undefined
-  ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    if (type === 'unhandledRejection') {
-      Log.error('unhandledRejection: ', err)
-    } else if (type === 'uncaughtException') {
-      Log.error('uncaughtException: ', err)
-    }
+  const logError = async (err: Error | undefined) => {
+    Log.error('uncaughtException: ', err)
   }
 
-  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
+  process.on('uncaughtException', logError)
+
+  // The render server may run in the same process and have already registered
+  // the unhandled rejection listener, in which case we must not register
+  // another one, to avoid logging unhandled rejections multiple times.
+  if (!isUnhandledRejectionListenerRegistered()) {
+    registerUnhandledRejectionListener()
+  }
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,

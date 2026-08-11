@@ -48,7 +48,6 @@ use crate::{
         transforms::get_next_client_transforms_rules,
     },
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -189,11 +188,6 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )],
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()
@@ -377,6 +371,7 @@ pub async fn get_client_module_options_context(
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
+            cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             preset_env_config,
             ..Default::default()
         },
@@ -488,6 +483,7 @@ pub struct ClientChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
+    pub per_page_module_graph: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -499,6 +495,10 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub chunking_min_chunk_size: Option<usize>,
+    pub chunking_max_chunk_count_per_group: Option<usize>,
+    pub chunking_max_merge_chunk_size: Option<usize>,
+    pub chunking_min_component_chunk_size: Option<usize>,
     pub generate_component_chunks: Vc<bool>,
 }
 
@@ -532,6 +532,7 @@ pub async fn get_client_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         shared_runtime,
+        per_page_module_graph,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -543,6 +544,10 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        chunking_min_chunk_size,
+        chunking_max_chunk_count_per_group,
+        chunking_max_merge_chunk_size,
+        chunking_min_component_chunk_size,
         generate_component_chunks,
     } = options;
 
@@ -597,6 +602,10 @@ pub async fn get_client_chunking_context(
         builder = builder.chunk_loading_global(g.clone());
     }
 
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    builder = builder.shared_runtime_chunk(*per_page_module_graph.await?);
+
     if next_mode.is_development() {
         builder = builder
             .hot_module_replacement()
@@ -607,16 +616,16 @@ pub async fn get_client_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 50_000,
-                    max_chunk_count_per_group: 40,
-                    max_merge_chunk_size: 200_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(50_000),
+                    max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(200_000),
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
                     // Generate component chunks alongside the merged chunk so that the browser
                     // runtime can fetch an already-cached one instead of the whole merged chunk.
                     generate_component_chunks: *generate_component_chunks.await?,
-                    min_component_chunk_size: 20_000,
+                    min_component_chunk_size: chunking_min_component_chunk_size.unwrap_or(20_000),
                     ..Default::default()
                 },
             )

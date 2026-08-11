@@ -114,34 +114,60 @@ export async function getDynamicDataPostponedState(
   return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache), isCacheComponentsEnabled)}`
 }
 
+function parsePostponedStateParts(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined
+): {
+  postponedString: string
+  renderResumeDataCache: RenderResumeDataCache
+} {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+  if (!postponedStringLengthMatch) {
+    // Do not include the raw state in the message: it can be large and may
+    // contain sensitive serialized data.
+    throw new Error('Invariant: invalid postponed state: missing length prefix')
+  }
+
+  const postponedStringLength = parseInt(postponedStringLengthMatch)
+  const tailStart =
+    postponedStringLengthMatch.length + postponedStringLength + 1
+
+  return {
+    postponedString: state.slice(
+      postponedStringLengthMatch.length + 1,
+      tailStart
+    ),
+    renderResumeDataCache: createRenderResumeDataCache(
+      state.slice(tailStart),
+      maxPostponedStateSizeBytes
+    ),
+  }
+}
+
+export function parseResumeDataCacheFromPostponedState(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined
+): RenderResumeDataCache {
+  try {
+    return parsePostponedStateParts(state, maxPostponedStateSizeBytes)
+      .renderResumeDataCache
+  } catch (err) {
+    console.error(
+      'Failed to parse postponed state',
+      describePostponedStateParseFailure(state, err)
+    )
+    return createRenderResumeDataCache(createPrerenderResumeDataCache())
+  }
+}
+
 export function parsePostponedState(
   state: string,
   interpolatedParams: Params,
   maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
-    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
-    if (!postponedStringLengthMatch) {
-      // Do not include the raw state in the message: it can be large and may
-      // contain sensitive serialized data.
-      throw new Error(
-        'Invariant: invalid postponed state: missing length prefix'
-      )
-    }
-
-    const postponedStringLength = parseInt(postponedStringLengthMatch)
-
-    // We add a `:` to the end of the length as the first character of the
-    // postponed string is the length of the replacement entries.
-    const postponedString = state.slice(
-      postponedStringLengthMatch.length + 1,
-      postponedStringLengthMatch.length + postponedStringLength + 1
-    )
-
-    const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(
-        postponedStringLengthMatch.length + postponedStringLength + 1
-      ),
+    const { postponedString, renderResumeDataCache } = parsePostponedStateParts(
+      state,
       maxPostponedStateSizeBytes
     )
 
