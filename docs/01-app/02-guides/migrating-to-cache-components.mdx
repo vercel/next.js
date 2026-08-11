@@ -137,7 +137,7 @@ Insights don't show up in the HTTP response. An offending route still returns `2
 
 ## `dynamic = "force-dynamic"`
 
-**Not needed.** All pages are dynamic by default.
+**Not needed for pages.** All pages are dynamic by default. `GET` [Route Handlers](#route-handlers-get) are prospectively prerendered under Cache Components and have different migration steps, so review them separately before removing this config from a `route.ts` or `route.js` file.
 
 ```tsx filename="app/page.tsx" switcher
 // Before - No longer needed
@@ -868,6 +868,34 @@ export async function GET(request) {
 ```
 
 `unstable_rethrow` preserves Next.js control flow. The `experimental.hideLogsAfterAbort: true` option only hides logs emitted after a prerender has already been aborted; it does not replace rethrowing framework-controlled exceptions.
+
+### Keep a handler request-time
+
+Next.js executes `GET` handlers during `next build` to determine whether they can be prerendered. If a handler reads a value that only makes sense in the running deployment, call [`connection()`](/docs/app/api-reference/functions/connection) before that work:
+
+```ts filename="app/api/client-config/route.ts" switcher highlight={1,4}
+import { connection } from 'next/server'
+
+export async function GET() {
+  await connection()
+  const config = await getRuntimeClientConfig()
+
+  return Response.json(config)
+}
+```
+
+```js filename="app/api/client-config/route.js" switcher highlight={1,4}
+import { connection } from 'next/server'
+
+export async function GET() {
+  await connection()
+  const config = await getRuntimeClientConfig()
+
+  return Response.json(config)
+}
+```
+
+This is especially important when the build-time code path returns a placeholder, sentinel, or empty value instead of accessing runtime data or throwing. That response otherwise looks successfully prerenderable and can be reused after deployment. `connection()` stops the build-time probe before the runtime-only value is read.
 
 ## `generateMetadata` and `generateViewport`
 
