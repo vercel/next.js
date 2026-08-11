@@ -8,11 +8,7 @@ import Header from '@/components/header'
 import PostHeader from '@/components/post-header'
 import SectionSeparator from '@/components/section-separator'
 import Footer from '@/components/footer'
-import {
-  getAllSlugs,
-  getPostAndMorePosts,
-  toRouteSlug,
-} from '@/lib/api'
+import { getAllSlugs, getPostAndMorePosts, toRouteSlug } from '@/lib/api'
 import { SITE_NAME, CMS_NAME } from '@/lib/constants'
 
 export async function generateStaticParams() {

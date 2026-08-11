@@ -4,10 +4,7 @@ export default function PostBody({ content }) {
   const blocks = (content || []).map((item, index) => {
     if (item.__typename === 'Text') {
       return (
-        <div
-          key={index}
-          dangerouslySetInnerHTML={{ __html: item.html }}
-        ></div>
+        <div key={index} dangerouslySetInnerHTML={{ __html: item.html }}></div>
       )
     }
     if (item.__typename === 'Assets') {

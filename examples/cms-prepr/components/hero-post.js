@@ -46,7 +46,9 @@ export default function HeroPost({
             dangerouslySetInnerHTML={{ __html: excerpt }}
           ></div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            {author && <Avatar name={author.name} picture={author.image?.url} />}
+            {author && (
+              <Avatar name={author.name} picture={author.image?.url} />
+            )}
             <ReadTime minutes={readTime} />
           </div>
         </div>
