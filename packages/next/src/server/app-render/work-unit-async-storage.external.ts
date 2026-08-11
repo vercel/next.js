@@ -4,6 +4,7 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
+import type { SegmentStore } from './segment-store'
 import type { ResponseVaryParamsAccumulator } from './vary-params'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
@@ -26,6 +27,24 @@ export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
   readonly implicitTags: ImplicitTags
+
+  /**
+   * Per-segment state for this work unit, keyed by a stable per-segment
+   * object (see `SegmentStore`). Lives on the work unit store because its
+   * contents (e.g. vary-params accumulators) are response-scoped and must
+   * not outlive a single render pass. `null` until a segment store is first
+   * requested.
+   */
+  segmentStore: WeakMap<object, SegmentStore> | null
+
+  /**
+   * The metadata segment's state (see `getMetadataSegmentStore`): a segment
+   * in almost every way, except it doesn't map to a route segment — it's the
+   * same for the whole page, so it lives as its own field next to the route
+   * segments' map (mirroring how the response-level structures are laid
+   * out). `null` until first requested.
+   */
+  metadataSegmentStore: SegmentStore | null
 }
 
 export interface RequestStore extends CommonWorkUnitStore {

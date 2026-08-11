@@ -265,6 +265,8 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     type: 'request',
     phase,
     implicitTags,
+    segmentStore: null,
+    metadataSegmentStore: null,
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
