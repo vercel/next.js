@@ -102,6 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    module_federation::ModuleFederationEndpoint,
     next_server_nft::require_hook_modules,
     pages::PagesProject,
     route::{
@@ -1328,6 +1329,13 @@ impl Project {
             .await?;
         let mut add_pages_entries = false;
 
+        if let Some(module_federation_endpoint) = entrypoints.module_federation_endpoint {
+            endpoint_groups.push((
+                EndpointGroupKey::ModuleFederation,
+                EndpointGroup::from(module_federation_endpoint),
+            ));
+        }
+
         if let Some(middleware) = &entrypoints.middleware {
             endpoint_groups.push((
                 EndpointGroupKey::Middleware,
@@ -1661,6 +1669,64 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(crate) async fn module_federation_asset_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
+        let project_path = self.project_path().owned().await?;
+        let context_type = ClientContextType::ModuleFederation {
+            project_path: project_path.clone(),
+        };
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.client_compile_time_info(),
+            get_client_module_options_context(
+                project_path.clone(),
+                self.execution_context(),
+                self.client_compile_time_info().environment(),
+                context_type.clone(),
+                self.next_mode(),
+                self.next_config(),
+                self.encryption_key(),
+            ),
+            get_client_resolve_options_context(
+                project_path,
+                context_type,
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Layer::new_with_user_friendly_name(
+                rcstr!("module-federation"),
+                rcstr!("Module Federation"),
+            ),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) async fn module_federation_chunking_context(
+        self: Vc<Self>,
+        chunk_loading_global: RcStr,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        // A remote entry must carry its own Turbopack runtime because it is
+        // evaluated on a page built by a different compilation.
+        Ok(get_service_worker_chunking_context(
+            ServiceWorkerChunkingContextOptions {
+                mode: self.next_mode(),
+                root_path: self.project_root_path().owned().await?,
+                output_root: self.client_relative_path().owned().await?,
+                output_root_to_root_path: rcstr!("/ROOT"),
+                environment: self.client_compile_time_info().environment(),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
+                source_maps: self.next_config().client_source_maps(self.next_mode()),
+                no_mangling: self.no_mangling(),
+                hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+                chunk_loading_global: Some(chunk_loading_global),
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn service_worker_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
@@ -1675,6 +1741,7 @@ impl Project {
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+                chunk_loading_global: None,
             },
         ))
     }
@@ -2085,10 +2152,24 @@ impl Project {
             None
         };
 
+        let module_federation_endpoint =
+            if (&*self.next_config().turbopack_module_federation().await?)
+                .as_ref()
+                .and_then(|config| config.exposes.as_ref())
+                .is_some_and(|exposes| !exposes.is_empty())
+            {
+                Some(ResolvedVc::upcast(
+                    ModuleFederationEndpoint::new(self).to_resolved().await?,
+                ))
+            } else {
+                None
+            };
+
         Ok(Entrypoints {
             routes,
             middleware,
             instrumentation,
+            module_federation_endpoint,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,

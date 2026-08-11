@@ -48,6 +48,7 @@ export async function rawEntrypointsToEntrypoints(
       error: entrypointsOp.pagesErrorEndpoint,
       instrumentation: entrypointsOp.instrumentation,
       middleware: entrypointsOp.middleware,
+      moduleFederation: entrypointsOp.moduleFederationEndpoint,
     },
     page,
     app,

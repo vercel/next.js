@@ -572,6 +572,8 @@ export function hasEntrypointForKey(
           return entrypoints.global.middleware != null
         case 'instrumentation':
           return entrypoints.global.instrumentation != null
+        case 'module-federation':
+          return entrypoints.global.moduleFederation != null
         default:
           return false
       }
@@ -645,6 +647,8 @@ export async function handleEntrypoints({
   currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
 
   currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.moduleFederation =
+    entrypoints.moduleFederationEndpoint
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
@@ -685,7 +689,51 @@ export async function handleEntrypoints({
     })
   }
 
-  const { middleware, instrumentation } = entrypoints
+  const { middleware, instrumentation, moduleFederationEndpoint } = entrypoints
+
+  if (dev && moduleFederationEndpoint) {
+    const key = getEntryKey('root', 'client', 'module-federation')
+    const writtenEndpoint = await moduleFederationEndpoint.writeToDisk()
+    dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+
+    dev.hooks.subscribeToChanges(
+      key,
+      /** includeIssues=*/ true,
+      moduleFederationEndpoint,
+      (change) => {
+        if (
+          change.issues.some(
+            (issue) => issue.severity === 'error' || issue.severity === 'fatal'
+          )
+        ) {
+          return
+        }
+
+        return moduleFederationEndpoint
+          .writeToDisk()
+          .then((updatedEndpoint) => {
+            dev.hooks.handleWrittenEndpoint(key, updatedEndpoint, false)
+            processIssues(
+              currentEntryIssues,
+              key,
+              updatedEndpoint,
+              false,
+              logErrors
+            )
+
+            return {
+              type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+              data: 'Module Federation remote entry changed',
+            }
+          })
+      },
+      (error) => ({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in Module Federation subscription: ${error}`,
+      })
+    )
+  }
 
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is

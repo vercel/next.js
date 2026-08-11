@@ -13,6 +13,7 @@ pub mod hmr_entry;
 pub mod instrumentation;
 pub mod middleware;
 pub mod mode;
+pub mod module_federation;
 pub mod next_app;
 mod next_build;
 pub mod next_client;

@@ -27,6 +27,7 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
+use turbopack_module_federation::{ModuleFederationResolveMode, module_federation_import_map};
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
@@ -34,6 +35,7 @@ use crate::{
     browser_variant_modules::BROWSER_VARIANT_MODULES,
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
+    module_federation::module_federation_options,
     next_client::context::ClientContextType,
     next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
@@ -63,6 +65,13 @@ pub async fn get_next_client_import_map(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+    let module_federation_mode = match &ty {
+        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
+            Some(ModuleFederationResolveMode::HOST)
+        }
+        ClientContextType::ModuleFederation { .. } => Some(ModuleFederationResolveMode::CONTAINER),
+        ClientContextType::Fallback | ClientContextType::Other => None,
+    };
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -212,8 +221,9 @@ pub async fn get_next_client_import_map(
                 ),
             );
         }
-        ClientContextType::Fallback => {}
-        ClientContextType::Other => {}
+        ClientContextType::ModuleFederation { .. }
+        | ClientContextType::Fallback
+        | ClientContextType::Other => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -230,6 +240,7 @@ pub async fn get_next_client_import_map(
     match ty {
         ClientContextType::Pages { .. }
         | ClientContextType::App { .. }
+        | ClientContextType::ModuleFederation { .. }
         | ClientContextType::Fallback => {
             for (original, alias) in NEXT_ALIASES.iter() {
                 import_map.insert_exact_alias(
@@ -241,9 +252,14 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_instrumentation_client_alias(&mut import_map, project_path, next_config).await?;
+    insert_instrumentation_client_alias(&mut import_map, project_path.clone(), next_config).await?;
 
     insert_server_only_error_alias(&mut import_map);
+
+    if let Some(mode) = module_federation_mode {
+        extend_module_federation_import_map(&mut import_map, project_path, next_config, mode)
+            .await?;
+    }
 
     Ok(import_map.cell())
 }
@@ -260,6 +276,9 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
         }
         | ClientContextType::App {
             app_dir: context_dir,
+        }
+        | ClientContextType::ModuleFederation {
+            project_path: context_dir,
         } => {
             for (original, alias) in NEXT_ALIASES.iter() {
                 import_map.insert_exact_alias(
@@ -286,6 +305,10 @@ pub async fn get_next_server_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+    let module_federation_enabled = matches!(
+        &ty,
+        ServerContextType::Pages { .. } | ServerContextType::AppSSR { .. }
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -380,7 +403,35 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
+    if module_federation_enabled {
+        extend_module_federation_import_map(
+            &mut import_map,
+            project_path,
+            next_config,
+            ModuleFederationResolveMode::HOST,
+        )
+        .await?;
+    }
+
     Ok(import_map.cell())
+}
+
+async fn extend_module_federation_import_map(
+    import_map: &mut ImportMap,
+    project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
+    mode: ModuleFederationResolveMode,
+) -> Result<()> {
+    let config = next_config.turbopack_module_federation().await?;
+    let Some(config) = &*config else {
+        return Ok(());
+    };
+    let options = module_federation_options(config)?.resolved_cell();
+    let base_import_map = import_map.clone().resolved_cell();
+    let federation_import_map =
+        module_federation_import_map(project_path, *options, mode, Some(*base_import_map)).await?;
+    import_map.extend_ref(&federation_import_map);
+    Ok(())
 }
 
 /// Computes the Next-specific edge-side import map.

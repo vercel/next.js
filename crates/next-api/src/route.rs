@@ -82,6 +82,7 @@ pub trait Endpoint {
 pub enum EndpointGroupKey {
     Instrumentation,
     InstrumentationEdge,
+    ModuleFederation,
     Middleware,
     PagesError,
     PagesApp,
@@ -94,6 +95,7 @@ impl EndpointGroupKey {
         match self {
             EndpointGroupKey::Instrumentation => "instrumentation",
             EndpointGroupKey::InstrumentationEdge => "instrumentation-edge",
+            EndpointGroupKey::ModuleFederation => "module-federation",
             EndpointGroupKey::Middleware => "middleware",
             EndpointGroupKey::PagesError => "_error",
             EndpointGroupKey::PagesApp => "_app",
@@ -108,6 +110,7 @@ impl Display for EndpointGroupKey {
         match self {
             EndpointGroupKey::Instrumentation => write!(f, "instrumentation"),
             EndpointGroupKey::InstrumentationEdge => write!(f, "instrumentation-edge"),
+            EndpointGroupKey::ModuleFederation => write!(f, "module-federation"),
             EndpointGroupKey::Middleware => write!(f, "middleware"),
             EndpointGroupKey::PagesError => write!(f, "_error"),
             EndpointGroupKey::PagesApp => write!(f, "_app"),

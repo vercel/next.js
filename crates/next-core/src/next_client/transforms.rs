@@ -111,7 +111,9 @@ pub async fn get_next_client_transforms_rules(
                 .await?,
             );
         }
-        ClientContextType::Fallback | ClientContextType::Other => {}
+        ClientContextType::ModuleFederation { .. }
+        | ClientContextType::Fallback
+        | ClientContextType::Other => {}
     };
 
     if !foreign_code {

@@ -58,6 +58,9 @@ import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-im
 import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
+const DEFAULT_TURBOPACK_MODULE_FEDERATION_FILENAME =
+  'static/chunks/remoteEntry.js'
+
 interface SharedRouteFields {
   /**
    * id is the unique identifier of the output
@@ -624,6 +627,18 @@ export async function handleBuildComplete({
       staticFiles: [],
     }
 
+    const moduleFederationConfig = config.experimental.turbopackModuleFederation
+    const moduleFederationFilename =
+      bundler === Bundler.Turbopack &&
+      moduleFederationConfig?.exposes &&
+      Object.keys(moduleFederationConfig.exposes).length > 0
+        ? (moduleFederationConfig.filename ??
+          DEFAULT_TURBOPACK_MODULE_FEDERATION_FILENAME)
+        : undefined
+    const moduleFederationOutputPathname = moduleFederationFilename
+      ? path.posix.join('/_next', moduleFederationFilename)
+      : undefined
+
     if (config.output === 'export') {
       // collect export assets and provide as static files
       const exportFiles = await recursiveReadDir(configOutDir)
@@ -665,7 +680,10 @@ export async function handleBuildComplete({
           id,
           pathname,
           filePath,
-          immutableHash: clientHashes?.[id],
+          immutableHash:
+            pathname === moduleFederationOutputPathname
+              ? undefined
+              : clientHashes?.[id],
         })
       }
 
@@ -2262,6 +2280,19 @@ export async function handleBuildComplete({
       const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
         buildRouteFromHeader(route)
       )
+      const moduleFederationRoutePathname = moduleFederationFilename
+        ? path.posix.join(
+            config.basePath || '/',
+            '_next',
+            moduleFederationFilename
+          )
+        : undefined
+      const moduleFederationStaticRelativePath =
+        moduleFederationFilename?.slice('static/'.length)
+      const moduleFederationImmutableExclusion =
+        moduleFederationStaticRelativePath
+          ? `(?!/${escapeStringRegexp(moduleFederationStaticRelativePath)}$)`
+          : ''
 
       await adapterMod.onBuildComplete({
         routing: {
@@ -2277,10 +2308,22 @@ export async function handleBuildComplete({
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,
           onMatch: [
+            ...(moduleFederationRoutePathname
+              ? [
+                  {
+                    source: moduleFederationRoutePathname,
+                    sourceRegex: `^${escapeStringRegexp(moduleFederationRoutePathname)}$`,
+                    headers: {
+                      'cache-control': 'public, max-age=0, must-revalidate',
+                    },
+                    priority: true,
+                  } satisfies Route,
+                ]
+              : []),
             {
               // This ensures we only match known emitted-by-Next.js files and not
               // user-emitted files which may be missing a hash in their filename.
-              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static')}${moduleFederationImmutableExclusion}/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`,
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {

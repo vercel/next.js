@@ -4,7 +4,7 @@ import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
 
 describe('adapter-config', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -456,6 +456,38 @@ describe('adapter-config', () => {
       shouldNormalizeNextData: expect.toBeBoolean(),
       rsc: expect.toBeObject(),
     })
+
+    if (isTurbopack) {
+      const remoteEntryPathname = '/_next/static/chunks/remoteEntry.js'
+      const remoteEntryRoute = routing.onMatch.find(
+        (route) => route.source === `/docs${remoteEntryPathname}`
+      )
+      expect(remoteEntryRoute).toEqual({
+        source: `/docs${remoteEntryPathname}`,
+        sourceRegex: '^/docs/_next/static/chunks/remoteEntry\\.js$',
+        headers: {
+          'cache-control': 'public, max-age=0, must-revalidate',
+        },
+        priority: true,
+      })
+
+      const immutableStaticRoute = routing.onMatch.find(
+        (route) =>
+          route.headers?.['cache-control'] ===
+          'public,max-age=31536000,immutable'
+      )
+      expect(immutableStaticRoute).toBeDefined()
+      expect(
+        new RegExp(immutableStaticRoute!.sourceRegex).test(
+          `/docs${remoteEntryPathname}`
+        )
+      ).toBe(false)
+      expect(
+        new RegExp(immutableStaticRoute!.sourceRegex).test(
+          '/docs/_next/static/chunks/other.js'
+        )
+      ).toBe(true)
+    }
   })
 
   it('should propagate preferredRegion to adapter output', async () => {
@@ -469,5 +501,29 @@ describe('adapter-config', () => {
     expect(preferredRegionRoute).toBeDefined()
     expect(preferredRegionRoute?.runtime).toBe('edge')
     expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
+  })
+  it('should not emit remote entry cache metadata for a host-only config', async () => {
+    if (!isTurbopack) return
+
+    await next.stop()
+    next.env.TEST_MF_HOST_ONLY = '1'
+    await next.build()
+
+    const { routing }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const remoteEntryPathname = '/docs/_next/static/chunks/remoteEntry.js'
+
+    expect(
+      routing.onMatch.find((route) => route.source === remoteEntryPathname)
+    ).toBeUndefined()
+
+    const immutableStaticRoute = routing.onMatch.find(
+      (route) =>
+        route.headers?.['cache-control'] === 'public,max-age=31536000,immutable'
+    )
+    expect(immutableStaticRoute).toBeDefined()
+    expect(
+      new RegExp(immutableStaticRoute!.sourceRegex).test(remoteEntryPathname)
+    ).toBe(true)
   })
 })
