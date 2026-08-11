@@ -15,7 +15,9 @@ import {
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
-import { InvariantError } from '../../shared/lib/invariant-error'
+import { createResolvedReactPromise } from '../../shared/lib/react-promise'
+
+const resolvedConnectionPromise = createResolvedReactPromise(undefined)
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -26,8 +28,6 @@ export function connection(): Promise<void> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (!workStore || !workUnitStore) {
-    // TODO(NAR-789): connection() is not currently statically prevented from being imported in client components,
-    // so in the browser we'll always error about a missing work unit store.
     const callingExpression = 'connection'
     throwForMissingRequestStore(callingExpression)
   }
@@ -94,10 +94,8 @@ export function connection(): Promise<void> {
         '`connection()`'
       )
     case 'validation-client': {
-      const exportName = '`connection`'
-      throw new InvariantError(
-        `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-      )
+      // use(connection()) does not suspend in the browser, so we simulate the same for validation.
+      return resolvedConnectionPromise
     }
     case 'prerender-legacy':
       // We throw an error here to interrupt prerendering to mark the route
