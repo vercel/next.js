@@ -270,6 +270,7 @@ export const productCache = {
         if (!res.ok) throw new Error('Failed to fetch product')
         return res.json()
       },
+      staleTime: 30_000,
     }),
 }
 ```
@@ -287,11 +288,14 @@ export const productCache = {
         if (!res.ok) throw new Error('Failed to fetch product')
         return res.json()
       },
+      staleTime: 30_000,
     }),
 }
 ```
 
-The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client. Larger features can place query options in a separate client-facing module as long as every caller imports the key from the same cache contract.
+The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client. The `staleTime` prevents an immediate client refetch by keeping the hydrated data fresh for 30 seconds. Choose a duration based on how quickly the data can change.
+
+Larger features can place query options in a separate client-facing module as long as every caller imports the key from the same cache contract. Learn more about [TanStack Query defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults).
 
 As with SWR, `params.then()` resolves the `id` inside `<Suspense>`, and `ProductData` prefetches below the boundary.
 
