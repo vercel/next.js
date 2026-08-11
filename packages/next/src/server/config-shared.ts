@@ -12,6 +12,7 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -794,7 +795,8 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true. Only applies to production builds; has no effect in development mode.
+   * true on canary releases and false on stable releases. Only applies to production builds; has
+   * no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -2291,6 +2293,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: true,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
+    turbopackSharedRuntime: !isStableBuild(),
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
