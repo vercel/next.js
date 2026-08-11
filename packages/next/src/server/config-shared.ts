@@ -522,8 +522,8 @@ export interface ExperimentalConfig {
    * prefetch to include dynamic route content when the user hovers or touches
    * it.
    *
-   * @internal This supports experimental Link behavior and is not a stable
-   * public configuration contract.
+   * This supports an internal Link experiment and is not a stable public
+   * configuration contract.
    */
   dynamicOnHover?: boolean
   /**
@@ -538,7 +538,7 @@ export interface ExperimentalConfig {
    * Uses known route patterns to construct an optimistic route tree when a
    * navigation does not have an exact prefetched route entry.
    *
-   * @internal This is a migration flag for the Segment Cache routing
+   * This is an internal migration flag for the Segment Cache routing
    * implementation and is not a stable public configuration contract.
    */
   optimisticRouting?: boolean
