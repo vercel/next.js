@@ -1,12 +1,14 @@
-import Link from "next/link";
+import Link from 'next/link'
 
 export default function Header() {
   return (
-    <h2 className="text-2xl md:text-4xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8">
-      <Link href="/" className="hover:underline">
-        Blog
+    <header className="mb-20 mt-8 flex items-center justify-between">
+      <Link href="/" className="flex items-center gap-2 text-xl font-bold">
+        <span className="rounded-lg bg-primary-600 px-2 py-1 text-white">
+          Acme
+        </span>
+        <span className="text-secondary-700">Lease Blog</span>
       </Link>
-      .
-    </h2>
-  );
+    </header>
+  )
 }
