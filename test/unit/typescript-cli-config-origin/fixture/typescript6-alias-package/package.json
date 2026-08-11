@@ -1,0 +1,8 @@
+{
+  "name": "@typescript/typescript6",
+  "version": "6.0.2-test",
+  "bin": {
+    "tsc6": "./bin/tsc6"
+  },
+  "main": "./lib/typescript.js"
+}

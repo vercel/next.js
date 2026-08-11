@@ -1,4 +1,11 @@
-import { cpSync, mkdtempSync, mkdirSync, realpathSync, rmSync } from 'node:fs'
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -88,6 +95,47 @@ describe('TypeScript CLI config metadata', () => {
       tscPath: realpathSync(
         path.join(testDir, 'node_modules/typescript/lib/tsc.js')
       ),
+    })
+  })
+
+  it('uses tsc6 from the official TypeScript 6 compatibility package', () => {
+    const typescriptDir = path.join(testDir, 'node_modules/typescript')
+    rmSync(typescriptDir, { force: true, recursive: true })
+    cpSync(
+      path.join(__dirname, 'fixture/typescript6-alias-package'),
+      typescriptDir,
+      { recursive: true }
+    )
+
+    expect(getTypeScriptPackageInfo(testDir)).toMatchObject({
+      version: '6.0.2-test',
+      apiPath: realpathSync(path.join(typescriptDir, 'lib/typescript.js')),
+      tscPath: realpathSync(path.join(typescriptDir, 'bin/tsc6')),
+    })
+  })
+
+  it('does not use tsc6 from an unrelated package', () => {
+    const typescriptDir = path.join(testDir, 'node_modules/typescript')
+    rmSync(typescriptDir, { force: true, recursive: true })
+    cpSync(
+      path.join(__dirname, 'fixture/typescript6-alias-package'),
+      typescriptDir,
+      { recursive: true }
+    )
+    writeFileSync(
+      path.join(typescriptDir, 'package.json'),
+      JSON.stringify({
+        name: 'unrelated-typescript-package',
+        version: '1.0.0-test',
+        bin: { tsc6: './bin/tsc6' },
+        main: './lib/typescript.js',
+      })
+    )
+
+    expect(getTypeScriptPackageInfo(testDir)).toMatchObject({
+      version: '1.0.0-test',
+      apiPath: realpathSync(path.join(typescriptDir, 'lib/typescript.js')),
+      tscPath: undefined,
     })
   })
 })
