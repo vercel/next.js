@@ -95,6 +95,68 @@ export default async function Page({ params }) {
 
 The root layout can also be nested in the new folder (e.g. `app/[lang]/layout.js`).
 
+## Choosing a locale source
+
+A URL segment is recommended when each locale should have a shareable, crawlable URL. It also lets Next.js prerender and cache a separate route for each locale. Some applications instead store the preference in a cookie, request header, or user profile so the visible URL stays the same.
+
+With [Cache Components](/docs/app/getting-started/caching), the source determines where rendering can happen:
+
+| Locale source                      | Rendering behavior                                                                                                                                                   | Main tradeoff                                     |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| URL segment such as `[lang]`       | Each locale can be prerendered independently.                                                                                                                        | The locale is part of the URL.                    |
+| Cookie, header, or server profile  | The component that reads the value renders at request time. A `<Suspense>` boundary can keep the surrounding App Shell prerendered.                                  | The localized subtree streams after its fallback. |
+| Browser preference or client state | The shell can remain prerendered. Use a neutral fallback or a pre-hydration script to avoid showing the wrong language, then load the selected dictionary on demand. | Localization begins on the client.                |
+
+For example, keep a cookie-selected translation inside a request-time subtree:
+
+```tsx filename="app/page.tsx" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { getDictionary } from './dictionaries'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p aria-busy="true">Loading…</p>}>
+      <LocalizedContent />
+    </Suspense>
+  )
+}
+
+async function LocalizedContent() {
+  const value = (await cookies()).get('locale')?.value ?? 'en'
+  const locale = value === 'nl' ? 'nl' : 'en'
+  const dict = await getDictionary(locale)
+
+  return <button>{dict.products.cart}</button>
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { getDictionary } from './dictionaries'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p aria-busy="true">Loading…</p>}>
+      <LocalizedContent />
+    </Suspense>
+  )
+}
+
+async function LocalizedContent() {
+  const value = (await cookies()).get('locale')?.value ?? 'en'
+  const locale = value === 'nl' ? 'nl' : 'en'
+  const dict = await getDictionary(locale)
+
+  return <button>{dict.products.cart}</button>
+}
+```
+
+Read request data outside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope and pass the resolved locale into cached translation work. The locale becomes part of the cache key.
+
+The root `<html lang>` attribute is a special case: the root layout has no parent boundary that can preserve a shell around a cookie or header read. Reading the value there makes the route tree request-bound. If only the attribute depends on a browser-visible preference, an inline script can set it before paint; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration). Server-rendered translated content should still use the request-time subtree pattern above.
+
 ## Localization
 
 Changing displayed content based on the user’s preferred locale, or localization, is not something specific to Next.js. The patterns described below would work the same with any web application.
