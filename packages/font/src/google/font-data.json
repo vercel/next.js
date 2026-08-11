@@ -16879,7 +16879,7 @@
   "Single Day": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sintony": {
     "weights": ["400", "700"],
@@ -17170,7 +17170,7 @@
   "Song Myung": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sono": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
@@ -17614,7 +17614,7 @@
   "Stylish": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sue Ellen Francisco": {
     "weights": ["400"],
@@ -17639,7 +17639,7 @@
   "Sunflower": {
     "weights": ["300", "500", "700"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sunshiney": {
     "weights": ["400"],
