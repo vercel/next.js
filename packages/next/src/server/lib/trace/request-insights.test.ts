@@ -244,7 +244,7 @@ describe('request insights', () => {
     })
     recordRequestInsightSource(identity, 'asset')
 
-    expect(identity.source).toBe('asset')
+    expect(identity.source).toBeUndefined()
     expect(getRequestInsightsSnapshot().requests[0]).toEqual(
       expect.objectContaining({ source: 'asset' })
     )
@@ -343,11 +343,11 @@ describe('request insights', () => {
         'next.span_type': 'BaseServer.handleRequest',
       },
     })
-    identity.source = undefined
+    const pageIdentity = { ...identity, source: undefined }
     recordSpan({
       name: 'GET /products',
-      requestId: identity.requestId,
-      requestInsightSource: identity.source,
+      requestId: pageIdentity.requestId,
+      requestInsightSource: pageIdentity.source,
       startTime: 3,
       attributes: {
         'next.span_type': 'BaseServer.handleRequest',

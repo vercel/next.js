@@ -10,7 +10,7 @@ import {
   getValidatedDevRequestId,
 } from '../dev-request-id'
 
-export type RequestInsightsIdentity = {
+export type RequestInsightsIdentity = Readonly<{
   // This is a server-owned storage key. Browser-provided IDs are only used by
   // the development debug channel and must never become Request Insights keys.
   requestId: string
@@ -20,7 +20,7 @@ export type RequestInsightsIdentity = {
   proxyStatus?: RequestInsightProxyStatus
   htmlRequestId: string
   url: string | undefined
-}
+}>
 
 export function resolveRequestInsightsIdentity({
   previousIdentity,
