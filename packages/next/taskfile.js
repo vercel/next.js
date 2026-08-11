@@ -147,15 +147,29 @@ externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
-    .source(
-      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
-    )
+    // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/mswjs-interceptors/index.js')
     .ncc({
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      esm: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
+  // The interceptor reads its HTTP parser WASM at runtime relative to the
+  // bundle. ncc cannot trace that file access, so copy the file explicitly.
+  const llhttpWasmTarget = join(
+    __dirname,
+    'src/compiled/@mswjs/interceptors/ClientRequest/llhttp'
+  )
+  await fs.mkdir(llhttpWasmTarget, { recursive: true })
+  await fs.copyFile(
+    join(
+      dirname(require.resolve('@mswjs/interceptors/ClientRequest')),
+      '../../llhttp/llhttp.wasm'
+    ),
+    join(llhttpWasmTarget, 'llhttp.wasm')
+  )
 }
 
 export async function capsize_metrics() {
@@ -1202,12 +1216,13 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
-export async function ncc_http_proxy(task, opts) {
+externals['httpxy'] = 'next/dist/compiled/httpxy'
+export async function ncc_httpxy(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('http-proxy')))
-    .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    // httpxy is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/httpxy/index.js')
+    .ncc({ packageName: 'httpxy', externals, esm: false })
+    .target('src/compiled/httpxy')
 }
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
@@ -2286,7 +2301,7 @@ export async function ncc(task, opts) {
         'ncc_fresh',
         'ncc_glob',
         'ncc_gzip_size',
-        'ncc_http_proxy',
+        'ncc_httpxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_ipaddr_js',
@@ -3025,10 +3040,10 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
-// The `app-worker` bundle currently has only one entry, the use-cache probe
-// worker, which is dev-only. We therefore build just the four dev variants
-// (turbo × experimental). If a future worker entry needs to run in prod,
-// add the matching prod tasks then.
+// The `app-worker` bundle holds the dev-only worker entries (the use-cache
+// probe worker and the dev validation worker). We therefore build just the four
+// dev variants (turbo × experimental). If a future worker entry needs to run in
+// prod, add the matching prod tasks then.
 export async function next_bundle_app_worker_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,

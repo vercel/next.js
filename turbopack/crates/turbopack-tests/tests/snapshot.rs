@@ -3,10 +3,9 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, io, path::PathBuf};
+use std::{collections::VecDeque, fs, fs::canonicalize, io, path::PathBuf};
 
 use anyhow::{Context, Result};
-use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
@@ -56,7 +55,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
     chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -72,7 +71,7 @@ use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, s
 use crate::util::REPO_ROOT;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SnapshotOptions {
     #[serde(default = "default_browserslist")]
     browserslist: String,
@@ -87,11 +86,17 @@ struct SnapshotOptions {
     #[serde(default)]
     environment: SnapshotEnvironment,
     #[serde(default)]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default)]
     remove_unused_imports: bool,
     #[serde(default)]
     remove_unused_exports: bool,
+    #[serde(default)]
+    cjs_tree_shaking: bool,
+    #[serde(default)]
+    cjs_scope_hoisting: bool,
     #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
@@ -133,9 +138,12 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             remove_unused_imports: false,
             remove_unused_exports: false,
+            cjs_tree_shaking: false,
+            cjs_scope_hoisting: false,
             scope_hoisting: false,
             shared_runtime: false,
             production_chunking: false,
@@ -410,6 +418,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 })),
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
+                cjs_tree_shaking: options.cjs_tree_shaking,
+                cjs_scope_hoisting: options.cjs_scope_hoisting,
                 enable_exports_info_inlining: true,
                 enable_rust_react_compiler: options
                     .enable_rust_react_compiler
@@ -421,14 +431,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
                     analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
             analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }

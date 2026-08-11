@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -29,11 +31,8 @@ use turbopack_core::{
     module_graph::{chunk_group_info::EntryHeuristics, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
 };
-use turbopack_ecmascript::{
-    OptionTreeShaking, TreeShakingMode,
-    transform::{
-        OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
-    },
+use turbopack_ecmascript::transform::{
+    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -149,6 +148,10 @@ pub struct NextConfig {
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
     server_external_packages: Option<Vec<RcStr>>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     #[serde(rename = "_originalRedirects")]
     original_redirects: Option<Vec<Redirect>>,
 
@@ -174,6 +177,7 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+    supports_immutable_assets: Option<bool>,
 
     adapter_path: Option<RcStr>,
     //
@@ -1131,7 +1135,7 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
-/// `experimental.chunkingHeuristics`: hints for Turbopack's production chunker.
+/// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 #[derive(
     Clone,
     Debug,
@@ -1145,7 +1149,7 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
     Decode,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct ChunkingHeuristicsConfig {
+pub struct TurbopackChunkingConfig {
     /// A number between `0.0..=1.0`. Higher values weight the benefit of merging
     /// chunks for a single page load more heavily. A site's bounce rate is a good
     /// approximation if you don't have a better value.
@@ -1161,10 +1165,24 @@ pub struct ChunkingHeuristicsConfig {
     /// bytes of code, default is 200 KB), used by the chunker to trade off request
     /// count against preventing double-fetching.
     request_cost: Option<u64>,
+    /// Avoid creating more than one chunk smaller than this size, in bytes (default `50000`).
+    /// Smaller chunks are merged into larger chunks.
+    min_chunk_size: Option<usize>,
+    /// Avoid creating more than this number of chunks per chunk group (default `40`).
+    max_chunk_count_per_group: Option<usize>,
+    /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
+    /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
+    max_merge_chunk_size: Option<usize>,
+    /// Emit each merged production chunk's constituent component chunks alongside it, so the
+    /// browser runtime can load only the chunks it doesn't already have (default `false`).
+    generate_component_chunks: Option<bool>,
+    /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
+    /// own when `generate_component_chunks` is enabled.
+    min_component_chunk_size: Option<usize>,
 }
 
 #[turbo_tasks::value]
-pub struct ChunkingHeuristics {
+pub struct TurbopackChunking {
     /// First-page-load priority as an integer percentage (`0..=100`), or `None` if unset.
     pub first_page_load_priority: Option<u32>,
     /// Route-matching regexes for priority routes.
@@ -1174,9 +1192,19 @@ pub struct ChunkingHeuristics {
     pub priority_boost_percent: Option<u32>,
     /// Global estimated cost of an additional request, in bytes, or `None` if unset.
     pub request_cost: Option<u64>,
+    /// Override for the client JS `min_chunk_size`, or `None` to use the default.
+    pub min_chunk_size: Option<usize>,
+    /// Override for the client JS `max_chunk_count_per_group`, or `None` to use the default.
+    pub max_chunk_count_per_group: Option<usize>,
+    /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
+    pub max_merge_chunk_size: Option<usize>,
+    /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
+    pub min_component_chunk_size: Option<usize>,
+    /// Whether to emit component chunks alongside merged chunks (default `false`).
+    pub generate_component_chunks: bool,
 }
 
-impl ChunkingHeuristics {
+impl TurbopackChunking {
     /// Compute the [`EntryHeuristics`] for a route `pathname` by matching it against the configured
     /// priority-route regexes.
     pub fn entry_heuristics_for(&self, pathname: &str) -> EntryHeuristics {
@@ -1202,7 +1230,7 @@ fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<Vec<EsRegex>> {
         .cloned()
         .map(|pattern| {
             EsRegex::try_from(pattern)
-                .context("Invalid route pattern in `experimental.turbopackChunkingHeuristics`")
+                .context("Invalid route pattern in `experimental.turbopackChunking`")
         })
         .collect()
 }
@@ -1291,18 +1319,12 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    supports_immutable_assets: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
-
-    /// A salt to mix into chunk and asset content hashes. Empty string means
-    /// no salt.
-    output_hash_salt: Option<RcStr>,
 
     /// CSS chunking strategy. See [`CssChunkingConfig`] for the accepted shapes.
     css_chunking: Option<CssChunkingConfig>,
 
-    /// Traffic-shape hints for the production chunker. See [`ChunkingHeuristicsConfig`].
-    turbopack_chunking_heuristics: Option<ChunkingHeuristicsConfig>,
+    turbopack_chunking: Option<TurbopackChunkingConfig>,
 
     // ---
     // UNSUPPORTED
@@ -1311,7 +1333,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1364,14 +1385,13 @@ pub struct ExperimentalConfig {
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
-    turbopack_minify: Option<bool>,
+    turbopack_minify: Option<TurbopackMinify>,
     turbopack_module_ids: Option<ModuleIds>,
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
-    turbopack_tree_shaking: Option<bool>,
+    turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
-    turbopack_generate_component_chunks: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -1409,6 +1429,10 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
+    /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
+    turbopack_cjs_tree_shaking: Option<bool>,
+    /// Enable scope hoisting of static CommonJS modules. Defaults to false.
+    turbopack_cjs_scope_hoisting: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -1618,6 +1642,47 @@ impl ReactRemoveProperties {
     }
 }
 
+/// `experimental.turbopackMinify`, either a single value for all output or a
+/// per-environment configuration.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(untagged)]
+pub enum TurbopackMinify {
+    Boolean(bool),
+    Config {
+        server: Option<bool>,
+        client: Option<bool>,
+        edge: Option<bool>,
+    },
+}
+
+impl TurbopackMinify {
+    /// The configured value for browser output.
+    fn client(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { client, .. } => *client,
+        }
+    }
+
+    /// The configured value for Node.js server output.
+    fn server(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { server, .. } => *server,
+        }
+    }
+
+    /// The configured value for edge output.
+    fn edge(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { edge, .. } => *edge,
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1794,7 +1859,10 @@ impl OutputFileTracingIncludesExcludes {
                     .map(async |(route_pattern, file_patterns)| {
                         let route_pattern = Glob::new(
                             RcStr::from(route_pattern.clone()),
-                            GlobOptions { contains: true },
+                            GlobOptions {
+                                contains: true,
+                                ..Default::default()
+                            },
                         )
                         .to_resolved()
                         .await?;
@@ -2095,14 +2163,14 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn chunking_heuristics(&self) -> Result<Vc<ChunkingHeuristics>> {
-        let config = self.experimental.turbopack_chunking_heuristics.as_ref();
+    pub fn turbopack_chunking(&self) -> Result<Vc<TurbopackChunking>> {
+        let config = self.experimental.turbopack_chunking.as_ref();
         let priority_routes = parse_route_regexes(
             config
                 .and_then(|c| c.priority_routes.as_deref())
                 .unwrap_or_default(),
         )?;
-        Ok(ChunkingHeuristics {
+        Ok(TurbopackChunking {
             first_page_load_priority: config
                 .and_then(|c| c.first_page_load_priority)
                 .map(|priority| (priority.clamp(0.0, 1.0) * 100.0).round() as u32),
@@ -2111,6 +2179,13 @@ impl NextConfig {
                 .and_then(|c| c.priority_boost)
                 .map(|boost| (boost.max(0.0) * 100.0).round() as u32),
             request_cost: config.and_then(|c| c.request_cost),
+            min_chunk_size: config.and_then(|c| c.min_chunk_size),
+            max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
+            max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
+            generate_component_chunks: config
+                .and_then(|c| c.generate_component_chunks)
+                .unwrap_or(false),
         }
         .cell())
     }
@@ -2283,10 +2358,7 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2300,19 +2372,17 @@ impl NextConfig {
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+        Vc::cell(self.supports_immutable_assets == Some(true))
     }
 
     #[turbo_tasks::function]
     pub fn client_static_folder_name(&self) -> Vc<RcStr> {
-        Vc::cell(
-            if self.experimental.supports_immutable_assets == Some(true) {
-                // Ends up as `_next/static/immutable`
-                rcstr!("static/immutable")
-            } else {
-                rcstr!("static")
-            },
-        )
+        Vc::cell(if self.supports_immutable_assets == Some(true) {
+            // Ends up as `_next/static/immutable`
+            rcstr!("static/immutable")
+        } else {
+            rcstr!("static")
+        })
     }
 
     #[turbo_tasks::function]
@@ -2379,10 +2449,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2415,26 +2482,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_foreign_code(
-        &self,
-        _is_development: bool,
-    ) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_foreign_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_user_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]
@@ -2477,6 +2537,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_tree_shaking
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_scope_hoisting
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
         #[cfg(feature = "process_pool")]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
@@ -2502,12 +2580,43 @@ impl NextConfig {
         })
     }
 
+    /// Whether to minify browser output.
     #[turbo_tasks::function]
-    pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbopack_minify;
-        Ok(Vc::cell(
-            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
-        ))
+    pub async fn turbo_client_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::client);
+        Ok(Vc::cell(minify.unwrap_or(default)))
+    }
+
+    /// Whether to minify Node.js server output. `turbopackMinify` takes
+    /// precedence over `serverMinification`, which can only opt out.
+    #[turbo_tasks::function]
+    pub async fn turbo_server_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build)
+            && self.experimental.server_minification.unwrap_or(true);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::server);
+        Ok(Vc::cell(minify.unwrap_or(default)))
+    }
+
+    /// Whether to minify edge output. `serverMinification` only covers the
+    /// Node.js server, matching webpack.
+    #[turbo_tasks::function]
+    pub async fn turbo_edge_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::edge);
+        Ok(Vc::cell(minify.unwrap_or(default)))
     }
 
     #[turbo_tasks::function]
@@ -2523,7 +2632,9 @@ impl NextConfig {
     pub fn turbopack_generate_component_chunks(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
-                .turbopack_generate_component_chunks
+                .turbopack_chunking
+                .as_ref()
+                .and_then(|c| c.generate_component_chunks)
                 .unwrap_or(false),
         )
     }
@@ -2534,7 +2645,7 @@ impl NextConfig {
             // The shared runtime / inlined bootstrap is a production-only optimization; in
             // development the per-route runtime is required for HMR.
             NextMode::Development => false,
-            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(true),
         }))
     }
 
@@ -2710,8 +2821,21 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
-        FetchClientConfig::default().cell()
+    pub async fn fetch_client(&self, next_mode: Vc<NextMode>) -> Result<Vc<FetchClientConfig>> {
+        // Bounds the Google Fonts fetch. Dev fails fast and falls back to a system font;
+        // build tolerates a slower network since a missing font fails the build.
+        let (connect_timeout, timeout) = if matches!(*next_mode.await?, NextMode::Development) {
+            (Duration::from_secs(5), Duration::from_secs(10))
+        } else {
+            (Duration::from_secs(10), Duration::from_secs(30))
+        };
+        Ok(FetchClientConfig {
+            connect_timeout,
+            timeout,
+            max_retries: 1,
+            ..Default::default()
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2757,12 +2881,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn output_hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(
-            self.experimental
-                .output_hash_salt
-                .clone()
-                .unwrap_or_default(),
-        )
+        Vc::cell(self.output_hash_salt.clone().unwrap_or_default())
     }
 }
 

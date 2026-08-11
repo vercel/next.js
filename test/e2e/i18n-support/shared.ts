@@ -773,6 +773,9 @@ export function runTests(ctx) {
       ).toMatchInlineSnapshot(`
        "{
          "/do": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do.json",
@@ -786,6 +789,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
@@ -799,6 +805,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
@@ -812,6 +821,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
@@ -825,6 +837,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
@@ -838,6 +853,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
@@ -851,6 +869,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
@@ -864,6 +885,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/404.json",
@@ -877,6 +901,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
@@ -890,6 +917,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
@@ -903,6 +933,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
@@ -916,6 +949,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
@@ -929,6 +965,9 @@ export function runTests(ctx) {
            ]
          },
          "/en": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en.json",
@@ -942,6 +981,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US.json",
@@ -955,6 +997,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
@@ -968,6 +1013,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
@@ -981,6 +1029,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
@@ -994,6 +1045,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
@@ -1007,6 +1061,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
@@ -1020,6 +1077,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
@@ -1033,6 +1093,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/no-fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
@@ -1046,6 +1109,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/no-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
@@ -1059,6 +1125,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
@@ -1072,6 +1141,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/blocking-fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/blocking-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
@@ -1085,6 +1157,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/blocking-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/blocking-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
@@ -1098,6 +1173,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
@@ -1111,6 +1189,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
@@ -1124,6 +1205,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/404.json",
@@ -1137,6 +1221,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
@@ -1150,6 +1237,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
@@ -1163,6 +1253,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
@@ -1189,6 +1282,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr.json",
@@ -1202,6 +1298,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
@@ -1215,6 +1314,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
@@ -1228,6 +1330,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
@@ -1241,6 +1346,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
@@ -1254,6 +1362,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
@@ -1267,6 +1378,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
@@ -1280,6 +1394,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
@@ -1293,6 +1410,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
@@ -1306,6 +1426,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
@@ -1319,6 +1442,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
@@ -1332,6 +1458,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
@@ -1345,6 +1474,9 @@ export function runTests(ctx) {
            ]
          },
          "/go": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go.json",
@@ -1358,6 +1490,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
@@ -1371,6 +1506,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
@@ -1384,6 +1522,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
@@ -1397,6 +1538,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
@@ -1410,6 +1554,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
@@ -1423,6 +1570,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
@@ -1436,6 +1586,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/404.json",
@@ -1449,6 +1602,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
@@ -1462,6 +1618,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
@@ -1475,6 +1634,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
@@ -1488,6 +1650,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
@@ -1501,6 +1666,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl.json",
@@ -1514,6 +1682,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
@@ -1527,6 +1698,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
@@ -1540,6 +1714,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
@@ -1553,6 +1730,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
@@ -1566,6 +1746,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
@@ -1579,6 +1762,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
@@ -1592,6 +1778,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
@@ -1605,6 +1794,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
@@ -1618,6 +1810,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
@@ -1631,6 +1826,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
@@ -1644,6 +1842,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
@@ -1657,6 +1858,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp/no-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
@@ -1670,6 +1874,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
@@ -1683,6 +1890,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
@@ -1696,6 +1906,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
@@ -1709,6 +1922,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
@@ -1722,6 +1938,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
@@ -1759,64 +1978,73 @@ export function runTests(ctx) {
             'BUILD_ID'
           )
       ).toMatchInlineSnapshot(`
-        "{
-          "/gsp/fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
-            "fallback": "/gsp/fallback/[slug].html",
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/gsp/no-fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
-            "fallback": false,
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/not-found/blocking-fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
-            "fallback": null,
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/not-found/fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
-            "fallback": "/not-found/fallback/[slug].html",
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          }
-        }"
+       "{
+         "/gsp/fallback/[slug]": {
+           "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
+           "fallback": "/gsp/fallback/[slug].html",
+           "routeType": "fallback",
+           "response": "initial",
+           "compute": "static",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/gsp/no-fallback/[slug]": {
+           "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
+           "fallback": false,
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/not-found/blocking-fallback/[slug]": {
+           "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
+           "fallback": null,
+           "routeType": "page",
+           "response": "empty",
+           "compute": "blocking",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/not-found/fallback/[slug]": {
+           "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
+           "fallback": "/not-found/fallback/[slug].html",
+           "routeType": "fallback",
+           "response": "initial",
+           "compute": "static",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         }
+       }"
       `)
     })
   }

@@ -45,7 +45,7 @@ export type ContinueStreamSharedOptions = {
 
 export type ContinueFizzStreamOptions = ContinueStreamSharedOptions & {
   inlinedDataStream: AnyStream | undefined
-  isStaticGeneration: boolean
+  waitForAllReady: boolean
   allReady?: Promise<void>
   validateRootLayout?: boolean
   suffix?: string

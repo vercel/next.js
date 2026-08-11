@@ -300,6 +300,19 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-static-params/123" />
         </li>
       </ul>
+
+      <h2>Blocking await attribution</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/dynamic-then-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/runtime-then-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/session-then-dynamic" />
+        </li>
+      </ul>
     </main>
   )
 }

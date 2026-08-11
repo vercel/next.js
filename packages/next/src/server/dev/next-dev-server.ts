@@ -26,6 +26,7 @@ import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { installUseCacheProbe } from './use-cache-probe-pool'
+import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -71,8 +72,11 @@ import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-r
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { DetachedPromise } from '../../lib/detached-promise'
-import { isPostpone } from '../lib/router-utils/is-postpone'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -131,7 +135,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = new DetachedPromise<void>()
+  private ready? = createPromiseWithResolvers<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -194,9 +198,11 @@ export default class DevServer extends Server {
     this.staticPathsCache = new LRUCache(
       // 5MB
       5 * 1024 * 1024,
-      function length(value) {
+      function length(value, cacheKey) {
         // Ensure minimum size of 1 for LRU eviction to work correctly
-        return JSON.stringify(value.staticPaths)?.length || 1
+        return (
+          cacheKey.length + (JSON.stringify(value.staticPaths)?.length || 1)
+        )
       }
     )
 
@@ -213,8 +219,8 @@ export default class DevServer extends Server {
       )
       this.serverComponentsHmrCache = new LRUCache(
         hmrCacheSize,
-        function length(value) {
-          return JSON.stringify(value).length
+        function length(value, cacheKey) {
+          return cacheKey.length + JSON.stringify(value).length
         }
       )
     }
@@ -225,23 +231,50 @@ export default class DevServer extends Server {
       deploymentId: this.deploymentId,
       nextConfig: this.nextConfig,
     })
+
+    // Runs Cache Components dev validation on a worker thread, off the main
+    // thread, so validation renders don't block the event loop during rapid
+    // navigation. Gated by `experimental.devValidationWorker`. The worker is
+    // spawned lazily on the first navigation that validates, so this install is
+    // free when a project doesn't use Cache Components.
+    //
+    // Turbopack only, because the worker's thread has source maps just for the
+    // chunks it loaded itself, and resolves the rest by reading the `.map`
+    // Turbopack writes next to each chunk. Webpack keeps its dev source maps in
+    // the compiler, which the worker's thread cannot reach, so validation
+    // errors would be reported without a source location. Running validation on
+    // the main thread costs dev performance but keeps those frames intact.
+    if (
+      process.env.TURBOPACK &&
+      this.nextConfig.experimental.devValidationWorker !== false
+    ) {
+      installDevValidationWorker({
+        distDir: this.distDir,
+        buildId: this.buildId,
+        deploymentId: this.deploymentId,
+        nextConfig: this.nextConfig,
+      })
+    }
   }
 
   protected override getServerComponentsHmrCache() {
     return this.serverComponentsHmrCache
   }
 
+  protected override getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundlerService.getServerComponentsHmrRefreshHash()
+  }
+
   protected getRouteMatchers(): RouteMatcherManager {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname, options) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
           url: pathname,
-          rscOnly: options?.rscOnly,
         })
       },
     }
@@ -348,14 +381,14 @@ export default class DevServer extends Server {
       setGlobal('telemetry', telemetry)
     }
 
-    process.on('unhandledRejection', (reason) => {
-      if (isPostpone(reason)) {
-        // React postpones that are unhandled might end up logged here but they're
-        // not really errors. They're just part of rendering.
-        return
-      }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
-    })
+    // The router server or the render server may run in the same process and
+    // have already registered the unhandled rejection listener, in which case
+    // we must not register another one, to avoid logging unhandled rejections
+    // multiple times.
+    if (!isUnhandledRejectionListenerRegistered()) {
+      registerUnhandledRejectionListener()
+    }
+
     process.on('uncaughtException', (err) => {
       this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
@@ -810,7 +843,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
@@ -854,7 +886,7 @@ export default class DevServer extends Server {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
               )
             }
 
@@ -865,24 +897,6 @@ export default class DevServer extends Server {
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
-          }
-
-          // Since generateStaticParams run on the background, when accessing the
-          // fallbackParams during the render, it is still set to the previous
-          // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the fallbackParams with the new result.
-          if (
-            isAppPath &&
-            this.nextConfig.cacheComponents &&
-            // Ensure this is not the first invocation.
-            result &&
-            // Ideally, we would want to compare the whole objects, but that is too expensive.
-            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
-          ) {
-            this.bundlerService.sendHmrMessage({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash: `generateStaticParams-${Date.now()}`,
-            })
           }
         }
 
@@ -962,6 +976,27 @@ export default class DevServer extends Server {
           }
         }
         this.staticPathsCache.set(pathname, value)
+
+        // Since generateStaticParams runs in the background, the fallbackParams
+        // accessed during a render are derived from the previous result served
+        // by the static paths cache. Now that the cache holds the new result,
+        // trigger a refresh so the next render picks up the new fallbackParams
+        // (e.g. so blocking-route validation reflects params that just became
+        // statically known).
+        if (
+          isAppPath &&
+          this.nextConfig.cacheComponents &&
+          // Ensure this is not the first invocation.
+          result &&
+          // Comparing lengths rather than the whole objects, which is too
+          // expensive.
+          result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+        ) {
+          this.bundlerService.sendHmrMessage({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED,
+          })
+        }
+
         return value
       })
       .catch((err) => {
@@ -983,7 +1018,6 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     url?: string
-    rscOnly?: boolean
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }

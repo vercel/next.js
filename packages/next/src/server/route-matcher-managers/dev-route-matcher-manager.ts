@@ -7,13 +7,11 @@ import path from '../../shared/lib/isomorphic/path'
 import * as Log from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import type { RouteMatcher } from '../route-matchers/route-matcher'
+import { DevRouteMatcherManagerSpan } from '../lib/trace/constants'
+import { getTracer } from '../lib/trace/tracer'
 
 export interface RouteEnsurer {
-  ensure(
-    match: RouteMatch,
-    pathname: string,
-    options?: MatchOptions
-  ): Promise<void>
+  ensure(match: RouteMatch, pathname: string): Promise<void>
 }
 
 export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
@@ -74,8 +72,20 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     for await (const developmentMatch of super.matchAll(pathname, options)) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(developmentMatch, pathname, options)
-      await this.production.reload()
+      await getTracer().trace(
+        DevRouteMatcherManagerSpan.ensureRoute,
+        {
+          spanName: 'prepare route',
+        },
+        () => this.ensurer.ensure(developmentMatch, pathname)
+      )
+      await getTracer().trace(
+        DevRouteMatcherManagerSpan.reloadMatchers,
+        {
+          spanName: 'reload route matchers',
+        },
+        () => this.production.reload()
+      )
 
       // Iterate over the production matches again, this time we should be able
       // to match it against the production matcher unless there's an error.

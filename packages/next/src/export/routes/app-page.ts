@@ -17,7 +17,7 @@ import {
   RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
-import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
+import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
@@ -75,7 +75,7 @@ export async function exportAppPage(
   }
 
   try {
-    const result = await lazyRenderAppPage(
+    const result = await lazyPrerenderAppPage(
       new NodeNextRequest(req),
       new NodeNextResponse(res),
       pathname,
@@ -102,6 +102,7 @@ export async function exportAppPage(
       segmentData,
       prefetchHints,
       renderResumeDataCache,
+      hasPendingUi,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -237,6 +238,8 @@ export async function exportAppPage(
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasPendingUi: hasPendingUi ?? false,
+      htmlSize: Buffer.byteLength(html),
       hasStaticRsc,
       cacheControl,
       fetchMetrics,

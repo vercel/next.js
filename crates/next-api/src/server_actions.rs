@@ -48,8 +48,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     EcmascriptParsable,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
-    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
 use crate::project::Project;

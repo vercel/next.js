@@ -2,6 +2,7 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
+import { encodeHeaderSafe } from '../../lib/encode-header-safe'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -9,6 +10,7 @@ import {
 import {
   getCacheSignal,
   getDraftModeProviderForCacheScope,
+  willConsumerServerCache,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -134,9 +136,23 @@ export function unstable_cache<T extends Callback>(
       // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
       // the keyspace smaller than the execution space
       const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
-      const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
+      const cacheKey =
+        await incrementalCache.generateSimpleCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
-      const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
+      //
+      // A cache implementation may serialize this name into an HTTP request
+      // header, so it is encoded here. Both parts can carry a character above
+      // U+00FF: the search parameters are decoded, and a JavaScript identifier
+      // may hold one. The character class leaves the separating spaces and the
+      // URL punctuation untouched, so the shape above is preserved.
+      //
+      // `toWellFormed` replaces lone surrogates, which `cb.name` can hold and
+      // which `encodeURIComponent` rejects. The name identifies the call for
+      // debug metrics, so a replacement character is an acceptable trade for
+      // not failing the render.
+      const fetchUrl = encodeHeaderSafe(
+        `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`.toWellFormed()
+      )
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
@@ -145,6 +161,7 @@ export function unstable_cache<T extends Callback>(
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
         phase: 'render',
+        consumerWillServerCache: true,
         implicitTags,
         draftMode:
           workUnitStore &&
@@ -168,7 +185,6 @@ export function unstable_cache<T extends Callback>(
             case 'private-cache':
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the revalidate option is a higher precedence
               // revalidate === undefined doesn't affect timing.
@@ -279,7 +295,7 @@ export function unstable_cache<T extends Callback>(
 
                   // Attach the empty catch here so we don't get a "unhandled promise
                   // rejection" warning. (Behavior is matched with patch-fetch)
-                  if (workStore.isStaticGeneration) {
+                  if (willConsumerServerCache(workUnitStore)) {
                     revalidationPromise.catch(() => {})
                   }
 
@@ -288,13 +304,14 @@ export function unstable_cache<T extends Callback>(
                 }
 
                 // Check if we need to do foreground revalidation
-                if (workStore.isStaticGeneration) {
-                  // When the page is revalidating and the cache entry is stale,
-                  // we need to wait for fresh data (blocking revalidate). The
-                  // `await` here keeps `cacheSignal.endRead` (in the outer
-                  // `finally`) suspended until the recompute + cacheNewResult
-                  // actually complete, so the prospective prerender's
-                  // `cacheSignal` doesn't resolve `cacheReady` prematurely.
+                if (willConsumerServerCache(workUnitStore)) {
+                  // When the consumer will persist this result in a server
+                  // cache, wait for fresh data so it doesn't persist a stale
+                  // value. The `await` here also keeps `cacheSignal.endRead` (in
+                  // the outer `finally`) suspended until the recompute +
+                  // cacheNewResult actually complete, so a prospective
+                  // prerender's `cacheSignal` doesn't resolve `cacheReady`
+                  // prematurely.
                   return await workStore.pendingRevalidates[invocationKey]
                 }
                 // Otherwise, we're doing background revalidation - return stale immediately
@@ -420,7 +437,6 @@ function getFetchUrlPrefix(
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

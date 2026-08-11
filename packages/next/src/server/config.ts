@@ -33,6 +33,7 @@ import { flushTelemetry } from '../telemetry/flush-telemetry'
 import {
   findRootDirAndLockFiles,
   warnDuplicatedLockFiles,
+  warnRootBoundary,
 } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
@@ -1150,19 +1151,18 @@ function assignDefaultsAndValidate(
   }
 
   if (process.env.NEXT_HASH_SALT) {
-    result.experimental.outputHashSalt =
-      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
+    result.outputHashSalt =
+      (result.outputHashSalt ?? '') + (process.env.NEXT_HASH_SALT ?? '')
   }
 
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
   let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
-  let lockFiles: string[] | undefined = undefined
+  let rootDirResult: ReturnType<typeof findRootDirAndLockFiles> | undefined
   if (!repoRoot) {
-    const rootDirResult = findRootDirAndLockFiles(dir)
+    rootDirResult = findRootDirAndLockFiles(dir)
     repoRoot = rootDirResult.rootDir
-    lockFiles = rootDirResult.lockFiles
   }
   ;(result as NextConfigComplete).repoRoot = repoRoot
 
@@ -1176,8 +1176,11 @@ function assignDefaultsAndValidate(
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
     rootDir = repoRoot
-    if (lockFiles && !silent) {
-      warnDuplicatedLockFiles(lockFiles)
+    if (rootDirResult && !silent) {
+      if (rootDirResult.boundary) {
+        warnRootBoundary(rootDirResult.boundary)
+      }
+      warnDuplicatedLockFiles(rootDirResult.lockFiles)
     }
   }
   if (!rootDir) {
@@ -1598,8 +1601,34 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
+    // TODO: Kept for backwards compatibility with legacy builders.
+    result.experimental.cacheComponents = true
+  }
+
+  // `experimental.useCache` is deprecated in favor of the top-level
+  // `cacheComponents` option. A defined value means the user set the option
+  // explicitly, because it's only backfilled from `cacheComponents` below.
+  if (result.experimental.useCache !== undefined) {
+    // Disabling the directive that Cache Components is built around leaves the
+    // app in a state where every `"use cache"` fails to compile with an error
+    // that asks for the already-enabled `cacheComponents` option.
+    if (!result.experimental.useCache && result.cacheComponents) {
+      throw new Error(
+        `\`experimental.useCache\` cannot be disabled when \`cacheComponents\` is enabled, because Cache Components relies on the \`"use cache"\` directive. Please remove it from ${configFileName}.`
+      )
+    }
+
+    if (!silent) {
+      if (result.cacheComponents) {
+        Log.warnOnce(
+          `\`experimental.useCache\` is no longer needed, because \`cacheComponents\` already enables the \`"use cache"\` directive. You can remove it from ${configFileName}.`
+        )
+      } else {
+        Log.warnOnce(
+          `\`experimental.useCache\` is deprecated. Please use the top-level \`cacheComponents\` option instead in ${configFileName}.`
+        )
+      }
+    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1634,7 +1663,10 @@ function assignDefaultsAndValidate(
  * consumers don't each need to know the current framework default (which may
  * evolve over time).
  */
-function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+function finalizeConfig(
+  config: NextConfigComplete,
+  bundler: Bundler | undefined
+): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
@@ -1648,18 +1680,39 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     config.deploymentId &&
     process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    config.experimental.supportsImmutableAssets = true
+    config.supportsImmutableAssets = true
+  }
+
+  // Normalize again for Adapters that only set config.experimental.supportsImmutableAssets for now.
+  if (
+    config.supportsImmutableAssets !==
+    config.experimental?.supportsImmutableAssets
+  ) {
+    config.supportsImmutableAssets =
+      config.supportsImmutableAssets ??
+      config.experimental?.supportsImmutableAssets
+  }
+
+  if (bundler !== undefined && bundler !== Bundler.Turbopack) {
+    // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+    // in `static/chunks` are always immutable without checking the manifest.
+    config.supportsImmutableAssets = false
   }
 
   if (
-    config.experimental.supportsImmutableAssets &&
+    config.supportsImmutableAssets &&
     (config.output === 'export' || config.output === 'standalone')
   ) {
     // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
     // output=standalone, which are currently using a non-adapter codepath.
     // Particularly output=export should just run through the adapter, with only static assets.
     // TODO remove again once output=export (and output=standalone) are using adapters.
-    config.experimental.supportsImmutableAssets = false
+    config.supportsImmutableAssets = false
+  }
+
+  if (config.experimental.outputHashSalt !== undefined) {
+    config.outputHashSalt =
+      (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
   return config
@@ -1888,7 +1941,8 @@ async function loadConfigImpl(
         phase,
         silent,
         dir
-      )
+      ),
+      bundler
     )
 
     // Cache the custom config result
@@ -2000,6 +2054,36 @@ async function loadConfigImpl(
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
 
+    if (
+      userConfig.supportsImmutableAssets === undefined &&
+      userConfig.experimental?.supportsImmutableAssets !== undefined
+    ) {
+      userConfig.supportsImmutableAssets =
+        userConfig.experimental.supportsImmutableAssets
+    }
+
+    // `experimental.turbopackGenerateComponentChunks` has moved into
+    // `experimental.turbopackChunking.generateComponentChunks`.
+    if (
+      (userConfig.experimental as any)?.turbopackGenerateComponentChunks !==
+      undefined
+    ) {
+      throw new Error(
+        `\`experimental.turbopackGenerateComponentChunks\` has been moved to \`experimental.turbopackChunking.generateComponentChunks\`. Please update your ${configFileName} file accordingly.`
+      )
+    }
+
+    // `experimental.turbopackChunkingHeuristics` has been renamed to
+    // `experimental.turbopackChunking`.
+    if (
+      (userConfig.experimental as any)?.turbopackChunkingHeuristics !==
+      undefined
+    ) {
+      throw new Error(
+        `\`experimental.turbopackChunkingHeuristics\` has been renamed to \`experimental.turbopackChunking\`. Please update your ${configFileName} file accordingly.`
+      )
+    }
+
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
       await validateConfigSchema(
@@ -2021,16 +2105,6 @@ async function loadConfigImpl(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
-    }
-
-    if (
-      userConfig.experimental?.supportsImmutableAssets &&
-      bundler !== undefined &&
-      bundler !== Bundler.Turbopack
-    ) {
-      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
-      // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {
@@ -2092,8 +2166,22 @@ async function loadConfigImpl(
     )
 
     const finalConfig = finalizeConfig(
-      await applyModifyConfig(completeConfig, phase, silent, dir)
+      await applyModifyConfig(completeConfig, phase, silent, dir),
+      bundler
     )
+
+    // Normalize so that also Adapters can still see userConfig.experimental.supportsImmutableAssets for now
+    if (
+      userConfig.supportsImmutableAssets === undefined ||
+      userConfig.experimental?.supportsImmutableAssets === undefined
+    ) {
+      const value =
+        userConfig.supportsImmutableAssets ??
+        userConfig.experimental?.supportsImmutableAssets
+      userConfig.supportsImmutableAssets = value
+      userConfig.experimental ??= {}
+      userConfig.experimental.supportsImmutableAssets = value
+    }
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -2151,7 +2239,8 @@ async function loadConfigImpl(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent, dir)
+    await applyModifyConfig(completeConfig, phase, silent, dir),
+    bundler
   )
 
   // Cache the default config result
@@ -2239,10 +2328,7 @@ function enforceExperimentalFeatures(
     config.partialPrefetching = true
   }
 
-  // TODO: Remove this once cachedNavigations is the default. Note:
-  // cachedNavigations may be the string 'allow-runtime'. These guards treat it
-  // as truthy, so an explicit 'allow-runtime' is respected here and in the
-  // cacheComponents-tied default below rather than being downgraded to `true`.
+  // TODO: Remove this once cachedNavigations is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
     // We do respect an explicit value in the user config.
@@ -2296,30 +2382,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
     config.experimental.cachedNavigations = true
-  }
-
-  // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
-  // keep test coverage of the old scroll handler on the non-experimental CI
-  // shards. Like the other env-var experimental toggles, opting out is surfaced
-  // in the reported experimental features.
-  // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
-  // for test coverage.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'false' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.appNewScrollHandler === undefined ||
-      (isDefaultConfig && config.experimental.appNewScrollHandler))
-  ) {
-    config.experimental.appNewScrollHandler = false
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'appNewScrollHandler',
-        false,
-        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
-      )
-    }
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

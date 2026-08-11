@@ -3,7 +3,7 @@ import { cacheLife } from 'next/cache'
 import { cookies } from 'next/headers'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

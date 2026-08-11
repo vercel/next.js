@@ -98,7 +98,10 @@ export function runInstantValidationTests(
       browser: Playwright,
       url: string
     ): Promise<void> {
-      await waitForValidation(url, getCliOutputSinceMark)
+      const { start } = await waitForValidation(url, getCliOutputSinceMark)
+      if (start.responseFinished !== undefined) {
+        expect(start.responseFinished).toBe(true)
+      }
       await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
     }
 
