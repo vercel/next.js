@@ -873,8 +873,7 @@ async function createComponentTreeInternal(
       // If we are passing searchParams to a server component Page we need to
       // track their usage in case the current render mode tracks dynamic API
       // usage.
-      let searchParams = createServerSearchParamsForServerPage(
-        query,
+      const searchParams = createServerSearchParamsForServerPage(
         varyParamsAccumulator
       )
 

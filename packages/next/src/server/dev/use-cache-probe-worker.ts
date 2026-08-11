@@ -10,7 +10,10 @@ import { AfterContext } from '../after/after-context'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  EMPTY_SEARCH_PARAMS,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { getServerModuleMap } from '../app-render/manifests-singleton'
 import { createSnapshot } from '../app-render/async-local-storage'
 import { createRequestStore } from '../async-storage/request-store'
@@ -161,6 +164,9 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       headers: new Headers(msg.request.headers),
       onUpdateCookies: undefined,
       url: { pathname: msg.request.urlPathname, search: msg.request.urlSearch },
+      // `searchParams` access inside `use cache` throws, so the probe never
+      // observes these values.
+      searchParams: EMPTY_SEARCH_PARAMS,
       rootParams: msg.request.rootParams,
       implicitTags: { tags: [], expirationsByCacheKind: new Map() },
       resumeDataCache: null,

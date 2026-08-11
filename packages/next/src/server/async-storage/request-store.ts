@@ -1,6 +1,9 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
-import type { RequestStore } from '../app-render/work-unit-async-storage.external'
+import {
+  EMPTY_SEARCH_PARAMS,
+  type RequestStore,
+} from '../app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
@@ -27,6 +30,7 @@ import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
+import type { SearchParams } from '../request/search-params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
@@ -120,6 +124,15 @@ export type RequestStoreInputs = {
    */
   onUpdateCookies: ((cookies: string[]) => void) | undefined
   url: { pathname: string; search?: string }
+  /**
+   * The parsed, internal-query-stripped query this store hands to the search
+   * params machinery. For page renders this is the query resolved by the
+   * router, which can differ from `url.search` (the original request URL)
+   * when a rewrite adds or changes query params. Scopes that never hand a
+   * page its `searchParams` prop (API routes, probe workers) pass
+   * `EMPTY_SEARCH_PARAMS`.
+   */
+  searchParams: SearchParams
   rootParams: Params
   implicitTags: ImplicitTags
   resumeDataCache: ResumeDataCache | null
@@ -172,6 +185,7 @@ export function createRequestStoreForRender(
   req: RequestContext['req'],
   res: RequestContext['res'],
   url: RequestContext['url'],
+  searchParams: SearchParams,
   rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
@@ -194,6 +208,7 @@ export function createRequestStoreForRender(
           }
         : undefined),
     url,
+    searchParams,
     rootParams,
     implicitTags,
     resumeDataCache,
@@ -219,6 +234,7 @@ export function createRequestStoreForAPI(
     headers: req.headers,
     onUpdateCookies,
     url,
+    searchParams: EMPTY_SEARCH_PARAMS,
     rootParams: {},
     implicitTags,
     resumeDataCache: null,
@@ -243,6 +259,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     headers,
     onUpdateCookies,
     url,
+    searchParams,
     rootParams,
     implicitTags,
     resumeDataCache,
@@ -272,6 +289,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
     rootParams,
+    searchParams,
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could

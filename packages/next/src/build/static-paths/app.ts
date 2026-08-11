@@ -35,6 +35,7 @@ import { isPlainObject } from '../../shared/lib/is-plain-object'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
@@ -629,6 +630,7 @@ async function callGenerateStaticParams(
     phase: 'render',
     implicitTags,
     rootParams,
+    searchParams: EMPTY_SEARCH_PARAMS,
     segmentStore: null,
     metadataSegmentStore: null,
   }
