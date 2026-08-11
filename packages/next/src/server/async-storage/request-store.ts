@@ -27,8 +27,11 @@ import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
+import type { SearchParams } from '../request/search-params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import { stripInternalQueries } from '../internal-utils'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   // `HeadersAdapter.from` wraps `IncomingHttpHeaders` (and returns a `Headers`
@@ -259,6 +262,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     mutableCookies?: ResponseCookies
     userspaceMutableCookies?: ResponseCookies
     draftMode?: DraftModeProvider
+    searchParams?: SearchParams
   } = {}
 
   return {
@@ -270,6 +274,19 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
     rootParams,
+    get searchParams() {
+      if (!cache.searchParams) {
+        // Parse lazily so request stores that never render a page (e.g. API
+        // routes) don't pay for it. Mirrors the parse the render pipeline does
+        // for the by-value query, so the by-reference and by-value paths agree.
+        const parsed = searchParamsToUrlQuery(
+          new URLSearchParams(url.search ?? '')
+        ) as SearchParams
+        stripInternalQueries(parsed)
+        cache.searchParams = parsed
+      }
+      return cache.searchParams
+    },
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could

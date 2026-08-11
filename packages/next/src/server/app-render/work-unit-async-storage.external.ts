@@ -14,6 +14,7 @@ import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
+import type { SearchParams } from '../request/search-params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -35,7 +36,24 @@ export interface CommonWorkUnitStore {
    * not outlive a single render pass.
    */
   segmentStore?: WeakMap<object, SegmentStore>
+
+  /**
+   * The raw search params for this work unit — the single source of truth
+   * that the search params machinery reads. Set by whoever creates the store:
+   * the parsed, internal-query-stripped query for stores that carry a request
+   * URL (`request`, `prerender-runtime`), and `EMPTY_SEARCH_PARAMS` for
+   * scopes without one (static prerenders, caches, `generateStaticParams`,
+   * ...), where the values are never observable anyway.
+   */
+  searchParams: SearchParams
 }
+
+/**
+ * The `searchParams` a work unit store carries when its scope has no request
+ * URL. Shared because it's never observed (the machinery hangs, postpones, or
+ * errors for those scopes rather than reading the values) and never mutated.
+ */
+export const EMPTY_SEARCH_PARAMS: SearchParams = {}
 
 export interface RequestStore extends CommonWorkUnitStore {
   readonly type: 'request'
@@ -240,6 +258,14 @@ export interface PrerenderStoreModernRuntime
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
+
+  /**
+   * The URL of the runtime prefetch request this prerender is serving. Unlike
+   * a static prerender, a runtime prerender has a concrete request URL, so
+   * request data derived from it — notably `searchParams` — resolves to real
+   * values here.
+   */
+  readonly url: RequestStore['url']
 }
 
 export interface RevalidateStore {

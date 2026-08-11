@@ -246,6 +246,7 @@ import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   getHmrRefreshHash,
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
 import { consoleAsyncStorage } from './console-async-storage.external'
@@ -724,7 +725,6 @@ async function generateDynamicRSCPayload(
 
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
-      parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
@@ -1689,6 +1689,10 @@ async function prospectiveRuntimeServerPrerender(
     phase: 'render',
     rootParams,
     implicitTags,
+    // A runtime prerender serves a concrete request URL, so its search params
+    // are the render's already-parsed query — the same source the by-value
+    // prop reads (see `CommonWorkUnitStore.searchParams`).
+    searchParams: ctx.query,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     // During the initial prerender we need to track all cache reads to ensure
@@ -1717,6 +1721,7 @@ async function prospectiveRuntimeServerPrerender(
     headers: HeadersAdapter.fresh(headers),
     cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
+    url: ctx.url,
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -1873,6 +1878,9 @@ async function finalRuntimeServerPrerender(
     phase: 'render',
     rootParams,
     implicitTags,
+    // See `initialServerPrerenderStore` above: the runtime prerender's search
+    // params are the render's already-parsed query.
+    searchParams: ctx.query,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // All caches we could read must already be filled so no tracking is necessary
@@ -1894,6 +1902,7 @@ async function finalRuntimeServerPrerender(
     headers: HeadersAdapter.fresh(headers),
     cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
+    url: ctx.url,
   }
 
   trackStaleTime(finalServerPrerenderStore, staleTimeIterable, selectStaleTime)
@@ -2154,7 +2163,6 @@ async function getRSCPayload(
     // metadata from the not-found.js boundary.
     // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
     errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
-    parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
@@ -2297,7 +2305,6 @@ async function getErrorRSCPayload(
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
       tree,
-      parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       errorType,
@@ -6948,6 +6955,7 @@ async function warmupClientModulesForStagedValidation(
   if (storeType === 'prerender-client') {
     const store: PrerenderStoreModernClient = {
       type: 'prerender-client',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       rootParams,
       fallbackRouteParams,
@@ -6972,6 +6980,7 @@ async function warmupClientModulesForStagedValidation(
   } else {
     const store: ValidationStoreClient = {
       type: 'validation-client',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       rootParams,
       implicitTags,
@@ -7126,6 +7135,7 @@ async function validateStagedShell(
 
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender-client',
+    searchParams: EMPTY_SEARCH_PARAMS,
     phase: 'render',
     rootParams,
     fallbackRouteParams,
@@ -7412,6 +7422,7 @@ async function validateInstantConfigs(
 
     const prerenderStore: PrerenderStore = {
       type: 'validation-client',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       rootParams,
       implicitTags,
@@ -8225,6 +8236,8 @@ async function validateInstantConfigInBuildWithSample(
           pathname: sampleUrl.pathname,
           search: sampleUrl.search,
         },
+        // The parsed query for this validation sample's URL.
+        searchParams: sampleQuery,
         headers: sampleHeaders,
         cookies: sampleCookies,
         mutableCookies: unusedMutableCookies,
@@ -8679,6 +8692,7 @@ async function prerenderToStream(
 
       const initialServerPayloadPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -8721,6 +8735,7 @@ async function prerenderToStream(
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -8847,6 +8862,7 @@ async function prerenderToStream(
 
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
+          searchParams: EMPTY_SEARCH_PARAMS,
           phase: 'render',
           rootParams,
           fallbackRouteParams,
@@ -8990,6 +9006,7 @@ async function prerenderToStream(
 
       const finalServerPayloadPrerenderStore: PrerenderStoreModernServer = {
         type: 'prerender',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9053,6 +9070,7 @@ async function prerenderToStream(
 
       const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9291,6 +9309,7 @@ async function prerenderToStream(
 
       const finalClientPrerenderStore: PrerenderStore = {
         type: 'prerender-client',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9519,6 +9538,7 @@ async function prerenderToStream(
     } else {
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         implicitTags,
@@ -9740,6 +9760,7 @@ async function prerenderToStream(
       )
       const errorPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        searchParams: EMPTY_SEARCH_PARAMS,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9835,6 +9856,7 @@ async function prerenderToStream(
         const errorDynamicValidation = createDynamicValidationState()
         const errorClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
+          searchParams: EMPTY_SEARCH_PARAMS,
           phase: 'render',
           rootParams,
           fallbackRouteParams,
@@ -10057,6 +10079,7 @@ async function prerenderToStream(
 
     const prerenderLegacyStore: PrerenderStore = {
       type: 'prerender-legacy',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       rootParams,
       implicitTags: implicitTags,
