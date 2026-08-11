@@ -147,10 +147,6 @@ impl MetaEntry {
         self.amqf_data_offset.end - self.amqf_data_offset.start
     }
 
-    /// The AMQF filter for this SST, for membership probes that must not open the file.
-    ///
-    /// The error is one-sided: `contains_fingerprint` returning `false` means the key is
-    /// definitely absent, `true` means it is probably present.
     pub fn amqf(&self) -> &qfilter::FilterRef<'static> {
         &self.amqf
     }

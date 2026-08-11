@@ -1570,8 +1570,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     .collect::<Vec<_>>();
 
                                 // A tombstone is dead if no older SST contains a matching key
-                                // This can have false negatives due to the filters but no false
-                                // positives.
+                                // This can have false negatives (report dead tombstones as live)
+                                // due to the filters but no false positives.
                                 move |hash: u64| {
                                     !older_filters.iter().any(|(min, max, amqf)| {
                                         hash >= *min
