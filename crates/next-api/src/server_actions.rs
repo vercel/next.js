@@ -50,6 +50,7 @@ use turbopack_ecmascript::{
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
+    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
 };
 
 use crate::project::Project;
@@ -583,6 +584,22 @@ pub fn parse_server_actions(
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
 async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
+    // Modules from packages that declare `sideEffects: false` (e.g. the
+    // generated app page entry, whose ident lives under `next/dist`) appear
+    // in the graph as side-effect-optimization facade + locals wrappers
+    // rather than the plain module. Look through the locals wrapper to parse
+    // the underlying full module. The facade is left unhandled (it fails the
+    // sidecast below), so each optimized module contributes its actions only
+    // once, keyed by the locals module — which is also the module whose
+    // exports include the action bindings.
+    let module = if let Some(locals) =
+        ResolvedVc::try_downcast_type::<EcmascriptModuleLocalsModule>(module)
+    {
+        ResolvedVc::upcast(locals.await?.module)
+    } else {
+        module
+    };
+
     let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     else {
         return Ok(Vc::cell(None));
