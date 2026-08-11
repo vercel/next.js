@@ -190,6 +190,8 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
 struct Drafts {
     #[serde(default)]
     custom_media: bool,
+    #[serde(default)]
+    scroll_navigation_controls: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -224,6 +226,10 @@ fn compile<'i>(
         flags.set(
             ParserFlags::CUSTOM_MEDIA,
             matches!(drafts, Some(d) if d.custom_media),
+        );
+        flags.set(
+            ParserFlags::SCROLL_NAVIGATION_CONTROLS,
+            matches!(drafts, Some(d) if d.scroll_navigation_controls),
         );
         flags.set(
             ParserFlags::DEEP_SELECTOR_COMBINATOR,
