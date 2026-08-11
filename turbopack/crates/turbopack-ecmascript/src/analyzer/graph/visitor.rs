@@ -818,6 +818,21 @@ pub fn as_parent_path_with_in<'a>(
     path.into_boxed_slice()
 }
 
+/// Whether the node at `ast_path` is a whole statement, so its value goes nowhere:
+/// true for `module.exports = {};` and `(module.exports = {});`, false for
+/// `var x = module.exports = {}` or `f(module.exports = {})`.
+fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            // The `Expr` wrapper of the node itself, and of a parenthesized one.
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr) => return true,
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// Returns the [`MemberExpr`] where the current node is the object:
 /// `<node>.<prop>` or `<node>[<expr>]`.
 fn member_access_parent<'r>(
@@ -1452,6 +1467,11 @@ impl<'a> Analyzer<'a, '_> {
             self.taint_cjs_exports();
             return;
         }
+        // Catches `var Self = Object.defineProperty(exports, …)`: the call returns exports.
+        if !is_expression_statement(ast_path) {
+            self.taint_cjs_exports();
+            return;
+        }
         let dead = self.cjs_exports_object_replaced()
             && !n.args.first().is_some_and(|target| {
                 is_module_exports_chain(&target.expr, self.eval_context.unresolved_mark)
@@ -1487,13 +1507,13 @@ impl<'a> Analyzer<'a, '_> {
         else {
             return;
         };
-        // Only a statement-position assignment definitely runs.
-        if matches!(
-            ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)),
-            Some(AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr))
-        ) {
-            self.replace_cjs_exports_object();
+        // Catches `var Self = module.exports = { … }`: the alias reads exports back.
+        if !is_expression_statement(ast_path) {
+            self.taint_cjs_exports();
+            return;
         }
+        // A statement-position assignment definitely runs.
+        self.replace_cjs_exports_object();
         let mut names = Vec::new();
         for prop in &obj.props {
             // A spread makes the export set unknowable.
