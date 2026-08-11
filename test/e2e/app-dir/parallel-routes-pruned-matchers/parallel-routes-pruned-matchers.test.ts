@@ -1,29 +1,81 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from 'router-act'
+import cheerio from 'cheerio'
+import stripAnsi from 'strip-ansi'
+
+const prunedRoutes: Array<[path: string, layoutId: string]> = [
+  ['/named-catchall/anything', 'named-catchall-layout'],
+  ['/children-catchall/foo', 'children-catchall-layout'],
+  ['/children-catchall/bar', 'children-catchall-layout'],
+  ['/optional-children-catchall', 'optional-children-catchall-layout'],
+  ['/optional-children-catchall/anything', 'optional-children-catchall-layout'],
+  ['/split-matcher/anything', 'split-matcher-layout'],
+  ['/nested-parallel/anything', 'nested-parallel-layout'],
+  ['/grouped/anything', 'grouped-layout'],
+]
+
+function getAppRoutes(cliOutput: string): string[] {
+  const routes: string[] = []
+  let inAppRoutes = false
+
+  for (const line of stripAnsi(cliOutput).split('\n')) {
+    if (line.startsWith('Route (app)')) {
+      inAppRoutes = true
+      continue
+    }
+    if (!inAppRoutes) continue
+
+    const match = line.match(/^[┌├└] +(?:\S+ +)?(\/\S+)/)
+    if (match) routes.push(match[1])
+    if (line.startsWith('└')) break
+  }
+
+  return routes
+}
 
 describe('parallel-routes-pruned-matchers', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
-  it.each([
-    ['/named-catchall/anything', 'named-catchall-layout'],
-    ['/children-catchall/foo', 'children-catchall-layout'],
-    ['/children-catchall/bar', 'children-catchall-layout'],
-    ['/optional-children-catchall', 'optional-children-catchall-layout'],
-    [
-      '/optional-children-catchall/anything',
-      'optional-children-catchall-layout',
-    ],
-    ['/split-matcher/anything', 'split-matcher-layout'],
-    ['/nested-parallel/anything', 'nested-parallel-layout'],
-    ['/grouped/anything', 'grouped-layout'],
-  ])(
+  it.each(prunedRoutes)(
     'omits the permanently-not-found matcher for %s',
     async (path, layoutId) => {
-      const $ = await next.render$(path)
+      const response = await next.fetch(path)
+      const $ = cheerio.load(await response.text())
 
+      expect(response.status).toBe(404)
       expect($.root().text()).toContain('root not found')
       expect($(`#${layoutId}`).length).toBe(0)
+    }
+  )
+
+  it.each(prunedRoutes)(
+    'renders the same 404 after client navigation to %s',
+    async (path, layoutId) => {
+      let act: ReturnType<typeof createRouterAct>
+      const responseStatuses: number[] = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          page.on('response', (response) => {
+            if (new URL(response.url()).pathname === path) {
+              responseStatuses.push(response.status())
+            }
+          })
+          act = createRouterAct(page, { allowErrorStatusCodes: [404] })
+        },
+      })
+
+      await act!(async () => {
+        await browser.elementByCss(`button[data-router-push="${path}"]`).click()
+      })
+
+      await browser.waitForElementByCss('#root-not-found')
+      expect(await browser.elementById('root-not-found').text()).toBe(
+        'root not found'
+      )
+      expect(await browser.hasElementByCss(`#${layoutId}`)).toBe(false)
+      expect(responseStatuses).toContain(404)
     }
   )
 
@@ -35,10 +87,36 @@ describe('parallel-routes-pruned-matchers', () => {
   })
 
   it('keeps a broad matcher composed entirely from named slots', async () => {
-    const $ = await next.render$('/named-only-catchalls/anything')
+    const browser = await next.browser('/named-only-catchalls/anything')
 
-    expect($('#named-only-left-catchall').text()).toBe('left catch-all')
-    expect($('#named-only-right-catchall').text()).toBe('right catch-all')
+    expect(await browser.elementById('named-only-left-catchall').text()).toBe(
+      'left catch-all'
+    )
+    expect(await browser.elementById('named-only-right-catchall').text()).toBe(
+      'right catch-all'
+    )
+  })
+
+  it('renders a route with only named slots after client navigation', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const path = '/named-only-catchalls/anything'
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    await act!(async () => {
+      await browser.elementByCss(`button[data-router-push="${path}"]`).click()
+    })
+
+    await browser.waitForElementByCss('#named-only-catchalls-layout')
+    expect(await browser.elementById('named-only-left-catchall').text()).toBe(
+      'left catch-all'
+    )
+    expect(await browser.elementById('named-only-right-catchall').text()).toBe(
+      'right catch-all'
+    )
   })
 
   it('keeps a named catch-all when children has an explicit default', async () => {
@@ -112,52 +190,36 @@ describe('parallel-routes-pruned-matchers', () => {
   })
 
   if (isNextStart) {
-    it('does not emit entrypoints for pruned matchers', async () => {
-      const manifest = JSON.parse(
-        await next.readFile('.next/server/app-paths-manifest.json')
-      )
-      const appPaths = Object.keys(manifest)
+    it('lists only retained routes in the build output', () => {
+      const appRoutes = getAppRoutes(next.cliOutput)
+      const omittedRoutes = [
+        '/named-catchall/[...slug]',
+        '/children-catchall/[...slug]',
+        '/optional-children-catchall/[[...slug]]',
+        '/split-matcher/[...parts]',
+        '/nested-parallel/[...slug]',
+        '/grouped/[...slug]',
+      ]
 
       expect(
-        appPaths.filter(
-          (path) =>
-            path.includes('/named-catchall/@catchall/[...slug]/') ||
-            path.startsWith('/children-catchall/') ||
-            path.includes('/optional-children-catchall/[[...slug]]/') ||
-            path.includes('/split-matcher/[...parts]/') ||
-            path.includes('/nested-parallel/[...slug]/') ||
-            path.includes('/grouped/[...slug]/')
-        )
+        appRoutes.filter((route) => omittedRoutes.includes(route))
       ).toEqual([])
-      expect(appPaths).toContain('/named-catchall/@specific/foo/page')
-      expect(
-        appPaths.some(
-          (path) =>
-            path.includes('/named-only-catchalls/') &&
-            path.includes('/[...slug]/page')
-        )
-      ).toBe(true)
-      expect(
-        appPaths.some(
-          (path) =>
-            path.includes('/children-default/') &&
-            path.includes('/[...slug]/page')
-        )
-      ).toBe(true)
-      expect(
-        appPaths.filter(
-          (path) =>
-            path.includes('/complete-catchalls/') &&
-            path.includes('/[...slug]/page')
-        )
-      ).toHaveLength(2)
-      expect(appPaths).toContain('/valid/[...slug]/page')
-      expect(appPaths).toContain('/optional-children-catchall/specific/page')
-      expect(appPaths).toContain('/split-matcher/foo/page')
-      expect(appPaths).toContain('/split-matcher/bar/page')
-      expect(appPaths).toContain('/default-not-found/[...slug]/page')
-      expect(appPaths).toContain('/nested-parallel/specific/page')
-      expect(appPaths).toContain('/(pruning-group)/grouped/specific/page')
+      expect(appRoutes).toEqual(
+        expect.arrayContaining([
+          '/named-catchall/foo',
+          '/named-only-catchalls/[...slug]',
+          '/children-default/[...slug]',
+          '/complete-catchalls/[...slug]',
+          '/valid/[...slug]',
+          '/valid/special',
+          '/optional-children-catchall/specific',
+          '/split-matcher/foo',
+          '/split-matcher/bar',
+          '/default-not-found/[...slug]',
+          '/nested-parallel/specific',
+          '/grouped/specific',
+        ])
+      )
     })
   }
 })
