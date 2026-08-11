@@ -111,6 +111,7 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
+    chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
     module_fragments::{part_of_module, split_module},
@@ -166,6 +167,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    /// Present when the module is a statically-analyzable CommonJS module;
+    /// carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 #[turbo_tasks::value_impl]
@@ -223,6 +227,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     side_effects: ModuleSideEffects,
+    cjs_static_exports: Option<CjsStaticExports>,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -242,6 +247,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             side_effects: ModuleSideEffects::SideEffectful,
+            cjs_static_exports: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -428,6 +434,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
+                cjs_static_exports: self.cjs_static_exports,
             },
         ))
     }
@@ -826,6 +833,7 @@ async fn analyze_ecmascript_module_internal(
                 supports_block_scoping,
                 specified_type,
                 options.cjs_tree_shaking,
+                options.cjs_scope_hoisting,
             ));
         });
         graph.unwrap()
@@ -837,6 +845,8 @@ async fn analyze_ecmascript_module_internal(
         let effects = take(&mut var_graph.effects);
         // How each `require("…")` call's result is used, keyed by call position.
         let require_binding_usage = take(&mut var_graph.require_usage);
+        // The module's static CommonJS exports, if any, for scope hoisting.
+        analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {

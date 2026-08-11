@@ -966,6 +966,13 @@ export interface ExperimentalConfig {
   turbopackCjsTreeShaking?: boolean
 
   /**
+   * Enable scope hoisting of static CommonJS modules.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsScopeHoisting?: boolean
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *

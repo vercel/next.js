@@ -1431,6 +1431,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Enable scope hoisting of static CommonJS modules. Defaults to false.
+    turbopack_cjs_scope_hoisting: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -2539,6 +2541,15 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .turbopack_cjs_tree_shaking
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_scope_hoisting
                 .unwrap_or(false),
         )
     }
