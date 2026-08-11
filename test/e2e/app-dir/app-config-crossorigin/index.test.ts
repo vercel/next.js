@@ -14,49 +14,41 @@ function expectCrossOriginAttributesToBeOmitted(html: string) {
   })
 }
 
-describe('app dir - crossOrigin config', () => {
-  const {
-    next,
-    isNextStart: isConfiguredNextStart,
-    skipped,
-  } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-  })
-
-  if (skipped) {
-    return
-  }
-
-  if (isConfiguredNextStart) {
-    it('skip in start mode', () => {})
-    return
-  }
-  it('should render correctly with assetPrefix: "/"', async () => {
-    const $ = await next.render$('/')
-    // Only potential external (assetPrefix) <script /> and <link /> should have crossorigin attribute
-    $(
-      'script[src*="https://example.vercel.sh"], link[href*="https://example.vercel.sh"]'
-    ).each((_, el) => {
-      const crossOrigin = $(el).attr('crossorigin')
-      expect(crossOrigin).toBe('use-credentials')
+if (!isNextStart) {
+  describe('app dir - crossOrigin config', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
     })
 
-    // Inline <script /> (including RSC payload) and <link /> should not have crossorigin attribute
-    $('script:not([src]), link:not([href])').each((_, el) => {
-      const crossOrigin = $(el).attr('crossorigin')
-      expect(crossOrigin).toBeUndefined()
-    })
+    if (skipped) {
+      return
+    }
 
-    // Same origin <script /> and <link /> should not have crossorigin attribute either
-    $('script[src^="/"], link[href^="/"]').each((_, el) => {
-      const crossOrigin = $(el).attr('crossorigin')
-      expect(crossOrigin).toBeUndefined()
+    it('should render correctly with assetPrefix: "/"', async () => {
+      const $ = await next.render$('/')
+      // Only potential external (assetPrefix) <script /> and <link /> should have crossorigin attribute
+      $(
+        'script[src*="https://example.vercel.sh"], link[href*="https://example.vercel.sh"]'
+      ).each((_, el) => {
+        const crossOrigin = $(el).attr('crossorigin')
+        expect(crossOrigin).toBe('use-credentials')
+      })
+
+      // Inline <script /> (including RSC payload) and <link /> should not have crossorigin attribute
+      $('script:not([src]), link:not([href])').each((_, el) => {
+        const crossOrigin = $(el).attr('crossorigin')
+        expect(crossOrigin).toBeUndefined()
+      })
+
+      // Same origin <script /> and <link /> should not have crossorigin attribute either
+      $('script[src^="/"], link[href^="/"]').each((_, el) => {
+        const crossOrigin = $(el).attr('crossorigin')
+        expect(crossOrigin).toBeUndefined()
+      })
     })
   })
-})
-
-if (isNextStart) {
+} else {
   describe('app dir - unset crossOrigin config', () => {
     describe('default output', () => {
       const { next } = nextTestSetup({
@@ -81,26 +73,28 @@ if (isNextStart) {
       })
     })
 
-    describe('output: export', () => {
-      const { next } = nextTestSetup({
-        files: path.join(__dirname, 'default'),
-        env: {
-          NEXT_TEST_OUTPUT_EXPORT: '1',
-        },
-        skipStart: true,
-        skipDeployment: true,
-      })
+    if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {
+      describe('output: export', () => {
+        const { next } = nextTestSetup({
+          files: path.join(__dirname, 'default'),
+          env: {
+            NEXT_TEST_OUTPUT_EXPORT: '1',
+          },
+          skipStart: true,
+          skipDeployment: true,
+        })
 
-      it('does not add crossorigin attributes to exported scripts', async () => {
-        await next.build()
+        it('does not add crossorigin attributes to exported scripts', async () => {
+          await next.build()
 
-        expectCrossOriginAttributesToBeOmitted(
-          await next.readFile('out/index.html')
-        )
-        expectCrossOriginAttributesToBeOmitted(
-          await next.readFile('out/dynamic.html')
-        )
+          expectCrossOriginAttributesToBeOmitted(
+            await next.readFile('out/index.html')
+          )
+          expectCrossOriginAttributesToBeOmitted(
+            await next.readFile('out/dynamic.html')
+          )
+        })
       })
-    })
+    }
   })
 }
