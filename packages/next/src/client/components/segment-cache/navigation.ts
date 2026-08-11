@@ -414,6 +414,8 @@ function navigateUsingPrefetchedRouteTree(
     isHeadPartial: true,
     headVaryParams: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+    // Not derived from a server response; no base to diverge from.
+    treeDivergedFromBase: false,
   }
   return navigateToKnownRoute(
     now,
