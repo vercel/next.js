@@ -59,7 +59,10 @@ import {
   createMetadataRouteTree,
 } from './cache'
 import { isValueExpired } from './cache-map'
-import { doesStaticSegmentAppearInURL } from '../../route-params'
+import {
+  canonicalizeURLPart,
+  doesStaticSegmentAppearInURL,
+} from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
 import { splitPathnameIntoParts } from './cache-key'
 import {
@@ -117,7 +120,9 @@ type KnownRoutePartBase = {
   pattern: FulfilledRouteCacheEntry | null
 
   // TODO: For prefix rewrite support. When true, this part may not appear in
-  // the candidate URL because it was injected by a rewrite.
+  // the candidate URL because it was injected by a rewrite. Today, discovery
+  // refuses to store a pattern for such routes (see the cache key comparison
+  // in discoverKnownRoutePart); this field would let them be predicted.
   // mayBeSkippedInURL: boolean
 }
 
@@ -414,6 +419,7 @@ function discoverKnownRoutePart(
   } else {
     // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
     const paramName: string = segment[0]
+    const paramCacheKey: string = segment[1]
     const paramType: DynamicParamTypesShort = segment[2]
     const staticSiblings: readonly string[] | null = segment[3]
 
@@ -455,6 +461,78 @@ function discoverKnownRoutePart(
         canonicalUrl,
         supportsPerSegmentPrefetching
       )
+    }
+
+    // The param's cache key holds the value parsed from the *rendered*
+    // pathname. If the URL part(s) this segment would consume don't equal
+    // that value, the response was rewrite-affected in a way that shifts
+    // which URL part maps to which segment (e.g. a proxy injected a leading
+    // locale segment). A static segment catches this above by failing to
+    // match its URL part; a dynamic segment consumes whatever part is in
+    // front of it, so compare against the rendered value instead. Bail out.
+    switch (paramType) {
+      case 'd': {
+        // Canonicalize the URL part to the same encoded form the server used
+        // for the cache key.
+        if (
+          urlPart !== null &&
+          canonicalizeURLPart(urlPart) !== paramCacheKey
+        ) {
+          return handleMismatchDueToRewrite(
+            existingEntry,
+            now,
+            pathname,
+            search,
+            nextUrl,
+            fullTree,
+            metadataVaryPath,
+            couldBeIntercepted,
+            canonicalUrl,
+            supportsPerSegmentPrefetching
+          )
+        }
+        break
+      }
+      case 'c':
+      case 'oc': {
+        // Catch-alls consume every remaining URL part; their cache keys are
+        // the rendered parts joined with '/' (empty string for an empty
+        // optional catch-all). Comparing the joined remainder also catches a
+        // rewrite that appended segments the URL doesn't have.
+        const joinedRemainingParts = pathnameParts
+          .slice(partIndex)
+          .map(canonicalizeURLPart)
+          .join('/')
+        if (joinedRemainingParts !== paramCacheKey) {
+          return handleMismatchDueToRewrite(
+            existingEntry,
+            now,
+            pathname,
+            search,
+            nextUrl,
+            fullTree,
+            metadataVaryPath,
+            couldBeIntercepted,
+            canonicalUrl,
+            supportsPerSegmentPrefetching
+          )
+        }
+        break
+      }
+      case 'ci(..)(..)':
+      case 'ci(.)':
+      case 'ci(..)':
+      case 'ci(...)':
+      case 'di(..)(..)':
+      case 'di(.)':
+      case 'di(..)':
+      case 'di(...)':
+        // Interception params embed relative markers in their values, and
+        // patterns containing them are never used for prediction anyway (see
+        // matchKnownRoutePart), so skip the comparison.
+        break
+      default:
+        paramType satisfies never
     }
 
     // URL matches route structure. Build the known route tree.

@@ -82,7 +82,7 @@ export function createInitialRouterState({
   // trees with InliningHintsStale, which causes the route cache entry to be
   // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
-  const acc = { metadataVaryPath: null }
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
   const initialRouteTree = decodeTransportTreeIntoRouteTree(
     initialTransportData.t,
     // There's no base tree to overlay onto; the initial payload is a full
