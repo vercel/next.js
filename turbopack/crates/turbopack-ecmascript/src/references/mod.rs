@@ -1339,13 +1339,14 @@ async fn analyze_ecmascript_module_internal(
                                 ImportAttributes::empty_ref(),
                             )
                             .await?
+                        && let Ok(c) = CompileTimeDefineValue::try_from(&c)
+                    // We can only inline values that are supported by CompileTimeDefineValue. So
+                    // currently not NaN and Infinity.
                     {
-                        // This is a constant import, we can inline it directly without creating a
-                        // reference
-                        analysis.add_code_gen(ConstantValueCodeGen::new_constant(
-                            &c,
-                            ast_path.to_vec().into(),
-                        )?);
+                        // This is a constant import, we can inline it directly without creating
+                        // a reference
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
                     } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(

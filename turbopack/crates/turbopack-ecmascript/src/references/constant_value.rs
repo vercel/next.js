@@ -15,7 +15,6 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use crate::{
-    analyzer::ConstantValue,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -32,12 +31,6 @@ pub struct ConstantValueCodeGen {
 impl ConstantValueCodeGen {
     pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
         ConstantValueCodeGen { value, path }
-    }
-    pub fn new_constant(value: &ConstantValue, path: AstPath) -> Result<Self> {
-        Ok(ConstantValueCodeGen {
-            value: value.try_into()?,
-            path,
-        })
     }
     pub async fn code_generation(
         &self,
