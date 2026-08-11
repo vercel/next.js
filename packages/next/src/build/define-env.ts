@@ -169,8 +169,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME':
-      config.experimental.turbopackSharedRuntime !== false,
+    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
+      config.experimental.turbopackSharedRuntime
+    ),
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
