@@ -174,6 +174,7 @@ impl WriteOperationGuard<'_> {
 /// - New fields should be `#[serde(default)]` and semantically optional to readers from other
 ///   versions
 /// - Never add `#[serde(deny_unknown_fields)]`.
+///
 /// Field names are also parsed outside this crate (next.js reads `CURRENT` directly, in
 /// `turbopack-cache-seed.ts`), so a rename would have to move in lockstep there too.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
