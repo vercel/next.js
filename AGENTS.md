@@ -296,13 +296,15 @@ While you cannot write the full description for the user, you may offer to help 
 Fork PRs run without repository secrets, so deploy tests never run on them. To run those tests, a maintainer adopts the PR: the contributor's commits are re-pushed to a branch in `vercel/next.js` and a replacement PR is opened from there.
 
 ```bash
-node scripts/adopt-pr.js <pr-number>            # adopt
-node scripts/adopt-pr.js <pr-number> --dry-run  # report without pushing
+pnpm pr-adopt <pr-number>            # adopt
+pnpm pr-adopt <pr-number> --dry-run  # report without pushing
 ```
 
-The script resolves the `vercel/next.js` remote itself, checks out the PR without rewriting its commits (authorship must survive), pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line.
+The script resolves the `vercel/next.js` remote itself, checks out the PR, pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line. The adopted PR inherits the original's base branch; it is never retargeted at `canary`.
 
-Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in `canary`.
+Contributor commits usually arrive unsigned, and protected branches require verified signatures, so the branch is re-signed before pushing. Each `Author` is preserved and the tree is checked to be byte-identical afterwards. Note that `%G?` reports whether a signature _verifies_, not whether one exists, so it reads `N` for every commit when SSH signing has no `gpg.ssh.allowedSignersFile`; signature detection reads the raw commit headers instead.
+
+Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in the base branch.
 
 **Adoption grants the contributor's code access to repository secrets**, because CI trusts branches inside `vercel/next.js`. Anything in the diff that runs during install, build, or test can exfiltrate them. The script requires an interactive confirmation that names the author and lists every touched file; never bypass it, and never adopt a PR whose full diff has not been read. The file list is deliberately unranked, since a payload can sit in any fixture or source file and calling some paths risky would imply the rest are safe.
 

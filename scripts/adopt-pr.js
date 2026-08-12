@@ -13,30 +13,22 @@
  *
  *   node scripts/adopt-pr.js <pr-number>
  *   node scripts/adopt-pr.js <pr-number> --dry-run
+ *   pnpm pr-adopt <pr-number>
  */
 
-const { execFileSync, spawnSync } = require('child_process')
+const execa = require('execa')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const readline = require('readline')
 
 const REPO = 'vercel/next.js'
-const BASE_BRANCH = 'canary'
 
 /**
- * An expected, actionable problem: bad arguments, a PR that should not be
- * adopted, a dirty tree, a declined confirmation. These print as a plain
- * message. Everything else keeps its stack and `cause` chain, because an
- * unexpected failure is worth the full trace.
+ * Only used to highlight an unusual base in the summary. The adopted PR always
+ * inherits the original's base branch rather than defaulting to this one.
  */
-class UsageError extends Error {
-  /** @param {string} message */
-  constructor(message) {
-    super(message)
-    this.name = 'UsageError'
-  }
-}
+const DEFAULT_BRANCH = 'canary'
 
 const useColor = process.stdout.isTTY === true
 /** @type {(text: string) => string} */
@@ -49,25 +41,19 @@ const yellow = (text) => (useColor ? `\x1b[33m${text}\x1b[0m` : text)
 const dim = (text) => (useColor ? `\x1b[2m${text}\x1b[0m` : text)
 
 /**
- * Runs a command and captures stdout. Uses execFile semantics so arguments are
- * never interpreted by a shell.
+ * Runs a command and returns its trimmed stdout. Arguments are passed as an
+ * array, so nothing is interpreted by a shell.
  *
  * @param {string} file
  * @param {string[]} args
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function capture(file, args) {
-  try {
-    return execFileSync(file, args, {
-      encoding: 'utf8',
-      maxBuffer: 32 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim()
-  } catch (error) {
-    throw new Error(`Command failed: ${file} ${args.join(' ')}`, {
-      cause: error,
-    })
-  }
+async function capture(file, args) {
+  const { stdout } = await execa(file, args, {
+    maxBuffer: 32 * 1024 * 1024,
+  })
+
+  return stdout.trim()
 }
 
 /**
@@ -75,21 +61,10 @@ function capture(file, args) {
  *
  * @param {string} file
  * @param {string[]} args
+ * @returns {Promise<void>}
  */
-function runInherit(file, args) {
-  const result = spawnSync(file, args, { stdio: 'inherit' })
-
-  if (result.error != null) {
-    throw new Error(`Command failed: ${file} ${args.join(' ')}`, {
-      cause: result.error,
-    })
-  }
-
-  if (result.status !== 0) {
-    throw new Error(
-      `Command failed with exit code ${result.status}: ${file} ${args.join(' ')}`
-    )
-  }
+async function runInherit(file, args) {
+  await execa(file, args, { stdio: 'inherit' })
 }
 
 /**
@@ -113,23 +88,21 @@ function parseArgs(argv) {
       )
       process.exit(0)
     } else if (arg.startsWith('-')) {
-      throw new UsageError(`Unknown option: ${arg}`)
+      throw new Error(`Unknown option: ${arg}`)
     } else {
       positional.push(arg)
     }
   }
 
   if (positional.length !== 1) {
-    throw new UsageError(
+    throw new Error(
       `Expected exactly one argument (the PR number), received ${positional.length}.\n` +
         'Usage: node scripts/adopt-pr.js <pr-number> [--dry-run]'
     )
   }
 
   if (!/^\d+$/.test(positional[0])) {
-    throw new UsageError(
-      `PR number must be a positive integer: ${positional[0]}`
-    )
+    throw new Error(`PR number must be a positive integer: ${positional[0]}`)
   }
 
   return { prNumber: Number(positional[0]), dryRun }
@@ -140,10 +113,10 @@ function parseArgs(argv) {
  * name. A maintainer clone usually has it as `origin`; a fork-based clone has
  * it as `upstream`.
  *
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function detectUpstreamRemote() {
-  const output = capture('git', ['remote', '-v'])
+async function detectUpstreamRemote() {
+  const output = await capture('git', ['remote', '-v'])
   /** @type {string[]} */
   const matches = []
 
@@ -165,7 +138,7 @@ function detectUpstreamRemote() {
   }
 
   if (matches.length === 0) {
-    throw new UsageError(
+    throw new Error(
       `No git remote points at ${REPO}. Add one before adopting:\n` +
         `  git remote add upstream git@github.com:${REPO}.git`
     )
@@ -189,10 +162,10 @@ function detectUpstreamRemote() {
  * files, which the caller reports against `changedFiles` rather than hiding.
  *
  * @param {number} prNumber
- * @returns {string[]}
+ * @returns {Promise<string[]>}
  */
-function fetchChangedFiles(prNumber) {
-  const output = capture('gh', [
+async function fetchChangedFiles(prNumber) {
+  const output = await capture('gh', [
     'api',
     '--paginate',
     `repos/${REPO}/pulls/${prNumber}/files`,
@@ -210,7 +183,7 @@ function fetchChangedFiles(prNumber) {
 /**
  * @param {number} prNumber
  */
-function fetchPullRequest(prNumber) {
+async function fetchPullRequest(prNumber) {
   const fields = [
     'number',
     'title',
@@ -229,7 +202,7 @@ function fetchPullRequest(prNumber) {
     'commits',
   ].join(',')
 
-  const raw = capture('gh', [
+  const raw = await capture('gh', [
     'pr',
     'view',
     String(prNumber),
@@ -252,7 +225,7 @@ function fetchPullRequest(prNumber) {
 
   // Not available through `gh pr view --json`, and worth surfacing: a
   // FIRST_TIME_CONTRIBUTOR warrants more scrutiny than a MEMBER.
-  const association = capture('gh', [
+  const association = await capture('gh', [
     'api',
     `repos/${REPO}/pulls/${prNumber}`,
     '--jq',
@@ -275,7 +248,7 @@ function fetchPullRequest(prNumber) {
     additions: pr.additions,
     deletions: pr.deletions,
     commitCount: Array.isArray(pr.commits) ? pr.commits.length : 0,
-    files: fetchChangedFiles(prNumber),
+    files: await fetchChangedFiles(prNumber),
     association,
   }
 }
@@ -284,29 +257,30 @@ function fetchPullRequest(prNumber) {
  * Refuses to proceed on states where adoption is wrong or would clobber work,
  * before anything mutates.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  * @param {string} branch
  * @param {boolean} dryRun
+ * @returns {Promise<void>}
  */
-function preflight(pr, branch, dryRun) {
+async function preflight(pr, branch, dryRun) {
   // Draft and closed PRs are adoptable and only get their status reported.
   // Merged is different: the commits are already in the base branch.
   if (pr.state === 'MERGED') {
-    throw new UsageError(
+    throw new Error(
       `PR #${pr.number} is already merged, so its commits are in ` +
-        `${BASE_BRANCH}. There is nothing to adopt.`
+        `${pr.baseRef}. There is nothing to adopt.`
     )
   }
 
   if (!pr.isCrossRepository) {
-    throw new UsageError(
+    throw new Error(
       `PR #${pr.number} already targets a branch inside ${REPO}, so deploy ` +
         'tests already run on it. There is nothing to adopt.'
     )
   }
 
   if (pr.author === null) {
-    throw new UsageError(
+    throw new Error(
       `PR #${pr.number} has no author (the account may be deleted). Adopt it ` +
         'manually so you can decide who to attribute it to.'
     )
@@ -316,26 +290,27 @@ function preflight(pr, branch, dryRun) {
     return
   }
 
-  const dirty = capture('git', ['status', '--porcelain'])
+  const status = await capture('git', ['status', '--porcelain'])
+  const dirty = status
     .split('\n')
     .filter((line) => line.length > 0 && !line.startsWith('??'))
 
   if (dirty.length > 0) {
-    throw new UsageError(
+    throw new Error(
       'Working tree has uncommitted changes to tracked files. Adopting ' +
         'switches branches, so commit or stash them first:\n' +
         dirty.map((line) => `  ${line}`).join('\n')
     )
   }
 
-  const existing = spawnSync(
+  const existing = await execa(
     'git',
     ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`],
-    { stdio: 'ignore' }
+    { reject: false }
   )
 
-  if (existing.status === 0) {
-    throw new UsageError(
+  if (existing.exitCode === 0) {
+    throw new Error(
       `Local branch ${branch} already exists. Delete it to re-adopt from ` +
         `scratch:\n  git branch -D ${branch}`
     )
@@ -350,12 +325,12 @@ function preflight(pr, branch, dryRun) {
  * draft while iterating, or closed it after going unreviewed. The status is
  * surfaced rather than enforced, so the decision stays with the adopter.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  * @returns {string}
  */
 function describeStatus(pr) {
   if (pr.state === 'CLOSED') {
-    return 'CLOSED (closed without merging, so the Closes line is a no-op)'
+    return 'CLOSED (closed without merging)'
   }
 
   if (pr.isDraft === true) {
@@ -369,7 +344,7 @@ function describeStatus(pr) {
  * Highlights anything other than a plain open PR, so an adopter skimming the
  * header does not miss that the contributor closed it or is still iterating.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  * @returns {string}
  */
 function formatStatus(pr) {
@@ -379,11 +354,27 @@ function formatStatus(pr) {
 }
 
 /**
+ * The adopted PR inherits the original's base branch. An unusual base is
+ * highlighted because retargeting, say, a release-branch fix at canary would
+ * change what the change means.
+ *
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
+ * @returns {string}
+ */
+function formatBase(pr) {
+  if (pr.baseRef === DEFAULT_BRANCH) {
+    return pr.baseRef
+  }
+
+  return yellow(bold(`${pr.baseRef} (not the default branch)`))
+}
+
+/**
  * Lists the touched files. No attempt is made to rank or flag them: a payload
  * can sit in any test fixture or source file, so calling some paths "high risk"
  * would only imply the rest are safe.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  */
 function printChangedFiles(pr) {
   console.log(bold(`  Files touched (${pr.files.length}):`))
@@ -430,7 +421,7 @@ function ask(question) {
  * adopter has to look at who they are trusting rather than reflexively hitting
  * enter.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  * @param {string} remote
  * @param {string} branch
  * @returns {Promise<void>}
@@ -447,6 +438,7 @@ async function confirmAdoption(pr, remote, branch) {
       `across ${pr.commitCount} commit(s)`
   )
   console.log(`  Push to   ${remote} (${REPO}) as ${branch}`)
+  console.log(`  Base      ${formatBase(pr)}`)
   console.log('')
 
   printChangedFiles(pr)
@@ -471,7 +463,7 @@ async function confirmAdoption(pr, remote, branch) {
   console.log('')
 
   if (process.stdin.isTTY !== true) {
-    throw new UsageError(
+    throw new Error(
       'Refusing to adopt without an interactive confirmation. Run this from a ' +
         'terminal, or use --dry-run for a non-interactive report.'
     )
@@ -483,9 +475,7 @@ async function confirmAdoption(pr, remote, branch) {
   )
 
   if (answer !== pr.author) {
-    throw new UsageError(
-      'Confirmation did not match the author handle. Aborted.'
-    )
+    throw new Error('Confirmation did not match the author handle. Aborted.')
   }
 
   console.log('')
@@ -499,7 +489,7 @@ async function confirmAdoption(pr, remote, branch) {
  * contributor's own words, and any `Fixes #123` inside it has to survive,
  * because the original PR closes unmerged and so never fires its own.
  *
- * @param {ReturnType<typeof fetchPullRequest>} pr
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
  * @returns {string}
  */
 function writeBodyFile(pr) {
@@ -512,14 +502,113 @@ function writeBodyFile(pr) {
   return file
 }
 
+/**
+ * Commits whose raw object carries no signature header.
+ *
+ * `%G?` reports whether a signature *verifies*, not whether one exists. With
+ * SSH signing and no `gpg.ssh.allowedSignersFile`, git cannot verify locally
+ * and reports `N` for every commit, including ones it just signed itself, and
+ * including GitHub's own signed merge commits. Reading the object headers
+ * answers the question actually being asked.
+ *
+ * @param {string} range
+ * @returns {Promise<string[]>}
+ */
+async function findUnsignedCommits(range) {
+  const log = await capture('git', ['log', '--format=%H', range])
+
+  if (log.length === 0) {
+    return []
+  }
+
+  const unsigned = []
+
+  for (const sha of log.split('\n')) {
+    const raw = await capture('git', ['cat-file', 'commit', sha])
+    const lines = raw.split('\n')
+    const headerEnd = lines.indexOf('')
+    const headers = headerEnd === -1 ? lines : lines.slice(0, headerEnd)
+
+    if (!headers.some((line) => line.startsWith('gpgsig'))) {
+      unsigned.push(sha)
+    }
+  }
+
+  return unsigned
+}
+
+/**
+ * Re-signs the branch when any commit arrives unsigned, which contributor
+ * commits usually do. Protected branches require verified signatures, so an
+ * unsigned branch cannot merge.
+ *
+ * Signing rewrites commits, so this preserves each `Author` (only the committer
+ * and the SHAs change) and verifies afterwards that the tree is byte-identical.
+ * Re-signing must never alter content, and `--rebase-merges` is not trusted to
+ * be content-preserving on faith.
+ *
+ * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
+ * @param {string} remote
+ * @returns {Promise<void>}
+ */
+async function signCommits(pr, remote) {
+  await runInherit('git', ['fetch', remote, pr.baseRef])
+
+  const mergeBase = await capture('git', ['merge-base', 'HEAD', 'FETCH_HEAD'])
+  const unsigned = await findUnsignedCommits(`${mergeBase}..HEAD`)
+
+  if (unsigned.length === 0) {
+    console.log(dim('  All commits are already signed.'))
+    return
+  }
+
+  console.log(
+    `  ${unsigned.length} unsigned commit(s); re-signing so the branch can merge.`
+  )
+
+  const headBefore = await capture('git', ['rev-parse', 'HEAD'])
+  const treeBefore = await capture('git', ['rev-parse', 'HEAD^{tree}'])
+
+  try {
+    await runInherit('git', [
+      'rebase',
+      '--rebase-merges',
+      '--exec',
+      'git commit --amend --no-edit -S',
+      mergeBase,
+    ])
+  } catch (error) {
+    await execa('git', ['rebase', '--abort'], { reject: false })
+
+    throw new Error(
+      'Could not re-sign the commits. Check that commit signing works ' +
+        '(`git config commit.gpgsign` and `user.signingkey`), then retry.',
+      { cause: error }
+    )
+  }
+
+  const treeAfter = await capture('git', ['rev-parse', 'HEAD^{tree}'])
+
+  if (treeAfter !== treeBefore) {
+    await runInherit('git', ['reset', '--hard', headBefore])
+
+    throw new Error(
+      'Re-signing changed the tree, so it was reset. Sign the commits by ' +
+        'hand and verify the diff before pushing.'
+    )
+  }
+
+  console.log(dim('  Re-signed. Authors preserved, tree unchanged.'))
+}
+
 async function main() {
   const { prNumber, dryRun } = parseArgs(process.argv.slice(2))
   const branch = `adopt/${prNumber}`
 
-  const remote = detectUpstreamRemote()
-  const pr = fetchPullRequest(prNumber)
+  const remote = await detectUpstreamRemote()
+  const pr = await fetchPullRequest(prNumber)
 
-  preflight(pr, branch, dryRun)
+  await preflight(pr, branch, dryRun)
 
   if (dryRun) {
     console.log('')
@@ -533,20 +622,13 @@ async function main() {
         `across ${pr.commitCount} commit(s)`
     )
     console.log(`  Remote    ${remote} (${REPO})`)
-    console.log(`  Branch    ${branch} -> base ${BASE_BRANCH}`)
+    console.log(`  Branch    ${branch}`)
+    console.log(`  Base      ${formatBase(pr)}`)
     console.log('')
-    console.log(bold(`  Files touched (${pr.files.length}):`))
-    for (const file of pr.files) {
-      console.log(`    ${file}`)
-    }
+    printChangedFiles(pr)
     console.log('')
     console.log(dim('  Body preview:'))
-    console.log(
-      `Adopts #${pr.number}. Closes #${pr.number}.`
-        .split('\n')
-        .map((line) => `    ${line}`)
-        .join('\n')
-    )
+    console.log(`    Adopts #${pr.number}. Closes #${pr.number}.`)
     console.log(dim(`    <${pr.body.length} bytes of the author's body>`))
     console.log('')
     return
@@ -554,12 +636,12 @@ async function main() {
 
   await confirmAdoption(pr, remote, branch)
 
-  const originalBranch = capture('git', ['branch', '--show-current'])
+  const originalBranch = await capture('git', ['branch', '--show-current'])
 
   console.log(bold(`Checking out #${pr.number} as ${branch}`))
   // Fetches refs/pull/<n>/head, so the fork does not need to be a remote. The
   // commits are not rewritten: authorship has to reach the merge intact.
-  runInherit('gh', [
+  await runInherit('gh', [
     'pr',
     'checkout',
     String(prNumber),
@@ -571,20 +653,26 @@ async function main() {
 
   try {
     console.log('')
+    console.log(bold('Checking commit signatures'))
+    await signCommits(pr, remote)
+
+    console.log('')
     console.log(bold(`Pushing ${branch} to ${remote}`))
-    runInherit('git', ['push', '-u', remote, branch])
+    await runInherit('git', ['push', '-u', remote, branch])
 
     console.log('')
     console.log(bold('Opening the replacement pull request'))
     const bodyFile = writeBodyFile(pr)
-    const url = capture('gh', [
+    const url = await capture('gh', [
       'pr',
       'create',
       '--draft',
       '--repo',
       REPO,
+      // The contributor's own base, never a hard-coded default: retargeting a
+      // release-branch fix at canary would change what the change means.
       '--base',
-      BASE_BRANCH,
+      pr.baseRef,
       '--head',
       branch,
       '--title',
@@ -600,11 +688,7 @@ async function main() {
     console.log(`  Original  ${pr.url}`)
     console.log(`  Adopted   ${url}`)
     console.log('')
-    console.log(
-      dim(
-        `  Opened as a draft. Merging it into ${BASE_BRANCH} closes #${pr.number}.`
-      )
-    )
+    console.log(dim(`  Opened as a draft against ${pr.baseRef}.`))
     console.log(
       dim(`  Return to your previous branch: git checkout ${originalBranch}`)
     )
@@ -621,13 +705,7 @@ async function main() {
 
 main().catch((error) => {
   console.error('')
-
-  if (error instanceof UsageError) {
-    console.error(red(error.message))
-  } else {
-    console.error(red(bold('adopt-pr failed')))
-    console.error(error)
-  }
-
+  console.error(red(bold('adopt-pr failed')))
+  console.error(error)
   process.exit(1)
 })
