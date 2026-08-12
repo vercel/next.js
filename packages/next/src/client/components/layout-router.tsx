@@ -332,6 +332,10 @@ function InnerLayoutRouter({
         // must suspend rather than render nothing, to prevent showing an
         // inconsistent route.
 
+        (typeof window !== 'undefined' &&
+          console.log(
+            `[bbh-debug] inner NO-CACHENODE url=${url} — suspending on unresolvedThenable`
+          )) ||
         (use(unresolvedThenable) as never)
 
   // `rsc` represents the renderable node for this segment.
@@ -350,7 +354,7 @@ function InnerLayoutRouter({
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
   if (typeof window !== 'undefined') {
     console.log(
-      `[bbh-debug] inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc}`
+      `[bbh-debug] inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc} rscValue=${(rsc as any)?.status === 'fulfilled' ? ((rsc as any).value === null ? 'NULL' : 'data') : 'n/a'} seg=${JSON.stringify(tree[0])}`
     )
   }
 
@@ -362,6 +366,11 @@ function InnerLayoutRouter({
   if (isDeferredRsc(rsc)) {
     const unwrappedRsc = use(rsc)
     if (unwrappedRsc === null) {
+      if (typeof window !== 'undefined') {
+        console.log(
+          `[bbh-debug] inner NULL-DATA (deferred) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
+        )
+      }
       // If the promise was resolved to `null`, it means the data for this
       // segment was not returned by the server. Suspend indefinitely. When this
       // happens, the router is responsible for triggering a new state update to
@@ -372,6 +381,11 @@ function InnerLayoutRouter({
   } else {
     // This is not a deferred RSC promise. Don't need to unwrap it.
     if (rsc === null) {
+      if (typeof window !== 'undefined') {
+        console.log(
+          `[bbh-debug] inner NULL-DATA (direct) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
+        )
+      }
       use(unresolvedThenable) as never
     }
     resolvedRsc = rsc

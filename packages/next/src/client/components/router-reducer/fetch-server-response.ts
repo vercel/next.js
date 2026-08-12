@@ -149,6 +149,12 @@ export async function fetchServerResponse(
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
 
+  if (typeof window !== 'undefined') {
+    console.log(
+      `[bbh-debug] fetchServerResponse start url=${url.pathname + url.search} routerStateSeg=${JSON.stringify(flightRouterState?.[0])}`
+    )
+  }
+
   const headers: RequestHeaders = {
     // Enable flight response
     [RSC_HEADER]: '1',
