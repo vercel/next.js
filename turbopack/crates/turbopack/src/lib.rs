@@ -12,13 +12,14 @@ pub mod transition;
 
 use anyhow::{Context as _, Result, bail};
 use module_options::{
-    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
+    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRule, ModuleRuleEffect,
+    ModuleType, RuleCondition,
 };
 pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -910,15 +911,29 @@ async fn process_default_internal(
     Ok(module)
 }
 
+/// `prune` skips matching files as the graph is walked, rather than filtering them out of the
+/// result afterwards.
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
     resolve_typescript: bool,
+    prune: Option<(FileSystemPath, ResolvedVc<Glob>)>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
     if resolve_typescript {
         extensions.insert(0, rcstr!(".ts"));
     }
+
+    let prune_rules = match prune {
+        Some((base, glob)) => vec![ModuleRule::new(
+            RuleCondition::ResourcePathGlob {
+                base,
+                glob: glob.await?,
+            },
+            vec![ModuleRuleEffect::Ignore],
+        )],
+        None => vec![],
+    };
 
     let resolve_options = ResolveOptionsContext {
         custom_extensions: Some(extensions),
@@ -957,6 +972,7 @@ pub async fn externals_tracing_module_context(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            module_rules: prune_rules,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
             ..Default::default()
@@ -1112,6 +1128,7 @@ impl AssetContext for ModuleAssetContext {
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                             false,
+                                            None,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder
