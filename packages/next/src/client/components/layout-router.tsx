@@ -348,6 +348,11 @@ function InnerLayoutRouter({
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
+  if (typeof window !== 'undefined') {
+    console.log(
+      `[bbh-debug] inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc}`
+    )
+  }
 
   // `rsc` is either a React node or a promise for a React node, except we
   // special case `null` to represent that this segment's data is missing. If

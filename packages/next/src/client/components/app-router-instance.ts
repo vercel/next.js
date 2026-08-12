@@ -160,6 +160,7 @@ function dispatchAction(
   payload: ReducerActions,
   setState: DispatchStatePromise
 ) {
+  console.log(`[bbh-debug] dispatch type=${payload.type} url=${location.href}`)
   let resolvers: {
     resolve: (value: ReducerState) => void
     reject: (reason: any) => void

@@ -59,17 +59,20 @@ const globalMutable: {
 // The current entry is not the one this document was activated on. Entry keys
 // are stable across replaceState, so until the popstate listener is installed
 // this means a traversal or history write went unobserved.
-function isOnUnobservedEntry(): boolean {
+function isOnUnobservedEntry(site?: string): boolean {
   if (typeof window.navigation === 'undefined') {
     return false
   }
   const activationEntry = window.navigation.activation?.entry
   const currentEntry = window.navigation.currentEntry
-  return (
+  const result =
     activationEntry != null &&
     currentEntry != null &&
     activationEntry.key !== currentEntry.key
+  console.log(
+    `[bbh-debug] site=${site} keysDiffer=${result} __NA=${window.history.state?.__NA} url=${location.href}`
   )
+  return result
 }
 
 let checkedMissedTraversalBeforeHistoryWrite = false
@@ -82,6 +85,9 @@ let checkedMissedTraversalBeforeReplay = false
  * That case can happen when the old router injected the history entry.
  */
 function handlePopState(state: PopStateEvent['state']): void {
+  console.log(
+    `[bbh-debug] handlePopState __NA=${state?.__NA} url=${location.href}`
+  )
   if (!state) {
     // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
     return
@@ -119,7 +125,7 @@ function HistoryUpdater({
 
     if (!checkedMissedTraversalBeforeHistoryWrite) {
       checkedMissedTraversalBeforeHistoryWrite = true
-      if (isOnUnobservedEntry()) {
+      if (isOnUnobservedEntry('write')) {
         // This render does not describe the current entry; don't write to it.
         // The tree was rendered even though the history write is skipped.
         setLastCommittedTree(tree)
@@ -149,8 +155,14 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
+      console.log(
+        `[bbh-debug] insertion-effect pushState canonicalUrl=${canonicalUrl} from=${location.href}`
+      )
       window.history.pushState(historyState, '', canonicalUrl)
     } else {
+      console.log(
+        `[bbh-debug] insertion-effect replaceState canonicalUrl=${canonicalUrl} from=${location.href}`
+      )
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
@@ -367,6 +379,9 @@ function Router({
     const applyUrlFromHistoryPushReplace = (
       url: string | URL | null | undefined
     ) => {
+      console.log(
+        `[bbh-debug] wrapper-adopt dispatch url=${url} from=${location.href}`
+      )
       const href = window.location.href
       const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
@@ -435,7 +450,7 @@ function Router({
     if (!checkedMissedTraversalBeforeReplay) {
       checkedMissedTraversalBeforeReplay = true
       if (
-        isOnUnobservedEntry() &&
+        isOnUnobservedEntry('replay') &&
         // Only entries written by the app router can be restored; on any
         // other entry the traversal is left unhandled.
         window.history.state?.__NA === true

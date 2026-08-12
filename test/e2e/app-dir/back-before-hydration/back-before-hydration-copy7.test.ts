@@ -28,7 +28,7 @@ import type * as Playwright from 'playwright'
 // boundary's fallback and then depends on React retrying when the data
 // resolves. Under cacheComponents the boundary variant regressed into a
 // permanently blank page (#95848) while the boundary-less variant recovered.
-describe('back navigation before hydration after reload', () => {
+describe('back navigation before hydration after reload (copy 7)', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
   // Stalls every static script on the page so a committed document cannot
