@@ -26,96 +26,90 @@ export type ReadonlyHeaders = Headers & {
   delete(...args: any[]): void
 }
 
-type ForEachCallback = (value: string, name: string, parent: Headers) => void
+/**
+ * The read methods that a sealed view provides itself instead of forwarding to
+ * the underlying `Headers`. Deriving the type from `Headers` keeps the
+ * implementations in step with the platform signatures.
+ */
+type SealedHeaderMethods = Pick<
+  Headers,
+  | 'get'
+  | 'has'
+  | 'getSetCookie'
+  | 'keys'
+  | 'values'
+  | 'entries'
+  | 'forEach'
+  | typeof Symbol.iterator
+>
 
 /**
- * Blocks the mutating methods of a sealed `Headers` instance.
- *
- * `forEach` is reimplemented so that the callback receives the sealed proxy as
- * its `parent` argument. The native method passes the unsealed target, which
- * gives the callback a mutable handle on the underlying headers.
+ * Builds the read methods for a sealed view that exposes all of `target`.
  */
-const sealHandler: ProxyHandler<ReadonlyHeaders> = {
-  get(target, prop, receiver) {
-    switch (prop) {
-      case 'append':
-      case 'delete':
-      case 'set':
-        return ReadonlyHeadersError.callable
-      case 'forEach':
-        return (callbackfn: ForEachCallback, thisArg?: any): void => {
-          for (const [name, value] of target.entries()) {
-            callbackfn.call(thisArg, value, name, receiver)
-          }
-        }
-      default:
-        return ReflectAdapter.get(target, prop, receiver)
-    }
-  },
+function createPassThroughMethods(
+  target: Headers,
+  sealed: ReadonlyHeaders
+): SealedHeaderMethods {
+  return {
+    get: target.get.bind(target),
+    has: target.has.bind(target),
+    getSetCookie: target.getSetCookie.bind(target),
+    keys: target.keys.bind(target),
+    values: target.values.bind(target),
+    entries: target.entries.bind(target),
+    [Symbol.iterator]: target[Symbol.iterator].bind(target),
+    // The native method passes the unsealed target as the callback's `parent`
+    // argument. That is a mutable handle on the underlying headers. Pass the
+    // sealed view instead.
+    forEach(callbackfn, thisArg) {
+      for (const [name, value] of target.entries()) {
+        callbackfn.call(thisArg, value, name, sealed)
+      }
+    },
+  }
 }
 
 /**
- * Blocks the mutating methods of a sealed `Headers` instance, and omits the
- * given header names from every read operation.
- *
- * The names in `hidden` must be lowercase.
+ * Builds the read methods for a sealed view that omits the header names matched
+ * by `isHidden`.
  */
-function createHidingSealHandler(
-  hidden: ReadonlySet<string>
-): ProxyHandler<ReadonlyHeaders> {
-  const isHidden = (name: string): boolean => hidden.has(name.toLowerCase())
+function createHidingMethods(
+  target: Headers,
+  sealed: ReadonlyHeaders,
+  isHidden: (name: string) => boolean
+): SealedHeaderMethods {
+  function* entries(): HeadersIterator<[string, string]> {
+    for (const entry of target.entries()) {
+      if (!isHidden(entry[0])) {
+        yield entry
+      }
+    }
+  }
 
   return {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case 'append':
-        case 'delete':
-        case 'set':
-          return ReadonlyHeadersError.callable
-        case 'get':
-          return (name: string): string | null =>
-            isHidden(name) ? null : target.get(name)
-        case 'has':
-          return (name: string): boolean =>
-            isHidden(name) ? false : target.has(name)
-        case 'getSetCookie':
-          return (): string[] =>
-            isHidden('set-cookie') ? [] : target.getSetCookie()
-        case 'entries':
-        case Symbol.iterator:
-          return function* (): HeadersIterator<[string, string]> {
-            for (const entry of target.entries()) {
-              if (!isHidden(entry[0])) {
-                yield entry
-              }
-            }
-          }
-        case 'keys':
-          return function* (): HeadersIterator<string> {
-            for (const name of target.keys()) {
-              if (!isHidden(name)) {
-                yield name
-              }
-            }
-          }
-        case 'values':
-          return function* (): HeadersIterator<string> {
-            for (const [name, value] of target.entries()) {
-              if (!isHidden(name)) {
-                yield value
-              }
-            }
-          }
-        case 'forEach':
-          return (callbackfn: ForEachCallback, thisArg?: any): void => {
-            for (const [name, value] of target.entries()) {
-              if (!isHidden(name)) {
-                callbackfn.call(thisArg, value, name, receiver)
-              }
-            }
-          }
-        default:
-          return ReflectAdapter.get(target, prop, receiver)
+    entries,
+    [Symbol.iterator]: entries,
+    get: (name) => (isHidden(name) ? null : target.get(name)),
+    has: (name) => (isHidden(name) ? false : target.has(name)),
+    getSetCookie: () => (isHidden('set-cookie') ? [] : target.getSetCookie()),
+    *keys(): HeadersIterator<string> {
+      for (const name of target.keys()) {
+        if (!isHidden(name)) {
+          yield name
+        }
+      }
+    },
+    *values(): HeadersIterator<string> {
+      for (const [, value] of entries()) {
+        yield value
+      }
+    },
+    // The native method passes the unsealed target as the callback's `parent`
+    // argument. That is a mutable handle on the underlying headers. Pass the
+    // sealed view instead.
+    forEach(callbackfn, thisArg) {
+      for (const [name, value] of entries()) {
+        callbackfn.call(thisArg, value, name, sealed)
       }
     },
   }
@@ -226,10 +220,45 @@ export class HeadersAdapter extends Headers {
     headers: Headers,
     hidden?: ReadonlySet<string>
   ): ReadonlyHeaders {
-    return new Proxy<ReadonlyHeaders>(
-      headers,
-      hidden && hidden.size > 0 ? createHidingSealHandler(hidden) : sealHandler
-    )
+    const isHidden =
+      hidden && hidden.size > 0
+        ? (name: string): boolean => hidden.has(name.toLowerCase())
+        : null
+
+    // The methods are built once per sealed view and reused, so repeated access
+    // returns the same function instead of a fresh closure. They are assigned
+    // after the proxy exists because `forEach` hands the proxy to its callback.
+    // Creating the proxy runs no trap, so nothing can read them before then.
+    let methods: SealedHeaderMethods
+
+    const sealed: ReadonlyHeaders = new Proxy<ReadonlyHeaders>(headers, {
+      get(target, prop, receiver) {
+        switch (prop) {
+          case 'append':
+          case 'delete':
+          case 'set':
+            return ReadonlyHeadersError.callable
+          case Symbol.iterator:
+            return methods[Symbol.iterator]
+          case 'get':
+          case 'has':
+          case 'getSetCookie':
+          case 'keys':
+          case 'values':
+          case 'entries':
+          case 'forEach':
+            return methods[prop]
+          default:
+            return ReflectAdapter.get(target, prop, receiver)
+        }
+      },
+    })
+
+    methods = isHidden
+      ? createHidingMethods(headers, sealed, isHidden)
+      : createPassThroughMethods(headers, sealed)
+
+    return sealed
   }
 
   /**

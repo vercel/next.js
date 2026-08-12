@@ -319,6 +319,24 @@ describe('HeadersAdapter', () => {
       expect(sealed.get('x-custom-header')).toBe('custom3')
     })
 
+    it('should return the same method instance on repeated access', () => {
+      const headers = new Headers({ 'content-type': 'application/json' })
+
+      for (const sealed of [
+        HeadersAdapter.seal(headers),
+        HeadersAdapter.seal(headers, new Set(['rsc'])),
+      ]) {
+        expect(sealed.get).toBe(sealed.get)
+        expect(sealed.has).toBe(sealed.has)
+        expect(sealed.getSetCookie).toBe(sealed.getSetCookie)
+        expect(sealed.keys).toBe(sealed.keys)
+        expect(sealed.values).toBe(sealed.values)
+        expect(sealed.entries).toBe(sealed.entries)
+        expect(sealed.forEach).toBe(sealed.forEach)
+        expect(sealed[Symbol.iterator]).toBe(sealed[Symbol.iterator])
+      }
+    })
+
     it('should pass the sealed instance to forEach callbacks', () => {
       const headers = new Headers({ 'content-type': 'application/json' })
       const sealed = HeadersAdapter.seal(headers)
