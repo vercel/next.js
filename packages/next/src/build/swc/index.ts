@@ -1050,6 +1050,9 @@ function bindingToApi(
         ...nextConfigSerializable.experimental,
         turbopackChunking: {
           ...chunkingConfig,
+          clusters: chunkingConfig.clusters?.map((cluster: RegExp[]) =>
+            cluster.map(regexComponents)
+          ),
           priorityRoutes: chunkingConfig.priorityRoutes?.map(regexComponents),
         },
       }
