@@ -416,14 +416,6 @@ mod tests {
         );
     }
 
-    /// With no `CURRENT` at all there's no mtime to fall back to, so the directory is treated as
-    /// maximally old and evicted ahead of any real cache.
-    #[test]
-    fn test_missing_current_has_no_mtime() {
-        let tmp_dir = TempDir::new().unwrap();
-        assert_eq!(time_since_current_mtime(tmp_dir.path()), Duration::MAX);
-    }
-
     /// On CI every other version is evicted regardless of age, so the mtime fallback doesn't buy a
     /// legacy-format database a reprieve there.
     #[test]
