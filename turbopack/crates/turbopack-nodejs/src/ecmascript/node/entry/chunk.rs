@@ -237,6 +237,7 @@ impl EcmascriptBuildNodeEntryChunk {
         EcmascriptBuildNodeChunkListContent::new(
             *self.chunking_context,
             *self.other_chunks,
+            *self.referenced_output_assets,
             *self.references,
         )
     }
