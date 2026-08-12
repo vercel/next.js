@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { collectResult } from './collect-result'
 
 const getList = __turbopack_collect__({
   namespace: 'my-test',
@@ -6,14 +7,7 @@ const getList = __turbopack_collect__({
 
 export async function proxy(request) {
   if (request.nextUrl.pathname === '/proxy') {
-    const list = await Promise.all(
-      getList().map(async (v) => ({
-        id: v.id,
-        data: v.data,
-        import: (await v.import()).default,
-      }))
-    )
-    return Response.json(list, { status: 200 })
+    return Response.json(await collectResult(getList), { status: 200 })
   }
 
   return NextResponse.next()
