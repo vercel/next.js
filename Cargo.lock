@@ -10803,6 +10803,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-module-federation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.21.4",
+ "indoc",
+ "serde_json",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-fs",
+ "turbo-tasks-hash",
+ "turbopack-core",
+ "turbopack-ecmascript",
+]
+
+[[package]]
 name = "turbopack-nft"
 version = "0.1.0"
 dependencies = [

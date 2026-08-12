@@ -200,6 +200,7 @@ turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascr
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
+turbopack-module-federation = { path = "turbopack/crates/turbopack-module-federation" }
 turbopack-node = { path = "turbopack/crates/turbopack-node", default-features = false }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
 turbopack-static = { path = "turbopack/crates/turbopack-static" }
