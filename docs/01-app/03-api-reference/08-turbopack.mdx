@@ -278,6 +278,21 @@ const lazy = import.meta.glob('./dir/*.ts')
 const eager = import.meta.glob('./dir/*.ts', { eager: true })
 ```
 
+Pass the module type to describe what the matched files export:
+
+```ts
+interface Mod {
+  name: string
+  default: () => string
+}
+
+// Record<string, () => Promise<Mod>>
+const lazy = import.meta.glob<Mod>('./dir/*.ts')
+
+// Record<string, Mod>
+const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
+```
+
 ### Options reference
 
 | Option          | Type                                          | Default     | Description                                                                |

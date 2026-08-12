@@ -920,7 +920,7 @@ function reuseActiveSegmentInDefaultSlot(
     reusedRenderedSearch = oldRootRefreshState.renderedSearch
   }
 
-  const acc = { metadataVaryPath: null }
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
   const reusedRouteTree = convertReusedFlightRouterStateToRouteTree(
     parentRouteTree,
     parallelRouteKey,

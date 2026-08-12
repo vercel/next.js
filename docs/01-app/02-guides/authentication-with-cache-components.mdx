@@ -1,5 +1,5 @@
 ---
-title: How to use authentication with Cache Components
+title: How to implement authentication with Cache Components
 nav_title: Authentication with Cache Components
 description: 'Learn how to read the user session, show authenticated UI without slowing down the page, and cache data derived from the session when Cache Components is enabled.'
 related:

@@ -185,7 +185,6 @@ export function unstable_cache<T extends Callback>(
             case 'private-cache':
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the revalidate option is a higher precedence
               // revalidate === undefined doesn't affect timing.
@@ -438,7 +437,6 @@ function getFetchUrlPrefix(
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

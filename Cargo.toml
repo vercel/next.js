@@ -282,13 +282,13 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.70", features = [
+lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.6", default-features = false, features = [
+lightningcss-napi = { version = "0.4.9", default-features = false, features = [
   "visitor",
 ] }
 lzzzz = "2.0.0"
