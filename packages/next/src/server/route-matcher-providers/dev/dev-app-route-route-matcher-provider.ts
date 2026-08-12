@@ -12,6 +12,7 @@ import {
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -71,8 +72,29 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       )
 
       if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
+        // Only metadata files that export `generateSitemaps` /
+        // `generateImageMetadata` are served from the multiple-route variant.
+        // Registering that variant unconditionally makes
+        // `/sitemap/[__metadata_id__]` swallow unrelated user routes that live
+        // under the same segment (e.g. `/sitemap/[...attrs]`), because the
+        // bundler never emits an entrypoint for it.
+        const getPageStaticInfo = (
+          require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+        ).getPageStaticInfo
+        const staticInfo = await getPageStaticInfo({
+          pageFilePath: filename,
+          nextConfig: {},
+          page,
+          isDev: true,
+          pageType: PAGE_TYPES.APP,
+        })
+        const hasMultipleRoutes = !!(
+          staticInfo.generateSitemaps || staticInfo.generateImageMetadata
+        )
+
         // Matching dynamic metadata routes.
-        // Add 2 possibilities for both single and multiple routes:
+        // The single route always exists; the multiple route only when the
+        // metadata file generates several of them:
         {
           // single:
           // /sitemap.ts -> /sitemap.xml/route
@@ -96,7 +118,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           })
           matchers.push(matcher)
         }
-        {
+        if (hasMultipleRoutes) {
           // multiple:
           // /sitemap.ts -> /sitemap/[__metadata_id__]/route
           // /icon.ts -> /icon/[__metadata_id__]/route
