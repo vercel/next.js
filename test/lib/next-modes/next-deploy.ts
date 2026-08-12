@@ -1,5 +1,6 @@
 import os from 'os'
 import path from 'path'
+import dns from 'dns'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { NextInstance, type NextInstanceOpts } from './base'
@@ -7,6 +8,7 @@ import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
+import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -14,6 +16,7 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+  private _restoreDnsLookup: (() => void) | null = null
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -566,15 +569,78 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
+  /**
+   * Redirects the deployment host to the proxy address for this process only.
+   * The patched `dns.lookup` covers `fetch`, because Node resolves the
+   * connection through it while the TLS handshake still uses the original
+   * hostname for SNI. A valid certificate therefore still validates.
+   *
+   * This mode needs no `sudo`, and it keeps concurrent test files independent,
+   * unlike the shared `/etc/hosts` file.
+   */
+  private redirectHostInProcess(hostname: string, address: string): void {
+    require('console').log(
+      `Redirecting ${hostname} to ${address} for this process`
+    )
+
+    const originalLookup = dns.lookup
+
+    // `dns.lookup` answers for an IP address literal without a query, and it
+    // answers in the shape that the caller's options ask for. The redirection
+    // therefore replaces the hostname, passes the remaining arguments through
+    // untouched, and lets Node produce the result.
+    function patchedLookup(
+      this: unknown,
+      lookupHostname: string,
+      ...args: unknown[]
+    ): void {
+      Reflect.apply(originalLookup, this, [
+        lookupHostname === hostname ? address : lookupHostname,
+        ...args,
+      ])
+    }
+
+    // `dns.lookup` holds the argument names that `util.promisify` reads in a
+    // hidden symbol property. The wrapper takes over every own property, so the
+    // promisified form still resolves to an object instead of a bare address.
+    Object.defineProperties(
+      patchedLookup,
+      Object.getOwnPropertyDescriptors(originalLookup)
+    )
+
+    dns.lookup = Object.assign(patchedLookup, originalLookup)
+
+    this._restoreDnsLookup = () => {
+      dns.lookup = originalLookup
+    }
+
+    process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
+  }
+
   private async configureProxyAddress(): Promise<void> {
-    // If configured, we should configure the `/etc/hosts` file to point the
-    // deployment domain to the specified proxy address.
-    if (
-      process.env.NEXT_TEST_PROXY_ADDRESS &&
-      // Validate that the proxy address is a valid IP address.
-      /^\d+\.\d+\.\d+\.\d+$/.test(process.env.NEXT_TEST_PROXY_ADDRESS)
-    ) {
-      this._writtenHostsLine = `${process.env.NEXT_TEST_PROXY_ADDRESS}\t${this._parsedUrl.hostname}\n`
+    const proxyAddress = process.env.NEXT_TEST_PROXY_ADDRESS
+    const redirectInProcess = !!process.env.NEXT_TEST_PROXY_IN_PROCESS
+
+    // Validate that the proxy address is a valid IP address.
+    if (!proxyAddress || !/^\d+\.\d+\.\d+\.\d+$/.test(proxyAddress)) {
+      // Without a redirection the production CDN serves the deployment, so the
+      // test passes and exercises none of the proxy under test. Fail instead of
+      // ignoring an incomplete request for in-process redirection.
+      if (redirectInProcess) {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS needs a valid IP address in NEXT_TEST_PROXY_ADDRESS, received ${proxyAddress ? `"${proxyAddress}"` : 'no value'}.`
+        )
+      }
+
+      return
+    }
+
+    if (redirectInProcess) {
+      this.redirectHostInProcess(this._parsedUrl.hostname, proxyAddress)
+    } else {
+      // Otherwise we point the deployment domain to the proxy address through
+      // the `/etc/hosts` file.
+      this._writtenHostsLine = `${proxyAddress}\t${this._parsedUrl.hostname}\n`
 
       require('console').log(
         `Writing proxy address to hosts file: ${this._writtenHostsLine.trim()}`
@@ -609,6 +675,13 @@ export class NextDeployInstance extends NextInstance {
           err
         )
       })
+    }
+
+    if (this._restoreDnsLookup) {
+      require('console').log(`Removing the in-process host redirection`)
+      this._restoreDnsLookup()
+      this._restoreDnsLookup = null
+      delete process.env[PROXY_HOST_MAP_ENV_KEY]
     }
 
     // If configured, we should remove the proxy address from the hosts file.
