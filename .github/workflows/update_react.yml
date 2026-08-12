@@ -34,9 +34,6 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
-          # To open the Pull Request, request reviewers, and apply labels and
-          # assignees. `actions/create-github-app-token` narrows the token to
-          # exactly the permissions requested here.
           permission-pull-requests: write
 
       - name: Get GitHub App user ID

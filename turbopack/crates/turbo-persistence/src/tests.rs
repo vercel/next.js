@@ -6,7 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::{
     DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
-    db::{CompactConfig, TurboPersistence},
+    db::{CompactConfig, TurboPersistence, read_current_version},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
@@ -2225,6 +2225,41 @@ fn stale_current_next_is_recovered() -> Result<()> {
     assert!(
         !path.join("CURRENT.next").exists(),
         "stale CURRENT.next should be cleaned up on open"
+    );
+
+    Ok(())
+}
+
+/// `CURRENT` round-trips through JSON, recording both the sequence number and the commit time.
+#[test]
+fn current_file_is_json_with_commit_time() -> Result<()> {
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let before = jiff::Timestamp::now();
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![42u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+    let after = jiff::Timestamp::now();
+
+    // next.js parses `CURRENT` without going through this crate, so these field names are a
+    // public contract.
+    let raw = fs::read_to_string(path.join("CURRENT"))?;
+    assert!(raw.contains("max_sequence_number"), "got: {raw}");
+    assert!(raw.contains("commit_time"), "got: {raw}");
+
+    let version = read_current_version(path)?.expect("CURRENT should exist");
+    assert!(version.max_sequence_number > 0);
+    assert!(
+        version.commit_time >= before && version.commit_time <= after,
+        "commit_time {} outside [{before}, {after}]",
+        version.commit_time
     );
 
     Ok(())

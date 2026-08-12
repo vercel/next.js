@@ -8,7 +8,7 @@ import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -43,7 +43,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
   public async reload() {
-    const { promise, resolve, reject } = new DetachedPromise<void>()
+    const { promise, resolve, reject } = createPromiseWithResolvers<void>()
     this.waitTillReadyPromise = promise
 
     // Grab the compilation ID for this run, we'll verify it at the end to

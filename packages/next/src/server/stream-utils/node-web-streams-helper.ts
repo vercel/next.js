@@ -1,7 +1,7 @@
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   scheduleImmediate,
   atLeastOneTask,
@@ -238,7 +238,7 @@ export function createBufferedTransformStream(
 
   let bufferedChunks: Array<Uint8Array> = []
   let bufferByteLength: number = 0
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
     try {
@@ -271,7 +271,7 @@ export function createBufferedTransformStream(
       return
     }
 
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {
@@ -591,10 +591,10 @@ export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {

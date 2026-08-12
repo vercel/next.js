@@ -216,7 +216,7 @@ pub async fn compute_ecmascript_module_exports(
                 }
             } else {
                 match detect_dynamic_export(program) {
-                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
+                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs(None),
                     DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
                     DetectedDynamicExportType::Value => EcmascriptExports::Value,
                     DetectedDynamicExportType::UsingModuleDeclarations => {

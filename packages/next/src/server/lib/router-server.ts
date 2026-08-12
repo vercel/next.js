@@ -30,7 +30,6 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { isPostpone } from './router-utils/is-postpone'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
@@ -879,11 +878,6 @@ export async function initialize(opts: {
   }
 
   const logError = async (err: Error | undefined) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
     Log.error('uncaughtException: ', err)
   }
 

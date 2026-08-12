@@ -41,7 +41,7 @@ import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
 } from './app-render-prerender-utils'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import {
@@ -585,8 +585,8 @@ export async function renderToNodeFizzStream(
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -638,8 +638,8 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {

@@ -180,7 +180,13 @@ After every edit, verify the page still works at runtime using the next-dev-loop
 
 ### `next-cache-components-adoption`
 
-The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill turns on [Cache Components](/docs/app/getting-started/caching) and resolves blocking routes until the app builds.
+The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill migrates an app to [Cache Components](/docs/app/getting-started/caching):
+
+1. Turns the flag on and finds the routes that can't prerender.
+2. Fixes them one feature at a time, checking in with you before moving on.
+3. Confirms a feature against `next dev` and `next build` before leaving it.
+
+You choose whether the work lands as a series of PRs or stays on one branch.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
@@ -194,21 +200,33 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill maximizes the meaningful UI available on an exact navigation and guards it with an `@next/playwright` `instant()` test.
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
+
+1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
+2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
+3. Commits the passing test with the refactoring, so it catches future regressions.
+
+It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching).
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-For example, give the agent this prompt:
+Then give the agent a prompt like:
 
 ```prompt
-Make the navigation to `/settings` instant using the next-cache-components-optimizer Skill.
+Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
 ```
 
 ### `next-partial-prefetching-adoption`
 
-The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and resolves its insights until all routes reuse a shared App Shell.
+The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
+
+1. Audits the existing `<Link prefetch={true}>` calls with you.
+2. Turns the flag on and resolves the insights it surfaces.
+3. Marks the routes whose URL data might be worth prefetching later.
+
+It needs [Cache Components](/docs/app/getting-started/caching) already adopted.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption

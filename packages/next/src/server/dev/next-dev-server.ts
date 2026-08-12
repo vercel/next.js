@@ -72,7 +72,7 @@ import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-r
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   isUnhandledRejectionListenerRegistered,
   registerUnhandledRejectionListener,
@@ -135,7 +135,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = new DetachedPromise<void>()
+  private ready? = createPromiseWithResolvers<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -843,7 +843,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },

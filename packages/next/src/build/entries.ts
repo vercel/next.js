@@ -12,7 +12,7 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, normalize } from 'path'
+import { dirname, posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -385,6 +385,7 @@ export async function createEntrypoints(
   client: webpack.EntryObject
   server: webpack.EntryObject
   edgeServer: webpack.EntryObject
+  entrySourceDirectories: string[]
   middlewareMatchers: undefined
 }> {
   const {
@@ -404,6 +405,7 @@ export async function createEntrypoints(
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
+  const entrySourceDirectories = new Set<string>()
   let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
@@ -466,6 +468,10 @@ export async function createEntrypoints(
         appDir,
         rootDir,
       })
+      // A deferred-entry callback may materialize source beside this route.
+      // Keep the owning directory so the bundler can invalidate that subtree
+      // without discarding filesystem cache entries for the rest of the app.
+      entrySourceDirectories.add(dirname(pageFilePath))
 
       const isInsideAppDir =
         !!appDir &&
@@ -664,6 +670,7 @@ export async function createEntrypoints(
     client,
     server,
     edgeServer,
+    entrySourceDirectories: [...entrySourceDirectories].sort(),
     middlewareMatchers,
   }
 }

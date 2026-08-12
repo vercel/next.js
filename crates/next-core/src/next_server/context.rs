@@ -30,7 +30,7 @@ use turbopack_core::{
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
-    references::esm::UrlRewriteBehavior, transform::ReactCompilerTarget,
+    references::esm::UrlRewriteBehavior,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -47,7 +47,6 @@ use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -64,10 +63,7 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::{
-            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
-            webpack_loader_options,
-        },
+        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -231,24 +227,6 @@ pub async fn get_server_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = match &ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::AppRSC { .. } => {
-            vec![ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            )]
-        }
-        ServerContextType::PagesApi { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {
-            vec![]
-        }
-    };
-
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
@@ -283,7 +261,6 @@ pub async fn get_server_resolve_options_context(
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),
-        before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
     };
@@ -561,16 +538,6 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
-    let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
-        match detect_react_compiler_target(&project_path).await? {
-            Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
-            _ => ReactCompilerTarget::React19,
-        }
-    } else {
-        ReactCompilerTarget::React19
-    };
-
     let source_maps = *next_config.server_source_maps().await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -581,6 +548,7 @@ pub async fn get_server_module_options_context(
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
+            cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -741,8 +709,8 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
-                    enable_rust_react_compiler,
-                    rust_react_compiler_target,
+                    // React Compiler only optimizes the React client runtime, so skip it.
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
