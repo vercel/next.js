@@ -75,6 +75,8 @@ import {
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
+const DEFAULT_TURBOPACK_MODULE_FEDERATION_FILENAME =
+  'static/chunks/remoteEntry.js'
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -129,6 +131,16 @@ export async function initialize(opts: {
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
+
+  const moduleFederationConfig = config.experimental.turbopackModuleFederation
+  const moduleFederationRemoteEntryPath =
+    moduleFederationConfig?.exposes &&
+    Object.keys(moduleFederationConfig.exposes).length > 0
+      ? `/${(
+          moduleFederationConfig.filename ??
+          DEFAULT_TURBOPACK_MODULE_FEDERATION_FILENAME
+        ).slice('static/'.length)}`
+      : undefined
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -600,6 +612,10 @@ export async function initialize(opts: {
           if (matchedOutput.itemPath.startsWith('/service-worker/')) {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
             res.setHeader('Service-Worker-Allowed', config.basePath || '/')
+          } else if (
+            matchedOutput.itemPath === moduleFederationRemoteEntryPath
+          ) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {

@@ -31,6 +31,24 @@ const nextConfig = {
     ]
   },
   output: process.env.TEST_EXPORT ? 'export' : undefined,
+  supportsImmutableAssets: Boolean(process.env.IS_TURBOPACK_TEST),
+  experimental: process.env.IS_TURBOPACK_TEST
+    ? {
+        turbopackModuleFederation: process.env.TEST_MF_HOST_ONLY
+          ? {
+              name: 'adapterConfig',
+              remotes: {
+                remoteApp: 'http://localhost:3001',
+              },
+            }
+          : {
+              name: 'adapterConfig',
+              exposes: {
+                './value': './components/module-federation-value',
+              },
+            },
+      }
+    : undefined,
 }
 
 export default nextConfig

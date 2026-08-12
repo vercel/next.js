@@ -34,6 +34,7 @@ use turbopack_ecmascript::{
     references::esm::UrlRewriteBehavior,
     transform::{PresetEnvConfig, ReactCompilerTarget},
 };
+use turbopack_module_federation::host_provider_source;
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -42,6 +43,7 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     mode::NextMode,
+    module_federation::module_federation_options,
     next_build::get_postcss_package_mapping,
     next_client::{
         runtime_entry::{RuntimeEntries, RuntimeEntry},
@@ -137,6 +139,7 @@ pub async fn get_client_compile_time_info(
 pub enum ClientContextType {
     Pages { pages_dir: FileSystemPath },
     App { app_dir: FileSystemPath },
+    ModuleFederation { project_path: FileSystemPath },
     Fallback,
     Other,
 }
@@ -657,6 +660,7 @@ pub struct ServiceWorkerChunkingContextOptions {
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub chunk_loading_global: Option<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -673,10 +677,11 @@ pub async fn get_service_worker_chunking_context(
         source_maps,
         no_mangling,
         hash_salt,
+        chunk_loading_global,
     } = options;
 
     let next_mode = mode.await?;
-    let builder = BrowserChunkingContext::builder(
+    let mut builder = BrowserChunkingContext::builder(
         root_path,
         output_root.clone(),
         output_root_to_root_path,
@@ -696,9 +701,12 @@ pub async fn get_service_worker_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
-    .hash_salt(hash_salt)
-    .single_chunk()
-    .await?;
+    .hash_salt(hash_salt);
+
+    if let Some(chunk_loading_global) = chunk_loading_global {
+        builder = builder.chunk_loading_global(chunk_loading_global);
+    }
+    let builder = builder.single_chunk().await?;
 
     Ok(Vc::upcast(builder.build()))
 }
@@ -735,6 +743,17 @@ pub async fn get_client_runtime_entries(
                     .resolved_cell(),
             )
         };
+    }
+
+    if matches!(
+        ty,
+        ClientContextType::Pages { .. } | ClientContextType::App { .. }
+    ) && let Some(config) = &*next_config.turbopack_module_federation().await?
+    {
+        let options = module_federation_options(config)?.resolved_cell();
+        if let Some(source) = &*host_provider_source(project_root.clone(), *options).await? {
+            runtime_entries.push(RuntimeEntry::Source(*source).resolved_cell());
+        }
     }
 
     if matches!(ty, ClientContextType::App { .. },) {

@@ -12,6 +12,7 @@ pub struct Entrypoints {
     pub routes: FxIndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
+    pub module_federation_endpoint: Option<ResolvedVc<Box<dyn Endpoint>>>,
     pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_error_endpoint: ResolvedVc<Box<dyn Endpoint>>,
