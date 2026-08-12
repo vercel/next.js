@@ -161,6 +161,77 @@ impl EsRegex {
     }
 }
 
+/// A group of [`EsRegex`]es matched against a haystack as a unit.
+///
+/// The members backed by the `regex` crate are compiled into a single [`regex::RegexSet`] once,
+/// when the group is built, rather than on every match. The remainder (those that fall back to
+/// `regress`, e.g. for lookahead) are matched one at a time.
+#[derive(Debug, Clone)]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
+pub struct EsRegexSet {
+    /// The members, in the order they were given. Also the source of truth for equality and
+    /// serialization, since [`regex::RegexSet`] supports neither.
+    regexes: Vec<EsRegex>,
+    #[turbo_tasks(trace_ignore)]
+    set: regex::RegexSet,
+}
+
+impl PartialEq for EsRegexSet {
+    fn eq(&self, other: &Self) -> bool {
+        self.regexes == other.regexes
+    }
+}
+impl Eq for EsRegexSet {}
+
+impl Encode for EsRegexSet {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.regexes.encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for EsRegexSet {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let regexes: Vec<EsRegex> = Decode::decode(decoder)?;
+        EsRegexSet::new(regexes).map_err(|err| DecodeError::OtherString(err.to_string()))
+    }
+}
+
+impl_borrow_decode!(EsRegexSet);
+
+impl Default for EsRegexSet {
+    fn default() -> Self {
+        Self {
+            regexes: Vec::new(),
+            set: regex::RegexSet::empty(),
+        }
+    }
+}
+
+impl EsRegexSet {
+    /// Builds the combined matcher. Fails if the members cannot be compiled into a single
+    /// [`regex::RegexSet`]; the combined program has its own size limit, so compiling
+    /// individually is no guarantee.
+    pub fn new(regexes: Vec<EsRegex>) -> Result<Self> {
+        let set = regex::RegexSet::new(regexes.iter().filter_map(EsRegex::as_regex_str))?;
+        Ok(Self { regexes, set })
+    }
+
+    /// Returns true if any member matches somewhere in the `haystack`.
+    pub fn is_match(&self, haystack: &str) -> bool {
+        self.set.is_match(haystack)
+            || self
+                .regexes
+                .iter()
+                .filter(|regex| regex.as_regex_str().is_none())
+                .any(|regex| regex.is_match(haystack))
+    }
+
+    /// Returns true if the group has no members.
+    pub fn is_empty(&self) -> bool {
+        self.regexes.is_empty()
+    }
+}
+
 pub struct Captures<'h> {
     delegate: CapturesImpl<'h>,
 }
@@ -216,7 +287,46 @@ impl<'h> Iterator for Captures<'h> {
 
 #[cfg(test)]
 mod tests {
-    use super::{EsRegex, EsRegexImpl};
+    use super::{EsRegex, EsRegexImpl, EsRegexSet};
+
+    #[test]
+    fn es_regex_set_matches_either_delegate() {
+        // `a(?!b)` needs regress; `^/docs` is handled by the shared `RegexSet`.
+        let set = EsRegexSet::new(vec![
+            EsRegex::new("^/docs", "").unwrap(),
+            EsRegex::new("a(?!b)", "").unwrap(),
+        ])
+        .unwrap();
+        assert!(set.is_match("/docs/getting-started"));
+        assert!(set.is_match("ac"));
+        assert!(!set.is_match("/blog"));
+        assert!(!set.is_match("ab"));
+    }
+
+    #[test]
+    fn empty_es_regex_set_never_matches() {
+        let set = EsRegexSet::default();
+        assert!(set.is_empty());
+        assert!(!set.is_match(""));
+        assert!(!set.is_match("/docs"));
+    }
+
+    #[test]
+    fn es_regex_set_round_trip_bincode() {
+        let set = EsRegexSet::new(vec![
+            EsRegex::new("^/docs", "").unwrap(),
+            EsRegex::new("a(?!b)", "").unwrap(),
+        ])
+        .unwrap();
+        let config = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(&set, config).unwrap();
+        let (decoded, len) = bincode::decode_from_slice::<EsRegexSet, _>(&encoded, config).unwrap();
+        assert_eq!(set, decoded);
+        assert_eq!(len, encoded.len());
+        // The `RegexSet` is rebuilt on decode, not carried in the encoding.
+        assert!(decoded.is_match("/docs"));
+        assert!(decoded.is_match("ac"));
+    }
 
     #[test]
     fn round_trip_bincode() {
