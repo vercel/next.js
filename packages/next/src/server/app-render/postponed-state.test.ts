@@ -1,4 +1,7 @@
-import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import {
+  createPrerenderResumeDataCache,
+  stringifyResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 import {
   streamFromString,
   streamToString,
@@ -15,6 +18,7 @@ import type {
   OpaqueFallbackRouteParams,
   OpaqueFallbackRouteParamValue,
 } from '../request/fallback-params'
+import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
   params: Record<string, OpaqueFallbackRouteParamValue>
@@ -144,6 +148,79 @@ describe('getDynamicDataPostponedState', () => {
       isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
+  })
+
+  it('serializes and parses an uncompressed cache when compression is disabled', async () => {
+    const resumeDataCache = createPrerenderResumeDataCache()
+    resumeDataCache.fetch.set('cache-key', {
+      kind: CachedRouteKind.FETCH,
+      data: {
+        headers: {},
+        body: 'cached body',
+        url: 'https://example.com',
+      },
+      revalidate: 60,
+    })
+
+    const serializedResumeDataCache = await stringifyResumeDataCache(
+      resumeDataCache,
+      isCacheComponentsEnabled
+    )
+    const state = await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      undefined,
+      true
+    )
+
+    expect(state).toBe(`4:null${serializedResumeDataCache}`)
+
+    const parsed = parsePostponedState(state, {}, undefined, true)
+    expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
+      resumeDataCache.fetch.get('cache-key')
+    )
+  })
+
+  it('warns when the uncompressed state would exceed the size limit', async () => {
+    const resumeDataCache = createPrerenderResumeDataCache()
+    resumeDataCache.fetch.set('cache-key', {
+      kind: CachedRouteKind.FETCH,
+      data: {
+        headers: {},
+        body: '💥'.repeat(2048),
+        url: 'https://example.com',
+      },
+      revalidate: 60,
+    })
+
+    const serializedResumeDataCache = await stringifyResumeDataCache(
+      resumeDataCache,
+      isCacheComponentsEnabled
+    )
+    const uncompressedStateByteLength = Buffer.byteLength(
+      `4:null${serializedResumeDataCache}`
+    )
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength
+    )
+    expect(warn).not.toHaveBeenCalled()
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength - 1
+    )
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `The uncompressed postponed state is ${uncompressedStateByteLength} bytes`
+      )
+    )
+
+    warn.mockRestore()
   })
 })
 
