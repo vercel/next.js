@@ -8,7 +8,10 @@ import {
   findApplicableSourceMapPayload,
   findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
+  readSourceContentFromFileUri,
+  resolveProjectScopedDisplayPath,
   sourceMapIgnoreListsEverything,
+  stripSourceRoot,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
@@ -70,6 +73,28 @@ type GlobalWithCodeFrameRenderer = typeof globalThis & {
 
 export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
   ;(globalThis as GlobalWithCodeFrameRenderer)[CODE_FRAME_RENDERER] = renderer
+}
+
+/**
+ * Renders a code frame by reading the original source from turbopack, for maps that omit inlined
+ * `sourcesContent` (dev with `experimental.turbopackServeSourceContent`). Injected by the dev
+ * server so this module keeps no hard dependency on native bindings. Given the map-resolved source
+ * URL (which may be prefixed by the on-demand-content `sourceRoot`), the renderer maps it back to a
+ * project file, reads + renders the frame in a single synchronous native call, and returns null if
+ * the source is not a servable project file.
+ */
+type NativeCodeFrameRenderer = (
+  frame: IgnorableStackFrame,
+  source: string,
+  colors: boolean
+) => string | null
+
+let nativeCodeFrameRenderer: NativeCodeFrameRenderer | undefined
+
+export function setNativeCodeFrameRenderer(
+  renderer: NativeCodeFrameRenderer
+): void {
+  nativeCodeFrameRenderer = renderer
 }
 
 function getOriginalCodeFrame(
@@ -372,6 +397,22 @@ function getSourcemappedFrameIfPossible(
     }
   }
 
+  // `originalPositionFor` joins the source with the map's `sourceRoot`; `sources`/`ignoreList` are
+  // keyed by the raw (pre-`sourceRoot`) entries. Reverse the join for lookups and display, keeping
+  // the un-stripped `sourcePosition.source` for the native code-frame renderer (which needs it).
+  const rawSource = stripSourceRoot(
+    sourcePosition.source,
+    applicableSourceMap?.sourceRoot
+  )
+
+  // For on-demand source-content maps the stripped `rawSource` is project-root-relative (the content
+  // endpoint maps to the project root); rebase it onto the cwd for a cwd-relative displayed frame.
+  // Otherwise `displayFile === rawSource` (flag-off path byte-identical).
+  const displayFile = resolveProjectScopedDisplayPath(
+    rawSource,
+    sourcePosition.source
+  )
+
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
@@ -385,9 +426,11 @@ function getSourcemappedFrameIfPossible(
     ignored = true
   } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
-    const sourceIndex = applicableSourceMap.sources.indexOf(
-      sourcePosition.source
-    )
+    let sourceIndex = applicableSourceMap.sources.indexOf(rawSource)
+    if (sourceIndex === -1 && rawSource !== sourcePosition.source) {
+      // Fall back to the fully-resolved form in case `sources` already includes `sourceRoot`.
+      sourceIndex = applicableSourceMap.sources.indexOf(sourcePosition.source)
+    }
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
@@ -399,7 +442,12 @@ function getSourcemappedFrameIfPossible(
     methodName: frame.methodName
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
       ?.replace('__webpack_exports__.', ''),
-    file: sourcePosition.source,
+    // Use the `sourceRoot`-stripped source so the user-facing `file` is the clean project-relative
+    // path, not the endpoint URL of a dev `sourceRoot` (e.g. on-demand source-content). For
+    // on-demand maps this is resolved to an absolute path so `frameToString` relativizes it against
+    // the cwd. The native code-frame renderer below still receives the un-stripped
+    // `sourcePosition.source`.
+    file: displayFile,
     line1: sourcePosition.line,
     column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
@@ -414,16 +462,35 @@ function getSourcemappedFrameIfPossible(
     stack: originalFrame,
     get code() {
       if (codeFrame === undefined) {
-        const sourceContent: string | null =
+        let sourceContent: string | null =
           sourceMapConsumer.sourceContentFor(
             sourcePosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
-        codeFrame = getOriginalCodeFrame(
-          originalFrame,
-          sourceContent,
-          inspectOptions.colors
-        )
+        if (sourceContent === null && nativeCodeFrameRenderer) {
+          // The map omitted inlined content for this source (dev with
+          // `experimental.turbopackServeSourceContent`). Read + render the frame from turbopack in
+          // one synchronous native call instead of laundering the source through JS.
+          codeFrame = nativeCodeFrameRenderer(
+            originalFrame,
+            sourcePosition.source,
+            inspectOptions.colors ?? false
+          )
+        }
+        if (codeFrame == null) {
+          if (sourceContent === null) {
+            // Content was omitted from the map and the native renderer was unavailable (or declined,
+            // e.g. the dev validation worker, whose copy of this module has no Turbopack handle).
+            // Server maps use absolute `file://` source URIs, so read the original content directly
+            // from disk and render from it.
+            sourceContent = readSourceContentFromFileUri(sourcePosition.source)
+          }
+          codeFrame = getOriginalCodeFrame(
+            originalFrame,
+            sourceContent,
+            inspectOptions.colors
+          )
+        }
       }
       return codeFrame
     },

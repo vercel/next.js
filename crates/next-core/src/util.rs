@@ -10,6 +10,7 @@ use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemP
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
+    chunk::SourceMapSourceType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
         FreeVarReferences,
@@ -26,6 +27,41 @@ use crate::{
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
+
+/// The `sourceRoot` (and dev-server URL prefix) used for on-demand source content. Dev source maps
+/// emit first-party `[project]` sources relative to this, dropping their inlined `sourcesContent`,
+/// and the dev server serves the original file content from `<prefix><relative-path>`.
+///
+/// This single definition is the source of truth shared by the client/server chunking contexts.
+/// The napi content endpoint and the JS content middleware carry their own copies (cross-crate /
+/// cross-language) that must be kept in sync with this value.
+pub const SOURCE_CONTENT_ENDPOINT_PREFIX: &str = "/__nextjs_source-content/[project]/";
+
+/// The [`SourceMapSourceType`] a dev **client** chunking context should use given whether on-demand
+/// source content serving is enabled. When enabled, project sources are emitted relative to the
+/// on-demand content endpoint with their inlined content dropped (browser devtools fetch content
+/// over HTTP); otherwise they keep absolute `file://` URIs with inlined content.
+pub fn dev_source_map_source_type(serve_source_content: bool) -> SourceMapSourceType {
+    if serve_source_content {
+        SourceMapSourceType::DevServerContentEndpoint(rcstr!("/__nextjs_source-content/[project]/"))
+    } else {
+        SourceMapSourceType::AbsoluteFileUri
+    }
+}
+
+/// The [`SourceMapSourceType`] a dev **server** chunking context should use given whether on-demand
+/// source content serving is enabled. Server maps always keep absolute `file://` URIs (server-side
+/// error tooling — stack tracing, code frames, ignore-list matching — reads sources directly from
+/// the filesystem, so it needs neither the HTTP content endpoint nor inlined content). When
+/// enabled, the inlined `sourcesContent` is dropped to keep the maps small; otherwise it is kept
+/// inline.
+pub fn dev_server_source_map_source_type(serve_source_content: bool) -> SourceMapSourceType {
+    if serve_source_content {
+        SourceMapSourceType::AbsoluteFileUriWithoutContent
+    } else {
+        SourceMapSourceType::AbsoluteFileUri
+    }
+}
 
 /// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
 /// should be replace with undefined.
@@ -485,7 +521,7 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     match content.parse_json_ref() {
-        FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
+        FileJsonContent::Unparsable(e) => turbobail!("File '{file_path}' is not valid JSON: {e}"),
         FileJsonContent::NotFound => turbobail!("File not found: {file_path:?}",),
         FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
     }

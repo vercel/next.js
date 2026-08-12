@@ -64,7 +64,7 @@ use turbo_tasks_fs::{
 };
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL_STR,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
@@ -98,9 +98,15 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL_STR}///"));
 static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
-    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL_STR}///[{PROJECT_FILESYSTEM_NAME}]/"));
+/// `sourceRoot` used by dev-server on-demand source-content maps. First-party project sources are
+/// emitted relative to this, and the source-map consumer resolves them back to
+/// `<SOURCE_CONTENT_SOURCE_ROOT><relative>`. Keep in sync with the value produced in
+/// `next-core`'s `next_client/context.rs` and the JS content middleware.
+const SOURCE_CONTENT_SOURCE_ROOT: &str = "/__nextjs_source-content/[project]/";
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -2549,6 +2555,22 @@ async fn project_trace_source_operation(
         } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
             // TODO(veil): Should the protocol be preserved?
             (decode_uri_fragment(source_file)?, None)
+        } else if let Some(source_file) = original_file.strip_prefix(SOURCE_CONTENT_SOURCE_ROOT) {
+            // Dev-server on-demand source content maps emit first-party project sources relative
+            // to `sourceRoot` (the content endpoint). The source-map consumer resolves them back
+            // to `<sourceRoot><relative>`; strip that to recover the project-relative path — this
+            // is equivalent to the `turbopack:///[project]/` case above.
+            let source_file = decode_uri_fragment(source_file)?;
+            (
+                RcStr::from(
+                    get_relative_path_to(
+                        &current_directory_path,
+                        &format!("{}{}", decode_uri_fragment(&project_root_uri)?, source_file),
+                    )
+                    .trim_start_matches("./"),
+                ),
+                Some(source_file),
+            )
         } else {
             bail!(
                 "Original file ({}) outside project ({})",
@@ -2626,6 +2648,137 @@ pub async fn project_get_source_for_asset(
 
             let FileContent::Content(source_content) = source_content else {
                 bail!("Cannot find source for asset {}", file_path);
+            };
+
+            Ok(Some(source_content.content().to_str()?.into_owned()))
+        })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+}
+
+/// Reads a project source file and renders a code frame for `location` in a single native call.
+///
+/// This fuses [`project_get_source_for_asset`] + `code_frame_columns`: the (potentially large)
+/// source string is read and rendered entirely in Rust, so only the small rendered frame crosses
+/// the napi boundary. It is the entrypoint used by the dev error overlay when tracing a stack
+/// frame back to its original source.
+///
+/// Returns `None` when the file can't be read or the location is out of range.
+#[tracing::instrument(level = "info", name = "get code frame for asset", skip_all)]
+#[napi]
+pub async fn project_get_code_frame_for_asset(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+    location: crate::code_frame::NapiCodeFrameLocation,
+    options: Option<crate::code_frame::NapiCodeFrameOptions>,
+) -> napi::Result<Option<String>> {
+    let code_frame_location: next_code_frame::CodeFrameLocation = location.into();
+    let code_frame_options: next_code_frame::CodeFrameOptions = options.unwrap_or_default().into();
+
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn source_content_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<FileContent>> {
+                let project_path = container.project().project_path().await?;
+                Ok(project_path.fs().root().await?.join(&file_path)?.read())
+            }
+
+            let source_content = &*source_content_operation(container, file_path.clone())
+                .read_strongly_consistent()
+                .await?;
+
+            let FileContent::Content(source_content) = source_content else {
+                return Ok(None);
+            };
+
+            let source = source_content.content().to_str()?;
+            next_code_frame::render_code_frame(&source, &code_frame_location, &code_frame_options)
+        })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+}
+
+/// Synchronous variant of [`project_get_code_frame_for_asset`], for callers that cannot await —
+/// notably `patch-error-inspect`'s synchronous `Error.prepareStackTrace` path. Blocks on the async
+/// implementation the same way [`project_get_source_map_sync`] does. Reading + rendering the frame
+/// in turbopack (rather than a JS-side disk read) keeps file caching in turbo-tasks.
+#[napi]
+pub fn project_get_code_frame_for_asset_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+    location: crate::code_frame::NapiCodeFrameLocation,
+    options: Option<crate::code_frame::NapiCodeFrameOptions>,
+) -> napi::Result<Option<String>> {
+    within_runtime_if_available(|| {
+        tokio::runtime::Handle::current().block_on(project_get_code_frame_for_asset(
+            project, file_path, location, options,
+        ))
+    })
+}
+
+/// Reads a project source file for the on-demand source-content dev endpoint.
+///
+/// Unlike [`project_get_source_for_asset`], this is gated by an admission set: it only serves files
+/// that a currently-emitted source map actually referenced (see
+/// [`Project::referenced_source_paths`]). Combined with the filesystem-root sandbox
+/// (`root().join()`), this prevents reading arbitrary project files or escaping the project root
+/// via path traversal. The admission set is a turbo-tasks query built lazily on first request and
+/// invalidated with the maps — there is no eagerly-maintained filter.
+#[tracing::instrument(level = "info", name = "get source content", skip_all)]
+#[napi]
+pub async fn project_get_source_content(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run(async move {
+            // Admission check: only files referenced by a currently-emitted source map may be
+            // served. A miss here is still additionally constrained by the filesystem-root sandbox
+            // below.
+            #[turbo_tasks::function(operation, root)]
+            async fn is_referenced_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<bool>> {
+                let referenced = container.project().referenced_source_paths().await?;
+                Ok(Vc::cell(referenced.contains(&file_path)))
+            }
+
+            if !*is_referenced_operation(container, file_path.clone())
+                .read_strongly_consistent()
+                .await?
+            {
+                return Ok(None);
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn source_content_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<FileContent>> {
+                let project_path = container.project().project_path().await?;
+                Ok(project_path.fs().root().await?.join(&file_path)?.read())
+            }
+
+            let source_content = &*source_content_operation(container, file_path.clone())
+                .read_strongly_consistent()
+                .await?;
+
+            let FileContent::Content(source_content) = source_content else {
+                return Ok(None);
             };
 
             Ok(Some(source_content.content().to_str()?.into_owned()))

@@ -481,6 +481,48 @@ export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): Promise<string | null>
+/**
+ * Reads a project source file and renders a code frame for `location` in a single native call.
+ *
+ * This fuses [`project_get_source_for_asset`] + `code_frame_columns`: the (potentially large)
+ * source string is read and rendered entirely in Rust, so only the small rendered frame crosses
+ * the napi boundary. It is the entrypoint used by the dev error overlay when tracing a stack
+ * frame back to its original source.
+ *
+ * Returns `None` when the file can't be read or the location is out of range.
+ */
+export declare function projectGetCodeFrameForAsset(
+  project: { __napiType: 'Project' },
+  filePath: RcStr,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): Promise<string | null>
+/**
+ * Synchronous variant of [`project_get_code_frame_for_asset`], for callers that cannot await —
+ * notably `patch-error-inspect`'s synchronous `Error.prepareStackTrace` path. Blocks on the async
+ * implementation the same way [`project_get_source_map_sync`] does. Reading + rendering the frame
+ * in turbopack (rather than a JS-side disk read) keeps file caching in turbo-tasks.
+ */
+export declare function projectGetCodeFrameForAssetSync(
+  project: { __napiType: 'Project' },
+  filePath: RcStr,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
+/**
+ * Reads a project source file for the on-demand source-content dev endpoint.
+ *
+ * Unlike [`project_get_source_for_asset`], this is gated by an admission set: it only serves files
+ * that a currently-emitted source map actually referenced (see
+ * [`Project::referenced_source_paths`]). Combined with the filesystem-root sandbox
+ * (`root().join()`), this prevents reading arbitrary project files or escaping the project root
+ * via path traversal. The admission set is a turbo-tasks query built lazily on first request and
+ * invalidated with the maps — there is no eagerly-maintained filter.
+ */
+export declare function projectGetSourceContent(
+  project: { __napiType: 'Project' },
+  filePath: RcStr
+): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
   sourceMapUrl: RcStr

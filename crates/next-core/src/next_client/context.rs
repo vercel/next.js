@@ -15,7 +15,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
-        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        MangleType, MinifyType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -479,6 +479,9 @@ pub struct ClientChunkingContextOptions {
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
+    /// When true (dev only), browser source maps omit inlined `sourcesContent` for project files
+    /// and point `sourceRoot` at the on-demand dev-server content endpoint.
+    pub serve_source_content: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -528,6 +531,7 @@ pub async fn get_client_chunking_context(
         unused_references,
         minify,
         source_maps,
+        serve_source_content,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -607,9 +611,14 @@ pub async fn get_client_chunking_context(
     builder = builder.shared_runtime_chunk(*per_page_module_graph.await?);
 
     if next_mode.is_development() {
+        // Emit `[project]`-relative sources with `sourceRoot` pointing at the dev server's
+        // on-demand content endpoint (when enabled), so the browser fetches original file content
+        // lazily instead of embedding it in every source map.
         builder = builder
             .hot_module_replacement()
-            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
+            .source_map_source_type(crate::util::dev_source_map_source_type(
+                *serve_source_content.await?,
+            ))
             .dynamic_chunk_content_loading(true);
     } else {
         builder = builder

@@ -33,8 +33,10 @@ import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
+  getSourceContentMiddleware,
   getSourceMapMiddleware,
   getOriginalStackFrames,
+  SOURCE_CONTENT_MIDDLEWARE_PREFIX,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
@@ -87,7 +89,10 @@ import {
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import type { ModernSourceMapPayload } from '../lib/source-maps'
+import {
+  type ModernSourceMapPayload,
+  stripSourceRoot,
+} from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
@@ -365,6 +370,55 @@ function getSourceMapURLFromTurbopack(
   return pathToFileURL(scriptPath + '.map').href
 }
 
+/**
+ * Renders a code frame for a server stack frame whose source map omitted inlined `sourcesContent`
+ * (dev with `experimental.turbopackServeSourceContent`). The map-resolved `source` is a project
+ * path relative to the on-demand content endpoint's `sourceRoot`; strip that prefix and read +
+ * render the frame in a single synchronous native call so the source never crosses into JS.
+ * Returns null when `source` isn't a servable project file.
+ */
+function getCodeFrameFromTurbopack(
+  project: Project,
+  frame: { line1: number | null; column1: number | null },
+  source: string,
+  colors: boolean
+): string | null {
+  // The resolved source carries the on-demand content `sourceRoot`. Depending on the source-map
+  // consumer, it may be prefixed with the `file://` scheme (the sync consumer used by
+  // `patch-error-inspect` resolves the sourceRoot-relative source as a URL) or bare (the async
+  // overlay consumer). Normalize both to the project-relative path.
+  const withoutScheme = source.startsWith('file://')
+    ? source.slice('file://'.length)
+    : source
+  if (
+    !withoutScheme.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) ||
+    frame.line1 == null
+  ) {
+    return null
+  }
+  // Strip the `sourceRoot` prefix and decode percent-encoded segments (e.g. `%5Blang%5D` →
+  // `[lang]`) so the asset path matches the on-disk project file.
+  const filePath = stripSourceRoot(
+    withoutScheme,
+    SOURCE_CONTENT_MIDDLEWARE_PREFIX
+  )
+  try {
+    return project.getCodeFrameForAssetSync(
+      filePath,
+      {
+        start: {
+          line: frame.line1,
+          column: frame.column1 ?? undefined,
+        },
+      },
+      { color: colors }
+    )
+  } catch {
+    // Reading source is race-condition prone (the file may have changed/been deleted).
+    return null
+  }
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -516,6 +570,22 @@ export async function createHotReloaderTurbopack(
   const { installCodeFrameSupport } =
     require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
   installCodeFrameSupport()
+  // For dev maps that omit inlined content (`experimental.turbopackServeSourceContent`), render
+  // server-side code frames by reading the original source from turbopack instead of from disk.
+  const { setNativeCodeFrameRenderer } =
+    require('../patch-error-inspect') as typeof import('../patch-error-inspect')
+  setNativeCodeFrameRenderer((frame, source, colors) =>
+    getCodeFrameFromTurbopack(project, frame, source, colors)
+  )
+  // On-demand source-content frames strip to paths relative to the turbopack root (the content
+  // endpoint maps to `project_root_path()`, i.e. `rootPath` — the monorepo root in a non-root
+  // project, not the app dir). Give the error-display path that root so it can rebase them onto the
+  // cwd (matching the native `traceSource`, which relativizes `project_root + source` against cwd).
+  // Read from `globalThis` so every bundled copy of the resolver (dev server, app-page runtime, dev
+  // worker) sees it — see `setProjectRootForErrorDisplay`.
+  const { setProjectRootForErrorDisplay } =
+    require('../lib/source-maps') as typeof import('../lib/source-maps')
+  setProjectRootForErrorDisplay(rootPath)
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
@@ -1150,6 +1220,7 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
+    getSourceContentMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),

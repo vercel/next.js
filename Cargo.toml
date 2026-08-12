@@ -318,6 +318,8 @@ petgraph = "0.8.3"
 pin-project-lite = "0.2.17"
 postcard = "1.0.4"
 proc-macro2 = "1.0.79"
+# See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
+qfilter = { version = "=0.3.0-alpha.4", features = ["serde", "legacy_x86_64_support"] }
 qstring = "0.7.2"
 quick_cache = { version = "0.6.14" }
 quote = "1.0.45"
