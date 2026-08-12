@@ -145,21 +145,39 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
         // will perform the actual chunk traversal and generate load statements.
         let chunks_server_data = &*self.chunks_data().await?.iter().try_join().await?;
 
-        // We also need the manifest chunk item's id, which points to a CJS module that
-        // exports a promise for all of the necessary chunk loads.
-        let item_id = this
-            .manifest
-            .chunk_item_id(*manifest.chunking_context)
-            .await?;
-
-        // Finally, we need the id of the module that we're actually trying to
+        // We also need the id of the module that we're actually trying to
         // dynamically import.
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = placeable.chunk_item_id(*manifest.chunking_context).await?;
 
-        // This is the code that will be executed when the dynamic import is reached.
+        if chunks_server_data.is_empty() {
+            writedoc!(
+                code,
+                r#"
+                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                        return Promise.resolve().then(() => parentImport({dynamic_id}));
+                    }});
+                "#,
+                dynamic_id = StringifyModuleId(&dynamic_id),
+            )?;
+
+            return Ok(EcmascriptChunkItemContent {
+                inner_code: code.into(),
+                ..Default::default()
+            }
+            .cell());
+        }
+
+        // The manifest chunk item's id points to a CJS module that exports the
+        // chunks required by the dynamic import.
+        let item_id = this
+            .manifest
+            .chunk_item_id(*manifest.chunking_context)
+            .await?;
+
+        // This code will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by
         // the dynamic import, and finally we'll be able to import the module we're
         // trying to dynamically import.

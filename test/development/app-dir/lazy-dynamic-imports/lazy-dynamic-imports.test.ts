@@ -51,6 +51,51 @@ import { retry } from 'next-test-utils'
       expect(await browser.elementByCss('#eager').text()).toBe(
         'eager-marker-7c2a'
       )
+      expect(await browser.elementByCss('#eager-shared').text()).toBe(
+        'shared-dependency-marker-b31f'
+      )
+      const initialChunkPaths: string[] = await browser.eval(`
+        [...new Set(performance.getEntriesByType('resource')
+          .map((entry) => new URL(entry.name).pathname)
+          .filter((pathname) => pathname.endsWith('.js')))]
+      `)
+      const initialChunkContents = await Promise.all(
+        initialChunkPaths.map((chunkPath) =>
+          next.fetch(chunkPath).then((res) => res.text())
+        )
+      )
+      expect(
+        initialChunkContents.some((content) =>
+          content.includes('shared-dependency-marker-b31f')
+        )
+      ).toBe(true)
+
+      await browser.elementByCss('#load-overlap').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#overlap-result').text()).toBe(
+          'shared-dependency-marker-b31f'
+        )
+      })
+      const chunksAfterOverlap: string[] = await browser.eval(`
+        [...new Set(performance.getEntriesByType('resource')
+          .map((entry) => new URL(entry.name).pathname)
+          .filter((pathname) => pathname.endsWith('.js')))]
+      `)
+      const overlapChunkPaths = chunksAfterOverlap.filter(
+        (chunkPath) => !initialChunkPaths.includes(chunkPath)
+      )
+      expect(overlapChunkPaths).not.toHaveLength(0)
+      const overlapChunkContents = await Promise.all(
+        overlapChunkPaths.map((chunkPath) =>
+          next.fetch(chunkPath).then((res) => res.text())
+        )
+      )
+      expect(
+        overlapChunkContents.some((content) =>
+          content.includes('shared-dependency-marker-b31f')
+        )
+      ).toBe(false)
+
       expect(await assetsContaining('lazy-marker-9a4e')).toHaveLength(0)
       expect(await assetsContaining('color: green')).toHaveLength(0)
       expect(await assetsContaining('untouched-marker-2d8c')).toHaveLength(0)
@@ -70,6 +115,33 @@ import { retry } from 'next-test-utils'
           'lazy-marker-9a4e'
         )
       })
+      expect(await browser.elementByCss('#lazy-shared').text()).toBe(
+        'shared-dependency-marker-b31f'
+      )
+      const loadedChunkPaths: string[] = await browser.eval(`
+        [...new Set(performance.getEntriesByType('resource')
+          .map((entry) => new URL(entry.name).pathname)
+          .filter((pathname) => pathname.endsWith('.js')))]
+      `)
+      const lazyChunkPaths = loadedChunkPaths.filter(
+        (chunkPath) => !chunksAfterOverlap.includes(chunkPath)
+      )
+      expect(lazyChunkPaths).not.toHaveLength(0)
+      const lazyChunkContents = await Promise.all(
+        lazyChunkPaths.map((chunkPath) =>
+          next.fetch(chunkPath).then((res) => res.text())
+        )
+      )
+      expect(
+        lazyChunkContents.some((content) =>
+          content.includes('lazy-marker-9a4e')
+        )
+      ).toBe(true)
+      expect(
+        lazyChunkContents.some((content) =>
+          content.includes('shared-dependency-marker-b31f')
+        )
+      ).toBe(false)
       expect(
         await browser.eval(
           `getComputedStyle(document.querySelector('#target')).color`
@@ -114,6 +186,34 @@ import { retry } from 'next-test-utils'
       } finally {
         await next.patchFile(targetPath, originalTarget)
       }
+    })
+
+    it('preserves client and server references behind a server dynamic import', async () => {
+      const browser = await next.browser('/server-graph')
+
+      expect(
+        await browser.hasElementByCssSelector('#server-graph-marker')
+      ).toBe(false)
+      await browser.elementByCss('#reveal-server-graph').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#server-graph-marker').text()).toBe(
+          'server-graph-marker'
+        )
+      })
+
+      await browser.elementByCss('#hydrate-client').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#hydration-result').text()).toBe(
+          'hydrated'
+        )
+      })
+
+      await browser.elementByCss('#run-hidden-action').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#hidden-action-result').text()).toBe(
+          'hidden-action-result'
+        )
+      })
     })
   }
 )
