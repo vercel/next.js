@@ -170,7 +170,13 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
                     self.abort();
                     None
                 }
-                Err(panic) => Some(panic),
+                // A panic aborts too: it is going to be re-raised out of the scope, so the caller
+                // never observes whatever the queued items would have produced. Running them would
+                // only delay propagation.
+                Err(panic) => {
+                    self.abort();
+                    Some(panic)
+                }
             };
             self.on_item_finished(panic);
         }
@@ -238,18 +244,23 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
 /// `run` is shared across the calling thread and up to `runtime workers - 1` helper tasks and may
 /// run concurrently. The calling thread drains the whole (growing) queue itself if no helper is
 /// scheduled, so it never deadlocks on a thread-limited runtime. Prefer calling from
-/// `spawn_blocking` when other work shares the task. The first panic from any `run` is propagated
-/// after the join.
+/// `spawn_blocking` when other work shares the task.
 ///
 /// Items must be `'static` (they sit in a queue drained by helper threads); the `run` closure may
 /// borrow `'env` data.
 ///
 /// # Aborting
 ///
-/// Returning [`ControlFlow::Break`] from `run` abandons all queued-but-unstarted items, so the
-/// scope returns as soon as the currently-running jobs finish. Jobs already in flight on other
-/// threads are **not** interrupted. Use this when the remaining work is discardable (it can be
-/// recomputed on a later run) and finishing it is not worth the latency.
+/// Both [`ControlFlow::Break`] and a panic abandon all queued-but-unstarted items, so the scope
+/// returns as soon as the currently-running jobs finish. Jobs already in flight on other threads
+/// are **not** interrupted in either case.
+///
+/// Use `Break` when the remaining work is discardable (it can be recomputed on a later run) and
+/// finishing it is not worth the latency.
+///
+/// A panic aborts for the same reason it is re-raised: the caller never observes what the remaining
+/// items would have produced, so running them only delays propagation. The first panic from any
+/// `run` is re-raised after the join.
 pub fn scope_unbounded<'env, T, F>(initial: impl IntoIterator<Item = T>, run: F)
 where
     T: Send + 'static,
@@ -278,10 +289,13 @@ where
 ///
 /// # Panics and aborts
 ///
-/// If a `run` panics, the panic is re-raised after the join and **all accumulated results are
-/// discarded** — the return value is only produced on the normal path. On
-/// [`ControlFlow::Break`], results accumulated before the abort are returned as usual; the items
-/// that were abandoned simply never contributed.
+/// Both [`ControlFlow::Break`] and a panic abort the scope, abandoning every queued-but-unstarted
+/// item (see [`scope_unbounded`]). They differ in what comes back:
+///
+/// - On `Break`, results accumulated before the abort are returned as usual; the abandoned items
+///   simply never contributed.
+/// - On a panic, the panic is re-raised after the join and **all accumulated results are
+///   discarded** — the return value is only produced on the normal path.
 ///
 /// TODO: this occupies every worker for the whole call duration. If work turns out to be bursty,
 /// let workers time out when there is not enough work and spawn more when new work is produced.
@@ -716,6 +730,33 @@ mod tests {
         }));
         let err = result.expect_err("the panic must propagate even though the scope aborted");
         assert_eq!(err.downcast_ref::<&str>(), Some(&"Intentional panic"));
+    }
+
+    /// A panic aborts the scope: the queued-but-unstarted items are abandoned rather than run.
+    ///
+    /// The first item panics, so with a large seed set almost nothing else should be dispatched.
+    /// Items already picked up by another drainer still complete, so the bound is "far fewer than
+    /// seeded" rather than exactly one.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_unbounded_panic_abandons_queue() {
+        const ITEMS: usize = 10_000;
+        let processed = Arc::new(AtomicUsize::new(0));
+        let processed_clone = processed.clone();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            scope_unbounded(0..ITEMS, move |_spawner, item| {
+                processed_clone.fetch_add(1, Ordering::SeqCst);
+                if item == 0 {
+                    panic!("Intentional panic");
+                }
+                ControlFlow::Continue(())
+            });
+        }));
+        result.expect_err("the panic must propagate");
+        let count = processed.load(Ordering::SeqCst);
+        assert!(
+            count < ITEMS,
+            "a panic must abandon the queue, but all {ITEMS} items ran"
+        );
     }
 
     /// A panic in a `run` invocation is propagated after all in-flight work is joined.
