@@ -340,7 +340,6 @@
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
       "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
-      "web-vitals@4.2.1": "patches/web-vitals@4.2.1.patch",
       "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch",
       "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
       "@vercel/blob": "patches/@vercel__blob.patch",
