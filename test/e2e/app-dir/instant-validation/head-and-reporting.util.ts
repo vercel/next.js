@@ -605,6 +605,20 @@ export function registerHeadAndReportingTests(
         }
       })
 
+      it('valid - instant = false in a "use cache" layout opts out of static shell validation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-use-cache-instant-false'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-use-cache-instant-false'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
       it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo('/shells/invalid-runtime-params/123')
