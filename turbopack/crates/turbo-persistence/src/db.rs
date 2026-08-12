@@ -162,6 +162,21 @@ impl WriteOperationGuard<'_> {
 
 /// The contents of the `CURRENT` file: which sequence number is committed, and when that commit
 /// happened.
+///
+/// # Compatibility
+///
+/// Unlike other parts of the persistent database the `CURRENT` file is occasionally read by other
+/// versions of turbopack, so we should be careful when updating this struct
+///
+/// - Never rename a field. This will break readers from other versions
+/// - Never remove a field, unless it has always had `[serde(default)]`
+/// - Never change the type of a field
+/// - New fields should be `#[serde(default)]` and semantically optional to readers from other
+///   versions
+/// - Never add `#[serde(deny_unknown_fields)]`.
+///
+/// Field names are also parsed outside this crate (next.js reads `CURRENT` directly, in
+/// `turbopack-cache-seed.ts`), so a rename would have to move in lockstep there too.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
     /// The highest sequence number that is part of the committed database.
