@@ -627,6 +627,22 @@ task_local! {
     pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
 }
 
+/// Keeps a background job counted while held. See [`TurboTasks::begin_background_job`].
+struct BackgroundJobGuard<B: Backend + 'static>(Arc<TurboTasks<B>>);
+
+impl<B: Backend + 'static> Drop for BackgroundJobGuard<B> {
+    fn drop(&mut self) {
+        if self
+            .0
+            .currently_scheduled_background_jobs
+            .fetch_sub(1, Ordering::Relaxed)
+            == 1
+        {
+            self.0.event_background_done.notify(usize::MAX);
+        }
+    }
+}
+
 impl<B: Backend + 'static> TurboTasks<B> {
     // TODO better lifetime management for turbo tasks
     // consider using unsafe for the task_local turbo tasks
@@ -764,8 +780,20 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
         let this = self.pin();
+        // Count the detached task as a background job so `stop_and_wait` waits for it before
+        // dropping backend storage. Foreground/idle detection ignores it, so it doesn't hold the
+        // dev server in "compiling". The guard, held for the whole task, releases the count on
+        // every exit path (including a panic in `run_once().unwrap()`), otherwise `stop_and_wait`
+        // would hang. It's begun here, before the spawn, to avoid a zero-count window.
+        let guard = this.begin_background_job();
         tokio::spawn(async move {
-            this.pin()
+            let _guard = guard;
+            // Don't start a `run_once` once shutdown has begun: it would touch storage `stop` is
+            // about to drop.
+            if this.stopped.load(Ordering::Acquire) {
+                return;
+            }
+            this.clone()
                 .run_once(async move {
                     this.finish_foreground_job();
                     future.await;
@@ -951,19 +979,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
-    fn begin_background_job(&self) {
+    /// Registers a background job and returns a guard that unregisters it on drop. `stop_and_wait`
+    /// waits for the background count to reach zero before dropping backend storage, so holding
+    /// this guard keeps a detached task visible to shutdown. Unlike foreground jobs, background
+    /// jobs do not affect idle / "compiled" detection.
+    fn begin_background_job(self: &Arc<Self>) -> BackgroundJobGuard<B> {
         self.currently_scheduled_background_jobs
             .fetch_add(1, Ordering::Relaxed);
-    }
-
-    fn finish_background_job(&self) {
-        if self
-            .currently_scheduled_background_jobs
-            .fetch_sub(1, Ordering::Relaxed)
-            == 1
-        {
-            self.event_background_done.notify(usize::MAX);
-        }
+        BackgroundJobGuard(self.clone())
     }
 
     pub fn get_in_progress_count(&self) -> usize {
@@ -1133,15 +1156,17 @@ impl<B: Backend + 'static> TurboTasks<B> {
         T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
         T::CallOnceFuture: Send,
     {
-        let mut this = self.pin();
-        self.begin_background_job();
+        let this = self.pin();
+        let guard = this.begin_background_job();
         tokio::spawn(
             TURBO_TASKS
                 .scope(this.clone(), async move {
+                    let _guard = guard;
                     if !this.stopped.load(Ordering::Acquire) {
-                        this = func(this).await;
+                        // `func` returns the handle it was given; the guard now owns the background
+                        // count, so we don't need it back.
+                        let _ = func(this).await;
                     }
-                    this.finish_background_job();
                 })
                 .in_current_span(),
         );
