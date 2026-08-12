@@ -101,6 +101,11 @@ on:
         required: false
         type: string
         default: 'yes'
+      environment:
+        description: GitHub Environment to run the job in.
+        required: false
+        type: string
+        default: ''
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -136,12 +141,15 @@ env:
   NEXT_TEST_JOB: 1
   # Per-job memoization of passed test files.
   NEXT_TEST_PASSED_FILE: .next-test-passed.txt
-  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  DEPLOY_E2E_TEST_TOKEN_URL: ${{ vars.DEPLOY_E2E_TEST_TOKEN_URL }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
+  DEPLOY_E2E_TEST_ADAPTER_TOKEN_URL: ${{ vars.DEPLOY_E2E_TEST_ADAPTER_TOKEN_URL }}
   VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
-  VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
+  DEPLOY_E2E_TEST_TURBOPACK_TOKEN_URL: ${{ vars.DEPLOY_E2E_TEST_TURBOPACK_TOKEN_URL }}
   VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
+  # Exposed so deploy tests can present it to the token exchange endpoint,
+  # which uses its repository permissions as proof the run is not a fork.
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # Read token for the auth-protected preview-builds npm mirror, used by deploy
   # tests to install Next.js artifacts during the remote build.
   PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
@@ -160,6 +168,7 @@ jobs:
   build:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
+    environment: ${{ inputs.environment }}
 
     defaults:
       run:

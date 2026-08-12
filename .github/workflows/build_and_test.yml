@@ -773,9 +773,73 @@ jobs:
             --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
             --timeout-minutes 30
 
+  # Fork PRs cannot mint GitHub OIDC tokens themselves. This job runs in the
+  # approval-gated trusted-fork-run environment, so entering it is the trust
+  # decision. It never checks out code; the only thing that crosses into the
+  # untrusted deploy jobs is the vended token.
+  mint-deploy-token:
+    name: Mint deploy token
+    # Always succeeds so the deploy jobs are never blocked by a skipped need.
+    # Only fork PRs enter the approval-gated environment and mint; other
+    # events leave the token output empty and deploy jobs mint their own.
+    environment: ${{ github.event.pull_request.head.repo.fork && 'trusted-fork-run' || '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    outputs:
+      token: ${{ steps.mint.outputs.token }}
+    steps:
+      - name: Exchange GitHub OIDC token for a Vercel deploy token
+        if: ${{ github.event.pull_request.head.repo.fork }}
+        id: mint
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        env:
+          DEPLOY_E2E_TEST_TOKEN_URL: https://nextjs-deploy-tests-playground.vercel.app/
+        with:
+          script: |
+            const audience = `https://github.com/${context.repo.owner}/${context.repo.repo}`
+            const idToken = await core.getIDToken(audience)
+            // The GitHub OIDC token is also sent as
+            // `x-vercel-trusted-oidc-idp-token` so the request passes Vercel
+            // Deployment Protection on the vending app when it is enabled,
+            // without a static bypass secret.
+            const response = await fetch(process.env.DEPLOY_E2E_TEST_TOKEN_URL, {
+              headers: {
+                authorization: `Bearer ${idToken}`,
+                'x-vercel-trusted-oidc-idp-token': idToken,
+              },
+            })
+            if (!response.ok) {
+              throw new Error(
+                `Deploy token request failed with status ${response.status}: ${await response.text()}`
+              )
+            }
+            const { token } = await response.json()
+
+            const decodeClaims = (jwt) =>
+              JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'))
+            core.exportVariable('GH_OIDC_TOKEN_CLAIMS', JSON.stringify(decodeClaims(idToken)))
+            core.exportVariable('VERCEL_OIDC_TOKEN_CLAIMS', JSON.stringify(decodeClaims(token)))
+
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Print token claims (debug)
+        run: |
+          echo "GitHub OIDC token claims:"
+          echo "$GH_OIDC_TOKEN_CLAIMS" | jq .
+          echo "Vercel OIDC token claims:"
+          echo "$VERCEL_OIDC_TOKEN_CLAIMS" | jq .
+
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
-    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'wait-for-preview-tarball',
+        'mint-deploy-token',
+      ]
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
@@ -786,9 +850,21 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
+    permissions:
+      # Write access only materializes for same-repo runs: fork PRs are
+      # downgraded to read-only regardless of this declaration. The exchange
+      # endpoint uses the job's GITHUB_TOKEN to look up the actor's
+      # repository permissions.
+      contents: write
+      id-token: write
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
+        # On fork PRs the token was minted by the mint-deploy-token job.
+        # Same-repo runs mint their own per deploy.
+        if [ -n "${{ needs.mint-deploy-token.outputs.token }}" ]; then
+          export VERCEL_OIDC_TOKEN="${{ needs.mint-deploy-token.outputs.token }}"
+        fi
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -803,7 +879,13 @@ jobs:
 
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
-    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'wait-for-preview-tarball',
+        'mint-deploy-token',
+      ]
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
@@ -814,8 +896,20 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
+    permissions:
+      # Write access only materializes for same-repo runs: fork PRs are
+      # downgraded to read-only regardless of this declaration. The exchange
+      # endpoint uses the job's GITHUB_TOKEN to look up the actor's
+      # repository permissions.
+      contents: write
+      id-token: write
     with:
       afterBuild: |
+        # On fork PRs the token was minted by the mint-deploy-token job.
+        # Same-repo runs mint their own per deploy.
+        if [ -n "${{ needs.mint-deploy-token.outputs.token }}" ]; then
+          export VERCEL_OIDC_TOKEN="${{ needs.mint-deploy-token.outputs.token }}"
+        fi
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export NEXT_ENABLE_ADAPTER=1
@@ -1114,6 +1208,7 @@ jobs:
       - test-new-tests-dev
       - test-new-tests-start
       - wait-for-preview-tarball
+      - mint-deploy-token
       - test-new-tests-deploy
       - test-new-tests-deploy-cache-components
       - test-turbopack-production
