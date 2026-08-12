@@ -4,7 +4,7 @@
 //! outstanding-item counter reaching zero rather than by a count supplied by the caller.
 //!
 //! This is why the API is shaped differently from
-//! [`scope_and_block`](crate::scope_bounded::scope_and_block) and from [`std::thread::scope`]:
+//! [`scope_bounded`](crate::scope_bounded::scope_bounded) and from [`std::thread::scope`]:
 //! there is no single closure to hand a scope object to, because `run` *is* the per-item body — it
 //! is invoked once per item, concurrently across every drainer. So the seed set arrives as an
 //! `initial` iterator, and a job signals early termination by returning [`ControlFlow::Break`]
@@ -307,7 +307,8 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
     }
 }
 
-/// Like [`scope_and_block`], but the `run` closure receives a [`Scope`] and may enqueue more
+/// Like [`scope_bounded`](crate::scope_bounded::scope_bounded), but the `run` closure receives a
+/// [`Scope`] and may enqueue more
 /// items while the scope drains. Completes only once every item — `initial` plus everything
 /// transitively spawned — has been processed. No results are collected; jobs communicate through
 /// state captured in `run`. Use [`scope_unbounded_with`] to accumulate a value instead.
