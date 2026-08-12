@@ -13,7 +13,7 @@ use std::{
 };
 
 use crate::{
-    scope::scope_and_block,
+    scope_bounded::scope_and_block,
     util::{Chunk, good_chunk_size, into_chunks},
 };
 
