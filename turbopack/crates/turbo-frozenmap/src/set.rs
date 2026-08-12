@@ -4,12 +4,16 @@ use std::{
     fmt::{self, Debug},
     hash::BuildHasher,
     iter::FusedIterator,
+    marker::PhantomData,
     ops::RangeBounds,
 };
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{SeqAccess, Visitor},
+};
 
 use crate::map::{self, FrozenMap};
 
@@ -57,9 +61,28 @@ where
     T: Deserialize<'de> + Ord,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Reuse BTreeSet's sequence visitor; its sorted representation converts without another
-        // sort.
-        BTreeSet::deserialize(deserializer).map(Into::into)
+        struct SeqVisitor<T>(PhantomData<T>);
+
+        impl<'de, T> Visitor<'de> for SeqVisitor<T>
+        where
+            T: Deserialize<'de> + Ord,
+        {
+            type Value = FrozenSet<T>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a sequence")
+            }
+
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(item) = seq.next_element()? {
+                    items.push(item);
+                }
+                Ok(items.into_iter().collect())
+            }
+        }
+
+        deserializer.deserialize_seq(SeqVisitor(PhantomData))
     }
 }
 

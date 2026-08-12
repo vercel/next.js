@@ -4,12 +4,16 @@ use std::{
     fmt::{self, Debug},
     hash::BuildHasher,
     iter::FusedIterator,
+    marker::PhantomData,
     ops::{Bound, Index, RangeBounds},
 };
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{MapAccess, Visitor},
+};
 
 /// A compact frozen (immutable) ordered map backed by a sorted boxed slice.
 ///
@@ -61,8 +65,29 @@ where
     V: Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Reuse BTreeMap's map visitor; its sorted representation converts without another sort.
-        BTreeMap::deserialize(deserializer).map(Into::into)
+        struct MapVisitor<K, V>(PhantomData<(K, V)>);
+
+        impl<'de, K, V> Visitor<'de> for MapVisitor<K, V>
+        where
+            K: Deserialize<'de> + Ord,
+            V: Deserialize<'de>,
+        {
+            type Value = FrozenMap<K, V>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a map")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut entries = Vec::with_capacity(map.size_hint().unwrap_or(0));
+                while let Some(entry) = map.next_entry()? {
+                    entries.push(entry);
+                }
+                Ok(FrozenMap::from(entries))
+            }
+        }
+
+        deserializer.deserialize_map(MapVisitor(PhantomData))
     }
 }
 
