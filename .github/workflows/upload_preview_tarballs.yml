@@ -20,7 +20,6 @@ jobs:
     name: Upload preview tarballs to Blob
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
-    environment: preview-builds
     steps:
       # Checkout from the default branch (canary) -- workflow_run always uses
       # the default branch's version of the workflow file and this checkout
