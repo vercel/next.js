@@ -5,11 +5,13 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
+    ident::AssetIdent,
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -48,6 +50,8 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    pub request_string: Option<RcStr>,
+    pub import_site: RcStr,
     /// Whether the target is compiled only after its runtime proxy is activated.
     pub lazy_compilation: bool,
 }
@@ -63,6 +67,8 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        request_string: Option<RcStr>,
+        import_site: RcStr,
         lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
@@ -84,8 +90,25 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            request_string,
+            import_site,
             lazy_compilation,
         })
+    }
+
+    fn without_lazy_compilation(&self) -> Self {
+        Self {
+            origin: self.origin,
+            request: self.request,
+            issue_source: self.issue_source,
+            error_mode: self.error_mode,
+            import_externals: self.import_externals,
+            export_usage: self.export_usage.clone(),
+            resolve_override: self.resolve_override,
+            request_string: self.request_string.clone(),
+            import_site: self.import_site.clone(),
+            lazy_compilation: false,
+        }
     }
 }
 
@@ -93,6 +116,39 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if self.lazy_compilation && self.resolve_override.is_none() {
+            let request = self.request.await?;
+            // Pattern requests need their resolved result map for runtime dispatch. A constant
+            // request can use one proxy and defer resolution and processing until activation.
+            if let Some(request_string) = &self.request_string {
+                let origin = self.origin.into_trait_ref().await?;
+                let ident = AssetIdent::from_path(origin.origin_path())
+                    .with_layer(origin.asset_context().into_trait_ref().await?.layer())
+                    .with_modifier(
+                        format!("lazy compilation proxy {request:?} at {}", self.import_site)
+                            .into(),
+                    )
+                    .into_vc()
+                    .to_resolved()
+                    .await?;
+                let target: ResolvedVc<Box<dyn ModuleReference>> =
+                    ResolvedVc::upcast(self.without_lazy_compilation().resolved_cell());
+                let key = activation_key(&ident.to_string().await?);
+                let proxy = LazyCompilationProxyModule::new_unresolved(
+                    *target,
+                    *self.request,
+                    request_string.clone(),
+                    *self.origin,
+                    self.import_externals,
+                    *ident,
+                    key,
+                )
+                .to_resolved()
+                .await?;
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
+            }
+        }
+
         let result = if let Some(resolved) = &self.resolve_override {
             *ModuleResolveResult::module(*resolved)
         } else {
@@ -117,10 +173,22 @@ impl ModuleReference for EsmAsyncAssetReference {
                 && let Some(target) =
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
             {
-                let ident = target.ident().to_string().await?;
-                let proxy = LazyCompilationProxyModule::new(*target, activation_key(&ident))
+                let proxy_ident = target
+                    .ident()
+                    .owned()
+                    .await?
+                    .with_modifier(rcstr!("lazy compilation proxy"))
+                    .into_vc()
                     .to_resolved()
                     .await?;
+                let ident = proxy_ident.to_string().await?;
+                let proxy = LazyCompilationProxyModule::new_resolved(
+                    *target,
+                    *proxy_ident,
+                    activation_key(&ident),
+                )
+                .to_resolved()
+                .await?;
                 ModuleResolveResultItem::Module(ResolvedVc::upcast(proxy))
             } else {
                 item.clone()

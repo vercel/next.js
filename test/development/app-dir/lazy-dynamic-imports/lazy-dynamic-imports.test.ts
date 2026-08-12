@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'lazy-dynamic-imports',
   () => {
@@ -214,6 +214,113 @@ import { retry } from 'next-test-utils'
           'hidden-action-result'
         )
       })
+    })
+
+    it('does not parse a dynamic import target before activation', async () => {
+      const targetPath = path.join(
+        'app',
+        'parse-error',
+        'parse-error-target.ts'
+      )
+      const demoPath = path.join('app', 'parse-error', 'parse-error-demo.tsx')
+      const originalTarget = await next.readFile(targetPath)
+      const originalDemo = await next.readFile(demoPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `export const parseError = 'parse-error-proves-target-was-analyzed'
+export const invalid = ;`
+        )
+        const browser = await next.browser('/parse-error')
+
+        expect(await browser.elementByCss('#parse-error-idle').text()).toBe(
+          'not parsed'
+        )
+
+        await next.patchFile(
+          demoPath,
+          originalDemo.replace('not parsed', 'still not parsed')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('#parse-error-idle').text()).toBe(
+            'still not parsed'
+          )
+        })
+        expect(
+          await browser.eval(`
+            Boolean(document.querySelector('nextjs-portal')?.shadowRoot
+              ?.querySelector('[data-nextjs-dialog]'))
+          `)
+        ).toBe(false)
+
+        await browser.elementByCss('#load-parse-error').click()
+        await waitForRedbox(browser)
+        expect(await getRedboxSource(browser)).toContain(
+          'parse-error-proves-target-was-analyzed'
+        )
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+        await next.patchFile(demoPath, originalDemo)
+      }
+    })
+
+    it('activates a pattern import without colliding with its target', async () => {
+      const browser = await next.browser('/pattern')
+      await browser.elementByCss('#load-pattern').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-pattern').text()).toBe(
+          'pattern a'
+        )
+      })
+
+      await browser.eval(`location.hash = 'b'`)
+      await browser.elementByCss('#load-pattern').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-pattern').text()).toBe(
+          'pattern b'
+        )
+      })
+    })
+
+    it('gives repeated imports distinct proxies', async () => {
+      const browser = await next.browser('/duplicate')
+      const getActivationKeys = async (): Promise<string[]> =>
+        browser.eval(`
+          [...new Set(performance.getEntriesByType('resource')
+            .map((entry) => entry.name.match(/lazy-compilation-([0-9a-f]{16})/)?.[1])
+            .filter(Boolean))]
+        `)
+      const initialManifests = await getActivationKeys()
+
+      await browser.elementByCss('#load-first').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-first').text()).toBe(
+          'duplicate target'
+        )
+      })
+      expect(await browser.elementByCss('#load-second').text()).toBe(
+        'second idle'
+      )
+      const manifestsAfterFirst = await getActivationKeys()
+      expect(
+        manifestsAfterFirst.filter(
+          (pathname) => !initialManifests.includes(pathname)
+        )
+      ).toHaveLength(1)
+
+      await browser.elementByCss('#load-second').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-second').text()).toBe(
+          'duplicate target'
+        )
+      })
+      const manifestsAfterSecond = await getActivationKeys()
+      expect(
+        manifestsAfterSecond.filter(
+          (pathname) => !manifestsAfterFirst.includes(pathname)
+        )
+      ).toHaveLength(1)
     })
   }
 )

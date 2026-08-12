@@ -1859,8 +1859,9 @@ async fn handle_dynamic_import_with_linked_args(
             }
         }
 
+        let request_string = pat.as_constant_string().cloned();
         let resolve_override = if let Some(inner_assets) = &inner_assets
-            && let Some(req) = pat.as_constant_string()
+            && let Some(req) = &request_string
             && let Some(a) = inner_assets.get(req)
         {
             Some(*a)
@@ -1878,6 +1879,8 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
+                request_string,
+                format!("{}-{}", span.lo.to_u32(), span.hi.to_u32()).into(),
                 lazy_compilation,
             )
             .await?,
