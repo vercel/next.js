@@ -482,34 +482,12 @@ async fn chunk_group_content_operation(
         state.chunkable_items.into_iter().collect()
     };
 
-    let batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>> = FxIndexSet::default();
-    /*
-    TODO This is currently broken because
-    module
-        "[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/collect/basic/input/a.js [test] (ecmascript)"
-    pulls in this batch group
-    [
-         "[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/collect/basic/input/a.js [test] (ecmascript)",
-         "[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/collect/basic/input/b.js [test] (ecmascript)",
-         "[turbopack-collect]/ (my-test)"
-    ]
-    */
-    // for &module in &chunkable_items {
-    //     if let Some(batch_group) = module_batches_graph.get_batch_group(&module.into()) {
-    //         println!(
-    //             "batch_groups {:?} {:?}",
-    //             module.ident_strings().await?,
-    //             batch_group
-    //                 .await?
-    //                 .items
-    //                 .iter()
-    //                 .map(|item| item.ident_strings())
-    //                 .try_join()
-    //                 .await?
-    //         );
-    //         // batch_groups.insert(batch_group);
-    //     }
-    // }
+    let mut batch_groups = FxIndexSet::default();
+    for &module in &chunkable_items {
+        if let Some(batch_group) = module_batches_graph.get_batch_group(&module.into()) {
+            batch_groups.insert(batch_group);
+        }
+    }
 
     let batch_groups = if let Some((merged_modules, _)) = &should_merge_modules {
         batch_groups

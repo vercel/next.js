@@ -560,6 +560,14 @@ pub async fn compute_module_batches(
         let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
             FxIndexMap::default();
 
+        // Modules that are only referenced via `ChunkingType::PerEntry` (i.e. collecting
+        // modules). They are chunked once per entry group via
+        // `ChunkGroupContentInner::collecting_modules`, so their chunk item depends on the entry
+        // group and can't be represented in an entry-independent, shared `ModuleBatchGroup`.
+        // They still need to be in `single_module_entries` because the graph edges below
+        // reference them by index.
+        let mut per_entry_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+
         // Fill the map and also fill up the single_module_entries
         for (idx, pre_batch) in pre_batches.batches.iter().enumerate() {
             for item in &pre_batch.items {
@@ -570,9 +578,12 @@ pub async fn compute_module_batches(
                             .or_default()
                             .push(idx);
                     }
-                    PreBatchItem::NonParallelEdge(_, module) => {
+                    PreBatchItem::NonParallelEdge(ty, module) => {
                         if !pre_batches.entries.contains_key(module) {
                             pre_batches.single_module_entries.insert(*module);
+                        }
+                        if matches!(ty, ChunkingType::PerEntry) {
+                            per_entry_modules.insert(*module);
                         }
                     }
                     PreBatchItem::ParallelReference(_) => {}
@@ -813,6 +824,12 @@ pub async fn compute_module_batches(
             batch_groups.entry(key).or_default().push(batch);
         }
         for &module in &pre_batches.single_module_entries {
+            // Modules referenced via `ChunkingType::PerEntry` are chunked per entry group and
+            // must not become part of a (shared, entry-independent) batch group. See
+            // `per_entry_modules` above.
+            if per_entry_modules.contains(&module) {
+                continue;
+            }
             let chunk_groups = module_chunk_groups
                 .get(&module)
                 .context("all modules need to have chunk group info")?;

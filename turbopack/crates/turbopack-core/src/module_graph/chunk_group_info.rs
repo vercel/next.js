@@ -687,9 +687,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             unreachable!();
                         }
                         ChunkingType::PerEntry => {
-                            // This edge in itself is irrelevant, but continue with transitive
-                            // imports.
-                            return Ok(GraphTraversalAction::Continue);
+                            // A collecting module belongs wherever its importer belongs. The
+                            // per-entry behavior is carried by the `chunk_group` argument of
+                            // `CollectingModule::as_chunk_item`, not by chunk group membership.
+                            // This matches `collect.rs`, which inherits the parent's entry
+                            // membership across this edge.
+                            ChunkGroupInheritance::Inherit(parent)
                         }
                     }
                 } else {
