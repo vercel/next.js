@@ -4,7 +4,7 @@
 // CI-green gate, cached react arm builds, snapshots, the status.json
 // recovery record, and live interim estimates. Workload-specific code
 // (what runs on a measurement VM) stays in each launcher.
-import { execFile, spawn } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import fs from 'fs'
 import os from 'os'
@@ -389,16 +389,32 @@ export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   )
   await sb(['cp', local, `${vm}:/vercel/sandbox/loop.sh`])
   fs.rmSync(local, { force: true })
-  await sb([
-    'exec',
-    vm,
-    '--timeout',
-    '2m',
-    '--',
-    'bash',
-    '-c',
-    'rm -f /vercel/sandbox/loop.done /vercel/sandbox/loop.log; nohup bash /vercel/sandbox/loop.sh >/vercel/sandbox/loop.log 2>&1 & echo kicked',
-  ])
+  // Marker before nohup: a kick that dies mid-transport then skips on
+  // retry (the poll deadline catches a never-started loop) instead of
+  // racing a second copy of the script against the first.
+  const kickId = crypto.randomBytes(8).toString('hex')
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await sb([
+        'exec',
+        vm,
+        '--timeout',
+        '2m',
+        '--',
+        'bash',
+        '-c',
+        `if [ "$(cat /vercel/sandbox/loop.kick 2>/dev/null)" = "${kickId}" ]; then echo already kicked; ` +
+          `else printf '%s' '${kickId}' > /vercel/sandbox/loop.kick; ` +
+          `rm -f /vercel/sandbox/loop.done /vercel/sandbox/loop.log; ` +
+          `nohup bash /vercel/sandbox/loop.sh >/vercel/sandbox/loop.log 2>&1 & echo kicked; fi`,
+      ])
+      break
+    } catch (e) {
+      if (attempt >= 3)
+        throw new Error(`${tag}: kick failed: ${e.message.slice(0, 200)}`)
+      await new Promise((r) => setTimeout(r, 5_000 * attempt))
+    }
+  }
   let offset = 0
   let failures = 0
   let pollDelay = 3_000
