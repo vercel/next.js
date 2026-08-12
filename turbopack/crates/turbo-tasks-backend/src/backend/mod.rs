@@ -44,7 +44,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
-    scope::scope_and_block,
+    scope_bounded::scope_and_block,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},

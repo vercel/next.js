@@ -2,7 +2,7 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
     TaskId,
-    scope::scope_and_block,
+    scope_bounded::scope_and_block,
     util::{good_chunk_size, into_chunks},
 };
 
