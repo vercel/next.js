@@ -72,6 +72,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/date/page: /sync-io-current-time/date"
@@ -99,6 +110,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/date/page: /sync-io-current-time/date"
@@ -129,6 +151,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
             `)
           } else {
@@ -149,6 +182,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
             `)
           }
@@ -217,6 +261,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
@@ -244,6 +299,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
@@ -274,6 +340,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
             `)
           } else {
@@ -294,6 +371,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
             `)
           }
@@ -362,6 +450,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
@@ -389,6 +488,17 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
 
              > Export encountered errors on 1 path:
              	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
@@ -419,6 +529,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
             `)
           } else {
@@ -439,6 +560,17 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
             `)
           }
@@ -506,6 +638,16 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-random/math-random/page: /sync-io-random/math-random"
@@ -532,6 +674,16 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-random/math-random/page: /sync-io-random/math-random"
@@ -561,6 +713,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
             `)
           } else {
@@ -580,6 +742,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
             `)
           }
@@ -648,6 +820,16 @@ export function registerSyncIoTimeAndRandomTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
@@ -675,6 +857,16 @@ export function registerSyncIoTimeAndRandomTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
@@ -705,6 +897,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
             `)
           } else {
@@ -724,6 +926,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
             `)
           }
@@ -791,6 +1003,16 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
@@ -817,6 +1039,16 @@ export function registerSyncIoTimeAndRandomTests(
                21 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
@@ -846,6 +1078,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
             `)
           } else {
@@ -865,6 +1107,16 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
             `)
           }
