@@ -7,7 +7,11 @@ import { createReadStream } from 'fs'
 import path from 'path'
 import { getGitBranch, getGitCommit } from '../lib/helpers/git'
 
-const COMMON_ALLOWED_EVENTS = ['memory-usage']
+const COMMON_ALLOWED_EVENTS = [
+  'memory-usage',
+  'turbopack-persistence',
+  'turbopack-compaction',
+]
 
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,

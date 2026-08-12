@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('ci-missing-typescript-deps', () => {
   describe('missing typescript dep', () => {
     const { next } = nextTestSetup({
+      nextConfig: {
+        experimental: { useTypeScriptCli: false },
+      },
       files: {
         'pages/index.tsx': `
           export default function Page() {

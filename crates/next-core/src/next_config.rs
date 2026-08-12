@@ -1333,7 +1333,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1386,7 +1385,7 @@ pub struct ExperimentalConfig {
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
-    turbopack_minify: Option<bool>,
+    turbopack_minify: Option<TurbopackMinify>,
     turbopack_module_ids: Option<ModuleIds>,
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
@@ -1432,6 +1431,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Enable scope hoisting of static CommonJS modules. Defaults to false.
+    turbopack_cjs_scope_hoisting: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -1637,6 +1638,47 @@ impl ReactRemoveProperties {
         match self {
             Self::Boolean(enabled) => *enabled,
             _ => true,
+        }
+    }
+}
+
+/// `experimental.turbopackMinify`, either a single value for all output or a
+/// per-environment configuration.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(untagged)]
+pub enum TurbopackMinify {
+    Boolean(bool),
+    Config {
+        server: Option<bool>,
+        client: Option<bool>,
+        edge: Option<bool>,
+    },
+}
+
+impl TurbopackMinify {
+    /// The configured value for browser output.
+    fn client(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { client, .. } => *client,
+        }
+    }
+
+    /// The configured value for Node.js server output.
+    fn server(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { server, .. } => *server,
+        }
+    }
+
+    /// The configured value for edge output.
+    fn edge(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(enabled) => Some(*enabled),
+            Self::Config { edge, .. } => *edge,
         }
     }
 }
@@ -2504,6 +2546,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_scope_hoisting
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
         #[cfg(feature = "process_pool")]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
@@ -2529,12 +2580,43 @@ impl NextConfig {
         })
     }
 
+    /// Whether to minify browser output.
     #[turbo_tasks::function]
-    pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbopack_minify;
-        Ok(Vc::cell(
-            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
-        ))
+    pub async fn turbo_client_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::client);
+        Ok(Vc::cell(minify.unwrap_or(default)))
+    }
+
+    /// Whether to minify Node.js server output. `turbopackMinify` takes
+    /// precedence over `serverMinification`, which can only opt out.
+    #[turbo_tasks::function]
+    pub async fn turbo_server_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build)
+            && self.experimental.server_minification.unwrap_or(true);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::server);
+        Ok(Vc::cell(minify.unwrap_or(default)))
+    }
+
+    /// Whether to minify edge output. `serverMinification` only covers the
+    /// Node.js server, matching webpack.
+    #[turbo_tasks::function]
+    pub async fn turbo_edge_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let default = matches!(*mode.await?, NextMode::Build);
+        let minify = self
+            .experimental
+            .turbopack_minify
+            .as_ref()
+            .and_then(TurbopackMinify::edge);
+        Ok(Vc::cell(minify.unwrap_or(default)))
     }
 
     #[turbo_tasks::function]

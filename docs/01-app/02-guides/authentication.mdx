@@ -24,6 +24,8 @@ This diagram shows the authentication flow using React and Next.js features:
 
 The examples on this page walk through basic username and password auth for educational purposes. While you can implement a custom auth solution, for increased security and simplicity, we recommend using an authentication library. These offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list in the [Auth Libraries](#auth-libraries) section.
 
+> **Good to know:** With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, reading the session and caching per-user data follow specific rules. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components).
+
 ## Authentication
 
 <AppOnly>
@@ -1363,7 +1365,7 @@ Session and user data often appear in shell UI (header, nav) that repeats across
 
 If only part of the shell needs session data (for example, a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so the rest of the page streams first. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the pattern.
 
-Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). To share data across multiple Server Components without re-fetching, see [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache).
+Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a context provider. For that pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider), and use React's [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to keep sensitive session fields from reaching the client.
 
 #### Auth checks in page components
 
@@ -1549,60 +1551,6 @@ export async function GET() {
 ```
 
 The example above demonstrates a Route Handler with a two-tier security check. It first checks for an active session, and then verifies if the logged-in user is an 'admin'.
-
-## Context Providers
-
-Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
-
-This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
-
-```tsx filename="app/layout.tsx" switcher
-import { ContextProvider } from 'auth-lib'
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        <ContextProvider>{children}</ContextProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-```tsx filename="app/ui/profile.tsx" switcher
-'use client'
-
-import { useSession } from "auth-lib";
-
-export default function Profile() {
-  const { userId } = useSession();
-  const { data } = useSWR(`/api/user/${userId}`, fetcher)
-
-  return (
-    // ...
-  );
-}
-```
-
-```jsx filename="app/ui/profile.jsx" switcher
-'use client'
-
-import { useSession } from "auth-lib";
-
-export default function Profile() {
-  const { userId } = useSession();
-  const { data } = useSWR(`/api/user/${userId}`, fetcher)
-
-  return (
-    // ...
-  );
-}
-```
-
-If session data is needed in Client Components (e.g. for client-side data fetching), use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
-
-For the general pattern of passing server-fetched data through context and reading it with `use()`, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
 
 </AppOnly>
 

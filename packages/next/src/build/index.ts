@@ -192,10 +192,6 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -797,7 +793,7 @@ async function writeStandaloneDirectory(
   nextBuildSpan: Span,
   distDir: string,
   pageKeys: { pages: string[]; app: string[] | undefined },
-  denormalizedAppPages: string[] | undefined,
+  appPageKeys: string[] | undefined,
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
@@ -815,7 +811,7 @@ async function writeStandaloneDirectory(
         requiredServerFiles.appDir,
         distDir,
         pageKeys.pages,
-        denormalizedAppPages,
+        appPageKeys,
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
@@ -1494,10 +1490,14 @@ export default async function build(
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<string>()
-      let denormalizedAppPages: string[] | undefined
+
+      // Discovery produces the entries we ask the compiler to build. Keep this
+      // input separate from the entries the compiler actually emits.
+      let discoveredAppPageKeys: string[] | undefined
+      let emittedAppPageKeys: string[] | undefined
       if (discovery.mappedAppPages) {
-        denormalizedAppPages = Object.keys(discovery.mappedAppPages)
-        for (const appKey of denormalizedAppPages) {
+        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages)
+        for (const appKey of discoveredAppPageKeys) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = NextBuildContext.mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -1665,7 +1665,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+      const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -2178,6 +2178,14 @@ export default async function build(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
+        // The app paths manifest contains only entries the compiler emitted.
+        // Post-build consumers use this filtered list so they do not look for
+        // output files belonging to candidates that were not emitted.
+        const emittedAppPageKeySet = new Set(Object.keys(appPathsManifest))
+        emittedAppPageKeys = discoveredAppPageKeys?.filter((appPageKey) =>
+          emittedAppPageKeySet.has(appPageKey)
+        )
+
         for (const key in appPathsManifest) {
           appPathRoutes[key] = normalizeAppPath(key)
         }
@@ -2254,7 +2262,6 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
@@ -2487,7 +2494,6 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,
@@ -2912,10 +2918,6 @@ export default async function build(
           invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
         },
         {
-          featureName: 'experimental/ppr',
-          invocationCount: config.experimental.ppr ? 1 : 0,
-        },
-        {
           featureName: 'turbopackFileSystemCache',
           invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
             ? 1
@@ -3103,7 +3105,7 @@ export default async function build(
                 const isDynamicError = appConfig?.dynamic === 'error'
 
                 const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr)
+                  ? isAppCacheComponentsEnabled
                   : false
 
                 routes.forEach((route) => {
@@ -3305,8 +3307,7 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr)
+              !isAppRouteHandler && isAppCacheComponentsEnabled
                 ? true
                 : undefined
 
@@ -3315,6 +3316,10 @@ export default async function build(
             // pattern.
             const htmlLimitedBotsRegexString =
               config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+            // Route `has` matchers anchor header values. Add surrounding
+            // wildcards to preserve RegExp.test() substring semantics for
+            // complete user-agent strings.
+            const htmlLimitedBotsBypassRegexString = `.*(?:${htmlLimitedBotsRegexString}).*`
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
@@ -3332,7 +3337,7 @@ export default async function build(
                     {
                       type: 'header' as const,
                       key: 'user-agent',
-                      value: htmlLimitedBotsRegexString,
+                      value: htmlLimitedBotsBypassRegexString,
                     },
                   ]
                 : []),
@@ -4450,7 +4455,7 @@ export default async function build(
               hasInstrumentationHook,
               adapterPath,
               pageKeys: pageKeys.pages,
-              appPageKeys: denormalizedAppPages,
+              appPageKeys: emittedAppPageKeys,
               routesManifest,
               prerenderManifest,
               middlewareManifest,
@@ -4470,7 +4475,7 @@ export default async function build(
               nextBuildSpan,
               distDir,
               pageKeys,
-              denormalizedAppPages,
+              emittedAppPageKeys,
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,

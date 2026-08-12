@@ -299,7 +299,7 @@ This helps surface more readable stack traces and code frames in the build outpu
 
 ### Building specific routes
 
-You can build only specific routes in the App and Pages Routers using the `--debug-build-paths` option. This is useful for faster debugging when working with large applications. The `--debug-build-paths` option accepts comma-separated file paths and supports glob patterns:
+You can build only specific routes in the App and Pages Routers using the `--debug-build-paths` option. This is useful for faster debugging when working with large applications. The `--debug-build-paths` option accepts comma-separated file paths, supports glob patterns, and excludes any path prefixed with `!`:
 
 ```bash filename="Terminal"
 # Build a specific route
@@ -314,7 +314,12 @@ next build --debug-build-paths="app/(marketing)/about/page.tsx"
 # Use glob patterns
 next build --debug-build-paths="app/**/page.tsx"
 next build --debug-build-paths="pages/*.tsx"
+
+# Exclude routes with a ! prefix
+next build --debug-build-paths="app/**/page.tsx,!app/admin/**"
 ```
+
+In projects that keep routes under `src/`, paths resolve with or without the `src/` prefix, so both `app/page.tsx` and `src/app/page.tsx` match the same route.
 
 ### Changing the default port
 

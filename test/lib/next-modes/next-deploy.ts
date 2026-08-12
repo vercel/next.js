@@ -2,10 +2,11 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
+import { FileRef } from '../e2e-utils'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -13,6 +14,17 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
+  }
 
   protected throwIfUnavailable(): void | never {
     if (this.isStopping !== null) {
@@ -409,6 +421,29 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // Route the build to a named hive, and to a specific build-container image.
+    // The dispatcher reads the image version only for a build on a forced hive.
+    // A version without a hive falls back to the default image and reports no
+    // error, so reject that combination here.
+    const forceBuildInHive = process.env.VERCEL_FORCE_BUILD_IN_HIVE
+    const buildContainerVersion = process.env.VERCEL_BUILD_CONTAINER_VERSION
+
+    if (buildContainerVersion && !forceBuildInHive) {
+      throw new Error(
+        'VERCEL_BUILD_CONTAINER_VERSION requires VERCEL_FORCE_BUILD_IN_HIVE to be set to a hive ID.'
+      )
+    }
+
+    if (forceBuildInHive) {
+      additionalEnv.push(`VERCEL_FORCE_BUILD_IN_HIVE=${forceBuildInHive}`)
+    }
+
+    if (buildContainerVersion) {
+      additionalEnv.push(
+        `VERCEL_BUILD_CONTAINER_VERSION=${buildContainerVersion}`
+      )
+    }
+
     // Add experimental feature flags
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -419,11 +454,6 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
-      )
-    }
-    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
       )
     }
     if (process.env.IS_TURBOPACK_TEST) {
@@ -498,18 +528,26 @@ export class NextDeployInstance extends NextInstance {
     this.parseIdsFromCliOuput()
   }
 
-  // When the preview-builds npm mirror is auth-protected, the deploy build
-  // installs Next.js artifacts from it and needs credentials. We write an
-  // `.npmrc` with a read token (provided as a CI secret) so the remote install
-  // can authenticate. Only written when the token is set, so unprotected and
-  // local deploy runs are unaffected.
+  // When preview builds are private, the deploy build installs Next.js
+  // artifacts from an auth-protected route and needs credentials. The build
+  // authenticates with the Vercel OIDC token that Vercel automatically
+  // provides to builds (vercel-packages accepts it for allowlisted teams), so
+  // we write an `.npmrc` referencing it. Referencing the environment variable
+  // instead of inlining a token keeps credentials out of the uploaded
+  // deployment source. Only written for private preview builds since public
+  // ones need no credentials and pnpm fails when an `.npmrc` references an
+  // unset environment variable.
+  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
+  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
+  // to the user-level pnpm config (like vercel/front does) did not work with
+  // `vercel deploy` and needs more investigation.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
-    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+    const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!token || !baseUrlRaw) {
+    if (!baseUrlRaw || access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
       )
       return
     }
@@ -524,7 +562,7 @@ export class NextDeployInstance extends NextInstance {
     )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
-      `${registryKey}:_authToken=${token}\n`
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
   }
 
