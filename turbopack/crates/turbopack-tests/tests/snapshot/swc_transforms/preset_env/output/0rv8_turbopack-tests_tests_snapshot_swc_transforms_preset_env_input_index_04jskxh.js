@@ -3,7 +3,10 @@
     {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_1v9rcb0._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)"]}
 ]);
 (function(){
-if (!Array.isArray(globalThis["TURBOPACK"])) {
+var chunksToRegister = globalThis["TURBOPACK"];
+if (chunksToRegister === undefined) {
+    chunksToRegister = [];
+} else if (!Array.isArray(chunksToRegister)) {
     return;
 }
 
@@ -1918,7 +1921,6 @@ var BACKEND;
         return resolver.promise;
     }
 })();
-var chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 })();
