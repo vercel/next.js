@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
+    hash::BuildHasherDefault,
     io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
@@ -13,6 +14,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
@@ -20,6 +22,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -1547,6 +1550,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     meta,
                                 });
                             }
+
+                            // A tombstone is dead if no older SST contains a matching key.
+                            // Returns `true`` if the tombstone is definitely dead (no false
+                            // positives), if `false` is returned then the tomstone is only likely
+                            // to be alive since the amqf may have  false positive match for the
                             let tombstone_is_dead = {
                                 // Filters of every SST older than this job.
                                 //
@@ -1568,10 +1576,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         (entry.min_hash(), entry.max_hash(), entry.amqf())
                                     })
                                     .collect::<Vec<_>>();
-
-                                // A tombstone is dead if no older SST contains a matching key
-                                // This can have false negatives (report dead tombstones as live)
-                                // due to the filters but no false positives.
                                 move |hash: u64| {
                                     !older_filters.iter().any(|(min, max, amqf)| {
                                         hash >= *min
@@ -1710,8 +1714,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             let mut skip_remaining_for_this_key = false;
                             // Values deleted by key-value tombstones in the current key group.
                             // Reset at each key boundary.
-                            let mut deleted_values_for_this_key: SmallVec<[RcBytes; 1]> =
-                                SmallVec::new();
+                            let mut deleted_values_for_this_key: AutoSet<
+                                RcBytes,
+                                BuildHasherDefault<FxHasher>,
+                                1,
+                            > = AutoSet::default();
                             let family_config = &self.config.family_configs[family as usize];
 
                             for entry in iter {
@@ -1724,8 +1731,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 }
                                 // Key-value tombstones sort first within a group, so each is
                                 // recorded before the values it might delete.
+                                // See: `crate::collector_entry::sort_rank`
                                 if let IterValue::KeyValueDeleted { value } = &entry.value {
-                                    deleted_values_for_this_key.push(value.clone());
+                                    deleted_values_for_this_key.insert(value.clone());
                                     // Applied to this job's values above; keep it only if an SST
                                     // outside the job could still hold a matching key.
                                     if tombstone_is_dead(entry.hash) {
@@ -1734,8 +1742,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 } else if !deleted_values_for_this_key.is_empty()
                                     // Deleted values cannot match blobs, just normal payloads.
                                     && let IterValue::Slice { value } = &entry.value
-                                    // O(N) but in practice there is never more than 1 element.
-                                    && deleted_values_for_this_key.iter().any(|d| **d == **value)
+                                    && deleted_values_for_this_key.contains(value)
                                 {
                                     // Deleted by a key-value tombstone seen earlier in this group.
                                     continue;

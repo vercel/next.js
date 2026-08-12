@@ -42,9 +42,6 @@ pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
 
 /// Written in a fixed-size key block header's value type field when entries share a value size but
 /// not a value type. Each entry then carries its own type byte ahead of its value.
-///
-/// Tag 4 is safe as a sentinel because it is not a valid entry type: it was the old key-value
-/// tombstone tag, freed when tombstones moved to their own range above the inline range.
 pub const FIXED_KEY_BLOCK_MIXED_VALUE_TYPE: u8 = 4;
 
 /// The tag for a small-sized value.

@@ -3,13 +3,11 @@
 //! This tool inspects SST files to report entry type statistics per family,
 //! useful for verifying that inline value optimization is being used.
 //!
-//! Entry types:
-//! - 0: Small value (stored in value block)
-//! - 1: Blob reference
-//! - 2: Key tombstone (deletes all values for the key)
-//! - 3: Medium value
-//! - 8-16: Inline value where (type - 8) = value byte count
-//! - 17-25: Key-value tombstone where (type - 17) = deleted value byte count
+//! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
+//! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
+//! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
+//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
+//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -22,7 +20,7 @@ use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
     read_current_version,
@@ -420,13 +418,13 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
                     0
                 };
                 let key_size = block[4] as usize;
-                // +1 for the per-entry type byte.
-                let val_size = block[6] as usize + 1;
+                let val_size = block[6] as usize;
                 Ok(KeyBlockHeader::FixedMixedType {
                     entry_count,
                     hash_len,
                     key_size,
-                    stride: hash_len + key_size + val_size,
+                    // +1 for the per-entry type byte.
+                    stride: hash_len + key_size + val_size + 1,
                 })
             } else {
                 Ok(KeyBlockHeader::Fixed {
@@ -888,15 +886,32 @@ fn main() -> Result<()> {
             eprintln!("  -v, --verbose    Show per-SST file details (default: family totals only)");
             eprintln!();
             eprintln!("Entry types:");
-            eprintln!("  0: Small value (stored in separate value block)");
-            eprintln!("  1: Blob reference");
-            eprintln!("  2: Key tombstone (deletes all values for the key)");
-            eprintln!("  3: Medium value");
-            eprintln!("  8-16: Inline value (size = type - 8)");
-            eprintln!("  17-25: Key-value tombstone (deleted value size = type - 17)");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value block)"
+            );
+            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the \
+                 key)"
+            );
+            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value");
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: Inline value (size = type - \
+                 {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
+                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
+            );
+            eprintln!(
+                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
+                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
+                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
+            );
             eprintln!();
             eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
-            eprintln!("Expected entry type is 12 (8 + 4) for inline optimization.");
+            eprintln!(
+                "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
+                 optimization.",
+                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4
+            );
             std::process::exit(1);
         }
     };
