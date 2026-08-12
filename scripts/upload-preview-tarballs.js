@@ -155,7 +155,6 @@ async function main() {
       {
         access: blobAccess,
         token: clientToken,
-        addRandomSuffix: false,
         contentType: 'application/gzip',
         multipart: true,
       }
