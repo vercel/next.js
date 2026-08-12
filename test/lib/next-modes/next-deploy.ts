@@ -169,18 +169,26 @@ export class NextDeployInstance extends NextInstance {
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
   }
 
-  // When the preview-builds npm mirror is auth-protected, the deploy build
-  // installs Next.js artifacts from it and needs credentials. We write an
-  // `.npmrc` with a read token (provided as a CI secret) so the remote install
-  // can authenticate. Only written when the token is set, so unprotected and
-  // local deploy runs are unaffected.
+  // When preview builds are private, the deploy build installs Next.js
+  // artifacts from an auth-protected route and needs credentials. The build
+  // authenticates with the Vercel OIDC token that Vercel automatically
+  // provides to builds (vercel-packages accepts it for allowlisted teams), so
+  // we write an `.npmrc` referencing it. Referencing the environment variable
+  // instead of inlining a token keeps credentials out of the uploaded
+  // deployment source. Only written for private preview builds since public
+  // ones need no credentials and pnpm fails when an `.npmrc` references an
+  // unset environment variable.
+  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
+  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
+  // to the user-level pnpm config (like vercel/front does) did not work with
+  // `vercel deploy` and needs more investigation.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
-    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+    const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!token || !baseUrlRaw) {
+    if (!baseUrlRaw || access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
       )
       return
     }
@@ -195,7 +203,7 @@ export class NextDeployInstance extends NextInstance {
     )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
-      `${registryKey}:_authToken=${token}\n`
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
   }
 

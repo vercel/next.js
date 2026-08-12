@@ -603,6 +603,11 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |

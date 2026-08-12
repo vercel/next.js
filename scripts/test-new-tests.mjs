@@ -4,6 +4,38 @@ import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
 
 /**
+ * Mints a GitHub Actions OIDC token for the given audience.
+ *
+ * @param {string} audience
+ * @returns {Promise<string>}
+ */
+async function mintGitHubActionsOidcToken(audience) {
+  const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL
+  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
+  if (!requestUrl || !requestToken) {
+    throw new Error(
+      'Preview builds are private (PREVIEW_BUILDS_ACCESS=private) ' +
+        'but no GitHub Actions OIDC token can be minted. ' +
+        'Grant the job the `id-token: write` permission.'
+    )
+  }
+
+  const url = new URL(requestUrl)
+  url.searchParams.set('audience', audience)
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${requestToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(
+      `Failed to mint GitHub OIDC token: ${response.status} ${await response.text()}`
+    )
+  }
+
+  const { value } = await response.json()
+  return value
+}
+
+/**
  * Run tests for added/changed tests in the current branch
  * CLI Options:
  * --mode: test mode (dev, deploy, start)
@@ -90,10 +122,14 @@ async function main() {
       ? `${previewBuildsBaseUrl}/commits/${commitSha}/next`
       : undefined
 
-  const previewBuildsReadToken = process.env.PREVIEW_BUILDS_READ_TOKEN
-
   if (nextTestVersion) {
     console.log(`Verifying artifacts for commit ${commitSha}`)
+    // Private preview builds authenticate with a GitHub Actions OIDC token
+    // minted on demand. Public builds need no credentials.
+    const previewBuildsReadToken =
+      process.env.PREVIEW_BUILDS_ACCESS === 'private'
+        ? await mintGitHubActionsOidcToken('https://vercel-packages.vercel.app')
+        : null
     // Attempt to fetch the deploy artifacts for the commit
     // These might take a moment to become available, so we'll retry a few times
     const fetchHeaders = previewBuildsReadToken
