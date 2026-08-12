@@ -260,8 +260,7 @@ async function ensureSsrSnapshot(cfg) {
     await runDetached(
       vm,
       'ssrsnap',
-      `set -e
-npm i -g yarn >/dev/null 2>&1
+      `npm i -g yarn >/dev/null 2>&1
 mkdir -p /vercel/sandbox/fixture
 tar -xzf /vercel/sandbox/fixture.tgz --strip-components=2 -C /vercel/sandbox/fixture
 ${extractArms}

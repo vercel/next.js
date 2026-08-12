@@ -372,11 +372,9 @@ export async function rmVm(name) {
 
 // Remote execution: nohup the script on the VM, then poll its log with
 // short execs. The exec stream drops flakily on multi-minute commands and
-// the CLI does not reliably propagate remote exit codes, so executions are
-// detached (they run exactly once and survive the transport) and the
-// stream is only used for kicks and polls, which are safe to repeat.
-// One detached command per VM at a time: the fixed loop.* paths are the
-// crash-recovery contract (bench-collect.mjs, SKILL.md).
+// misreports remote exit codes, so nothing rides it: kicks and polls are
+// safe to repeat. One detached command per VM at a time — the fixed
+// loop.* paths are the crash-recovery contract (bench-collect.mjs, SKILL.md).
 export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   let transcript = ''
   const local = path.join(os.tmpdir(), `loop-${vm}.sh`)
@@ -389,9 +387,8 @@ export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   )
   await sb(['cp', local, `${vm}:/vercel/sandbox/loop.sh`])
   fs.rmSync(local, { force: true })
-  // Marker before nohup: a kick that dies mid-transport then skips on
-  // retry (the poll deadline catches a never-started loop) instead of
-  // racing a second copy of the script against the first.
+  // Marker before nohup: a kick retried after a mid-transport death skips
+  // instead of racing a second copy of the script against the first.
   const kickId = crypto.randomBytes(8).toString('hex')
   for (let attempt = 1; ; attempt++) {
     try {
