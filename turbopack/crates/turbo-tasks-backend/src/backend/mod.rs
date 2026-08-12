@@ -44,7 +44,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
-    scope_bounded::scope_and_block,
+    scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
@@ -2522,7 +2522,7 @@ impl TurboTasksBackend {
         if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD {
             let chunk_size = good_chunk_size(output_dependent_tasks.len());
             let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
-            let _ = scope_and_block(chunks.len(), |scope| {
+            let _ = scope_bounded(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
                     #[cfg(feature = "task_dirty_cause")]
