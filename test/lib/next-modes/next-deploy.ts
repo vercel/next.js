@@ -421,6 +421,29 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // Route the build to a named hive, and to a specific build-container image.
+    // The dispatcher reads the image version only for a build on a forced hive.
+    // A version without a hive falls back to the default image and reports no
+    // error, so reject that combination here.
+    const forceBuildInHive = process.env.VERCEL_FORCE_BUILD_IN_HIVE
+    const buildContainerVersion = process.env.VERCEL_BUILD_CONTAINER_VERSION
+
+    if (buildContainerVersion && !forceBuildInHive) {
+      throw new Error(
+        'VERCEL_BUILD_CONTAINER_VERSION requires VERCEL_FORCE_BUILD_IN_HIVE to be set to a hive ID.'
+      )
+    }
+
+    if (forceBuildInHive) {
+      additionalEnv.push(`VERCEL_FORCE_BUILD_IN_HIVE=${forceBuildInHive}`)
+    }
+
+    if (buildContainerVersion) {
+      additionalEnv.push(
+        `VERCEL_BUILD_CONTAINER_VERSION=${buildContainerVersion}`
+      )
+    }
+
     // Add experimental feature flags
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
