@@ -27,6 +27,11 @@ enum LoadComponentsSpan {
   loadComponents = 'LoadComponents.loadComponents',
 }
 
+enum InstrumentationSpan {
+  loadModule = 'Instrumentation.loadModule',
+  register = 'Instrumentation.register',
+}
+
 enum NextServerSpan {
   getRequestHandler = 'NextServer.getRequestHandler',
   getRequestHandlerWithMetadata = 'NextServer.getRequestHandlerWithMetadata',
@@ -131,6 +136,7 @@ enum MiddlewareSpan {
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
+  | `${InstrumentationSpan}`
   | `${NextServerSpan}`
   | `${StartServerSpan}`
   | `${NextNodeServerSpan}`
@@ -157,6 +163,8 @@ export const NextVanillaSpanAllowlist = new Set([
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
   RouteModuleSpan.prepare,
+  InstrumentationSpan.loadModule,
+  InstrumentationSpan.register,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
   NextNodeServerSpan.createComponentTree,
@@ -177,6 +185,7 @@ export const LogSpanAllowList = new Set([
 export {
   BaseServerSpan,
   LoadComponentsSpan,
+  InstrumentationSpan,
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,

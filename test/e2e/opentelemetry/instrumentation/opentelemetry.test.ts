@@ -421,6 +421,46 @@ describe.each(
           })
 
           if (env.name === 'root context') {
+            it('should trace instrumentation startup', async () => {
+              await next.fetch('/app/param/rsc-fetch')
+
+              await retry(async () => {
+                const spans = getCollector().getSpans()
+
+                expect(
+                  spans.filter((span) =>
+                    [
+                      'Instrumentation.loadModule',
+                      'Instrumentation.register',
+                    ].includes(span.attributes?.['next.span_type'] as string)
+                  )
+                ).toEqual(
+                  expect.arrayContaining([
+                    expect.objectContaining({
+                      runtime: 'nodejs',
+                      name: 'load instrumentation module',
+                      attributes: {
+                        'next.span_category': 'nextjs',
+                        'next.span_name': 'load instrumentation module',
+                        'next.span_type': 'Instrumentation.loadModule',
+                      },
+                      status: { code: 0 },
+                    }),
+                    expect.objectContaining({
+                      runtime: 'nodejs',
+                      name: 'register instrumentation',
+                      attributes: {
+                        'next.span_category': 'nextjs',
+                        'next.span_name': 'register instrumentation',
+                        'next.span_type': 'Instrumentation.register',
+                      },
+                      status: { code: 0 },
+                    }),
+                  ])
+                )
+              })
+            })
+
             it('should trace route module preparation', async () => {
               const pathname = '/api/app/param/data'
               await next.fetch(pathname)
@@ -437,7 +477,9 @@ describe.each(
                   (span) =>
                     span.attributes?.['next.span_type'] ===
                       'RouteModule.prepare' &&
-                    span.traceId === rootSpan?.traceId
+                    (useDirectEntrypointHandler
+                      ? span.parentId === undefined
+                      : span.traceId === rootSpan?.traceId)
                 )
 
                 expect(rootSpan).toBeDefined()
@@ -445,7 +487,9 @@ describe.each(
                   expect.objectContaining({
                     runtime: 'nodejs',
                     name: 'prepare route module',
-                    traceId: rootSpan?.traceId,
+                    ...(useDirectEntrypointHandler
+                      ? {}
+                      : { traceId: rootSpan?.traceId }),
                     attributes: {
                       'next.span_category': 'nextjs',
                       'next.span_name': 'prepare route module',
@@ -1622,6 +1666,44 @@ describe.each(
     // Regression for https://github.com/vercel/otel/issues/107.
     it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
       const pathname = '/app/param/rsc-fetch'
+      await next.fetch('/app/warmup/rsc-fetch')
+
+      await retry(async () => {
+        const all = collector?.getSpans() ?? []
+        const loadModuleSpan = all.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.loadModule'
+        )
+        const registerSpan = all.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.register'
+        )
+
+        expect(loadModuleSpan).toMatchObject({
+          runtime: 'nodejs',
+          name: 'load instrumentation module',
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'load instrumentation module',
+            'next.span_type': 'Instrumentation.loadModule',
+          },
+          status: { code: 0 },
+        })
+        expect(registerSpan).toMatchObject({
+          runtime: 'nodejs',
+          name: 'register instrumentation',
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'register instrumentation',
+            'next.span_type': 'Instrumentation.register',
+          },
+          status: { code: 0 },
+        })
+        expect(loadModuleSpan?.timestamp).toBeLessThanOrEqual(
+          registerSpan!.timestamp!
+        )
+      })
+
       await next.fetch(pathname, {
         headers: {
           traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
@@ -2066,7 +2148,11 @@ async function expectTrace(
     const traces = collector
       .getSpans()
       .filter(
-        (span) => span.attributes?.['next.span_type'] !== 'RouteModule.prepare'
+        (span) =>
+          span.attributes?.['next.span_type'] !== 'RouteModule.prepare' &&
+          span.attributes?.['next.span_type'] !==
+            'Instrumentation.loadModule' &&
+          span.attributes?.['next.span_type'] !== 'Instrumentation.register'
       )
 
     const tree: HierSavedSpan[] = []
