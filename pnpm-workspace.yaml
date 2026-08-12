@@ -36,7 +36,7 @@ ignoredBuiltDependencies:
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
-  - '@mswjs/interceptors@0.42.0'
+  - '@mswjs/interceptors@0.42.3'
   - '@next/*'
   - '@turbo/*'
   - '@types/react@19.2.18'
