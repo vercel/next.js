@@ -56,13 +56,10 @@ const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
-// A Back/Forward press before the router's popstate listener exists moves the
-// browser to a different history entry than the one the document was activated
-// on, and the resulting popstate fires with nobody listening. The activation
-// entry is fixed for the document's lifetime and entry keys are stable across
-// replaceState, so until the listener is installed a key mismatch means a
-// traversal went unobserved.
-function hasMissedTraversal(): boolean {
+// The current entry is not the one this document was activated on. Entry keys
+// are stable across replaceState, so until the popstate listener is installed
+// this means a traversal or history write went unobserved.
+function isOnUnobservedEntry(): boolean {
   if (typeof window.navigation === 'undefined') {
     return false
   }
@@ -71,10 +68,7 @@ function hasMissedTraversal(): boolean {
   return (
     activationEntry != null &&
     currentEntry != null &&
-    activationEntry.key !== currentEntry.key &&
-    // Only entries written by the app router can be restored; on any other
-    // entry the traversal is left unhandled, as before.
-    window.history.state?.__NA === true
+    activationEntry.key !== currentEntry.key
   )
 }
 
@@ -125,8 +119,8 @@ function HistoryUpdater({
 
     if (!checkedMissedTraversalBeforeHistoryWrite) {
       checkedMissedTraversalBeforeHistoryWrite = true
-      if (hasMissedTraversal()) {
-        // Skip the write: it would overwrite the traversed-to entry's state.
+      if (isOnUnobservedEntry()) {
+        // This render does not describe the current entry; don't write to it.
         // The tree was rendered even though the history write is skipped.
         setLastCommittedTree(tree)
         return
@@ -440,7 +434,12 @@ function Router({
 
     if (!checkedMissedTraversalBeforeReplay) {
       checkedMissedTraversalBeforeReplay = true
-      if (hasMissedTraversal()) {
+      if (
+        isOnUnobservedEntry() &&
+        // Only entries written by the app router can be restored; on any
+        // other entry the traversal is left unhandled.
+        window.history.state?.__NA === true
+      ) {
         handlePopState(window.history.state)
       }
     }
