@@ -3,13 +3,11 @@
 //! The total number of items isn't known up front, so termination is driven by an
 //! outstanding-item counter reaching zero rather than by a count supplied by the caller.
 //!
-//! This is why the API is shaped differently from
-//! [`scope_bounded`](crate::scope_bounded::scope_bounded) and from [`std::thread::scope`]:
-//! there is no single closure to hand a scope object to, because `run` *is* the per-item body — it
-//! is invoked once per item, concurrently across every drainer. So the seed set arrives as an
-//! `initial` iterator, and a job signals early termination by returning [`ControlFlow::Break`]
-//! rather than through local control flow, because aborting has to reach the *shared* queue
-//! (dropping every queued-but-unstarted item), not just return from one invocation.
+//! `run` is the per-item body, invoked once per item and concurrently across every drainer — not a
+//! single closure handed a scope object, as in [`std::thread::scope`] and
+//! [`scope_bounded`](crate::scope_bounded::scope_bounded). Hence the seed set arriving as an
+//! `initial` iterator, and [`ControlFlow::Break`] rather than local control flow for early
+//! termination: aborting has to reach the *shared* queue, not just return from one invocation.
 
 use std::{
     any::Any,
@@ -70,13 +68,10 @@ struct UnboundedInner<'run, T: Send + 'static, R> {
     /// Sending end. This is the *only* sender — drainers never hold a clone, because a clone
     /// parked in `recv` would keep the channel open and deadlock the close.
     ///
-    /// An `RwLock` rather than a `Mutex` because [`enqueue`] is the hottest path in the whole
-    /// scope (once per item, from every drainer) and only needs to observe that the sender is
-    /// still there. `mpmc::Sender` is `Sync`, so concurrent sends need no mutual exclusion; the
-    /// lock exists solely so [`UnboundedInner::close`] can *take* the sender atomically with
-    /// respect to a racing send. Read guards let every enqueue proceed in parallel and only
-    /// `close` (once per run) needs the exclusive side. Holding this as a `Mutex` serialized every
-    /// spawn behind a single global lock and dominated GC collect time in profiles.
+    /// The lock exists solely so [`UnboundedInner::close`] can *take* the sender atomically with
+    /// respect to a racing send; `mpmc::Sender` is `Sync`, so concurrent sends need no mutual
+    /// exclusion. It is an `RwLock` because a `Mutex` here serialized every spawn behind one
+    /// global lock and dominated GC collect time in profiles.
     work_queue_sender: RwLock<Option<Sender<T>>>,
     /// Latched by [`UnboundedInner::abort`] when a `run` returns [`ControlFlow::Break`]: once set,
     /// [`Scope::spawn`] drops further items and drainers discard what is still buffered.
@@ -93,23 +88,19 @@ struct UnboundedInner<'run, T: Send + 'static, R> {
     ///
     /// Each drainer keeps its accumulator on its own stack for the whole drain loop and merges it
     /// in exactly once, on the way out — so this lock is taken once per *drainer*, not once per
-    /// item. That is the entire point of the fold API: a shared counter touched per item is a
-    /// contended cache line, which is what this replaces.
+    /// item.
     ///
     /// `None` until the first drainer merges. Left as-is on the panic path; the partial value is
     /// discarded along with it (see [`scope_unbounded_with`]).
     results: Mutex<Option<R>>,
-    /// Number of drainers that have entered their loop but not yet finished merging.
+    /// Number of drainers that have entered their loop but not yet finished merging. Incremented
+    /// before a drainer's loop starts, decremented after its merge completes.
     ///
     /// `remaining_tasks` is **not** sufficient to join on: a drainer merges its accumulator after
     /// its loop exits, which is strictly after the `on_item_finished` that drove `remaining_tasks`
     /// to zero. Without this second counter, `wait` could return — and `'env` could end — while a
-    /// helper is still inside `merge_results` touching `results`/`merge`. It would also silently
-    /// drop that helper's contribution.
-    ///
-    /// Incremented before a drainer's loop starts and decremented after its merge completes; the
-    /// calling thread waits for this to reach zero in addition to `remaining_tasks`. The final
-    /// decrement unparks the main thread, the same way `close` does.
+    /// helper is still inside `merge_results` touching `results`/`merge`, and that helper's
+    /// contribution would be dropped.
     active_drainers: AtomicUsize,
     /// Builds a fresh accumulator for a drainer that is about to start its loop. Same lifetime
     /// laundering as `run`.
@@ -132,7 +123,7 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
     ///
     /// Buffered items are still delivered after the close, but [`UnboundedInner::drain`] discards
     /// them unrun. Since only `run` can spawn a successor, the buffer then drains monotonically to
-    /// empty instead of being re-grown by jobs still finishing.
+    /// empty rather than being re-grown by jobs still finishing.
     ///
     /// `aborted` is stored before the close so a `spawn` racing this either lands while the channel
     /// is open (and is discarded later by `drain`) or observes the flag and never counts its item —
@@ -175,9 +166,6 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
         // out from under us.
         self.active_drainers.fetch_add(1, Ordering::Relaxed);
         let mut acc = (self.init)();
-        // Merge on the way out even if a job panics: `catch_unwind` below keeps the panic from
-        // unwinding through here, so the loop always exits normally and reaches the merge.
-        //
         // `recv` blocks while the queue is empty and fails once the sender is dropped and the
         // buffer is drained, so this ends exactly when the scope is finished.
         //
@@ -252,15 +240,12 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
 }
 
 /// Handle passed to the `run` closure of [`scope_unbounded`], used to enqueue additional items into
-/// the same scope. Only borrows the scope's shared state; the items it enqueues are `T: 'static`,
-/// so it carries no `'env` lifetime of its own.
+/// the same scope.
 ///
-/// Unlike [`Scope`], this needs no `PhantomData<&'env mut &'env ()>` invariance marker. `Scope`
-/// requires one because `Scope::spawn` accepts a *closure* that can capture `&'env` data, so
-/// allowing `'env` to shrink would let a task outlive what it borrowed. `Scope`'s only entry
-/// point is [`Scope::spawn`], which takes `item: T` with `T: Send + 'static` — there is no way to
-/// pass in anything borrowed from `'env`, so the covariance this type has over `'scope` is not
-/// exploitable.
+/// Needs no `PhantomData<&'env mut &'env ()>` invariance marker, unlike
+/// [`scope_bounded::Scope`](crate::scope_bounded::Scope): [`Scope::spawn`] takes `item: T` with
+/// `T: Send + 'static`, so nothing borrowed from `'env` can enter and this type's covariance over
+/// `'scope` is not exploitable.
 pub struct Scope<'scope, T: Send + 'static, R = ()> {
     inner: &'scope UnboundedInner<'scope, T, R>,
 }
@@ -283,16 +268,10 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
     if inner.aborted.load(Ordering::Acquire) {
         return;
     }
-    // Count the item before pushing it (see this function's doc comment).
     inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
-    // Take the send lock before testing the sender: `close` takes the sender under the *write*
-    // side of the same lock, so either we get a live sender and our item is buffered, or the
-    // sender is already gone. Either way the item cannot be counted and then stranded with nobody
-    // to drain it.
-    //
-    // A read guard suffices: `Sender` is `Sync`, so concurrent sends are safe and need no mutual
-    // exclusion among themselves. Only the take in `close` conflicts, and that is what the write
-    // side serializes against.
+    // Take the send lock before testing the sender: `close` takes it under the *write* side of the
+    // same lock, so either we get a live sender and our item is buffered, or the sender is already
+    // gone. Either way the item cannot be counted and then stranded with nobody to drain it.
     let sent = {
         let sender = inner.work_queue_sender.read();
         match sender.as_ref() {
@@ -307,11 +286,9 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
     }
 }
 
-/// Like [`scope_bounded`](crate::scope_bounded::scope_bounded), but the `run` closure receives a
-/// [`Scope`] and may enqueue more
-/// items while the scope drains. Completes only once every item — `initial` plus everything
-/// transitively spawned — has been processed. No results are collected; jobs communicate through
-/// state captured in `run`. Use [`scope_unbounded_with`] to accumulate a value instead.
+/// Runs `run` over `initial` and everything it transitively spawns, completing only once every item
+/// has been processed. No results are collected; jobs communicate through state captured in `run`.
+/// Use [`scope_unbounded_with`] to accumulate a value instead.
 ///
 /// `run` is shared across the calling thread and up to `runtime workers - 1` helper tasks and may
 /// run concurrently. The calling thread drains the whole (growing) queue itself if no helper is
@@ -348,10 +325,9 @@ where
 /// be associative and commutative — drainers finish in a nondeterministic order, so the grouping
 /// and ordering of the folds are not specified.
 ///
-/// This exists so `run` can accumulate **without shared state**. A counter shared across drainers
-/// (an `AtomicUsize`, or a `Mutex<Vec<_>>`) is a contended cache line written once per item; with
-/// this API each drainer writes only to its own stack and pays one lock acquisition on the way out.
-/// In profiles of the GC collect pass, per-item shared atomics were several percent of total time.
+/// This exists so `run` can accumulate **without shared state**: each drainer writes only to its
+/// own stack and pays one lock acquisition on the way out. In profiles of the GC collect pass,
+/// per-item shared atomics were several percent of total time.
 ///
 /// Returns the result of `init()` when no drainer ever runs an item (e.g. an empty `initial`).
 ///
@@ -435,12 +411,11 @@ where
     // Spawn helpers up front so they can pull as soon as items appear.
     //
     // `handle.spawn` demands a `'static` future, but `R` (and the closures behind `run`/`init`/
-    // `merge`) borrow `'env`. Helpers never touch an `R` value that outlives the join — they only
-    // call `drain`, which creates, uses, and merges its accumulator entirely within the call — so
-    // hand them an `R`-erased `dyn Drainable` instead of the typed `Arc`.
+    // `merge`) borrow `'env`, so hand helpers an `R`-erased `dyn Drainable` instead of the typed
+    // `Arc`.
     //
-    // SAFETY: same argument as the `run` erasure above. `Joiner::drop` joins every helper before
-    // this function returns, so no erased handle outlives `'env`.
+    // SAFETY: `Joiner::drop` joins every helper before this function returns, so no erased handle
+    // outlives `'env`.
     let erased: Arc<dyn Drainable + Send + Sync + '_> = inner.clone();
     let erased: Arc<dyn Drainable + Send + Sync + 'static> = unsafe {
         std::mem::transmute::<
@@ -723,11 +698,8 @@ mod tests {
         tokio::task::spawn_blocking(move || {
             scope_unbounded(0..SEEDS, move |spawner, item| {
                 processed_clone.fetch_add(1, Ordering::SeqCst);
-                // Every item aborts, and every item spawns *first*. The aborting item's own spawns
-                // race the latch, and every item that follows pushes into an already-closed queue;
-                // all of them must be dropped rather than counted-but-unqueued. Because no item
-                // ever returns `Continue`, nothing spawned here is legitimately runnable, so any
-                // spawned id that does run shows up in the count below.
+                // Spawning *before* the `Break` is the point: these spawns race the abort latch and
+                // must be dropped rather than counted-but-unqueued.
                 for i in 0..1000 {
                     spawner.spawn(SEEDS + item * 1000 + i);
                 }
