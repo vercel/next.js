@@ -49,12 +49,7 @@ impl Display for MetaEntryFlags {
     }
 }
 
-/// Magic number identifying a `.meta` file, and implicitly its format version.
-///
-/// Bump this whenever [`EntryHeader`]'s layout changes. The header is a fixed-size struct read at a
-/// computed stride, so an older file parsed by newer code would not fail — it would silently
-/// misinterpret every field after the change. Rejecting the file outright is the only safe
-/// outcome; callers handle the error by discarding and rebuilding the database.
+/// Magic number identifying a `.meta` file.
 pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.

@@ -103,8 +103,14 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Adds a key-value tombstone to the collector: deletes only the single `key` -> `value` pair,
     /// leaving any other values for `key` intact.
     ///
-    /// Only meaningful for [`FamilyKind::MultiValue`] families. Deleting a pair written in the
-    /// same batch is not supported; see [`WriteBatch::delete_value`][crate::WriteBatch].
+    /// Only meaningful for [`FamilyKind::MultiValue`] families, where a key can map to several
+    /// values and [`Collector::delete`] is too coarse: it would drop the unrelated values too.
+    /// The motivating case is the task cache, which is keyed by a hash and so holds more than one
+    /// value whenever two tasks collide. Removing one task must leave the colliding task's entry
+    /// readable, which requires naming the exact pair to delete.
+    ///
+    /// Deleting a pair written in the same batch is not supported; see
+    /// [`WriteBatch::delete_value`][crate::WriteBatch].
     ///
     /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers must validate this.  Larger
     /// values could be supported in the future but there is currently no usecase.

@@ -7,7 +7,9 @@ use crate::{
     DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
+    lookup_entry::IterValue,
     parallel_scheduler::ParallelScheduler,
+    static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
 };
 
@@ -2456,15 +2458,13 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
 /// Counts tombstone entries (both kinds) across every live SST, by reading the files directly.
 /// Tombstone counts are not tracked in the meta file, so there is nothing cheaper to read.
 fn count_tombstones(
-    path: &std::path::Path,
+    path: &Path,
     db: &TurboPersistence<RayonParallelScheduler, 1>,
 ) -> Result<usize> {
-    use crate::{lookup_entry::IterValue, static_sorted_file::StaticSortedFileIter};
-
     let mut count = 0;
     for meta in db.meta_info()? {
         for entry in &meta.entries {
-            let sst = crate::static_sorted_file::StaticSortedFileMetaData {
+            let sst = StaticSortedFileMetaData {
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
