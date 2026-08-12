@@ -66,7 +66,8 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.ShellRuntime:
-          case RenderStage.Runtime: {
+          case RenderStage.Runtime:
+          case RenderStage.NavigationRuntime: {
             // We're in the Runtime stage.
             // We only error for Sync IO in the Runtime stage if the route has partialPrefetching enabled.
             syncIOError = createSyncIORuntimeError(

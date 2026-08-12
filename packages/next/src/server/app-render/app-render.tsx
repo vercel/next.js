@@ -1220,8 +1220,8 @@ async function spawnRuntimePrefetchWithFilledCaches(
     const staleTimeIterable = new StaleTimeIterable()
 
     // We want to be able to rewind the result to a session shell.
-    const mode: RuntimePrerenderMode = {
-      type: 'rewindable-session-shell',
+    const mode: RuntimePrerenderMode & { type: 'navigation' } = {
+      type: 'navigation',
       shellUsedSessionDataDeferred: createPromiseWithResolvers(),
       shellByteLengthDeferred: createPromiseWithResolvers(),
     }
@@ -1231,10 +1231,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ctx,
       generateDynamicRSCPayload.bind(null, ctx, {
         staleTimeIterable,
-        shellByteLengthPromise:
-          mode.type === 'rewindable-session-shell'
-            ? mode.shellByteLengthDeferred.promise
-            : undefined,
+        shellByteLengthPromise: mode.shellByteLengthDeferred.promise,
         shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
       }),
       prerenderResumeDataCache,
@@ -1338,6 +1335,7 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
       return 'Prerender'
     case RenderStage.ShellRuntime:
     case RenderStage.Runtime:
+    case RenderStage.NavigationRuntime:
     case RenderStage.Dynamic:
     case RenderStage.Abandoned:
       return 'Server'
@@ -1824,6 +1822,11 @@ type RuntimePrerenderMode =
       shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
       shellByteLengthDeferred: PromiseWithResolvers<number | null>
     }
+  | {
+      type: 'navigation'
+      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
+      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+    }
 
 async function finalRuntimeServerPrerender(
   mode: RuntimePrerenderMode,
@@ -1849,6 +1852,18 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
+  let finalStage: AdvanceableRenderStage
+  switch (mode.type) {
+    case 'session-shell-only':
+      finalStage = RenderStage.ShellRuntime
+      break
+    case 'rewindable-session-shell':
+      finalStage = RenderStage.Runtime
+      break
+    case 'navigation':
+      finalStage = RenderStage.NavigationRuntime
+      break
+  }
   const finalStageController = new StagedRenderingController({
     abortSignal: finalServerController.signal,
     abandonController: null,
@@ -1857,11 +1872,7 @@ async function finalRuntimeServerPrerender(
     // (or App Shell) is stricter and never allows sync IO in any stage
     // that we go through here (i.e. < Dynamic)
     syncIO: SyncIOMode.AllowedInDynamic,
-    // we only reach the runtime stage if we're doing a rewindable render
-    finalStage:
-      mode.type === 'session-shell-only'
-        ? RenderStage.ShellRuntime
-        : RenderStage.Runtime,
+    finalStage,
   })
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
@@ -1985,18 +1996,13 @@ async function finalRuntimeServerPrerender(
     () => {
       if (checkUnexpectedAbort()) return
 
-      if (mode.type === 'session-shell-only') {
-        // We're only rendering a shell, so we do not advance to stages where link data is resolved.
-        return
-      }
+      // We may not reach this stage depending on the mode.
+      if (finalStage < RenderStage.Runtime) return
+
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
       if (checkUnexpectedAbort()) return
-
-      // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
-      // which is scheduled in a (fast) immediate, so we do this in a separate task
-      // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       // Check if session data unblocked new content in the shell.
       const didSessionDataUnblockNewContent =
@@ -2004,7 +2010,7 @@ async function finalRuntimeServerPrerender(
         stageByteLengths[RenderStage.Static]
       mode.shellUsedSessionDataDeferred.resolve(didSessionDataUnblockNewContent)
 
-      if (mode.type === 'rewindable-session-shell') {
+      if ('shellByteLengthDeferred' in mode) {
         // If advancing to the runtime stage didn't unblock new content,
         // then the result does not depend on link data and can be used as a shell (indicated via `null`).
         // Otherwise, send a byte length to indicate where the shell content ends.
@@ -2017,6 +2023,19 @@ async function finalRuntimeServerPrerender(
             : null
         )
       }
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
+
+      // We may not reach this stage depending on the mode.
+      if (finalStage < RenderStage.NavigationRuntime) return
+
+      finalStageController.advanceStage(RenderStage.NavigationRuntime)
+    },
+    () => {
+      // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+      // which is scheduled in a (fast) immediate, so we do this in a separate task
+      // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
@@ -2025,8 +2044,10 @@ async function finalRuntimeServerPrerender(
       if (checkUnexpectedAbort()) return
 
       if (streamState.isPending) {
-        // If the prerender is still pending then it must depend on dynamic data
-        // (or, if this is a shell prefetch, link data)
+        // If the prerender is still pending then it must be blocked by
+        // - prefetch(), navigation(), or dynamic data (for shell prefetches)
+        // - navigation() or dynamic data (for runtime prefetches)
+        // - dynamic data (for runtime prefetch streams embedded in navigations)
         resultIsPartial = true
       }
 
@@ -5362,6 +5383,7 @@ function getEnvironmentNameForStage(stage: RenderStage) {
       return 'Prerender'
     case RenderStage.ShellRuntime:
     case RenderStage.Runtime:
+    case RenderStage.NavigationRuntime:
       return 'Prefetch'
     case RenderStage.Dynamic:
     case RenderStage.Abandoned:
@@ -5588,6 +5610,8 @@ async function streamStagedRenderInDev({
     () => checkCacheMissAndAdvance(RenderStage.Runtime),
     () => checkReveal(RenderStage.Runtime),
 
+    () => checkCacheMissAndAdvance(RenderStage.NavigationRuntime),
+
     () => {
       // Advance to the dynamic stage even while caches are still filling, so
       // dynamic content streams to the browser right away instead of being
@@ -5740,6 +5764,7 @@ async function renderWithWarmCachesForValidationInDev(
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
     () => stageController.advanceStage(RenderStage.Runtime),
+    () => stageController.advanceStage(RenderStage.NavigationRuntime),
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
 
@@ -5871,8 +5896,9 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
     () => stageController.advanceStage(RenderStage.Runtime),
+    // NOTE: We don't need `NavigationRuntime`, because we set `needsAppShell: false`
+    // so `navigation()` resolves in the static stages.
     () => {
-      // Do not advance to the dynamic stage, abort instead.
       abortInRenderContext(requestStore, finalReactController)
     }
   )
@@ -7805,18 +7831,11 @@ async function renderWithRestartOnCacheMissInValidation(
       accumulatedChunksPromise.catch(() => {})
       return { accumulatedChunksPromise }
     },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Static)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Runtime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Dynamic)
-    }
+    () => advanceStageIfNoCacheMiss(RenderStage.Static),
+    () => advanceStageIfNoCacheMiss(RenderStage.ShellRuntime),
+    () => advanceStageIfNoCacheMiss(RenderStage.Runtime),
+    () => advanceStageIfNoCacheMiss(RenderStage.NavigationRuntime),
+    () => advanceStageIfNoCacheMiss(RenderStage.Dynamic)
   )
 
   if (initialStageController.currentStage !== RenderStage.Abandoned) {
@@ -7916,6 +7935,7 @@ async function renderWithRestartOnCacheMissInValidation(
     () => finalStageController.advanceStage(RenderStage.Static),
     () => finalStageController.advanceStage(RenderStage.ShellRuntime),
     () => finalStageController.advanceStage(RenderStage.Runtime),
+    () => finalStageController.advanceStage(RenderStage.NavigationRuntime),
     () => finalStageController.advanceStage(RenderStage.Dynamic)
   )
 
