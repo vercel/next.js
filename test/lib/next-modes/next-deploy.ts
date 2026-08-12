@@ -172,7 +172,7 @@ export class NextDeployInstance extends NextInstance {
     }
   }
 
-  private parseIdsFromCliOuput(): void {
+  private parseIdsFromCliOutput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
       throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
@@ -245,7 +245,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     // The markers never appeared within the retry window; return the last
-    // output so `parseIdsFromCliOuput` throws a descriptive error including it.
+    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
     return output
   }
 
@@ -299,7 +299,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -323,7 +323,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -528,7 +528,7 @@ export class NextDeployInstance extends NextInstance {
       vercelFlags
     )
 
-    this.parseIdsFromCliOuput()
+    this.parseIdsFromCliOutput()
   }
 
   // When preview builds are private, the deploy build installs Next.js
