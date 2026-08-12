@@ -30,6 +30,6 @@ jobs:
       issues: write
     steps:
       - name: Handle issue closure or reopening request
-        uses: vercel/next.js/.github/actions/issue-reopen@canary
+        uses: ./.github/actions/issue-reopen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
