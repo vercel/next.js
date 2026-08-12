@@ -3,6 +3,20 @@ import { RouteKind } from '../../route-kind'
 import { DevAppRouteRouteMatcherProvider } from './dev-app-route-route-matcher-provider'
 import type { FileReader } from './helpers/file-reader/file-reader'
 
+jest.mock('../../../build/analysis/get-page-static-info', () => ({
+  getPageStaticInfo: jest.fn(
+    async ({ pageFilePath }: { pageFilePath: string }) => {
+      if (pageFilePath.includes('generate-sitemaps')) {
+        return { generateSitemaps: true }
+      }
+      if (pageFilePath.includes('generate-image-metadata')) {
+        return { generateImageMetadata: true }
+      }
+      return {}
+    }
+  ),
+}))
+
 describe.each(['webpack', 'turbopack'])(
   'DevAppRouteRouteMatcher %s',
   (bundler) => {
@@ -82,6 +96,39 @@ describe.each(['webpack', 'turbopack'])(
           expect(matchers[0].definition).toEqual(route)
         }
       )
+    })
+
+    describe('metadata sitemap matchers', () => {
+      it('registers only /sitemap.xml when generateSitemaps is absent', async () => {
+        const filename = `${dir}/sitemap.ts`
+        const reader: FileReader = { read: jest.fn(() => [filename]) }
+        const matcher = new DevAppRouteRouteMatcherProvider(
+          dir,
+          extensions,
+          reader,
+          isTurbopack
+        )
+        const matchers = await matcher.matchers()
+        expect(matchers.map((m) => m.definition.pathname)).toEqual([
+          '/sitemap.xml',
+        ])
+      })
+
+      it('registers /sitemap.xml and /sitemap/[__metadata_id__] when generateSitemaps is present', async () => {
+        const filename = `${dir}/generate-sitemaps/sitemap.ts`
+        const reader: FileReader = { read: jest.fn(() => [filename]) }
+        const matcher = new DevAppRouteRouteMatcherProvider(
+          dir,
+          extensions,
+          reader,
+          isTurbopack
+        )
+        const matchers = await matcher.matchers()
+        expect(matchers.map((m) => m.definition.pathname).sort()).toEqual([
+          '/generate-sitemaps/sitemap.xml',
+          '/generate-sitemaps/sitemap/[__metadata_id__]',
+        ])
+      })
     })
   }
 )

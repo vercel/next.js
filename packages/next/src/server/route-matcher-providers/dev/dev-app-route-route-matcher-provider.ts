@@ -12,6 +12,7 @@ import {
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -72,7 +73,12 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
 
       if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
         // Matching dynamic metadata routes.
-        // Add 2 possibilities for both single and multiple routes:
+        // Always register the single-route matcher (e.g. /sitemap.xml).
+        // Only register the multi-dynamic matcher (/[__metadata_id__]) when
+        // the file actually exports generateSitemaps / generateImageMetadata —
+        // same gate as production route discovery. Unconditionally registering
+        // the multi matcher shadows user pages like /sitemap/[...attrs] when a
+        // proxy rewrites /sitemap to a child path (see #96966).
         {
           // single:
           // /sitemap.ts -> /sitemap.xml/route
@@ -96,7 +102,26 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           })
           matchers.push(matcher)
         }
-        {
+
+        let isMultiDynamic = false
+        try {
+          const { getPageStaticInfo } =
+            require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: filename,
+            nextConfig: {},
+            page,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+          isMultiDynamic = !!(
+            staticInfo.generateSitemaps || staticInfo.generateImageMetadata
+          )
+        } catch {
+          // If static analysis fails, keep only the single-route matcher.
+        }
+
+        if (isMultiDynamic) {
           // multiple:
           // /sitemap.ts -> /sitemap/[__metadata_id__]/route
           // /icon.ts -> /icon/[__metadata_id__]/route
