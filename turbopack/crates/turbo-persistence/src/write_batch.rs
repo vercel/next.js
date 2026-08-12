@@ -267,7 +267,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     /// is undefined, and it is the caller's job to resolve that before writing.
     ///
     /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
-    /// simplifying limitation that could be relaxed if needed.
+    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
+    /// overhead of deleting large values by value makes it apriori inefficient.
     pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let family_config = &self.family_configs[usize_from_u32(family)];
         if family_config.kind != FamilyKind::MultiValue {
