@@ -15,7 +15,7 @@ export function useReportWebVitals(
     onCLS(reportWebVitalsFn, { reportSoftNavs: true })
     onLCP(reportWebVitalsFn, { reportSoftNavs: true })
     onINP(reportWebVitalsFn, { reportSoftNavs: true })
-    onFCP(reportWebVitalsFn)
+    onFCP(reportWebVitalsFn, { reportSoftNavs: true })
     onTTFB(reportWebVitalsFn)
   }, [reportWebVitalsFn])
 }

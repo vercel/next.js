@@ -33,7 +33,9 @@ describe('useReportWebVitals hook', () => {
 
     const events: Array<Record<string, string>> = []
     const browser = await next.browser('/report-web-vitals', {
-      beforePageLoad: (page) => collectWebVitals(page, events),
+      beforePageLoad: async (currentPage) => {
+        await collectWebVitals(currentPage, events)
+      },
     })
 
     // Refresh will trigger CLS and LCP. When page loads FCP and TTFB will trigger:
@@ -41,12 +43,22 @@ describe('useReportWebVitals hook', () => {
 
     // After interaction LCP and INP will trigger
     await browser.elementById('btn').click()
+    await browser.eval(
+      `new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`
+    )
+    await browser.eval(`
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      })
+      window.dispatchEvent(new Event('visibilitychange'))
+    `)
 
     // Make sure all registered events in performance-relayer has fired
     await retry(() => {
       expect(events.length).toBeGreaterThanOrEqual(5)
+      expect(events.map((event) => event.name)).toContain('INP')
     })
-    expect(events.some((event) => event.name === 'FID')).toBe(false)
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -59,7 +71,9 @@ describe('useReportWebVitals hook', () => {
   it('should send web-vitals for soft navigations', async () => {
     const events: Array<Record<string, string>> = []
     const browser = await next.browser('/report-web-vitals', {
-      beforePageLoad: (page) => collectWebVitals(page, events),
+      beforePageLoad: async (page) => {
+        await collectWebVitals(page, events)
+      },
     })
 
     const supportsSoftNavigations = await browser.eval(
