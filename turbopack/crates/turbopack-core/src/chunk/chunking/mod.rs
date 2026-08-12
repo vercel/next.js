@@ -29,8 +29,11 @@ use crate::{
 };
 
 mod dev;
+mod merge;
 mod production;
 mod style_production;
+#[cfg(test)]
+mod tests;
 
 #[turbo_tasks::value]
 struct ChunkItemsWithInfo {
