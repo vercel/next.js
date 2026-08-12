@@ -1893,12 +1893,14 @@ async fn all_hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
+#[tracing::instrument(level = "info", name = "get all HMR events", skip(env, project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_all_hmr_events(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     target: String,
-    func: JsFunction,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void")]
+    func: FunctionRef<TurbopackResult<Unknown<'static>>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
         .parse::<HmrTarget>()
@@ -1909,7 +1911,8 @@ pub fn project_all_hmr_events(
     let identifier_path: RcStr = rcstr!("__next_all_hmr__");
     subscribe(
         project.turbopack_ctx.clone(),
-        func,
+        &env,
+        &func,
         move || async move {
             // HACK(bgw): Remove this unmark call
             unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -1971,10 +1974,10 @@ pub fn project_all_hmr_events(
                 Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: ctx.env.to_js_value(&update)?,
                 issues: napi_issues,
-            }])
+            })
         },
     )
 }
@@ -1986,7 +1989,7 @@ pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
     target: String,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<unknown>) => void")]
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Update | NodeJsHmrUpdate>) => void")]
     func: FunctionRef<TurbopackResult<Unknown<'static>>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
@@ -2726,8 +2729,12 @@ pub fn project_get_source_map_sync(
     let (file_path_sys, module) = parse_and_canonicalize_source_url(&source_map_url)
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     within_runtime_if_available(|| {
-        tokio::runtime::Handle::current()
-            .block_on(project_get_source_map_inner(ctx, container, file_path_sys, module))
+        tokio::runtime::Handle::current().block_on(project_get_source_map_inner(
+            ctx,
+            container,
+            file_path_sys,
+            module,
+        ))
     })
 }
 
