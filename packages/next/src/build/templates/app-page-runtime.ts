@@ -953,9 +953,6 @@ export function createAppPageEntrypoint({
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
                 nextConfig.experimental.maxPostponedStateSize
               ),
-              disableResumeDataCacheCompression:
-                nextConfig.experimental.disableResumeDataCacheCompression ??
-                false,
               exposeTestingApi,
             },
 

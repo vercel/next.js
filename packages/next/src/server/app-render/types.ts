@@ -172,14 +172,9 @@ export interface RenderOptsPartial {
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
-     * requests. Used to calculate decompression limits (5x this value).
+     * requests.
      */
     maxPostponedStateSizeBytes: number | undefined
-
-    /**
-     * Whether the Resume Data Cache should be persisted without compression.
-     */
-    disableResumeDataCacheCompression: boolean
 
     /**
      * Whether the Instant Navigation Testing API is exposed (dev mode or the

@@ -1,20 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createNowRouteMatches, retry } from 'next-test-utils'
-import zlib from 'node:zlib'
 
 const MATCHED_PATH = '/dynamic/[slug]'
 const PARSE_ERROR = 'Failed to parse postponed state'
 
-// A real deflate stream (base64) of a representative resume-data-cache payload.
-// Slicing this produces the truncated/corrupt tails used by the cases below.
+// A representative serialized resume-data-cache payload. Slicing this produces
+// the truncated/malformed tails used by the cases below.
 function validResumeDataCacheTail(): string {
-  return zlib
-    .deflateSync(
-      JSON.stringify({
-        store: { cache: {}, fetch: { a: 1 }, encryptedBoundArgs: {} },
-      })
-    )
-    .toString('base64')
+  return JSON.stringify({
+    store: { cache: {}, fetch: { a: 1 }, encryptedBoundArgs: {} },
+  })
 }
 
 // These tests exercise the real minimal-mode resume path: the body of a
@@ -51,7 +46,7 @@ describe('postponed resume - parse failure diagnostics', () => {
     return { response, outputIndex }
   }
 
-  it('reports a truncated postponed string (incomplete delivery) as Z_BUF', async () => {
+  it('reports a truncated postponed string (incomplete delivery)', async () => {
     // Declares a 100-char postponed string but delivers far fewer bytes, so the
     // postponed string itself is short and the resume-data-cache tail is empty.
     const { response, outputIndex } = await postResume('a', '100:short')
@@ -63,11 +58,11 @@ describe('postponed resume - parse failure diagnostics', () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toContain(PARSE_ERROR)
       expect(cliOutput).toContain('postponedStringComplete: false')
-      expect(cliOutput).toContain('Z_BUF_ERROR')
+      expect(cliOutput).toContain("errorName: 'SyntaxError'")
     })
   })
 
-  it('reports a truncated resume-data-cache tail (complete string) as Z_BUF', async () => {
+  it('reports a truncated resume-data-cache tail (complete string)', async () => {
     const tail = validResumeDataCacheTail()
     const truncatedTail = tail.slice(0, tail.length - 12)
     const { response, outputIndex } = await postResume(
@@ -81,14 +76,13 @@ describe('postponed resume - parse failure diagnostics', () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toContain(PARSE_ERROR)
       expect(cliOutput).toContain('postponedStringComplete: true')
-      expect(cliOutput).toContain('Z_BUF_ERROR')
+      expect(cliOutput).toContain("errorName: 'SyntaxError'")
     })
   })
 
-  it('reports a corrupt resume-data-cache tail as Z_DATA (a real bug to surface)', async () => {
+  it('reports a malformed resume-data-cache tail', async () => {
     const tail = validResumeDataCacheTail()
-    // Dropping the leading bytes corrupts the deflate header, which is a
-    // content corruption rather than a short read.
+    // Dropping the leading bytes makes the JSON malformed rather than short.
     const corruptTail = tail.slice(6)
     const { response, outputIndex } = await postResume('c', `1:x${corruptTail}`)
 
@@ -97,7 +91,7 @@ describe('postponed resume - parse failure diagnostics', () => {
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toContain(PARSE_ERROR)
-      expect(cliOutput).toContain('Z_DATA_ERROR')
+      expect(cliOutput).toContain("errorName: 'SyntaxError'")
     })
   })
 
