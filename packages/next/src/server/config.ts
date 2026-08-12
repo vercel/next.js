@@ -23,6 +23,7 @@ import type {
   NextConfigComplete,
   NextConfig,
   NextConfigRuntime,
+  TurbopackModuleFederationConfig,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -302,6 +303,391 @@ function warnCustomizedOption(
     Log.warn(
       `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
     )
+  }
+}
+
+const moduleFederationIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const moduleFederationReservedContainerNames = new Set([
+  'window',
+  'self',
+  'globalThis',
+  'document',
+  'location',
+  'top',
+  'parent',
+  'frames',
+  'navigator',
+  'history',
+  'name',
+  'alert',
+  'TURBOPACK',
+  'TURBOPACK_ASSET_SUFFIX',
+  'TURBOPACK_CHUNK_LISTS',
+  'TURBOPACK_CHUNK_UPDATE_LISTENERS',
+  'TURBOPACK_NEXT_CHUNK_URLS',
+  '__webpack_share_scopes__',
+  '__webpack_init_sharing__',
+  '__turbopack_share_scopes__',
+  '__turbopack_init_sharing__',
+  '__TURBOPACK_MF_CONTAINERS__',
+])
+const moduleFederationDangerousPropertyNames = new Set([
+  '__proto__',
+  'prototype',
+  'constructor',
+])
+
+function hasModuleFederationControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f || code === 0x2028 || code === 0x2029) {
+      return true
+    }
+  }
+  return false
+}
+
+function moduleFederationConfigError(path: string, message: string): never {
+  throw new Error(`experimental.turbopackModuleFederation${path}: ${message}`)
+}
+
+function validateModuleFederationIdentifier(value: string, path: string): void {
+  if (!moduleFederationIdentifier.test(value)) {
+    moduleFederationConfigError(path, 'must be a valid JavaScript identifier')
+  }
+}
+
+function validateModuleFederationPropertyName(
+  value: string,
+  path: string
+): void {
+  if (moduleFederationDangerousPropertyNames.has(value)) {
+    moduleFederationConfigError(
+      path,
+      'must not be "__proto__", "prototype", or "constructor"'
+    )
+  }
+}
+
+function validateModuleFederationContainerName(
+  value: string,
+  path: string
+): void {
+  validateModuleFederationIdentifier(value, path)
+  validateModuleFederationPropertyName(value, path)
+  if (moduleFederationReservedContainerNames.has(value)) {
+    moduleFederationConfigError(
+      path,
+      'must not overwrite a reserved browser or bundler global'
+    )
+  }
+}
+
+function validateModuleFederationLabel(value: string, path: string): void {
+  if (
+    !value ||
+    value.trim() !== value ||
+    hasModuleFederationControlCharacter(value) ||
+    /["\\]/.test(value)
+  ) {
+    moduleFederationConfigError(
+      path,
+      'must be a non-empty string without quotes, backslashes, or control characters'
+    )
+  }
+  validateModuleFederationPropertyName(value, path)
+}
+
+function validateModuleFederationFilename(filename: string): void {
+  const segments = filename.split('/')
+  const outputSegments = segments.slice(1)
+  const filenameBase = segments.at(-1) ?? ''
+  if (
+    !filename ||
+    filename.trim() !== filename ||
+    segments[0] !== 'static' ||
+    outputSegments.length === 0 ||
+    !filename.endsWith('.js') ||
+    filenameBase.length <= 3 ||
+    /^[A-Za-z]:/.test(filename) ||
+    /[\\?#]/.test(filename) ||
+    hasModuleFederationControlCharacter(filename) ||
+    outputSegments.some(
+      (segment) =>
+        !/^[A-Za-z0-9._-]+$/.test(segment) ||
+        segment === '.' ||
+        segment === '..' ||
+        segment.endsWith('.') ||
+        /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment)
+    )
+  ) {
+    moduleFederationConfigError(
+      '.filename',
+      'must name a portable .js file below "static/" using only letters, numbers, dots, underscores, and hyphens'
+    )
+  }
+}
+
+function validateModuleFederationModuleRequest(
+  request: string,
+  path: string,
+  projectRelative: boolean
+): void {
+  const segments = request.split('/')
+  if (
+    !request ||
+    request.trim() !== request ||
+    request.startsWith('/') ||
+    /^[A-Za-z]:/.test(request) ||
+    /[\\?#]/.test(request) ||
+    hasModuleFederationControlCharacter(request) ||
+    segments.some((segment, index) =>
+      projectRelative && index === 0
+        ? segment !== '.'
+        : !segment || segment === '.' || segment === '..'
+    )
+  ) {
+    moduleFederationConfigError(
+      path,
+      projectRelative
+        ? 'must be a project-relative module request without path traversal'
+        : 'must be a module request without an absolute path or path traversal'
+    )
+  }
+}
+
+function validateModuleFederationRemoteUrl(url: string, path: string): void {
+  if (/^[^/?#\\]+@(?:https?:|\/\/|\/)/i.test(url)) {
+    moduleFederationConfigError(
+      path,
+      'must not include a "containerName@" prefix; set the object\'s name field separately'
+    )
+  }
+  const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(url)?.[1].toLowerCase()
+  if (
+    !url ||
+    url.trim() !== url ||
+    /[\s\\]/.test(url) ||
+    hasModuleFederationControlCharacter(url) ||
+    (scheme !== undefined && scheme !== 'http' && scheme !== 'https')
+  ) {
+    moduleFederationConfigError(
+      path,
+      'must be an HTTP(S) or relative URL without whitespace, backslashes, or control characters'
+    )
+  }
+
+  if (scheme || url.startsWith('//')) {
+    try {
+      const parsed = new URL(url, 'http://next.invalid')
+      if (!parsed.hostname) {
+        moduleFederationConfigError(path, 'must include a hostname')
+      }
+    } catch {
+      moduleFederationConfigError(path, 'must be a valid URL')
+    }
+  }
+}
+
+function validateModuleFederationRemoteOrigin(
+  origin: string,
+  path: string
+): void {
+  validateModuleFederationRemoteUrl(origin, path)
+  const parsed = new URL(origin, 'http://next.invalid')
+  if (parsed.search || parsed.hash || /\.m?js$/i.test(parsed.pathname)) {
+    moduleFederationConfigError(
+      path,
+      'must be an application origin or base path; use { entry } for an explicit remote entry URL'
+    )
+  }
+}
+
+function validateTurbopackModuleFederationConfig(
+  config: TurbopackModuleFederationConfig
+): void {
+  if (!config.name || typeof config.name !== 'string') {
+    moduleFederationConfigError('.name', 'is required')
+  }
+  validateModuleFederationContainerName(config.name, '.name')
+
+  if (config.filename !== undefined) {
+    validateModuleFederationFilename(config.filename)
+  }
+  if (config.shareScope !== undefined) {
+    validateModuleFederationLabel(config.shareScope, '.shareScope')
+  }
+  const localShareScope = config.shareScope ?? 'default'
+
+  for (const [exposeName, exposeConfig] of Object.entries(
+    config.exposes ?? {}
+  )) {
+    validateModuleFederationModuleRequest(
+      exposeName,
+      `.exposes[${JSON.stringify(exposeName)}]`,
+      true
+    )
+    const requests =
+      typeof exposeConfig === 'string'
+        ? [exposeConfig]
+        : Array.isArray(exposeConfig.import)
+          ? exposeConfig.import
+          : [exposeConfig.import]
+    for (const request of requests) {
+      validateModuleFederationModuleRequest(
+        request,
+        `.exposes[${JSON.stringify(exposeName)}].import`,
+        true
+      )
+    }
+  }
+
+  for (const [remoteAlias, remoteConfig] of Object.entries(
+    config.remotes ?? {}
+  )) {
+    validateModuleFederationIdentifier(
+      remoteAlias,
+      `.remotes[${JSON.stringify(remoteAlias)}]`
+    )
+    let locations: string | string[]
+    let usesExplicitEntry = false
+    let containerName = remoteAlias
+    let shareScope: string | undefined
+    if (typeof remoteConfig === 'object' && !Array.isArray(remoteConfig)) {
+      containerName = remoteConfig.name ?? remoteAlias
+      shareScope = remoteConfig.shareScope
+      if (remoteConfig.entry !== undefined) {
+        locations = remoteConfig.entry
+        usesExplicitEntry = true
+      } else if (remoteConfig.origin !== undefined) {
+        locations = remoteConfig.origin
+      } else {
+        moduleFederationConfigError(
+          `.remotes[${JSON.stringify(remoteAlias)}]`,
+          'must set either origin or entry'
+        )
+      }
+    } else {
+      locations = remoteConfig
+    }
+    validateModuleFederationContainerName(
+      containerName,
+      `.remotes[${JSON.stringify(remoteAlias)}].name`
+    )
+    if (shareScope !== undefined) {
+      validateModuleFederationLabel(
+        shareScope,
+        `.remotes[${JSON.stringify(remoteAlias)}].shareScope`
+      )
+    }
+    const locationPath = `.remotes[${JSON.stringify(remoteAlias)}].${
+      usesExplicitEntry ? 'entry' : 'origin'
+    }`
+    for (const location of Array.isArray(locations) ? locations : [locations]) {
+      if (usesExplicitEntry) {
+        validateModuleFederationRemoteUrl(location, locationPath)
+      } else {
+        validateModuleFederationRemoteOrigin(location, locationPath)
+      }
+    }
+  }
+
+  const semver =
+    require('next/dist/compiled/semver') as typeof import('next/dist/compiled/semver')
+  for (const [sharedName, sharedConfig] of Object.entries(
+    config.shared ?? {}
+  )) {
+    validateModuleFederationModuleRequest(
+      sharedName,
+      `.shared[${JSON.stringify(sharedName)}]`,
+      false
+    )
+    validateModuleFederationPropertyName(
+      sharedName,
+      `.shared[${JSON.stringify(sharedName)}]`
+    )
+    if (typeof sharedConfig === 'string') {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}]`,
+        'string version shorthand is not supported; use an object with requiredVersion and version'
+      )
+    }
+    if (typeof sharedConfig !== 'object' || sharedConfig === null) {
+      continue
+    }
+    if ((sharedConfig as { eager?: boolean }).eager === false) {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}].eager`,
+        'only eager shared modules are supported'
+      )
+    }
+    if (typeof sharedConfig.import === 'string') {
+      validateModuleFederationModuleRequest(
+        sharedConfig.import,
+        `.shared[${JSON.stringify(sharedName)}].import`,
+        sharedConfig.import.startsWith('./')
+      )
+    }
+    if (sharedConfig.shareKey !== undefined) {
+      validateModuleFederationModuleRequest(
+        sharedConfig.shareKey,
+        `.shared[${JSON.stringify(sharedName)}].shareKey`,
+        false
+      )
+      validateModuleFederationPropertyName(
+        sharedConfig.shareKey,
+        `.shared[${JSON.stringify(sharedName)}].shareKey`
+      )
+    }
+    if (sharedConfig.shareScope !== undefined) {
+      validateModuleFederationLabel(
+        sharedConfig.shareScope,
+        `.shared[${JSON.stringify(sharedName)}].shareScope`
+      )
+      if (sharedConfig.shareScope !== localShareScope) {
+        moduleFederationConfigError(
+          `.shared[${JSON.stringify(sharedName)}].shareScope`,
+          `must match the top-level shareScope (${JSON.stringify(localShareScope)}); per-entry share scopes are not supported`
+        )
+      }
+    }
+    if (
+      typeof sharedConfig.version === 'string' &&
+      semver.valid(sharedConfig.version) === null
+    ) {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}].version`,
+        'must be a valid semantic version'
+      )
+    }
+    if (
+      typeof sharedConfig.requiredVersion === 'string' &&
+      semver.validRange(sharedConfig.requiredVersion) === null
+    ) {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}].requiredVersion`,
+        'must be a valid semantic version range'
+      )
+    }
+    if (
+      typeof sharedConfig.requiredVersion === 'string' &&
+      sharedConfig.import !== false &&
+      typeof sharedConfig.version !== 'string'
+    ) {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}].version`,
+        'is required when a locally provided shared module sets requiredVersion'
+      )
+    }
+    if (
+      sharedConfig.strictVersion &&
+      typeof sharedConfig.requiredVersion !== 'string'
+    ) {
+      moduleFederationConfigError(
+        `.shared[${JSON.stringify(sharedName)}].strictVersion`,
+        'requires a requiredVersion range'
+      )
+    }
   }
 }
 
@@ -1126,6 +1512,13 @@ function assignDefaultsAndValidate(
     if (!g.startsWith('TURBOPACK_')) {
       result.turbopack.chunkLoadingGlobal = `TURBOPACK_${g}`
     }
+  }
+
+  // Validate Module Federation config when present
+  if (result.experimental?.turbopackModuleFederation) {
+    validateTurbopackModuleFederationConfig(
+      result.experimental.turbopackModuleFederation
+    )
   }
 
   if (

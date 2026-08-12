@@ -242,4 +242,340 @@ describe('loadConfig', () => {
       expect(result.experimental.cssChunking).toBe('graph')
     })
   })
+
+  describe('experimental.turbopackModuleFederation validation', () => {
+    let configNumber = 0
+
+    async function expectInvalidConfig(config: unknown, message: RegExp) {
+      configNumber++
+      await expect(
+        loadConfig(
+          PHASE_PRODUCTION_BUILD,
+          `${__dirname}/module-federation-${configNumber}`,
+          {
+            customConfig: {
+              experimental: {
+                turbopackModuleFederation: config,
+              },
+            },
+          }
+        )
+      ).rejects.toThrow(message)
+    }
+
+    it('accepts the supported client-only eager configuration', async () => {
+      const result = await loadConfig(
+        PHASE_PRODUCTION_BUILD,
+        `${__dirname}/module-federation-valid`,
+        {
+          customConfig: {
+            experimental: {
+              turbopackModuleFederation: {
+                name: 'remoteApp',
+                filename: 'static/chunks/remoteEntry.js',
+                exposes: {
+                  './Button': {
+                    import: ['./polyfill', './components/Button'],
+                  },
+                },
+                remotes: {
+                  shell: {
+                    origin: ['https://example.com', '/fallback'],
+                    shareScope: 'default',
+                  },
+                  products: {
+                    name: 'productContainer',
+                    entry: 'https://cdn.example.com/products-entry.js',
+                  },
+                  account: 'https://account.example.com',
+                },
+                shared: {
+                  react: {
+                    shareScope: 'default',
+                    version: '19.1.0',
+                    requiredVersion: '^19.0.0',
+                    singleton: true,
+                    strictVersion: true,
+                    eager: true,
+                  },
+                  'react-dom': false,
+                  localState: { import: './lib/local-state', eager: true },
+                  consumerOnly: {
+                    import: false,
+                    requiredVersion: '^1.0.0',
+                    strictVersion: true,
+                  },
+                },
+              },
+            },
+          },
+        }
+      )
+
+      expect(result.experimental.turbopackModuleFederation?.name).toBe(
+        'remoteApp'
+      )
+    })
+
+    it('rejects names that cannot safely identify browser containers', async () => {
+      await expectInvalidConfig(
+        { name: 'remote-app' },
+        /\.name: must be a valid JavaScript identifier/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            remoteApp: {
+              name: 'remote-app',
+              origin: 'https://example.com',
+            },
+          },
+        },
+        /\.remotes\["remoteApp"\]\.name: must be a valid JavaScript identifier/
+      )
+      for (const reservedName of [
+        'window',
+        'self',
+        'globalThis',
+        'document',
+        'location',
+        'top',
+        'parent',
+        'frames',
+        'navigator',
+        'history',
+        'name',
+        'alert',
+        'TURBOPACK',
+        '__webpack_share_scopes__',
+        '__webpack_init_sharing__',
+        '__TURBOPACK_MF_CONTAINERS__',
+      ]) {
+        await expectInvalidConfig(
+          { name: reservedName },
+          /\.name: must not overwrite a reserved browser or bundler global/
+        )
+      }
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            next: {
+              name: 'window',
+              origin: 'https://example.com',
+            },
+          },
+        },
+        /\.remotes\["next"\]\.name: must not overwrite a reserved browser or bundler global/
+      )
+    })
+
+    it('rejects prototype-sensitive object property names', async () => {
+      for (const name of ['__proto__', 'prototype', 'constructor']) {
+        await expectInvalidConfig(
+          { name },
+          /\.name: must not be "__proto__", "prototype", or "constructor"/
+        )
+      }
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            remoteApp: {
+              name: 'constructor',
+              origin: 'https://example.com',
+            },
+          },
+        },
+        /\.remotes\["remoteApp"\]\.name: must not be "__proto__", "prototype", or "constructor"/
+      )
+      await expectInvalidConfig(
+        { name: 'shell', shareScope: '__proto__' },
+        /\.shareScope: must not be "__proto__", "prototype", or "constructor"/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            remoteApp: {
+              origin: '/remote',
+              shareScope: 'prototype',
+            },
+          },
+        },
+        /\.remotes\["remoteApp"\]\.shareScope: must not be "__proto__", "prototype", or "constructor"/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { constructor: true },
+        },
+        /\.shared\["constructor"\]: must not be "__proto__", "prototype", or "constructor"/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: { shareKey: '__proto__' } },
+        },
+        /\.shared\["react"\]\.shareKey: must not be "__proto__", "prototype", or "constructor"/
+      )
+    })
+
+    it('keeps emitted filenames inside the served client static directory', async () => {
+      const result = await loadConfig(
+        PHASE_PRODUCTION_BUILD,
+        `${__dirname}/module-federation-custom-static-filename`,
+        {
+          customConfig: {
+            experimental: {
+              turbopackModuleFederation: {
+                name: 'remoteApp',
+                filename: 'static/custom-v1.2/remote_entry-1.2.js',
+              },
+            },
+          },
+        }
+      )
+      expect(result.experimental.turbopackModuleFederation?.filename).toBe(
+        'static/custom-v1.2/remote_entry-1.2.js'
+      )
+
+      for (const filename of [
+        'static',
+        'static/',
+        'static/chunks',
+        'static/chunks/remoteEntry.css',
+        'static/chunks/.js',
+        'static/%2e%2e/remoteEntry.js',
+        'static/chunks%2FremoteEntry.js',
+        'static/chunks/remote:Entry.js',
+        'static/chunks/"remoteEntry".js',
+        'static/chunks/remote*Entry.js',
+        'static/chunks/remote<Entry.js',
+        'static/chunks/remote>Entry.js',
+        'static/chunks/remote|Entry.js',
+        'static/CON.js',
+        'static/nul/remoteEntry.js',
+        'static/aux.txt.js',
+        'static/com1/remoteEntry.js',
+        'static/LPT9.js',
+        'remoteEntry.js',
+        'chunks/remoteEntry.js',
+        'assets/remoteEntry.js',
+        '/remoteEntry.js',
+        '../remoteEntry.js',
+        'static/../remoteEntry.js',
+        'static\\remoteEntry.js',
+        'C:/remoteEntry.js',
+        'static//remoteEntry.js',
+        'remoteEntry.js?x=1',
+      ]) {
+        await expectInvalidConfig(
+          { name: 'remoteApp', filename },
+          /\.filename: must name a portable \.js file below "static\/" using only letters, numbers, dots, underscores, and hyphens/
+        )
+      }
+    })
+
+    it('only permits safe project-relative exposed module requests', async () => {
+      await expectInvalidConfig(
+        {
+          name: 'remoteApp',
+          exposes: { Button: './components/Button' },
+        },
+        /\.exposes\["Button"\].*project-relative module request/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'remoteApp',
+          exposes: { './Button': '../components/Button' },
+        },
+        /\.exposes\["\.\/Button"\]\.import.*project-relative module request/
+      )
+    })
+
+    it('only permits supported remote URL schemes and safe URLs', async () => {
+      for (const remote of [
+        ['javascript', ':alert(1)'].join(''),
+        'data:text/javascript,alert(1)',
+        'file:///tmp/remoteEntry.js',
+        'ftp://example.com/remoteEntry.js',
+        'https://example.com/remote Entry.js',
+        'https://example.com\\remoteEntry.js',
+        'https://example.com/remoteEntry.js\nignored',
+      ]) {
+        await expectInvalidConfig(
+          { name: 'shell', remotes: { remoteApp: remote } },
+          /\.remotes\["remoteApp"\]\.origin: must be an HTTP\(S\) or relative URL/
+        )
+      }
+
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            remoteApp: 'remoteApp@https://example.com/static/remoteEntry.js',
+          },
+        },
+        /\.remotes\["remoteApp"\]\.origin: must not include a "containerName@" prefix/
+      )
+
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          remotes: {
+            remoteApp: 'https://example.com/_next/static/chunks/remoteEntry.js',
+          },
+        },
+        /\.remotes\["remoteApp"\]\.origin: must be an application origin or base path; use \{ entry \}/
+      )
+    })
+
+    it('rejects unsupported or inconsistent shared settings', async () => {
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: { eager: false } },
+        },
+        /\.shared\["react"\]\.eager: only eager shared modules are supported/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: '^19.0.0' },
+        },
+        /\.shared\["react"\]: string version shorthand is not supported/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shareScope: 'host',
+          shared: { react: { shareScope: 'remote' } },
+        },
+        /\.shared\["react"\]\.shareScope: must match the top-level shareScope \("host"\)/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: { requiredVersion: '^19.0.0' } },
+        },
+        /\.shared\["react"\]\.version: is required when a locally provided shared module sets requiredVersion/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: { version: 'not-semver' } },
+        },
+        /\.shared\["react"\]\.version: must be a valid semantic version/
+      )
+      await expectInvalidConfig(
+        {
+          name: 'shell',
+          shared: { react: { strictVersion: true } },
+        },
+        /\.shared\["react"\]\.strictVersion: requires a requiredVersion range/
+      )
+    })
+  })
 })

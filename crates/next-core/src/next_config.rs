@@ -1441,6 +1441,254 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+
+    /// Enables client-side Module Federation in Turbopack.
+    turbopack_module_federation: Option<ModuleFederationConfig>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum ModuleFederationExposeValue {
+    Str(RcStr),
+    Obj(ModuleFederationExposeObject),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleFederationExposeObject {
+    #[serde(rename = "import")]
+    pub import: Option<ImportValue>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum ImportValue {
+    Str(RcStr),
+    Array(Vec<RcStr>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum ModuleFederationRemoteValue {
+    Str(RcStr),
+    Array(Vec<RcStr>),
+    Obj(ModuleFederationRemoteObject),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleFederationRemoteObject {
+    #[serde(default)]
+    pub name: Option<RcStr>,
+    #[serde(default)]
+    pub origin: Option<ImportValue>,
+    #[serde(default)]
+    pub entry: Option<ImportValue>,
+    #[serde(default)]
+    pub share_scope: Option<RcStr>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum ModuleFederationSharedValue {
+    Bool(bool),
+    Str(RcStr),
+    Obj(ModuleFederationSharedObject),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleFederationSharedObject {
+    #[serde(default, rename = "import")]
+    pub import: Option<ImportOrFalse>,
+    #[serde(default)]
+    pub share_key: Option<RcStr>,
+    #[serde(default)]
+    pub share_scope: Option<RcStr>,
+    #[serde(default)]
+    pub version: Option<VersionOrFalse>,
+    #[serde(default)]
+    pub required_version: Option<VersionOrFalse>,
+    #[serde(default)]
+    pub singleton: Option<bool>,
+    #[serde(default)]
+    pub strict_version: Option<bool>,
+    #[serde(default)]
+    pub eager: Option<bool>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum ImportOrFalse {
+    Str(RcStr),
+    Bool(bool),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(untagged)]
+pub enum VersionOrFalse {
+    Str(RcStr),
+    Bool(bool),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleFederationConfig {
+    pub name: RcStr,
+    #[serde(default)]
+    pub filename: Option<RcStr>,
+    #[serde(default)]
+    pub share_scope: Option<RcStr>,
+    #[serde(default)]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    pub exposes: Option<FxIndexMap<RcStr, ModuleFederationExposeValue>>,
+    #[serde(default)]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    pub remotes: Option<FxIndexMap<RcStr, ModuleFederationRemoteValue>>,
+    #[serde(default)]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    pub shared: Option<FxIndexMap<RcStr, ModuleFederationSharedValue>>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionModuleFederationConfig(pub Option<ModuleFederationConfig>);
+
+impl ModuleFederationConfig {
+    pub fn filename(&self) -> RcStr {
+        self.filename
+            .clone()
+            .unwrap_or_else(|| rcstr!("static/chunks/remoteEntry.js"))
+    }
+
+    pub fn share_scope_name(&self) -> RcStr {
+        self.share_scope
+            .clone()
+            .unwrap_or_else(|| rcstr!("default"))
+    }
 }
 
 #[derive(
@@ -2882,6 +3130,14 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn output_hash_salt(&self) -> Vc<RcStr> {
         Vc::cell(self.output_hash_salt.clone().unwrap_or_default())
+    }
+
+    // ------------------------------------------------------------------
+    // Module Federation
+    // ------------------------------------------------------------------
+    #[turbo_tasks::function]
+    pub fn turbopack_module_federation(&self) -> Vc<OptionModuleFederationConfig> {
+        Vc::cell(self.experimental.turbopack_module_federation.clone())
     }
 }
 
