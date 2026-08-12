@@ -59,6 +59,6 @@ Confirmed issues never become stale or are closed before resolution.
 
 ## Closed issues
 
-When a maintainer closes an unlocked issue, an automated comment explains how the issue author or someone who commented before it was closed can request that it be reopened within 14 days. The request must start with `Reopen:` and include a reason.
+When a maintainer closes an unlocked issue, an automated comment explains how the issue author or someone who commented before it was closed can request that it be reopened within 14 days. The request must include `Reopen:` and a reason.
 
 All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). After the reopening window expires, please open a new issue with up-to-date details and reference the old one. Automated closures provide their own next steps.

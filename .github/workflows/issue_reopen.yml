@@ -27,20 +27,9 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       issues: write
     steps:
-      - name: Checkout trusted workflow code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          sparse-checkout: .github/scripts/issue_reopen.js
-          sparse-checkout-cone-mode: false
-
       - name: Handle issue closure or reopening request
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const { handleIssueReopening } = require('./.github/scripts/issue_reopen.js')
-            await handleIssueReopening({ core, github, context })
+        uses: vercel/next.js/.github/actions/issue-reopen@canary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
