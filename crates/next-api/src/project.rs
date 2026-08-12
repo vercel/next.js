@@ -2834,7 +2834,7 @@ impl Project {
             .await?;
 
         let asset_context =
-            externals_tracing_module_context(get_tracing_compile_time_info(), false);
+            externals_tracing_module_context(get_tracing_compile_time_info(), false, None);
 
         Ok(Vc::cell(
             cache_handler
