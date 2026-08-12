@@ -274,9 +274,9 @@ async function createForwardedActionResponse(
       },
     })
 
-    if (
-      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
-    ) {
+    const responseContentType = response.headers.get('content-type')
+
+    if (responseContentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -298,6 +298,14 @@ async function createForwardedActionResponse(
       res.statusCode = 404
       return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
+
+    console.error(
+      `Failed to forward Server Action response: expected an RSC response but received status ${response.status}${
+        responseContentType
+          ? ` with content type \`${limitUntrustedHeaderValueForLogs(responseContentType)}\``
+          : ''
+      }.`
+    )
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)

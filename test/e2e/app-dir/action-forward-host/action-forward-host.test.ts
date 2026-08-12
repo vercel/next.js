@@ -37,7 +37,7 @@ describe('server action forwarding - original host', () => {
     pathname: string,
     actionId: string,
     extraHeaders?: Record<string, string>
-  ): Promise<{ status: number }> {
+  ): Promise<{ status: number; body: string }> {
     return new Promise((resolve, reject) => {
       const request = http.request(
         {
@@ -54,8 +54,14 @@ describe('server action forwarding - original host', () => {
           },
         },
         (response) => {
-          response.resume()
-          response.on('end', () => resolve({ status: response.statusCode! }))
+          let body = ''
+          response.setEncoding('utf8')
+          response.on('data', (chunk) => {
+            body += chunk
+          })
+          response.on('end', () =>
+            resolve({ status: response.statusCode!, body })
+          )
           response.on('error', reject)
         }
       )
@@ -132,5 +138,26 @@ describe('server action forwarding - original host', () => {
 
     expect(observed.xForwardedHost).toBe(FORGED_HOST)
     expect(observed.host).toBe(HOST)
+  })
+
+  it('logs an unexpected response from the forwarded worker', async () => {
+    const actionId = await getActionId()
+    const outputIndex = next.cliOutput.length
+
+    // The proxy lets the original request through, then turns the internal
+    // forwarded request into a non-RSC error response. This exercises the
+    // fallback that otherwise converts the worker failure into a 200 with an
+    // empty action result.
+    const response = await postAction('/without-action', actionId, {
+      'x-test-forwarded-response': 'unexpected',
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toBe('{}')
+
+    const output = next.cliOutput.slice(outputIndex)
+    expect(output).toContain('Failed to forward Server Action response')
+    expect(output).toContain('status 500')
+    expect(output).toContain('text/plain')
   })
 })
