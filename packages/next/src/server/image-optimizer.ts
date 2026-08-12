@@ -68,12 +68,12 @@ async function initCacheEntries(
 
   for (const cacheKey of cacheKeys) {
     try {
-      const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
-      entries.push({
-        key: cacheKey,
-        size: buffer.byteLength,
-        expireAt,
-      })
+      const { expireAt, filePath } = await readCacheDirMetadata(
+        cacheDir,
+        cacheKey
+      )
+      const { size } = await promises.stat(filePath)
+      entries.push({ key: cacheKey, size, expireAt })
     } catch {
       // Skip entries that can't be read from disk
     }
@@ -201,7 +201,7 @@ async function writeToCacheDir(
   await promises.writeFile(filename, buffer)
 }
 
-async function readFromCacheDir(cacheDir: string, cacheKey: string) {
+async function readCacheDirMetadata(cacheDir: string, cacheKey: string) {
   const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const files = await promises.readdir(dir)
   const file = files[0]
@@ -214,11 +214,23 @@ async function readFromCacheDir(cacheDir: string, cacheKey: string) {
     '.',
     5
   )
-  const filePath = join(/* turbopackIgnore: true */ dir, file)
+  return {
+    maxAge: Number(maxAgeSt),
+    expireAt: Number(expireAtSt),
+    etag,
+    upstreamEtag,
+    extension,
+    filePath: join(/* turbopackIgnore: true */ dir, file),
+  }
+}
+
+async function readFromCacheDir(cacheDir: string, cacheKey: string) {
+  const { filePath, ...metadata } = await readCacheDirMetadata(
+    cacheDir,
+    cacheKey
+  )
   const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
-  const expireAt = Number(expireAtSt)
-  const maxAge = Number(maxAgeSt)
-  return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
+  return { ...metadata, buffer }
 }
 
 async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
