@@ -1,10 +1,10 @@
-import Reporter from './reporter'
+import Link from 'next/link'
 
 export default function component() {
   return (
     <>
       <h1>Test</h1>
-      <Reporter />
+      <Link href="/report-web-vitals/destination">Go to destination</Link>
     </>
   )
 }

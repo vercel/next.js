@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import {
   onLCP,
-  onFID,
   onCLS,
   onINP,
   onFCP,
@@ -13,10 +12,9 @@ export function useReportWebVitals(
   reportWebVitalsFn: (metric: Metric) => void
 ) {
   useEffect(() => {
-    onCLS(reportWebVitalsFn)
-    onFID(reportWebVitalsFn)
-    onLCP(reportWebVitalsFn)
-    onINP(reportWebVitalsFn)
+    onCLS(reportWebVitalsFn, { reportSoftNavs: true })
+    onLCP(reportWebVitalsFn, { reportSoftNavs: true })
+    onINP(reportWebVitalsFn, { reportSoftNavs: true })
     onFCP(reportWebVitalsFn)
     onTTFB(reportWebVitalsFn)
   }, [reportWebVitalsFn])

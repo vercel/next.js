@@ -342,7 +342,6 @@ export const experimentalSchema = {
       z.union([
         z.literal('CLS'),
         z.literal('FCP'),
-        z.literal('FID'),
         z.literal('INP'),
         z.literal('LCP'),
         z.literal('TTFB'),
