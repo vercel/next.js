@@ -2017,7 +2017,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // Values deleted by key-value tombstones seen so far. Because we walk meta files newest
         // first, and tombstones sort first within a key group, every tombstone that could apply to
         // a value has already been seen by the time we reach that value.
-        let mut deleted_values: SmallVec<[ArcBytes; 1]> = SmallVec::new();
+        let mut deleted_values: AutoSet<ArcBytes, BuildHasherDefault<FxHasher>, 1> =
+            AutoSet::default();
 
         let mut size = 0;
 
@@ -2072,12 +2073,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                                     // Cannot terminate the search: older layers may hold other
                                     // values for the same key.
-                                    deleted_values.push(value);
+                                    deleted_values.insert(value);
                                 }
                                 LookupValue::Slice { value } => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                                    if deleted_values.iter().any(|d| **d == *value) {
+                                    if deleted_values.contains(&value) {
                                         continue;
                                     }
                                     if !FIND_ALL {
