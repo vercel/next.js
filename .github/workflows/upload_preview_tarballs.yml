@@ -12,6 +12,8 @@ on:
 permissions:
   actions: read
   contents: read
+  # Minting GitHub OIDC tokens to authorize uploads at vercel-packages.
+  id-token: write
 
 jobs:
   upload:
@@ -67,4 +69,4 @@ jobs:
           }}/preview-tarballs"
         env:
           BLOB_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREVIEW_BUILDS_BLOB_READ_WRITE_TOKEN }}
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
