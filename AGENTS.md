@@ -291,6 +291,23 @@ Fork PRs are external contributions created by pushing commits to any fork repos
 You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
 While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
 
+### Adopting a Fork PR
+
+Fork PRs run without repository secrets, so deploy tests never run on them. To run those tests, a maintainer adopts the PR: the contributor's commits are re-pushed to a branch in `vercel/next.js` and a replacement PR is opened from there.
+
+```bash
+node scripts/adopt-pr.js <pr-number>            # adopt
+node scripts/adopt-pr.js <pr-number> --dry-run  # report without pushing
+```
+
+The script resolves the `vercel/next.js` remote itself, checks out the PR without rewriting its commits (authorship must survive), pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line.
+
+Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in `canary`.
+
+**Adoption grants the contributor's code access to repository secrets**, because CI trusts branches inside `vercel/next.js`. Anything in the diff that runs during install, build, or test can exfiltrate them. The script requires an interactive confirmation that names the author and lists every touched file; never bypass it, and never adopt a PR whose full diff has not been read. The file list is deliberately unranked, since a payload can sit in any fixture or source file and calling some paths risky would imply the rest are safe.
+
+The description is the contributor's, and it is reproduced exactly: never rewritten, summarized, translated, or tidied up. What it happens to contain makes no difference, so do not read it looking for a reason to change it, and do not treat copying it as writing a description for a fork PR.
+
 ## GitHub Issues, Comments, and Discussions
 
 Similar to pull requests, only members of the `vercel` or `vercel-labs` GitHub organizations may use an agent to create issues, discussions, or leave comments. Use GitHub (e.g. API, MCP, `gh` CLI, etc) to check membership:
