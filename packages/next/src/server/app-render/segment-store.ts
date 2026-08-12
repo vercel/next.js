@@ -1,6 +1,7 @@
 import type { VaryParamsAccumulator } from './vary-params'
 import type { WorkUnitStore } from './work-unit-async-storage.external'
 import type { LoaderTree } from '../lib/app-dir-module'
+import type { SearchParams } from '../request/search-params'
 
 /**
  * Per-request, per-segment AsyncLocalStorage.
@@ -17,9 +18,9 @@ import type { LoaderTree } from '../lib/app-dir-module'
  * use. This module only provides the record and its per-(work unit, segment)
  * identity.
  *
- * TODO: the segment's `searchParams` and `params` prop objects will move in
- * here too, memoized the same way, so that everything a segment receives
- * from the request is created and accessed through one per-segment store.
+ * TODO: the segment's `params` prop object will move in here too, memoized
+ * the same way as `searchParams`, so that everything a segment receives from
+ * the request is created and accessed through one per-segment store.
  */
 export type SegmentStore = {
   /**
@@ -31,10 +32,19 @@ export type SegmentStore = {
    * `getMetadataVaryParamsAccumulator` for the metadata segment).
    */
   varyParamsAccumulator: VaryParamsAccumulator | null
+
+  /**
+   * The segment's `searchParams` prop object. `null` until first requested;
+   * created and memoized by the field's owner in `search-params.ts`
+   * (`getServerSearchParamsForServerPage`, or
+   * `getServerSearchParamsForMetadata` for the metadata segment), so every
+   * consumer observes the same promise.
+   */
+  searchParams: Promise<SearchParams> | null
 }
 
 function createSegmentStore(): SegmentStore {
-  return { varyParamsAccumulator: null }
+  return { varyParamsAccumulator: null, searchParams: null }
 }
 
 /**
