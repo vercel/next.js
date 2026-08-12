@@ -420,6 +420,43 @@ describe.each(
             ])
           })
 
+          if (env.name === 'root context') {
+            it('should trace route module preparation', async () => {
+              const pathname = '/api/app/param/data'
+              await next.fetch(pathname)
+
+              await retry(async () => {
+                const spans = getCollector().getSpans()
+                const rootSpan = spans.find(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'BaseServer.handleRequest' &&
+                    span.attributes?.['http.target'] === pathname
+                )
+                const prepareSpans = spans.filter(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'RouteModule.prepare' &&
+                    span.traceId === rootSpan?.traceId
+                )
+
+                expect(rootSpan).toBeDefined()
+                expect(prepareSpans).toEqual([
+                  expect.objectContaining({
+                    runtime: 'nodejs',
+                    name: 'prepare route module',
+                    traceId: rootSpan?.traceId,
+                    attributes: {
+                      'next.span_category': 'nextjs',
+                      'next.span_name': 'prepare route module',
+                      'next.span_type': 'RouteModule.prepare',
+                    },
+                    status: { code: 0 },
+                  }),
+                ])
+              })
+            })
+          }
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 
@@ -2026,7 +2063,11 @@ async function expectTrace(
   )
 
   await retry(async () => {
-    const traces = collector.getSpans()
+    const traces = collector
+      .getSpans()
+      .filter(
+        (span) => span.attributes?.['next.span_type'] !== 'RouteModule.prepare'
+      )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({

@@ -115,6 +115,10 @@ enum AppRouteRouteHandlersSpan {
   runHandler = 'AppRouteRouteHandlers.runHandler',
 }
 
+enum RouteModuleSpan {
+  prepare = 'RouteModule.prepare',
+  loadManifests = 'RouteModule.loadManifests',
+}
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
   generateViewport = 'ResolveMetadata.generateViewport',
@@ -137,6 +141,7 @@ type SpanTypes =
   | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
+  | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
 
@@ -151,6 +156,7 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
+  RouteModuleSpan.prepare,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
   NextNodeServerSpan.createComponentTree,
@@ -181,6 +187,7 @@ export {
   DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
+  RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
 }

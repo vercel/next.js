@@ -29,6 +29,7 @@ import {
   LoadComponentsSpan,
   NextNodeServerSpan,
   NodeSpan,
+  RouteModuleSpan,
 } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
@@ -259,9 +260,22 @@ describe('local span recording', () => {
     getTracer().trace(NodeSpan.runHandler, () => undefined)
     expect(exportedSpans).toEqual([NodeSpan.runHandler])
 
+    getTracer().trace(RouteModuleSpan.prepare, () => undefined)
+    getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
+    expect(exportedSpans).toEqual([
+      NodeSpan.runHandler,
+      RouteModuleSpan.prepare,
+    ])
+
     process.env.NEXT_OTEL_VERBOSE = '1'
     getTracer().trace(BaseServerSpan.render, () => undefined)
-    expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
+    getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
+    expect(exportedSpans).toEqual([
+      NodeSpan.runHandler,
+      RouteModuleSpan.prepare,
+      BaseServerSpan.render,
+      RouteModuleSpan.loadManifests,
+    ])
   })
 
   it('does not record or export hidden spans', () => {
