@@ -224,11 +224,13 @@ async function createTreeCodeFromPath(
     nestedCollectedDeclarations: [string, string][]
   ): Promise<{
     treeCode: string
+    containsInterception: boolean
   }> {
     const segmentPath = segments.join('/')
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    const interceptingParallelKeys = new Set<string>()
     // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
@@ -272,6 +274,10 @@ async function createTreeCodeFromPath(
         if (resolvedPagePath) {
           const varName = `page${nestedCollectedDeclarations.length}`
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
+
+          if (isInterceptionRouteAppPath(matchedPagePath)) {
+            interceptingParallelKeys.add(normalizeParallelKey(parallelKey))
+          }
 
           // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
           props[normalizeParallelKey(parallelKey)] =
@@ -537,13 +543,18 @@ async function createTreeCodeFromPath(
       }`
 
       if (!subtreeCode) {
-        const { treeCode: pageSubtreeCode } =
-          await createSubtreePropsFromSegmentPath(
-            subSegmentPath,
-            nestedCollectedDeclarations
-          )
+        const {
+          treeCode: pageSubtreeCode,
+          containsInterception: subtreeContainsInterception,
+        } = await createSubtreePropsFromSegmentPath(
+          subSegmentPath,
+          nestedCollectedDeclarations
+        )
 
         subtreeCode = pageSubtreeCode
+        if (subtreeContainsInterception) {
+          interceptingParallelKeys.add(normalizedParallelKey)
+        }
       }
 
       // Compute static siblings for dynamic segments. In dev mode, routes are
@@ -562,6 +573,39 @@ async function createTreeCodeFromPath(
     const adjacentParallelSegments =
       await resolveAdjacentParallelSegments(segmentPath)
 
+    // This is the level whose parallel child contains the interception match,
+    // rather than a layout inside the newly matched interception subtree.
+    // Only the former is a partial update of an already active slot owner.
+    const isInterceptionHost =
+      !isInterceptionRouteAppPath(segmentPath) &&
+      interceptingParallelKeys.size > 0
+
+    function setSyntheticDefault(key: string, defaultPath: string) {
+      const varName = `default${nestedCollectedDeclarations.length}`
+      nestedCollectedDeclarations.push([varName, defaultPath])
+      props[key] = `[
+        '${DEFAULT_SEGMENT_KEY}',
+        {},
+        {
+          defaultPage: [${varName}, ${JSON.stringify(defaultPath)}],
+        }
+      ]`
+    }
+
+    if (isInterceptionHost) {
+      // A host may have produced a normal match for another slot while the
+      // tree was being assembled. The interception match takes precedence:
+      // every other slot owned at this level is retained. Its synthetic
+      // `__DEFAULT__` branch renders null if evaluated; a user-authored
+      // default is not the meaning of this partial update.
+      for (const adjacentParallelSegment of adjacentParallelSegments) {
+        const normalizedKey = normalizeParallelKey(adjacentParallelSegment)
+        if (!interceptingParallelKeys.has(normalizedKey)) {
+          setSyntheticDefault(normalizedKey, PARALLEL_ROUTE_DEFAULT_NULL_PATH)
+        }
+      }
+    }
+
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
@@ -577,18 +621,13 @@ async function createTreeCodeFromPath(
         let defaultPath = await resolver(`${fullSegmentPath}/default`)
         if (!defaultPath) {
           if (adjacentParallelSegment === 'children') {
-            // When we host applications on Vercel, the status code affects the
-            // underlying behavior of the route, which when we are missing the
-            // children slot of an interception route, will yield a full 404
-            // response for the RSC request instead. For this reason, we expect
-            // that if a default file is missing when we're rendering an
-            // interception route, we instead always render null for the default
-            // slot to avoid the full 404 response.
-            if (isInterceptionRouteAppPath(page)) {
-              defaultPath = PARALLEL_ROUTE_DEFAULT_NULL_PATH
-            } else {
-              defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
-            }
+            // Slot discovery can synthesize children inside an interception
+            // subtree even when no ordinary route declares it. Keep the
+            // historical null fallback for that structural child; host-slot
+            // retention above only applies outside the new subtree.
+            defaultPath = isInterceptionRouteAppPath(page)
+              ? PARALLEL_ROUTE_DEFAULT_NULL_PATH
+              : PARALLEL_ROUTE_DEFAULT_PATH
           } else {
             // Check if we're inside a catch-all route (i.e., the parallel route is a child
             // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
@@ -621,15 +660,10 @@ async function createTreeCodeFromPath(
           }
         }
 
-        const varName = `default${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([varName, defaultPath])
-        props[normalizeParallelKey(adjacentParallelSegment)] = `[
-          '${DEFAULT_SEGMENT_KEY}',
-          {},
-          {
-            defaultPage: [${varName}, ${JSON.stringify(defaultPath)}],
-          }
-        ]`
+        setSyntheticDefault(
+          normalizeParallelKey(adjacentParallelSegment),
+          defaultPath
+        )
       }
     }
     return {
@@ -638,6 +672,9 @@ async function createTreeCodeFromPath(
           .map(([key, value]) => `${key}: ${value}`)
           .join(',\n')}
       }`,
+      containsInterception:
+        isInterceptionRouteAppPath(segmentPath) ||
+        interceptingParallelKeys.size > 0,
     }
   }
 
