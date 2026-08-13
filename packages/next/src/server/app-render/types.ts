@@ -177,6 +177,11 @@ export interface RenderOptsPartial {
     maxPostponedStateSizeBytes: number | undefined
 
     /**
+     * Whether the Resume Data Cache should be persisted without compression.
+     */
+    disableResumeDataCacheCompression: boolean
+
+    /**
      * Whether the Instant Navigation Testing API is exposed (dev mode or the
      * `exposeTestingApiInProductionBuild` flag). When true, the prerendered
      * shell and dynamic renders embed a cookie-guarded bootstrap script that
