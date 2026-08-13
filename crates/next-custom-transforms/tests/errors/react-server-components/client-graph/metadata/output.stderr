@@ -3,7 +3,9 @@
   | component-only
   | 
   | 
-   ,-[input.js:1:1]
- 1 | export const metadata = {}
+   ,-[page.js:3:7]
+ 1 | "use client"
+ 2 | 
+ 3 | export const metadata = {}
    :              ^^^^^^^^
    `----
