@@ -96,10 +96,35 @@ impl CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                for task_id in children.iter() {
-                                    task.remove_children(task_id);
+                                // Gate on the `remove_children` return so each edge's child-side
+                                // count is adjusted exactly once, even if a resumed CleanupOldEdges
+                                // re-removes the same edges (already-gone edges return false).
+                                let mut removed_persistent_children =
+                                    SmallVec::<[TaskId; 4]>::new();
+                                for child_id in children.iter() {
+                                    if task.remove_children(child_id) && !child_id.is_transient() {
+                                        removed_persistent_children.push(*child_id);
+                                    }
+                                }
+                                // Each removed persistent child loses a parent. Queued rather than
+                                // applied inline because the job takes the child guards, avoiding a
+                                // second guard while `task` is held.
+                                if !removed_persistent_children.is_empty() {
+                                    let job = if task_id.is_transient() {
+                                        AggregationUpdateJob::AdjustTransientRefCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    } else {
+                                        AggregationUpdateJob::AdjustParentCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    };
+                                    queue.push(job);
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
+                                    drop(task);
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
                                         lost_follower_ids: children,
