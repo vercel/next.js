@@ -30,6 +30,42 @@ const REPO = 'vercel/next.js'
  */
 const DEFAULT_BRANCH = 'canary'
 
+/** An empty directory, used as `core.hooksPath` for every subprocess. */
+const NO_HOOKS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-pr-nohooks-'))
+
+/**
+ * Environment that stops any repository hook from running.
+ *
+ * `.husky/*` hook scripts are tracked, so a PR can add `.husky/post-checkout`
+ * or edit `.husky/pre-commit`, and husky's shim runs `.husky/<hook>` out of the
+ * working tree. Checking the branch out, re-signing it (`rebase --exec` runs
+ * `git commit`, which fires `pre-commit`) and pushing it would each execute
+ * contributor code on this machine.
+ *
+ * Git reads these variables, and every git subprocess inherits them, including
+ * the ones `gh` and `git rebase --exec` spawn. Appending to any existing
+ * `GIT_CONFIG_COUNT` keeps a caller's own injected config intact.
+ *
+ * The current environment is carried over explicitly. execa would do that
+ * anyway through `extendEnv`, but spelling it out keeps the result a real
+ * `ProcessEnv`, which this repo declares `NODE_ENV` as required on.
+ *
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildNoHooksEnv() {
+  const declared = Number.parseInt(process.env.GIT_CONFIG_COUNT ?? '0', 10)
+  const index = Number.isNaN(declared) ? 0 : declared
+
+  return {
+    ...process.env,
+    GIT_CONFIG_COUNT: String(index + 1),
+    [`GIT_CONFIG_KEY_${index}`]: 'core.hooksPath',
+    [`GIT_CONFIG_VALUE_${index}`]: NO_HOOKS_DIR,
+  }
+}
+
+const SUBPROCESS_ENV = buildNoHooksEnv()
+
 const useColor = process.stdout.isTTY === true
 /** @type {(text: string) => string} */
 const bold = (text) => (useColor ? `\x1b[1m${text}\x1b[0m` : text)
@@ -46,11 +82,14 @@ const dim = (text) => (useColor ? `\x1b[2m${text}\x1b[0m` : text)
  *
  * @param {string} file
  * @param {string[]} args
+ * @param {{ cwd?: string }} [options]
  * @returns {Promise<string>}
  */
-async function capture(file, args) {
+async function capture(file, args, options = {}) {
   const { stdout } = await execa(file, args, {
     maxBuffer: 32 * 1024 * 1024,
+    env: SUBPROCESS_ENV,
+    ...options,
   })
 
   return stdout.trim()
@@ -61,10 +100,38 @@ async function capture(file, args) {
  *
  * @param {string} file
  * @param {string[]} args
+ * @param {{ cwd?: string }} [options]
  * @returns {Promise<void>}
  */
-async function runInherit(file, args) {
-  await execa(file, args, { stdio: 'inherit' })
+async function runInherit(file, args, options = {}) {
+  await execa(file, args, {
+    stdio: 'inherit',
+    env: SUBPROCESS_ENV,
+    ...options,
+  })
+}
+
+/**
+ * Runs a command that is allowed to fail and reports its exit code.
+ *
+ * This exists so that every subprocess in this file goes through one of the
+ * three helpers above, all of which pass SUBPROCESS_ENV. A call site that
+ * reached for `execa` directly to get `reject: false` would silently opt out of
+ * hook suppression, so there is deliberately no reason to call `execa` here.
+ *
+ * @param {string} file
+ * @param {string[]} args
+ * @param {{ cwd?: string }} [options]
+ * @returns {Promise<number | null>}
+ */
+async function runAllowingFailure(file, args, options = {}) {
+  const result = await execa(file, args, {
+    env: SUBPROCESS_ENV,
+    reject: false,
+    ...options,
+  })
+
+  return result.exitCode ?? null
 }
 
 /**
@@ -194,6 +261,7 @@ async function fetchPullRequest(prNumber) {
     'isCrossRepository',
     'author',
     'headRefName',
+    'headRefOid',
     'headRepositoryOwner',
     'baseRefName',
     'changedFiles',
@@ -242,6 +310,7 @@ async function fetchPullRequest(prNumber) {
     isCrossRepository: pr.isCrossRepository === true,
     author: pr.author?.login ?? null,
     headRef: pr.headRefName,
+    headOid: pr.headRefOid,
     headOwner: pr.headRepositoryOwner?.login ?? null,
     baseRef: pr.baseRefName,
     changedFiles: pr.changedFiles,
@@ -290,26 +359,17 @@ async function preflight(pr, branch, dryRun) {
     return
   }
 
-  const status = await capture('git', ['status', '--porcelain'])
-  const dirty = status
-    .split('\n')
-    .filter((line) => line.length > 0 && !line.startsWith('??'))
+  // The working tree is deliberately not inspected. Everything happens in a
+  // throwaway worktree, so the maintainer's checkout is never switched and can
+  // stay as dirty as they like.
+  const existing = await runAllowingFailure('git', [
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `refs/heads/${branch}`,
+  ])
 
-  if (dirty.length > 0) {
-    throw new Error(
-      'Working tree has uncommitted changes to tracked files. Adopting ' +
-        'switches branches, so commit or stash them first:\n' +
-        dirty.map((line) => `  ${line}`).join('\n')
-    )
-  }
-
-  const existing = await execa(
-    'git',
-    ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`],
-    { reject: false }
-  )
-
-  if (existing.exitCode === 0) {
+  if (existing === 0) {
     throw new Error(
       `Local branch ${branch} already exists. Delete it to re-adopt from ` +
         `scratch:\n  git branch -D ${branch}`
@@ -433,6 +493,7 @@ async function confirmAdoption(pr, remote, branch) {
   console.log(`  Status    ${formatStatus(pr)}`)
   console.log(`  Author    @${pr.author} (${pr.association})`)
   console.log(`  Source    ${pr.headOwner}:${pr.headRef}`)
+  console.log(`  Head      ${pr.headOid}`)
   console.log(
     `  Diff      ${pr.changedFiles} files, +${pr.additions} -${pr.deletions}, ` +
       `across ${pr.commitCount} commit(s)`
@@ -512,10 +573,11 @@ function writeBodyFile(pr) {
  * answers the question actually being asked.
  *
  * @param {string} range
+ * @param {string} cwd
  * @returns {Promise<string[]>}
  */
-async function findUnsignedCommits(range) {
-  const log = await capture('git', ['log', '--format=%H', range])
+async function findUnsignedCommits(range, cwd) {
+  const log = await capture('git', ['log', '--format=%H', range], { cwd })
 
   if (log.length === 0) {
     return []
@@ -524,7 +586,7 @@ async function findUnsignedCommits(range) {
   const unsigned = []
 
   for (const sha of log.split('\n')) {
-    const raw = await capture('git', ['cat-file', 'commit', sha])
+    const raw = await capture('git', ['cat-file', 'commit', sha], { cwd })
     const lines = raw.split('\n')
     const headerEnd = lines.indexOf('')
     const headers = headerEnd === -1 ? lines : lines.slice(0, headerEnd)
@@ -547,15 +609,15 @@ async function findUnsignedCommits(range) {
  * Re-signing must never alter content, and `--rebase-merges` is not trusted to
  * be content-preserving on faith.
  *
- * @param {Awaited<ReturnType<typeof fetchPullRequest>>} pr
- * @param {string} remote
+ * @param {string} baseOid
+ * @param {string} cwd
  * @returns {Promise<void>}
  */
-async function signCommits(pr, remote) {
-  await runInherit('git', ['fetch', remote, pr.baseRef])
-
-  const mergeBase = await capture('git', ['merge-base', 'HEAD', 'FETCH_HEAD'])
-  const unsigned = await findUnsignedCommits(`${mergeBase}..HEAD`)
+async function signCommits(baseOid, cwd) {
+  const mergeBase = await capture('git', ['merge-base', 'HEAD', baseOid], {
+    cwd,
+  })
+  const unsigned = await findUnsignedCommits(`${mergeBase}..HEAD`, cwd)
 
   if (unsigned.length === 0) {
     console.log(dim('  All commits are already signed.'))
@@ -566,19 +628,23 @@ async function signCommits(pr, remote) {
     `  ${unsigned.length} unsigned commit(s); re-signing so the branch can merge.`
   )
 
-  const headBefore = await capture('git', ['rev-parse', 'HEAD'])
-  const treeBefore = await capture('git', ['rev-parse', 'HEAD^{tree}'])
+  const headBefore = await capture('git', ['rev-parse', 'HEAD'], { cwd })
+  const treeBefore = await capture('git', ['rev-parse', 'HEAD^{tree}'], { cwd })
 
   try {
-    await runInherit('git', [
-      'rebase',
-      '--rebase-merges',
-      '--exec',
-      'git commit --amend --no-edit -S',
-      mergeBase,
-    ])
+    await runInherit(
+      'git',
+      [
+        'rebase',
+        '--rebase-merges',
+        '--exec',
+        'git commit --amend --no-edit -S',
+        mergeBase,
+      ],
+      { cwd }
+    )
   } catch (error) {
-    await execa('git', ['rebase', '--abort'], { reject: false })
+    await runAllowingFailure('git', ['rebase', '--abort'], { cwd })
 
     throw new Error(
       'Could not re-sign the commits. Check that commit signing works ' +
@@ -587,10 +653,10 @@ async function signCommits(pr, remote) {
     )
   }
 
-  const treeAfter = await capture('git', ['rev-parse', 'HEAD^{tree}'])
+  const treeAfter = await capture('git', ['rev-parse', 'HEAD^{tree}'], { cwd })
 
   if (treeAfter !== treeBefore) {
-    await runInherit('git', ['reset', '--hard', headBefore])
+    await runInherit('git', ['reset', '--hard', headBefore], { cwd })
 
     throw new Error(
       'Re-signing changed the tree, so it was reset. Sign the commits by ' +
@@ -617,6 +683,7 @@ async function main() {
     console.log(`  Status    ${formatStatus(pr)}`)
     console.log(`  Author    @${pr.author} (${pr.association})`)
     console.log(`  Source    ${pr.headOwner}:${pr.headRef}`)
+    console.log(`  Head      ${pr.headOid}`)
     console.log(
       `  Diff      ${pr.changedFiles} files, +${pr.additions} -${pr.deletions}, ` +
         `across ${pr.commitCount} commit(s)`
@@ -636,29 +703,57 @@ async function main() {
 
   await confirmAdoption(pr, remote, branch)
 
-  const originalBranch = await capture('git', ['branch', '--show-current'])
+  // Starting the worktree from the PR's base keeps the checkout small and
+  // gives signCommits its merge-base without a second fetch.
+  await runInherit('git', ['fetch', '--no-tags', remote, pr.baseRef])
+  const baseOid = await capture('git', ['rev-parse', 'FETCH_HEAD'])
 
-  console.log(bold(`Checking out #${pr.number} as ${branch}`))
-  // Fetches refs/pull/<n>/head, so the fork does not need to be a remote. The
-  // commits are not rewritten: authorship has to reach the merge intact.
-  await runInherit('gh', [
-    'pr',
-    'checkout',
-    String(prNumber),
-    '--repo',
-    REPO,
-    '-b',
-    branch,
-  ])
+  const tmpRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), `adopt-pr-${prNumber}-`)
+  )
+  const workdir = path.join(tmpRoot, 'checkout')
+  let branchCreated = false
 
   try {
+    console.log(bold('Creating a throwaway worktree'))
+    // The contributor's files, and any half-finished rebase, stay in here. The
+    // maintainer's checkout is never switched or dirtied.
+    await runInherit('git', ['worktree', 'add', '--detach', workdir, baseOid])
+
+    console.log('')
+    console.log(bold(`Checking out #${pr.number} as ${branch}`))
+    // Fetches refs/pull/<n>/head, so the fork does not need to be a remote. The
+    // commits are not rewritten: authorship has to reach the merge intact.
+    await runInherit(
+      'gh',
+      ['pr', 'checkout', String(prNumber), '--repo', REPO, '-b', branch],
+      { cwd: workdir }
+    )
+    branchCreated = true
+
+    // The adopter vouched for one specific commit. If the contributor pushed
+    // between that review and this fetch, what is on disk is not what was
+    // approved, and pushing it would grant unreviewed code access to secrets.
+    const checkedOut = await capture('git', ['rev-parse', 'HEAD'], {
+      cwd: workdir,
+    })
+
+    if (checkedOut !== pr.headOid) {
+      throw new Error(
+        `PR #${prNumber} changed while it was being reviewed.\n` +
+          `  Reviewed: ${pr.headOid}\n` +
+          `  Fetched:  ${checkedOut}\n` +
+          'Nothing was pushed. Re-run to review the new commits.'
+      )
+    }
+
     console.log('')
     console.log(bold('Checking commit signatures'))
-    await signCommits(pr, remote)
+    await signCommits(baseOid, workdir)
 
     console.log('')
     console.log(bold(`Pushing ${branch} to ${remote}`))
-    await runInherit('git', ['push', '-u', remote, branch])
+    await runInherit('git', ['push', '-u', remote, branch], { cwd: workdir })
 
     console.log('')
     console.log(bold('Opening the replacement pull request'))
@@ -689,17 +784,19 @@ async function main() {
     console.log(`  Adopted   ${url}`)
     console.log('')
     console.log(dim(`  Opened as a draft against ${pr.baseRef}.`))
-    console.log(
-      dim(`  Return to your previous branch: git checkout ${originalBranch}`)
-    )
-  } catch (error) {
-    console.error('')
-    console.error(
-      red(
-        `Adoption failed after checkout. You are on ${branch}; you were on ${originalBranch}.`
-      )
-    )
-    throw error
+    console.log(dim(`  ${remote}/${branch} holds the adopted commits.`))
+  } finally {
+    // Runs on success and failure alike, so a rejected SHA or a failed rebase
+    // leaves nothing behind. The branch lives on the remote now, and dropping
+    // the local copy keeps a re-run from tripping the branch-exists check.
+    await runAllowingFailure('git', ['worktree', 'remove', '--force', workdir])
+
+    if (branchCreated) {
+      await runAllowingFailure('git', ['branch', '-D', branch])
+    }
+
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+    fs.rmSync(NO_HOOKS_DIR, { recursive: true, force: true })
   }
 }
 
