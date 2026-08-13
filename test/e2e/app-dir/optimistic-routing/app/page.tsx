@@ -10,6 +10,27 @@ export default function Home() {
         same pattern should show the loading state instantly.
       </p>
 
+      <h2>Proxy Rewrite</h2>
+      <p>
+        The proxy rewrites /team to /en/team. A route prediction learned from
+        /de must not treat &quot;team&quot; as the locale.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/de">German locale</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/team" prefetch={false}>
+            Team (rewritten, prefetch disabled)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/CONFIG-TEAM" prefetch={false}>
+            Config team, mixed case (rewritten, prefetch disabled)
+          </LinkAccordion>
+        </li>
+      </ul>
+
       <h2>Basic Dynamic Route</h2>
       <ul>
         <li>

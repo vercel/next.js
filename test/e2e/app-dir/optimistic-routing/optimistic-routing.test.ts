@@ -44,6 +44,98 @@ describe('optimistic-routing', () => {
     return
   }
 
+  it('does not predict a route for a URL that proxy may rewrite', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Prefetch /de to learn the /[locale] route pattern.
+    const revealDe = await browser.elementByCss(
+      'input[data-link-accordion="/de"]'
+    )
+    await act(
+      async () => {
+        await revealDe.click()
+      },
+      {
+        includes: 'locale-loading',
+      }
+    )
+
+    // /team matches the learned dynamic route, but proxy rewrites it to
+    // /en/team. Since prefetching is disabled, a synthetic route prediction
+    // would render locale="team" before the server corrects it to "en".
+    await act(async () => {
+      const revealTeam = await browser.elementByCss(
+        'input[data-link-accordion="/team"]'
+      )
+      await revealTeam.click()
+    }, 'no-requests')
+
+    const teamLink = await browser.elementByCss('a[href="/team"]')
+    await act(async () => {
+      await teamLink.click()
+    })
+
+    const teamPage = await browser.elementById('team-page')
+    expect(await teamPage.getAttribute('data-locale')).toBe('en')
+
+    // The client must never expose params from the predicted, pre-rewrite
+    // pathname. The final route keeps the visible /team URL but uses the
+    // server-resolved locale.
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/team', params: { locale: 'en' } },
+    ])
+  })
+
+  it('does not predict a route for a URL that next.config may rewrite', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Prefetch /de to learn the /[locale] route pattern.
+    const revealDe = await browser.elementByCss(
+      'input[data-link-accordion="/de"]'
+    )
+    await act(
+      async () => {
+        await revealDe.click()
+      },
+      {
+        includes: 'locale-loading',
+      }
+    )
+
+    // /CONFIG-TEAM matches the learned dynamic route, but the case-insensitive
+    // beforeFiles rewrite resolves it to /en/team. The client must wait for
+    // that server resolution instead of treating "CONFIG-TEAM" as a locale.
+    await act(async () => {
+      const revealTeam = await browser.elementByCss(
+        'input[data-link-accordion="/CONFIG-TEAM"]'
+      )
+      await revealTeam.click()
+    }, 'no-requests')
+
+    const teamLink = await browser.elementByCss('a[href="/CONFIG-TEAM"]')
+    await act(async () => {
+      await teamLink.click()
+    })
+
+    const teamPage = await browser.elementById('team-page')
+    expect(await teamPage.getAttribute('data-locale')).toBe('en')
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/CONFIG-TEAM', params: { locale: 'en' } },
+    ])
+  })
+
   it('basic dynamic route prediction: shows loading state instantly for unprefetched route', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {

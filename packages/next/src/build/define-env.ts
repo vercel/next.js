@@ -5,6 +5,7 @@ import type {
 } from '../server/config-shared'
 import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
+import { buildCustomRoute } from '../lib/build-custom-route'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import {
@@ -42,6 +43,11 @@ export interface DefineEnvOptions {
 
 const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
 
+type RouteResolutionMatcher = {
+  regexp: string
+  caseSensitive: boolean
+}
+
 interface DefineEnv {
   [key: string]:
     | string
@@ -50,6 +56,7 @@ interface DefineEnv {
     | boolean
     | { [DEFINE_ENV_EXPRESSION]: string }
     | ProxyMatcher[]
+    | RouteResolutionMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
     | NextConfigComplete['cacheLife']
@@ -74,6 +81,34 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
     ])
   )
   return defineEnvStringified
+}
+
+function getRouteResolutionMatchers(
+  rewrites: DefineEnvOptions['rewrites'],
+  middlewareMatchers: ProxyMatcher[] | undefined,
+  caseSensitiveRoutes: boolean
+): RouteResolutionMatcher[] {
+  const matchers = new Map<string, boolean>()
+
+  for (const matcher of middlewareMatchers ?? []) {
+    // Proxy matchers are evaluated on the server using a flagless RegExp.
+    matchers.set(matcher.regexp, true)
+  }
+
+  // beforeFiles and afterFiles rewrites run before dynamic filesystem routes,
+  // which are the routes optimistic routing predicts. Fallback rewrites run
+  // after dynamic routes, so a learned App Router pattern takes precedence and
+  // cannot be affected by them.
+  for (const rewrite of [...rewrites.beforeFiles, ...rewrites.afterFiles]) {
+    const regexp = buildCustomRoute('rewrite', rewrite).regex
+    const existingCaseSensitivity = matchers.get(regexp) ?? true
+    matchers.set(regexp, existingCaseSensitivity && caseSensitiveRoutes)
+  }
+
+  return Array.from(matchers, ([regexp, caseSensitive]) => ({
+    regexp,
+    caseSensitive,
+  }))
 }
 
 function getImageConfig(
@@ -218,6 +253,16 @@ export function getDefineEnv({
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
       process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
+    ...(isClient
+      ? {
+          'process.env.__NEXT_ROUTE_RESOLUTION_MATCHERS':
+            getRouteResolutionMatchers(
+              rewrites,
+              middlewareMatchers,
+              Boolean(config.experimental.caseSensitiveRoutes)
+            ),
+        }
+      : {}),
     ...(isTurbopack
       ? {}
       : {

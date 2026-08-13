@@ -7,6 +7,16 @@ const nextConfig = {
     optimisticRouting: true,
     varyParams: true,
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/config-team',
+          destination: '/en/team',
+        },
+      ],
+    }
+  },
   productionBrowserSourceMaps: true,
 }
 

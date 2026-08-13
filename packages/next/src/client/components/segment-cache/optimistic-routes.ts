@@ -35,7 +35,8 @@
  * Cache invalidation on deploy clears everything anyway.
  *
  * Current limitations (deopt to server resolution):
- * - Rewrites: Detected during traversal (tree not populated, but route cached)
+ * - Rewrites: Known proxy/config matchers bail out before prediction. Any
+ *   remaining rewrite mismatches are detected during traversal.
  * - Intercepted routes: The route tree varies by referrer (Next-Url header),
  *   so we can't predict the correct structure from the URL alone. Patterns are
  *   still stored during discovery (so the trie stays populated for non-
@@ -202,6 +203,35 @@ function createEmptyPart(): KnownRoutePart {
 
 // The root of the known route tree.
 let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
+
+let routeResolutionRegexes: RegExp[] | null = null
+
+/**
+ * Returns whether a pathname may be changed before filesystem route matching.
+ *
+ * Proxy and rewrite conditions can depend on server-only data like headers and
+ * HttpOnly cookies. The client therefore checks only the pathname portion of
+ * each matcher. A false positive safely skips an optimization; a false negative
+ * could expose params from a route tree the server would never render.
+ */
+function mayBeRewritten(pathname: string): boolean {
+  const matchers = process.env.__NEXT_ROUTE_RESOLUTION_MATCHERS as
+    | Array<{ regexp: string; caseSensitive: boolean }>
+    | undefined
+
+  if (matchers === undefined || matchers.length === 0) {
+    return false
+  }
+
+  if (routeResolutionRegexes === null) {
+    routeResolutionRegexes = matchers.map(
+      (matcher) =>
+        new RegExp(matcher.regexp, matcher.caseSensitive ? undefined : 'i')
+    )
+  }
+
+  return routeResolutionRegexes.some((matcher) => matcher.test(pathname))
+}
 
 /**
  * Learns a route pattern from a server response and inserts it into the cache.
@@ -732,6 +762,13 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
+  // A matching proxy or rewrite can resolve this pathname to a different route
+  // tree. Since prediction happens before a server response, it cannot know
+  // which params that tree would contain. Wait for server resolution instead.
+  if (mayBeRewritten(pathname)) {
+    return null
+  }
+
   const pathnameParts = splitPathnameIntoParts(pathname)
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(

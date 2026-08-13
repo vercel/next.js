@@ -102,8 +102,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       projectPath: dir,
       fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
       hasRewrites,
-      // Implemented separately in Turbopack, doesn't have to be passed here.
-      middlewareMatchers: undefined,
+      middlewareMatchers: NextBuildContext.middlewareMatchers,
       rewrites,
     }),
     buildId,

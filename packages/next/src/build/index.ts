@@ -1428,11 +1428,49 @@ export default async function build(
         )
       }
 
+      const middlewareFile = normalizePathSep(
+        proxyFilePath || middlewareFilePath || ''
+      )
+      const middlewarePage = middlewareFile.split('.')[0]
+      const defaultMiddlewareMatchers = [
+        {
+          regexp: '^.*$',
+          originalSource: '/:path*',
+        },
+      ]
+      let middlewareStaticInfo:
+        | Awaited<ReturnType<typeof getStaticInfoIncludingLayouts>>
+        | undefined
+
+      // Turbopack creates its define environment before its entrypoints are
+      // analyzed. Read the proxy config now so client code can conservatively
+      // avoid predicting pathnames that the proxy may rewrite.
+      if (middlewareFile && bundler === Bundler.Turbopack) {
+        middlewareStaticInfo = await getStaticInfoIncludingLayouts({
+          isInsideAppDir: false,
+          pageFilePath: path.join(dir, middlewareFile),
+          config,
+          appDir,
+          pageExtensions: config.pageExtensions,
+          isDev: false,
+          page: middlewarePage,
+        })
+
+        if (middlewareStaticInfo.hadUnsupportedValue) {
+          errorFromUnsupportedSegmentConfig()
+        }
+      }
+
       const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
+      NextBuildContext.middlewareMatchers =
+        middlewareFile && bundler === Bundler.Turbopack
+          ? (middlewareStaticInfo?.middleware?.matchers ??
+            defaultMiddlewareMatchers)
+          : undefined
 
       const previewProps: __ApiPreviewProps = await generatePreviewKeys({
         isBuild: true,
@@ -2758,41 +2796,31 @@ export default async function build(
         )
       }
 
-      const middlewareFile = normalizePathSep(
-        proxyFilePath || middlewareFilePath || ''
-      )
       let hasNodeMiddleware = false
 
       if (middlewareFile) {
-        // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
-        // "." and get the first part, regard rest of the extensions
-        // to match the `page` value format.
-        const page = middlewareFile.split('.')[0]
-
-        const staticInfo = await getStaticInfoIncludingLayouts({
-          isInsideAppDir: false,
-          pageFilePath: path.join(dir, middlewareFile),
-          config,
-          appDir,
-          pageExtensions: config.pageExtensions,
-          isDev: false,
-          page,
-        })
+        const staticInfo =
+          middlewareStaticInfo ??
+          (await getStaticInfoIncludingLayouts({
+            isInsideAppDir: false,
+            pageFilePath: path.join(dir, middlewareFile),
+            config,
+            appDir,
+            pageExtensions: config.pageExtensions,
+            isDev: false,
+            page: middlewarePage,
+          }))
 
         if (staticInfo.hadUnsupportedValue) {
           errorFromUnsupportedSegmentConfig()
         }
 
-        if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
+        if (staticInfo.runtime === 'nodejs' || isProxyFile(middlewarePage)) {
           hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: 'nodejs',
-            matchers: staticInfo.middleware?.matchers ?? [
-              {
-                regexp: '^.*$',
-                originalSource: '/:path*',
-              },
-            ],
+            matchers:
+              staticInfo.middleware?.matchers ?? defaultMiddlewareMatchers,
           }
 
           if (bundler === Bundler.Turbopack) {
