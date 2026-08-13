@@ -234,6 +234,28 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
+Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
+
+## Prefer a Throwaway Worktree
+
+Prefer a throwaway git worktree over changing the user's checkout. Switching their branch, or leaving a failed rebase behind, interrupts whatever they had open. It is also the right call for anything untrusted, such as a contributor's branch, because their files and any half-finished state stay outside the working copy.
+
+```bash
+git worktree add /tmp/scratch-work <branch>   # or --detach <commit>
+# ... work in /tmp/scratch-work ...
+git worktree remove --force /tmp/scratch-work
+```
+
+Always remove the worktree when finished, and prefer removing it in a cleanup path that also runs on failure.
+
+A fresh worktree has no `node_modules`, so `pnpm` and `npx` do not work in it. Symlinking the root one is enough for `prettier`, `eslint`, and `tsc`:
+
+```bash
+ln -s /path/to/main/checkout/node_modules /tmp/scratch-work/node_modules
+```
+
+That symlink does not bring in per-package `node_modules` or a built `packages/next/dist`, so `tsc --noEmit` reports `TS2307: Cannot find module` for things like `fast-glob`, `dotenv`, and `@playwright/test`. Those are artifacts of the worktree, not regressions. Confirm by checking whether the same path resolves in the main checkout, and do not "fix" them. Errors in the files actually being edited are still real, so read the paths rather than the count.
+
 ## PR Status (CI Failures and Reviews)
 
 When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
