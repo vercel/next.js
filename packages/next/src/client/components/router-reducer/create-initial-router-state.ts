@@ -7,14 +7,11 @@ import type { AppRouterState } from './router-reducer-types'
 import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
-  resolveStaleAt,
-  processRuntimePrefetchStream,
+  writeRuntimePrefetchStreamIntoCache,
+  spawnStaticStageCacheWrite,
   segmentCacheMap,
-  writeDynamicRenderResponseIntoCache,
-  writePrerenderResponseIntoCache,
 } from '../segment-cache/cache'
 import { decodeTransportTreeIntoRouteTree } from '../segment-cache/decode-server-response'
-import { FetchStrategy } from '../segment-cache/types'
 import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
@@ -149,19 +146,13 @@ export function createInitialRouterState({
                 byteLength,
                 undefined
               )
-            const now = Date.now()
-            const staleAt = await resolveStaleAt(now, staticStageResponse.s)
-
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              staticStageResponse.t,
-              undefined, // no build ID mismatch check for initial HTML
-              staticStageResponse.r ?? null,
-              staleAt,
+            spawnStaticStageCacheWrite(
+              Date.now(),
+              staticStageResponse,
+              true, // isResponsePartial
+              null, // responseHeaders — no build-id check for initial HTML
               initialTree,
               initialRenderedSearch,
-              true, // isResponsePartial
               segmentCacheMap // hydration writes are bound to the shared map
             )
           })
@@ -175,27 +166,23 @@ export function createInitialRouterState({
         // the two branches) to avoid unnecessary decoding of the Flight data,
         // since we can just take the seed data that we already decoded during
         // hydration and write it into the cache directly.
-        const now = Date.now()
-
-        resolveStaleAt(now, initialStaleTime)
-          .then((staleAt) => {
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              initialTransportData,
-              undefined, // buildId — not applicable for initial HTML
-              initialRootVaryParams ?? null,
-              staleAt,
-              initialTree,
-              initialRenderedSearch,
-              false, // isResponsePartial
-              segmentCacheMap // hydration writes are bound to the shared map
-            )
-          })
-          .catch(() => {
-            // The static stage processing failed. Not fatal — the page
-            // rendered normally, we just won't write into the cache.
-          })
+        spawnStaticStageCacheWrite(
+          Date.now(),
+          // The transport subset of the initial payload, already decoded
+          // during hydration. Synthesized so the helper can resolve the
+          // stale time from the response's own `s` field, the same as the
+          // truncated branch above.
+          {
+            t: initialTransportData,
+            r: initialRootVaryParams,
+            s: initialStaleTime,
+          },
+          false, // isResponsePartial
+          null, // responseHeaders — no build-id check for initial HTML
+          initialTree,
+          initialRenderedSearch,
+          segmentCacheMap // hydration writes are bound to the shared map
+        )
 
         // Cancel the stream clone — fully static path doesn't need it.
         initialFlightStreamForCache?.cancel()
@@ -210,32 +197,16 @@ export function createInitialRouterState({
     // subsequent navigations to serve runtime-prefetchable content from cache
     // without a separate prefetch request.
     if (initialRuntimePrefetchStream != null) {
-      processRuntimePrefetchStream(
+      writeRuntimePrefetchStreamIntoCache(
         Date.now(),
         initialRuntimePrefetchStream,
         initialTree,
-        initialRenderedSearch
-      )
-        .then((processed) => {
-          if (processed !== null) {
-            writeDynamicRenderResponseIntoCache(
-              Date.now(),
-              FetchStrategy.PPRRuntime,
-              processed.buildId,
-              processed.isResponsePartial,
-              processed.headVaryParams,
-              processed.rootVaryParamsIterable,
-              processed.staleAt,
-              processed.navigationSeed,
-              null,
-              segmentCacheMap // hydration writes are bound to the shared map
-            )
-          }
-        })
-        .catch(() => {
-          // Runtime prefetch cache write failed. Not fatal — the page rendered
-          // normally, we just won't cache runtime data.
-        })
+        initialRenderedSearch,
+        segmentCacheMap // hydration writes are bound to the shared map
+      ).catch(() => {
+        // Runtime prefetch cache write failed. Not fatal — the page rendered
+        // normally, we just won't cache runtime data.
+      })
     }
   }
 
