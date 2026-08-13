@@ -3741,16 +3741,21 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   // incomplete and can't be trusted for the full response. Re-keying with an
   // untrustworthy set could replace concrete params with Fallback and let
   // unrelated URLs read each other's content from the cache.
-  //
-  // For RuntimeShell prefetches, always re-key to the precomputed shell vary
-  // path. A shell entry is spawned at a concrete param path but is reusable
-  // across all of them; tree.shellVaryPath (root-param values kept, every other
-  // param replaced with Fallback) is exactly the path that shell reads look it
-  // up under.
   let fulfilledVaryPath: SegmentVaryPath | null = null
   if (process.env.__NEXT_VARY_PARAMS) {
     if (fetchStrategy === FetchStrategy.RuntimeShell) {
-      fulfilledVaryPath = tree.shellVaryPath
+      // A shell is rendered with non-root params omitted, so the entry is
+      // reusable across all of their values. It can still vary on root params,
+      // but only on the ones it actually reads. So we narrow tree.shellVaryPath
+      // — which keeps every root param — by the server-reported vary params,
+      // replacing the root params the shell didn't read with Fallback so the
+      // entry is shared across those values too. (Without a reported set, use
+      // the shell vary path as-is: correct, but it over-keys on root params the
+      // shell may not read.)
+      fulfilledVaryPath =
+        segmentVaryParams !== null
+          ? getFulfilledSegmentVaryPath(tree.shellVaryPath, segmentVaryParams)
+          : tree.shellVaryPath
     } else if (
       fetchStrategy !== FetchStrategy.Full &&
       segmentVaryParams !== null
