@@ -14,8 +14,8 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
-    noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -543,8 +543,15 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
             .cache_dir
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
-        let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {
