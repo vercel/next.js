@@ -342,6 +342,15 @@
   font-weight: 400;
 }
 
+.request-insights-row[data-nested='true'] .request-insights-route {
+  padding-left: 18px;
+}
+
+.request-insights-nested-arrow {
+  flex-shrink: 0;
+  color: var(--color-gray-700);
+}
+
 .request-insights-row-metadata {
   display: flex;
   min-width: 0;

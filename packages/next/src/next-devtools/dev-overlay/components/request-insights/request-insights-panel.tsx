@@ -244,11 +244,12 @@ export function RequestInsightsPanel() {
             )}
           </div>
         ) : (
-          listEntries.map(({ request }) => {
+          listEntries.map(({ request, nested }) => {
             const requestKey = getRequestInsightKey(request)
             return (
               <RequestRow
                 key={requestKey}
+                nested={nested}
                 request={request}
                 pageLoad={isPageLoadRequest(request, initialRequestId)}
                 selected={requestKey === activeRequestKey}
@@ -354,11 +355,13 @@ function RequestFiltersMenu({
 
 function RequestRow({
   request,
+  nested,
   pageLoad,
   selected,
   onSelect,
 }: {
   request: RequestInsight
+  nested: boolean
   pageLoad: boolean
   selected: boolean
   onSelect: () => void
@@ -375,6 +378,7 @@ function RequestRow({
       aria-label={`${isInstantInsights ? `Instant Insights for ${route}` : route}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
       className="request-insights-row"
       data-internal={isInstantInsights || undefined}
+      data-nested={nested || undefined}
       data-page-load={pageLoad}
       data-selected={selected}
       onClick={onSelect}
@@ -382,6 +386,7 @@ function RequestRow({
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
+        {nested ? <NestedArrowIcon /> : null}
         <span className="request-insights-route-label">
           {isInstantInsights ? 'Instant Insights' : route}
         </span>
@@ -413,6 +418,25 @@ function RequestRow({
           : 'No fetches'}
       </span>
     </button>
+  )
+}
+
+function NestedArrowIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="request-insights-nested-arrow"
+      fill="none"
+      height="12"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 16 16"
+      width="12"
+    >
+      <path d="M4 3v5.5A2.5 2.5 0 0 0 6.5 11H12M12 11l-3-3m3 3-3 3" />
+    </svg>
   )
 }
 

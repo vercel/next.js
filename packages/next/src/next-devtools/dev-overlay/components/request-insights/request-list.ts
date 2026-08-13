@@ -34,15 +34,52 @@ export function isInternalRequestInsight(
 
 export type RequestListEntry = {
   request: RequestInsight
+  nested: boolean
 }
 
 export function getRequestListEntries(
   requests: readonly RequestInsight[],
   showInternal: boolean
 ): RequestListEntry[] {
-  return requests
-    .filter((request) => showInternal || !isInternalRequestInsight(request))
-    .map((request) => ({ request }))
+  if (!showInternal) {
+    return requests
+      .filter((request) => !isInternalRequestInsight(request))
+      .map((request) => ({ request, nested: false }))
+  }
+
+  const internalByRequestId = new Map<string, RequestInsight[]>()
+  const parentRequestIds = new Set<string>()
+  for (const request of requests) {
+    if (isInternalRequestInsight(request)) {
+      const internal = internalByRequestId.get(request.requestId)
+      if (internal) {
+        internal.push(request)
+      } else {
+        internalByRequestId.set(request.requestId, [request])
+      }
+    } else {
+      parentRequestIds.add(request.requestId)
+    }
+  }
+
+  const entries: RequestListEntry[] = []
+  for (const request of requests) {
+    if (isInternalRequestInsight(request)) {
+      if (!parentRequestIds.has(request.requestId)) {
+        entries.push({ request, nested: false })
+      }
+      continue
+    }
+
+    entries.push({ request, nested: false })
+    const internal = internalByRequestId.get(request.requestId)
+    if (internal) {
+      for (const internalRequest of internal) {
+        entries.push({ request: internalRequest, nested: true })
+      }
+    }
+  }
+  return entries
 }
 
 export type RequestInsightRowType =
