@@ -197,6 +197,16 @@ impl CleanupOldEdgesOperation {
                                     task: cell_task_id,
                                     cell,
                                 } = forward;
+                                // Under GC the scrub target must already be resident
+                                // (soft-deleted); a non-resident target would resurrect an
+                                // already-collected task from disk. `gc_target_resident` is `None`
+                                // outside GC, which disables the check.
+                                debug_assert!(
+                                    ctx.gc_target_resident(cell_task_id) != Some(false),
+                                    "gc: CleanupOldEdges({task_id}) cell-dep target \
+                                     {cell_task_id} is not resident — would resurrect a collected \
+                                     task"
+                                );
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
                                     task.remove_cell_dependents(&CellRef {
@@ -238,6 +248,13 @@ impl CleanupOldEdgesOperation {
                                     dependent_task = %task_id
                                 )
                                 .entered();
+                                // See the CellDependency arm above.
+                                debug_assert!(
+                                    ctx.gc_target_resident(output_task_id) != Some(false),
+                                    "gc: CleanupOldEdges({task_id}) output-dep target \
+                                     {output_task_id} is not resident — would resurrect a \
+                                     collected task"
+                                );
                                 {
                                     let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove_output_dependent(&task_id);

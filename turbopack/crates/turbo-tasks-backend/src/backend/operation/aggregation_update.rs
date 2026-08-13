@@ -29,7 +29,10 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
+        operation::{
+            ExecuteContext, Operation, TaskGuard, connect_child::resurrect_deleted,
+            invalidate::make_task_dirty,
+        },
         storage_schema::TaskStorageAccessors,
     },
     data::{ActivenessState, AggregationNumber, CollectibleRef},
@@ -1449,8 +1452,11 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
-                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
-                        task.update_and_get_parent_count(delta);
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, ctx| {
+                        if task.update_and_get_parent_count(delta) == 0 {
+                            let id = task.id();
+                            ctx.note_gc_parent_count_zeroed(id);
+                        }
                     });
                 }
                 AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
@@ -1927,6 +1933,10 @@ impl AggregationUpdateQueue {
                 if removed_upper {
                     let data = AggregatedDataUpdate::from_task(&mut follower).invert();
                     let followers = get_followers(&follower);
+                    // Last upper edge lost — may have newly become GC-collectible.
+                    if follower.is_upper_empty() {
+                        ctx.note_gc_edge_loss_candidate(lost_follower_id);
+                    }
                     drop(follower);
 
                     // STEP 5
@@ -2003,6 +2013,10 @@ impl AggregationUpdateQueue {
                     let has_active_count = ctx.should_track_activeness()
                         && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                     let upper_ids = get_uppers(&upper);
+                    // Last follower edge lost — may have newly become GC-collectible.
+                    if upper.is_followers_empty() {
+                        ctx.note_gc_edge_loss_candidate(upper_id);
+                    }
                     drop(upper);
 
                     // STEP 14
@@ -2101,6 +2115,10 @@ impl AggregationUpdateQueue {
             if !removed_uppers.is_empty() {
                 let data = AggregatedDataUpdate::from_task(&mut follower).invert();
                 let followers = get_followers(&follower);
+                // Last upper edge lost — may have newly become GC-collectible.
+                if follower.is_upper_empty() {
+                    ctx.note_gc_edge_loss_candidate(lost_follower_id);
+                }
                 drop(follower);
 
                 // STEP 5
@@ -2181,6 +2199,10 @@ impl AggregationUpdateQueue {
                     let has_active_count = ctx.should_track_activeness()
                         && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                     let upper_ids = get_uppers(&upper);
+                    // Last follower edge lost — may have newly become GC-collectible.
+                    if upper.is_followers_empty() {
+                        ctx.note_gc_edge_loss_candidate(upper_id);
+                    }
                     drop(upper);
 
                     // STEP 14
@@ -2289,6 +2311,10 @@ impl AggregationUpdateQueue {
                 if remove_upper {
                     let data = AggregatedDataUpdate::from_task(&mut follower).invert();
                     let followers = get_followers(&follower);
+                    // Last upper edge lost — may have newly become GC-collectible.
+                    if follower.is_upper_empty() {
+                        ctx.note_gc_edge_loss_candidate(lost_follower_id);
+                    }
                     drop(follower);
 
                     // STEP 5
@@ -2370,6 +2396,10 @@ impl AggregationUpdateQueue {
                 let has_active_count = ctx.should_track_activeness()
                     && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                 let upper_ids = get_uppers(&upper);
+                // Last follower edge lost — may have newly become GC-collectible.
+                if upper.is_followers_empty() {
+                    ctx.note_gc_edge_loss_candidate(upper_id);
+                }
                 drop(upper);
 
                 // STEP 14
@@ -3164,12 +3194,16 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let mut task = ctx.task(
+        let task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        // Revive the task if GC soft-deleted it, so the rest of this function (and the scheduling
+        // it drives) sees a live, re-dirtied task. Only a direct-child connect can actually
+        // observe a deleted task here; for every other caller this is one flag read.
+        let mut task = resurrect_deleted(task, task_id, AGGREGATION_UPDATE_CATEGORY, self, ctx);
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();

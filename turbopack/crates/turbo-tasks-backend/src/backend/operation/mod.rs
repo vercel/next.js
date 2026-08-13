@@ -81,6 +81,15 @@ pub trait ExecuteContext<'e>: Sized {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Self::TaskGuardImpl;
+    /// Opens an **already-resident** task without restoring from disk and without inserting a blank
+    /// entry for a missing key. Returns `None` if the task is not resident.
+    ///
+    /// Because it performs no restore, the returned guard may only be used to touch **transient**
+    /// fields (whose accessors don't gate on `check_access`); reading a Meta/Data field through it
+    /// trips the `check_access` debug assertion. Used for in-session bookkeeping on a live task —
+    /// GC pin/unpin adjusting `transient_ref_count` — where a missing entry means the caller
+    /// referenced an already-collected task (a bug) rather than one to resurrect.
+    fn resident_task(&mut self, task_id: TaskId) -> Option<Self::TaskGuardImpl>;
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
@@ -132,6 +141,33 @@ pub trait ExecuteContext<'e>: Sized {
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
+    /// Records that `task_id`'s persistent `parent_count` just reached 0 (it lost its last
+    /// persistent parent). Only a GC context accumulates these; a normal operation context
+    /// discards them. The collecting job drains them via [`Self::take_gc_parent_count_zeroed`] to
+    /// re-check collectibility and cascade a `Collect`.
+    fn note_gc_parent_count_zeroed(&mut self, task_id: TaskId);
+    /// Takes the ids recorded by [`Self::note_gc_parent_count_zeroed`] since the last call. Empty
+    /// outside a GC context.
+    fn take_gc_parent_count_zeroed(&mut self) -> Vec<TaskId>;
+    /// Records that `task_id` just lost its last aggregation edge (its `upper` or `followers` set
+    /// became empty) during an edge-removal cascade. Unlike [`Self::note_gc_parent_count_zeroed`]
+    /// this does *not* imply the task lost a persistent parent — its `parent_count` is unchanged —
+    /// only that it may have *newly* satisfied the aggregation-emptiness clauses of
+    /// [`is_gc_collectible`](super::TaskGuard::is_gc_collectible). Only a GC context accumulates
+    /// these; a normal operation context discards them.
+    fn note_gc_edge_loss_candidate(&mut self, task_id: TaskId);
+    /// Takes the ids recorded by [`Self::note_gc_edge_loss_candidate`] since the last call. Empty
+    /// outside a GC context.
+    fn take_gc_edge_loss_candidates(&mut self) -> Vec<TaskId>;
+    /// In the GC context only, whether `task_id` is currently resident: `Some(false)` means opening
+    /// it via [`Self::task`] would restore it from disk. Under the GC phase that must never happen
+    /// — a collected task stays resident (soft-deleted) precisely so a forward-dep scrub or cascade
+    /// finds a live entry rather than resurrecting a zombie — so GC-only callers `debug_assert`
+    /// against it. `None` for every normal context, which disables the assertion there.
+    fn gc_target_resident(&self, task_id: TaskId) -> Option<bool> {
+        let _ = task_id;
+        None
+    }
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -208,6 +244,17 @@ pub struct ExecuteContextImpl<'e> {
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
+    /// GC-only: ids whose persistent `parent_count` reached 0 during this context's operations.
+    /// `None` for normal contexts, which makes the recording hook a no-op. See
+    /// [`ExecuteContext::note_gc_parent_count_zeroed`].
+    // TODO: hand newly-parentless children to the collector via callback instead of buffering, for
+    // lower latency. Needs guard/lock-ordering review first: spawning mid-cleanup starts a child's
+    // collection while the parent still holds guards.
+    gc_zeroed: Option<Vec<TaskId>>,
+    /// GC-only: ids whose last aggregation edge (`upper` or `followers`) was removed during this
+    /// context's operations. `None` for normal contexts. See
+    /// [`ExecuteContext::note_gc_edge_loss_candidate`].
+    gc_edge_loss: Option<Vec<TaskId>>,
 }
 
 impl<'e> ExecuteContextImpl<'e> {
@@ -220,9 +267,43 @@ impl<'e> ExecuteContextImpl<'e> {
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             task_lock_counter: TaskLockCounter::new(),
+            gc_zeroed: None,
+            gc_edge_loss: None,
         }
     }
 
+    /// Constructs a context that does NOT take an operation guard, for use by the garbage
+    /// collector while it holds the coordinator's GC phase.
+    ///
+    /// The GC phase excludes all concurrent operations and task execution, so taking an operation
+    /// guard here would deadlock.
+    pub(super) fn new_for_gc(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+    ) -> Self {
+        debug_assert!(
+            backend.snapshot_coord.gc_in_progress(),
+            "new_for_gc called outside a held GC phase"
+        );
+        Self {
+            backend,
+            turbo_tasks,
+            _operation_guard: None,
+            task_lock_counter: TaskLockCounter::new(),
+            gc_zeroed: Some(Vec::new()),
+            gc_edge_loss: Some(Vec::new()),
+        }
+    }
+
+    /// Backs [`ExecuteContext::task`]: opens a task, restoring the requested `category` from
+    /// persistent storage if needed.
+    ///
+    /// With [`TaskAccess::MaybeCreate`] a missing task is created — `access_mut` inserts a blank
+    /// entry and, if disk has nothing, it stays empty. With [`TaskAccess::MustExist`] a task that
+    /// exists in **neither memory nor disk** is a bug (a stale reference to an
+    /// already-collected/never-created task); rather than fabricate a blank and silently corrupt
+    /// the graph, this panics in debug builds. Existence is judged from residency and the
+    /// disk-presence flag `restore_task_data` returns for the categories we restore.
     fn open_task(
         &mut self,
         task_id: TaskId,
@@ -352,11 +433,16 @@ impl<'e> ExecuteContextImpl<'e> {
                 }
             }
         }
+        // `MustExist` enforces existence only; it deliberately does NOT assert `!deleted()`, since
+        // GC/aggregation bookkeeping legitimately opens a soft-deleted task during the resurrection
+        // window (`resurrect_deleted`, `increase_active_count`). The "a read must not see a
+        // GC-deleted task" invariant is asserted on the consumer read paths
+        // (`try_read_task_output`/`try_read_task_cell`), where a stale read would actually escape.
         TaskGuardImpl {
             task,
             task_id,
             #[cfg(debug_assertions)]
-            category,
+            category: Some(category),
             task_lock_counter: self.task_lock_counter.clone(),
         }
     }
@@ -867,6 +953,22 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
     }
 
+    fn resident_task(&mut self, task_id: TaskId) -> Option<TaskGuardImpl<'e>> {
+        let task = self.backend.storage.access_mut_if_resident(task_id)?;
+        // Acquire the context's lock counter for the returned guard (released on its Drop),
+        // exactly like `task()`.
+        self.task_lock_counter.acquire();
+        Some(TaskGuardImpl {
+            task,
+            task_id,
+            // No category was restored: `None` makes `check_access` reject any Meta/Data read
+            // through this guard. Transient-field accessors (the only intended use) never check.
+            #[cfg(debug_assertions)]
+            category: None,
+            task_lock_counter: self.task_lock_counter.clone(),
+        })
+    }
+
     fn prepare_tasks(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
@@ -896,7 +998,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                     task,
                     task_id,
                     #[cfg(debug_assertions)]
-                    category: _category,
+                    category: Some(_category),
                     task_lock_counter: task_lock_counter.clone(),
                 };
                 func(guard, this);
@@ -1081,14 +1183,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 task: task1,
                 task_id: task_id1,
                 #[cfg(debug_assertions)]
-                category,
+                category: Some(category),
                 task_lock_counter: self.task_lock_counter.clone(),
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 #[cfg(debug_assertions)]
-                category,
+                category: Some(category),
                 task_lock_counter: self.task_lock_counter.clone(),
             },
         )
@@ -1114,7 +1216,46 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
+        // The GC context holds no operation guard: the GC phase already owns the coordinator's
+        // exclusion, so there is nothing to yield to and `suspend_point` (which decrements the
+        // in-progress-operations count it never incremented) must not run. Skip it entirely.
+        if self._operation_guard.is_none() {
+            return;
+        }
         self.backend.operation_suspend_point(|| op.clone().into());
+    }
+
+    fn note_gc_parent_count_zeroed(&mut self, task_id: TaskId) {
+        if let Some(zeroed) = self.gc_zeroed.as_mut() {
+            zeroed.push(task_id);
+        }
+    }
+
+    fn take_gc_parent_count_zeroed(&mut self) -> Vec<TaskId> {
+        self.gc_zeroed
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default()
+    }
+
+    fn gc_target_resident(&self, task_id: TaskId) -> Option<bool> {
+        // Only the GC context (the one collecting zeroed ids) reports residency.
+        self.gc_zeroed
+            .is_some()
+            .then(|| self.backend.storage.with_task(task_id, |_| ()).is_some())
+    }
+
+    fn note_gc_edge_loss_candidate(&mut self, task_id: TaskId) {
+        if let Some(candidates) = self.gc_edge_loss.as_mut() {
+            candidates.push(task_id);
+        }
+    }
+
+    fn take_gc_edge_loss_candidates(&mut self) -> Vec<TaskId> {
+        self.gc_edge_loss
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default()
     }
 
     fn should_track_dependencies(&self) -> bool {
@@ -1176,6 +1317,8 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
             turbo_tasks: self.turbo_tasks,
             _operation_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            gc_zeroed: None,
+            gc_edge_loss: None,
         }
     }
 }
@@ -1220,6 +1363,11 @@ impl Display for TaskType {
 
 pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
+
+    /// GC-only: for a collected task that was never persisted (`new_task`), clear its modified bits
+    /// and shard modified count so the next snapshot skips it (nothing on disk to tombstone).
+    /// See [`crate::backend::storage::StorageWriteGuard::discard_modifications_for_gc_new_task`].
+    fn discard_modifications_for_gc_new_task(&mut self);
 
     /// Get mutable reference to the activeness state, inserting a new one if not present
     fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
@@ -1286,6 +1434,24 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .expect("transient_ref_count underflow");
         self.set_transient_ref_count(new_value);
         new_value
+    }
+
+    /// Whether a GC pass may collect this task: it is non-transient, has no persistent or transient
+    /// parents, is quiescent (not active, not in progress), and holds no aggregation edges
+    /// (`upper`/`followers`).
+    ///
+    /// The storage-only checks live in [`TaskStorage::gc_maybe_collectible`] so GC's resident-map
+    /// scan can reuse them without a guard; this authoritative form adds the transient-*id* check
+    /// and enforces Meta-restoration (`check_access`) — the fields it reads are lazy Meta fields
+    /// that read as absent (0/empty) when Meta was evicted, so a task with evicted Meta must not be
+    /// judged collectible from stale absence.
+    fn is_gc_collectible(&self) -> bool {
+        // Transient-ness is a property of the id, not the storage; transient tasks are never
+        // collected.
+        !self.id().is_transient() && {
+            self.check_access(crate::backend::storage::SpecificTaskDataCategory::Meta);
+            self.typed().gc_maybe_collectible()
+        }
     }
 
     fn invalidate_serialization(&mut self);
@@ -1534,8 +1700,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 pub struct TaskGuardImpl<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
+    /// Which category was restored when this guard was opened, gating `check_access`. `None` means
+    /// **no** category was restored (e.g. the non-inserting [`ExecuteContext::resident_task`]
+    /// path, used for transient-only bookkeeping): any Meta/Data access through such a guard
+    /// is a bug and `check_access` rejects it. Transient-field accessors never call
+    /// `check_access`, so they work regardless.
     #[cfg(debug_assertions)]
-    category: TaskDataCategory,
+    category: Option<TaskDataCategory>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -1555,8 +1726,10 @@ impl TaskGuardImpl<'_> {
             SpecificTaskDataCategory::Data => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Data
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        Some(TaskDataCategory::Data | TaskDataCategory::All)
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1566,8 +1739,10 @@ impl TaskGuardImpl<'_> {
             SpecificTaskDataCategory::Meta => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Meta
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        Some(TaskDataCategory::Meta | TaskDataCategory::All)
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1590,6 +1765,10 @@ impl Debug for TaskGuardImpl<'_> {
 impl TaskGuard for TaskGuardImpl<'_> {
     fn id(&self) -> TaskId {
         self.task_id
+    }
+
+    fn discard_modifications_for_gc_new_task(&mut self) {
+        self.task.discard_modifications_for_gc_new_task();
     }
 
     fn invalidate_serialization(&mut self) {
@@ -1794,7 +1973,7 @@ mod filter_transient_tracking_tests {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
-            category: TaskDataCategory::All,
+            category: Some(TaskDataCategory::All),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -2063,7 +2242,7 @@ mod cell_data_tracking_tests {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
-            category: TaskDataCategory::All,
+            category: Some(TaskDataCategory::All),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
