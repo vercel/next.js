@@ -57,7 +57,7 @@ import {
   navigateToKnownRoute,
   navigate,
 } from '../../segment-cache/navigation'
-import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import { discoverKnownRoute } from '../../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
@@ -477,10 +477,19 @@ export function serverActionReducer(
         const now = Date.now()
         // TODO: Store the dynamic stale time on the top-level state so it's
         // known during restores and refreshes.
-        const redirectSeed = convertServerPatchToFullTree(
+        const redirectSeed = createNavigationSeed(
           now,
           currentFlightRouterState,
           flightData,
+          // Action responses stream in incrementally, so their vary params
+          // can't be drained here — and nothing consumes them from a
+          // navigation seed (only segment-cache writes read vary params, and
+          // those decode their own, buffered, payloads).
+          null,
+          // Same for partiality: only segment-cache writes consume it, and
+          // action responses are never written to the segment cache. Pass
+          // the conservative value.
+          true,
           // Navigation responses always include the param values in the
           // tree, so there's no pathname to parse them from (nor a need to).
           null,

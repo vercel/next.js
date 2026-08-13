@@ -13,7 +13,7 @@ import {
   readRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
-  fetchSegmentsOnCacheMiss,
+  fetchSegmentPrefetchesUsingStaticRequest,
   EntryStatus,
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
@@ -21,7 +21,6 @@ import {
   fetchSegmentPrefetchesUsingRuntimeRequest,
   type PendingSegmentCacheEntry,
   type SegmentCacheEntry,
-  type SegmentBundle,
   convertRouteTreeToFlightRouterState,
   readOrCreateRevalidatingSegmentEntry,
   upgradeToPendingSegment,
@@ -1045,6 +1044,27 @@ function pingRootRouteTree(
     }
   }
   return PrefetchTaskExitStatus.Done
+}
+
+/**
+ * A linked list tracking the segments to fulfill from a single prefetch
+ * response, accumulated during the tree walk. The head is the requested
+ * segment; subsequent nodes are parent segments whose data is bundled into
+ * the same response by the server. When segments are not bundled, the list
+ * has a single node.
+ *
+ * The chain only exists during the walk: when it's finalized,
+ * pingSegmentBundle converts it into the map of spawned entries the fetch
+ * fulfills (keyed by segment request key).
+ */
+type SegmentBundle = {
+  // Null when the segment has prefetching disabled entirely
+  // (prefetch: 'force-disabled' / instant = false; Partial Prefetching
+  // segments have static data and occupy a real node). The bundle chain
+  // passes through it but no cache entry is created for it.
+  tree: RouteTree<null> | null
+  entry: SegmentCacheEntry | null
+  parent: SegmentBundle | null
 }
 
 /**
@@ -2088,12 +2108,15 @@ function pingSegmentBundle(
   // response.
   spawnRevalidations: boolean
 ): boolean {
-  let segmentCount = 0
-  let needsFetch = false
   let needsRuntimeRequest = false
+  // The pending entries this task owns — Empty entries upgraded here, plus
+  // any revalidations spawned here — keyed by segment request key. If any
+  // accumulate, a single fetch is spawned for the whole bundle, and the
+  // response fulfills them.
+  let spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null =
+    null
   let node: SegmentBundle | null = segments
   while (node !== null) {
-    segmentCount++
     const nodeEntry = node.entry
     const nodeTree = node.tree
     if (nodeEntry === null || nodeTree === null) {
@@ -2101,13 +2124,17 @@ function pingSegmentBundle(
       continue
     }
     switch (nodeEntry.status) {
-      case EntryStatus.Empty:
-        upgradeToPendingSegment(nodeEntry, fetchStrategy)
-        needsFetch = true
+      case EntryStatus.Empty: {
+        const pendingEntry = upgradeToPendingSegment(nodeEntry, fetchStrategy)
+        if (spawnedEntries === null) {
+          spawnedEntries = new Map()
+        }
+        spawnedEntries.set(nodeTree.requestKey, pendingEntry)
         // The pass blocks on every request it spawns, not just requests it
         // finds already in flight.
-        blockTaskOnPendingResponse(task, nodeEntry)
+        blockTaskOnPendingResponse(task, pendingEntry)
         break
+      }
       case EntryStatus.Pending:
         if (
           spawnRevalidations &&
@@ -2127,17 +2154,18 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // Block on the revalidation request we just spawned, in
             // addition to the original in-flight entry (blocked below).
-            blockTaskOnPendingResponse(task, revalidatingEntry)
-          } else {
-            node.entry = null
+            blockTaskOnPendingResponse(task, pendingEntry)
           }
-        } else {
-          node.entry = null
         }
         blockTaskOnPendingResponse(task, nodeEntry)
         break
@@ -2166,21 +2194,22 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // Block on the retry revalidation we just spawned, like any
             // other pending response. If the retry succeeds, its upsert
             // evicts the rejected entry (see evictShadowingSegmentEntries
             // in cache.ts) and the re-run pass reads the healed data. If it
             // rejects too, the re-run observes a settled revalidation and
             // moves on.
-            blockTaskOnPendingResponse(task, revalidatingEntry)
-          } else {
-            node.entry = null
+            blockTaskOnPendingResponse(task, pendingEntry)
           }
-        } else {
-          node.entry = null
         }
         // The segment failed to load, or the server intentionally omitted it
         // from a response (both are encoded as Rejected). Skip it and keep
@@ -2252,18 +2281,22 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // The pass blocks on every request it spawns, including
             // revalidations of an already-fulfilled entry.
-            blockTaskOnPendingResponse(task, revalidatingEntry)
+            blockTaskOnPendingResponse(task, pendingEntry)
           } else {
             // A non-empty revalidating entry means a request is already in
             // flight (or recently settled), so we dedupe and don't issue a
             // competing one — including for ISR-fallback upgrades, which then
             // share the same revalidation across tasks.
-            node.entry = null
             if (revalidatingEntry.status === EntryStatus.Pending) {
               // The deduped-against revalidation is still in flight, and this
               // pass depends on its response. Wait for it before the phase
@@ -2273,8 +2306,6 @@ function pingSegmentBundle(
               blockTaskOnPendingResponse(task, revalidatingEntry)
             }
           }
-        } else {
-          node.entry = null
         }
         break
       }
@@ -2283,15 +2314,14 @@ function pingSegmentBundle(
     }
     node = node.parent
   }
-  if (needsFetch) {
+  if (spawnedEntries !== null) {
     spawnPrefetchSubtask(
-      fetchSegmentsOnCacheMiss(
+      fetchSegmentPrefetchesUsingStaticRequest(
         task,
         route,
         routeKey,
         tree,
-        segments,
-        segmentCount,
+        spawnedEntries,
         fetchStrategy
       )
     )
@@ -2315,7 +2345,7 @@ function accumulateSegmentBundle(
   parentBundle: SegmentBundle | null,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   // PPR for the normal static bundling walk; StaticShell during the Shell
-  // phase's static App Shell attempt, whose entries are keyed at the shell
+  // phase's static shell attempt, whose entries are keyed at the shell
   // vary paths.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
   // False when finishing a chain on a runtime-prefetch bailout; see
@@ -2323,8 +2353,9 @@ function accumulateSegmentBundle(
   spawnRevalidations: boolean
 ): { bundle: SegmentBundle | null; needsRuntimeRequest: boolean } {
   // Prefetching is disabled for this segment (prefetch: 'force-disabled'):
-  // the server emits null for its slot, and it participates in the bundle
-  // chain with null tree/entry so the null-slot positions line up.
+  // the server emits identity only for its response node, and it
+  // participates in the bundle chain with null tree/entry — no cache entry
+  // is created for it.
   // (Partial Prefetching segments are NOT in this mask — the server emits
   // static data for them unconditionally.) Intentionally not gated by the
   // prefetch inlining flag: we never statically prefetch unprefetchable
@@ -2468,17 +2499,17 @@ function pingFullSegmentRevalidation(
     tree
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
-    // During a Full/PPRRuntime prefetch, a single dynamic request is made for all the
-    // segments that we need. So we don't initiate a request here directly. By
-    // returning a pending entry from this function, it signals to the caller
-    // that this segment should be included in the request that's sent to
-    // the server.
+    // During a Full/PPRRuntime prefetch, a single runtime request is made for
+    // all the segments that we need. So we don't initiate a request here
+    // directly. By returning a pending entry from this function, it signals
+    // to the caller that this segment should be included in the request
+    // that's sent to the server.
     const pendingSegment = upgradeToPendingSegment(
       revalidatingSegment,
       fetchStrategy
     )
-    // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
-    // when the dynamic prefetch response is written into the cache.
+    // The upsert is handled by writeSegmentDataIntoCache
+    // when the runtime request's response is written into the cache.
     return pendingSegment
   } else {
     // There's already a revalidation in progress.
@@ -2501,8 +2532,8 @@ function pingFullSegmentRevalidation(
         emptySegment,
         fetchStrategy
       )
-      // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
-      // when the dynamic prefetch response is written into the cache.
+      // The upsert is handled by writeSegmentDataIntoCache
+      // when the runtime request's response is written into the cache.
       return pendingSegment
     }
     switch (nonEmptyRevalidatingSegment.status) {

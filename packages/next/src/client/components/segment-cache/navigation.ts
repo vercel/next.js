@@ -37,7 +37,7 @@ import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
 import {
-  convertServerPatchToFullTree,
+  createNavigationSeed,
   type NavigationSeed,
 } from './decode-server-response'
 
@@ -410,6 +410,7 @@ function navigateUsingPrefetchedRouteTree(
     head: null,
     isHeadPartial: true,
     headVaryParams: null,
+    headStaleTimeSeconds: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
     // Not derived from a server response; no base to diverge from.
     treeDivergedFromBase: false,
@@ -522,10 +523,16 @@ async function navigateToUnknownRoute(
   // Since the response format of dynamic requests and prefetches is slightly
   // different, we'll need to massage the data a bit. Create FlightRouterState
   // tree that simulates what we'd receive as the result of a prefetch.
-  const navigationSeed = convertServerPatchToFullTree(
+  const navigationSeed = createNavigationSeed(
     now,
     currentFlightRouterState,
     transportData,
+    // Navigation responses stream in incrementally, so their vary params
+    // can't be drained here — and nothing consumes them from a navigation
+    // seed (only segment-cache writes read vary params, and those decode
+    // their own, buffered, payloads).
+    null,
+    isResponsePartial,
     // Navigation responses always include the param values in the tree, so
     // there's no pathname to parse them from (nor a need to).
     null,
