@@ -371,7 +371,7 @@ export type SegmentBundle = {
   parent: SegmentBundle | null
 }
 
-const isOutputExportMode =
+export const isOutputExportMode =
   process.env.NODE_ENV === 'production' &&
   process.env.__NEXT_CONFIG_OUTPUT === 'export'
 

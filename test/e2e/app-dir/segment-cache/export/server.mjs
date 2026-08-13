@@ -2,6 +2,7 @@
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
+import { existsSync } from 'node:fs'
 
 // output: "export" mode was originally designed to work seamlessly with the
 // "serve" package, which uses "server-handler" internally. It has built-in
@@ -36,6 +37,22 @@ export function createExportServer(outDir = DEFAULT_OUT_DIR) {
       request.url = newUrl
     }
 
+    return handler(request, response, {
+      public: outDir,
+    })
+  })
+}
+
+// Mimics a static host with an SPA fallback: Netlify's `200.html`, an S3
+// error-document, or Cloudflare Pages. Anything not on disk is answered with
+// the index document and a 200 rather than a 404. Only applied to the
+// per-segment `.txt` files, which is the surface the router prefetches.
+export function createSpaFallbackServer(outDir = DEFAULT_OUT_DIR) {
+  return createServer((request, response) => {
+    const { pathname } = new URL(request.url, 'http://n')
+    if (pathname.endsWith('.txt') && !existsSync(join(outDir, pathname))) {
+      request.url = '/index.html'
+    }
     return handler(request, response, {
       public: outDir,
     })

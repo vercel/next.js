@@ -254,6 +254,8 @@
       "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts",
       "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts",
       "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts",
+      "test/e2e/app-dir/segment-cache/export-spa-fallback/segment-cache-output-export-spa-fallback.test.ts",
+      "test/e2e/app-dir/segment-cache/export-trailing-slash/segment-cache-output-export-trailing-slash.test.ts",
       "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts",
       "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts",
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",

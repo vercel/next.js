@@ -29,6 +29,7 @@ import {
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
+  isOutputExportMode,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
@@ -881,6 +882,14 @@ function pingRootRouteTree(
         // the `cacheComponents` flag is to support incremental adoption.
         // `prefetch={true}` will continue to work until you opt into
         // Partial Prefetching.
+        fetchStrategy = FetchStrategy.PPR
+      } else if (isOutputExportMode) {
+        // Static export can only serve the per-segment files the exporter wrote
+        // to disk. Any other strategy issues a dynamic request, which here
+        // returns the page's HTML document; the Flight client never finishes
+        // decoding it, so the prefetch hangs and the link is permanently dead.
+        // All data is static in this mode, so PPR is equivalent to a full
+        // prefetch anyway.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
         fetchStrategy = route.supportsPerSegmentPrefetching
