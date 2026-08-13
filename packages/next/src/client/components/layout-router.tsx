@@ -335,7 +335,7 @@ function InnerLayoutRouter({
 
         (bbhDebug() &&
           console.log(
-            `[bbh-debug] inner NO-CACHENODE url=${url} — suspending on unresolvedThenable`
+            `[bbh-debug] p=${location.port} inner NO-CACHENODE url=${url} — suspending on unresolvedThenable`
           )) ||
         (use(unresolvedThenable) as never)
 
@@ -355,7 +355,7 @@ function InnerLayoutRouter({
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
   if (bbhDebug()) {
     console.log(
-      `[bbh-debug] inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc} rscValue=${(rsc as any)?.status === 'fulfilled' ? ((rsc as any).value === null ? 'NULL' : 'data') : 'n/a'} seg=${JSON.stringify(tree[0])}`
+      `[bbh-debug] p=${location.port} inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc} rscValue=${(rsc as any)?.status === 'fulfilled' ? ((rsc as any).value === null ? 'NULL' : 'data') : 'n/a'} seg=${JSON.stringify(tree[0])}`
     )
   }
 
@@ -369,7 +369,7 @@ function InnerLayoutRouter({
     if (unwrappedRsc === null) {
       if (bbhDebug()) {
         console.log(
-          `[bbh-debug] inner NULL-DATA (deferred) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
+          `[bbh-debug] p=${location.port} inner NULL-DATA (deferred) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
         )
       }
       // If the promise was resolved to `null`, it means the data for this
@@ -384,7 +384,7 @@ function InnerLayoutRouter({
     if (rsc === null) {
       if (bbhDebug()) {
         console.log(
-          `[bbh-debug] inner NULL-DATA (direct) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
+          `[bbh-debug] p=${location.port} inner NULL-DATA (direct) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
         )
       }
       use(unresolvedThenable) as never

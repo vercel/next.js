@@ -152,7 +152,7 @@ export async function fetchServerResponse(
 
   if (bbhDebug()) {
     console.log(
-      `[bbh-debug] fetchServerResponse start url=${url.pathname + url.search} routerStateSeg=${JSON.stringify(flightRouterState?.[0])}`
+      `[bbh-debug] p=${location.port} fetchServerResponse start url=${url.pathname + url.search} routerStateSeg=${JSON.stringify(flightRouterState?.[0])}`
     )
   }
 

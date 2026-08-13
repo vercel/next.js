@@ -72,7 +72,7 @@ function isOnUnobservedEntry(site?: string): boolean {
     activationEntry.key !== currentEntry.key
   if (bbhDebug()) {
     console.log(
-      `[bbh-debug] site=${site} keysDiffer=${result} __NA=${window.history.state?.__NA} url=${location.href}`
+      `[bbh-debug] p=${location.port} site=${site} keysDiffer=${result} __NA=${window.history.state?.__NA} url=${location.href}`
     )
   }
   return result
@@ -90,7 +90,7 @@ let checkedMissedTraversalBeforeReplay = false
 function handlePopState(state: PopStateEvent['state']): void {
   if (bbhDebug()) {
     console.log(
-      `[bbh-debug] handlePopState __NA=${state?.__NA} url=${location.href}`
+      `[bbh-debug] p=${location.port} handlePopState __NA=${state?.__NA} url=${location.href}`
     )
   }
   if (!state) {
@@ -162,14 +162,14 @@ function HistoryUpdater({
       pushRef.pendingPush = false
       if (bbhDebug()) {
         console.log(
-          `[bbh-debug] insertion-effect pushState canonicalUrl=${canonicalUrl} from=${location.href}`
+          `[bbh-debug] p=${location.port} insertion-effect pushState canonicalUrl=${canonicalUrl} from=${location.href}`
         )
       }
       window.history.pushState(historyState, '', canonicalUrl)
     } else {
       if (bbhDebug()) {
         console.log(
-          `[bbh-debug] insertion-effect replaceState canonicalUrl=${canonicalUrl} from=${location.href}`
+          `[bbh-debug] p=${location.port} insertion-effect replaceState canonicalUrl=${canonicalUrl} from=${location.href}`
         )
       }
       window.history.replaceState(historyState, '', canonicalUrl)
@@ -390,7 +390,7 @@ function Router({
     ) => {
       if (bbhDebug()) {
         console.log(
-          `[bbh-debug] wrapper-adopt dispatch url=${url} from=${location.href}`
+          `[bbh-debug] p=${location.port} wrapper-adopt dispatch url=${url} from=${location.href}`
         )
       }
       const href = window.location.href

@@ -6,11 +6,13 @@ import { usePathname } from 'next/navigation'
 export function CommitProbe() {
   const pathname = usePathname()
   if (typeof window !== 'undefined') {
-    console.log(`[bbh-debug] probe render pathname=${pathname}`)
+    console.log(
+      `[bbh-debug] p=${location.port} probe render pathname=${pathname}`
+    )
   }
   useEffect(() => {
     console.log(
-      `[bbh-debug] COMMIT pathname=${pathname} location=${window.location.pathname + window.location.search} h1=${document.querySelector('h1')?.textContent ?? 'none'}`
+      `[bbh-debug] p=${location.port} COMMIT pathname=${pathname} location=${window.location.pathname + window.location.search} h1=${document.querySelector('h1')?.textContent ?? 'none'}`
     )
   })
   return null

@@ -163,7 +163,7 @@ function dispatchAction(
 ) {
   if (bbhDebug()) {
     console.log(
-      `[bbh-debug] dispatch type=${payload.type} url=${location.href}`
+      `[bbh-debug] p=${location.port} dispatch type=${payload.type} url=${location.href}`
     )
   }
   let resolvers: {
