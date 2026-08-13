@@ -61,6 +61,9 @@ export function createWebpackAliases({
   const pageExtensions = config.pageExtensions
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
+  const isInstantNavigationTestingEnabled =
+    config.cacheComponents === true &&
+    (dev || config.experimental.exposeTestingApiInProductionBuild === true)
 
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
@@ -181,13 +184,13 @@ export function createWebpackAliases({
             ])
           ),
 
-          // When the Instant Navigation Testing API is disabled (production
-          // build without `experimental.exposeTestingApiInProductionBuild`),
-          // swap the navigation lock implementation for an inert shim so the
-          // testing machinery does not ship in the browser bundle. Same
-          // resolved-path matching as the browser-variant swap above.
-          ...(!dev &&
-          config.experimental.exposeTestingApiInProductionBuild !== true
+          // When the Instant Navigation Testing API is unavailable (Cache
+          // Components is disabled, or this is a production build without
+          // `experimental.exposeTestingApiInProductionBuild`), swap the
+          // navigation lock implementation for an inert shim so the testing
+          // machinery does not ship in the browser bundle. Same resolved-path
+          // matching as the browser-variant swap above.
+          ...(!isInstantNavigationTestingEnabled
             ? {
                 [path.join(
                   NEXT_PROJECT_ROOT_DIST,

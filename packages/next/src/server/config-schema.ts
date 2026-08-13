@@ -142,10 +142,12 @@ const zTurbopackModuleType = z.enum([
   'typescript',
   'css',
   'css-module',
+  'json',
   'wasm',
   'raw',
   'node',
   'bytes',
+  'text',
 ])
 
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
@@ -194,7 +196,6 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
-  appNewScrollHandler: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -250,6 +251,7 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
@@ -373,7 +375,16 @@ export const experimentalSchema = {
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
     .optional(),
-  turbopackMinify: z.boolean().optional(),
+  turbopackMinify: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        server: z.boolean().optional(),
+        client: z.boolean().optional(),
+        edge: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
@@ -386,6 +397,7 @@ export const experimentalSchema = {
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
+      clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
@@ -407,6 +419,7 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),

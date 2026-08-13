@@ -94,6 +94,15 @@ enum AppRenderSpan {
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
 }
 
+enum DevRouteMatcherManagerSpan {
+  ensureRoute = 'DevRouteMatcherManager.ensureRoute',
+  reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
+}
+
+enum DevBundlerServiceSpan {
+  ensurePage = 'DevBundlerService.ensurePage',
+}
+
 enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
@@ -124,6 +133,8 @@ type SpanTypes =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${DevRouteMatcherManagerSpan}`
+  | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
@@ -166,6 +177,8 @@ export {
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  DevRouteMatcherManagerSpan,
+  DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,

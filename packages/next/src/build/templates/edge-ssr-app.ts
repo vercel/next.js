@@ -151,7 +151,6 @@ async function requestHandler(
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -185,9 +184,12 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
         exposeTestingApi:
-          pageRouteModule.isDev === true ||
-          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
-    io::{BufWriter, Write},
+    io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
@@ -20,6 +20,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
@@ -159,24 +160,76 @@ impl WriteOperationGuard<'_> {
     }
 }
 
-/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
-/// `seq`.
+/// The contents of the `CURRENT` file: which sequence number is committed, and when that commit
+/// happened.
 ///
-/// The write is made atomic by writing `seq` to a temporary `CURRENT.next` file, flushing it, and
-/// then `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and
-/// replaces the destination on Windows, so a concurrent or crashing writer can never observe a
-/// torn `CURRENT` (in-place overwrites, by contrast, can leave a partially-written value on a
-/// crash mid-write). After the rename we fsync the directory so the new `CURRENT` → inode mapping
-/// survives a crash.
+/// # Compatibility
+///
+/// Unlike other parts of the persistent database the `CURRENT` file is occasionally read by other
+/// versions of turbopack, so we should be careful when updating this struct
+///
+/// - Never rename a field. This will break readers from other versions
+/// - Never remove a field, unless it has always had `[serde(default)]`
+/// - Never change the type of a field
+/// - New fields should be `#[serde(default)]` and semantically optional to readers from other
+///   versions
+/// - Never add `#[serde(deny_unknown_fields)]`.
+///
+/// Field names are also parsed outside this crate (next.js reads `CURRENT` directly, in
+/// `turbopack-cache-seed.ts`), so a rename would have to move in lockstep there too.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentDbVersion {
+    /// The highest sequence number that is part of the committed database.
+    pub max_sequence_number: u32,
+    /// When this database was last committed to.
+    pub commit_time: Timestamp,
+}
+
+/// Reads the `CURRENT` file in the database directory `path`.
+///
+/// Returns `Ok(None)` if the file doesn't exist, which for a writable database means "not
+/// initialized yet".
+pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
+    let current_path = path.join("CURRENT");
+    let content = match fs::read(&current_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e).context("Failed to read CURRENT file"),
+    };
+
+    serde_json::from_slice::<CurrentDbVersion>(&content)
+        .with_context(|| {
+            format!(
+                "CURRENT file at {} is corrupt ({} bytes)",
+                current_path.display(),
+                content.len()
+            )
+        })
+        .map(Some)
+}
+
+/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
+/// `seq`, stamping it as used now.
+///
+/// The write is made atomic by writing to a temporary `CURRENT.next` file, flushing it, and then
+/// `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and replaces the
+/// destination on Windows, so a concurrent or crashing writer can never observe a torn `CURRENT`
+/// (in-place overwrites, by contrast, can leave a partially-written value on a crash mid-write).
+/// After the rename we fsync the directory so the new `CURRENT` → inode mapping survives a crash.
 fn commit_current(path: &Path, seq: u32) -> Result<()> {
+    let version: &CurrentDbVersion = &CurrentDbVersion {
+        max_sequence_number: seq,
+        commit_time: Timestamp::now(),
+    };
+    let mut contents =
+        serde_json::to_string(version).context("Failed to serialize the CURRENT file")?;
+    contents.push('\n');
     let next_path = path.join("CURRENT.next");
     let mut next_file = File::create(&next_path)?;
-    next_file.write_u32::<BE>(seq)?;
+    next_file.write_all(contents.as_bytes())?;
     next_file.sync_data()?;
     drop(next_file);
-
     fs::rename(&next_path, path.join("CURRENT"))?;
-
     // Fsync the directory. This is the single durability barrier for a commit: by the time we get
     // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
     // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
@@ -459,7 +512,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Ok(())
             }
             Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
+                if !read_only && e.kind() == ErrorKind::NotFound {
                     self.create_and_init_directory()
                         .context("Creating and initializing persistence directory failed")?;
                     Ok(())
@@ -479,18 +532,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Loads an existing database directory and performs cleanup if necessary.
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
-        let mut current_file = match File::open(self.path.join("CURRENT")) {
-            Ok(file) => file,
-            Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
-                    return Ok(false);
-                } else {
-                    return Err(e).context("Failed to open CURRENT file");
-                }
-            }
+        let current = match read_current_version(&self.path)? {
+            Some(version) => version.max_sequence_number,
+            None if !read_only => return Ok(false),
+            None => bail!("Failed to open database: CURRENT file is missing"),
         };
-        let current = current_file.read_u32::<BE>()?;
-        drop(current_file);
 
         let mut deleted_files = HashSet::new();
         for entry in entries {

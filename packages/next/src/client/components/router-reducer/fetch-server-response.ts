@@ -30,11 +30,8 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import {
-  normalizeFlightData,
-  prepareFlightRouterStateForRequest,
-  type NormalizedFlightData,
-} from '../../flight-data-helpers'
+import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
+import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -79,7 +76,7 @@ export type StaticStageData<
 }
 
 type SpaFetchServerResponseResult = {
-  flightData: NormalizedFlightData[]
+  transportData: PartialTransportData | null
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
@@ -189,17 +186,13 @@ export async function fetchServerResponse(
       }
     }
 
-    // Typically, during a navigation, we decode the response using Flight's
+    // During a navigation, we decode the response using Flight's
     // `createFromFetch` API, which accepts a `fetch` promise.
-    // TODO: Remove this check once the old PPR flag is removed
-    const isLegacyPPR =
-      process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
-    const shouldImmediatelyDecode = !isLegacyPPR
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode,
+      true,
       options.signal
     )
 
@@ -251,20 +244,9 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    let flightResponsePromise = res.flightResponsePromise
-    if (flightResponsePromise === null) {
-      // Typically, `createFetch` would have already started decoding the
-      // Flight response. If it hasn't, though, we need to decode it now.
-      // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
-      // without Cache Components). Remove this branch once legacy PPR
-      // is deleted.
-      flightResponsePromise =
-        createFromNextReadableStream<NavigationFlightResponse>(
-          res.body,
-          headers,
-          { allowPartialStream: postponed }
-        )
-    }
+    // This request passed `true` to `shouldImmediatelyDecode`, so the Flight
+    // response promise is always initialized.
+    const flightResponsePromise = res.flightResponsePromise!
 
     const [flightResponse, cacheData] = await Promise.all([
       flightResponsePromise,
@@ -279,9 +261,10 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const normalizedFlightData = normalizeFlightData(flightResponse.f)
-    if (typeof normalizedFlightData === 'string') {
-      return doMpaNavigation(normalizedFlightData)
+    if (flightResponse.n !== undefined) {
+      // The server responded with an MPA navigation URL instead of a
+      // SPA payload.
+      return doMpaNavigation(flightResponse.n)
     }
 
     const staticStageData =
@@ -290,7 +273,7 @@ export async function fetchServerResponse(
         : null
 
     return {
-      flightData: normalizedFlightData,
+      transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
       // TODO: We should be able to read this from the rewrite header, not the
       // Flight response. Theoretically they should always agree, but there are

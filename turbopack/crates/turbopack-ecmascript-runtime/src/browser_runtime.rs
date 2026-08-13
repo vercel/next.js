@@ -26,7 +26,7 @@ pub async fn get_browser_runtime_code(
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
-    has_async_modules: bool,
+    include_async_module_runtime: bool,
     chunk_loading: Vc<ChunkLoading>,
     support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
@@ -105,10 +105,16 @@ pub async fn get_browser_runtime_code(
         code += "(function(){\n";
     }
 
+    // A shared runtime can execute before any async chunk has initialized the chunk queue.
+    // Treat a missing queue as empty, but return when another runtime has already installed its
+    // registry object.
     writedoc!(
         code,
         r#"
-            if (!Array.isArray(globalThis[{}])) {{
+            var chunksToRegister = globalThis[{}];
+            if (chunksToRegister === undefined) {{
+                chunksToRegister = [];
+            }} else if (!Array.isArray(chunksToRegister)) {{
                 return;
             }}
 
@@ -192,8 +198,7 @@ pub async fn get_browser_runtime_code(
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
-    // Only include the async-module (top-level await) machinery when the app uses it.
-    if has_async_modules {
+    if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(
                 asset_context,
@@ -241,7 +246,6 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            var chunksToRegister = globalThis[{chunk_loading_global}];
             globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
         "#,

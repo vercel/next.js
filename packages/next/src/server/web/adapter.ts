@@ -343,7 +343,6 @@ export async function adapter(
                   // bug.
                   useCacheTimeout: 0,
                 },
-                supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
