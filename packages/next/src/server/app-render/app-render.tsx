@@ -3311,14 +3311,16 @@ function prepareAppPage(
         type: DynamicState.DATA,
         renderResumeDataCache: parseResumeDataCacheFromPostponedState(
           renderOpts.postponed,
-          renderOpts.experimental.maxPostponedStateSizeBytes
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
         ),
       }
     } else {
       postponedState = parsePostponedState(
         renderOpts.postponed,
         interpolatedParams,
-        renderOpts.experimental.maxPostponedStateSizeBytes
+        renderOpts.experimental.maxPostponedStateSizeBytes,
+        renderOpts.experimental.disableResumeDataCacheCompression
       )
     }
   }
@@ -9423,12 +9425,16 @@ async function prerenderToStream(
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             resumeDataCache,
-            cacheComponents
+            cacheComponents,
+            renderOpts.experimental.maxPostponedStateSizeBytes,
+            renderOpts.experimental.disableResumeDataCacheCompression
           )
         } else {
           metadata.postponed = await getDynamicDataPostponedState(
             resumeDataCache,
-            cacheComponents
+            cacheComponents,
+            renderOpts.experimental.maxPostponedStateSizeBytes,
+            renderOpts.experimental.disableResumeDataCacheCompression
           )
         }
         reactServerResult.consume()
@@ -9952,7 +9958,9 @@ async function prerenderToStream(
         if (originalFlightPrerenderResultIsDynamic) {
           metadata.postponed = await getDynamicDataPostponedState(
             originalResumeDataCache,
-            cacheComponents
+            cacheComponents,
+            renderOpts.experimental.maxPostponedStateSizeBytes,
+            renderOpts.experimental.disableResumeDataCacheCompression
           )
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()

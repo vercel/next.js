@@ -1,5 +1,6 @@
 import os from 'os'
 import path from 'path'
+import dns from 'dns'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { NextInstance, type NextInstanceOpts } from './base'
@@ -7,6 +8,7 @@ import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
+import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -14,6 +16,7 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+  private _restoreDnsLookup: (() => void) | null = null
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -169,7 +172,7 @@ export class NextDeployInstance extends NextInstance {
     }
   }
 
-  private parseIdsFromCliOuput(): void {
+  private parseIdsFromCliOutput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
       throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
@@ -242,7 +245,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     // The markers never appeared within the retry window; return the last
-    // output so `parseIdsFromCliOuput` throws a descriptive error including it.
+    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
     return output
   }
 
@@ -296,7 +299,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -320,7 +323,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -525,21 +528,29 @@ export class NextDeployInstance extends NextInstance {
       vercelFlags
     )
 
-    this.parseIdsFromCliOuput()
+    this.parseIdsFromCliOutput()
   }
 
-  // When the preview-builds npm mirror is auth-protected, the deploy build
-  // installs Next.js artifacts from it and needs credentials. We write an
-  // `.npmrc` with a read token (provided as a CI secret) so the remote install
-  // can authenticate. Only written when the token is set, so unprotected and
-  // local deploy runs are unaffected.
+  // When preview builds are private, the deploy build installs Next.js
+  // artifacts from an auth-protected route and needs credentials. The build
+  // authenticates with the Vercel OIDC token that Vercel automatically
+  // provides to builds (vercel-packages accepts it for allowlisted teams), so
+  // we write an `.npmrc` referencing it. Referencing the environment variable
+  // instead of inlining a token keeps credentials out of the uploaded
+  // deployment source. Only written for private preview builds since public
+  // ones need no credentials and pnpm fails when an `.npmrc` references an
+  // unset environment variable.
+  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
+  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
+  // to the user-level pnpm config (like vercel/front does) did not work with
+  // `vercel deploy` and needs more investigation.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
-    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+    const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!token || !baseUrlRaw) {
+    if (!baseUrlRaw || access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
       )
       return
     }
@@ -554,19 +565,82 @@ export class NextDeployInstance extends NextInstance {
     )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
-      `${registryKey}:_authToken=${token}\n`
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
   }
 
+  /**
+   * Redirects the deployment host to the proxy address for this process only.
+   * The patched `dns.lookup` covers `fetch`, because Node resolves the
+   * connection through it while the TLS handshake still uses the original
+   * hostname for SNI. A valid certificate therefore still validates.
+   *
+   * This mode needs no `sudo`, and it keeps concurrent test files independent,
+   * unlike the shared `/etc/hosts` file.
+   */
+  private redirectHostInProcess(hostname: string, address: string): void {
+    require('console').log(
+      `Redirecting ${hostname} to ${address} for this process`
+    )
+
+    const originalLookup = dns.lookup
+
+    // `dns.lookup` answers for an IP address literal without a query, and it
+    // answers in the shape that the caller's options ask for. The redirection
+    // therefore replaces the hostname, passes the remaining arguments through
+    // untouched, and lets Node produce the result.
+    function patchedLookup(
+      this: unknown,
+      lookupHostname: string,
+      ...args: unknown[]
+    ): void {
+      Reflect.apply(originalLookup, this, [
+        lookupHostname === hostname ? address : lookupHostname,
+        ...args,
+      ])
+    }
+
+    // `dns.lookup` holds the argument names that `util.promisify` reads in a
+    // hidden symbol property. The wrapper takes over every own property, so the
+    // promisified form still resolves to an object instead of a bare address.
+    Object.defineProperties(
+      patchedLookup,
+      Object.getOwnPropertyDescriptors(originalLookup)
+    )
+
+    dns.lookup = Object.assign(patchedLookup, originalLookup)
+
+    this._restoreDnsLookup = () => {
+      dns.lookup = originalLookup
+    }
+
+    process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
+  }
+
   private async configureProxyAddress(): Promise<void> {
-    // If configured, we should configure the `/etc/hosts` file to point the
-    // deployment domain to the specified proxy address.
-    if (
-      process.env.NEXT_TEST_PROXY_ADDRESS &&
-      // Validate that the proxy address is a valid IP address.
-      /^\d+\.\d+\.\d+\.\d+$/.test(process.env.NEXT_TEST_PROXY_ADDRESS)
-    ) {
-      this._writtenHostsLine = `${process.env.NEXT_TEST_PROXY_ADDRESS}\t${this._parsedUrl.hostname}\n`
+    const proxyAddress = process.env.NEXT_TEST_PROXY_ADDRESS
+    const redirectInProcess = !!process.env.NEXT_TEST_PROXY_IN_PROCESS
+
+    // Validate that the proxy address is a valid IP address.
+    if (!proxyAddress || !/^\d+\.\d+\.\d+\.\d+$/.test(proxyAddress)) {
+      // Without a redirection the production CDN serves the deployment, so the
+      // test passes and exercises none of the proxy under test. Fail instead of
+      // ignoring an incomplete request for in-process redirection.
+      if (redirectInProcess) {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS needs a valid IP address in NEXT_TEST_PROXY_ADDRESS, received ${proxyAddress ? `"${proxyAddress}"` : 'no value'}.`
+        )
+      }
+
+      return
+    }
+
+    if (redirectInProcess) {
+      this.redirectHostInProcess(this._parsedUrl.hostname, proxyAddress)
+    } else {
+      // Otherwise we point the deployment domain to the proxy address through
+      // the `/etc/hosts` file.
+      this._writtenHostsLine = `${proxyAddress}\t${this._parsedUrl.hostname}\n`
 
       require('console').log(
         `Writing proxy address to hosts file: ${this._writtenHostsLine.trim()}`
@@ -601,6 +675,13 @@ export class NextDeployInstance extends NextInstance {
           err
         )
       })
+    }
+
+    if (this._restoreDnsLookup) {
+      require('console').log(`Removing the in-process host redirection`)
+      this._restoreDnsLookup()
+      this._restoreDnsLookup = null
+      delete process.env[PROXY_HOST_MAP_ENV_KEY]
     }
 
     // If configured, we should remove the proxy address from the hosts file.

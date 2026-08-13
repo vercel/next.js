@@ -806,6 +806,19 @@ export interface ExperimentalConfig {
    */
   turbopackChunking?: {
     /**
+     * Groups of pages commonly visited together, each defined by a list of regular
+     * expressions matched against the route pathname.
+     *
+     * @example
+     * ```js
+     * clusters: [
+     *   [/^\/dashboard/, /^\/dashboard\/settings/],
+     *   [/^\/blog/, /^\/blog\/[^/]+$/],
+     * ]
+     * ```
+     */
+    clusters?: RegExp[][]
+    /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
      * number for this, your bounce rate is a good approximate for this value.
@@ -1168,6 +1181,13 @@ export interface ExperimentalConfig {
    * @default '100 MB'
    */
   maxPostponedStateSize?: SizeLimit
+
+  /**
+   * Disables compression of the Resume Data Cache (RDC) when persisting
+   * postponed state.
+   * @default false
+   */
+  disableResumeDataCacheCompression?: boolean
 
   /**
    * enables the minification of server code.
@@ -2286,6 +2306,7 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
+    disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
@@ -2397,6 +2418,7 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
+    | 'disableResumeDataCacheCompression'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
@@ -2464,6 +2486,7 @@ export function getNextConfigRuntime(
     testProxy: ex.testProxy,
     runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
     maxPostponedStateSize: ex.maxPostponedStateSize,
+    disableResumeDataCacheCompression: ex.disableResumeDataCacheCompression,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,

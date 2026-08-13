@@ -251,6 +251,7 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
@@ -396,6 +397,7 @@ export const experimentalSchema = {
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
+      clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
