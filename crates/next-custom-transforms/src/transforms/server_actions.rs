@@ -626,6 +626,7 @@ impl<C: Comments> ServerActions<C> {
                 self.unresolved_ctxt,
                 self.mode,
                 &self.file_name,
+                &self.file_query,
                 &action_id,
                 &action_name,
                 self.config.is_react_server_layer,
@@ -781,6 +782,7 @@ impl<C: Comments> ServerActions<C> {
                 self.unresolved_ctxt,
                 self.mode,
                 &self.file_name,
+                &self.file_query,
                 &action_id,
                 &action_name,
                 self.config.is_react_server_layer,
@@ -883,6 +885,7 @@ impl<C: Comments> ServerActions<C> {
             self.unresolved_ctxt,
             self.mode,
             &self.file_name,
+            &self.file_query,
             &export_name,
             self.config.is_react_server_layer,
         );
@@ -982,6 +985,7 @@ impl<C: Comments> ServerActions<C> {
             self.unresolved_ctxt,
             self.mode,
             &self.file_name,
+            &self.file_query,
             &export_name,
             self.config.is_react_server_layer,
         );
@@ -2294,6 +2298,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     self.unresolved_ctxt,
                     self.mode,
                     &self.file_name,
+                    &self.file_query,
                     ref_id,
                     &export_name.atom(),
                     self.config.is_react_server_layer,
@@ -3107,6 +3112,7 @@ fn create_and_hoist_cache_function(
     unresolved_ctxt: SyntaxContext,
     mode: ServerActionsMode,
     file_name: &str,
+    file_query: &Option<RcStr>,
     export: &str,
     is_react_server_layer: bool,
 ) -> Ident {
@@ -3189,6 +3195,7 @@ fn create_and_hoist_cache_function(
             unresolved_ctxt,
             mode,
             file_name,
+            file_query,
             &reference_id,
             export,
             is_react_server_layer,
@@ -3252,6 +3259,7 @@ fn emit_server_action(
     unresolved_ctxt: SyntaxContext,
     mode: ServerActionsMode,
     file_name: &str,
+    file_query: &Option<RcStr>,
     action_id: &str,
     export: &str,
     is_react_server_layer: bool,
@@ -3259,8 +3267,9 @@ fn emit_server_action(
     if mode == ServerActionsMode::Turbopack {
         let emit = quote_ident!(unresolved_ctxt, "__turbopack_emit__");
         let req: Expr = format!(
-            "./{}",
-            PathBuf::from(file_name).file_name().unwrap().display()
+            "./{}{}",
+            PathBuf::from(file_name).file_name().unwrap().display(),
+            file_query.as_deref().unwrap_or(""),
         )
         .into();
         let data: Expr = format!("{action_id}\0{export}\0{file_name}").into();
