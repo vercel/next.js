@@ -27,6 +27,25 @@ use tracing::info_span;
 
 use crate::{backend::AnyOperation, utils::ptr_eq_arc::PtrEqArc};
 
+/// Runs `f` (which blocks a whole OS thread) after handing this thread's tokio worker slot back to
+/// the scheduler, so the runtime can keep making progress while we sit on a condvar.
+///
+/// This is load-bearing for liveness, not just throughput. A blocked operation waits here for the
+/// snapshot/GC pass to release its exclusion, but that pass is itself running *on this runtime* and
+/// fans its work out to spawned helper tasks. Without the hand-off, every worker thread can end up
+/// parked in this wait, leaving the pass's helpers unschedulable — the pass never finishes, the
+/// exclusion never clears, and the waiters never wake.
+///
+/// `block_in_place` panics off a multi-thread runtime worker, so fall back to calling `f` directly:
+/// on a current-thread runtime or a plain thread there is no worker slot to give back.
+fn block_off_runtime<T>(f: impl FnOnce() -> T) -> T {
+    use tokio::runtime::{Handle, RuntimeFlavor};
+    match Handle::try_current().map(|h| h.runtime_flavor()) {
+        Ok(RuntimeFlavor::MultiThread) => tokio::task::block_in_place(f),
+        _ => f(),
+    }
+}
+
 /// Top bit: set while a snapshot is requested or in flight.
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 /// Second-from-top bit: set while a garbage-collection pass is requested or in flight.
@@ -132,8 +151,11 @@ impl<O> SnapshotCoordinator<O> {
                 if is_drained(prev - 1) {
                     this.operations_drained.notify_all();
                 }
-                this.exclusion_completed
-                    .wait_while(&mut state, |s| s.snapshot_requested || s.gc_requested);
+                // Hand the worker slot back while parked; see `block_off_runtime`.
+                block_off_runtime(|| {
+                    this.exclusion_completed
+                        .wait_while(&mut state, |s| s.snapshot_requested || s.gc_requested);
+                });
                 // Re-add now that the exclusion is done. Both bits are cleared because we just
                 // observed both flags false under the mutex.
                 this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
@@ -181,9 +203,12 @@ impl<O> SnapshotCoordinator<O> {
             if is_drained(prev - 1) {
                 this.operations_drained.notify_all();
             }
-            // Wait for the snapshot / GC pass to finish.
-            this.exclusion_completed
-                .wait_while(&mut state, |s| s.snapshot_requested || s.gc_requested);
+            // Wait for the snapshot / GC pass to finish, handing the worker slot back while parked
+            // so the pass's own helper tasks can be scheduled; see `block_off_runtime`.
+            block_off_runtime(|| {
+                this.exclusion_completed
+                    .wait_while(&mut state, |s| s.snapshot_requested || s.gc_requested);
+            });
             // Resume: re-increment and remove ourselves from the suspended set.
             this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
             state.suspended_operations.remove(&PtrEqArc::from(op));
@@ -240,8 +265,12 @@ impl<O> SnapshotCoordinator<O> {
                 Exclusion::Gc => info_span!("gc: await operations settle", num_operations),
             }
             .entered();
-            self.operations_drained.wait_while(&mut state, |_| {
-                (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
+            // Hand the worker slot back while parked so the operations we are waiting on can
+            // actually be polled; see `block_off_runtime`.
+            block_off_runtime(|| {
+                self.operations_drained.wait_while(&mut state, |_| {
+                    (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
+                });
             });
         }
         state

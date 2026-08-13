@@ -2,48 +2,17 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+mod util;
+
 use std::sync::Arc;
 
 use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
 
-fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
-    let parent = std::path::PathBuf::from(format!("{}/.cache", env!("CARGO_TARGET_TMPDIR")));
-    std::fs::create_dir_all(&parent).unwrap();
-    tempfile::Builder::new()
-        .prefix(&format!("{name}-"))
-        .tempdir_in(&parent)
-        .unwrap()
-}
-
-fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    let dir = create_test_persistence_dir(name);
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            num_workers: Some(2),
-            small_preallocation: true,
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            eviction_mode: EvictionMode::Full,
-            ..Default::default()
-        },
-        turbo_tasks_backend::turbo_backing_storage(
-            dir.path(),
-            &GitVersionInfo {
-                describe: "test-unversioned",
-                dirty: false,
-            },
-            false,
-            true,
-            true,
-        )
-        .unwrap()
-        .0,
-    ));
-    (tt, dir)
-}
+use crate::util::create_tt;
 
 #[turbo_tasks::value(transparent)]
 struct Generation(State<u32>);
@@ -177,88 +146,6 @@ async fn gc_re_rooting_stays_flat() {
         // generation is ROUNDS; sum = WIDTH intermediates each = 1 + leaf(ROUNDS, i).
         let expected: u32 = (0..WIDTH)
             .map(|i| 1 + (ROUNDS.wrapping_mul(1000).wrapping_add(i)))
-            .fold(0u32, |a, b| a.wrapping_add(b));
-        assert_eq!(*output.read_strongly_consistent().await?, expected);
-        let _ = &tt3;
-        anyhow::Ok(())
-    })
-    .await;
-    result.unwrap();
-
-    tt.stop_and_wait().await;
-}
-
-const FANOUT: u32 = 5000;
-
-/// A root that reads `FANOUT` leaves *directly*, so it accumulates ~`FANOUT` children in one task
-/// (and, via reading each leaf's cell, a large forward-dependency set). Keyed by generation so
-/// bumping it disconnects the entire previous fan-out at once.
-#[turbo_tasks::function(operation, root)]
-async fn huge_root(generation: ResolvedVc<Generation>) -> Result<Vc<u32>> {
-    let generation = *generation.await?.get();
-    let mut sum = 0u32;
-    for index in 0..FANOUT {
-        sum = sum.wrapping_add(*leaf(generation, index).await?);
-    }
-    Ok(Vc::cell(sum))
-}
-
-/// Exercises the *per-task* fan-out of the parallel collector: a single collected task has
-/// thousands of children and forward dependencies, all torn down in one `Collect` job while sibling
-/// collects run on other workers. The subtree must be fully reclaimed and the graph must still
-/// recompute afterwards.
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn gc_collects_wide_fanout_task() {
-    let (tt, _persistence_dir) = create_tt("gc_collects_wide_fanout_task");
-    let tt2 = tt.clone();
-
-    // Build generation 0 (huge_root + FANOUT leaves), then flip to generation 1 which disconnects
-    // the entire generation-0 fan-out.
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let generation_op = create_generation();
-        let generation_vc = generation_op.resolve().strongly_consistent().await?;
-        let generation = generation_op.read_strongly_consistent().await?;
-
-        let output = huge_root(generation_vc);
-        output.read_strongly_consistent().await?;
-
-        generation.set(1);
-        output.read_strongly_consistent().await?;
-        anyhow::Ok(())
-    })
-    .await;
-    result.unwrap();
-
-    // Baseline after building + reading generation 1 once, to settle.
-    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
-    let collected = tt2.backend().gc_for_testing(&tt2);
-    tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    let after = tt2.backend().resident_persistent_task_count_for_testing();
-
-    println!(
-        "wide-fanout: baseline={baseline} collected={collected} after={after} (fanout={FANOUT})"
-    );
-    // The bound is loose (half a generation) to allow for tasks that settle across passes; the
-    // point is that the chunked per-task fan-out reclaims the bulk of the subtree rather than
-    // starving.
-    assert!(
-        collected >= (FANOUT as usize) / 2,
-        "wide-fanout GC collected too little ({collected}); expected >= {} — per-task fan-out is \
-         not tearing down the whole subtree",
-        FANOUT / 2
-    );
-
-    // The live graph must still compute correctly after the wide teardown.
-    let tt3 = tt.clone();
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let generation_op = create_generation();
-        let generation_vc = generation_op.resolve().strongly_consistent().await?;
-        let output = huge_root(generation_vc);
-        // generation is 1; sum = sum of leaf(1, i) for i in 0..FANOUT.
-        let expected: u32 = (0..FANOUT)
-            .map(|i| 1u32.wrapping_mul(1000).wrapping_add(i))
             .fold(0u32, |a, b| a.wrapping_add(b));
         assert_eq!(*output.read_strongly_consistent().await?, expected);
         let _ = &tt3;

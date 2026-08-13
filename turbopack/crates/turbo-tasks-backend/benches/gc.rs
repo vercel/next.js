@@ -1,10 +1,6 @@
 //! Benchmarks for the `parent_count` garbage-collection pass ([`TurboTasksBackend::gc_collect`],
 //! driven here via the `gc_for_testing` hook).
 //!
-//! Only the collect pass is timed: each iteration's setup builds a fresh backend, materializes a
-//! large graph, and disconnects it — none of which is measured. Throughput is reported in tasks
-//! collected per second.
-//!
 //! Gated behind `TURBOPACK_BENCH_GC` (like the other stress benches) because the per-iteration
 //! setup is expensive. Enable with e.g.:
 //!
@@ -20,7 +16,9 @@ use tokio::runtime::Runtime;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::{
+    BackendOptions, EvictionMode, GitVersionInfo, StorageMode, TurboTasksBackend,
+};
 
 fn enabled() -> bool {
     !matches!(
@@ -33,10 +31,6 @@ fn enabled() -> bool {
 /// `TempDir` is returned so it lives as long as the backend). GC is invoked directly via
 /// `gc_for_testing`, which does not consult the `TURBO_ENGINE_GC` env var, so nothing global needs
 /// setting.
-///
-/// `num_workers: None` takes the production default (`available_parallelism`), which sizes the
-/// storage map's shard count. It must stay consistent with the runtime's `worker_threads` in
-/// [`gc`] — see the note there.
 fn create_tt() -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let parent = std::path::PathBuf::from(format!("{}/.cache", env!("CARGO_TARGET_TMPDIR")));
     std::fs::create_dir_all(&parent).unwrap();
@@ -48,7 +42,7 @@ fn create_tt() -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
         BackendOptions {
             num_workers: None,
             small_preallocation: false,
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
+            storage_mode: Some(StorageMode::ReadWriteOnShutdown),
             eviction_mode: EvictionMode::Full,
             ..Default::default()
         },
@@ -137,8 +131,6 @@ pub fn gc(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("turbo_tasks_backend_gc");
     group.measurement_time(Duration::from_secs(20));
-    // Setup dominates wall time and each sample runs a full pass over a large graph; keep the
-    // sample count modest.
     group.sample_size(10);
 
     for width in [5_000u32, 25_000, 100_000] {
@@ -146,12 +138,7 @@ pub fn gc(c: &mut Criterion) {
         let garbage = (2 * width) as u64;
         group.throughput(Throughput::Elements(garbage));
         group.bench_with_input(BenchmarkId::new("wide", garbage), &width, |b, &width| {
-            // Must match `create_tt`'s `num_workers`. `scope_unbounded` derives its drainer count
-            // from the runtime's worker count, while the shard count comes from the backend's
-            // `num_workers`; production sets both from `available_parallelism`, so pinning one and
-            // not the other measures a shape that never ships. It also matters a lot: GC currently
-            // gets *slower* with more drainers (~2.25x from 4 to 14 threads at wide/50000), so a
-            // low `worker_threads` here would flatter every contention measurement.
+            // Must match `create_tt`'s `num_workers`.
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .worker_threads(std::thread::available_parallelism().map_or(4, |n| n.get()))
@@ -162,12 +149,7 @@ pub fn gc(c: &mut Criterion) {
             b.iter_batched(
                 || setup_wide_garbage(&rt, width),
                 |(tt, _dir)| {
-                    // `gc_for_testing` is synchronous but internally uses `scope_unbounded`, which
-                    // needs a tokio runtime context (spawns helpers / may `block_in_place`), so run
-                    // it on a runtime worker via `block_on`.
                     let collected = rt.block_on(async { tt.backend().gc_for_testing(&tt) });
-                    // Return the backend so its (large) teardown happens on criterion's drop path,
-                    // not inside the measured routine.
                     (collected, tt, _dir)
                 },
                 BatchSize::PerIteration,

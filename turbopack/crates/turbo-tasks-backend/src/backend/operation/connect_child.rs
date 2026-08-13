@@ -17,17 +17,7 @@ use crate::{
 };
 
 /// Revive `task_id` if it was GC-soft-deleted, given a guard the caller already holds during the
-/// connect handshake. The caller passes that guard **by value** and unconditionally rebinds the
-/// result: `guard = resurrect_deleted(guard, ..)`. When the task is not deleted this returns the
-/// same guard untouched.
-///
-/// On the revival path the guard is dropped and an `All` guard re-acquired (needed for the
-/// `immutable()` read), under which `deleted` is re-checked: a concurrent connect of the same task
-/// could have revived it in the gap. When still deleted, the clear and the re-dirty happen under
-/// that single guard **without an intervening drop**, so no operation can observe the intermediate
-/// `!deleted && !dirty` state — a task that looks live but still holds the stale/empty edges GC
-/// scrubbed. An immutable task is not dirtied (invariant in `make_task_dirty`) and does not need to
-/// be: its output is deterministic and its edges self-contained.
+/// connect handshake.
 ///
 /// GC is the only producer of the `deleted` flag and runs under an exclusion, so once cleared here
 /// it cannot be re-set concurrently.
@@ -43,7 +33,6 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
     }
     drop(guard);
     {
-        // `MustExist` is satisfied: we only get here for a soft-deleted, still-resident task.
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         // Double-check under the re-acquired guard: a concurrent connect may have revived it in the
         // gap.
@@ -128,8 +117,6 @@ impl ConnectChildOperation {
                     distance: None,
                 });
             }
-            // Resurrection (if the child was GC-soft-deleted) rides the child guard
-            // `increase_active_count` takes anyway.
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
@@ -174,10 +161,12 @@ impl ConnectChildOperation {
             }
         }
 
-        ConnectChildOperation::UpdateAggregation {
-            aggregation_update: queue,
+        if !queue.is_empty() {
+            ConnectChildOperation::UpdateAggregation {
+                aggregation_update: queue,
+            }
+            .execute(&mut ctx);
         }
-        .execute(&mut ctx);
 
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);

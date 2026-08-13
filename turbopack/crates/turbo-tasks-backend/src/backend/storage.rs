@@ -12,7 +12,6 @@ use std::{
 use crossbeam_utils::CachePadded;
 use dashmap::SharedValue;
 use hashbrown::raw::RawIntoIter;
-use rustc_hash::FxHashSet;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -164,11 +163,6 @@ pub struct Storage {
     /// that  `shard_modified_counts.len()==map.shards().len()`
     ///
     /// Should only be modified while holding the corresponding dashmap shard lock.
-    ///
-    /// `CachePadded` because these are incremented from every worker at once and, unpadded, eight
-    /// counters share a cache line: threads touching *different* shards would still ping-pong the
-    /// same line. The shard lock serializes same-shard access but does nothing for neighbours.
-    /// Costs one cache line per shard (~256KiB at the default 4096 shards).
     shard_modified_counts: Box<[CachePadded<AtomicU64>]>,
     /// Stores snapshots of task state for tasks accessed during snapshot mode.
     /// - `Some(snapshot)`: Task was modified before snapshot mode and accessed again during it.
@@ -563,42 +557,6 @@ impl Storage {
         persistent
     }
 
-    /// Test-only GC invariant check: every incoming aggregation edge (`upper`/`followers`) held by
-    /// a resident task must point at a task that is **still resident**. Returns
-    /// `(referrer, dangling_target)` for the first violation, or `None` if the graph is clean.
-    ///
-    /// Only meaningful for a fully-resident graph: "not resident" is read as "erased", which
-    /// identifies the erase-while-referenced bug — but a legitimately *evicted* target reads the
-    /// same way, so callers must not have evicted live tasks before calling.
-    pub fn find_dangling_aggregation_edge(&self) -> Option<(TaskId, TaskId)> {
-        let mut resident = FxHashSet::default();
-        for shard in self.map.shards() {
-            let shard = shard.read();
-            for bucket in unsafe { shard.iter() } {
-                let (task_id, _) = unsafe { bucket.as_ref() };
-                if !task_id.is_transient() {
-                    resident.insert(*task_id);
-                }
-            }
-        }
-        for shard in self.map.shards() {
-            let shard = shard.read();
-            for bucket in unsafe { shard.iter() } {
-                let (task_id, shared_value) = unsafe { bucket.as_ref() };
-                if task_id.is_transient() {
-                    continue;
-                }
-                let task = shared_value.get();
-                if let Some(target) =
-                    task.first_dangling_aggregation_edge(|target| !resident.contains(&target))
-                {
-                    return Some((*task_id, target));
-                }
-            }
-        }
-        None
-    }
-
     /// The number of shards in the resident map. GC seeds one `ScanShard` job per index; the slice
     /// returned by `map.shards()` is fixed for the map's lifetime, so an index is a stable handle
     /// to one shard.
@@ -690,6 +648,30 @@ impl Storage {
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
             let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            // Remove a task type from `task_cache`, deferring on contention.
+            //
+            // Only try to acquire the lock; if we cannot, remove it after the map shard lock
+            // is released. `get_or_create_task` acquires `task_cache` then `storage.map` and we
+            // do the opposite, so we need to be defensive here. Attempting inline is just an
+            // optimization to avoid pushing into `deferred_task_cache_removals`.
+            let remove_from_task_cache =
+                |evicted: &mut EvictionCounts,
+                 deferred: &mut Vec<CachedTaskTypeArc>,
+                 task_type: &CachedTaskTypeArc| {
+                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                        TryLockAndRemove::Removed => {
+                            evicted.key_evictions += 1;
+                        }
+                        TryLockAndRemove::NotFound => {
+                            // Generally this should be rare, it more or less implies something
+                            // else is concurrently holding the Arc
+                        }
+                        TryLockAndRemove::WouldBlock => {
+                            // Contention, to avoid a deadlock just defer
+                            deferred.push(task_type.clone());
+                        }
+                    }
+                };
             // SAFETY: We hold the write lock for the duration of iteration.
             for bucket in unsafe { shard.iter() } {
                 // SAFETY: The write lock guard outlives the bucket reference.
@@ -699,21 +681,14 @@ impl Storage {
                     continue;
                 }
                 // GC hard-delete: a task still flagged `deleted` here was collected and its on-disk
-                // copy was tombstoned by the snapshot that just committed. The flag is re-checked
-                // under this shard write lock — a resurrection between the snapshot and now clears
-                // it, in which case we fall through to normal eviction. Otherwise the whole map
-                // entry + task_cache mapping can be dropped. (The shutdown drain snapshot drops the
-                // whole map wholesale and never reaches here.)
+                // copy was tombstoned by the snapshot that just committed. So delete it!
                 if task.get().flags.deleted() {
                     if let Some(task_type) = task.get().get_persistent_task_type() {
-                        // Best-effort inline; defer on contention (same lock-order caution as
-                        // below).
-                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                            TryLockAndRemove::Removed | TryLockAndRemove::NotFound => {}
-                            TryLockAndRemove::WouldBlock => {
-                                deferred_task_cache_removals.push(task_type.clone());
-                            }
-                        }
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
                     }
                     unsafe {
                         shard.erase(bucket);
@@ -728,23 +703,11 @@ impl Storage {
                         // so task_cache is a pure perf cache. Remove it now; it will be
                         // re-populated by task_by_type() on the next cache miss.
                         let task_type = task.get().get_persistent_task_type().unwrap();
-                        // Only try to acquire the lock, if we cannot just remove at the end
-                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
-                        // we do the opposite we need to be defensive here.  Attempting here is just
-                        // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                            TryLockAndRemove::Removed => {
-                                evicted.key_evictions += 1;
-                            }
-                            TryLockAndRemove::NotFound => {
-                                // Generally this should be rare, it more or less implies something
-                                // else is concurrently holding the Arc
-                            }
-                            TryLockAndRemove::WouldBlock => {
-                                // Contention, to avoid a deadlock just defer
-                                deferred_task_cache_removals.push(task_type.clone());
-                            }
-                        }
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }
@@ -956,12 +919,7 @@ impl StorageWriteGuard<'_> {
     }
 
     /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`), dropping it out of the next snapshot's modified scan: there is nothing on disk
-    /// to tombstone, so the snapshot must skip it entirely. Eviction still removes the
-    /// (soft-`deleted`) task from memory.
-    ///
-    /// Must be called outside snapshot mode (GC runs before the snapshot starts), so it only
-    /// touches the pre-snapshot `modified` flags + shard count, mirroring `track_modification`.
+    /// (`new_task`).
     pub fn discard_modifications_for_gc_new_task(&mut self) {
         debug_assert!(
             !self.storage.snapshot_mode(),

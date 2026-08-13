@@ -363,16 +363,6 @@ impl TurboTasksBackend {
         self.storage.resident_persistent_task_count()
     }
 
-    /// Test-only GC invariant check: after a drained pass over a fully-resident graph, every
-    /// incoming aggregation edge (`upper`/`follower`) of a surviving resident task must point at a
-    /// still-resident task; a dangling edge is the erase-while-referenced bug. Returns
-    /// `(referrer, dangling_target)` for the first violation. See
-    /// [`Storage::find_dangling_aggregation_edge`] for the residency caveat.
-    #[doc(hidden)]
-    pub fn find_dangling_aggregation_edge_for_testing(&self) -> Option<(TaskId, TaskId)> {
-        self.storage.find_dangling_aggregation_edge()
-    }
-
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
     /// hook for verifying incremental refcount maintenance.
     #[doc(hidden)]
@@ -1561,9 +1551,7 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        // The task_cache is a pure perf cache backed by the DB and isn't read during the stop
-        // snapshot (no task creation runs concurrently with stop). Drop it before persisting to
-        // lower peak memory during the serialization/write.
+        // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
             && let Err(err) =

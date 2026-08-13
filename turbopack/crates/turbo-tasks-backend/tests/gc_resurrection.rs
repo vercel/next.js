@@ -17,48 +17,14 @@
 //! the outgoing deps first). We make the leaves mutable by having them read a long-lived `State`
 //! whose value never changes.
 
-use std::sync::Arc;
+mod util;
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
 
-fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
-    let parent = std::path::PathBuf::from(format!("{}/.cache", env!("CARGO_TARGET_TMPDIR")));
-    std::fs::create_dir_all(&parent).unwrap();
-    tempfile::Builder::new()
-        .prefix(&format!("{name}-"))
-        .tempdir_in(&parent)
-        .unwrap()
-}
-
-fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    let dir = create_test_persistence_dir(name);
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            num_workers: Some(2),
-            small_preallocation: true,
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            eviction_mode: EvictionMode::Full,
-            ..Default::default()
-        },
-        turbo_tasks_backend::turbo_backing_storage(
-            dir.path(),
-            &GitVersionInfo {
-                describe: "test-unversioned",
-                dirty: false,
-            },
-            false,
-            true,
-            true,
-        )
-        .unwrap()
-        .0,
-    ));
-    (tt, dir)
-}
+use crate::util::create_tt;
 
 #[turbo_tasks::value(transparent)]
 struct Selector(State<bool>);

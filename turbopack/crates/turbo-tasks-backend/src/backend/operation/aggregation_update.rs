@@ -1454,8 +1454,7 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
                     ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, ctx| {
                         if task.update_and_get_parent_count(delta) == 0 {
-                            let id = task.id();
-                            ctx.note_gc_parent_count_zeroed(id);
+                            ctx.note_gc_parent_count_zeroed(task.id());
                         }
                     });
                 }
@@ -3200,9 +3199,8 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Revive the task if GC soft-deleted it, so the rest of this function (and the scheduling
-        // it drives) sees a live, re-dirtied task. Only a direct-child connect can actually
-        // observe a deleted task here; for every other caller this is one flag read.
+        // Revive the task if GC soft-deleted it.  This would be a rare race between GC and
+        // execution.
         let mut task = resurrect_deleted(task, task_id, AGGREGATION_UPDATE_CATEGORY, self, ctx);
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));

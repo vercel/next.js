@@ -82,13 +82,8 @@ pub trait ExecuteContext<'e>: Sized {
         category: TaskDataCategory,
     ) -> Self::TaskGuardImpl;
     /// Opens an **already-resident** task without restoring from disk and without inserting a blank
-    /// entry for a missing key. Returns `None` if the task is not resident.
-    ///
-    /// Because it performs no restore, the returned guard may only be used to touch **transient**
-    /// fields (whose accessors don't gate on `check_access`); reading a Meta/Data field through it
-    /// trips the `check_access` debug assertion. Used for in-session bookkeeping on a live task —
-    /// GC pin/unpin adjusting `transient_ref_count` — where a missing entry means the caller
-    /// referenced an already-collected task (a bug) rather than one to resurrect.
+    /// entry for a missing key. Returns `None` if the task is not resident.  Only **transient**
+    /// data is accessible through this handle.
     fn resident_task(&mut self, task_id: TaskId) -> Option<Self::TaskGuardImpl>;
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
@@ -164,10 +159,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// — a collected task stays resident (soft-deleted) precisely so a forward-dep scrub or cascade
     /// finds a live entry rather than resurrecting a zombie — so GC-only callers `debug_assert`
     /// against it. `None` for every normal context, which disables the assertion there.
-    fn gc_target_resident(&self, task_id: TaskId) -> Option<bool> {
-        let _ = task_id;
-        None
-    }
+    fn gc_target_resident(&self, task_id: TaskId) -> Option<bool>;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -295,15 +287,6 @@ impl<'e> ExecuteContextImpl<'e> {
         }
     }
 
-    /// Backs [`ExecuteContext::task`]: opens a task, restoring the requested `category` from
-    /// persistent storage if needed.
-    ///
-    /// With [`TaskAccess::MaybeCreate`] a missing task is created — `access_mut` inserts a blank
-    /// entry and, if disk has nothing, it stays empty. With [`TaskAccess::MustExist`] a task that
-    /// exists in **neither memory nor disk** is a bug (a stale reference to an
-    /// already-collected/never-created task); rather than fabricate a blank and silently corrupt
-    /// the graph, this panics in debug builds. Existence is judged from residency and the
-    /// disk-presence flag `restore_task_data` returns for the categories we restore.
     fn open_task(
         &mut self,
         task_id: TaskId,
@@ -433,11 +416,6 @@ impl<'e> ExecuteContextImpl<'e> {
                 }
             }
         }
-        // `MustExist` enforces existence only; it deliberately does NOT assert `!deleted()`, since
-        // GC/aggregation bookkeeping legitimately opens a soft-deleted task during the resurrection
-        // window (`resurrect_deleted`, `increase_active_count`). The "a read must not see a
-        // GC-deleted task" invariant is asserted on the consumer read paths
-        // (`try_read_task_output`/`try_read_task_cell`), where a stale read would actually escape.
         TaskGuardImpl {
             task,
             task_id,
@@ -955,14 +933,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn resident_task(&mut self, task_id: TaskId) -> Option<TaskGuardImpl<'e>> {
         let task = self.backend.storage.access_mut_if_resident(task_id)?;
-        // Acquire the context's lock counter for the returned guard (released on its Drop),
-        // exactly like `task()`.
         self.task_lock_counter.acquire();
         Some(TaskGuardImpl {
             task,
             task_id,
             // No category was restored: `None` makes `check_access` reject any Meta/Data read
-            // through this guard. Transient-field accessors (the only intended use) never check.
+            // through this guard.
             #[cfg(debug_assertions)]
             category: None,
             task_lock_counter: self.task_lock_counter.clone(),
