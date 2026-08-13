@@ -26,6 +26,8 @@ describe('request-insights-route-preparation', () => {
   const routePreparationSpanType = 'DevRouteMatcherManager.ensureRoute'
   const matcherReloadSpanType = 'DevRouteMatcherManager.reloadMatchers'
   const routeCompilationSpanType = 'DevBundlerService.ensurePage'
+  const routeModulePrepareSpanType = 'RouteModule.prepare'
+  const routeManifestLoadSpanType = 'RouteModule.loadManifests'
 
   async function getRequestInsights() {
     return (await next
@@ -173,6 +175,47 @@ describe('request-insights-route-preparation', () => {
     expect(routeCompilationSpan.traceId).toBe(rootSpan?.traceId)
   }
 
+  function expectRouteModulePreparationSpans(request: RequestInsight) {
+    const rootSpan = request.spans.find(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+    )
+    const prepareSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === routeModulePrepareSpanType
+    )
+    const manifestLoadSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === routeManifestLoadSpanType
+    )
+
+    expect(prepareSpans).toEqual([
+      expect.objectContaining({
+        name: 'prepare route module',
+        status: 'ok',
+        traceId: rootSpan?.traceId,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'prepare route module',
+          'next.span_type': routeModulePrepareSpanType,
+        },
+      }),
+    ])
+    expect(manifestLoadSpans).toEqual([
+      expect.objectContaining({
+        name: 'load route manifests',
+        status: 'ok',
+        traceId: rootSpan?.traceId,
+        parentSpanId: prepareSpans[0].spanId,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'load route manifests',
+          'next.span_type': routeManifestLoadSpanType,
+        },
+      }),
+    ])
+  }
+
   it('records route preparation for first and subsequent App Page requests', async () => {
     const coldRequest = await captureRequest('/', async () => {
       const response = await next.fetch('/')
@@ -187,6 +230,8 @@ describe('request-insights-route-preparation', () => {
 
     expectRoutePreparationSpans(coldRequest)
     expectRoutePreparationSpans(warmRequest)
+    expectRouteModulePreparationSpans(coldRequest)
+    expectRouteModulePreparationSpans(warmRequest)
   })
 
   it('records route preparation for first and subsequent App Route requests', async () => {
@@ -204,5 +249,7 @@ describe('request-insights-route-preparation', () => {
 
     expectRoutePreparationSpans(coldRequest)
     expectRoutePreparationSpans(warmRequest)
+    expectRouteModulePreparationSpans(coldRequest)
+    expectRouteModulePreparationSpans(warmRequest)
   })
 })

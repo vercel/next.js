@@ -29,6 +29,7 @@ import {
   LoadComponentsSpan,
   NextNodeServerSpan,
   NodeSpan,
+  RouteModuleSpan,
 } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
@@ -265,12 +266,23 @@ describe('local span recording', () => {
       LoadComponentsSpan.loadRouteModule,
     ])
 
-    process.env.NEXT_OTEL_VERBOSE = '1'
-    getTracer().trace(BaseServerSpan.render, () => undefined)
+    getTracer().trace(RouteModuleSpan.prepare, () => undefined)
+    getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
     expect(exportedSpans).toEqual([
       NodeSpan.runHandler,
       LoadComponentsSpan.loadRouteModule,
+      RouteModuleSpan.prepare,
+    ])
+
+    process.env.NEXT_OTEL_VERBOSE = '1'
+    getTracer().trace(BaseServerSpan.render, () => undefined)
+    getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
+    expect(exportedSpans).toEqual([
+      NodeSpan.runHandler,
+      LoadComponentsSpan.loadRouteModule,
+      RouteModuleSpan.prepare,
       BaseServerSpan.render,
+      RouteModuleSpan.loadManifests,
     ])
   })
 
