@@ -14,25 +14,11 @@ use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, TurboTasksBackend,
 };
 
-/// Creates a fresh per-call persistence directory in the OS temp dir, with the test `name` as a
-/// prefix so a leaked directory from a failed run is identifiable. The unique suffix from
-/// `tempfile` lets repeated or concurrent runs coexist without trampling each other's database.
-///
-/// The returned [`tempfile::TempDir`] cleans up its contents on drop, so callers should keep it
-/// alive at least until the `TurboTasks` it backs has finished shutting down (so the final snapshot
-/// can flush to disk).
-pub fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
-    tempfile::Builder::new()
-        .prefix(&format!("{name}-"))
-        .tempdir()
-        .unwrap()
-}
-
 /// Opens a backend rooted at `path`.
 ///
 /// Reusing the same `path` (after the previous backend has been stopped) reopens the persisted
 /// database, which is how a test can assert that state survives a restart.
-pub fn open_tt_at(path: &Path, num_workers: usize) -> Arc<TurboTasks<TurboTasksBackend>> {
+fn open_tt_at(path: &Path, num_workers: usize) -> Arc<TurboTasks<TurboTasksBackend>> {
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             num_workers: Some(num_workers),
@@ -65,7 +51,10 @@ pub fn create_tt_with_workers(
     name: &str,
     num_workers: usize,
 ) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    let dir = create_test_persistence_dir(name);
+    let dir = tempfile::Builder::new()
+        .prefix(&format!("{name}-"))
+        .tempdir()
+        .unwrap();
     let tt = open_tt_at(dir.path(), num_workers);
     (tt, dir)
 }

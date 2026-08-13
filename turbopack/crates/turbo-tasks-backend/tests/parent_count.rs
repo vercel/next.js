@@ -9,7 +9,7 @@ use turbo_tasks::{
     ResolvedVc, State, TaskId, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 
-use crate::util::{create_test_persistence_dir, create_tt, open_tt_at};
+use crate::util::create_tt;
 
 /// The `TaskId` backing a resolved `Vc` (its `TaskOutput` node).
 fn task_id_of<T>(vc: Vc<T>) -> TaskId {
