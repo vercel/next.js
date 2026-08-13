@@ -11,14 +11,7 @@ import {
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  throwToInterruptStaticGeneration,
-  postponeWithTracking,
-} from '../app-render/dynamic-rendering'
-
-import {
   workUnitAsyncStorage,
-  type PrerenderStorePPR,
-  type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
@@ -37,6 +30,8 @@ import {
   makePromiseFromTrigger,
   trackFallbackParamsAccessed,
   RENDER_STAGES_BY_DATA_KIND,
+  trackPromiseUsed,
+  trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -61,7 +56,6 @@ export function createParamsFromClient(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         // Client params don't need additional vary tracking because by the
         // time they reach the client, the access would have already been
@@ -154,7 +148,6 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -218,7 +211,6 @@ export function createServerParamsForServerSegment(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -314,7 +306,6 @@ export function createPrerenderParamsForClientSegment(
           'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
         break
@@ -390,22 +381,6 @@ function createStaticPrerenderParams(
             // resolves.
             return makeHangingParams(
               underlyingParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
-      }
-      break
-    }
-    case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParams,
-              fallbackParams,
               workStore,
               prerenderStore
             )
@@ -597,15 +572,25 @@ function createStagedRenderParamsImpl(
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
-    // This is indicated by `needsSessionShell`.
-    const staticParamsStage = workUnitStore.needsSessionShell
+    // This is indicated by `needsAppShell`.
+    const staticParamsStage = workUnitStore.needsAppShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
-    return stagedRendering.delayUntilStage(
+
+    const promise = stagedRendering.delayUntilStage(
       staticParamsStage,
       'params',
       userspaceParams
     )
+    if (process.env.__NEXT_DEV_SERVER) {
+      // If static params are accessed, we can recover a static shell or a session shell, but not both.
+      return trackPromiseUsed(
+        promise,
+        trackIncompatibleShellContent.bind(null, workUnitStore)
+      )
+    } else {
+      return promise
+    }
   }
 
   return makeUntrackedParams(userspaceParams)
@@ -748,65 +733,6 @@ function makeHangingParams(
   )
 
   CachedParams.set(underlyingParams, promise)
-
-  return promise
-}
-
-function makeErroringParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams,
-  workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const augmentedUnderlying = { ...underlyingParams }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      if (fallbackParams.has(prop)) {
-        Object.defineProperty(augmentedUnderlying, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          enumerable: true,
-        })
-      }
-    }
-  })
 
   return promise
 }

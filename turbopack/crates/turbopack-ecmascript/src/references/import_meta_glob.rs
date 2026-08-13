@@ -16,7 +16,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
@@ -31,7 +31,7 @@ use turbopack_core::{
         ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
-    issue::IssueSource,
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
@@ -720,6 +720,46 @@ impl Module for ImportMetaGlobAsset {
             Some(name) => ExportUsage::Named(name.clone()),
             None => ExportUsage::All,
         };
+
+        // A matched file that has no module type is reported against the file
+        // itself, which is not part of the module graph and therefore has no
+        // import trace. Point at the call site as well, otherwise there is
+        // nothing connecting the error to a request the user never wrote.
+        for (key, entry) in map.iter() {
+            if entry.result.await?.primary.iter().any(|(_, item)| {
+                matches!(
+                    item,
+                    turbopack_core::resolve::ModuleResolveResultItem::Unknown(_)
+                )
+            }) {
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!(
+                        "import.meta.glob() matched a file that has no module type"
+                    ))
+                    .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "import.meta.glob({}) matched {key}, which doesn't have an associated \
+                             module type. Narrow the pattern, exclude the file with a negative \
+                             pattern (\"!...\"), or register a loader or module type for its file \
+                             extension.",
+                            this.patterns
+                                .iter()
+                                .map(|p| format!("{p:?}"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: this.origin.into_trait_ref().await?.origin_path(),
+                    source: this.issue_source,
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
 
         Ok(Vc::cell(
             map.iter()

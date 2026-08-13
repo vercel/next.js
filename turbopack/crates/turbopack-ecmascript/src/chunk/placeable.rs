@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -272,7 +272,10 @@ pub enum EcmascriptExports {
     /// A module using `__turbopack_export_namespace__`, used by custom module types.
     DynamicNamespace,
     /// A module using CommonJS exports.
-    CommonJs,
+    ///
+    /// Carries the static export names when statically analyzable, for scope hoisting.
+    /// `None` means that the exports were not analyzable by us.
+    CommonJs(Option<CjsStaticExports>),
     /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
     /// A value that is made available as both the CommonJS `exports` and the ESM default export.
@@ -306,4 +309,15 @@ impl EcmascriptExports {
             _ => Vc::cell(false),
         })
     }
+}
+
+/// A statically-analyzable CommonJS module's named exports, for scope hoisting.
+/// See the analyzer's `CjsExportsCollector`.
+#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value(shared)]
+pub struct CjsStaticExports {
+    /// Recognized `exports.NAME` / `module.exports.NAME` names, in source order.
+    pub export_names: Vec<RcStr>,
+    /// Whether `exports.__esModule = true` is set.
+    pub has_es_module: bool,
 }

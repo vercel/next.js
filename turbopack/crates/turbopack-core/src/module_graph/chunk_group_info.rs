@@ -97,8 +97,9 @@ pub struct ChunkGroupInfo {
     pub chunking_heuristics: ChunkingHeuristicsInfo,
 }
 
-/// Chunking heuristics computed by [`compute_chunk_group_info`]. `priority_routes` is a set of
-/// chunk-group indices (same indexing as [`ChunkGroupInfo::chunk_groups`]).
+/// Chunking heuristics computed by [`compute_chunk_group_info`]. `clusters` is indexed by
+/// chunk-group index (same length and order as [`ChunkGroupInfo::chunk_groups`]); `priority_routes`
+/// is a set of those indices.
 #[derive(
     Debug,
     Default,
@@ -112,6 +113,12 @@ pub struct ChunkGroupInfo {
     Decode,
 )]
 pub struct ChunkingHeuristicsInfo {
+    /// For each chunk group (by index), the set of cluster IDs it belongs to. A cluster ID is the
+    /// index of a configured cluster. A route's chunk group carries that route's clusters; chunk
+    /// groups it pulls in inherit them.
+    ///
+    /// Example: `clusters[5] = [0, 2]` — chunk group 5 is part of clusters 0 and 2.
+    pub clusters: Vec<Vec<u16>>,
     /// The set of chunk-group indices that belong to a priority route: the priority
     /// routes themselves, plus every chunk group they pull in.
     ///
@@ -155,13 +162,17 @@ impl ChunkGroupInfo {
 #[turbo_tasks::task_input]
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub struct EntryHeuristics {
+    /// Cluster indices this route belongs to.
+    pub clusters: Vec<u16>,
     pub high_priority: bool,
 }
 
 impl EntryHeuristics {
-    /// Heuristics for an entry that is a high-priority route.
+    /// Heuristics for an entry that is a high-priority route: belongs to no clusters and is marked
+    /// as high priority.
     pub fn high_priority() -> Self {
         Self {
+            clusters: Vec::new(),
             high_priority: true,
         }
     }
@@ -813,9 +824,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
-        // Resolve per-chunk-group chunking heuristics. Entry chunk groups carry their route's
-        // priority-route flag; other chunk groups inherit it (OR) from their referencing chunk
-        // groups.
+        // Resolve per-chunk-group chunking heuristics. Entry
+        // chunk groups carry their route's clusters / priority-route flag; other chunk groups
+        // inherit the union of clusters (and OR of the flag) from their referencing chunk groups.
+        let mut clusters: Vec<RoaringBitmap> = vec![RoaringBitmap::new(); chunk_groups_map.len()];
         let mut priority_routes = RoaringBitmap::new();
 
         let mut worklist: Vec<usize> = Vec::new();
@@ -828,18 +840,24 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             else {
                 continue;
             };
-            if !heuristics.high_priority {
+            if heuristics.clusters.is_empty() && !heuristics.high_priority {
                 continue;
             }
             if let Some(index) =
                 chunk_groups_map.get_index_of(&ChunkGroupKey::Entry(modules.clone()))
-                && priority_routes.insert(index as u32)
             {
-                worklist.push(index);
+                if clusters[index].is_empty() && !priority_routes.contains(index as u32) {
+                    worklist.push(index);
+                }
+                clusters[index].extend(heuristics.clusters.iter().map(|&c| c as u32));
+                if heuristics.high_priority {
+                    priority_routes.insert(index as u32);
+                }
             }
         }
 
         while let Some(source) = worklist.pop() {
+            let source_priority_route = priority_routes.contains(source as u32);
             let Some(targets) = inherits_from.get(&(source as u32)) else {
                 continue;
             };
@@ -848,18 +866,29 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 if target == source {
                     continue;
                 }
-                if priority_routes.insert(target as u32) {
+                let [source_clusters, target_clusters] =
+                    clusters.get_disjoint_mut([source, target]).unwrap();
+                let previous_target_clusters_len = target_clusters.len();
+                *target_clusters |= &*source_clusters;
+                let changed = (source_priority_route && priority_routes.insert(target as u32))
+                    || previous_target_clusters_len != target_clusters.len();
+                if changed {
                     worklist.push(target);
                 }
             }
         }
 
+        let chunk_group_clusters: Vec<Vec<u16>> = clusters
+            .into_iter()
+            .map(|bm| bm.iter().map(|id| id as u16).collect())
+            .collect();
         let chunk_group_priority_routes = RoaringBitmapWrapper(priority_routes);
 
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunking_heuristics: ChunkingHeuristicsInfo {
+                clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
             },
             chunk_groups: chunk_groups_map

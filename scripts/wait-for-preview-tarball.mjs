@@ -13,6 +13,76 @@ const POLL_INTERVAL_MS = 15_000
 const PROGRESS_LOG_INTERVAL_MS = 60_000
 
 /**
+ * Mints a GitHub Actions OIDC token for the given audience.
+ * Returns null outside of GitHub Actions.
+ *
+ * @param {string} audience
+ * @returns {Promise<string | null>}
+ */
+async function mintGitHubActionsOidcToken(audience) {
+  const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL
+  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
+  if (!requestUrl || !requestToken) {
+    return null
+  }
+
+  const url = new URL(requestUrl)
+  url.searchParams.set('audience', audience)
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${requestToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(
+      `Failed to mint GitHub OIDC token: ${response.status} ${await response.text()}`
+    )
+  }
+
+  const { value } = await response.json()
+  return value
+}
+
+/**
+ * Reads a preview-builds credential, minting a fresh one when needed.
+ * vercel-packages accepts GitHub Actions OIDC tokens minted for its audience.
+ * Public preview builds need no credentials and return null. Private builds
+ * mint a GitHub Actions OIDC token, which expires about five minutes after
+ * issuance, so the token is cached and re-minted before it expires rather
+ * than minted once up front.
+ *
+ * @returns {() => Promise<string | null>}
+ */
+export function createPreviewBuildsReadTokenGetter() {
+  if (process.env.PREVIEW_BUILDS_ACCESS !== 'private') {
+    return async () => null
+  }
+
+  let cachedToken = null
+  let cachedTokenExpiresAt = 0
+
+  return async () => {
+    if (cachedToken !== null && cachedTokenExpiresAt - 60_000 > Date.now()) {
+      return cachedToken
+    }
+    const token = await mintGitHubActionsOidcToken(
+      'https://vercel-packages.vercel.app'
+    )
+    if (token === null) {
+      throw new Error(
+        'Preview builds are private (PREVIEW_BUILDS_ACCESS=private) ' +
+          'but no GitHub Actions OIDC token can be minted. ' +
+          'Grant the job the `id-token: write` permission.'
+      )
+    }
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString()
+    )
+    cachedToken = token
+    cachedTokenExpiresAt = payload.exp * 1000
+    return token
+  }
+}
+
+/**
  * URL of the `next` preview tarball for a commit. `vercel-packages` answers
  * with a redirect to Vercel Blob, which only serves the tarball once
  * `upload-preview-tarballs` has published it.
@@ -66,29 +136,37 @@ function commitChecksUrl(commitSha) {
  *
  * @param {string} url
  * @param {Record<string, string> | undefined} headers
- * @returns {Promise<{ published: boolean, lastResponse: string }>}
+ * @returns {Promise<{ published: boolean, status: number | null, lastResponse: string, responseHeaders: string | null }>}
  */
 async function probeTarball(url, headers) {
   try {
     const response = await fetch(url, { method: 'HEAD', headers })
     return {
       published: response.ok,
+      status: response.status,
       lastResponse:
         response.status === 404 ? 'not published yet' : `${response.status}`,
+      // Response headers carry request IDs that help debug failures.
+      responseHeaders: response.ok
+        ? null
+        : JSON.stringify(Object.fromEntries(response.headers)),
     }
   } catch (error) {
     return {
       published: false,
+      status: null,
       lastResponse: `request failed (${error instanceof Error ? error.message : error})`,
+      responseHeaders: null,
     }
   }
 }
 
 /**
- * @param {string | undefined} readToken
- * @returns {Record<string, string> | undefined}
+ * @param {() => Promise<string | null>} getReadToken
+ * @returns {Promise<Record<string, string> | undefined>}
  */
-function requestHeaders(readToken) {
+async function requestHeaders(getReadToken) {
+  const readToken = await getReadToken()
   return readToken ? { Authorization: `Bearer ${readToken}` } : undefined
 }
 
@@ -96,10 +174,16 @@ function requestHeaders(readToken) {
  * @param {object} options
  * @param {string} options.commitSha
  * @param {string} options.lastResponse
+ * @param {string | null} [options.responseHeaders]
  * @param {number} [options.timeoutMs] Omitted when nothing was waited out.
  * @returns {Error}
  */
-function notPublishedError({ commitSha, lastResponse, timeoutMs }) {
+function notPublishedError({
+  commitSha,
+  lastResponse,
+  responseHeaders,
+  timeoutMs,
+}) {
   const checksUrl = commitChecksUrl(commitSha)
   return new Error(
     `Preview tarball for commit ${commitSha} was not published` +
@@ -108,7 +192,8 @@ function notPublishedError({ commitSha, lastResponse, timeoutMs }) {
       `The tarball is published by the "upload-preview-tarballs" workflow ` +
       `once "build-and-deploy" has completed for this commit, so check ` +
       `whether that run failed or is still in progress.` +
-      (checksUrl ? ` See ${checksUrl}` : '')
+      (checksUrl ? ` See ${checksUrl}` : '') +
+      (responseHeaders ? ` Response headers: ${responseHeaders}` : '')
   )
 }
 
@@ -120,22 +205,22 @@ function notPublishedError({ commitSha, lastResponse, timeoutMs }) {
  * @param {object} options
  * @param {string} options.commitSha
  * @param {string} [options.previewBuildsBaseUrl]
- * @param {string} [options.readToken]
+ * @param {() => Promise<string | null>} [options.getReadToken]
  * @returns {Promise<void>}
  */
 export async function assertPreviewTarballPublished({
   commitSha,
   previewBuildsBaseUrl,
-  readToken,
+  getReadToken,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
-  const { published, lastResponse } = await probeTarball(
+  const { published, lastResponse, responseHeaders } = await probeTarball(
     url,
-    requestHeaders(readToken)
+    await requestHeaders(getReadToken ?? (async () => null))
   )
 
   if (!published) {
-    throw notPublishedError({ commitSha, lastResponse })
+    throw notPublishedError({ commitSha, lastResponse, responseHeaders })
   }
 
   console.info(`Preview tarball for commit ${commitSha} is available at ${url}`)
@@ -151,7 +236,7 @@ export async function assertPreviewTarballPublished({
  * @param {string} options.commitSha
  * @param {string} [options.previewBuildsBaseUrl]
  * @param {number} options.timeoutMs
- * @param {string} [options.readToken]
+ * @param {() => Promise<string | null>} [options.getReadToken]
  * @param {number} [options.pollIntervalMs]
  * @returns {Promise<void>}
  */
@@ -159,11 +244,10 @@ export async function waitForPreviewTarball({
   commitSha,
   previewBuildsBaseUrl,
   timeoutMs,
-  readToken,
+  getReadToken = async () => null,
   pollIntervalMs = POLL_INTERVAL_MS,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
-  const headers = requestHeaders(readToken)
   const startedAt = Date.now()
   const deadline = startedAt + timeoutMs
   let lastProgressLogAt = startedAt
@@ -173,7 +257,10 @@ export async function waitForPreviewTarball({
   )
 
   for (;;) {
-    const { published, lastResponse } = await probeTarball(url, headers)
+    // A fresh token per probe: the OIDC token expires after five minutes,
+    // well before the overall timeout.
+    const { published, status, lastResponse, responseHeaders } =
+      await probeTarball(url, await requestHeaders(getReadToken))
     const now = Date.now()
 
     if (published) {
@@ -183,8 +270,21 @@ export async function waitForPreviewTarball({
       return
     }
 
+    if (status === 401 || status === 403) {
+      // Retrying won't change the authorization outcome.
+      throw new Error(
+        `Not authorized to access the preview tarball at ${url} (last response: ${lastResponse}). ` +
+          (responseHeaders ? `Response headers: ${responseHeaders}` : '')
+      )
+    }
+
     if (now >= deadline) {
-      throw notPublishedError({ commitSha, lastResponse, timeoutMs })
+      throw notPublishedError({
+        commitSha,
+        lastResponse,
+        responseHeaders,
+        timeoutMs,
+      })
     }
 
     if (now - lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {
@@ -231,7 +331,7 @@ async function main() {
     commitSha,
     previewBuildsBaseUrl: values['preview-builds-base-url'],
     timeoutMs: timeoutMinutes * 60_000,
-    readToken: process.env.PREVIEW_BUILDS_READ_TOKEN,
+    getReadToken: createPreviewBuildsReadTokenGetter(),
   })
 }
 

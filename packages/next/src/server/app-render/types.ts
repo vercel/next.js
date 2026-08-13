@@ -145,7 +145,6 @@ export interface RenderOptsPartial {
   logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -176,6 +175,11 @@ export interface RenderOptsPartial {
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Resume Data Cache should be persisted without compression.
+     */
+    disableResumeDataCacheCompression: boolean
 
     /**
      * Whether the Instant Navigation Testing API is exposed (dev mode or the
