@@ -55,6 +55,7 @@ export interface DevValidationRequestSnapshot {
   isDraftMode: boolean
   isHmrRefresh: boolean
   hmrRefreshHash: string | undefined
+  requestStartTime: number
 }
 
 /**
