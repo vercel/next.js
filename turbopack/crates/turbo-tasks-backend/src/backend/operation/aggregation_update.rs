@@ -280,6 +280,15 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
+    AdjustTransientRefCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+        #[bincode(skip, default = "unreachable_decode")]
+        delta: i32,
+    },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
@@ -872,7 +881,8 @@ mod encode_jobs {
                 AggregationUpdateJob::IncreaseActiveCount { .. }
                 | AggregationUpdateJob::IncreaseActiveCounts { .. }
                 | AggregationUpdateJob::DecreaseActiveCount { .. }
-                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::AdjustTransientRefCount { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
                         #[cfg(feature = "trace_aggregation_update_queue")]
@@ -1437,6 +1447,27 @@ impl AggregationUpdateQueue {
                             ctx,
                         );
                     }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    // The delta rides the durable queue so a snapshot captures it mid-flight and it
+                    // replays to completion on restart, keeping the count crash-consistent.
+                    //
+                    // A count reaching 0 means the task lost its last persistent parent, which is
+                    // what makes it a candidate for collection.
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
+                        task.update_and_get_parent_count(delta);
+                    });
+                }
+                AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
+                    // For edges from a transient parent. Reaching 0 is not a collection trigger —
+                    // only losing a persistent parent is.
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
