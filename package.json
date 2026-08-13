@@ -8,6 +8,7 @@
   "scripts": {
     "new-error": "turbo gen error",
     "new-test": "turbo gen test",
+    "pr-adopt": "node scripts/adopt-pr.js",
     "clean": "lerna clean -y && lerna run clean && lerna exec 'node ../../scripts/rm.mjs dist'",
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "build-all": "turbo run build build-native-auto --remote-cache-timeout 60 --summarize true",
