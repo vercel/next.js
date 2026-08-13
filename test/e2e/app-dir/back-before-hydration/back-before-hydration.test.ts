@@ -191,7 +191,38 @@ describe('back navigation before hydration after reload', () => {
           expect(new URL(await browser.url()).search).toBe('?tp=1')
         })
 
+        // The router must not claim an entry it did not write.
+        expect(await browser.eval('window.history.state')).toEqual({
+          thirdParty: true,
+        })
+
         // The router still navigates.
+        await browser.elementById('to-home').click()
+        await waitForPage(browser, '#home')
+      })
+
+      it('keeps a pushState that lands during hydration', async () => {
+        const { browser, page, releaseScripts } = await loadStalled(
+          postPath,
+          '#post'
+        )
+
+        // Unlike the test above, this one pushes after the router's store has
+        // captured the URL. Writing to the entry would put that captured URL
+        // back and undo the push.
+        await page.evaluate("window.__thirdPartyPush = 'render'")
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+          expect(new URL(await browser.url()).search).toBe('?tp=1')
+        })
+
+        expect(await browser.eval('window.history.state')).toEqual({
+          thirdParty: true,
+        })
+
         await browser.elementById('to-home').click()
         await waitForPage(browser, '#home')
       })
@@ -211,6 +242,9 @@ describe('back navigation before hydration after reload', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Post')
           expect(new URL(await browser.url()).hash).toBe('#section')
         })
+
+        // The browser created this entry, not the router.
+        expect(await browser.eval('window.history.state')).toBe(null)
 
         // Hash traversals keep behaving like same-page jumps.
         await browser.back()
@@ -241,6 +275,8 @@ describe('back navigation before hydration after reload', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Post')
           expect(new URL(await browser.url()).hash).toBe('#section')
         })
+
+        expect(await browser.eval('window.history.state')).toBe(null)
 
         // Traversing over the hash entry and the pushState entry still works.
         await browser.back() // -> post
@@ -285,7 +321,7 @@ describe('back navigation before hydration after reload', () => {
 
         // Arms an effect in the fixture that pushes a third-party history
         // entry between the router's traversal detection and its replay.
-        await page.evaluate('window.__injectThirdPartyPush = true')
+        await page.evaluate("window.__thirdPartyPush = 'effect'")
         releaseScripts()
 
         await retry(async () => {
@@ -323,6 +359,8 @@ describe('back navigation before hydration after reload', () => {
           expect(await browser.eval('window.__stayed')).toBe(true)
           expect(await browser.elementByCss('h1').text()).toBe('Post')
         })
+
+        expect(await browser.eval('window.history.state')).toEqual({ a: 1 })
       })
     })
   })

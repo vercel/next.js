@@ -2,18 +2,33 @@
 
 import { useEffect } from 'react'
 
-// Simulates a third-party script writing to history between the router's
-// traversal detection and its popstate replay: this component's effect runs
-// after all insertion effects but before the parent router's effects.
+// Simulates a third-party script writing to history at one of two points the
+// router cares about. The test picks one by setting `window.__thirdPartyPush`:
+//
+// 'render' — during hydration, after the router's store captured the URL but
+//   before its first history write. A real script gets here from a timer or a
+//   deferred script that fires while the page is hydrating.
+// 'effect' — after the router detected the missed traversal but before it
+//   replays it. Child effects run before the parent router's.
+function pushIfArmed(at: 'render' | 'effect') {
+  if (
+    typeof window === 'undefined' ||
+    (window as any).__thirdPartyPush !== at
+  ) {
+    return
+  }
+  ;(window as any).__thirdPartyPush = undefined
+  window.history.pushState(
+    { thirdParty: true },
+    '',
+    window.location.pathname + '?tp=1'
+  )
+}
+
 export function ThirdPartyPush() {
+  pushIfArmed('render')
   useEffect(() => {
-    if ((window as any).__injectThirdPartyPush) {
-      window.history.pushState(
-        { thirdParty: true },
-        '',
-        window.location.pathname + '?tp=1'
-      )
-    }
+    pushIfArmed('effect')
   }, [])
   return null
 }
