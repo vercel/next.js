@@ -84,7 +84,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 6>,
+    output_dependent: AutoSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -141,6 +141,35 @@ struct TaskStorageSchema {
     /// Individual clean containers in current session (transient).
     #[field(storage = "counter_map", category = "transient")]
     aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
+
+    /// Number of **persistent** parent tasks that list this task in their `children` set.
+    /// Absent = 0. Maintained incrementally at the two `children`-edge mutation sites (via the
+    /// durable `AdjustParentCount` aggregation-update job): incremented in `connect_children`,
+    /// decremented in `CleanupOldEdges`. When it reaches 0 (and no transient parent references the
+    /// task, and it is not a root/pinned/in-progress), the task is unreachable from persistent
+    /// roots and is therefore a candidate for garbage collection.
+    ///
+    /// A count can only drop to 0 while the parent is in memory (a parent re-executed and dropped
+    /// the child), so collectibility is detectable at that moment with no DB scan.
+    // Stored inline (not lazy): `parent_count` is near-universal and mutated on every child-edge
+    // change, so a lazy-Vec scan per access is wasteful.
+    #[field(storage = "direct", category = "meta", inline, default)]
+    parent_count: u32,
+
+    /// Number of **transient** in-session references to this task that are not persistent parent
+    /// edges (this session only; never persisted). Two sources bump it:
+    /// - a **transient parent** connecting this task as a child (transient parents are never
+    ///   persisted, so their edge can't count toward the durable `parent_count`), and
+    /// - a **detached handle** that holds this task's `OperationVc` outside the tracked graph
+    ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
+    ///   root.
+    ///
+    /// A persistent task with `parent_count == 0` but `transient_ref_count > 0` is kept alive
+    /// in-session (uncollectible) — it is still referenced, just not by a persistent parent. On
+    /// restart these references are re-established (transient parents re-execute; detached handles
+    /// are re-created), so the count is never persisted.
+    #[field(storage = "direct", category = "transient", inline, default)]
+    transient_ref_count: u32,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -563,6 +592,13 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
+        // A task with a live transient reference (`transient_ref_count`: a `prevent_gc` pin, a
+        // detached handle, or a transient parent) is NOT forced fully resident — it falls through
+        // to the normal Meta/Data evictability below. That is safe because `drop_partial`
+        // retains non-default *transient* fields, so `transient_ref_count` survives as
+        // residue and the map entry is kept (`DropPartialOutcome::HasResidue`): the count
+        // can never be lost to eviction and make a still-referenced task look unreferenced.
+
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
@@ -828,6 +864,17 @@ impl TaskStorage {
             collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
             aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
         }
+    }
+
+    /// The number of persistent parents referencing this task (0 when the field is absent).
+    pub fn gc_parent_count(&self) -> u32 {
+        self.get_parent_count().copied().unwrap_or(0)
+    }
+
+    /// The number of transient (session-only) references to this task (0 when absent). See the
+    /// `transient_ref_count` field for what counts as one.
+    pub fn gc_transient_ref_count(&self) -> u32 {
+        self.get_transient_ref_count().copied().unwrap_or(0)
     }
 }
 
@@ -1178,6 +1225,9 @@ mod tests {
         original
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
+        original.set_parent_count(3);
+        // Transient ref count (should NOT be serialized).
+        original.set_transient_ref_count(9);
 
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
@@ -1223,6 +1273,9 @@ mod tests {
             decoded.aggregated_dirty_containers(),
             original.aggregated_dirty_containers()
         );
+        assert_eq!(decoded.get_parent_count(), Some(&3));
+        // Transient parent count is NOT serialized; it stays at its default (absent == 0).
+        assert_eq!(decoded.get_transient_ref_count(), None);
 
         // Note: invalidator and immutable are data category flags, not meta
         // They should NOT have changed during meta encode/decode
@@ -1720,13 +1773,13 @@ mod tests {
         assert_eq!(
             size_of::<TaskStorage>(),
             128,
-            "TaskStorage size changed! Run print_schema_sizes and update this test."
+            "TaskStorage size changed! Update this test."
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
             40,
-            "LazyField size changed! Run print_schema_sizes and update this test."
+            "LazyField size changed! Update this test."
         );
     }
 }
