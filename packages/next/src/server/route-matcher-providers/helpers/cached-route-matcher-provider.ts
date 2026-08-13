@@ -21,12 +21,27 @@ export abstract class CachedRouteMatcherProvider<
 
   protected abstract transform(data: D): Promise<ReadonlyArray<M>>
 
+  /**
+   * Whether the cached matchers have to be recomputed even though the loaded
+   * data is unchanged. Subclasses that derive matchers from something the
+   * loaded data doesn't capture (like file contents) override this.
+   */
+  protected isStale(): boolean | Promise<boolean> {
+    return false
+  }
+
   public async matchers(): Promise<readonly M[]> {
     const data = await this.loader.load()
     if (!data) return []
 
     // Return the cached matchers if the data has not changed.
-    if (this.data && this.loader.compare(this.data, data)) return this.cached
+    if (
+      this.data &&
+      this.loader.compare(this.data, data) &&
+      !(await this.isStale())
+    ) {
+      return this.cached
+    }
     this.data = data
 
     // Transform the manifest into matchers.
