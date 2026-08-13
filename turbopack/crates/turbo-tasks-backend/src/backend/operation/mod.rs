@@ -1651,6 +1651,7 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
         self.task.undo_track_modification(outcome);
     }
 
+    #[track_caller]
     fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
         self.check_access(category);
     }
