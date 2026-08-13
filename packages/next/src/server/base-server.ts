@@ -611,6 +611,9 @@ export default abstract class Server<
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          this.nextConfig.experimental.disableResumeDataCacheCompression ??
+          false,
         exposeTestingApi:
           this.nextConfig.cacheComponents === true &&
           (this.dev === true ||

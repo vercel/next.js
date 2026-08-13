@@ -16,8 +16,8 @@ This diagram shows the authentication flow using React and Next.js features:
 
 <Image
   alt="Diagram showing the authentication flow with React and Next.js features"
-  srcLight="/docs/light/authentication-overview.png"
-  srcDark="/docs/dark/authentication-overview.png"
+  srcLight="/docs/light/authentication-overview-new.png"
+  srcDark="/docs/dark/authentication-overview-new.png"
   width="1600"
   height="1383"
 />

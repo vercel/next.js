@@ -1468,6 +1468,7 @@
   "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
   "1468": "Missing workUnitStore in createComponentTree",
   "1469": "The payload's transport tree is missing a slot that exists in the loader tree: %s",
+  "1470": "`deflateResumeDataCache` should not be called in edge runtime.",
   "1470": "Invariant: image cache entry \"%s\" is empty",
   "1471": "Invariant: cannot write an empty buffer to the image cache"
 }
