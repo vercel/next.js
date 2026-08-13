@@ -49,6 +49,7 @@ import {
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
+import { bbhDebug } from './bbh-debug'
 
 const enum ScrollTargetState {
   NoClientRects,
@@ -332,7 +333,7 @@ function InnerLayoutRouter({
         // must suspend rather than render nothing, to prevent showing an
         // inconsistent route.
 
-        (typeof window !== 'undefined' &&
+        (bbhDebug() &&
           console.log(
             `[bbh-debug] inner NO-CACHENODE url=${url} — suspending on unresolvedThenable`
           )) ||
@@ -352,7 +353,7 @@ function InnerLayoutRouter({
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
-  if (typeof window !== 'undefined') {
+  if (bbhDebug()) {
     console.log(
       `[bbh-debug] inner render url=${url} active=${isActive} rscStatus=${(rsc as any)?.status ?? typeof rsc} rscValue=${(rsc as any)?.status === 'fulfilled' ? ((rsc as any).value === null ? 'NULL' : 'data') : 'n/a'} seg=${JSON.stringify(tree[0])}`
     )
@@ -366,7 +367,7 @@ function InnerLayoutRouter({
   if (isDeferredRsc(rsc)) {
     const unwrappedRsc = use(rsc)
     if (unwrappedRsc === null) {
-      if (typeof window !== 'undefined') {
+      if (bbhDebug()) {
         console.log(
           `[bbh-debug] inner NULL-DATA (deferred) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
         )
@@ -381,7 +382,7 @@ function InnerLayoutRouter({
   } else {
     // This is not a deferred RSC promise. Don't need to unwrap it.
     if (rsc === null) {
-      if (typeof window !== 'undefined') {
+      if (bbhDebug()) {
         console.log(
           `[bbh-debug] inner NULL-DATA (direct) url=${url} seg=${JSON.stringify(tree[0])} — suspending on unresolvedThenable`
         )

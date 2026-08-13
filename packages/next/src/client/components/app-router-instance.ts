@@ -39,6 +39,7 @@ import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { startRouterTransition } from './router-transition'
+import { bbhDebug } from './bbh-debug'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -160,7 +161,11 @@ function dispatchAction(
   payload: ReducerActions,
   setState: DispatchStatePromise
 ) {
-  console.log(`[bbh-debug] dispatch type=${payload.type} url=${location.href}`)
+  if (bbhDebug()) {
+    console.log(
+      `[bbh-debug] dispatch type=${payload.type} url=${location.href}`
+    )
+  }
   let resolvers: {
     resolve: (value: ReducerState) => void
     reject: (reason: any) => void

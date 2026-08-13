@@ -43,6 +43,7 @@ import {
   createNonTaskyPrefetchResponseStream,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import { bbhDebug } from '../bbh-debug'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -149,7 +150,7 @@ export async function fetchServerResponse(
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
 
-  if (typeof window !== 'undefined') {
+  if (bbhDebug()) {
     console.log(
       `[bbh-debug] fetchServerResponse start url=${url.pathname + url.search} routerStateSeg=${JSON.stringify(flightRouterState?.[0])}`
     )

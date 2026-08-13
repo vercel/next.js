@@ -8,6 +8,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: 'window.__BBH_DEBUG = true' }}
+        />
+      </head>
       <body>
         <ThirdPartyPush />
         <CommitProbe />
