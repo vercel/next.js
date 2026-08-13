@@ -83,5 +83,43 @@ describe.each(['webpack', 'turbopack'])(
         }
       )
     })
+
+    it('reuses unchanged matchers and evicts removed files', async () => {
+      const ignored = `${dir}/page.ts`
+      const one = `${dir}/one/route.ts`
+      const two = `${dir}/two/route.ts`
+      const metadata = `${dir}/sitemap.ts`
+      let files: ReadonlyArray<string> = [ignored, one, metadata]
+      const reader: FileReader = { read: jest.fn(() => files) }
+      const provider = new DevAppRouteRouteMatcherProvider(
+        dir,
+        extensions,
+        reader,
+        isTurbopack
+      )
+
+      const initial = await provider.matchers()
+      expect(initial).toHaveLength(3)
+
+      files = [ignored, one, two, metadata]
+      const expanded = await provider.matchers()
+      expect(expanded).toHaveLength(4)
+      expect(expanded[0]).toBe(initial[0])
+      expect(expanded[2]).toBe(initial[1])
+      expect(expanded[3]).toBe(initial[2])
+
+      files = [ignored, two, metadata]
+      const reduced = await provider.matchers()
+      expect(reduced[0]).toBe(expanded[1])
+      expect(reduced[1]).toBe(initial[1])
+      expect(reduced[2]).toBe(initial[2])
+
+      files = [ignored, one, two, metadata]
+      const readded = await provider.matchers()
+      expect(readded[0]).not.toBe(initial[0])
+      expect(readded[1]).toBe(expanded[1])
+      expect(readded[2]).toBe(initial[1])
+      expect(readded[3]).toBe(initial[2])
+    })
   }
 )
