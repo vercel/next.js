@@ -10,7 +10,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
-    DirectoryEntry, FileSystemPath,
+    DirectoryEntry, FileSystem, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbo_tasks_hash::HashAlgorithm;
@@ -97,6 +97,8 @@ pub async fn trace_endpoint(
             .to_resolved()
             .await?;
         let module_paths = module_data.await?.idents;
+        let project_root = project.project_fs().root().owned().await?;
+        let output_root = project.output_fs().root().owned().await?;
 
         let modules = all_modules
             .iter()
@@ -107,6 +109,16 @@ pub async fn trace_endpoint(
                     .await?
                     .context("missing path for module")?;
                 let referenced_chunk_path = &entry.path;
+
+                // Only modules in the project or output file systems correspond to deployable
+                // files. Other modules, such as embedded virtual modules, may still be part of the
+                // traced graph. Keep traversing through them above so their dependencies are
+                // traced, then omit them from the final file list.
+                if !referenced_chunk_path.is_inside_ref(&project_root)
+                    && !referenced_chunk_path.is_inside_ref(&output_root)
+                {
+                    return Ok(None);
+                }
 
                 if referenced_chunk_path.has_extension(".map") {
                     return Ok(None);
