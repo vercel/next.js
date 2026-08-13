@@ -7,6 +7,7 @@ import {
   PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { createJsonReporter } from './report/to-json'
+import type { Reporter } from './report/types'
 import type { TraceEvent } from './types'
 import { setGlobal } from './shared'
 import {
@@ -52,6 +53,18 @@ describe('Trace', () => {
     return dir
   }
 
+  // Reporters created by a test hold a descriptor on their trace file until
+  // closed. `closeAllTraces` only reaches the global reporter, so these have
+  // to be tracked separately or cleanup cannot remove their directory.
+  const reporters: Reporter[] = []
+  function makeJsonReporter(
+    ...args: Parameters<typeof createJsonReporter>
+  ): Reporter {
+    const reporter = createJsonReporter(...args)
+    reporters.push(reporter)
+    return reporter
+  }
+
   beforeEach(() => {
     initializeTraceState({
       lastId: 0,
@@ -64,9 +77,13 @@ describe('Trace', () => {
   })
 
   afterAll(async () => {
-    // Windows refuses to remove a directory containing an open file, so the
-    // trace file handle has to go first.
+    // Windows refuses to remove a directory containing an open file, so every
+    // trace file handle has to go first -- the global reporter's and the ones
+    // the tests created themselves.
     closeAllTraces()
+    for (const reporter of reporters.splice(0)) {
+      reporter.close?.()
+    }
     await Promise.all(
       tmpDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
     )
@@ -136,7 +153,7 @@ describe('Trace', () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -162,7 +179,7 @@ describe('Trace', () => {
       const distDir = join(tmpDir, 'dist')
       setGlobal('distDir', distDir)
       setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -180,7 +197,7 @@ describe('Trace', () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -202,7 +219,7 @@ describe('Trace', () => {
       const file = join(tmpDir, 'trace')
 
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
-      const build = createJsonReporter({
+      const build = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -211,7 +228,7 @@ describe('Trace', () => {
       expect(readSpanNames(file)).toEqual(['from-build'])
 
       // A second production reporter starts the file over.
-      const rebuild = createJsonReporter({
+      const rebuild = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -221,7 +238,7 @@ describe('Trace', () => {
 
       // Dev keeps accumulating across sessions instead.
       setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-      const dev = createJsonReporter({ filename: 'trace', sizeLimit: Infinity })
+      const dev = makeJsonReporter({ filename: 'trace', sizeLimit: Infinity })
       dev.report(traceEvent('from-dev'))
       dev.flushAll()
       expect(readSpanNames(file)).toEqual(['from-rebuild', 'from-dev'])
@@ -240,7 +257,7 @@ describe('Trace', () => {
       const first = '第'.repeat(200)
       const second = '弐'.repeat(200)
       const limit = 1024
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: limit,
       })
@@ -269,7 +286,7 @@ describe('Trace', () => {
       // length because the encoded size shifts with `traceId` ($TRACE_ID).
       // 200 events of any of these sizes overflows the buffer several times.
       for (let length = 100; length < 260; length++) {
-        const reporter = createJsonReporter({
+        const reporter = makeJsonReporter({
           filename: `trace-${length}`,
           sizeLimit: Infinity,
         })
@@ -291,7 +308,7 @@ describe('Trace', () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
@@ -319,7 +336,7 @@ describe('Trace', () => {
       // Sweep name lengths so events land at every offset relative to the
       // buffer boundary, mixing 1-, 3- and 4-byte characters.
       for (let length = 1; length < 120; length++) {
-        const reporter = createJsonReporter({
+        const reporter = makeJsonReporter({
           filename: `trace-${length}`,
           sizeLimit: Infinity,
         })
@@ -340,7 +357,7 @@ describe('Trace', () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
-      const reporter = createJsonReporter({
+      const reporter = makeJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
