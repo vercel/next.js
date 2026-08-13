@@ -259,9 +259,19 @@ describe('local span recording', () => {
     getTracer().trace(NodeSpan.runHandler, () => undefined)
     expect(exportedSpans).toEqual([NodeSpan.runHandler])
 
+    getTracer().trace(LoadComponentsSpan.loadRouteModule, () => undefined)
+    expect(exportedSpans).toEqual([
+      NodeSpan.runHandler,
+      LoadComponentsSpan.loadRouteModule,
+    ])
+
     process.env.NEXT_OTEL_VERBOSE = '1'
     getTracer().trace(BaseServerSpan.render, () => undefined)
-    expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
+    expect(exportedSpans).toEqual([
+      NodeSpan.runHandler,
+      LoadComponentsSpan.loadRouteModule,
+      BaseServerSpan.render,
+    ])
   })
 
   it('does not record or export hidden spans', () => {
