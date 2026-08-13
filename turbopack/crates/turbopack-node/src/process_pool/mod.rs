@@ -299,6 +299,20 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
     }
 }
 
+fn validate_env_for_child_process(env: &FxHashMap<RcStr, RcStr>) -> Result<()> {
+    for (name, value) in env {
+        if let Some((name_prefix, _)) = name.split_once('\0') {
+            // Bytes after the NUL may contain secrets from a corrupted environment entry.
+            bail!("environment variable name {name_prefix:?} contains a NUL byte");
+        }
+        if value.contains('\0') {
+            // Values may contain secrets, and this error can be persisted in a panic log.
+            bail!("environment variable {name:?} contains a NUL byte in its value");
+        }
+    }
+    Ok(())
+}
+
 impl NodeJsPoolProcess {
     async fn new(
         cwd: &Path,
@@ -334,6 +348,8 @@ impl NodeJsPoolProcess {
             std::env::var("SystemRoot")
                 .expect("the SystemRoot environment variable should always be set"),
         );
+        // `Command::spawn` otherwise reports only that some data contains a NUL byte.
+        validate_env_for_child_process(env)?;
         cmd.envs(env);
         cmd.stderr(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -976,5 +992,53 @@ impl Drop for ChildProcessOperation {
                 self.idle_processes.push(process, &ACTIVE_POOLS);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashMap;
+    use turbo_rcstr::RcStr;
+
+    use super::validate_env_for_child_process;
+
+    fn env(entries: &[(&str, &str)]) -> FxHashMap<RcStr, RcStr> {
+        entries
+            .iter()
+            .map(|&(name, value)| (RcStr::from(name), RcStr::from(value)))
+            .collect()
+    }
+
+    #[test]
+    fn accepts_env_without_nul_bytes() {
+        assert!(validate_env_for_child_process(&env(&[("NAME", "value")])).is_ok());
+    }
+
+    #[test]
+    fn reports_prefix_without_exposing_suffix_of_name_containing_nul_byte() {
+        let error = validate_env_for_child_process(&env(&[("BAD\0sensitive-suffix", "value")]))
+            .unwrap_err()
+            .to_string();
+
+        assert_eq!(
+            error,
+            "environment variable name \"BAD\" contains a NUL byte"
+        );
+    }
+
+    #[test]
+    fn reports_name_without_exposing_value_containing_nul_byte() {
+        let error = validate_env_for_child_process(&env(&[(
+            "steam_master_ipc_name_override",
+            "sensitive-prefix\0sensitive-suffix",
+        )]))
+        .unwrap_err()
+        .to_string();
+
+        assert_eq!(
+            error,
+            "environment variable \"steam_master_ipc_name_override\" contains a NUL byte in its \
+             value"
+        );
     }
 }
