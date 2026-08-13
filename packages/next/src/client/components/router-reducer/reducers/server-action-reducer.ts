@@ -47,7 +47,10 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
+import {
+  invalidateEntirePrefetchCache,
+  segmentCacheMap,
+} from '../../segment-cache/cache'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
@@ -513,6 +516,8 @@ export function serverActionReducer(
           scrollBehavior,
           navigateType,
           navigationLock,
+          // A server-action redirect navigation is bound to the shared map.
+          segmentCacheMap,
           null,
           // Server action redirects don't use route prediction - we already
           // have the route tree from the server response. If a mismatch occurs

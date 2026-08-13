@@ -26,6 +26,8 @@ import {
   type NavigationSeed,
 } from '../segment-cache/navigation'
 import {
+  segmentCacheMap,
+  type SegmentCacheEntry,
   type RouteTree,
   type RefreshState,
   type FulfilledRouteCacheEntry,
@@ -45,6 +47,7 @@ import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import type { CacheMap } from '../segment-cache/cache-map'
 import {
   getRenderedSearchFromVaryPath,
   type PageVaryPath,
@@ -180,6 +183,8 @@ export function createInitialCacheNodeForHydration(
     seedDynamicStaleAt,
     false,
     accumulation,
+    // Hydration is bound to the shared map.
+    segmentCacheMap,
     restrictToShell
   )
   return task
@@ -228,6 +233,9 @@ export function startPPRNavigation(
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
   accumulation: NavigationRequestAccumulation,
+  // The segment cache map this navigation is bound to: a locked navigation's
+  // driving-task map, or the shared map. See `segmentCacheMap` in cache.ts.
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -254,6 +262,7 @@ export function startPPRNavigation(
     oldRootRefreshState,
     parentRefreshState,
     accumulation,
+    map,
     restrictToShell
   )
 }
@@ -274,6 +283,7 @@ function updateCacheNodeOnNavigation(
   oldRootRefreshState: RefreshState,
   parentRefreshState: RefreshState | null,
   accumulation: NavigationRequestAccumulation,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -337,6 +347,7 @@ function updateCacheNodeOnNavigation(
       seedDynamicStaleAt,
       parentNeedsDynamicRequest,
       accumulation,
+      map,
       restrictToShell
     )
   }
@@ -407,6 +418,7 @@ function updateCacheNodeOnNavigation(
       oldCacheNode !== undefined
         ? oldCacheNode.bfcacheId
         : generateBFCacheId(freshness),
+      map,
       restrictToShell
     )
     newCacheNode = result.cacheNode
@@ -551,6 +563,7 @@ function updateCacheNodeOnNavigation(
         oldRootRefreshState,
         refreshState,
         accumulation,
+        map,
         restrictToShell
       )
 
@@ -664,6 +677,7 @@ function createCacheNodeOnNavigation(
   seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
   accumulation: NavigationRequestAccumulation,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -695,6 +709,7 @@ function createCacheNodeOnNavigation(
     // This segment was not part of the previous route, so mint a fresh
     // bfcacheId.
     generateBFCacheId(freshness),
+    map,
     restrictToShell
   )
   const newCacheNode = result.cacheNode
@@ -733,6 +748,7 @@ function createCacheNodeOnNavigation(
         seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
         accumulation,
+        map,
         restrictToShell
       )
 
@@ -959,6 +975,7 @@ function createCacheNodeForSegment(
   freshness: FreshnessPolicy,
   dynamicStaleAt: number,
   bfcacheId: number,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -1109,6 +1126,7 @@ function createCacheNodeForSegment(
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
     now,
+    map,
     tree.varyPath,
     restrictToShell
   )
@@ -1216,6 +1234,7 @@ function createCacheNodeForSegment(
     if (metadataVaryPath !== null) {
       const metadataEntry = readSegmentCacheEntryForNavigation(
         now,
+        map,
         metadataVaryPath,
         restrictToShell
       )
@@ -1425,6 +1444,9 @@ export function spawnDynamicRequests(
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock | null,
+  // The segment cache map this navigation is bound to. See `segmentCacheMap`
+  // in cache.ts.
+  map: CacheMap<SegmentCacheEntry>,
   signal: AbortSignal | undefined
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
@@ -1451,6 +1473,7 @@ export function spawnDynamicRequests(
     freshnessPolicy,
     routeCacheEntry,
     navigationLock,
+    map,
     signal
   )
 
@@ -1505,6 +1528,7 @@ export function spawnDynamicRequests(
             freshnessPolicy,
             routeCacheEntry,
             navigationLock,
+            map,
             signal
           )
         )
@@ -1783,6 +1807,7 @@ async function fetchMissingDynamicData(
   freshnessPolicy: FreshnessPolicy,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   navigationLock: NavigationLock | null,
+  map: CacheMap<SegmentCacheEntry>,
   signal: AbortSignal | undefined
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
@@ -1847,7 +1872,8 @@ async function fetchMissingDynamicData(
             staleAt,
             dynamicRequestTree,
             result.renderedSearch,
-            isResponsePartial
+            isResponsePartial,
+            map
           )
         })
         .catch(() => {
@@ -1875,7 +1901,8 @@ async function fetchMissingDynamicData(
               processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              map
             )
           }
         })
