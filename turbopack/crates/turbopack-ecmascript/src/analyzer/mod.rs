@@ -366,6 +366,7 @@ mod tests {
                 true,
                 SpecifiedModuleType::EcmaScript,
                 true,
+                false,
             );
             anyhow::Ok((eval_context, var_graph))
         })?;

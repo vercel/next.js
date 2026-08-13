@@ -45,7 +45,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     canonicalize_to_rcstr, invalidation,
 };
 use turbo_unix_path::join_path;
@@ -102,6 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    next_server_nft::require_hook_modules,
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -294,8 +295,14 @@ impl DebugBuildPathsRouteKeys {
 
     fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
         // Special pages router framework routes
-        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-            return true;
+        if matches!(
+            route_key.as_str(),
+            "/_error" | "/_document" | "/_app" | "/404" | "/500"
+        ) {
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
         }
         self.pages.contains(route_key)
     }
@@ -630,9 +637,7 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             if watch.enable {
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
+                project_fs.start_watching().await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     // this path is just used for display purposes
@@ -775,9 +780,7 @@ impl ProjectContainer {
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
                 if watch.enable {
                     // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs
-                        .start_watching_with_invalidation_reason(watch.poll_interval)
-                        .await?;
+                    project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                         // this path is just used for display purposes
@@ -1086,10 +1089,16 @@ impl Project {
             .unwrap()
             .into();
 
-        Ok(DiskFileSystem::new_with_denied_paths(
+        Ok(DiskFileSystem::new_with_options(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path, denied_profiles_path],
+            DiskWatcherConfig {
+                recursive_mode: None,
+                poll_interval: self.watch.poll_interval,
+                // the dev server reports these to the user
+                report_invalidation_reason: true,
+            },
         ))
     }
 
@@ -1452,7 +1461,10 @@ impl Project {
                 .chain(std::iter::once(self.client_main_modules().owned().await?))
                 .chain(std::iter::once(GraphEntries::new(
                     vec![],
-                    self.additional_traced_modules().owned().await?,
+                    // The superset of what any endpoint traces, so that these modules and their
+                    // references are part of the graph. Which endpoint actually traces them is
+                    // decided by what is passed to `trace_endpoint`.
+                    self.pages_traced_modules().owned().await?,
                 ))),
         );
 
@@ -1620,7 +1632,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1659,7 +1671,7 @@ impl Project {
                 output_root: self.node_root().owned().await?,
                 output_root_to_root_path: self.node_root_to_root_path().owned().await?,
                 environment: self.client_compile_time_info().environment(),
-                minify: self.next_config().turbo_minify(self.next_mode()),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
@@ -1709,7 +1721,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1751,7 +1763,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -2605,7 +2617,7 @@ impl Project {
                 bail!("must be in dev mode to hmr")
             };
             let root = this.aggregate_hmr_root_path(target).owned().await?;
-            AggregateHmrVersion::from_map(*map, &root).await
+            AggregateHmrVersion::from_map(*map, root).await
         }
         let version_op = aggregate_hmr_version_operation(self, target);
 
@@ -2647,7 +2659,7 @@ impl Project {
             bail!("must be in dev mode to hmr")
         };
         let root = self.aggregate_hmr_root_path(target).owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
         if chunks_versioned_content.is_empty() {
@@ -2839,6 +2851,26 @@ impl Project {
                 .map(|m| m.to_resolved())
                 .try_join()
                 .await?,
+        ))
+    }
+
+    /// [`Project::additional_traced_modules`] plus the modules
+    /// `next/dist/server/require-hook` resolves at runtime. Only the Pages Router needs the
+    /// latter, so this is the traced module list for pages endpoints, while other endpoints use
+    /// [`Project::additional_traced_modules`].
+    #[turbo_tasks::function]
+    pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+
+        Ok(Vc::cell(
+            self.additional_traced_modules()
+                .owned()
+                .await?
+                .into_iter()
+                .chain(hook_modules)
+                .collect(),
         ))
     }
 }

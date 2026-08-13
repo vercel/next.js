@@ -27,7 +27,11 @@ import {
   appendSegmentRequestKeyPart,
   createSegmentRequestKeyPart,
 } from '../../../shared/lib/segment-cache/segment-value-encoding'
-import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
+import { matchSegment } from '../match-segments'
 import type { NormalizedSearch } from './cache-key'
 import type {
   PageVaryPath,
@@ -61,6 +65,16 @@ export type NavigationSeed = {
   isHeadPartial: boolean
   headVaryParams: VaryParamsIterable | null
   dynamicStaleAt: number
+  // Whether the response rendered a segment whose identity differs from the
+  // base tree's at the same position (inactive parallel route branches are
+  // expected to differ and don't count). Only meaningful when the base is a
+  // request tree derived from a cached route entry, as during a prefetch:
+  // divergence then means the entry doesn't describe what the server renders
+  // — the URL has a rewrite that behaves dynamically (see
+  // fetchSegmentPrefetchesUsingDynamicRequest). During a navigation the base
+  // is the current page's tree, so divergence carries no signal. False when
+  // there was no base to compare against.
+  treeDivergedFromBase: boolean
 }
 
 export function convertServerPatchToFullTree(
@@ -80,8 +94,9 @@ export function convertServerPatchToFullTree(
   // (RSCSegmentData). Pass a null transportData to convert the base tree
   // alone (e.g. for refreshes and history restores, before a response
   // is received).
-  const acc: { metadataVaryPath: PageVaryPath | null } = {
+  const acc: RouteTreeAccumulator = {
     metadataVaryPath: null,
+    treeDivergedFromBase: false,
   }
   let routeTree: RouteTree<RSCSegmentData | null>
   let head: HeadData | null = null
@@ -116,6 +131,7 @@ export function convertServerPatchToFullTree(
     isHeadPartial,
     headVaryParams,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
+    treeDivergedFromBase: acc.treeDivergedFromBase,
   }
 }
 
@@ -243,6 +259,7 @@ export function decodeTransportTreeIntoRouteTree(
   return decodeTransportNode(
     transportNode,
     baseRouterState ?? undefined,
+    baseRouterState ?? undefined,
     ROOT_SEGMENT_REQUEST_KEY,
     null,
     renderedSearch,
@@ -253,6 +270,12 @@ export function decodeTransportTreeIntoRouteTree(
 function decodeTransportNode(
   node: PartialTransportNode,
   base: FlightRouterState | undefined,
+  // The base node to compare segment identities against (see
+  // NavigationSeed.treeDivergedFromBase). Tracked separately from `base`:
+  // inheritance drops the base inside authoritative subtrees, where the
+  // comparison must continue, and keeps it through inactive parallel routes,
+  // where the comparison must stop.
+  compareBase: FlightRouterState | undefined,
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
@@ -264,6 +287,33 @@ function decodeTransportNode(
   const inheritedBase = inheritsFromBase ? base : undefined
 
   const originalSegment = transportSegmentToSegment(node.s)
+
+  if (compareBase !== undefined && !acc.treeDivergedFromBase) {
+    // Every transport node echoes the segment's identity, even "skipped"
+    // ones, so each position can be compared against the base.
+    const transportSegment = node.s
+    if (typeof transportSegment !== 'string' && transportSegment.k == null) {
+      // The server omitted the param value for the client to parse from the
+      // URL (see the TODO in transportSegmentToSegment). Nothing to compare;
+      // the children are still checked.
+    } else {
+      const baseSegment = compareBase[0]
+      if (
+        typeof originalSegment === 'string' &&
+        typeof baseSegment === 'string' &&
+        originalSegment.startsWith(PAGE_SEGMENT_KEY) &&
+        baseSegment.startsWith(PAGE_SEGMENT_KEY)
+      ) {
+        // Page segments match modulo embedded search params, which are
+        // validated separately (see getRenderedSearch).
+      } else if (originalSegment === DEFAULT_SEGMENT_KEY) {
+        // A default filled in by the server is not a claim about the
+        // position's identity.
+      } else if (!matchSegment(baseSegment, originalSegment)) {
+        acc.treeDivergedFromBase = true
+      }
+    }
+  }
 
   const baseHints = inheritedBase !== undefined ? (inheritedBase[4] ?? 0) : 0
   let prefetchHints = node.h ?? baseHints
@@ -310,6 +360,25 @@ function decodeTransportNode(
       const childBase =
         baseChildren !== undefined ? baseChildren[parallelRouteKey] : undefined
       const childSegment = transportSegmentToSegment(childNode.s)
+
+      let childCompareBase: FlightRouterState | undefined
+      if (compareBase !== undefined && !acc.treeDivergedFromBase) {
+        const childCompareCandidate = compareBase[1][parallelRouteKey]
+        if (childCompareCandidate === undefined) {
+          // A slot the base tree doesn't have. Unless the server merely
+          // filled it with a default, the trees have different structures.
+          if (childSegment !== DEFAULT_SEGMENT_KEY) {
+            acc.treeDivergedFromBase = true
+          }
+        } else if ((childCompareCandidate[2] ?? null) !== null) {
+          // The base branch carries a refresh state: an inactive parallel
+          // route reused from a different route (e.g. a "default" slot). The
+          // server's answer is expected to differ, so skip the branch.
+        } else {
+          childCompareBase = childCompareCandidate
+        }
+      }
+
       const childRequestKey = appendSegmentRequestKeyPart(
         requestKey,
         parallelRouteKey,
@@ -318,6 +387,7 @@ function decodeTransportNode(
       const childTree = decodeTransportNode(
         childNode,
         childBase,
+        childCompareBase,
         childRequestKey,
         partialVaryPath,
         renderedSearch,

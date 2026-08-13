@@ -323,9 +323,9 @@ Prefer per-component boundaries inside the page (patterns #1–#5) over one big 
 
 Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Session data from `cookies()` and `headers()` is handled by the earlier patterns. URL data is different: `params`, `searchParams`, and the full URL belong to one link, while the App Shell is shared by every link to the route.
 
-If the whole route depends on URL data, pushing the read lower may leave no meaningful shared shell to commit. That is the optimizer's stop point, not another shell refactor. Return to `SKILL.md` after the optimization loop for the optional runtime-prefetch follow-up.
+If the whole route depends on URL data, pushing the read lower may leave no meaningful shared shell to commit. That is the optimizer's stop point, not another shell refactor. Return to `SKILL.md` after the optimization loop for the optional per-link-prefetch follow-up.
 
-Runtime prefetching is the only way for this soft navigation to commit the
+Per-link prefetching is the only way for this soft navigation to commit the
 URL-specific content before the click. It has **three requirements**:
 
 ```tsx
@@ -347,11 +347,11 @@ Under `instant()` the runtime entry is what commits, so the real content, not a 
 Gotchas (each cost real debugging time):
 
 - **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); use `<Link prefetch={true}>` for normal links, or keep an existing manual full-prefetch abstraction if the app already owns one. If the route is still RED after caching the URL-dependent content, the navigation may still be doing an auto prefetch.
-- **Partial Prefetching must be adopted for the destination.** Runtime prefetching rides on the Partial Prefetching path. If the route is still RED after caching the URL-dependent content, check whether the link is still doing an auto prefetch or whether the destination never adopted Partial Prefetching.
+- **Partial Prefetching must be adopted for the destination.** Per-link prefetching uses the Partial Prefetching path. If the route is still RED after caching the URL-dependent content, check whether the link is still doing an auto prefetch or whether the destination never adopted Partial Prefetching.
 - **Prefetch the canonical URL.** A link whose href 307-redirects (a `/foo` that canonicalizes to `/`) can't be prefetched — the prefetch receives the redirect, not the tree. Point the link and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; enabling it for every visible link is wasteful. Scope `prefetch={true}` to the runtime-prefetch targets only, using the [runtime prefetching trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs) and [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) when many links are visible.
+- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; enabling it for every visible link is wasteful. Scope `prefetch={true}` to the per-link-prefetch targets only, using the [trade-offs](https://nextjs.org/docs/app/guides/optimizing-prefetching#trade-offs) and [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) when many links are visible.
 - **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text isn't in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
 
-Prefer a static shell (patterns 1–9) whenever the URL-data read can move: it's cheaper than a runtime prefetch and also covers hard load. Runtime prefetching is only for URL-data reads that genuinely can't move, or routes whose useful content is all URL-specific.
+Prefer a static shell (patterns 1–9) whenever the URL-data read can move: it's cheaper than a per-link prefetch and also covers hard load. Per-link prefetching is only for URL-data reads that genuinely can't move, or routes whose useful content is all URL-specific.
 
 **Insight:** [dynamic data during prefetching](https://nextjs.org/docs/messages/instant-link-prefetch-partial).

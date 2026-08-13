@@ -377,7 +377,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         if self.external_type == CachedExternalType::CommonJs {
-            EcmascriptExports::CommonJs.cell()
+            EcmascriptExports::CommonJs(None).cell()
         } else {
             EcmascriptExports::DynamicNamespace.cell()
         }

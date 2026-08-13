@@ -738,7 +738,7 @@ In this demo, the comment thread stays dynamic because readers expect the curren
 
 #### Prefetch the destination with the real request
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell): the route output that is shared across links for the current user. The shell does not include [URL data](/docs/app/glossary#url-data), because `params` and `searchParams` are link-specific. Opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` to resolve that URL data ahead of the click:
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell): the route output that is shared across links for the current user. The shell does not include [URL data](/docs/app/glossary#url-data), because `params` and `searchParams` are link-specific. Opt the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with `prefetch={true}` to resolve that URL data ahead of the click:
 
 ```tsx filename="features/task/components/task-card.tsx"
 <Link href={`/task/${id}`} prefetch={true}>
@@ -746,7 +746,7 @@ Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next
 </Link>
 ```
 
-Runtime prefetching is most valuable when the destination has URL-specific work that users are likely to need next. Cached reads make the prefetched output reusable and tag-invalidatable in the [Client Cache](/docs/app/glossary#client-cache); dynamic reads can still resolve before the click, but each prefetch can do real server work. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
+Per-link prefetching is most valuable when the destination has URL-specific work that users are likely to need next. Cached reads make the prefetched output reusable and tag-invalidatable in the [Client Cache](/docs/app/glossary#client-cache); dynamic reads can still resolve before the click, but each prefetch can do real server work. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
 
 ## Next steps
 
@@ -760,12 +760,14 @@ The patterns in this guide combine a handful of primitives:
 | A form needs pending, reset, and result state                             | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                                                                                                         |
 | An ancestor should show pending state for work happening elsewhere        | [`data-pending`](https://react.dev/reference/react-dom/components/form#props) attribute styled with CSS                                                                                                                                                                      |
 | Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
-| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [Runtime prefetching](/docs/app/guides/runtime-prefetching) via `prefetch={true}` for content that depends on URL data        |
+| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [per-link prefetching](/docs/app/guides/optimizing-prefetching) via `prefetch={true}` for content that depends on URL data    |
 
 Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
 
 Related guides:
 
+- [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, providing initial data from a Server Component, and client cache coordination
 - [Streaming](/docs/app/guides/streaming) for loading boundaries and `<Suspense>` patterns
 - [Instant Navigation](/docs/app/guides/instant-navigation) for validating that navigations stay instant
 - [View Transitions](/docs/app/guides/view-transitions) for animating state changes
+- [Single-page applications](/docs/app/guides/single-page-applications#mutating-data-with-server-actions) for a shared-reducer `useOptimistic` example that keeps client and server list updates in sync

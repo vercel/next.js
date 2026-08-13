@@ -13,8 +13,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -392,11 +392,16 @@ async fn to_single_pattern_mapping(
         }
     }
     CodeGenerationIssue {
-        severity: IssueSeverity::Bug,
+        severity: IssueSeverity::Error,
         title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
-        message: StyledString::Text(rcstr!(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id"
-        ))
+        message: StyledString::Text(
+            format!(
+                "{} is not placeable in ESM chunks, so it doesn't have a module id and can't be \
+                 imported here. Only modules that are compiled to JavaScript can be imported.",
+                module.ident().to_string().await?
+            )
+            .into(),
+        )
         .resolved_cell(),
         path: origin.into_trait_ref().await?.origin_path(),
         source: None,
