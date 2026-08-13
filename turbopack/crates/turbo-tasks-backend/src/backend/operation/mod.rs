@@ -1264,12 +1264,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Adjust the count of **persistent** parents referencing this task by `delta` (+1 when a
-    /// persistent parent connects it as a child, -1 when one disconnects it) and return the new
-    /// value. A value of 0 means no persistent parent lists this task — a prerequisite for
-    /// collection. Panics on underflow/overflow: the count must equal the true number of
-    /// `children`-edge references, so drifting from that invariant must fail loudly rather than
-    /// corrupt collectibility.
+    /// Adjust the count of persistent parents referencing this task by `delta`
+    ///
+    /// Panics on underflow/overflow
     fn update_and_get_parent_count(&mut self, delta: i32) -> u32 {
         let current = self.get_parent_count().copied().unwrap_or(0);
         let new_value = current
@@ -1280,9 +1277,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
-    /// reference count that keeps a persistent task alive while a transient parent references it.
-    /// Panics on underflow/overflow for the same reason (an accounting drift, not a recoverable
-    /// condition).
+    /// reference count
+    /// Panics on underflow/overflow.
     fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
         let current = self.get_transient_ref_count().copied().unwrap_or(0);
         let new_value = current

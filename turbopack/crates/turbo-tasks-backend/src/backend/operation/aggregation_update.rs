@@ -1449,18 +1449,11 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
-                    // The delta rides the durable queue so a snapshot captures it mid-flight and it
-                    // replays to completion on restart, keeping the count crash-consistent.
-                    //
-                    // A count reaching 0 means the task lost its last persistent parent, which is
-                    // what makes it a candidate for collection.
                     ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
                         task.update_and_get_parent_count(delta);
                     });
                 }
                 AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
-                    // For edges from a transient parent. Reaching 0 is not a collection trigger —
-                    // only losing a persistent parent is.
                     ctx.for_each_task_meta(
                         task_ids,
                         "AdjustTransientRefCount",

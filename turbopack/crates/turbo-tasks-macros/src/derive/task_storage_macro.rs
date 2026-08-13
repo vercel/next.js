@@ -3089,9 +3089,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                 self.#field_name.is_empty()
             },
             StorageType::Direct => {
-                // Fully-qualified `Default` so a bare scalar field (e.g. `u32`) doesn't trip
-                // `Default::default()` type-inference ambiguity — the newtype direct fields infer
-                // fine, but a primitive needs the type spelled out.
+                // Fully-qualified `Default` so we don't have type-inference ambiguity.
                 let field_type = &field.field_type;
                 quote! {
                     self.#field_name == <#field_type as Default>::default()
