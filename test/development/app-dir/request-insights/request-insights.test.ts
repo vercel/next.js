@@ -564,8 +564,8 @@ describe('request insights', () => {
         { label: 'Verbose traces', checked: 'true' },
       ])
       expect(internalRows.length).toBeGreaterThan(0)
+      expect(internalRows.some((row) => row.nested)).toBe(true)
       for (const row of internalRows) {
-        expect(row.nested).toBe(false)
         expect(row.label).toContain('Instant Insights')
       }
     })

@@ -63,11 +63,11 @@ describe('request insights trace viewer', () => {
     })
 
     expect(getRequestListEntries([instantInsights, request], false)).toEqual([
-      { request },
+      { request, nested: false },
     ])
   })
 
-  it('keeps internal records flat and in capture order', () => {
+  it('nests internal records under their owning request', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
@@ -90,10 +90,21 @@ describe('request insights trace viewer', () => {
         true
       )
     ).toEqual([
-      { request: newerInstantInsights },
-      { request: newerRequest },
-      { request: olderInstantInsights },
-      { request: olderRequest },
+      { request: newerRequest, nested: false },
+      { request: newerInstantInsights, nested: true },
+      { request: olderRequest, nested: false },
+      { request: olderInstantInsights, nested: true },
+    ])
+  })
+
+  it('keeps internal records without a retained owner at the root', () => {
+    const instantInsights = createRequest({
+      requestId: 'orphan',
+      kind: 'instant-insights',
+    })
+
+    expect(getRequestListEntries([instantInsights], true)).toEqual([
+      { request: instantInsights, nested: false },
     ])
   })
 
