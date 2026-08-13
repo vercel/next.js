@@ -1534,6 +1534,9 @@ function rejectSegmentCacheEntry(
 
 type RouteTreeAccumulator = {
   metadataVaryPath: PageVaryPath | null
+  // Whether the decoded tree's segment identities diverged from the base
+  // tree it was overlaid onto. See NavigationSeed.treeDivergedFromBase.
+  treeDivergedFromBase: boolean
 }
 
 function convertRootTreePrefetchToRouteTree(
@@ -2097,7 +2100,10 @@ export async function fetchRouteOnCacheMiss(
       //
       // During this traversal, we accumulate additional data into this
       // "accumulator" object.
-      const acc: RouteTreeAccumulator = { metadataVaryPath: null }
+      const acc: RouteTreeAccumulator = {
+        metadataVaryPath: null,
+        treeDivergedFromBase: false,
+      }
       const routeTree = convertRootTreePrefetchToRouteTree(
         serverData,
         renderedPathname,
@@ -3305,6 +3311,39 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // Not needed for prefetch responses; pass unknown to use the default.
       UnknownDynamicStaleTime
     )
+
+    if (
+      navigationSeed.treeDivergedFromBase &&
+      // A head-only request uses the MetadataOnlyRequestTree stub rather than
+      // a tree derived from the route entry, so divergence from it carries
+      // no signal.
+      // TODO: This special case goes away once convertServerPatchToFullTree
+      // diffs against the base RouteTree (route.tree) instead of the
+      // request tree.
+      dynamicRequestTree !== MetadataOnlyRequestTree
+    ) {
+      // The server rendered a different route tree than the one we requested:
+      // the URL has a rewrite that behaves dynamically, so the params baked
+      // into the request are wrong and the server can never fulfill it. Mark
+      // the route entry — which doubles as the stored prediction pattern, so
+      // this also disables a bad prediction (see matchKnownRoute) that would
+      // otherwise be re-derived on every retry — and invalidate entries that
+      // were derived from it. This mirrors dispatchRetryDueToTreeMismatch on
+      // the navigation path. It can't loop: the refetched route entry is
+      // built from the server's response, so it only mismatches again if the
+      // rewrite's behavior changes again.
+      markRouteEntryAsDynamicRewrite(route)
+      invalidateRouteCacheEntries(key.nextUrl, task.treeAtTimeOfPrefetch)
+      // Reject with an immediate expiration instead of the usual backoff: the
+      // invalidation above triggers a re-prefetch, which per the above does
+      // not loop.
+      // TODO: Consider also bounding retries with a counter on the task
+      // object, so a prefetch that repeatedly fails to settle backs off
+      // regardless of the reason.
+      rejectSegmentEntriesIfStillPending(spawnedEntries, -1)
+      return null
+    }
+
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
@@ -3407,7 +3446,10 @@ function writeDynamicTreeResponseIntoCache(
   //
   // During this traversal, we accumulate additional data into this
   // "accumulator" object.
-  const acc: RouteTreeAccumulator = { metadataVaryPath: null }
+  const acc: RouteTreeAccumulator = {
+    metadataVaryPath: null,
+    treeDivergedFromBase: false,
+  }
   const routeTree = convertRootFlightRouterStateToRouteTree(
     flightRouterState,
     renderedSearch,
