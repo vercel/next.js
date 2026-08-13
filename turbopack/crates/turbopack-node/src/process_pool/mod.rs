@@ -299,6 +299,26 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
     }
 }
 
+fn validate_env_for_nul_bytes(env: &FxHashMap<RcStr, RcStr>) -> Result<()> {
+    for (key, value) in env {
+        if key.contains('\0') {
+            bail!(
+                "environment variable name {key:?} contains a NUL byte, which cannot be passed \
+                 to a subprocess. Fix or unset the variable in your shell/session before running \
+                 the build."
+            );
+        }
+        if value.contains('\0') {
+            bail!(
+                "environment variable {key:?} has a value containing a NUL byte, which cannot \
+                 be passed to a subprocess. Value: {value:?}. Fix or unset the variable in your \
+                 shell/session before running the build."
+            );
+        }
+    }
+    Ok(())
+}
+
 impl NodeJsPoolProcess {
     async fn new(
         cwd: &Path,
@@ -334,6 +354,12 @@ impl NodeJsPoolProcess {
             std::env::var("SystemRoot")
                 .expect("the SystemRoot environment variable should always be set"),
         );
+        // Reject env vars containing NUL bytes up-front. Otherwise `spawn()` fails deep in the
+        // Node.js subprocess bootstrap with only "nul byte found in provided data", which the
+        // surrounding transform pipeline (e.g. PostCSS) then attributes to the module it was
+        // processing at the time. Naming the offending variable here makes the real cause
+        // obvious. See https://github.com/vercel/next.js/issues/97265.
+        validate_env_for_nul_bytes(env)?;
         cmd.envs(env);
         cmd.stderr(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -976,5 +1002,50 @@ impl Drop for ChildProcessOperation {
                 self.idle_processes.push(process, &ACTIVE_POOLS);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashMap;
+    use turbo_rcstr::RcStr;
+
+    use super::validate_env_for_nul_bytes;
+
+    fn map(pairs: &[(&str, &str)]) -> FxHashMap<RcStr, RcStr> {
+        pairs
+            .iter()
+            .map(|&(k, v)| (RcStr::from(k), RcStr::from(v)))
+            .collect()
+    }
+
+    #[test]
+    fn accepts_clean_env() {
+        let env = map(&[("PATH", "/usr/bin"), ("HOME", "/root")]);
+        assert!(validate_env_for_nul_bytes(&env).is_ok());
+    }
+
+    #[test]
+    fn rejects_nul_in_value_and_names_the_variable() {
+        let env = map(&[("steam_master_ipc_name_override", "Remote\0")]);
+        let err = validate_env_for_nul_bytes(&env).unwrap_err().to_string();
+        assert!(
+            err.contains("steam_master_ipc_name_override"),
+            "error should name the offending variable, got: {err}"
+        );
+        assert!(
+            err.contains("NUL byte"),
+            "error should mention the NUL byte, got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_nul_in_key() {
+        let env = map(&[("BAD\0KEY", "value")]);
+        let err = validate_env_for_nul_bytes(&env).unwrap_err().to_string();
+        assert!(
+            err.contains("NUL byte"),
+            "error should mention the NUL byte, got: {err}"
+        );
     }
 }
