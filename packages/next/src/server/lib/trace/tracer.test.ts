@@ -26,6 +26,7 @@ import {
 import {
   AppRenderSpan,
   BaseServerSpan,
+  InstrumentationSpan,
   LoadComponentsSpan,
   NextNodeServerSpan,
   NodeSpan,
@@ -268,21 +269,29 @@ describe('local span recording', () => {
 
     getTracer().trace(RouteModuleSpan.prepare, () => undefined)
     getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
+    getTracer().trace(InstrumentationSpan.register, () => undefined)
+    getTracer().trace(InstrumentationSpan.loadModule, () => undefined)
     expect(exportedSpans).toEqual([
       NodeSpan.runHandler,
       LoadComponentsSpan.loadRouteModule,
       RouteModuleSpan.prepare,
+      InstrumentationSpan.register,
+      InstrumentationSpan.loadModule,
     ])
 
     process.env.NEXT_OTEL_VERBOSE = '1'
     getTracer().trace(BaseServerSpan.render, () => undefined)
     getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
+    getTracer().trace(InstrumentationSpan.loadModule, () => undefined)
     expect(exportedSpans).toEqual([
       NodeSpan.runHandler,
       LoadComponentsSpan.loadRouteModule,
       RouteModuleSpan.prepare,
+      InstrumentationSpan.register,
+      InstrumentationSpan.loadModule,
       BaseServerSpan.render,
       RouteModuleSpan.loadManifests,
+      InstrumentationSpan.loadModule,
     ])
   })
 
@@ -349,6 +358,21 @@ describe('local span recording', () => {
           'next.span_type': NodeSpan.runHandler,
         }),
       }),
+    ])
+  })
+
+  it('records an explicit end time', () => {
+    const startTime = Date.now() - 10
+    const endTime = startTime + 5
+
+    getTracer().trace(
+      InstrumentationSpan.register,
+      { startTime, endTime },
+      () => undefined
+    )
+
+    expect(getSpanRecords({ name: InstrumentationSpan.register })).toEqual([
+      expect.objectContaining({ durationMs: 5 }),
     ])
   })
 
