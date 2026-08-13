@@ -41,7 +41,6 @@ import {
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
-  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
@@ -52,7 +51,6 @@ import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import {
-  selectWorkerForForwarding,
   type ServerModuleMap,
   getServerActionsManifest,
   getServerModuleMap,
@@ -202,119 +200,6 @@ function addRevalidationHeader(
       JSON.stringify(workStore.pathWasRevalidated)
     )
   }
-}
-
-/**
- * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
- */
-async function createForwardedActionResponse(
-  req: BaseNextRequest,
-  res: BaseNextResponse,
-  host: Host,
-  workerPathname: string,
-  basePath: string
-) {
-  if (!host) {
-    throw new Error(
-      'Invariant: Missing `host` header from a forwarded Server Actions request.'
-    )
-  }
-
-  const forwardedHeaders = getForwardedHeaders(req, res)
-
-  // indicate that this action request was forwarded from another worker
-  // we use this to skip rendering the flight tree so that we don't update the UI
-  // with the response from the forwarded worker
-  forwardedHeaders.set('x-action-forwarded', '1')
-
-  // TODO: Remove __NEXT_PRIVATE_ORIGIN
-  let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
-  if (origin === undefined) {
-    const initUrl = getRequestMeta(req, 'initURL')
-    if (initUrl !== undefined) {
-      try {
-        const parsedUrl = new URL(initUrl)
-        origin = parsedUrl.origin
-      } catch (error) {
-        throw new Error(
-          'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
-          { cause: error }
-        )
-      }
-    } else {
-      throw new InvariantError('Missing initURL')
-    }
-  }
-
-  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
-
-  try {
-    let body: BodyInit | ReadableStream<Uint8Array> | undefined
-    if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME === 'edge' &&
-      isWebNextRequest(req)
-    ) {
-      if (!req.body) {
-        throw new Error('Invariant: missing request body.')
-      }
-
-      body = req.body
-    } else if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
-    ) {
-      body = req.stream()
-    } else {
-      throw new Error('Invariant: Unknown request type.')
-    }
-
-    // Forward the request to the new worker
-    const response = await fetch(fetchUrl, {
-      method: 'POST',
-      body,
-      duplex: 'half',
-      headers: forwardedHeaders,
-      redirect: 'manual',
-      next: {
-        // @ts-ignore
-        internal: 1,
-      },
-    })
-
-    if (
-      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
-    ) {
-      // copy the headers from the redirect response to the response we're sending
-      for (const [key, value] of response.headers) {
-        if (!actionsForbiddenHeaders.includes(key)) {
-          res.setHeader(key, value)
-        }
-      }
-
-      return new FlightRenderResult(response.body!)
-    }
-
-    // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-    response.body?.cancel()
-
-    // Pass the action-not-found marker through so the client throws
-    // UnrecognizedActionError instead of a generic "unexpected response".
-    if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
-      res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
-      res.setHeader('content-type', 'text/plain')
-      res.statusCode = 404
-      return RenderResult.fromStatic('Server action not found.', 'text/plain')
-    }
-  } catch (err) {
-    // we couldn't stream the forwarded response, so we'll just return an empty response
-    console.error(`failed to forward action response`, err)
-  }
-
-  return RenderResult.fromStatic('{}', JSON_CONTENT_TYPE_HEADER)
 }
 
 /**
@@ -600,7 +485,6 @@ export async function handleAction({
   metadata: AppPageRenderResultMetadata
 }): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
-  const { page } = ctx.renderOpts
   const serverModuleMap = getServerModuleMap()
 
   const {
@@ -754,7 +638,6 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
   // A fetch action without a router state tree cannot produce a Flight patch
   // for the currently rendered page. This occurs when the client dispatches an
   // action directly to a different route, so only execute the action without
@@ -768,30 +651,7 @@ export async function handleAction({
     requestStore.fallbackParams != null &&
     typeof ctx.renderOpts.postponed === 'string'
   const shouldSkipPageRendering =
-    actionWasForwarded || isActionOnlyRequest || isActionOnlyFallbackRequest
-
-  // Only attempt to forward if this request has not already been forwarded.
-  // Otherwise middleware that rewrites the action POST can cause the receiving
-  // worker to forward again, looping indefinitely.
-  if (actionId && !actionWasForwarded) {
-    const forwardedWorker = selectWorkerForForwarding(actionId, page)
-
-    // If forwardedWorker is truthy, it means there isn't a worker for the
-    // action in the current handler, so we forward the request to a worker that
-    // has the action.
-    if (forwardedWorker) {
-      return {
-        type: 'done',
-        result: await createForwardedActionResponse(
-          req,
-          res,
-          host,
-          forwardedWorker,
-          ctx.renderOpts.basePath
-        ),
-      }
-    }
-  }
+    isActionOnlyRequest || isActionOnlyFallbackRequest
 
   try {
     return await actionAsyncStorage.run(
@@ -906,7 +766,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  false
                 )
 
                 const formState = await decodeFormState(
@@ -1115,7 +975,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  false
                 )
 
                 const formState = await decodeFormState(
