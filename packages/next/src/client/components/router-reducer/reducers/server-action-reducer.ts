@@ -481,6 +481,9 @@ export function serverActionReducer(
           now,
           currentFlightRouterState,
           flightData,
+          // Navigation responses always include the param values in the
+          // tree, so there's no pathname to parse them from (nor a need to).
+          null,
           flightDataRenderedSearch,
           UnknownDynamicStaleTime
         )

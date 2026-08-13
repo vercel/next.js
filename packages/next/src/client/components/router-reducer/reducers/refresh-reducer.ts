@@ -76,6 +76,9 @@ export function refreshDynamicData(
   const refreshSeed = convertServerPatchToFullTree(
     now,
     currentFlightRouterState,
+    // No transport data (and so no pathname to parse params from) — this
+    // converts the base tree alone.
+    null,
     null,
     currentRenderedSearch,
     UnknownDynamicStaleTime

@@ -10,6 +10,7 @@ import {
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { fetch } from '../segment-cache/fetch'
 import type {
+  DynamicNavigationFlightResponse,
   FlightRouterState,
   InitialRSCPayload,
   NavigationFlightResponse,
@@ -187,8 +188,11 @@ export async function fetchServerResponse(
     }
 
     // During a navigation, we decode the response using Flight's
-    // `createFromFetch` API, which accepts a `fetch` promise.
-    const res = await createFetch<NavigationFlightResponse>(
+    // `createFromFetch` API, which accepts a `fetch` promise. Navigations
+    // only ever receive live-render responses (per-segment prefetch
+    // responses, which omit some fields, are decoded by the segment cache
+    // instead), so the decode is typed as the live-render variant.
+    const res = await createFetch<DynamicNavigationFlightResponse>(
       url,
       headers,
       'auto',

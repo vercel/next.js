@@ -18,8 +18,8 @@ import {
 import type {
   PartialTransportData,
   PartialTransportNode,
+  TransportSegment,
 } from '../../../shared/lib/rsc-transport'
-import { transportSegmentToSegment } from '../../../shared/lib/rsc-transport'
 import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   type SegmentRequestKey,
@@ -32,7 +32,14 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import { InvariantError } from '../../../shared/lib/invariant-error'
+import {
+  doesStaticSegmentAppearInURL,
+  getCacheKeyForDynamicParam,
+  parseDynamicParamFromURLPart,
+} from '../../route-params'
 import type { NormalizedSearch } from './cache-key'
+import { splitPathnameIntoParts } from './cache-key'
 import type {
   PageVaryPath,
   PartialSegmentVaryPath,
@@ -81,6 +88,11 @@ export function convertServerPatchToFullTree(
   now: number,
   currentTree: FlightRouterState,
   transportData: PartialTransportData | null,
+  // The pathname the response was rendered for. Required to resolve dynamic
+  // segments the server sent without a param value (`k: null`); see
+  // decodeTransportTreeIntoRouteTree. Callers whose responses always carry
+  // concrete values (navigation responses) may pass null.
+  renderedPathname: string | null,
   renderedSearch: string,
   dynamicStaleTimeSeconds: number
 ): NavigationSeed {
@@ -106,6 +118,7 @@ export function convertServerPatchToFullTree(
     routeTree = decodeTransportTreeIntoRouteTree(
       transportData.t,
       currentTree,
+      renderedPathname,
       renderedSearch as NormalizedSearch,
       acc
     )
@@ -253,22 +266,84 @@ export function createRouteTreeNode<TData>(
 export function decodeTransportTreeIntoRouteTree(
   transportNode: PartialTransportNode,
   baseRouterState: FlightRouterState | null,
+  // The pathname the response was rendered for (from the response headers).
+  // Required to resolve dynamic segments the server sent without a param
+  // value (`k: null` — per-segment prefetch responses omit the value to stay
+  // cacheable across param values); the client parses the value from the
+  // pathname instead. Callers whose responses always carry concrete values
+  // (navigation responses) may pass null.
+  renderedPathname: string | null,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree<RSCSegmentData | null> {
+  const pathnameParts =
+    renderedPathname !== null ? splitPathnameIntoParts(renderedPathname) : null
   return decodeTransportNode(
     transportNode,
+    resolveTransportSegment(transportNode.s, pathnameParts, 0),
     baseRouterState ?? undefined,
     baseRouterState ?? undefined,
     ROOT_SEGMENT_REQUEST_KEY,
     null,
     renderedSearch,
+    pathnameParts,
+    0,
     acc
   )
 }
 
+/**
+ * Converts a segment's wire identity to the client `Segment` type, resolving
+ * dynamic segments whose param value the server omitted (`k: null`) by
+ * parsing the value from the rendered pathname. `pathnamePartsIndex` is the
+ * URL position this segment occupies (tracked by the tree walk: incremented
+ * only for segments that appear in the URL, so route groups and other
+ * virtual segments don't consume a part).
+ */
+function resolveTransportSegment(
+  transportSegment: TransportSegment,
+  pathnameParts: Array<string> | null,
+  pathnamePartsIndex: number
+): FlightRouterStateSegment {
+  if (typeof transportSegment === 'string') {
+    return transportSegment
+  }
+  const paramKey = transportSegment.k
+  if (paramKey !== null) {
+    return [
+      transportSegment.n,
+      paramKey,
+      transportSegment.t,
+      transportSegment.s,
+    ]
+  }
+  if (pathnameParts === null) {
+    throw new InvariantError(
+      'Cannot resolve a dynamic segment that has no param value: the ' +
+        'response provides no rendered pathname to parse it from.'
+    )
+  }
+  const paramValue = parseDynamicParamFromURLPart(
+    transportSegment.t,
+    pathnameParts,
+    pathnamePartsIndex
+  )
+  // TODO: We're intentionally not adding the search param to page segments
+  // here; it's tracked separately and added back during a read from the
+  // Segment Cache.
+  return [
+    transportSegment.n,
+    getCacheKeyForDynamicParam(paramValue, '' as NormalizedSearch),
+    transportSegment.t,
+    transportSegment.s,
+  ]
+}
+
 function decodeTransportNode(
   node: PartialTransportNode,
+  // The node's identity, already resolved by the caller (the parent's child
+  // loop, which has the URL position needed to parse omitted param values).
+  originalSegment: FlightRouterStateSegment,
   base: FlightRouterState | undefined,
   // The base node to compare segment identities against (see
   // NavigationSeed.treeDivergedFromBase). Tracked separately from `base`:
@@ -279,6 +354,9 @@ function decodeTransportNode(
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
+  pathnameParts: Array<string> | null,
+  // The URL position this node's children read from.
+  pathnamePartsIndex: number,
   acc: RouteTreeAccumulator
 ): RouteTree<RSCSegmentData | null> {
   const nodeData = node.d
@@ -286,16 +364,14 @@ function decodeTransportNode(
   // The base node this position inherits from, when it does.
   const inheritedBase = inheritsFromBase ? base : undefined
 
-  const originalSegment = transportSegmentToSegment(node.s)
-
   if (compareBase !== undefined && !acc.treeDivergedFromBase) {
     // Every transport node echoes the segment's identity, even "skipped"
     // ones, so each position can be compared against the base.
     const transportSegment = node.s
     if (typeof transportSegment !== 'string' && transportSegment.k == null) {
       // The server omitted the param value for the client to parse from the
-      // URL (see the TODO in transportSegmentToSegment). Nothing to compare;
-      // the children are still checked.
+      // URL (see resolveTransportSegment). Nothing to compare; the children
+      // are still checked.
     } else {
       const baseSegment = compareBase[0]
       if (
@@ -359,7 +435,11 @@ function decodeTransportNode(
     for (const [parallelRouteKey, childNode] of transportChildren) {
       const childBase =
         baseChildren !== undefined ? baseChildren[parallelRouteKey] : undefined
-      const childSegment = transportSegmentToSegment(childNode.s)
+      const childSegment = resolveTransportSegment(
+        childNode.s,
+        pathnameParts,
+        pathnamePartsIndex
+      )
 
       let childCompareBase: FlightRouterState | undefined
       if (compareBase !== undefined && !acc.treeDivergedFromBase) {
@@ -379,6 +459,15 @@ function decodeTransportNode(
         }
       }
 
+      // Only advance the URL position for segments that appear in the URL.
+      // Virtual segments, like route groups, don't consume a part.
+      const childDoesAppearInURL =
+        typeof childSegment === 'string'
+          ? doesStaticSegmentAppearInURL(childSegment)
+          : true
+      const childPathnamePartsIndex = childDoesAppearInURL
+        ? pathnamePartsIndex + 1
+        : pathnamePartsIndex
       const childRequestKey = appendSegmentRequestKeyPart(
         requestKey,
         parallelRouteKey,
@@ -386,11 +475,14 @@ function decodeTransportNode(
       )
       const childTree = decodeTransportNode(
         childNode,
+        childSegment,
         childBase,
         childCompareBase,
         childRequestKey,
         partialVaryPath,
         renderedSearch,
+        pathnameParts,
+        childPathnamePartsIndex,
         acc
       )
       if (slots === null) {

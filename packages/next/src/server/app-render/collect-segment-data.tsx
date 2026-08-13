@@ -1,7 +1,7 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Bundled in entry-base so it gets the right JSX runtime. */
 import type {
   InitialRSCPayload,
-  DynamicParamTypesShort,
+  PrefetchFlightResponse,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import {
@@ -40,45 +40,10 @@ import {
 import { workAsyncStorage } from './work-async-storage.external'
 import {
   type FullTransportNode,
+  type PartialTransportNode,
+  type TransportSegment,
   transportSegmentToSegment,
 } from '../../shared/lib/rsc-transport'
-
-// Contains metadata about the route tree. The client must fetch this before
-// it can fetch any actual segment data.
-export type RootTreePrefetch = {
-  buildId?: string
-  tree: TreePrefetch
-  staleTime: number
-}
-
-export type TreePrefetchParam = {
-  type: DynamicParamTypesShort
-  // When cacheComponents is enabled, this field is always null.
-  // Instead we parse the param on the client, allowing us to omit it from
-  // the prefetch response and increase its cacheability.
-  key: string | null
-  // Static sibling segments at the same URL level. Used by the client
-  // router to determine if a prefetch can be reused when navigating to
-  // a static sibling of a dynamic route. For example, if the route is
-  // /products/[id] and there's also /products/sale, then siblings
-  // would be ['sale']. null means the siblings are unknown (e.g. in
-  // webpack dev mode).
-  siblings: readonly string[] | null
-}
-
-export type TreePrefetch = {
-  name: string
-  // Only present for parameterized (dynamic) segments.
-  param: TreePrefetchParam | null
-
-  // Child segments.
-  slots: null | {
-    [parallelRouteKey: string]: TreePrefetch
-  }
-
-  /** Bitmask of PrefetchHint flags for this segment and its subtree */
-  prefetchHints: number
-}
 
 /**
  * Top-level response for a segment prefetch request. Contains the build ID
@@ -216,6 +181,27 @@ type SegmentBundleNode = {
   next: SegmentBundleNode | null
 }
 
+/**
+ * Returns the wire identity for a segment in a per-segment prefetch
+ * response. When client param parsing is enabled (cacheComponents), the
+ * param value is omitted (`k: null`) so the response stays byte-identical —
+ * and therefore cacheable — across param values; the client parses the value
+ * from the rendered pathname instead.
+ */
+function createPrefetchTransportSegment(
+  segment: TransportSegment,
+  isClientParamParsingEnabled: boolean
+): TransportSegment {
+  if (
+    typeof segment === 'string' ||
+    !isClientParamParsingEnabled ||
+    segment.k === null
+  ) {
+    return segment
+  }
+  return { n: segment.n, t: segment.t, k: null, s: segment.s }
+}
+
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
@@ -351,9 +337,10 @@ export async function collectSegmentData(
   let treeStream: ReadableStream<Uint8Array>
   try {
     const prerenderResult = await prerender(
-      // RootTreePrefetch is not a valid return type for a React component, but
-      // we need to use a component so that when we decode the original stream
-      // inside of it, the side effects are transferred to the new stream.
+      // PrefetchFlightResponse is not a valid return type for a React
+      // component, but we need to use a component so that when we decode the
+      // original stream inside of it, the side effects are transferred to the
+      // new stream.
       // @ts-expect-error
       <PrefetchTreeData
         isClientParamParsingEnabled={isCacheComponentsEnabled}
@@ -908,7 +895,7 @@ async function PrefetchTreeData({
   isUpgradeableISRFallback: boolean
   runtimeDataAccessed: boolean
   shellStageRelease: Promise<boolean>
-}): Promise<RootTreePrefetch | null> {
+}): Promise<PrefetchFlightResponse | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
   // a hack to transfer the side effects from the original Flight stream (e.g.
@@ -1009,15 +996,10 @@ async function PrefetchTreeData({
   // promises in the original stream.
   onCompletedProcessingRouteTree()
 
-  // Render the route tree to a special `/_tree` segment.
-  const treePrefetch: RootTreePrefetch = {
-    tree,
-    staleTime,
-  }
-  if (buildId) {
-    treePrefetch.buildId = buildId
-  }
-  return treePrefetch
+  // Render the route tree to a special `/_tree` segment. The response is an
+  // ordinary PrefetchFlightResponse carrying only a buildId and a
+  // structure-only tree.
+  return buildId ? { b: buildId, t: { t: tree } } : { t: { t: tree } }
 }
 
 function collectSegmentDataImpl(
@@ -1036,7 +1018,7 @@ function collectSegmentDataImpl(
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
   shellStageRelease: Promise<boolean>
-): TreePrefetch {
+): PartialTransportNode {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
   // FlightRouterState was produced before collectPrefetchHints ran, so
@@ -1131,9 +1113,9 @@ function collectSegmentDataImpl(
     // childBundle stays null — reset the accumulator for children.
   }
 
-  // Metadata about the segment. Sent as part of the tree prefetch. Null if
-  // there are no children.
-  let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
+  // The child nodes of the tree prefetch. Sent to the client as part of the
+  // /_tree response.
+  let slots: Map<string, PartialTransportNode> | undefined
 
   const children = node.c
   if (children !== undefined) {
@@ -1164,38 +1146,25 @@ function collectSegmentDataImpl(
         needsRuntimeRequest,
         shellStageRelease
       )
-      if (slotMetadata === null) {
-        slotMetadata = {}
+      if (slots === undefined) {
+        slots = new Map()
       }
-      slotMetadata[parallelRouteKey] = childTree
+      slots.set(parallelRouteKey, childTree)
     }
   }
 
-  const segment = node.s
-  let name: string
-  let param: TreePrefetchParam | null
-  if (typeof segment === 'string') {
-    name = segment
-    param = null
-  } else {
-    name = segment.n
-    param = {
-      type: segment.t,
-      // This value is omitted from the prefetch response when cacheComponents
-      // is enabled.
-      key: isClientParamParsingEnabled ? null : segment.k,
-      siblings: segment.s,
-    }
+  // Structure of the segment — identity and hints, no render output. Sent to
+  // the client as part of the /_tree response.
+  const treeNode: PartialTransportNode = {
+    s: createPrefetchTransportSegment(node.s, isClientParamParsingEnabled),
   }
-
-  // Metadata about the segment. Sent to the client as part of the
-  // tree prefetch.
-  return {
-    name,
-    param,
-    prefetchHints,
-    slots: slotMetadata,
+  if (prefetchHints !== 0) {
+    treeNode.h = prefetchHints
   }
+  if (slots !== undefined) {
+    treeNode.c = slots
+  }
+  return treeNode
 }
 
 /**
