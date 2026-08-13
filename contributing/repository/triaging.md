@@ -48,7 +48,7 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 
 5. `resolved`
 
-We assume that a newer version of Next.js fixed the issue. If the issue is still relevant, please open a new issue and reference the old one.
+We assume that a newer version of Next.js fixed the issue. If a maintainer closes the issue and it is still relevant, the issue author or someone who commented before it was closed can request that it be reopened within 14 days by following the automated comment.
 The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/comments/resolved.md)
 
 ## Verified issues
@@ -59,4 +59,6 @@ Confirmed issues never become stale or are closed before resolution.
 
 ## Closed issues
 
-All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). If you think the issue is still relevant, please open a new issue and reference the old one.
+When a maintainer closes an unlocked issue, an automated comment explains how the issue author or someone who commented before it was closed can request that it be reopened within 14 days. The request must include `Reopen:` and a reason.
+
+All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). After the reopening window expires, please open a new issue with up-to-date details and reference the old one. Automated closures provide their own next steps.

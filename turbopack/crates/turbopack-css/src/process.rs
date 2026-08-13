@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -98,7 +101,7 @@ async fn get_lightningcss_browser_targets(
 }
 
 async fn stylesheet_to_css(
-    ss: &StyleSheet<'_, '_>,
+    ss: &StyleSheet<'_>,
     code: &str,
     minify_type: MinifyType,
     enable_srcmap: bool,
@@ -158,14 +161,14 @@ pub enum ParseCssResult {
         code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheet<'static, 'static>,
+        stylesheet: StyleSheet<'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
-        options: ParserOptions<'static, 'static>,
+        options: ParserOptions<'static>,
     },
     Unparsable,
     NotFound,
@@ -430,12 +433,12 @@ fn source_pos_for_loc(loc: &lightningcss::error::ErrorLocation, code_had_bom: bo
 ///
 /// Does not handle parser warnings — the caller is responsible for configuring
 /// the `warnings` field in `config` and processing collected warnings.
-fn parse_css_stylesheet<'a, 'o>(
+fn parse_css_stylesheet<'a>(
     code: &'a str,
-    config: ParserOptions<'o, 'a>,
+    config: ParserOptions<'a>,
     ty: CssModuleType,
     source: ResolvedVc<Box<dyn Source>>,
-) -> Result<StyleSheet<'a, 'o>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
+) -> Result<StyleSheet<'a>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
     // Lightning CSS tokenizes a leading byte-order mark as content instead of
     // skipping it, which misaligns the parser and rejects the first token.
     let code = strip_bom(code);
@@ -465,7 +468,7 @@ async fn process_content(
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
-    fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
+    fn without_warnings<'i>(config: ParserOptions<'i>) -> ParserOptions<'static> {
         ParserOptions {
             filename: config.filename,
             css_modules: config.css_modules,
@@ -496,9 +499,9 @@ async fn process_content(
                 pattern: Pattern {
                     segments: smallvec![
                         Segment::Name,
-                        Segment::Literal("__"),
+                        Segment::Literal(Cow::Borrowed("__")),
                         Segment::Hash,
-                        Segment::Literal("__"),
+                        Segment::Literal(Cow::Borrowed("__")),
                         Segment::Local,
                     ],
                 },

@@ -9,6 +9,7 @@ import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   resolveStaleAt,
   processRuntimePrefetchStream,
+  segmentCacheMap,
   writeDynamicRenderResponseIntoCache,
   writePrerenderResponseIntoCache,
 } from '../segment-cache/cache'
@@ -82,7 +83,7 @@ export function createInitialRouterState({
   // trees with InliningHintsStale, which causes the route cache entry to be
   // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
-  const acc = { metadataVaryPath: null }
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
   const initialRouteTree = decodeTransportTreeIntoRouteTree(
     initialTransportData.t,
     // There's no base tree to overlay onto; the initial payload is a full
@@ -155,7 +156,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              true // isResponsePartial
+              true, // isResponsePartial
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           })
           .catch(() => {
@@ -181,7 +183,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              false // isResponsePartial
+              false, // isResponsePartial
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           })
           .catch(() => {
@@ -219,7 +222,8 @@ export function createInitialRouterState({
               processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           }
         })
@@ -255,7 +259,7 @@ export function createInitialRouterState({
       // to avoid it being overwritten on navigation back/forward with MPA Navigation.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: null,
       forceScroll: false,
       onlyHashChange: false,
