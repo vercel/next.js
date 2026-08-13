@@ -741,7 +741,12 @@ jobs:
     # Outer bound only. The script gives up first, so a tarball that never
     # arrives is reported by it rather than by the runner killing the job.
     timeout-minutes: 35
-    permissions: {}
+    permissions:
+      # contents: read is needed to check out in private repos (the mirror).
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -755,7 +760,7 @@ jobs:
       - name: Wait for preview tarball
         env:
           PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
-          PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+          PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
         run: |
           set -euo pipefail
           node scripts/wait-for-preview-tarball.mjs \
@@ -774,6 +779,11 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
@@ -803,6 +813,11 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
+      # this repo since builds here are public.
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
