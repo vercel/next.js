@@ -19,7 +19,8 @@ byteorder = { workspace = true }
 crc32fast = { workspace = true }
 dashmap = { workspace = true}
 either = { workspace = true }
-jiff = "0.2.10"
+fs-err = { workspace = true }
+jiff = { version = "0.2.10", features = ["serde"] }
 lzzzz = { workspace = true }
 memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
@@ -30,6 +31,8 @@ postcard = { workspace = true, features = ["alloc", "use-std"] }
 zerocopy = { version = "0.8", features = ["derive"] }
 quick_cache = { workspace = true }
 rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }

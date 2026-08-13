@@ -5,7 +5,11 @@ import type { RenderOpts } from '../app-render/types'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
-import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
+import {
+  FLIGHT_HEADERS,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+} from '../../client/components/app-router-headers'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -21,18 +25,48 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
-import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
-function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
-  const cleaned = HeadersAdapter.from(headers)
-  for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header)
-  }
+/**
+ * Internal request headers that userland `headers()` must not expose. They stay
+ * on the shared request headers for framework plumbing.
+ *
+ * Every internal header that the client can send must be listed here. The
+ * sealed userland view reads through to the shared request headers, so an
+ * omission leaks the header to userland.
+ *
+ * The names are lowercased because `HeadersAdapter.seal` matches them in
+ * lowercase.
+ */
+const HIDDEN_REQUEST_HEADERS: ReadonlySet<string> = new Set(
+  [
+    ...FLIGHT_HEADERS,
+    // The client sends these dev-only request IDs so the server can route debug
+    // information back to the originating request. Like the flight headers,
+    // they are internal plumbing.
+    NEXT_REQUEST_ID_HEADER,
+    NEXT_HTML_REQUEST_ID_HEADER,
+  ].map((header) => header.toLowerCase())
+)
 
-  return HeadersAdapter.seal(cleaned)
+function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
+  // The sealed userland view must not copy the request headers.
+  // `HeadersAdapter.from` returns a `Headers` instance unchanged, so the view
+  // reads through to `NextRequest.headers`. A copy detaches `headers()` from
+  // the writes that Proxy makes to `NextRequest.headers` afterwards.
+  //
+  // The view must also not delete the internal headers. Because
+  // `HeadersAdapter.from` does not copy, a delete removes them from the shared
+  // `req.headers`. The dev server reads the request-id headers from the raw
+  // request again, for example when it renders a redirect target after a server
+  // action. Their removal breaks the dev debug channel routing.
+  return HeadersAdapter.seal(
+    HeadersAdapter.from(headers),
+    HIDDEN_REQUEST_HEADERS
+  )
 }
 
 function getMutableCookies(
@@ -102,10 +136,16 @@ export type RequestStoreInputs = {
   url: { pathname: string; search?: string }
   rootParams: Params
   implicitTags: ImplicitTags
-  renderResumeDataCache: RenderResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null
   previewProps: WrapperRenderOpts['previewProps']
   isHmrRefresh: boolean | undefined
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  /**
+   * The hash of the most recent server component change (dev only). Included in
+   * `"use cache"` cache keys so that cached entries are revalidated after an
+   * edit, for every client, regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash: string | undefined
   fallbackParams: OpaqueFallbackRouteParams | null | undefined
 }
 
@@ -152,8 +192,9 @@ export function createRequestStoreForRender(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | null,
-  fallbackParams: OpaqueFallbackRouteParams | null
+  resumeDataCache: ResumeDataCache | null,
+  fallbackParams: OpaqueFallbackRouteParams | null,
+  hmrRefreshHash: string | undefined
 ): RequestStore {
   return createRequestStore({
     // Pages start in render phase by default
@@ -169,10 +210,11 @@ export function createRequestStoreForRender(
     url,
     rootParams,
     implicitTags,
-    renderResumeDataCache,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
+    hmrRefreshHash,
     fallbackParams,
   })
 }
@@ -182,7 +224,8 @@ export function createRequestStoreForAPI(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  previewProps: WrapperRenderOpts['previewProps']
+  previewProps: WrapperRenderOpts['previewProps'],
+  hmrRefreshHash: string | undefined
 ): RequestStore {
   return createRequestStore({
     // API routes start in action phase by default
@@ -192,10 +235,11 @@ export function createRequestStoreForAPI(
     url,
     rootParams: {},
     implicitTags,
-    renderResumeDataCache: null,
+    resumeDataCache: null,
     previewProps,
     isHmrRefresh: false,
     serverComponentsHmrCache: undefined,
+    hmrRefreshHash,
     fallbackParams: null,
   })
 }
@@ -215,10 +259,11 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     url,
     rootParams,
     implicitTags,
-    renderResumeDataCache,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
+    hmrRefreshHash,
     fallbackParams,
   } = inputs
 
@@ -296,11 +341,12 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
 
       return cache.draftMode
     },
-    renderResumeDataCache: renderResumeDataCache ?? null,
+    resumeDataCache: resumeDataCache ?? null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
+    hmrRefreshHash,
     fallbackParams,
   }
 }

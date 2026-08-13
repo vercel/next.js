@@ -5,6 +5,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::Asset,
+    chunk::{ChunkingType, TracedMode},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     raw_module::RawModule,
@@ -55,7 +56,7 @@ impl Module for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(self.origin.resolve_options()),
+            apply_cjs_specific_options(self.origin.into_trait_ref().await?.resolve_options()),
         )
         .await?;
         references.extend(
@@ -208,6 +209,12 @@ impl ModuleReference for CompilerReference {
             ResolveErrorMode::Error,
         )
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 #[turbo_tasks::value]
@@ -232,6 +239,12 @@ impl ModuleReference for TsExtendsReference {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
             RawModule::new(*self.config).to_resolved().await?,
         )))
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -266,6 +279,12 @@ impl ModuleReference for TsNodeRequireReference {
             ResolveErrorMode::Error,
         )
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 #[turbo_tasks::value]
@@ -292,5 +311,11 @@ impl ModuleReference for TsConfigTypesReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         type_resolve(*self.origin, *self.request)
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

@@ -15,19 +15,10 @@ pub fn get_trait_type_ident(ident: &Ident) -> Ident {
     )
 }
 
-/// Name of the per-trait `VTableRegistry` static, populated by `#[ctor::ctor]` functions emitted
-/// by each `value_impl` expansion.
+/// Name of the per-trait `VTableRegistry` static, populated during `register_all_trait_methods`
+/// from the link-time `TRAIT_IMPLS_SLICE`.
 pub fn get_trait_vtable_registry_ident(ident: &Ident) -> Ident {
     Ident::new(&format!("__TurboTasksVTableRegistry_{ident}"), ident.span())
-}
-
-/// Name of the `#[ctor::ctor]` function that registers a per-impl vtable into its trait's
-/// registry. Unique per (concrete-type, trait) pair.
-pub fn get_vtable_register_fn_ident(struct_ident: &Ident, trait_ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("__turbo_tasks_vtable_register_{struct_ident}_{trait_ident}"),
-        trait_ident.span(),
-    )
 }
 
 pub fn get_inherent_impl_function_ident(ty_ident: &Ident, fn_ident: &Ident) -> Ident {

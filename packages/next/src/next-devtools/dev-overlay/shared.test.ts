@@ -1,14 +1,52 @@
 import {
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
+  createLinkBodyErrorInNavigation,
   createRuntimeBodyError,
   createRuntimeBodyErrorInNavigation,
 } from '../../server/app-render/blocking-route-messages'
-import { getInstantErrorRoute, routeTemplateMatchesPath } from './shared'
+import {
+  getInstantErrorRoute,
+  routeTemplateMatchesPath,
+  updateRequestInsights,
+} from './shared'
+import type { RequestInsight } from '../shared/request-insights'
 
 const STATIC_ROUTE = '/example'
 const DYNAMIC_ROUTE_TEMPLATE = '/posts/[slug]'
 const CATCH_ALL_ROUTE_TEMPLATE = '/docs/[...slug]'
+
+function createRequestInsight(
+  kind: RequestInsight['kind'],
+  durationMs: number
+): RequestInsight {
+  return {
+    requestId: 'shared-request',
+    kind,
+    htmlRequestId: 'shared-html',
+    route: '/dashboard',
+    startTime: 100,
+    durationMs,
+    status: 'ok',
+    spans: [],
+    fetches: [],
+  }
+}
+
+describe('updateRequestInsights', () => {
+  it('updates request kinds independently when request IDs match', () => {
+    const request = createRequestInsight('request', 25)
+    const instantInsights = createRequestInsight('instant-insights', 50)
+    const updatedInstantInsights = createRequestInsight('instant-insights', 75)
+
+    expect(
+      updateRequestInsights(
+        updateRequestInsights([request], instantInsights),
+        updatedInstantInsights
+      )
+    ).toEqual([request, updatedInstantInsights])
+  })
+})
 
 describe('getInstantErrorRoute', () => {
   it('returns the route for an in-navigation runtime body error', () => {
@@ -25,9 +63,17 @@ describe('getInstantErrorRoute', () => {
     ).toBe(DYNAMIC_ROUTE_TEMPLATE)
   })
 
+  it('returns the route for an in-navigation URL-data prefetch error', () => {
+    expect(
+      getInstantErrorRoute(
+        createLinkBodyErrorInNavigation(DYNAMIC_ROUTE_TEMPLATE)
+      )
+    ).toBe(DYNAMIC_ROUTE_TEMPLATE)
+  })
+
   it('returns the route for the unrendered-segment wrapper', () => {
     const error = new Error(
-      `Route "${STATIC_ROUTE}": Could not validate instant UI because an expected segment was not rendered.\n\nUnrendered segment:\n  app/example/page.tsx`
+      `Route "${STATIC_ROUTE}": Could not validate that a segment in your UI has instant navigation.\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.\n\nDropped segment:\n  app/example/page.tsx`
     )
     expect(getInstantErrorRoute(error)).toBe(STATIC_ROUTE)
   })

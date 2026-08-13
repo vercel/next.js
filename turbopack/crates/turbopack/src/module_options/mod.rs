@@ -232,6 +232,8 @@ impl ModuleOptions {
             ecmascript:
                 EcmascriptOptionsContext {
                     enable_jsx,
+                    enable_rust_react_compiler,
+                    rust_react_compiler_target,
                     enable_types,
                     ref enable_typescript_transform,
                     ref enable_decorators,
@@ -241,10 +243,11 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
-                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    cjs_tree_shaking,
+                    cjs_scope_hoisting,
                     ref preset_env_config,
                     ..
                 },
@@ -264,7 +267,8 @@ impl ModuleOptions {
             environment,
             ref module_rules,
             execution_context,
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             keep_last_successful_parse,
             analyze_mode,
             ..
@@ -301,6 +305,13 @@ impl ModuleOptions {
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
+        if let Some(compilation_mode) = enable_rust_react_compiler {
+            ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust {
+                compilation_mode,
+                target: rust_react_compiler_target,
+            });
+        }
+
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
         // If a custom plugin requires specific order _before_ core transform kicks in,
@@ -317,7 +328,8 @@ impl ModuleOptions {
         }
 
         let ecmascript_options = EcmascriptOptions {
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
@@ -328,6 +340,8 @@ impl ModuleOptions {
             enable_exports_info_inlining,
             inline_helpers,
             infer_module_side_effects,
+            cjs_tree_shaking,
+            cjs_scope_hoisting,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -355,6 +369,9 @@ impl ModuleOptions {
             None
         };
 
+        // Snapshot before decorators so the TypeScript chain also includes e.g. ReactCompilerRust.
+        let extra_preprocess = ecma_preprocess.clone();
+
         if let Some(decorators_transform) = &decorators_transform {
             // Apply decorators transform for the ModuleType::Ecmascript as well after
             // constructing ts_app_transforms. Ecmascript can have decorators for
@@ -364,7 +381,9 @@ impl ModuleOptions {
             // Since typescript transform (`ts_app_transforms`) needs to apply decorators
             // _before_ stripping types, we create ts_app_transforms first in a
             // specific order with typescript, then apply decorators to app_transforms.
-            ecma_preprocess.splice(0..0, [decorators_transform.clone()]);
+            //
+            // Append so ReactCompilerRust (needs original source text) runs before decorators.
+            ecma_preprocess.push(decorators_transform.clone());
         }
 
         let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
@@ -399,20 +418,18 @@ impl ModuleOptions {
             ));
         }
 
-        if enable_import_as_text {
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
-                ))),
-                if is_tracing {
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
-                } else {
-                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
-                    ]))]
-                },
-            ));
-        }
+        rules.push(ModuleRule::new(
+            RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
+                EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+            ))),
+            if is_tracing {
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+            } else {
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))]
+            },
+        ));
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
@@ -723,10 +740,12 @@ impl ModuleOptions {
 
         if let Some(options) = enable_typescript_transform {
             let options = options.await?;
+            // Prepend extra_preprocess (e.g. ReactCompilerRust) so it runs before decorators and
+            // TypeScript.
             let ts_preprocess = ResolvedVc::cell(
-                decorators_transform
-                    .clone()
+                extra_preprocess
                     .into_iter()
+                    .chain(decorators_transform.clone())
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: options.use_define_for_class_fields,
                         verbatim_module_syntax: options.verbatim_module_syntax,

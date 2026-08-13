@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import path from 'path'
 
 describe('Instrumentation Client Hook', () => {
-  const testCases = [
+  describe.each([
     {
       name: 'With src folder',
       appDir: 'app-with-src',
@@ -19,9 +19,7 @@ describe('Instrumentation Client Hook', () => {
       appDir: 'pages-router',
       shouldLog: false,
     },
-  ]
-
-  testCases.forEach(({ name, appDir, shouldLog }) => {
+  ])('$name', ({ name, appDir, shouldLog }) => {
     describe(name, () => {
       const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
@@ -100,38 +98,157 @@ describe('Instrumentation Client Hook', () => {
         '[Router Transition Start] [traverse] /some-page',
       ])
     })
+
+    it('preserves the legacy two-argument start hook without the experimental flag', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      expect(
+        await browser.eval(`
+          window.__ROUTER_TRANSITION_EVENTS.map((event) => ({
+            phase: event.phase,
+            hasEvent: event.event != null,
+          }))
+        `)
+      ).toEqual([{ phase: 'start', hasEvent: false }])
+    })
   })
 
-  describe('instrumentationClientInject', () => {
+  describe('router transition start context', () => {
     const { next } = nextTestSetup({
-      files: path.join(__dirname, 'inject'),
+      files: path.join(__dirname, 'app-router'),
+      nextConfig: {
+        experimental: {
+          instrumentationClientRouterTransitionEvents: true,
+        },
+      },
     })
 
-    it('runs each injected entry before the user instrumentation-client and before hydration, in array order', async () => {
+    async function getTransitionEvents(browser) {
+      return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
+    }
+
+    it('reports transition metadata, source routes, and prefetch intent', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      const [start] = await getTransitionEvents(browser)
+      expect(start.phase).toBe('start')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(typeof start.event.id).toBe('string')
+      expect(start.event.timestamp).toBeGreaterThan(0)
+      expect(start.event.fromRoutes).toEqual(['/'])
+      expect(start.event.prefetchIntent).toBe('full')
+    })
+
+    it('reports a null prefetch intent for programmatic navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('push-some-page').click()
+      await browser.elementById('some-page')
+
+      const [start] = await getTransitionEvents(browser)
+      expect(start.phase).toBe('start')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(start.event.prefetchIntent).toBe(null)
+    })
+
+    it('uses route patterns and puts the primary source route first', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/blog/hello"]').click()
+      await browser.elementById('blog-post')
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/blog/[slug]'])
+
+      await browser.elementByCss('a[href="/dashboard"]').click()
+      await browser.elementById('dashboard')
+      await browser.elementById('analytics')
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/dashboard', '/dashboard/@analytics'])
+    })
+
+    it('omits route groups from fromRoutes', async () => {
+      const browser = await next.browser('/about')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/about'])
+    })
+
+    it('reports intercepted route patterns in fromRoutes', async () => {
+      const browser = await next.browser('/gallery')
+
+      await browser.elementByCss('a[href="/gallery/photos/1"]').click()
+      await browser.elementById('photo-modal')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
+    })
+  })
+
+  describe.each([
+    {
+      name: 'default',
+      packageJson: {},
+    },
+    {
+      name: 'with type:module',
+      packageJson: { type: 'module' },
+    },
+  ])('instrumentationClientInject $name', ({ packageJson }) => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'inject'),
+      packageJson,
+    })
+
+    it('runs each injected module before the user instrumentation-client and before hydration, in array order', async () => {
       const browser = await next.browser('/')
 
       const order = await browser.eval(`window.__INJECT_ORDER`)
-      expect(order).toEqual(['a', 'b', 'user'])
+      expect(order).toEqual(['side-effect', 'late-hook', 'a', 'b', 'user'])
 
-      const injectA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
-      const injectB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
+      const moduleA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
+      const moduleB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
       const userTime = await browser.eval(
         `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
       )
       const hydrationTime = await browser.eval(`window.__NEXT_HYDRATED_AT`)
 
-      expect(injectA).toBeDefined()
-      expect(injectB).toBeDefined()
+      expect(moduleA).toBeDefined()
+      expect(moduleB).toBeDefined()
       expect(userTime).toBeDefined()
       expect(hydrationTime).toBeDefined()
 
-      expect(injectA).toBeLessThanOrEqual(injectB)
-      expect(injectB).toBeLessThanOrEqual(userTime)
+      expect(moduleA).toBeLessThanOrEqual(moduleB)
+      expect(moduleB).toBeLessThanOrEqual(userTime)
       expect(userTime).toBeLessThan(hydrationTime)
     })
 
-    it('still surfaces onRouterTransitionStart from the user instrumentation-client when injects are configured', async () => {
+    it('surfaces onRouterTransitionStart from every injected module', async () => {
       const browser = await next.browser('/')
+      await browser.eval(`window.__INSTALL_LATE_INSTRUMENTATION_HOOK()`)
 
       const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
       await linkToSomePage.click()
@@ -142,13 +259,39 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page late-hook',
         '[Router Transition Start] [push] /some-page a',
         '[Router Transition Start] [push] /some-page b',
         '[Router Transition Start] [push] /some-page user',
+        '[Router Transition Start] [push] / late-hook',
         '[Router Transition Start] [push] / a',
         '[Router Transition Start] [push] / b',
         '[Router Transition Start] [push] / user',
       ])
+    })
+
+    it('isolates hook errors between injected modules', async () => {
+      const browser = await next.browser('/')
+
+      await browser.eval(`window.__INSTALL_LATE_INSTRUMENTATION_HOOK()`)
+      await browser.eval(`window.__THROW_INJECT_A = true`)
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      const logs = await browser.log()
+      expect(filterNavigationStartLogs(logs)).toEqual([
+        '[Router Transition Start] [push] /some-page late-hook',
+        '[Router Transition Start] [push] /some-page a',
+        '[Router Transition Start] [push] /some-page b',
+        '[Router Transition Start] [push] /some-page user',
+      ])
+      expect(
+        logs.filter((log) =>
+          log.message.includes(
+            'An instrumentation-client router transition hook failed'
+          )
+        )
+      ).toHaveLength(1)
     })
   })
 

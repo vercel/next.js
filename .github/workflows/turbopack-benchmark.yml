@@ -35,13 +35,15 @@ jobs:
     name: Benchmark Rust Crates (small apps)
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -70,13 +72,15 @@ jobs:
     name: Benchmark Rust Crates (analyzer)
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -106,13 +110,15 @@ jobs:
     if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache

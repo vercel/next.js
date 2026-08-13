@@ -11,7 +11,12 @@ import * as pageMod from 'VAR_USERLAND'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type {
@@ -125,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,
@@ -147,7 +151,6 @@ async function requestHandler(
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -169,8 +172,11 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        // Edge has no Node response-close signal, so HMR cancellation is a
+        // no-op.
+        serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -178,6 +184,10 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        exposeTestingApi:
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -301,6 +311,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled

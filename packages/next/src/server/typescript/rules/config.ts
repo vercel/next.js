@@ -146,30 +146,35 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  unstable_instant: {
-    description: `Enables instant navigation validation for this segment. This configuration is currently under development and will change.`,
-    link: '(docs coming soon)',
+  instant: {
+    description: `Enables instant navigation validation for this segment.`,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant',
     type: 'true | object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_instant = true;',
+    insertText: 'instant = true;',
   },
-  unstable_prefetch: {
-    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+  prefetch: {
+    description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
     link: '(docs coming soon)',
-    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    type: `"auto" | "partial" | "unstable_eager" | "force-disabled"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      partial:
+        'Enables Partial Prefetching for this segment. When a static prefetch is insufficient, Next.js may prefetch the segment with a runtime server request so it can access session data, such as cookies.',
+      unstable_eager:
+        'Like "partial", but adds an implied prop of prefetch={true} to ' +
+        'every Link. This option only exists to aid migration of apps that ' +
+        'adopted Partial Prefetching in canary before the behavior changed to ' +
+        'only fetch the shell by default.',
       'force-disabled': 'Never prefetch this segment.',
-      'force-static': 'Always prefetch this segment statically.',
-      'force-runtime': 'Always prefetch this segment at runtime.',
     },
-    insertText: `unstable_prefetch = 'force-runtime';`,
+    insertText: `prefetch = 'partial';`,
   },
   unstable_dynamicStaleTime: {
-    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`instant\`.`,
     link: '(docs coming soon)',
     type: 'number',
     isValid: (value: string) => {
@@ -315,7 +320,11 @@ const config = {
   },
 
   // Show docs when hovering on the exported configs.
-  getQuickInfoAtPosition(fileName: string, position: number) {
+  getQuickInfoAtPosition(
+    fileName: string,
+    position: number,
+    prior?: tsModule.QuickInfo
+  ) {
     const ts = getTs()
 
     let overridden: tsModule.QuickInfo | undefined
@@ -383,25 +392,30 @@ const config = {
           : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
-          overridden = {
-            kind: ts.ScriptElementKind.enumElement,
-            kindModifiers: ts.ScriptElementKindModifier.none,
-            textSpan: {
-              start: value.getStart(),
-              length: value.getWidth(),
+          const documentation: tsModule.SymbolDisplayPart[] = [
+            ...(prior?.documentation || []),
+            {
+              kind: 'text',
+              text:
+                API_DOCS[entryConfig].options?.[key] ||
+                API_DOCS[entryConfig].getHint?.(key) ||
+                '',
             },
-            displayParts: [],
-            documentation: [
-              {
-                kind: 'text',
-                text:
-                  API_DOCS[entryConfig].options?.[key] ||
-                  API_DOCS[entryConfig].getHint?.(key) ||
-                  '',
-              },
-              docsLink,
-            ],
-          }
+            docsLink,
+          ]
+
+          overridden = prior
+            ? { ...prior, documentation }
+            : {
+                kind: ts.ScriptElementKind.enumElement,
+                kindModifiers: ts.ScriptElementKindModifier.none,
+                textSpan: {
+                  start: value.getStart(),
+                  length: value.getWidth(),
+                },
+                displayParts: [],
+                documentation,
+              }
         } else {
           // Wrong value: still show the docs link, and when available, the
           // inferred type for non-literal (i.e. non-direct) exports.
@@ -430,22 +444,27 @@ const config = {
           return
         }
         // Hovers the name of the config
-        overridden = {
-          kind: ts.ScriptElementKind.enumElement,
-          kindModifiers: ts.ScriptElementKindModifier.none,
-          textSpan: {
-            start: name.getStart(),
-            length: name.getWidth(),
+        const documentation: tsModule.SymbolDisplayPart[] = [
+          ...(prior?.documentation || []),
+          {
+            kind: 'text',
+            text: getAPIDescription(entryConfig),
           },
-          displayParts,
-          documentation: [
-            {
-              kind: 'text',
-              text: getAPIDescription(entryConfig),
-            },
-            docsLink,
-          ],
-        }
+          docsLink,
+        ]
+
+        overridden = prior
+          ? { ...prior, documentation }
+          : {
+              kind: ts.ScriptElementKind.enumElement,
+              kindModifiers: ts.ScriptElementKindModifier.none,
+              textSpan: {
+                start: name.getStart(),
+                length: name.getWidth(),
+              },
+              displayParts,
+              documentation,
+            }
       }
     })
     return overridden

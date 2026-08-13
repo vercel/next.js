@@ -1,15 +1,20 @@
 import {
   FixCardAlignLeftIcon,
+  FixCardArrowUpIcon,
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
   FixCardLoadingIcon,
+  FixCardMinusIcon,
   FixCardPointerClickIcon,
+  FixCardMinusCircleIcon,
   FixCardServerStackIcon,
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
+import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
@@ -19,6 +24,7 @@ import {
   SYNC_IO_DOCS,
   getCards,
   type FixCard,
+  type FixCardGroup,
   type FixCardIcon,
   type GuidanceKind,
   type GuidanceVariant,
@@ -41,26 +47,98 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardDatabaseIcon />
     case 'timer':
       return <FixCardTimerIcon />
+    case 'minus-circle':
+      return <FixCardMinusCircleIcon />
     case 'loading':
       return <FixCardLoadingIcon />
     case 'zap':
       return <FixCardZapIcon />
     case 'layout':
       return <FixCardLayoutIcon />
+    case 'arrow-up':
+      return <FixCardArrowUpIcon />
+    case 'minus':
+      return <FixCardMinusIcon />
     default:
       icon satisfies never
       return null
   }
 }
 
-function CardGrid({ cards }: { cards: FixCard[] }) {
+function CopyPromptButton({
+  title,
+  group,
+  link,
+  generateErrorInfo,
+}: {
+  title: string
+  group: FixCardGroup
+  link: string
+  generateErrorInfo?: () => Promise<string>
+}) {
+  const groupLabel = FIX_CARD_GROUPS[group].label
+  const hashIndex = link.indexOf('#')
+  const rulePage = hashIndex === -1 ? link : link.slice(0, hashIndex)
+  const fixHeader = [
+    `Apply the [${groupLabel}] "${title}" fix to the Next.js Insight raised in this project.`,
+    '',
+    'Steps:',
+    '',
+    `1. Make sure you can drive a browser before you start. The fix isn't verified until you've reloaded the route and looked at what renders. If you don't already have browser tooling set up, install the next-dev-loop skill (https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) first.`,
+    '',
+    "2. Identify the failing code in the error block below. It may be a data-access call, a hook call, a metadata or viewport export, or a component. Keep the fix focused on that code. If you think a related refactor (a sibling component, a shared layout, a wrapping boundary) would make the result meaningfully better, name it and check with the user before doing it — don't expand the scope silently.",
+    '',
+    `3. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    '',
+    `4. Apply the chosen pattern to the code identified in step 2. Don't narrate the change with new comments — the code should explain itself. Only leave a comment when the *why* isn't clear (e.g. a deliberate Block with a reason).`,
+    '',
+    `5. Verify the fix at runtime. The Insight clearing in the dev overlay confirms the build is happy, but not what actually renders. Reload the route in a browser and confirm the static shell still paints first and any new \`<Suspense>\` fallback resolves to its real content.`,
+    '',
+    "6. Check the shell isn't empty. A `<Suspense>` boundary placed too high (around the whole page body, or with `fallback={null}`) can leave the build reporting a shell while the shell itself contains nothing and everything streams. If that's what you see, pull the boundary down closer to the actual dynamic read.",
+    '',
+    "7. If the fix touched shared code (a layout, a wrapper, a sidebar), re-check the sibling routes too — a shell-level change can fix one route and break another. A before/after capture of the affected routes is a useful sanity check: the visible UI may look the same (the fix often just changes what's in the shell vs streamed), but if anything regressed visually, you'll see it.",
+    '',
+    'When you reply to the user, just summarize what you changed and why in plain prose. Don\'t echo this checklist back as headers, sections, or bullet lists labeled "Verification" or "Scope" — those are your internal steps, not the user\'s report.',
+  ].join('\n')
+
+  return generateErrorInfo ? (
+    <CopyButton
+      getContent={async () => {
+        const info = await generateErrorInfo()
+        return info ? `${fixHeader}\n\n${info}` : fixHeader
+      }}
+      actionLabel="Copy prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
+      data-nextjs-fix-card-copy-button
+    />
+  ) : (
+    <CopyButton
+      content={fixHeader}
+      actionLabel="Copy prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
+      data-nextjs-fix-card-copy-button
+    />
+  )
+}
+
+function CardGrid({
+  cards,
+  generateErrorInfo,
+}: {
+  cards: FixCard[]
+  generateErrorInfo?: () => Promise<string>
+}) {
   return (
     <div data-nextjs-card-grid>
       {cards.map((card) => {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.link ? (
+            {card.link && !card.copyable ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -70,6 +148,14 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <div data-nextjs-fix-card-header-text>
                 <div data-nextjs-fix-card-title-row>
                   <span data-nextjs-fix-card-title>{groupMeta.label}</span>
+                  {card.copyable && card.link ? (
+                    <span
+                      data-nextjs-fix-card-title-link-icon
+                      aria-hidden="true"
+                    >
+                      <ExternalIcon width={12} height={12} />
+                    </span>
+                  ) : null}
                 </div>
                 <span data-nextjs-fix-card-description>{card.title}</span>
               </div>
@@ -103,20 +189,36 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           'data-card-color': groupMeta.color,
         }
 
-        return card.link ? (
+        const cardElement = card.link ? (
           <a
             {...sharedProps}
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            key={card.id}
             aria-label={`Open docs for ${card.title}`}
           >
             {inner}
           </a>
         ) : (
-          <div {...sharedProps} key={card.id}>
-            {inner}
+          <div {...sharedProps}>{inner}</div>
+        )
+
+        // Render the copy button as a sibling of the card so the <button>
+        // isn't nested inside the card's <a>, which would be invalid HTML
+        // and break keyboard / focus behavior.
+        return card.copyable && card.link ? (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
+            <CopyPromptButton
+              title={card.title}
+              group={card.group}
+              link={card.link}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </div>
+        ) : (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
           </div>
         )
       })}
@@ -130,12 +232,14 @@ export function InstantGuidance({
   explanation,
   cause,
   showExplanation = true,
+  generateErrorInfo,
 }: {
   variant: GuidanceVariant
   kind?: GuidanceKind
   explanation?: string
   cause?: string
   showExplanation?: boolean
+  generateErrorInfo?: () => Promise<string>
 }) {
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
@@ -143,6 +247,30 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'sync-io-client' && cause) {
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'blocking-route') {
+    docsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (kind === 'metadata') {
+    docsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (kind === 'viewport') {
+    docsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -168,22 +296,51 @@ export function InstantGuidance({
         Ways to fix this:
       </div>
 
-      <CardGrid cards={cards} />
+      <CardGrid cards={cards} generateErrorInfo={generateErrorInfo} />
     </div>
   )
 }
 
 export function InstantHeaderExplanation({
   kind,
+  variant,
   explanation,
   docsUrl,
 }: {
   kind?: GuidanceKind
+  variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
 }) {
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
-  const resolvedDocsUrl = docsUrl || (kind ? DOCS_URLS[kind] : '')
+  let resolvedDocsUrl = docsUrl
+  if (!resolvedDocsUrl && kind === 'blocking-route') {
+    resolvedDocsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'metadata') {
+    resolvedDocsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'viewport') {
+    resolvedDocsUrl =
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+  } else if (!resolvedDocsUrl && kind) {
+    resolvedDocsUrl = DOCS_URLS[kind]
+  }
 
   return (
     <p data-nextjs-instant-explanation>
@@ -224,9 +381,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-card-grid] {
+    --copy-prompt-offset: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 12px;
+    gap: calc(12px + var(--copy-prompt-offset)) 12px;
   }
 
   [data-nextjs-fix-card] {
@@ -276,18 +434,19 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] {
-    width: var(--size-36);
-    height: var(--size-36);
+    width: var(--size-28);
+    height: var(--size-28);
     border-radius: var(--rounded-full);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.85;
   }
 
   [data-nextjs-fix-card-icon] svg {
-    width: var(--size-16);
-    height: var(--size-16);
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   [data-nextjs-fix-card-header-text] {
@@ -410,5 +569,71 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='amber'] [data-nextjs-fix-card-icon] {
     background: var(--color-amber-100);
     color: var(--color-amber-900);
+  }
+
+  [data-nextjs-fix-card-title-link-icon] {
+    align-items: center;
+    color: inherit;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
+    color: inherit;
+  }
+
+  [data-nextjs-fix-card-wrapper] {
+    display: flex;
+    position: relative;
+  }
+
+  [data-nextjs-fix-card-wrapper] > [data-nextjs-fix-card] {
+    flex: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button] {
+    align-items: center;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-300);
+    border-radius: 9999px;
+    color: var(--color-gray-900);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-11);
+    font-weight: 500;
+    gap: 6px;
+    height: auto;
+    line-height: 1;
+    padding: 5px 10px;
+    position: absolute;
+    right: 10px;
+    top: calc(-1 * var(--copy-prompt-offset));
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+    z-index: 2;
+  }
+
+  [data-nextjs-fix-card-copy-button] svg {
+    width: var(--size-12);
+    height: var(--size-12);
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card-copy-button] span {
+    line-height: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button]:hover {
+    background: var(--color-background-200);
+    border-color: var(--color-gray-alpha-500);
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-copy-button]:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
   }
 `

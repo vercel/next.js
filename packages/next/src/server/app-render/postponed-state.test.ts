@@ -7,6 +7,7 @@ import {
   DynamicState,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  parseResumeDataCacheFromPostponedState,
   parsePostponedState,
   DynamicHTMLPreludeState,
 } from './postponed-state'
@@ -77,6 +78,8 @@ describe('getDynamicHTMLPostponedState', () => {
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
          "fetch": Map {},
+         "imageResponses": Map {},
+         "mutable": false,
        },
        "type": 2,
      }
@@ -124,6 +127,8 @@ describe('getDynamicHTMLPostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
 
@@ -139,6 +144,53 @@ describe('getDynamicDataPostponedState', () => {
       isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
+  })
+})
+
+describe('parseResumeDataCacheFromPostponedState', () => {
+  it('extracts the resume data cache without parsing the React state', async () => {
+    const key = '%%drp:slug:e9615126684e5%%'
+    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+      slug: [key, 'd'],
+    })
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
+    prerenderResumeDataCache.cache.set(
+      'cache-key',
+      Promise.resolve({
+        entry: {
+          value: streamFromString('cached value'),
+          tags: [],
+          stale: 0,
+          timestamp: 0,
+          expire: 300,
+          revalidate: 1,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
+        readRootParamNames: undefined,
+        dynamicNestedCacheError: undefined,
+      })
+    )
+
+    const state = await getDynamicHTMLPostponedState(
+      { [key]: key } as any,
+      DynamicHTMLPreludeState.Full,
+      fallbackRouteParams,
+      prerenderResumeDataCache,
+      isCacheComponentsEnabled
+    )
+
+    const resumeDataCache = parseResumeDataCacheFromPostponedState(
+      state,
+      undefined
+    )
+    const value = await resumeDataCache.cache.get('cache-key')
+
+    expect(value).toBeDefined()
+    await expect(streamToString(value!.entry.value)).resolves.toBe(
+      'cached value'
+    )
   })
 })
 
@@ -159,6 +211,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
 
@@ -180,6 +234,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
   })
@@ -196,6 +252,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
   })

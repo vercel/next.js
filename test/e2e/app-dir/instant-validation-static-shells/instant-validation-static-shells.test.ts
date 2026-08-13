@@ -45,10 +45,10 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1265",
+           "code": "E1440",
            "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/blocking-page-below-static/page.tsx (6:19) @ Page
          > 6 |   await connection()
              |                   ^",

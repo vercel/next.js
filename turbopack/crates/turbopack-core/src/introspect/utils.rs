@@ -81,7 +81,7 @@ pub async fn children_from_module_references(
             Some(ChunkingType::Async) => async_reference_ty(),
             Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
             Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
-            Some(ChunkingType::Traced) => traced_reference_ty(),
+            Some(ChunkingType::Traced { .. }) => traced_reference_ty(),
         };
 
         for &module in reference

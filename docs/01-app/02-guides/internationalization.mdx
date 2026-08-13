@@ -1,6 +1,10 @@
 ---
 title: Internationalization
 description: Add support for multiple languages with internationalized routing and localized content.
+related:
+  description: Related API references and conventions.
+  links:
+    - app/api-reference/functions/next-root-params
 ---
 
 Next.js enables you to configure the routing and rendering of content to support multiple languages. Making your site adaptive to different locales includes translated content (localization) and internationalized routes.
@@ -177,6 +181,75 @@ export default async function Page({ params }) {
 ```
 
 Because all layouts and pages in the `app/` directory default to [Server Components](/docs/app/getting-started/server-and-client-components), we do not need to worry about the size of the translation files affecting our client-side JavaScript bundle size. This code will **only run on the server**, and only the resulting HTML will be sent to the browser.
+
+## Sharing the locale across your app
+
+The locale is often needed beyond the page that receives it, such as in shared data-fetching utilities or deeply nested components. Instead of prop drilling `lang` through each layer, we can read it directly with [`next/root-params`](/docs/app/api-reference/functions/next-root-params).
+
+`next/root-params` exports a getter for each dynamic segment above the root layout. Since every route is nested under `app/[lang]`, `lang` is a root parameter, and any Server Component or server-side utility can call its getter. We can move the locale lookup into `getDictionary`, so callers no longer pass `lang`:
+
+```ts filename="app/[lang]/dictionaries.ts" highlight={1,2,15,16,17} switcher
+import { lang } from 'next/root-params'
+import { notFound } from 'next/navigation'
+
+const dictionaries = {
+  en: () => import('./dictionaries/en.json').then((module) => module.default),
+  nl: () => import('./dictionaries/nl.json').then((module) => module.default),
+}
+
+export type Locale = keyof typeof dictionaries
+
+export const hasLocale = (locale: string): locale is Locale =>
+  locale in dictionaries
+
+export const getDictionary = async () => {
+  const locale = await lang()
+  if (!hasLocale(locale)) notFound()
+  return dictionaries[locale]()
+}
+```
+
+```js filename="app/[lang]/dictionaries.js" highlight={1,2,12,13,14} switcher
+import { lang } from 'next/root-params'
+import { notFound } from 'next/navigation'
+
+const dictionaries = {
+  en: () => import('./dictionaries/en.json').then((module) => module.default),
+  nl: () => import('./dictionaries/nl.json').then((module) => module.default),
+}
+
+export const hasLocale = (locale) => locale in dictionaries
+
+export const getDictionary = async () => {
+  const locale = await lang()
+  if (!hasLocale(locale)) notFound()
+  return dictionaries[locale]()
+}
+```
+
+> **Good to know:** Files that import from `next/root-params` do not need `import 'server-only'`. The import already fails at build time if used in a Client Component.
+
+Pages and components then call `getDictionary()` with no arguments, since the locale is resolved internally:
+
+```tsx filename="app/[lang]/page.tsx" highlight={4} switcher
+import { getDictionary } from './dictionaries'
+
+export default async function Page() {
+  const dict = await getDictionary()
+  return <button>{dict.products.cart}</button> // Add to Cart
+}
+```
+
+```jsx filename="app/[lang]/page.js" highlight={4} switcher
+import { getDictionary } from './dictionaries'
+
+export default async function Page() {
+  const dict = await getDictionary()
+  return <button>{dict.products.cart}</button> // Add to Cart
+}
+```
+
+> **Good to know:** Root parameter getters run in Server Components and server-side utilities, but not in Client Components, Server Actions, or Route Handlers. See [`next/root-params`](/docs/app/api-reference/functions/next-root-params) for the full API and its behavior with caching.
 
 ## Static Rendering
 

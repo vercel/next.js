@@ -32,6 +32,9 @@ describe('required server files i18n', () => {
         build: 'next build',
       },
     },
+    dependencies: {
+      'is-even': '1.0.0',
+    },
     installCommand: 'pnpm i',
     buildCommand: 'pnpm build',
     nextConfig: {

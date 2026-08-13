@@ -6,6 +6,8 @@ import https from 'https'
 
 const sharedDeps = { 'get-port': '5.1.1' }
 const sharedNodeEnv = isNextDev ? 'development' : 'production'
+const deprecatedWarning = (method: string) =>
+  `The \`app.${method}()\` method is deprecated in custom servers.`
 
 describe.each([
   { title: 'HTTP', useHttps: 'false' },
@@ -52,6 +54,9 @@ describe.each([
         { agent }
       )
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('setAssetPrefix'))
+      })
     })
 
     it('should handle null assetPrefix accordingly', async () => {
@@ -76,11 +81,31 @@ describe.each([
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
         expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
       }
+
+      await retry(async () => {
+        expect(
+          next.cliOutput.split(deprecatedWarning('setAssetPrefix')).length - 1
+        ).toBe(1)
+      })
     })
 
     it('should render nested index', async () => {
       const html = await next.render('/dashboard', undefined, { agent })
       expect(html).toMatch(/made it to dashboard/)
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('render'))
+      })
+    })
+
+    it('should warn once for repeated render calls', async () => {
+      await next.render('/dashboard', undefined, { agent })
+      await next.render('/dashboard', undefined, { agent })
+
+      await retry(async () => {
+        expect(
+          next.cliOutput.split(deprecatedWarning('render')).length - 1
+        ).toBe(1)
+      })
     })
 
     it('should handle custom urls with requests handler', async () => {
@@ -309,6 +334,9 @@ describe.each([
       const text = $('p').text()
       expect(text).toContain('made it to dynamic dashboard')
       expect(text).toContain('query param: 1')
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('renderToHTML'))
+      })
     })
 
     it('NextCustomServer.render404', async () => {
@@ -316,6 +344,9 @@ describe.each([
         agent,
       })
       expect(html).toContain('made it to 404')
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('render404'))
+      })
     })
 
     it('NextCustomServer.renderError', async () => {
@@ -329,6 +360,9 @@ describe.each([
       } else {
         expect(html).toContain('made it to 500')
       }
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('renderError'))
+      })
     })
 
     it('NextCustomServer.renderErrorToHTML', async () => {
@@ -342,6 +376,23 @@ describe.each([
       } else {
         expect(html).toContain('made it to 500')
       }
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning('renderErrorToHTML'))
+      })
+    })
+
+    it.each([
+      ['logError', '/legacy-methods/log-error'],
+      [
+        'logErrorWithOriginalStack',
+        '/legacy-methods/log-error-with-original-stack',
+      ],
+      ['revalidate', '/legacy-methods/revalidate'],
+    ])('warns for NextCustomServer.%s', async (method, path) => {
+      await next.fetch(path, { agent })
+      await retry(async () => {
+        expect(next.cliOutput).toContain(deprecatedWarning(method))
+      })
     })
   })
 })

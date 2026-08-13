@@ -17,8 +17,20 @@ runs:
             DATADOG_CI_ASSET=datadog-ci_win-x64
             ;;
           *)
-            DATADOG_CI_SHA256=86fcf24d5211f5ae714e947354ccb621e74e2bba4162247890454c6461e74ca5
-            DATADOG_CI_ASSET=datadog-ci_linux-x64
+            case "$(uname -m)" in
+              aarch64)
+                DATADOG_CI_SHA256=a192622b4aba3e040f12dadb73e8cf7158a11027c3aab5a16404b152940991d6
+                DATADOG_CI_ASSET=datadog-ci_linux-arm64
+                ;;
+              x86_64)
+                DATADOG_CI_SHA256=86fcf24d5211f5ae714e947354ccb621e74e2bba4162247890454c6461e74ca5
+                DATADOG_CI_ASSET=datadog-ci_linux-x64
+                ;;
+              *)
+                echo "::error::Unsupported architecture: $(uname -m)"
+                exit 1
+                ;;
+            esac
             ;;
         esac
 

@@ -80,6 +80,10 @@ impl ModuleReference for AmdDefineAssetReference {
             hoisted: false,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 #[derive(
@@ -172,6 +176,7 @@ impl AmdDefineWithDependenciesCodeGen {
                                 self.error_mode,
                             ),
                             ResolveType::ChunkItem,
+                            None,
                         )
                         .await?,
                         request_str: request_str.to_string(),

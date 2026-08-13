@@ -24,7 +24,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
       )
       expect(redbox.source).toMatchInlineSnapshot(`
        "./app/page.js (3:23)
-       \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component.
+       Error: \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component.
          1 | import dynamic from 'next/dynamic'
          2 |
        > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })

@@ -10,7 +10,7 @@ use bincode::{
 };
 use regex::bytes::{Regex, RegexBuilder};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Vc, trace::TraceRawVcs};
 
 use crate::globset::parse;
 
@@ -40,7 +40,7 @@ pub struct Glob {
 
 impl PartialEq for Glob {
     fn eq(&self, other: &Self) -> bool {
-        self.glob == other.glob
+        self.glob == other.glob && self.opts == other.opts
     }
 }
 
@@ -70,10 +70,8 @@ impl<Context> Decode<Context> for Glob {
 
 impl_borrow_decode!(Glob);
 
-#[derive(
-    Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug, Encode, Decode,
-)]
-
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, TraceRawVcs, Debug, Encode, Decode)]
 pub struct GlobOptions {
     /// Whether the glob is a partial match.
     /// Allows glob to match any part of the given string(s).
@@ -81,6 +79,8 @@ pub struct GlobOptions {
     /// match `foo_node_modules/package_name_bar` If you want to match a _directory_ named
     /// `node_modules/package_name` you should use `**/node_modules/package_name/**`
     pub contains: bool,
+    /// Whether matching should ignore ASCII case differences.
+    pub case_insensitive: bool,
 }
 
 impl Glob {
@@ -101,8 +101,8 @@ impl Glob {
 
     pub fn parse(input: RcStr, opts: GlobOptions) -> Result<Glob> {
         let (glob_re, directory_match_re) = parse(&input, opts)?;
-        let regex = new_regex(glob_re.as_str());
-        let directory_match_regex = new_regex(directory_match_re.as_str());
+        let regex = new_regex(glob_re.as_str(), opts);
+        let directory_match_regex = new_regex(directory_match_re.as_str(), opts);
 
         Ok(Glob {
             glob: input,
@@ -154,8 +154,10 @@ impl Glob {
     }
 }
 
-fn new_regex(pattern: &str) -> Regex {
+fn new_regex(pattern: &str, opts: GlobOptions) -> Regex {
     RegexBuilder::new(pattern)
+        // Because we aren't setting the `unicode` flag, this is only ASCII case-insensitive.
+        .case_insensitive(opts.case_insensitive)
         .dot_matches_new_line(true)
         .build()
         .expect("A successfully parsed glob should produce a valid regex")
@@ -258,6 +260,40 @@ mod tests {
         assert!(!glob.matches(path));
     }
 
+    #[test]
+    fn glob_case_insensitive_matching() {
+        let case_sensitive =
+            Glob::parse(rcstr!("case-dir/module*.js"), GlobOptions::default()).unwrap();
+        let case_insensitive = Glob::parse(
+            rcstr!("case-dir/module*.js"),
+            GlobOptions {
+                case_insensitive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(!case_sensitive.matches("Case-Dir/Module.js"));
+        assert!(case_insensitive.matches("Case-Dir/Module.js"));
+    }
+
+    #[test]
+    fn glob_case_insensitive_directory_matching() {
+        let case_sensitive =
+            Glob::parse(rcstr!("case-dir/module*.js"), GlobOptions::default()).unwrap();
+        let case_insensitive = Glob::parse(
+            rcstr!("case-dir/module*.js"),
+            GlobOptions {
+                case_insensitive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(!case_sensitive.can_match_in_directory("Case-Dir"));
+        assert!(case_insensitive.can_match_in_directory("Case-Dir"));
+    }
+
     #[rstest]
     #[case::dir_and_file_partial("dir/file.js", "dir")]
     #[case::dir_star_partial("dir/*.js", "dir")]
@@ -295,7 +331,14 @@ mod tests {
     // This is a possibly surprising case.
     #[case::dir_match("node_modules/foo", "my_node_modules/foobar")]
     fn partial_glob_match(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(RcStr::from(glob), GlobOptions { contains: true }).unwrap();
+        let glob = Glob::parse(
+            RcStr::from(glob),
+            GlobOptions {
+                contains: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         println!("{glob:?} {path}");
 
@@ -309,7 +352,14 @@ mod tests {
     // This is a possibly surprising case
     #[case::dir_match("/node_modules/", "node_modules/")]
     fn partial_glob_not_matching(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(RcStr::from(glob), GlobOptions { contains: true }).unwrap();
+        let glob = Glob::parse(
+            RcStr::from(glob),
+            GlobOptions {
+                contains: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         println!("{glob:?} {path}");
 

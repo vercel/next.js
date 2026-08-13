@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
@@ -11,12 +12,18 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    turbobail,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
-    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
-    loader::ResolvedWebpackLoaderItem,
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        code_gen::CodeGenerationIssue,
+    },
+    loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem},
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
@@ -33,12 +40,13 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptModuleAsset, ScopeHoistingContext, TreeShakingMode,
+    EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
+    module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
     references::{
         esm::{
             EsmExport,
@@ -47,7 +55,6 @@ use crate::{
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
 };
 
@@ -55,6 +62,11 @@ use crate::{
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
+    /// The request resolved to a module that can't be placed in an ECMAScript
+    /// chunk (e.g. a stylesheet or a raw module), so it has no bindings to
+    /// import. Importing it for its side effects is fine, reading a binding off
+    /// it is not.
+    NonPlaceable(ResolvedVc<Box<dyn Module>>),
     None,
     Unresolvable,
 }
@@ -312,6 +324,34 @@ impl ReferencedAsset {
                     import_source,
                 })
             }
+            ReferencedAsset::NonPlaceable(module) => {
+                // The module exists but has no ECMAScript bindings, so there is
+                // nothing this identifier could refer to. Report it instead of
+                // silently evaluating to `undefined`.
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!("non-ecmascript placeable asset"))
+                        .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "{} has no ECMAScript exports, so {} can't be read from it. It can \
+                             only be imported for its side effects.",
+                            module.ident().to_string().await?,
+                            match &export {
+                                Some(export) => format!("the export {export:?}"),
+                                None => "a namespace".to_string(),
+                            }
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: module.ident().await?.path.clone(),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
+                None
+            }
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
@@ -334,6 +374,7 @@ impl ReferencedAsset {
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);
         }
+        let mut non_placeable = None;
         for (_, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External {
@@ -347,12 +388,16 @@ impl ReferencedAsset {
                     {
                         return Ok(ReferencedAsset::Some(placeable));
                     }
+                    non_placeable = non_placeable.or(Some(*module));
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::None)
+        Ok(match non_placeable {
+            Some(module) => ReferencedAsset::NonPlaceable(module),
+            None => ReferencedAsset::None,
+        })
     }
 }
 
@@ -372,31 +417,116 @@ impl EsmAssetReferences {
 #[value_to_string("import {request}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
+    /// The resolve origin, with any annotation-driven transition already applied at construction.
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
     pub request: RcStr,
-    pub annotations: Option<ImportAnnotations>,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
     pub import_usage: ImportUsage,
     pub import_externals: bool,
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
-    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Rarely-present, slightly-large fields (import-annotation overrides and a resolve override),
+    /// boxed off the common path so the typical reference stays small. `None` whenever every field
+    /// would be empty.
+    extras: Option<Box<EsmReferenceExtras>>,
+}
+
+/// Optional extra state for an [`EsmAssetReference`] that is rarely present: the few values
+/// extracted from `ImportAnnotations` (the full `ImportAnnotations` — a `BTreeMap` plus several
+/// `Option`s — is not retained) plus a `resolve_override` from matched inner assets.
+#[derive(
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct EsmReferenceExtras {
+    /// `turbopackLoader` configuration (drives `ImportWithTurbopackUse`).
+    turbopack_loader: Option<WebpackLoaderItem>,
+    /// `turbopackAs` rename configuration.
+    turbopack_rename_as: Option<RcStr>,
+    /// `turbopackModuleType` override (distinct from the `with { type: ... }` attribute).
+    turbopack_module_type: Option<RcStr>,
+    /// The `with { type: ... }` attribute (drives `ImportWithType`).
+    module_type: Option<RcStr>,
+    /// The chunking-type annotation (drives `chunking_type`).
+    chunking_type: Option<SpecifiedChunkingType>,
+    /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
+    resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
+impl EsmReferenceExtras {
+    /// Builds the extras from import annotations and a resolve override, returning `None` (rather
+    /// than an all-empty box) when nothing relevant is present — the common case.
+    fn new(
+        annotations: Option<&ImportAnnotations>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    ) -> Option<Box<Self>> {
+        let extras = EsmReferenceExtras {
+            turbopack_loader: annotations.and_then(|a| a.turbopack_loader().cloned()),
+            turbopack_rename_as: annotations.and_then(|a| a.turbopack_rename_as().cloned()),
+            turbopack_module_type: annotations.and_then(|a| a.turbopack_module_type().cloned()),
+            module_type: annotations
+                .and_then(|a| a.module_type())
+                .map(|m| RcStr::from(&*m.to_string_lossy())),
+            chunking_type: annotations.and_then(|a| a.chunking_type()),
+            resolve_override,
+        };
+        (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
+    }
 }
 
 impl EsmAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.as_ref().and_then(|a| a.transition()) {
-            self.origin.with_transition(transition.into())
+    #[allow(clippy::too_many_arguments)]
+    async fn new_inner(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: RcStr,
+        issue_source: IssueSource,
+        annotations: Option<ImportAnnotations>,
+        export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
+        import_externals: bool,
+        module_fragments_enabled: bool,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        is_pure_import: bool,
+    ) -> Result<Self> {
+        // Apply any annotation-driven transition eagerly so the stored origin is final and the
+        // `annotations` don't need to be retained on the reference.
+        let origin = if let Some(transition) = annotations.as_ref().and_then(|a| a.transition()) {
+            origin
+                .with_transition(transition.into())
+                .await?
+                .to_resolved()
+                .await?
         } else {
-            *self.origin
-        }
+            origin
+        };
+        Ok(EsmAssetReference {
+            module,
+            origin,
+            request,
+            issue_source,
+            export_name,
+            import_usage,
+            import_externals,
+            module_fragments_enabled,
+            is_pure_import,
+            extras: EsmReferenceExtras::new(annotations.as_ref(), resolve_override),
+        })
     }
-}
 
-impl EsmAssetReference {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
@@ -405,10 +535,10 @@ impl EsmAssetReference {
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
+        module_fragments_enabled: bool,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-    ) -> Self {
-        EsmAssetReference {
+    ) -> Result<Self> {
+        Self::new_inner(
             module,
             origin,
             request,
@@ -417,13 +547,15 @@ impl EsmAssetReference {
             export_name,
             import_usage,
             import_externals,
-            tree_shaking_mode,
-            is_pure_import: false,
+            module_fragments_enabled,
             resolve_override,
-        }
+            /* is_pure_import */ false,
+        )
+        .await
     }
 
-    pub fn new_pure(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new_pure(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
@@ -432,10 +564,10 @@ impl EsmAssetReference {
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
+        module_fragments_enabled: bool,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-    ) -> Self {
-        EsmAssetReference {
+    ) -> Result<Self> {
+        Self::new_inner(
             module,
             origin,
             request,
@@ -444,11 +576,37 @@ impl EsmAssetReference {
             export_name,
             import_usage,
             import_externals,
-            tree_shaking_mode,
-            is_pure_import: true,
+            module_fragments_enabled,
             resolve_override,
+            /* is_pure_import */ true,
+        )
+        .await
+    }
+
+    /// Builds a copy of this reference for a single resolved namespace export
+    /// (`import * as ns from 'foo'; ns.bar` → behave like `import { bar } from 'foo'`).
+    ///
+    /// Reuses the already-transitioned `origin` and the `extras` (annotation values + resolve
+    /// override), overriding only the `export_name`. Stays synchronous (no transition / annotation
+    /// re-extraction) so it can be called from the synchronous namespace-rewrite path.
+    pub fn rewrite_for_export(&self, export_name: ModulePart) -> Self {
+        EsmAssetReference {
+            module: self.module,
+            origin: self.origin,
+            request: self.request.clone(),
+            issue_source: self.issue_source,
+            export_name: Some(export_name),
+            // TODO this is correct, but an overapproximation. We should have individual
+            // import_usage data for each export. This would be fixed by moving this
+            // logic earlier.
+            import_usage: self.import_usage.clone(),
+            import_externals: self.import_externals,
+            module_fragments_enabled: self.module_fragments_enabled,
+            is_pure_import: self.is_pure_import,
+            extras: self.extras.clone(),
         }
     }
+
     pub(crate) fn get_referenced_asset(
         self: Vc<Self>,
     ) -> impl Future<Output = Result<ReferencedAsset>> {
@@ -460,20 +618,20 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        let extras = self.extras.as_deref();
+        if let Some(resolved) = extras.and_then(|e| e.resolve_override) {
+            return Ok(*ModuleResolveResult::module(resolved));
         }
-        let ty = if let Some(loader) = self.annotations.as_ref().and_then(|a| a.turbopack_loader())
-        {
+        let ty = if let Some(loader) = extras.and_then(|e| e.turbopack_loader.as_ref()) {
             // Resolve the loader path relative to the importing file
-            let origin = self.get_origin();
-            let origin_path = origin.origin_path().await?;
+            let origin_ref = self.origin.into_trait_ref().await?;
+            let origin_path = origin_ref.origin_path();
             let loader_request = Request::parse(loader.loader.clone().into());
             let resolved = resolve(
                 origin_path.parent(),
                 ReferenceType::Loader,
                 loader_request,
-                origin.resolve_options(),
+                origin_ref.resolve_options(),
             );
             let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
                 source.ident().await?.path.clone()
@@ -486,21 +644,11 @@ impl ModuleReference for EsmAssetReference {
                     loader: loader_fs_path,
                     options: loader.options.clone(),
                 },
-                rename_as: self
-                    .annotations
-                    .as_ref()
-                    .and_then(|a| a.turbopack_rename_as())
-                    .cloned(),
-                module_type: self
-                    .annotations
-                    .as_ref()
-                    .and_then(|a| a.turbopack_module_type())
-                    .cloned(),
+                rename_as: extras.and_then(|e| e.turbopack_rename_as.clone()),
+                module_type: extras.and_then(|e| e.turbopack_module_type.clone()),
             }
-        } else if let Some(module_type) = self.annotations.as_ref().and_then(|a| a.module_type()) {
-            EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
-                &*module_type.to_string_lossy(),
-            ))
+        } else if let Some(module_type) = extras.and_then(|e| e.module_type.as_ref()) {
+            EcmaScriptModulesReferenceSubType::ImportWithType(module_type.clone())
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
@@ -509,7 +657,7 @@ impl ModuleReference for EsmAssetReference {
 
         let request = Request::parse(self.request.clone().into());
 
-        if let Some(TreeShakingMode::ModuleFragments) = self.tree_shaking_mode {
+        if self.module_fragments_enabled {
             if let Some(ModulePart::Evaluation) = &self.export_name
                 && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
             {
@@ -535,7 +683,7 @@ impl ModuleReference for EsmAssetReference {
         }
 
         let result = esm_resolve(
-            self.get_origin(),
+            *self.origin,
             request,
             ty,
             ResolveErrorMode::Error,
@@ -563,9 +711,9 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        self.annotations
-            .as_ref()
-            .and_then(|a| a.chunking_type())
+        self.extras
+            .as_deref()
+            .and_then(|e| e.chunking_type)
             .map_or_else(
                 || {
                     Some(ChunkingType::Parallel {
@@ -587,6 +735,10 @@ impl ModuleReference for EsmAssetReference {
             },
         }
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 impl EsmAssetReference {
@@ -607,9 +759,9 @@ impl EsmAssetReference {
 
         // only chunked references can be imported
         if this
-            .annotations
-            .as_ref()
-            .and_then(|a| a.chunking_type())
+            .extras
+            .as_deref()
+            .and_then(|e| e.chunking_type)
             .is_none_or(|v| v != SpecifiedChunkingType::None)
         {
             let import_externals = this.import_externals;
@@ -629,7 +781,9 @@ impl EsmAssetReference {
                         stmt,
                     ));
                 }
-                ReferencedAsset::None => {}
+                // A module without ECMAScript bindings (e.g. a stylesheet) may still
+                // be imported for its side effects, which needs no code generation.
+                ReferencedAsset::None | ReferencedAsset::NonPlaceable(_) => {}
                 _ => {
                     let mut result = vec![];
 

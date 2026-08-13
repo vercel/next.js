@@ -10,6 +10,7 @@
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(const_type_name)]
+#![feature(mpmc_channel)]
 
 pub mod backend;
 mod capture_future;
@@ -43,7 +44,6 @@ pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
 mod priority_runner;
-mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
@@ -53,9 +53,10 @@ pub mod small_duration;
 mod spawn;
 mod state;
 pub mod task;
+#[cfg(feature = "task_dirty_cause")]
+mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
-mod tiny_vec;
 pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
@@ -72,25 +73,33 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "task_dirty_cause")]
+pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
     dyn_task_inputs::{
-        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+        DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
     },
-    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
+    effect::{
+        ApplyError, CapturedEffect, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
+        EffectsError, read_strongly_consistent_and_apply_effects,
+        resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
+    },
     error::PrettyPrintError,
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    id::{
+        ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
+    },
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
-        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
+        CurrentCellRef, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
+        TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
         trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
@@ -98,7 +107,6 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
@@ -109,14 +117,14 @@ pub use crate::{
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
-    tiny_vec::TinyVec,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
-        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
-        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        CellId, Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, OrdResolvedVc,
+        RawVc, RawVcUnpacked, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
+        ResolveRawVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
+        ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
         VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
         VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
@@ -269,6 +277,31 @@ pub use turbo_tasks_macros::function;
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
 
+/// Attribute macro for declaring a [`TaskInput`] type. Emits:
+///
+/// - `unsafe impl NonLocalValue for X {}` (unless `contains_unresolved_vcs` is set).
+/// - `impl TaskInput for X` with a field-walking `is_transient`. By default `is_resolved` and
+///   `resolve_input` use the trait defaults (`true` and a [`CloneReady`] future — 8 bytes, no
+///   async-fn envelope); when `contains_unresolved_vcs` is set, both are emitted as
+///   field-walking implementations as well.
+///
+/// Default form (most types):
+///
+/// ```ignore
+/// #[turbo_tasks::task_input]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// pub struct MyTaskInput { ... }
+/// ```
+///
+/// Opt out of `NonLocalValue` when the type contains `Vc<T>` fields:
+///
+/// ```ignore
+/// #[turbo_tasks::task_input(contains_unresolved_vcs)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// pub struct VcCarrier { vc: Vc<...> }
+/// ```
+pub use turbo_tasks_macros::task_input;
+
 /// Allows this trait to be used as part of a trait object inside of a value cell, in the form of
 /// `Vc<Box<dyn MyTrait>>`. The annotated trait is made into a subtrait of [`VcValueTrait`].
 ///
@@ -391,12 +424,4 @@ pub use turbo_tasks_macros::value_impl;
 #[rustfmt::skip]
 pub use turbo_tasks_macros::task_storage;
 
-/// Refer to [the trait documentation][trait@TaskInput] for usage.
-#[rustfmt::skip]
-pub use turbo_tasks_macros::TaskInput;
-
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
-
-pub mod test_helpers {
-    pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}

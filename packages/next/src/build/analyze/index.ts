@@ -13,7 +13,6 @@ import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import http from 'node:http'
 
@@ -43,6 +42,9 @@ export default async function analyze({
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
+    // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
+    // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
+    process.env.TURBOPACK ??= '1'
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
@@ -167,7 +169,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isAppPPREnabled = Boolean(config.cacheComponents)
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({
@@ -203,8 +205,7 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    // Listen on localhost (both IPv4 and IPv6)
-    server.listen(port, () => {
+    server.listen(port, 'localhost', () => {
       const address = server.address()
       if (address == null) {
         reject(new Error('Unable to get server address'))

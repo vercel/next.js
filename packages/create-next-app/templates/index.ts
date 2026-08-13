@@ -18,7 +18,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.6";
+const nextjsReactPeerVersion = "19.2.8";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
@@ -72,7 +72,9 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
-  if (!tailwind) copySource.push("!postcss.config.mjs");
+  if (!tailwind || bundler === Bundler.Turbopack) {
+    copySource.push("!postcss.config.mjs");
+  }
 
   await copy(copySource, root, {
     parents: true,
@@ -107,6 +109,30 @@ export const installTemplate = async ({
           "export default withRspack(nextConfig);",
         ),
     );
+  }
+
+  if (tailwind && bundler === Bundler.Turbopack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      `/* config options here */
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+`,
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
   }
 
   if (reactCompiler) {
@@ -278,9 +304,13 @@ export const installTemplate = async ({
 
   /* Add Tailwind CSS dependencies. */
   if (tailwind) {
+    const tailwindPlugin =
+      bundler === Bundler.Turbopack
+        ? "@tailwindcss/turbopack"
+        : "@tailwindcss/postcss";
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@tailwindcss/postcss": "^4",
+      [tailwindPlugin]: "^4",
       tailwindcss: "^4",
     };
   }
@@ -338,7 +368,26 @@ export const installTemplate = async ({
     // If we can't determine the version, assume latest (v10+) since we already
     // know pnpm is being used at this point.
     const pnpmMajorVersion = getPnpmMajorVersion();
-    if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
+      // In pnpm v11, `ignoredBuiltDependencies` (and the other build-script
+      // settings) were removed in favor of a single `allowBuilds` map where
+      // `false` denies a package from running build scripts. See
+      // https://pnpm.io/blog/releases/11.0
+      const pnpmWorkspaceYaml = [
+        "allowBuilds:",
+        // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+        // If it needs to build binaries from source, next-swc wouldn't work either.
+        // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+        "  sharp: false",
+        // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+        "  unrs-resolver: false",
+        "",
+      ].join(os.EOL);
+      await fs.writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        pnpmWorkspaceYaml,
+      );
+    } else if (pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [
         "ignoredBuiltDependencies:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.

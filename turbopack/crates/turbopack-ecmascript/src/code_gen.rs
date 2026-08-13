@@ -21,7 +21,7 @@ use crate::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
-            CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
             CjsRequireResolveAssetReferenceCodeGen,
         },
         constant_condition::ConstantConditionCodeGen,
@@ -38,8 +38,9 @@ use crate::{
         import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
+        service_worker::ServiceWorkerAssetReferenceCodeGen,
         unreachable::Unreachable,
-        worker::WorkerAssetReferenceCodeGen,
+        worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
 
@@ -189,6 +190,7 @@ pub enum CodeGen {
     EsmModuleItem(EsmModuleItem),
     ExportsInfoBinding(ExportsInfoBinding),
     ExportsInfoRef(ExportsInfoRef),
+    CjsExportsDropCodeGen(CjsExportsDropCodeGen),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
@@ -202,7 +204,9 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
+    WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
 
 impl CodeGen {
@@ -223,6 +227,7 @@ impl CodeGen {
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
+            Self::CjsExportsDropCodeGen(v) => v.code_generation(ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
@@ -236,9 +241,11 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
                 v.code_generation(ctx, scope_hoisting_context).await
             }
+            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

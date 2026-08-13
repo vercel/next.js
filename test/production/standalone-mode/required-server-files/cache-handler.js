@@ -1,8 +1,9 @@
 const cache = new Map()
+const isEven = require('is-even')
 
 module.exports = class CacheHandler {
   constructor() {
-    console.log('initialized custom cache-handler')
+    console.log('initialized custom cache-handler: ', isEven(3))
   }
 
   async get(key, ctx) {

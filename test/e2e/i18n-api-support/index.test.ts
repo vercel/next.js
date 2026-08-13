@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
+const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+
 describe('i18n API support', () => {
   const { next } = nextTestSetup({
     files: {
@@ -34,6 +37,8 @@ describe('i18n API support', () => {
       },
     },
     dependencies: {},
+    // FIXME: Fails to deploy
+    skipDeployment: isAdapterTest && isTurbopackTest,
   })
 
   it('should respond to normal API request', async () => {

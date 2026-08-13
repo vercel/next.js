@@ -13,6 +13,7 @@
 import { expect, test } from 'vitest'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
 /** Strip JS/TS comments so we only test actual code, not migration notes */
 function stripComments(code: string): string {
@@ -36,25 +37,28 @@ test('Root layout exists and replaces _app/_document', () => {
   expect(layoutContent).toMatch(/children.*ReactNode/)
 })
 
-test('Home page migrated to Server Component with async data fetching', () => {
+// The "is it a Server Component fetching data" check is semantic, so it uses the
+// agentic LLM judge rather than regex. The old regexes rejected correct solutions
+// that didn't match one exact shape — e.g. data fetching extracted to a helper
+// (no literal `fetch(` in page.tsx) or a component not declared with the
+// `export default async function` form.
+test('Home page migrated to Server Component with async data fetching', async () => {
   const pagePath = join(process.cwd(), 'app', 'page.tsx')
   expect(existsSync(pagePath)).toBe(true)
 
-  const pageContent = readFileSync(pagePath, 'utf-8')
+  await expect(environment).toSatisfyCriterion(
+    `app/page.tsx is the home page migrated to the App Router: an async Server Component that fetches its data during server render.
 
-  // Should be async Server Component
-  expect(pageContent).toMatch(
-    /export\s+default\s+async\s+function|async\s+function.*Page/
+For reference, one correct solution shape:
+
+  // app/page.tsx
+  export default async function HomePage() {
+    const posts = await getPosts() // fetched inline or via an imported helper
+    return <main>{/* renders the fetched data */}</main>
+  }
+
+Judge runtime behavior, not style: any organization that renders the fetched data from a Server Component is correct.`
   )
-
-  // Should NOT have 'use client' directive
-  expect(pageContent).not.toMatch(/['"]use client['"];?/)
-
-  // Should use fetch instead of getServerSideProps
-  expect(pageContent).toMatch(/await\s+fetch|fetch\(/)
-
-  // Should not have getServerSideProps in actual code (comments OK)
-  expect(stripComments(pageContent)).not.toMatch(/getServerSideProps/)
 })
 
 test('Blog index migrated with ISR equivalent', () => {

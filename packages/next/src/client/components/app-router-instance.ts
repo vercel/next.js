@@ -35,9 +35,10 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { ClientInstrumentationHooks } from '../app-index'
+import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
+import { startRouterTransition } from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -46,12 +47,9 @@ export type AppRouterActionQueue = {
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
 
-  onRouterTransitionStart:
-    | ((url: string, type: 'push' | 'replace' | 'traverse') => void)
-    | null
-
   pending: ActionQueueNode | null
   needsRefresh?: boolean
+  wasPreempted?: boolean
   last: ActionQueueNode | null
 }
 
@@ -70,22 +68,36 @@ export type ActionQueueNode = {
 
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
+  settledAction: ActionQueueNode,
   setState: DispatchStatePromise
 ) {
-  if (actionQueue.pending !== null) {
-    actionQueue.pending = actionQueue.pending.next
+  // Only advance the queue if the settled action is still at its head. If a
+  // navigation discarded this action, the navigation took its place and is
+  // still in flight — starting the next queued action now would run it
+  // against router state that doesn't include the navigation yet.
+  if (actionQueue.pending === settledAction) {
+    actionQueue.pending = settledAction.next
     if (actionQueue.pending !== null) {
       runAction({
         actionQueue,
         action: actionQueue.pending,
         setState,
       })
+      return
     }
-  } else {
-    // Check for refresh when pending is already null
-    // This handles the case where a discarded server action completes
-    // after the navigation has already finished and the queue is empty
+  }
+
+  if (actionQueue.pending === null) {
+    if (actionQueue.wasPreempted) {
+      actionQueue.wasPreempted = false
+      // When an action is preempted, later actions can update the queue's state without React rendering it.
+      // Once the queue is empty, publish the final state so the UI catches up.
+      startTransition(() => setState(actionQueue.state))
+    }
+
     if (actionQueue.needsRefresh) {
+      // The queue is idle; flush the refresh requested by a discarded server
+      // action that revalidated data.
       actionQueue.needsRefresh = false
       actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
     }
@@ -120,22 +132,22 @@ async function runAction({
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // This can't advance the queue (this action is no longer its head), but
+      // if the queue has already drained, it flushes the refresh now.
+      runRemainingActions(actionQueue, action, setState)
       return
     }
 
     actionQueue.state = nextState
 
-    runRemainingActions(actionQueue, setState)
+    runRemainingActions(actionQueue, action, setState)
     action.resolve(nextState)
   }
 
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, setState)
+      runRemainingActions(actionQueue, action, setState)
       action.reject(err)
     })
   } else {
@@ -195,10 +207,15 @@ function dispatchAction(
     // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
+    actionQueue.wasPreempted = true
 
     // The rest of the current queue should still execute after this navigation.
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
     newAction.next = actionQueue.pending.next
+
+    if (actionQueue.last === actionQueue.pending) {
+      actionQueue.last = newAction
+    }
 
     runAction({
       actionQueue,
@@ -218,8 +235,7 @@ function dispatchAction(
 let globalActionQueue: AppRouterActionQueue | null = null
 
 export function createMutableActionQueue(
-  initialState: AppRouterState,
-  instrumentationHooks: ClientInstrumentationHooks | null
+  initialState: AppRouterState
 ): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
     state: initialState,
@@ -231,12 +247,6 @@ export function createMutableActionQueue(
     },
     pending: null,
     last: null,
-    onRouterTransitionStart:
-      instrumentationHooks !== null &&
-      typeof instrumentationHooks.onRouterTransitionStart === 'function'
-        ? // This profiling hook will be called at the start of every navigation.
-          instrumentationHooks.onRouterTransitionStart
-        : null,
   }
 
   if (typeof window !== 'undefined') {
@@ -268,19 +278,13 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
-function getProfilingHookForOnNavigationStart() {
-  if (globalActionQueue !== null) {
-    return globalActionQueue.onRouterTransitionStart
-  }
-  return null
-}
-
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
   scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
-  transitionTypes: string[] | undefined
+  transitionTypes: string[] | undefined,
+  prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -297,11 +301,12 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, navigateType)
-  }
+  startRouterTransition(
+    href,
+    navigateType,
+    getAppRouterActionQueue().state.tree,
+    prefetchIntent
+  )
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -317,10 +322,12 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, 'traverse')
-  }
+  startRouterTransition(
+    href,
+    'traverse',
+    getAppRouterActionQueue().state.tree,
+    null
+  )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
@@ -383,6 +390,10 @@ function gesturePush(href: string, options?: NavigateOptions): void {
     dispatchGestureState(forkedGestureState)
   }
 }
+
+// Tracks the newest HMR refresh generation so that a newer refresh can abort
+// the request of the one it supersedes. Development only.
+let activeHmrRefreshController: AbortController | null = null
 
 /**
  * The app router that is exposed through `useRouter`. These are public API
@@ -450,7 +461,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },
@@ -468,7 +480,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },
@@ -488,9 +501,19 @@ export const publicAppRouterInstance: AppRouterInstance = {
       // Reset the known routes table so that route predictions are cleared
       // when routes change during development.
       resetKnownRoutes()
+      let signal: AbortSignal | undefined
+      if (process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
+        // Abort the superseded generation before scheduling the new one, so its
+        // request is torn down as early as possible. Halting (not rejecting)
+        // makes the abort safe regardless of order.
+        activeHmrRefreshController?.abort()
+        activeHmrRefreshController = new AbortController()
+        signal = activeHmrRefreshController.signal
+      }
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
+          signal,
         })
       })
     }

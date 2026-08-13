@@ -8,6 +8,7 @@ use std::{
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_persistence::CommitStats;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
@@ -18,15 +19,13 @@ use turbo_tasks::{
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
-    backing_storage::{
-        BackingStorage, BackingStorageSealed, SnapshotItem, SnapshotMeta,
-        compute_task_type_hash_from_components,
-    },
+    backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
-        key_value_database::{KeySpace, KeyValueDatabase},
-        write_batch::{ConcurrentWriteBatch, WriteBuffer},
+        key_value_database::KeySpace,
+        turbo::{TurboKeyValueDatabase, TurboWriteBatch},
+        write_batch::WriteBuffer,
     },
     db_invalidation::invalidation_reasons,
 };
@@ -72,10 +71,10 @@ fn should_invalidate_on_panic() -> bool {
     *SHOULD_INVALIDATE
 }
 
-pub struct KeyValueDatabaseBackingStorageInner<T: KeyValueDatabase> {
-    database: T,
-    /// Used when calling [`BackingStorage::invalidate`]. Can be `None` in the memory-only/no-op
-    /// storage case.
+struct TurboBackingStorageInner {
+    database: TurboKeyValueDatabase,
+    /// Used when calling [`TurboBackingStorage::invalidate`]. Can be `None` in the
+    /// memory-only/no-op storage case.
     base_path: Option<PathBuf>,
     /// Used to skip calling [`invalidate_db`] when the database has already been invalidated.
     invalidated: Mutex<bool>,
@@ -84,18 +83,22 @@ pub struct KeyValueDatabaseBackingStorageInner<T: KeyValueDatabase> {
     _panic_hook_guard: Option<PanicHookGuard>,
 }
 
-pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
+/// The higher-level backing storage passed to [`TurboTasksBackend::new`], used by
+/// [`crate::turbo_backing_storage`] and [`crate::noop_backing_storage`].
+///
+/// Wraps a low-level [`TurboKeyValueDatabase`] and adapts it into the persistence operations the
+/// backend needs (snapshots, task-candidate lookups, etc.).
+///
+/// [`TurboTasksBackend::new`]: crate::TurboTasksBackend::new
+pub struct TurboBackingStorage {
     // wrapped so that `register_panic_hook` can hold a weak reference to `inner`.
-    inner: Arc<KeyValueDatabaseBackingStorageInner<T>>,
+    inner: Arc<TurboBackingStorageInner>,
 }
 
-/// A wrapper type used by [`crate::turbo_backing_storage`] and [`crate::noop_backing_storage`].
-///
-/// Wraps a low-level key-value database into a higher-level [`BackingStorage`] type.
-impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
-    pub(crate) fn new_in_memory(database: T) -> Self {
+impl TurboBackingStorage {
+    pub(crate) fn new_in_memory(database: TurboKeyValueDatabase) -> Self {
         Self {
-            inner: Arc::new(KeyValueDatabaseBackingStorageInner {
+            inner: Arc::new(TurboBackingStorageInner {
                 database,
                 base_path: None,
                 invalidated: Mutex::new(false),
@@ -112,57 +115,52 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
     /// - [Registers a dynamic panic hook][turbo_tasks::panic_hooks] to invalidate the database upon
     ///   a panic. This invalidates the database using [`invalidation_reasons::PANIC`].
     ///
-    /// Along with returning a [`KeyValueDatabaseBackingStorage`], this returns a
+    /// Along with returning a [`TurboBackingStorage`], this returns a
     /// [`StartupCacheState`], which can be used by the application for logging information to the
     /// user or telemetry about the cache.
     pub(crate) fn open_versioned_on_disk(
         base_path: PathBuf,
         version_info: &GitVersionInfo,
         is_ci: bool,
-        database: impl FnOnce(PathBuf) -> Result<T>,
-    ) -> Result<(Self, StartupCacheState)>
-    where
-        T: Send + Sync + 'static,
-    {
+        database: impl FnOnce(PathBuf) -> Result<TurboKeyValueDatabase>,
+    ) -> Result<(Self, StartupCacheState)> {
         let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
             .context("Failed to check database invalidation and cleanup")?;
         let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)
             .context("Failed to handle database versioning")?;
         let database = (database)(versioned_path).context("Failed to open database")?;
         let backing_storage = Self {
-            inner: Arc::new_cyclic(
-                move |weak_inner: &Weak<KeyValueDatabaseBackingStorageInner<T>>| {
-                    let panic_hook_guard = if should_invalidate_on_panic() {
-                        let weak_inner = weak_inner.clone();
-                        Some(register_panic_hook(Box::new(move |_| {
-                            let Some(inner) = weak_inner.upgrade() else {
-                                return;
-                            };
-                            // If a panic happened that must mean something deep inside of turbopack
-                            // or turbo-tasks failed, and it may be hard to recover. We don't want
-                            // the cache to stick around, as that may persist bugs. Make a
-                            // best-effort attempt to invalidate the database (ignoring failures).
-                            let _ = inner.invalidate(invalidation_reasons::PANIC);
-                        })))
-                    } else {
-                        None
-                    };
-                    KeyValueDatabaseBackingStorageInner {
-                        database,
-                        base_path: Some(base_path),
-                        invalidated: Mutex::new(false),
-                        _panic_hook_guard: panic_hook_guard,
-                    }
-                },
-            ),
+            inner: Arc::new_cyclic(move |weak_inner: &Weak<TurboBackingStorageInner>| {
+                let panic_hook_guard = if should_invalidate_on_panic() {
+                    let weak_inner = weak_inner.clone();
+                    Some(register_panic_hook(Box::new(move |_| {
+                        let Some(inner) = weak_inner.upgrade() else {
+                            return;
+                        };
+                        // If a panic happened that must mean something deep inside of turbopack
+                        // or turbo-tasks failed, and it may be hard to recover. We don't want
+                        // the cache to stick around, as that may persist bugs. Make a
+                        // best-effort attempt to invalidate the database (ignoring failures).
+                        let _ = inner.invalidate(invalidation_reasons::PANIC);
+                    })))
+                } else {
+                    None
+                };
+                TurboBackingStorageInner {
+                    database,
+                    base_path: Some(base_path),
+                    invalidated: Mutex::new(false),
+                    _panic_hook_guard: panic_hook_guard,
+                }
+            }),
         };
         Ok((backing_storage, startup_cache_state))
     }
 }
 
-impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
+impl TurboBackingStorageInner {
     fn invalidate(&self, reason_code: &str) -> Result<()> {
-        // `base_path` can be `None` for a `NoopKvDb`
+        // `base_path` is `None` for in-memory backing storage (see `noop_backing_storage`).
         if let Some(base_path) = &self.base_path {
             // Invalidation could happen frequently if there's a bunch of panics. We only need to
             // invalidate once, so grab a lock.
@@ -193,18 +191,19 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
     }
 }
 
-impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
-    for KeyValueDatabaseBackingStorage<T>
-{
-    fn invalidate(&self, reason_code: &str) -> Result<()> {
+impl TurboBackingStorage {
+    /// Called when the database should be invalidated upon re-initialization.
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`TurboTasksBackend::stop`].
+    ///
+    /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
+    pub(crate) fn invalidate(&self, reason_code: &str) -> Result<()> {
         self.inner.invalidate(reason_code)
     }
-}
 
-impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
-    for KeyValueDatabaseBackingStorage<T>
-{
-    fn next_free_task_id(&self) -> Result<TaskId> {
+    pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(self
             .inner
             .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
@@ -212,8 +211,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
-    fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
-        fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
+    pub(crate) fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
+        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<AnyOperation>> {
             let Some(operations) =
                 database.get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
             else {
@@ -225,7 +224,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn save_snapshot<I>(
+    pub(crate) fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
         snapshots: Vec<I>,
@@ -238,7 +237,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let snapshot_meta =
+            let mut snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
@@ -284,6 +283,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         data_items,
                         meta_items,
                         task_cache_items,
+                        // The on-disk byte totals aren't known until the batch is committed below;
+                        // they're filled in from `CommitStats` after `batch.commit()`.
+                        bytes_written: 0,
+                        bytes_deleted: 0,
                         max_next_task_id: max_new_task_id,
                     })
                 })?
@@ -308,13 +311,17 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             save_infra(&batch, next_task_id, operations)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
-                batch.commit().context("Unable to commit operations")?;
+                // Byte totals are the physical on-disk bytes (post-compression, including .sst /
+                // .blob / .meta files) produced and removed by the commit.
+                let stats = batch.commit().context("Unable to commit snapshot")?;
+                snapshot_meta.bytes_written = stats.bytes_written;
+                snapshot_meta.bytes_deleted = stats.bytes_deleted;
             }
             Ok(snapshot_meta)
         }
     }
 
-    fn lookup_task_candidates(
+    pub(crate) fn lookup_task_candidates(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
@@ -336,14 +343,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         let mut task_ids = SmallVec::with_capacity(buffers.len());
         for bytes in buffers {
-            let bytes = bytes.borrow().try_into()?;
+            let bytes = Borrow::<[u8]>::borrow(&bytes).try_into()?;
             let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
             task_ids.push(id);
         }
         Ok(task_ids)
     }
 
-    fn lookup_data(
+    pub(crate) fn lookup_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
@@ -365,7 +372,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
     }
 
-    fn batch_lookup_data(
+    pub(crate) fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
@@ -397,20 +404,20 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .collect::<Result<Vec<_>>>()
     }
 
-    fn compact(&self) -> Result<bool> {
+    pub(crate) fn compact(&self) -> Result<Option<CommitStats>> {
         self.inner.database.compact()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    pub(crate) fn shutdown(&self) -> Result<()> {
         self.inner.database.shutdown()
     }
 
-    fn has_unrecoverable_write_error(&self) -> bool {
+    pub(crate) fn has_unrecoverable_write_error(&self) -> bool {
         self.inner.database.has_unrecoverable_write_error()
     }
 }
 
-fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u32, anyhow::Error> {
+fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Error> {
     Ok(
         match batch.get(
             KeySpace::Infra,
@@ -422,8 +429,8 @@ fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u3
     )
 }
 
-fn save_infra<'a>(
-    batch: &impl ConcurrentWriteBatch<'a>,
+fn save_infra(
+    batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
     operations: Vec<Arc<AnyOperation>>,
 ) -> Result<(), anyhow::Error> {
@@ -459,11 +466,7 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::*;
-    use crate::database::{
-        key_value_database::KeyValueDatabase,
-        turbo::TurboKeyValueDatabase,
-        write_batch::{ConcurrentWriteBatch, WriteBuffer},
-    };
+    use crate::database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer};
 
     /// Helper to write to the database using the concurrent batch API.
     fn write_task_cache_entry(

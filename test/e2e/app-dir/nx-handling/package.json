@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "build": "NX_ISOLATE_PLUGINS=false nx run next-nx-test:build",
-    "dev": "NX_ISOLATE_PLUGINS=false nx run next-nx-test:dev",
-    "start": "NX_ISOLATE_PLUGINS=false nx run next-nx-test:serve:production",
+    "build": "nx run next-nx-test:build",
+    "dev": "nx run next-nx-test:dev",
+    "start": "nx run next-nx-test:serve:production",
     "repro": "rm -rf dist && npm run build && npm run start"
   },
   "private": true,
@@ -18,7 +18,7 @@
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "~0.6.0",
     "@swc/core": "~1.5.7",
-    "@swc/helpers": "~0.5.11",
+    "@swc/helpers": "~0.5.23",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
     "nx": "21.1.3",

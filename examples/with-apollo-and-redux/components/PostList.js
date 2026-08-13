@@ -35,6 +35,10 @@ export default function PostList() {
 
   const loadingMorePosts = networkStatus === NetworkStatus.fetchMore;
 
+  if (error) return <ErrorMessage message="Error loading posts." />;
+  if (loading && !loadingMorePosts) return <div>Loading</div>;
+  if (!data) return null;
+
   const { allPosts, _allPostsMeta } = data;
 
   const loadMorePosts = () => {
@@ -44,9 +48,6 @@ export default function PostList() {
       },
     });
   };
-
-  if (error) return <ErrorMessage message="Error loading posts." />;
-  if (loading && !loadingMorePosts) return <div>Loading</div>;
 
   const areMorePosts = allPosts.length < _allPostsMeta.count;
 

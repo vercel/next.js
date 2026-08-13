@@ -83,19 +83,21 @@ async fn compute_side_effect_free_module_info_single(
         // parent is a module that depends on it.
         |child, parent, _s| {
             Ok(if child.is_some() {
-                match module_side_effects
-                    .get(&parent)
-                    .expect("the map is populated for all modules in this graph")
-                {
-                    ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree => {
+                match module_side_effects.get(&parent) {
+                    Some(ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree) => {
                         // We have either already seen this or don't want to follow it
                         GraphTraversalAction::Exclude
                     }
-                    ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                    Some(ModuleSideEffects::ModuleEvaluationIsSideEffectFree) => {
                         // this module is side effect free locally but depends on `child` which is
                         // effectful so it too is effectful
                         locally_side_effect_free_modules_that_have_side_effects.insert(parent);
                         GraphTraversalAction::Continue
+                    }
+                    None => {
+                        // The reverse traversal might end up visiting nodes that were excluded in
+                        // the iter_reachable_nodes traversal above. So ignore them.
+                        GraphTraversalAction::Exclude
                     }
                 }
             } else {
@@ -105,6 +107,7 @@ async fn compute_side_effect_free_module_info_single(
         },
         |_, _, _| Ok(()),
     )?;
+
     #[cfg(debug_assertions)]
     {
         use std::sync::LazyLock;

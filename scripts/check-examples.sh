@@ -2,10 +2,12 @@
 
 for folder in examples/* ; do
   if [ -f "$folder/package.json" ]; then
-    cat $folder/package.json | jq '
+    tmp=$(mktemp)
+    jq '
       .private = true |
       del(.license, .version, .name, .author, .description)
-    ' | sponge $folder/package.json
+    ' "$folder/package.json" > "$tmp" && cat "$tmp" > "$folder/package.json"
+    rm -f "$tmp"
   fi
   if [ -f "$folder/tsconfig.json" ]; then
     if [ -d "$folder/app" ] || [ -d "$folder/src/app" ]; then

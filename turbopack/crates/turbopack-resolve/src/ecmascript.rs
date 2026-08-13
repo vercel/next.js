@@ -1,7 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TraitRef, Vc};
 use turbopack_core::{
+    context::AssetContext,
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
@@ -11,7 +12,7 @@ use turbopack_core::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         resolve,
     },
@@ -101,10 +102,11 @@ pub async fn esm_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = *apply_esm_specific_options(origin.resolve_options(), &ty)
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_esm_specific_options(origin_ref.resolve_options(), &ty)
         .to_resolved()
         .await?;
-    specific_resolve(origin, request, options, ty, error_mode, issue_source).await
+    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -116,10 +118,11 @@ pub async fn cjs_resolve(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = *apply_cjs_specific_options(origin.resolve_options())
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
         .to_resolved()
         .await?;
-    specific_resolve(origin, request, options, ty, error_mode, issue_source).await
+    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -131,20 +134,17 @@ pub async fn cjs_resolve_source(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = *apply_cjs_specific_options(origin.resolve_options())
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
         .to_resolved()
         .await?;
-    let result = resolve(
-        origin.origin_path().await?.parent(),
-        ty.clone(),
-        *request,
-        options,
-    );
+    let origin_path = origin_ref.origin_path();
+    let result = resolve(origin_path.parent(), ty.clone(), *request, options);
 
     handle_resolve_source_error(
         result,
         ty,
-        *origin,
+        origin_path,
         *request,
         options,
         error_mode,
@@ -154,21 +154,24 @@ pub async fn cjs_resolve_source(
 }
 
 async fn specific_resolve(
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin: TraitRef<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: ReferenceType,
     error_mode: ResolveErrorMode,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let result = origin
-        .resolve_asset(request, options, reference_type.clone())
-        .await?;
+    let result = origin.asset_context().resolve_asset(
+        origin.origin_path(),
+        request,
+        options,
+        reference_type.clone(),
+    );
 
     handle_resolve_error(
         result,
         reference_type,
-        origin,
+        origin.origin_path(),
         request,
         options,
         error_mode,

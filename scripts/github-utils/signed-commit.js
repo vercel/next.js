@@ -87,15 +87,24 @@ async function getTreeEntry(commitSha, filePath) {
 /**
  * Upload one file from a local commit as a GitHub blob and return the blob
  * SHA for the recreated tree entry.
+ *
+ * `request` defaults to the real `githubRequest`; callers can inject a mock
+ * (e.g. a dry-run logger) to exercise the flow without hitting the API.
  */
-async function createBlobForFile(token, repoApiPath, commitSha, filePath) {
+async function createBlobForFile(
+  token,
+  repoApiPath,
+  commitSha,
+  filePath,
+  request = githubRequest
+) {
   const content = await git(['show', `${commitSha}:${filePath}`], {
     captureOutput: true,
     encoding: null,
     stripFinalNewline: false,
     maxBuffer: 1024 * 1024 * 100,
   })
-  const blob = await githubRequest(token, 'POST', `${repoApiPath}/git/blobs`, {
+  const blob = await request(token, 'POST', `${repoApiPath}/git/blobs`, {
     content: Buffer.from(content).toString('base64'),
     encoding: 'base64',
   })
@@ -114,6 +123,7 @@ async function createTreeFromLocalCommit({
   baseTreeSha,
   localCommitSha,
   allowEmpty = false,
+  request = githubRequest,
 }) {
   const changedFiles = await getChangedFiles(diffBaseSha, localCommitSha)
 
@@ -150,7 +160,8 @@ async function createTreeFromLocalCommit({
         token,
         repoApiPath,
         localCommitSha,
-        filePath
+        filePath,
+        request
       )
 
       return {
@@ -162,15 +173,10 @@ async function createTreeFromLocalCommit({
     })
   )
 
-  const createdTree = await githubRequest(
-    token,
-    'POST',
-    `${repoApiPath}/git/trees`,
-    {
-      base_tree: baseTreeSha,
-      tree,
-    }
-  )
+  const createdTree = await request(token, 'POST', `${repoApiPath}/git/trees`, {
+    base_tree: baseTreeSha,
+    tree,
+  })
 
   return createdTree.sha
 }
@@ -232,7 +238,9 @@ async function createSignedCommit({
  * top of the previous signed commit's tree. The local commit message is
  * preserved.
  *
- * Returns the SHA of the final signed commit.
+ * Returns `{ headSha, signedCommits }` where `headSha` is the final signed
+ * commit and `signedCommits` maps each local commit to its signed counterpart
+ * (`{ localSha, signedSha }`, in replay order).
  */
 async function replayLocalCommitsAsSigned({
   token,
@@ -241,6 +249,7 @@ async function replayLocalCommitsAsSigned({
   fromBaseSha,
   toLocalSha,
   allowEmpty = false,
+  request = githubRequest,
 }) {
   const repoApiPath = `/repos/${owner}/${repo}`
 
@@ -260,6 +269,7 @@ async function replayLocalCommitsAsSigned({
   let parentTreeSha = await git(['rev-parse', `${fromBaseSha}^{tree}`], {
     captureOutput: true,
   })
+  const signedCommits = []
 
   for (const localSha of localCommits) {
     const localParentSha = await git(['rev-parse', `${localSha}^`], {
@@ -276,18 +286,14 @@ async function replayLocalCommitsAsSigned({
       baseTreeSha: parentTreeSha,
       localCommitSha: localSha,
       allowEmpty,
+      request,
     })
 
-    const commit = await githubRequest(
-      token,
-      'POST',
-      `${repoApiPath}/git/commits`,
-      {
-        message,
-        tree: treeSha,
-        parents: [parentSha],
-      }
-    )
+    const commit = await request(token, 'POST', `${repoApiPath}/git/commits`, {
+      message,
+      tree: treeSha,
+      parents: [parentSha],
+    })
 
     if (!commit.verification?.verified) {
       throw new Error(
@@ -297,9 +303,10 @@ async function replayLocalCommitsAsSigned({
 
     parentSha = commit.sha
     parentTreeSha = treeSha
+    signedCommits.push({ localSha, signedSha: commit.sha })
   }
 
-  return parentSha
+  return { headSha: parentSha, signedCommits }
 }
 
 /**

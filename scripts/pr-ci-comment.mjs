@@ -3,11 +3,10 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { buildTestReport } from './test-report.js'
 
 const TEST_COMMENT_MARKER = '<!-- __NEXT_TEST_REPORT_COMMENT__ -->'
 const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
-const CONTRIBUTING_URL =
-  'https://github.com/vercel/next.js/blob/canary/contributing.md'
 const MAX_COMMENT_LENGTH = 62_000
 const MAX_RESULT_MESSAGE_LENGTH = 12_000
 
@@ -130,11 +129,9 @@ class GitHubClient {
     )
   }
 
-  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
-    body = fitComment(body)
-
+  async findExistingBotComment(issueNumber, marker, fallbackHeadings = []) {
     const comments = await this.listIssueComments(issueNumber)
-    const existing = [...comments].reverse().find((comment) => {
+    return [...comments].reverse().find((comment) => {
       if (comment.user?.login !== COMMENT_AUTHOR) {
         return false
       }
@@ -144,6 +141,16 @@ class GitHubClient {
         fallbackHeadings.some((heading) => comment.body?.includes(heading))
       )
     })
+  }
+
+  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
 
     if (this.dryRun) {
       console.log(
@@ -180,6 +187,45 @@ class GitHubClient {
       }
     )
     console.log(`Created comment ${created.html_url}`)
+  }
+
+  async insertIssueCommentIfMissing(
+    issueNumber,
+    marker,
+    body,
+    fallbackHeadings = []
+  ) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
+
+    if (existing) {
+      console.log(
+        `Existing comment ${existing.html_url} found for #${issueNumber}; requested-phase is create-only, leaving it alone`
+      )
+      return
+    }
+
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] Would create placeholder comment for #${issueNumber}`
+      )
+      console.log(body)
+      return
+    }
+
+    const created = await this.request(
+      `/repos/${this.owner}/${this.repo}/issues/${issueNumber}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }
+    )
+    console.log(`Created placeholder comment ${created.html_url}`)
   }
 
   async findPullRequestForCommit(sha) {
@@ -244,13 +290,26 @@ async function main() {
     return
   }
 
+  const phase = event.action
+  if (phase !== 'requested' && phase !== 'completed') {
+    console.log(`Ignoring workflow_run action "${phase}"`)
+    return
+  }
+
   if (workflowRun.name === 'Generate Stats') {
-    await handleStatsWorkflow({ github, workflowRun, pr })
+    await handleStatsWorkflow({ github, workflowRun, pr, phase })
     return
   }
 
   if (workflowRun.name === 'build-and-test') {
-    await handleBuildAndTestWorkflow({ github, workflowRun, pr, owner, repo })
+    await handleBuildAndTestWorkflow({
+      github,
+      workflowRun,
+      pr,
+      owner,
+      repo,
+      phase,
+    })
     return
   }
 
@@ -398,12 +457,33 @@ async function readPullRequestMetadataArtifact() {
   }
 }
 
-async function handleStatsWorkflow({ github, workflowRun, pr }) {
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('Stats workflow was cancelled, skipping')
+async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      STATS_COMMENT_MARKER,
+      body,
+      ['## Stats from current PR']
+    )
     return
   }
 
+  // Look for a stats block before reacting to the run conclusion. A single
+  // bundler timing out cancels its job and marks the whole run "cancelled", but
+  // the aggregate still emits stats for the bundlers that finished. Treating a
+  // cancelled run as "no data" up front would discard that partial comment, so
+  // we post whatever the aggregate produced first and only fall back to a
+  // cancelled/skipped notice when there is genuinely no block.
   const jobs = await github.listJobsForRunAttempt(
     workflowRun.id,
     workflowRun.run_attempt || 1
@@ -411,7 +491,15 @@ async function handleStatsWorkflow({ github, workflowRun, pr }) {
   const candidates = jobs.filter((job) => /aggregate stats/i.test(job.name))
 
   for (const job of candidates) {
-    const logs = await github.downloadJobLogs(job.id)
+    let logs
+    try {
+      logs = await github.downloadJobLogs(job.id)
+    } catch (err) {
+      // A cancelled or skipped aggregate job may have no retrievable logs.
+      console.log(`Failed to download logs for job ${job.id}`, err)
+      continue
+    }
+
     const stats = extractDelimitedBlock(
       logs,
       '--stats start--',
@@ -439,7 +527,43 @@ async function handleStatsWorkflow({ github, workflowRun, pr }) {
     return
   }
 
-  console.log('No stats block found in the completed stats workflow')
+  const sha = pr.headSha || workflowRun.head_sha
+
+  // No stats block. A cancelled conclusion here means the whole run was
+  // cancelled (superseded, or every bundler cancelled) rather than an
+  // individual bundler, since a partial run would have produced a block above.
+  if (workflowRun.conclusion === 'cancelled') {
+    console.log('No stats block found and the run was cancelled.')
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+      '## Stats from current PR',
+    ])
+    return
+  }
+
+  console.log(
+    'No stats block found in the completed stats workflow. Assuming stats were skipped.'
+  )
+
+  const body = [
+    STATS_COMMENT_MARKER,
+    '## Stats skipped',
+    '',
+    `Commit: ${sha}`,
+    `[View workflow run](${workflowRun.html_url})`,
+    '',
+  ].join('\n')
+  await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+    '## Stats from current PR',
+  ])
 }
 
 async function handleBuildAndTestWorkflow({
@@ -448,9 +572,25 @@ async function handleBuildAndTestWorkflow({
   pr,
   owner,
   repo,
+  phase,
 }) {
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('build-and-test was cancelled, skipping')
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      TEST_COMMENT_MARKER,
+      '## Tests in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      TEST_COMMENT_MARKER,
+      body,
+      ['## Failing test suites', '## Failing CI jobs']
+    )
     return
   }
 
@@ -493,11 +633,7 @@ async function handleBuildAndTestWorkflow({
       return
     }
 
-    const parsedSuites = parseFailedSuitesFromLogs(logs, job, {
-      owner,
-      repo,
-      sha: pr.headSha || workflowRun.head_sha,
-    })
+    const parsedSuites = parseFailedSuitesFromLogs(logs, job)
 
     if (parsedSuites.length === 0) {
       otherFailures.push({ job })
@@ -509,6 +645,8 @@ async function handleBuildAndTestWorkflow({
   const body = buildTestReportComment({
     failedSuites,
     otherFailures,
+    owner,
+    repo,
     sha: pr.headSha || workflowRun.head_sha,
   })
 
@@ -518,7 +656,7 @@ async function handleBuildAndTestWorkflow({
   ])
 }
 
-function parseFailedSuitesFromLogs(logs, job, { owner, repo, sha }) {
+function parseFailedSuitesFromLogs(logs, job) {
   const blocks = extractJsonBlocks(logs)
   const failedSuites = []
 
@@ -555,9 +693,6 @@ function parseFailedSuitesFromLogs(logs, job, { owner, repo, sha }) {
           MAX_RESULT_MESSAGE_LENGTH
         ),
         groups: groupedFails,
-        owner,
-        repo,
-        sha,
       })
     }
   }
@@ -596,136 +731,57 @@ function extractDelimitedBlock(logs, start, end) {
   return logs.slice(contentStart, endIndex).trim()
 }
 
-function buildTestReportComment({ failedSuites, otherFailures, sha }) {
-  const heading =
-    failedSuites.length > 0 ? '## Failing test suites' : '## Failing CI jobs'
-  const lines = [
-    TEST_COMMENT_MARKER,
-    heading,
-    '',
-    `Commit: ${sha} | [About building and testing Next.js](${CONTRIBUTING_URL})`,
-    '',
-  ]
-
-  for (const suite of failedSuites.sort((a, b) =>
-    `${a.job.name}:${a.testPath}`.localeCompare(`${b.job.name}:${b.testPath}`)
-  )) {
-    const jobMarker = getJobMarker(suite.job.name)
-    lines.push(jobMarker.start)
-    lines.push(
-      `\`${getTestCommand(suite)}\`${getJobTags(suite.job.name)} ([job](${suite.job.html_url}))`
+function buildTestReportComment({
+  failedSuites,
+  otherFailures,
+  owner,
+  repo,
+  sha,
+}) {
+  const suites = failedSuites
+    .sort((a, b) =>
+      `${a.job.name}:${a.testPath}`.localeCompare(`${b.job.name}:${b.testPath}`)
     )
+    .map((suite) => {
+      // Unlike `run-tests.js`, which reads them from its environment, the
+      // suite properties have to be derived from the CI job name here.
+      const jobName = suite.job.name.toLowerCase()
+      const isCacheComponents = jobName.includes('cache components')
 
-    const sortedGroups = [...suite.groups.keys()].sort()
-    for (const group of sortedGroups) {
-      const fails = suite.groups.get(group)
-      lines.push(
-        `- ${fails
-          .map((fail) => formatFailureLine(suite, group, fail))
-          .join('\n- ')}`
-      )
-    }
-
-    if (suite.resultMessage) {
-      lines.push('')
-      lines.push('<details>')
-      lines.push('<summary>Expand output</summary>')
-      lines.push('')
-      lines.push(suite.resultMessage)
-      lines.push('</details>')
-    }
-
-    lines.push(jobMarker.end)
-    lines.push('')
-  }
-
-  if (otherFailures.length > 0) {
-    if (failedSuites.length > 0) {
-      lines.push('### Other failing CI jobs')
-      lines.push('')
-    }
-
-    for (const { job, reason } of otherFailures.sort((a, b) =>
-      a.job.name.localeCompare(b.job.name)
-    )) {
-      lines.push(
-        `- [${job.name}](${job.html_url})${reason ? `: ${reason}` : ''}`
-      )
-    }
-  }
-
-  return lines.join('\n')
-}
-
-function formatFailureLine(suite, group, fail) {
-  const testName = `${group ? `${group} > ` : ''}${fail.title}`
-  const jobName = suite.job.name.toLowerCase()
-  if (jobName.includes('rspack')) {
-    return testName
-  }
-
-  const query = datadogSearchQuery({
-    '@git.repository.id': `github.com/${suite.owner}/${suite.repo}`,
-    '@git.commit.head_sha': suite.sha,
-    '@test.name': testName.replace(/ > /g, ' '),
-    '@test.type': jobName.includes('turbopack') ? 'turbopack' : 'nextjs',
-    '@test.status': 'fail',
-  })
-  const linkUrl = new URL('https://app.datadoghq.com/ci/test/runs')
-  linkUrl.searchParams.set('query', query)
-  return `${testName} ([DD](${linkUrl.href}))`
-}
-
-function datadogSearchQuery(values) {
-  return Object.entries(values)
-    .map(([key, value]) => {
-      const escapedValue = value.replace(/"/g, '\\"')
-      return `${key}:"${escapedValue}"`
+      return {
+        jobName: suite.job.name,
+        jobUrl: suite.job.html_url,
+        mode: suite.mode,
+        testPath: suite.testPath,
+        isTurbopack: jobName.includes('turbopack') || isCacheComponents,
+        isRspack: jobName.includes('rspack'),
+        isExperimental: jobName.includes('experimental') || isCacheComponents,
+        isPPR: jobName.includes('ppr'),
+        failedCases: [...suite.groups.keys()]
+          .sort()
+          .flatMap((group) =>
+            suite.groups
+              .get(group)
+              .map((fail) => `${group ? `${group} > ` : ''}${fail.title}`)
+          ),
+        resultMessage: suite.resultMessage,
+      }
     })
-    .join(' ')
-}
 
-function getTestCommand(suite) {
-  const jobName = suite.job.name.toLowerCase()
-  const isTurbopack = jobName.includes('turbopack')
-  const isRspack = jobName.includes('rspack')
-  const isExperimental = jobName.includes('experimental')
-  const isPPR = jobName.includes('ppr')
-  const script = suite.mode
-    ? `test-${suite.mode}${isExperimental ? '-experimental' : ''}${
-        isTurbopack ? '-turbo' : isRspack ? '-rspack' : ''
-      }`
-    : 'test'
-  const commandPrefix = isPPR ? '__NEXT_EXPERIMENTAL_PPR=true ' : ''
-
-  return `${commandPrefix}pnpm ${script} ${suite.testPath}`
-}
-
-function getJobTags(jobName) {
-  const lowerJobName = jobName.toLowerCase()
-  let tags = ''
-
-  if (lowerJobName.includes('turbopack')) {
-    tags += ' (turbopack)'
-  } else if (lowerJobName.includes('rspack')) {
-    tags += ' (rspack)'
-  }
-
-  if (lowerJobName.includes('experimental')) {
-    tags += ' (Experimental)'
-  } else if (lowerJobName.includes('ppr')) {
-    tags += ' (PPR)'
-  }
-
-  return tags
-}
-
-function getJobMarker(jobName) {
-  const safeName = jobName.replaceAll('-->', '')
-  return {
-    start: `<!-- J"${safeName}" -->`,
-    end: `<!-- /J"${safeName}" -->`,
-  }
+  return buildTestReport({
+    marker: TEST_COMMENT_MARKER,
+    owner,
+    repo,
+    sha,
+    suites,
+    otherFailures: otherFailures
+      .sort((a, b) => a.job.name.localeCompare(b.job.name))
+      .map(({ job, reason }) => ({
+        name: job.name,
+        url: job.html_url,
+        reason,
+      })),
+  })
 }
 
 function normalizeTestPath(testName) {

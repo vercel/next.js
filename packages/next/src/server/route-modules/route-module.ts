@@ -278,7 +278,7 @@ export abstract class RouteModule<
       if (!projectDir) {
         throw new Error('Invariant: projectDir is required for node runtime')
       }
-      const { loadManifestFromRelativePath } =
+      const { loadManifestFromRelativePath, evalManifestFromRelativePath } =
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
 
@@ -322,14 +322,16 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         srcPage === '/_error'
-          ? loadManifestFromRelativePath<BuildManifest>({
+          ? (loadManifestFromRelativePath<BuildManifest>({
               projectDir,
               distDir: this.distDir,
               manifest: `fallback-${BUILD_MANIFEST}`,
               shouldCache: !this.isDev,
               handleMissing: true,
-            })
-          : ({} as BuildManifest),
+              // TODO this cast is unsafe
+            }) ?? ({} as BuildManifest))
+          : // TODO this cast is unsafe
+            ({} as BuildManifest),
         loadManifestFromRelativePath<ReactLoadableManifest>({
           projectDir,
           distDir: this.distDir,
@@ -338,7 +340,7 @@ export abstract class RouteModule<
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
-        }),
+        }) ?? ({} satisfies ReactLoadableManifest),
         loadManifestFromRelativePath<NextFontManifest>({
           projectDir,
           distDir: this.distDir,
@@ -346,10 +348,9 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         router === 'app' && !isStaticMetadataRoute(srcPage)
-          ? loadManifestFromRelativePath({
+          ? evalManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
-              useEval: true,
               handleMissing: true,
               manifest: `server/app${srcPage.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST}.js`,
               shouldCache: !this.isDev,
@@ -670,8 +671,11 @@ export abstract class RouteModule<
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
-      // onRequestError below
-      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
     const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
@@ -1091,9 +1095,7 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
-      clientAssetToken: nextConfig.experimental.supportsImmutableAssets
-        ? ''
-        : deploymentId,
+      clientAssetToken: nextConfig.supportsImmutableAssets ? '' : deploymentId,
     }
   }
 
@@ -1138,7 +1140,15 @@ export abstract class RouteModule<
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      isPrefetch: req.headers.purpose === 'prefetch',
+      // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
+      // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
+      // standard browser `purpose: prefetch` header. Recognize both so the
+      // response cache treats segment prefetches as prefetches — most
+      // importantly, so a prefetch that misses serves a fallback shell rather
+      // than joining an in-flight background (concrete) revalidation.
+      isPrefetch:
+        req.headers.purpose === 'prefetch' ||
+        getRequestMeta(req, 'isPrefetchRSCRequest') === true,
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,

@@ -8,7 +8,10 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 use clap::Args;
 use rand::{RngExt, SeedableRng};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TryJoinIterExt, Vc, take_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TryJoinIterExt, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
@@ -82,14 +85,14 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
         println!("creating {symlink_count} initial symlinks...");
 
-        extract_effects_operation(create_initial_symlinks_operation(
-            symlinks_path.clone(),
-            symlink_count,
-            initial_target,
-        ))
-        .read_strongly_consistent()
-        .await?
-        .apply()
+        read_strongly_consistent_and_apply_effects(
+            extract_effects_operation(create_initial_symlinks_operation(
+                symlinks_path.clone(),
+                symlink_count,
+                initial_target,
+            )),
+            |e| e,
+        )
         .await?;
 
         println!(
@@ -120,13 +123,13 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
                 .collect();
 
             // Execute writes in parallel via turbo-tasks
-            extract_effects_operation(write_symlinks_batch_operation(
-                symlinks_path.clone(),
-                updates,
-            ))
-            .read_strongly_consistent()
-            .await?
-            .apply()
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(write_symlinks_batch_operation(
+                    symlinks_path.clone(),
+                    updates,
+                )),
+                |e| e,
+            )
             .await?;
 
             total_writes += parallelism as u64;

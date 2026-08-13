@@ -30,7 +30,10 @@ mod tests;
 
 pub use arc_bytes::ArcBytes;
 pub use compression::checksum_block;
-pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+pub use db::{
+    CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
+    TurboPersistence, read_current_version,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {

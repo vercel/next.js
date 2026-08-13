@@ -31,9 +31,12 @@ function extractErrorBlock(output: string, errorTitle: string): string {
 
   const beforeTitle = output.substring(0, titleIdx)
 
-  // In dev mode, errors start with a `⨯` marker on the same line as the file path.
-  // In prod mode, errors start with a bare file-path line above the title.
-  const markerIdx = beforeTitle.lastIndexOf('⨯ ')
+  // In dev mode, errors start with a `⨯` marker on the same line as the file
+  // path (e.g. `⨯ ./app/file.js`). In prod mode, errors start with a bare
+  // file-path line above the title. Match `⨯ ./` specifically so we don't latch
+  // onto unrelated `⨯` markers in the startup output, such as the experimental
+  // features list (e.g. `⨯ exampleFlag (disabled by ...)`).
+  const markerIdx = beforeTitle.lastIndexOf('⨯ ./')
   let startIdx: number
   if (markerIdx !== -1) {
     startIdx = markerIdx
@@ -113,7 +116,7 @@ describe('webpack-loader-parse-error (development)', () => {
       )
       expect(errorBlock).toMatchInlineSnapshot(`
        "⨯ ./app/data.broken.js:3:1
-       Expected '</', got '{'
+       Error: Expected '</', got '{'
          1 | // This file will be processed by broken-js-loader
          2 | // The loader will return invalid JavaScript with a source map
        > 3 | export default function Data() {
@@ -167,7 +170,7 @@ describe('webpack-loader-parse-error (development)', () => {
       )
       expect(errorBlock).toMatchInlineSnapshot(`
        "⨯ ./app/css-page/styles.broken.css:2:3
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
          1 | .page {
        > 2 |   color: blue;
            |   ^
@@ -218,7 +221,7 @@ describe('webpack-loader-parse-error (production)', () => {
       const jsError = extractErrorBlock(output, "Expected '</', got '{'")
       expect(jsError).toMatchInlineSnapshot(`
        "./app/data.broken.js:3:1
-       Expected '</', got '{'
+       Error: Expected '</', got '{'
          1 | // This file will be processed by broken-js-loader
          2 | // The loader will return invalid JavaScript with a source map
        > 3 | export default function Data() {
@@ -250,7 +253,7 @@ describe('webpack-loader-parse-error (production)', () => {
       )
       expect(cssError).toMatchInlineSnapshot(`
        "./app/css-page/styles.broken.css:5:15
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
          3 |   color: red
          4 |   @@@ THIS IS NOT VALID CSS @@@;
        > 5 |   background: {{{ invalid

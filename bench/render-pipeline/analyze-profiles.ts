@@ -13,7 +13,7 @@ const DEFAULT_ARTIFACTS_ROOT = resolve(
 )
 
 type FullRoutePhaseResult = {
-  mode: 'web' | 'node'
+  mode: 'node'
   route: string
   phase: 'single-client' | 'under-load'
   requests: number
@@ -30,7 +30,7 @@ type FullRoutePhaseResult = {
 
 type BenchmarkJson = {
   fullResults?: Array<{
-    mode: 'web' | 'node'
+    mode: 'node'
     routeResults: FullRoutePhaseResult[]
   }>
 }
@@ -275,7 +275,7 @@ async function analyzeProfile(
 }
 
 function printProfileAnalysis(
-  mode: 'web' | 'node',
+  mode: 'node',
   analysis: ProfileAnalysis,
   top: number
 ) {
@@ -315,47 +315,6 @@ function printProfileAnalysis(
   }
 }
 
-function printComparison(results: BenchmarkJson) {
-  const fullResults = results.fullResults
-  if (!fullResults || fullResults.length < 2) return
-
-  const web = fullResults.find((entry) => entry.mode === 'web')
-  const node = fullResults.find((entry) => entry.mode === 'node')
-  if (!web || !node) return
-
-  const webByKey = new Map(
-    web.routeResults.map((item) => [`${item.route}|${item.phase}`, item])
-  )
-
-  console.log('\n[comparison node vs web]')
-  console.log(
-    '  route'.padEnd(20) +
-      'phase'.padEnd(16) +
-      'RPS delta'.padEnd(14) +
-      'P95 delta'
-  )
-
-  for (const nodeEntry of node.routeResults) {
-    const key = `${nodeEntry.route}|${nodeEntry.phase}`
-    const webEntry = webByKey.get(key)
-    if (!webEntry) continue
-    const rpsDelta =
-      ((nodeEntry.throughputRps - webEntry.throughputRps) /
-        webEntry.throughputRps) *
-      100
-    const p95Delta =
-      ((webEntry.latency.p95 - nodeEntry.latency.p95) / webEntry.latency.p95) *
-      100
-
-    const line =
-      `  ${nodeEntry.route}`.padEnd(20) +
-      `${nodeEntry.phase}`.padEnd(16) +
-      `${rpsDelta >= 0 ? '+' : ''}${rpsDelta.toFixed(2)}%`.padEnd(14) +
-      `${p95Delta >= 0 ? '+' : ''}${p95Delta.toFixed(2)}%`
-    console.log(line)
-  }
-}
-
 async function main() {
   const { artifactDirArg, top } = parseArgs()
   const runDir = await resolveArtifactRunDir(artifactDirArg)
@@ -366,29 +325,26 @@ async function main() {
   const resultsPath = resolve(runDir, 'results.json')
   const resultsRaw = await readFile(resultsPath, 'utf8')
   const resultsJson = JSON.parse(resultsRaw) as BenchmarkJson
-  printComparison(resultsJson)
+  if (!resultsJson.fullResults || resultsJson.fullResults.length === 0) {
+    console.log('\nNo benchmark results found in results.json.')
+  }
 
-  const webProfile = resolve(runDir, 'web/web.cpuprofile')
   const nodeProfile = resolve(runDir, 'node/node.cpuprofile')
 
-  const [webAnalysis, nodeAnalysis] = await Promise.all([
-    analyzeProfile(webProfile, top),
-    analyzeProfile(nodeProfile, top),
-  ])
+  const nodeAnalysis = await analyzeProfile(nodeProfile, top)
 
-  if (!webAnalysis && !nodeAnalysis) {
+  if (!nodeAnalysis) {
     console.log('\nNo CPU profiles found in this artifact run.')
     console.log(
       'This analyzer reads only <mode>/<mode>.cpuprofile artifacts (not trace-event JSON or next-runtime-trace.log).'
     )
     console.log(
-      'Run benchmark with --capture-cpu=true, e.g. pnpm bench:render-pipeline --scenario=full --stream-mode=node --capture-cpu=true'
+      'Run benchmark with --capture-cpu=true, e.g. pnpm bench:render-pipeline --scenario=e2e --stream-mode=node --capture-cpu=true'
     )
     return
   }
 
-  if (webAnalysis) printProfileAnalysis('web', webAnalysis, top)
-  if (nodeAnalysis) printProfileAnalysis('node', nodeAnalysis, top)
+  printProfileAnalysis('node', nodeAnalysis, top)
 
   console.log('\nDone.')
 }

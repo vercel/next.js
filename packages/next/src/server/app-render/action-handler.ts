@@ -56,10 +56,15 @@ import {
   type ServerModuleMap,
   getServerActionsManifest,
   getServerModuleMap,
+  getActionNotFoundError,
+  getInvalidServerReferenceIdError,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { normalizeFilePath } from './segment-explorer-path'
-import { extractInfoFromServerReferenceId } from '../../shared/lib/server-reference-info'
+import {
+  extractInfoFromServerReferenceId,
+  mightBeServerReferenceId,
+} from '../../shared/lib/server-reference-info'
 import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -222,12 +227,24 @@ async function createForwardedActionResponse(
   // with the response from the forwarded worker
   forwardedHeaders.set('x-action-forwarded', '1')
 
-  const proto =
-    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
-
-  // For standalone or the serverful mode, use the internal origin directly
-  // other than the host headers from the request.
-  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${host.value}`
+  // TODO: Remove __NEXT_PRIVATE_ORIGIN
+  let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
+  if (origin === undefined) {
+    const initUrl = getRequestMeta(req, 'initURL')
+    if (initUrl !== undefined) {
+      try {
+        const parsedUrl = new URL(initUrl)
+        origin = parsedUrl.origin
+      } catch (error) {
+        throw new Error(
+          'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
+          { cause: error }
+        )
+      }
+    } else {
+      throw new InvariantError('Missing initURL')
+    }
+  }
 
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
@@ -380,13 +397,25 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const proto =
-      getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
+    // TODO: Remove __NEXT_PRIVATE_ORIGIN
+    let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
+    if (origin === undefined) {
+      const initUrl = getRequestMeta(req, 'initURL')
+      if (initUrl !== undefined) {
+        try {
+          const parsedUrl = new URL(initUrl)
 
-    // For standalone or the serverful mode, use the internal origin directly
-    // other than the host headers from the request.
-    const origin =
-      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+          origin = parsedUrl.origin
+        } catch (error) {
+          throw new Error(
+            'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
+            { cause: error }
+          )
+        }
+      } else {
+        throw new InvariantError('Missing initURL')
+      }
+    }
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
@@ -535,6 +564,20 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
+function getRevalidationWaitUntil(
+  workStore: WorkStore,
+  skipPageRendering: boolean
+): Promise<void> | undefined {
+  if (!skipPageRendering) {
+    // Page rendering executes pending revalidations before rendering. We only
+    // need to attach them to waitUntil when no page render will take place.
+    return undefined
+  }
+
+  const revalidatesPromise = executeRevalidates(workStore)
+  return revalidatesPromise === false ? undefined : revalidatesPromise
+}
+
 export async function handleAction({
   req,
   res,
@@ -608,13 +651,11 @@ export async function handleAction({
 
   // If the app has no server actions at all, we can 404 early.
   if (!hasServerActions()) {
-    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
-  }
-
-  if (workStore.isStaticGeneration) {
-    throw new Error(
-      "Invariant: server actions can't be handled during static rendering"
-    )
+    const error =
+      actionId !== null && !mightBeServerReferenceId(actionId)
+        ? getInvalidServerReferenceIdError(actionId)
+        : getActionNotFoundError(actionId)
+    return handleUnrecognizedFetchAction(error)
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -714,6 +755,14 @@ export async function handleAction({
   )
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  // A fetch action targeting a fallback route has no concrete params with
+  // which to resume the destination page.
+  const isActionOnlyFallbackRequest =
+    isFetchAction &&
+    requestStore.fallbackParams != null &&
+    typeof ctx.renderOpts.postponed === 'string'
+  const shouldSkipPageRendering =
+    actionWasForwarded || isActionOnlyFallbackRequest
 
   // Only attempt to forward if this request has not already been forwarded.
   // Otherwise middleware that rewrites the action POST can cause the receiving
@@ -746,6 +795,16 @@ export async function handleAction({
         let actionModId: string | number | undefined
         let boundActionArguments: unknown[] = []
 
+        const defaultBodySizeLimit = '1 MB'
+        const bodySizeLimit =
+          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+        const bodySizeLimitBytes =
+          bodySizeLimit !== defaultBodySizeLimit
+            ? (
+                require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+              ).parse(bodySizeLimit)
+            : 1024 * 1024 // 1 MB
+
         if (
           // The type check here ensures that `req` is correctly typed, and the
           // environment variable check provides dead code elimination.
@@ -755,8 +814,6 @@ export async function handleAction({
           if (!req.body) {
             throw new Error('invariant: Missing request body.')
           }
-
-          // TODO: add body limit
 
           // Use react-server-dom-webpack/server
           const {
@@ -770,7 +827,42 @@ export async function handleAction({
 
           if (isMultipartAction) {
             // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
+            // Read the body stream with size tracking to enforce bodySizeLimitBytes.
+            // We cannot call req.request.formData() directly as that would bypass
+            // the body size limit entirely.
+            const edgeChunks: Uint8Array[] = []
+            let edgeBodySize = 0
+            const edgeReader = req.body.getReader()
+            while (true) {
+              const { done, value } = await edgeReader.read()
+              if (done) break
+              edgeBodySize += value.byteLength
+              if (edgeBodySize > bodySizeLimitBytes) {
+                const { ApiError } =
+                  require('../api-utils') as typeof import('../api-utils')
+                throw new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                )
+              }
+              edgeChunks.push(value)
+            }
+            // Reconstruct a Blob from the buffered chunks and parse formData from it.
+            // Note: we must pass the original Content-Type as an explicit header
+            // rather than relying on the Blob's `type`. The Blob constructor
+            // normalizes `type` to ASCII lowercase per the File API spec, which
+            // would lowercase the multipart boundary parameter (e.g.
+            // `boundary=----WebKitFormBoundaryAbCdEf`). The body bytes contain the
+            // original mixed-case boundary delimiter, so a lowercased boundary
+            // would fail to match and `formData()` would throw. An explicit header
+            // on the Request takes precedence over the Blob's normalized type.
+            const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
+            const formData = await new Request('http://n/', {
+              method: 'POST',
+              headers: { 'content-type': req.headers['content-type'] ?? '' },
+              body: edgeBodyBlob,
+            }).formData()
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
@@ -780,7 +872,7 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(
+              boundActionArguments = await decodeReply<unknown[]>(
                 formData,
                 serverModuleMap,
                 { temporaryReferences }
@@ -849,6 +941,7 @@ export async function handleAction({
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
 
             const chunks: Buffer[] = []
+            let nonMultipartBodySize = 0
             const reader = req.body.getReader()
             while (true) {
               const { done, value } = await reader.read()
@@ -856,12 +949,22 @@ export async function handleAction({
                 break
               }
 
+              nonMultipartBodySize += value.byteLength
+              if (nonMultipartBodySize > bodySizeLimitBytes) {
+                const { ApiError } =
+                  require('../api-utils') as typeof import('../api-utils')
+                throw new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                )
+              }
               chunks.push(value)
             }
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -897,16 +1000,6 @@ export async function handleAction({
           const body: import('node:stream').Readable = actionBodyFromMeta
             ? Readable.from(actionBodyFromMeta)
             : req.body
-
-          const defaultBodySizeLimit = '1 MB'
-          const bodySizeLimit =
-            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-          const bodySizeLimitBytes =
-            bodySizeLimit !== defaultBodySizeLimit
-              ? (
-                  require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-                ).parse(bodySizeLimit)
-              : 1024 * 1024 // 1 MB
 
           let size = 0
           const sizeLimitTransform = new Transform({
@@ -954,7 +1047,7 @@ export async function handleAction({
                   pipeline(body, sizeLimitTransform, busboy, {
                     signal: abortController.signal,
                   }),
-                  decodeReplyFromBusboy(busboy, serverModuleMap, {
+                  decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
                     temporaryReferences,
                   }),
                 ])
@@ -1070,7 +1163,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -1145,7 +1238,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            actionWasForwarded
+            shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1162,24 +1255,19 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          // If we skip page rendering, we need to ensure pending revalidates
-          // are awaited before closing the response. Otherwise, this will be
-          // done after rendering the page.
-          const maybeRevalidatesPromise = skipPageRendering
-            ? executeRevalidates(workStore)
-            : false
-
           return {
             type: 'done',
-            result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
-              skipPageRendering,
-              temporaryReferences,
-              waitUntil:
-                maybeRevalidatesPromise === false
-                  ? undefined
-                  : maybeRevalidatesPromise,
-            }),
+            result: await actionAsyncStorage.exit(() =>
+              generateFlight(req, ctx, requestStore, {
+                actionResult: Promise.resolve(actionResult),
+                skipPageRendering,
+                temporaryReferences,
+                waitUntil: getRevalidationWaitUntil(
+                  workStore,
+                  skipPageRendering
+                ),
+              })
+            ),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.
@@ -1193,12 +1281,13 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      // if it's a fetch action, we'll set the status code for logging/debugging purposes
-      // but we won't set a Location header, as the redirect will be handled by the client router
-      res.statusCode = RedirectStatusCode.SeeOther
-      metadata.statusCode = RedirectStatusCode.SeeOther
-
       if (isFetchAction) {
+        // Fetch actions communicate redirects through `x-action-redirect` and
+        // can include the redirect target's Flight response in the body. Since
+        // this is not an HTTP redirect, keep the response successful.
+        res.statusCode = 200
+        metadata.statusCode = 200
+
         return {
           type: 'done',
           result: await createRedirectRenderResult(
@@ -1215,6 +1304,8 @@ export async function handleAction({
       }
 
       // For an MPA action, the redirect doesn't need a body, just a Location header.
+      res.statusCode = RedirectStatusCode.SeeOther
+      metadata.statusCode = RedirectStatusCode.SeeOther
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',
@@ -1238,9 +1329,13 @@ export async function handleAction({
         return {
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
-            skipPageRendering: false,
+            skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
+            waitUntil: getRevalidationWaitUntil(
+              workStore,
+              shouldSkipPageRendering
+            ),
           }),
         }
       }
@@ -1271,17 +1366,20 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
+      const skipPageRendering =
+        workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate ||
+        shouldSkipPageRendering
+
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // If the page was not revalidated, or if the action was forwarded
-          // from another worker, we can skip rendering the page.
-          skipPageRendering:
-            workStore.pathWasRevalidated === undefined ||
-            workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            actionWasForwarded,
+          // If the page was not revalidated, or if this is an action-only
+          // request, we can skip rendering the page.
+          skipPageRendering,
           temporaryReferences,
+          waitUntil: getRevalidationWaitUntil(workStore, skipPageRendering),
         }),
       }
     }
@@ -1304,13 +1402,13 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  actionWasForwarded: boolean
+  shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
-  let skipPageRendering = actionWasForwarded
+  let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
     throw new Error(
@@ -1323,8 +1421,8 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if the action was forwarded from
-    // another worker, we can skip rendering the page.
+    // If the page was not revalidated, or if this is an action-only request,
+    // we can skip rendering the page.
     skipPageRendering ||=
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate
@@ -1367,25 +1465,27 @@ function getActionModIdOrError(
     throw new InvariantError("Missing 'next-action' header.")
   }
 
-  const actionModId = serverModuleMap[actionId]?.id
+  const entry = serverModuleMap[actionId]
 
-  if (!actionModId) {
-    throw getActionNotFoundError(actionId)
+  if (entry == null) {
+    // The proxy throws for malformed IDs and IDs that are missing from the
+    // manifest. It only returns undefined when the ID collides with a
+    // well-known property name (e.g. `toString`) that the proxy excludes from
+    // server reference validation so that framework reflection probes don't
+    // throw. Next.js never produces such an ID, so this is almost certainly a
+    // probe with a known-bad ID. Repeat the manifest's throw logic here so the
+    // caller gets a diagnosable error instead of a `TypeError`.
+    throw mightBeServerReferenceId(actionId)
+      ? getActionNotFoundError(actionId)
+      : getInvalidServerReferenceIdError(actionId)
   }
 
-  return actionModId
-}
-
-function getActionNotFoundError(actionId: string | null): Error {
-  return new Error(
-    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-  )
+  return entry.id
 }
 
 const $ACTION_ = '$ACTION_'
 const $ACTION_REF_ = '$ACTION_REF_'
 const $ACTION_ID_ = '$ACTION_ID_'
-const ACTION_ID_EXPECTED_LENGTH = 42
 
 /**
  * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
@@ -1396,6 +1496,7 @@ function areAllActionIdsValid(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
 ): boolean {
+  let seenActionRefs = 0
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert that all
   // action IDs are valid IDs. If not we should disregard the payload
@@ -1413,6 +1514,13 @@ function areAllActionIdsValid(
 
       hasAtLeastOneAction = true
     } else if (key.startsWith($ACTION_REF_)) {
+      if (++seenActionRefs > 2) {
+        // We only expect to see at most 2 $ACTION_REF_ fields in the form data:
+        // one from <form action="..." method="post">
+        // and one from <input action="..." type="submit">
+        return false
+      }
+
       // Bound args case
       const actionDescriptorField =
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
@@ -1444,14 +1552,14 @@ function isInvalidStringActionDescriptor(
   }
 
   const from = ACTION_DESCRIPTOR_ID_PREFIX.length
-  const to = from + ACTION_ID_EXPECTED_LENGTH
+  const to = actionDescriptor.indexOf('"', from)
+  if (to === -1) {
+    return true
+  }
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
-  if (
-    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
-    actionDescriptor[to] !== '"'
-  ) {
+  if (!mightBeServerReferenceId(actionId)) {
     return true
   }
 
@@ -1471,15 +1579,13 @@ function isInvalidActionIdFieldName(
   // The field name must always start with $ACTION_ID_ but since it is
   // the id is extracted from the key of the field we have already validated
   // this before entering this function
-  if (
-    actionIdFieldName.length !==
-    $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH
-  ) {
+  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
+  if (!mightBeServerReferenceId(actionId)) {
     // this field name has too few or too many characters
+    // or it is otherwise in the wrong format
     return true
   }
 
-  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
   const entry = serverModuleMap[actionId]
 
   if (entry == null) {

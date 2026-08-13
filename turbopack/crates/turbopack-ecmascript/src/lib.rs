@@ -12,13 +12,17 @@ pub mod annotations;
 pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
+pub mod chunk_list;
 pub mod code_gen;
+pub mod embed_js;
 mod errors;
+pub mod hmr;
 pub mod json_source_transform;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
 pub mod references;
@@ -32,7 +36,6 @@ mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
 pub mod transform;
-pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -58,7 +61,7 @@ use swc_core::{
     base::SwcComments,
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
-        SourceMapper, Span, SpanSnippetError, SyntaxContext,
+        SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
         source_map::{FileLinesResult, Files, SourceMapLookupError},
         util::take::Take,
@@ -77,9 +80,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
+    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -97,7 +100,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 
 use crate::{
@@ -124,26 +127,16 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
+    swc_comments::swc_comments_to_single_threaded,
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
     },
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Deserialize,
-    Encode,
-    Decode,
+    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -152,6 +145,7 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -163,33 +157,7 @@ pub enum SpecifiedModuleType {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum TreeShakingMode {
-    ModuleFragments,
-    #[default]
-    ReexportsOnly,
-}
-
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -220,13 +188,9 @@ impl AnalyzeMode {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
-
 /// The constant to replace `typeof window` with.
-#[derive(
-    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -235,8 +199,10 @@ pub enum TypeofWindow {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    /// variant of tree shaking to use
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    /// Whether re-exports are followed for tree shaking.
+    pub follow_reexports: bool,
+    /// Whether module fragments tree shaking is enabled.
+    pub module_fragments_enabled: bool,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
     /// Determines how to treat `new URL(...)` rewrites.
@@ -271,10 +237,13 @@ pub struct EcmascriptOptions {
     pub inline_helpers: bool,
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
+    pub cjs_scope_hoisting: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -439,18 +408,14 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     #[turbo_tasks::function]
-    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+    fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
 #[turbo_tasks::value_trait]
@@ -611,16 +576,6 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
             Ok(real_result)
         }
     }
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
-        self.failsafe_parse()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.ty.cell()
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -717,7 +672,7 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn new(
+    async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
@@ -725,8 +680,9 @@ impl EcmascriptModuleAsset {
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             ty,
@@ -735,7 +691,7 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -761,6 +717,7 @@ impl EcmascriptModuleAsset {
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
+                origin_path: source.ident().await?.path.clone(),
                 source,
                 asset_context,
                 ty,
@@ -823,7 +780,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(self.origin_path().await?.parent()).await
+        determine_module_type_for_directory(this.origin_path.parent()).await
     }
 }
 
@@ -897,7 +854,14 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
+        let exports = compute_ecmascript_module_exports(self, None).await?.exports;
+        if let EcmascriptExports::CommonJs(_) = &*exports.await? {
+            return Ok(EcmascriptExports::CommonJs(
+                self.analyze().await?.cjs_static_exports.clone(),
+            )
+            .cell());
+        }
+        Ok(*exports)
     }
 
     #[turbo_tasks::function]
@@ -966,14 +930,12 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -981,14 +943,14 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Rope>,
+    pub source_map: Option<StructuredSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,
@@ -1281,6 +1243,41 @@ impl EcmascriptModuleContent {
     }
 }
 
+/// Comments delimiting the early hoisted statements, which [`merge_modules`] moves in front of the
+/// merged module so that a cyclic importer can't re-enter it before they ran.
+const EARLY_HOIST_START: &str = " TURBOPACK EARLY HOIST START";
+const EARLY_HOIST_END: &str = " TURBOPACK EARLY HOIST END";
+
+fn early_hoist_comment(text: &str) -> Comment {
+    Comment {
+        kind: CommentKind::Line,
+        span: DUMMY_SP,
+        text: text.into(),
+    }
+}
+
+/// Finds the statements delimited by [`EARLY_HOIST_START`] and [`EARLY_HOIST_END`], as an inclusive
+/// index range over `body` covering both delimiters. Must run before the spans are rewritten.
+fn early_hoist_range(
+    comments: &SwcComments,
+    body: impl Iterator<Item = Span>,
+) -> Option<(usize, usize)> {
+    let (mut start, mut end) = (None, None);
+    for (i, span) in body.enumerate() {
+        let Some(leading) = comments.get_leading(span.lo) else {
+            continue;
+        };
+        for comment in leading {
+            if comment.text == EARLY_HOIST_START {
+                start = Some(i);
+            } else if comment.text == EARLY_HOIST_END {
+                end = Some(i);
+            }
+        }
+    }
+    Some((start?, end?))
+}
+
 /// Merges multiple Ecmascript modules into a single AST, setting the syntax contexts correctly so
 /// that imports work.
 ///
@@ -1450,18 +1447,32 @@ async fn merge_modules(
         let mut unique_contexts_cache =
             FxHashMap::with_capacity_and_hasher(contents.len() * 5, Default::default());
 
+        let mut merged_prelude = Vec::new();
         let mut prepare_module =
             |module_count: usize,
              current_module_idx: usize,
              (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
              program: &mut Program,
+             merged_prelude: &mut Vec<ModuleItem>,
              lookup_table: &mut Vec<ModulePosition>| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
                     scope_hoisting_syntax_contexts: Some((module_contexts, _)),
+                    comments: CodeGenResultComments::Single { extra_comments, .. },
                     ..
                 } = content
                 {
+                    // The delimiter comments are keyed by the original spans, so this has to happen
+                    // before the visitor below rewrites them.
+                    let early_hoisted = match &*program {
+                        Program::Module(module) => {
+                            early_hoist_range(extra_comments, module.body.iter().map(|i| i.span()))
+                        }
+                        Program::Script(script) => {
+                            early_hoist_range(extra_comments, script.body.iter().map(|s| s.span()))
+                        }
+                    };
+
                     let modules_header_width = module_count.next_power_of_two().trailing_zeros();
                     GLOBALS.set(globals_merged, || {
                         let mut visitor = SetSyntaxContextVisitor {
@@ -1480,6 +1491,21 @@ async fn merge_modules(
                         program.visit_mut_with(&mut visitor);
                         visitor.error
                     })?;
+
+                    // Move the delimited statements out, dropping the two delimiters themselves.
+                    if let Some((start, end)) = early_hoisted {
+                        let mut hoisted: Vec<ModuleItem> = match program {
+                            Program::Module(module) => module.body.drain(start..=end).collect(),
+                            Program::Script(script) => script
+                                .body
+                                .drain(start..=end)
+                                .map(ModuleItem::Stmt)
+                                .collect(),
+                        };
+                        hoisted.pop();
+                        hoisted.remove(0);
+                        merged_prelude.extend(hoisted);
+                    }
 
                     Ok(match program.take() {
                         Program::Module(module) => Either::Left(module.body.into_iter()),
@@ -1511,6 +1537,7 @@ async fn merge_modules(
                     i,
                     &contents[i],
                     &mut programs[i],
+                    &mut merged_prelude,
                     &mut lookup_table,
                 )
                 .map_err(|err| (i, err))
@@ -1541,6 +1568,7 @@ async fn merge_modules(
                                         index,
                                         &contents[index],
                                         &mut programs[index],
+                                        &mut merged_prelude,
                                         &mut lookup_table,
                                     )
                                     .map_err(|err| (index, err))?
@@ -1593,7 +1621,7 @@ async fn merge_modules(
 
         let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
-            body: result,
+            body: merged_prelude.into_iter().chain(result).collect(),
             span: DUMMY_SP,
             shebang: None,
         });
@@ -1890,7 +1918,8 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            let early_hoisted_count =
+                process_content_with_code_gens(&mut program, globals, &mut code_gens);
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -1906,6 +1935,31 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
+                // Delimit the early hoisted statements, which `merge_modules` moves in front of
+                // the merged module this module is part of.
+                if retain_syntax_context.is_some() && early_hoisted_count > 0 {
+                    let end = Span::dummy_with_cmt();
+                    extra_comments.add_leading(end.lo, early_hoist_comment(EARLY_HOIST_END));
+                    let start = Span::dummy_with_cmt();
+                    extra_comments.add_leading(start.lo, early_hoist_comment(EARLY_HOIST_START));
+                    let (end, start) = (
+                        Stmt::Empty(EmptyStmt { span: end }),
+                        Stmt::Empty(EmptyStmt { span: start }),
+                    );
+                    match &mut program {
+                        Program::Module(module) => {
+                            module
+                                .body
+                                .insert(early_hoisted_count, ModuleItem::Stmt(end));
+                            module.body.insert(0, ModuleItem::Stmt(start));
+                        }
+                        Program::Script(script) => {
+                            script.body.insert(early_hoisted_count, end);
+                            script.body.insert(0, start);
+                        }
+                    }
+                }
+
                 if let Some(prepend_ident_comment) = prepend_ident_comment {
                     let span = Span::dummy_with_cmt();
                     extra_comments.add_leading(span.lo, prepend_ident_comment);
@@ -2224,12 +2278,13 @@ async fn emit_content(
     .cell())
 }
 
+/// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     code_gens: &mut Vec<CodeGeneration>,
-) {
+) -> usize {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
@@ -2270,6 +2325,7 @@ fn process_content_with_code_gens(
         }
     });
 
+    let early_hoisted_count = early_hoisted_stmts.len();
     match program {
         Program::Module(ast::Module { body, .. }) => {
             body.splice(
@@ -2300,6 +2356,7 @@ fn process_content_with_code_gens(
             );
         }
     };
+    early_hoisted_count
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts

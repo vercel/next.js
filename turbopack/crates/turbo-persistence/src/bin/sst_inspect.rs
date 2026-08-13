@@ -12,18 +12,19 @@
 
 use std::{
     collections::{BTreeMap, HashSet},
-    fs::{self, File},
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
+use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
     BLOCK_HEADER_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
+    read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
@@ -211,10 +212,9 @@ fn format_bytes(bytes: u64) -> String {
 /// and apply SstFilter to skip superseded entries.
 fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     // Read the CURRENT sequence number — only files with seq <= current are valid.
-    let current: u32 = File::open(db_path.join("CURRENT"))
-        .context("Failed to open CURRENT file")?
-        .read_u32::<BE>()
-        .context("Failed to read CURRENT file")?;
+    let current = read_current_version(db_path)?
+        .context("CURRENT file is missing")?
+        .max_sequence_number;
 
     // Read .del files to find sequences that were deleted but not yet cleaned up.
     let mut deleted_seqs: HashSet<u32> = HashSet::new();
@@ -425,9 +425,9 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
-    let file = File::open(&path).with_context(|| format!("Failed to open {}", filename))?;
+    let file = File::open(&path)?;
     let file_size = file.metadata()?.len();
-    let mmap = unsafe { Mmap::map(&file)? };
+    let mmap = unsafe { Mmap::map(file.file())? };
     advise_mmap_for_persistence(&mmap)?;
 
     let mut stats = SstStats {

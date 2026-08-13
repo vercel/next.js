@@ -31,7 +31,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
+        utils::{ExprFactory, prepend_stmts, prop_name_eq, quote_ident, quote_str},
         visit::{
             Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
             visit_mut_pass,
@@ -671,7 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["unstable_catchError"]),
+                (atom!("next/error").into(), vec!["catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -902,7 +902,14 @@ impl ReactServerComponentValidator {
             return;
         }
         let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let re = Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+        // Metadata convention files (e.g. `icon`, `opengraph-image`, `sitemap`)
+        // compile to route handlers and accept the same route segment configs,
+        // so they're subject to the same `cacheComponents`/`useCache`
+        // restrictions as `page`/`layout`/`route` entries.
+        let re = Regex::new(&format!(
+            r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
+        ))
+        .unwrap();
         let is_app_entry = re.is_match(&self.filepath);
 
         if is_app_entry {
@@ -956,7 +963,7 @@ impl ReactServerComponentValidator {
                             ),
                         );
                     }
-                    "unstable_instant" if !self.cache_components_enabled => {
+                    "instant" if !self.cache_components_enabled => {
                         possibly_invalid_exports.insert(
                             export_name.clone(),
                             (
@@ -1079,13 +1086,7 @@ impl ReactServerComponentValidator {
         let obj = ssr_arg.expr.as_object()?;
 
         for prop in obj.props.iter().filter_map(|v| v.as_prop()?.as_key_value()) {
-            let is_ssr = match &prop.key {
-                PropName::Ident(IdentName { sym, .. }) => sym == "ssr",
-                PropName::Str(s) => s.value == "ssr",
-                _ => false,
-            };
-
-            if is_ssr {
+            if prop_name_eq(&prop.key, "ssr") {
                 let value = prop.value.as_lit()?;
                 if let Lit::Bool(Bool { value: false, .. }) = value {
                     report_error(

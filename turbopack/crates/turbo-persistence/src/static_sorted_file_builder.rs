@@ -1,13 +1,13 @@
 use std::{
     borrow::Cow,
     collections::VecDeque,
-    fs::File,
     io::{BufWriter, Write},
     path::Path,
 };
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
+use fs_err::File;
 
 use crate::{
     compression::{checksum_block, compress_into_buffer},

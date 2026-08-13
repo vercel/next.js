@@ -17,7 +17,7 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
@@ -68,8 +68,8 @@ pub use alias_map::{
 pub use remap::{ResolveAliasMap, SubpathValue};
 
 /// Controls how resolve errors are handled.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Default, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Default, Hash)]
 pub enum ResolveErrorMode {
     /// Emit an error issue (default behavior)
     #[default]
@@ -446,20 +446,9 @@ impl ModuleResolveResult {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    TaskInput,
-    Hash,
-    NonLocalValue,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
 )]
 pub enum ExternalTraced {
     Untraced,
@@ -475,20 +464,9 @@ impl Display for ExternalTraced {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
 )]
 pub enum ExternalType {
     Url,
@@ -538,8 +516,8 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolving and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
-#[turbo_tasks::value]
+#[derive(Clone, Debug, Default, Hash)]
+#[turbo_tasks::value(task_input)]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: FrozenMap<RcStr, bool>,
@@ -1470,7 +1448,7 @@ async fn find_package(
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
                         .await?;
-                for m in matches {
+                for m in &matches {
                     if let PatternMatch::File(_, package_file) = m {
                         packages.push(FindPackageItem::PackageFile {
                             name: get_package_name(dir, package_file)?,
@@ -1688,9 +1666,11 @@ pub async fn url_resolve(
     issue_source: Option<IssueSource>,
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let resolve_options = origin_ref.resolve_options();
     let rel_request = request.as_relative();
-    let origin_path_parent = origin.origin_path().await?.parent();
+    let origin_path = origin_ref.origin_path();
+    let origin_path_parent = origin_path.parent();
     let rel_result = resolve(
         origin_path_parent.clone(),
         reference_type.clone(),
@@ -1719,13 +1699,13 @@ pub async fn url_resolve(
         } else {
             rel_result
         };
-    let result = origin
+    let result = origin_ref
         .asset_context()
         .process_resolve_result(result, reference_type.clone());
     handle_resolve_error(
         result,
         reference_type,
-        origin,
+        origin_path,
         *request,
         resolve_options,
         error_mode,
@@ -3329,8 +3309,7 @@ async fn resolve_package_internal_with_imports_field(
     let Pattern::Constant(specifier) = pattern else {
         bail!("PackageInternal requests can only be Constant strings");
     };
-    // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
-    if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
+    if specifier == "#" || specifier.ends_with('/') {
         ResolvingIssue {
             severity: resolve_error_severity(resolve_options).await?,
             file_path: file_path.clone(),
@@ -3368,19 +3347,9 @@ async fn resolve_package_internal_with_imports_field(
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
+#[turbo_tasks::task_input]
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode,
 )]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if

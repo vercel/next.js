@@ -160,7 +160,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: undefined
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>@E394'
          }
          "
@@ -198,7 +198,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: null
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>@E394'
          }
          "
@@ -231,7 +231,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: this is a test
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>'
          }
          "
@@ -401,13 +401,13 @@ describe('app-dir - errors', () => {
       })
     }
 
-    describe('unstable_retry', () => {
+    describe('retry', () => {
       afterEach(async () => {
         // Always restore __nextTestRecover so it doesn't leak between tests
         await next.fetch('/server-component/recover/set-recover?enabled=false')
       })
 
-      it('should recover Server Component error after unstable_retry', async () => {
+      it('should recover Server Component error after retry', async () => {
         const browser = await next.browser('/server-component/recover')
 
         expect(
@@ -429,7 +429,7 @@ describe('app-dir - errors', () => {
         expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
       })
 
-      it('should recover Client Component error after unstable_retry', async () => {
+      it('should recover Client Component error after retry', async () => {
         const browser = await next.browser('/client-component')
 
         // Try triggering and retrying a few times in a row

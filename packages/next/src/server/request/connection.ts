@@ -4,16 +4,15 @@ import {
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  makeHangingPromise,
+  makeDynamicHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -29,13 +28,9 @@ export function connection(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        `Route ${workStore.route} used \`connection()\` inside \`after()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`connection()\` inside \`after()\` while rendering. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -87,7 +82,7 @@ export function connection(): Promise<void> {
         case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
-          return makeHangingPromise(
+          return makeDynamicHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             '`connection()`'
@@ -100,14 +95,6 @@ export function connection(): Promise<void> {
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
         }
-        case 'prerender-ppr':
-          // We use React's postpone API to interrupt rendering here to create a
-          // dynamic hole
-          return postponeWithTracking(
-            workStore.route,
-            'connection',
-            workUnitStore.dynamicTracking
-          )
         case 'prerender-legacy':
           // We throw an error here to interrupt prerendering to mark the route
           // as dynamic

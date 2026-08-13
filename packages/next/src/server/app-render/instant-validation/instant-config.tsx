@@ -41,7 +41,7 @@ export function isImplicitValidationSegment(segment: Segment): boolean {
  * a non-manual default validation level. Even when the user provides their
  * own `global-error` or root `not-found`, these pages are special-purpose
  * error UI — opting them into validation is something the user can do
- * explicitly via `unstable_instant`.
+ * explicitly via `instant`.
  */
 export function isFrameworkErrorRoute(route: string | undefined): boolean {
   return (
@@ -50,25 +50,31 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
   )
 }
 
-export async function anySegmentHasRuntimePrefetchEnabled(
+/**
+ * Matches any `prefetch` config that enables Partial Prefetching for the
+ * segment: 'partial' or 'unstable_eager'. A route with Partial Prefetching
+ * enabled also runtime-caches its navigations, so this gates the runtime
+ * prefetch spawn.
+ */
+export async function anySegmentHasPartialPrefetchingEnabled(
   tree: LoaderTree
 ): Promise<boolean> {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
   const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  if (prefetchConfig === 'force-runtime') {
+  if (prefetchConfig === 'partial' || prefetchConfig === 'unstable_eager') {
     return true
   }
 
   const { parallelRoutes } = parseLoaderTree(tree)
   for (const parallelRouteKey in parallelRoutes) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
-    const hasChildRuntimePrefetch =
-      await anySegmentHasRuntimePrefetchEnabled(parallelRoute)
-    if (hasChildRuntimePrefetch) {
+    const hasChildPartialPrefetching =
+      await anySegmentHasPartialPrefetchingEnabled(parallelRoute)
+    if (hasChildPartialPrefetching) {
       return true
     }
   }
@@ -81,7 +87,7 @@ export async function isPageAllowedToBlock(tree: LoaderTree): Promise<boolean> {
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
   const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    ? (layoutOrPageMod as AppSegmentConfig).instant
     : undefined
 
   // If we encounter a non-false instant config before a instant=false,
@@ -117,7 +123,7 @@ enum VALIDATION_LEVEL {
  * Walks the loader tree and checks if any segment has an `instant` config
  * that needs validating for the given mode.
  *
- * - Explicit `unstable_instant` exports are checked against mode.
+ * - Explicit `instant` exports are checked against mode.
  * - Page and default segments without an explicit config get implicit
  *   validation when the default validation level applies to this mode.
  * - `unstable_disableValidation` on any segment kills validation for
@@ -170,7 +176,7 @@ async function anySegmentNeedsInstantValidation(
 
     const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
     const instantConfig = layoutOrPageMod
-      ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+      ? (layoutOrPageMod as AppSegmentConfig).instant
       : undefined
 
     if (instantConfig === false) {
@@ -239,7 +245,7 @@ export const resolveInstantConfigSamplesForPage = async (
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    ? (layoutOrPageMod as AppSegmentConfig).instant
     : undefined
 
   let samples: InstantSample[] | null = null

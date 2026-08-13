@@ -1,26 +1,26 @@
 export type SyncIOApiType = 'time' | 'random' | 'crypto'
 
 const SYNC_IO_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto',
 }
 
 const SYNC_IO_CLIENT_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time-client',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random-client',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random-client',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
 }
 
 const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-runtime-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-runtime-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto',
 }
 
 function elapsedTimeBullet(type: SyncIOApiType): string {
   return type === 'time'
-    ? `  - If the value is for telemetry, use a timing API such as \`performance.now()\`\n`
+    ? `\n  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\``
     : ''
 }
 
@@ -34,12 +34,11 @@ function createSyncIOErrorImpl(
     `Route "${route}": Next.js encountered the unstable value ${expression} while prerendering.\n\n` +
       `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
       `Ways to fix this:\n` +
-      `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
-      `  - Prerender and cache the value with \`"use cache"\`\n` +
-      `  - Render the value on the client with \`"use client"\`\n` +
+      `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
+      `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
+      `  - [client] Render the value on the client with \`"use client"\`` +
       elapsedTimeBullet(type) +
-      `\n` +
-      `Learn more: ${docsUrl}`
+      `\n\nLearn more: ${docsUrl}`
   )
 }
 
@@ -69,14 +68,14 @@ export function createSyncIOClientError(
   expression: string,
   type: SyncIOApiType
 ): Error {
+  const docsUrl = SYNC_IO_CLIENT_DOCS[type]
   return new Error(
     `Route "${route}": Next.js encountered the unstable value ${expression} in a Client Component.\n\n` +
       `This value would be evaluated during the prerender, instead of recomputed on each visit.\n\n` +
       `Ways to fix this:\n` +
-      `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
-      `  - Move the read into a \`useEffect\` or event handler\n` +
+      `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
+      `  - [defer] Move the read into a \`useEffect\` or event handler` +
       elapsedTimeBullet(type) +
-      `\n` +
-      `Learn more: ${SYNC_IO_CLIENT_DOCS[type]}`
+      `\n\nLearn more: ${docsUrl}`
   )
 }

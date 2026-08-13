@@ -1,5 +1,6 @@
 import { usePanelRouterContext, type PanelStateKind } from './context'
 import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
+import { getIssueBucketState } from './issue-bucket-state'
 import { DynamicPanel } from '../panel/dynamic-panel'
 import {
   learnMoreLink,
@@ -13,7 +14,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect, useRef } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -29,37 +30,65 @@ import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
+import { RequestInsightsPanel } from '../components/request-insights/request-insights-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
+import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
+
+  const { hasNormal, hasInstant, hasAny } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
+
+  const titleParts: string[] = []
+  if (hasNormal) {
+    titleParts.push(
+      `${normalErrorCount} ${normalErrorCount === 1 ? 'issue' : 'issues'}`
+    )
+  }
+  if (hasInstant) {
+    titleParts.push(
+      `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'}`
+    )
+  }
+  const label =
+    hasNormal && hasInstant
+      ? 'Issues · Insights'
+      : hasInstant
+        ? 'Insights'
+        : 'Issues'
 
   return (
     <DevtoolMenu
       items={[
-        totalErrorCount > 0 && {
-          title: `${totalErrorCount} ${totalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
-          label: 'Issues',
-          value: <IssueCount>{totalErrorCount}</IssueCount>,
+        hasAny && {
+          title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
+          label,
+          value: (
+            <span className="dev-tools-indicator-issue-counts">
+              {hasNormal && (
+                <IssueCount variant="issue">{normalErrorCount}</IssueCount>
+              )}
+              {hasInstant && (
+                <IssueCount variant="insight">{instantErrorCount}</IssueCount>
+              )}
+            </span>
+          ),
           onClick: () => {
             if (state.isErrorOverlayOpen) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_CLOSE,
-              })
+              dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
               setPanel(null)
               return
             }
             setPanel(null)
             setSelectedIndex(-1)
-            if (totalErrorCount > 0) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_OPEN,
-              })
-            }
+            dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
           },
         },
         state.staticIndicator === 'disabled'
@@ -118,6 +147,18 @@ const MenuPanel = () => {
               'data-instant-nav': true,
             },
           },
+        isAppRouter &&
+          !!process.env.__NEXT_REQUEST_INSIGHTS && {
+            title: 'Inspect recent App Router requests.',
+            label: 'Request Insights',
+            value: <ChevronRight />,
+            onClick: () => {
+              setPanel('request-insights')
+            },
+            attributes: {
+              'data-request-insights': true,
+            },
+          },
         state.cacheIndicator === 'bypass' && {
           title:
             'Caching is currently disabled (bypassed). Click to learn more.',
@@ -126,6 +167,16 @@ const MenuPanel = () => {
           onClick: () => setPanel('cache-disabled'),
           attributes: {
             'data-cache-disabled': true,
+          },
+        },
+        state.cacheIndicator === 'cold' && {
+          title:
+            'This load filled one or more caches while streaming, so it is not representative of production. Click to learn more.',
+          label: 'Cache',
+          value: 'Cold',
+          onClick: () => setPanel('cold-cache'),
+          attributes: {
+            'data-cold-cache': true,
           },
         },
         isAppRouter && {
@@ -179,9 +230,37 @@ const useToggleDevtoolsVisibility = () => {
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
-  const { triggerRef } = usePanelRouterContext()
+  const { triggerRef, setPanel } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
   const isAppRouter = state.routerType === 'app'
+
+  // True while the error overlay is open, cleared on a deferred tick so the single
+  // ESC that closes the overlay does not also release the capture (the instant
+  // panel's ESC handler runs later in that same keystroke). A later ESC releases.
+  const errorOverlayOpenRef = useRef(false)
+  useEffect(() => {
+    if (state.isErrorOverlayOpen) {
+      errorOverlayOpenRef.current = true
+      return
+    }
+    const timeout = setTimeout(() => {
+      errorOverlayOpenRef.current = false
+    })
+    return () => clearTimeout(timeout)
+  }, [state.isErrorOverlayOpen])
+
+  // Returns to the menu, which ends the capture via the panel-switch effect.
+  // Exceptions: clicking outside is ignored (keeps the frozen page interactive);
+  // an ESC that just closed the error overlay is ignored (errorOverlayOpenRef).
+  const closeInstantPanel = (reason?: 'escape' | 'outside') => {
+    if (reason === 'outside') {
+      return
+    }
+    if (reason === 'escape' && errorOverlayOpenRef.current) {
+      return
+    }
+    setPanel('panel-selector')
+  }
 
   useShortcuts(
     state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
@@ -274,13 +353,44 @@ export const PanelRouter = () => {
             sharePanelSizeGlobally={false}
             sharePanelPositionGlobally={false}
             draggable
+            keepBehindErrorOverlay
+            onClose={closeInstantPanel}
             sizeConfig={{
               kind: 'auto',
               width: 460 / state.scale,
             }}
-            header={<DevToolsHeader title="Navigation Inspector" />}
+            header={
+              <DevToolsHeader
+                title="Navigation Inspector"
+                onClose={() => closeInstantPanel()}
+              />
+            }
           >
             <InstantNavsPanel />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && !!process.env.__NEXT_REQUEST_INSIGHTS && (
+        <PanelRoute name="request-insights">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'resizable',
+              maxHeight: '90vh',
+              maxWidth: '90vw',
+              minHeight: 260 / state.scale,
+              minWidth: `min(${560 / state.scale}px, 90vw)`,
+              initialSize: {
+                height: 440 / state.scale,
+                width: 760 / state.scale,
+              },
+            }}
+            header={<DevToolsHeader title="Request Insights" />}
+          >
+            <RequestInsightsPanel />
           </DynamicPanel>
         </PanelRoute>
       )}
@@ -299,6 +409,25 @@ export const PanelRouter = () => {
           >
             <div className="panel-content">
               <CacheDisabledBody />
+            </div>
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {state.cacheIndicator === 'cold' && (
+        <PanelRoute name="cold-cache">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sizeConfig={{
+              kind: 'fixed',
+              height: 400 / state.scale,
+              width: 480 / state.scale,
+            }}
+            closeOnClickOutside
+            header={<DevToolsHeader title="Cold cache" />}
+          >
+            <div className="panel-content">
+              <ColdCacheBody />
             </div>
           </DynamicPanel>
         </PanelRoute>

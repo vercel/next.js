@@ -40,7 +40,6 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
-either = { workspace = true }
 flate2 = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
@@ -89,6 +88,7 @@ swc_core = { workspace = true, features = [
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+swc_ecma_react_compiler = { workspace = true }
 lightningcss-napi = { workspace = true }
 lightningcss = { workspace = true }
 swc_plugin_backend_wasmtime = { workspace = true }

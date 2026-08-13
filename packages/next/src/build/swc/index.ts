@@ -550,7 +550,7 @@ function bindingToApi(
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
-          rscEndpoint: NapiEndpoint
+          rscHmrEndpoint: NapiEndpoint
         }[]
       }
     | {
@@ -760,6 +760,16 @@ function bindingToApi(
           }
         }
       })()
+    }
+
+    // Note: only the Server target is implemented in the native binding;
+    // add a Client overload once `all_hmr_update` supports it.
+    allHmrEvents(
+      target: HmrTarget.Server
+    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
+      return subscribe(true, async (callback) =>
+        binding.projectAllHmrEvents(this._nativeProject, target, callback)
+      )
     }
 
     hmrEvents(
@@ -1027,6 +1037,27 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize `experimental.turbopackChunking` route patterns: convert each RegExp to
+    // {source, flags} since RegExp objects are not JSON-serializable.
+    const chunkingConfig =
+      nextConfigSerializable.experimental?.turbopackChunking
+    if (chunkingConfig) {
+      const regexComponents = (regex: RegExp) => ({
+        source: regex.source,
+        flags: regex.flags,
+      })
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackChunking: {
+          ...chunkingConfig,
+          clusters: chunkingConfig.clusters?.map((cluster: RegExp[]) =>
+            cluster.map(regexComponents)
+          ),
+          priorityRoutes: chunkingConfig.priorityRoutes?.map(regexComponents),
+        },
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
@@ -1191,7 +1222,7 @@ function bindingToApi(
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+              rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
           }
           break
@@ -1255,7 +1286,7 @@ function bindingToApi(
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
-        turboEngineOptions || {},
+        turboEngineOptions,
         {
           throwTurbopackInternalError: (
             require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
@@ -1387,10 +1418,13 @@ async function loadWasm(importPath = '') {
     getTargetTriple() {
       return undefined
     },
+    turbopackCacheVersion() {
+      return undefined
+    },
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(
@@ -1646,6 +1680,7 @@ function loadNative(importPath?: string): Binding {
       },
 
       getTargetTriple: bindings.getTargetTriple,
+      turbopackCacheVersion: bindings.turbopackCacheVersion,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
@@ -1804,6 +1839,10 @@ export function getBinaryMetadata() {
   return {
     target: loadedBindings?.getTargetTriple?.(),
   }
+}
+
+export function getTurbopackCacheVersion(): string | undefined {
+  return loadedBindings?.turbopackCacheVersion?.(nextVersion)
 }
 
 /**

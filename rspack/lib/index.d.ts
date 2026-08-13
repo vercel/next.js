@@ -9,8 +9,14 @@ declare class NextExternalsPlugin {
   constructor(options: NapiNextExternalsPluginOptions)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+declare class ForceCompleteRuntimePlugin {
+  constructor()
+}
+
 declare const core: typeof RspackCore & {
   NextExternalsPlugin: typeof NextExternalsPlugin
+  ForceCompleteRuntimePlugin: typeof ForceCompleteRuntimePlugin
 }
 
 export = core

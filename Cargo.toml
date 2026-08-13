@@ -209,27 +209,30 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
+swc_ecma_react_compiler = "23.0.0"
+react_compiler = { version = "0.2", package = "forked_react_compiler" }
+
 # SWC crates
-swc_core = { version = "65.0.3", default-features = false, features = [
+swc_core = { version = "76.0.0", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
 
-swc_plugin_backend_wasmtime = "9.0.0"
-testing = "22.0.0"
+swc_plugin_backend_wasmtime = "15.0.0"
+testing = "26.0.0"
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = "0.19.0"
-mdxjs = "1.0.3"
-modularize_imports = "4.0.0"
-styled_components = "4.0.0"
-styled_jsx = "4.0.0"
-swc_emotion = "4.0.0"
-swc_relay = "4.0.0"
-react_remove_properties = "4.0.0"
-remove_console = "4.0.0"
-preset_env_base = "7.0.0"
+browserslist-rs = "0.20.0"
+mdxjs = "1.0.4"
+modularize_imports = "16.0.0"
+styled_components = "16.0.0"
+styled_jsx = "16.0.0"
+swc_emotion = "16.0.0"
+swc_relay = "16.0.0"
+react_remove_properties = "16.0.0"
+remove_console = "16.0.0"
+preset_env_base = "9.0.0"
 
 
 # General Deps
@@ -240,6 +243,7 @@ chromiumoxide = { version = "0.5.4", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.20.1"
 
+allocator-api2 = "0.2.21"
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
@@ -248,6 +252,7 @@ anyhow = "1.0.100"
 async-trait = "0.1.64"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
+bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
 byteorder = "1.5.0"
 bytes = "1.11.1"
 bytes-str = "0.2.7"
@@ -258,7 +263,7 @@ console-subscriber = "0.4.1"
 const_format = "0.2.30"
 crc32fast = "1.5.0"
 criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
-ctor = "0.10"
+ctor = "1.0.7"
 crossbeam-channel = "0.5.8"
 crossbeam-utils = "0.8"
 dashmap = "6.1.0"
@@ -268,6 +273,7 @@ dunce = "1.0.3"
 either = "1.15.0"
 erased-serde = "0.4.5"
 flate2 = "1.0.28"
+fs-err = "3.1.1"
 futures = "0.3.31"
 futures-retry = "0.6.0"
 futures-util = "0.3.31"
@@ -275,15 +281,14 @@ hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
-inventory = "0.3.21"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.70", features = [
+lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.6", default-features = false, features = [
+lightningcss-napi = { version = "0.4.9", default-features = false, features = [
   "visitor",
 ] }
 lzzzz = "2.0.0"
@@ -325,6 +330,7 @@ ringmap = "0.2.5"
 roaring = "0.11.4"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
+scattered-collect = "0.10.0"
 semver = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

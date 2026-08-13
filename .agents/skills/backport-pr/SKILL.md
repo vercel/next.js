@@ -7,6 +7,8 @@ description: >
   finding the merged PR commit, creating a backport branch from the target
   release branch, cherry-picking from canary, validating, and opening the PR
   with the release branch as the base.
+metadata:
+  internal: true
 ---
 
 # Backport PR
@@ -96,7 +98,7 @@ Use a concise PR body:
 ```markdown
 Backports <original PR title/link> to `<target-branch>`.
 
-<!-- NEXT_JS_LLM_PR -->
+<!-- NEXT_JS_LLM -->
 ```
 
 ## Related Skills

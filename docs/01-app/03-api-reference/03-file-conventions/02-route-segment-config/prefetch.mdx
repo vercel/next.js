@@ -1,7 +1,6 @@
 ---
 title: prefetch
 description: API reference for the prefetch route segment config.
-version: draft
 related:
   title: Next Steps
   description: Learn how to use instant navigations in practice.
@@ -10,17 +9,16 @@ related:
     - app/api-reference/file-conventions/route-segment-config/instant
 ---
 
-The `unstable_prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets Next.js manage the strategy on your behalf — today that always means a static prefetch. The `force-*` options let you declare a specific behavior — use them with care, since they can affect both navigation latency and prefetch cost.
-
-When you do set this export, consider pairing it with [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
+The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. By default, the framework manages the strategy based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. To override per segment, set this export to one of the values below.
 
 > **Good to know**:
 >
-> - The `unstable_prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
-> - `unstable_prefetch` cannot be used when the segment is a Client Component.
+> - The `prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
+> - `prefetch` cannot be used when the segment is a Client Component.
+> - The meaningful values to set are `'partial'` and `'force-disabled'`. `'auto'` is the default and is equivalent to omitting the export; don't write `prefetch = 'auto'` explicitly.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return <div>...</div>
@@ -28,7 +26,7 @@ export default function Page() {
 ```
 
 ```jsx filename="layout.js | page.js" switcher
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return <div>...</div>
@@ -37,27 +35,19 @@ export default function Page() {
 
 ## Options
 
-### `'auto'` (default)
+### `'partial'`
 
-Lets Next.js manage prefetching for this segment. Today this always means a static prefetch — to try runtime prefetching, opt in explicitly with [`'force-runtime'`](#force-runtime).
+Opts the segment into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) without enabling the global [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag. A `<Link>` pointing at a segment with `prefetch = 'partial'` loads the per-route [App Shell](/docs/app/glossary#app-shell) instead of the legacy full prefetch. Set this on the destination, not the link.
 
-A future release will use [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
+For links that opt into a wider prefetch with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), Next.js uses per-link prefetching. The server renders a fresh response that resolves URL data (`params`, `searchParams`, and the full URL). On pages where all the content is statically renderable, Next.js serves prefetches from the static cache. If a page accesses non-static data, it's prefetched at runtime.
 
-You typically don't need to set this explicitly — omitting the export has the same effect.
+Use this for incremental adoption when you can't enable `partialPrefetching` for the entire app at once. Once every route in scope has `prefetch = 'partial'`, enable the global flag and remove the per-route exports.
 
-### `'force-runtime'`
-
-Always prefetch this segment at runtime. The server renders a fresh response for the segment during prefetch, allowing runtime data like cookies, headers, and search params to be included. This is useful for personalized content that should still be available instantly on navigation.
-
-> **Good to know**: When a segment uses runtime prefetching, all downstream segments are included in the same runtime prefetch request. This means segments deeper in the tree that are configured with `'force-static'` or `'force-disabled'` will still be prefetched as part of the runtime response.
+> **Good to know**: When Next.js performs a per-link prefetch for a segment, all downstream segments are included in the same request. Segments deeper in the tree that are configured with `'force-disabled'` will still be prefetched as part of the response.
 
 ```tsx filename="page.tsx"
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 ```
-
-### `'force-static'`
-
-Always prefetch this segment statically, even if it has not been validated with `unstable_instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
 
 ### `'force-disabled'`
 
@@ -67,23 +57,27 @@ Never prefetch this segment. The client will not request segment data ahead of n
 
 ## Relationship with the `<Link prefetch>` prop
 
-The `unstable_prefetch` segment config and the [`<Link prefetch>` prop](/docs/app/api-reference/components/link#prefetch) control different aspects of prefetching:
+A prefetch starts with a `<Link>` that expresses intent (should this destination be prefetched, and how eagerly), and ends at a segment that sets a cost ceiling (how much work is it OK to do ahead of time, for any link that points here).
 
-- The **segment config** informs Next.js about a segment's caching characteristics — whether its data can be prefetched statically, requires a runtime prefetch with the user's session, or should be skipped entirely. This applies to the segment regardless of which link points to it.
-- The **`<Link prefetch>` prop** reflects the anticipated intent of a specific link on a specific page. A link that users rarely click can be deprioritized with `prefetch={false}`, independent of how the destination segments are configured.
+A destination can't know which links target it, so the segment config caps what any `<Link prefetch={true}>` pulls:
 
-In general, both of these are special circumstances. The default behavior — where Next.js manages prefetching for you — is optimized to provide a good navigation experience without manual configuration.
+- [`'partial'`](#partial): App Shell for default links; a `<Link prefetch={true}>` additionally resolves URL data (`params`, `searchParams`, and the full URL) and the cached content behind it.
+- [`'force-disabled'`](#force-disabled): skip segment data entirely.
+
+`<Link prefetch={false}>` skips prefetching at the link level regardless of how the destination is configured.
+
+> **Good to know**: On pages where all the content is statically renderable, Next.js serves prefetches from the static cache (or a CDN). If a page accesses non-static data like cookies or headers, it's prefetched at runtime with a fresh server render, which costs server CPU per page view.
 
 ## TypeScript
 
 ```tsx
-type Prefetch = 'auto' | 'force-disabled' | 'force-static' | 'force-runtime'
+type Prefetch = 'auto' | 'partial' | 'force-disabled'
 
-export const unstable_prefetch: Prefetch = 'force-runtime'
+export const prefetch: Prefetch = 'partial'
 ```
 
 ## Version History
 
-| Version   | Changes                                                       |
-| --------- | ------------------------------------------------------------- |
-| `v16.x.x` | `unstable_prefetch` export introduced (Cache Components only) |
+| Version   | Changes                                              |
+| --------- | ---------------------------------------------------- |
+| `v16.x.x` | `prefetch` export introduced (Cache Components only) |

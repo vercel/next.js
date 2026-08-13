@@ -4,7 +4,7 @@ nav_title: Preventing Flash
 description: Learn how to correct server-rendered content before the browser paints, avoiding visible flash when the page hydrates.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, timezone, theme, persisted interactions) needs to be updated before the user sees it.
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it.
 
 Some common approaches to this problem:
 
@@ -26,7 +26,7 @@ Use Chrome DevTools [Sensors](https://developer.chrome.com/docs/devtools/sensors
 
 ## Dates and formatting
 
-A UTC timestamp like `2026-06-15T18:00:00Z` represents a fixed point in time, but how it is formatted for display depends on the user's locale and timezone. `toLocaleDateString()` and `Intl.DateTimeFormat` on the server use the server's settings, which may not match the user's.
+A UTC timestamp like `2026-06-15T18:00:00Z` represents a fixed point in time, but how it is formatted for display depends on the user's locale and time zone. `toLocaleDateString()` and `Intl.DateTimeFormat` on the server use the server's settings, which may not match the user's.
 
 ### The problem
 
@@ -246,11 +246,7 @@ export default async function Page() {
 Your page may be server-rendered with a default theme (e.g. light), but the user has a saved preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
 
 ```tsx filename="app/layout.tsx" switcher
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
@@ -296,6 +292,52 @@ export default function RootLayout({ children }) {
 ```
 
 The script runs in `<head>`, so the correct theme is applied before any content is painted. The `try/catch` handles cases where `localStorage` is unavailable.
+
+### Storing the theme in a cookie
+
+Unlike `localStorage`, a cookie is sent with every request, so the server _can_ read it with [`cookies()`](/docs/app/api-reference/functions/cookies). But reading it in the root layout opts the entire app out of static prerendering (and under [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), forces blocking every segment under the layout). To keep the page statically prerendered with a generic default and still avoid the flash, read the cookie in the inline script instead:
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({ children }: LayoutProps<'/'>) {
+  return (
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);if(m)document.documentElement.setAttribute("data-theme",decodeURIComponent(m[1]))}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);if(m)document.documentElement.setAttribute("data-theme",decodeURIComponent(m[1]))}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+To switch themes, set the attribute on `<html>` and persist the choice to the cookie:
+
+```js
+const theme = 'dark'
+document.documentElement.setAttribute('data-theme', theme)
+document.cookie = `theme=${encodeURIComponent(theme)}; path=/; max-age=31536000; SameSite=Lax`
+```
 
 ## Syncing with React state
 
@@ -437,6 +479,35 @@ export function Accordion() {
 
 The inline script and the lazy `useState` initializer both read from `localStorage`. They always agree, so React's initial state matches the DOM.
 
+## Re-applying attributes in development
+
+The inline script sets the attribute during parsing, which is all a production build needs. In development, though, [React's Strict Mode](https://react.dev/reference/react/StrictMode) remounts components once to surface bugs, and on that remount it resets `<html>`, `<head>`, and `<body>` to only the attributes it manages from JSX, clearing the one the script set. The page then renders without the attribute, ignoring the value's source of truth.
+
+One way to fix this is to do what you would do without the inline script at all. Read the stored value on the client and apply it, in the component that owns the theme, in a [`useLayoutEffect`](https://react.dev/reference/react/useLayoutEffect) that runs [before paint](#why-not-useeffect):
+
+```tsx filename="app/components/theme-toggle.tsx"
+'use client'
+
+import { useLayoutEffect } from 'react'
+
+export function ThemeToggle() {
+  // Re-apply after React clears it on the dev remount. This is a no-op in production.
+  useLayoutEffect(() => {
+    const theme = localStorage.getItem('theme')
+    if (theme) document.documentElement.setAttribute('data-theme', theme)
+  }, [])
+
+  function toggle() {
+    const next =
+      (localStorage.getItem('theme') ?? 'light') === 'dark' ? 'light' : 'dark'
+    localStorage.setItem('theme', next)
+    document.documentElement.setAttribute('data-theme', next)
+  }
+
+  return <button onClick={toggle}>Toggle theme</button>
+}
+```
+
 ## When to use other approaches
 
 | Situation                                       | Approach                                                                                                                                                             |
@@ -454,7 +525,7 @@ The inline script and the lazy `useState` initializer both read from `localStora
 
 ### Why not read from headers or cookies at request time?
 
-Reading `Accept-Language` with `await headers()` lets the server format per-request. With Cache Components, you can wrap just the date in a Suspense fallback so the rest of the page stays static. But you'd need to show a fallback instead of immediate content, and `Accept-Language` doesn't include timezone information.
+Reading `Accept-Language` with `await headers()` lets the server format per-request. With Cache Components, you can wrap just the date in a Suspense fallback so the rest of the page stays static. But you'd need to show a fallback instead of immediate content, and `Accept-Language` doesn't include time zone information.
 
 ## Next steps
 

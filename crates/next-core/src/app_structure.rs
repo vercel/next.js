@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
     ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
@@ -84,9 +84,8 @@ pub enum MetadataWithAltItem {
 }
 
 /// A single metadata file.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
     Dynamic { path: FileSystemPath },
@@ -207,20 +206,24 @@ struct PlainDirectoryTree {
 ///
 /// For example, given this directory structure:
 ///
-///     app/
-///     ├── (group1)/
-///     │   └── products/
-///     │       └── sale/
-///     └── (group2)/
-///         └── products/
-///             └── [id]/
+/// ```text
+/// app/
+/// ├── (group1)/
+/// │   └── products/
+/// │       └── sale/
+/// └── (group2)/
+///     └── products/
+///         └── [id]/
+/// ```
 ///
 /// The UrlSegmentTree would be:
 ///
-///     (root)
-///     └── products/
-///         ├── sale/
-///         └── [id]/
+/// ```text
+/// (root)
+/// └── products/
+///     ├── sale/
+///     └── [id]/
+/// ```
 ///
 /// This makes it easy to find all siblings at a given URL level.
 #[derive(Clone, Debug, Default, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -561,19 +564,8 @@ impl ValueDefault for FileSystemPathVec {
     }
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    ValueDebugFormat,
-    Debug,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, PartialEq, Eq, Hash, TraceRawVcs, ValueDebugFormat, Debug, Encode, Decode)]
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
@@ -1481,14 +1473,6 @@ async fn directory_tree_to_loader_tree_internal(
             )
             .await?,
         );
-    }
-
-    if tree.parallel_routes.len() > 1
-        && tree.parallel_routes.keys().next().map(|s| s.as_str()) != Some("children")
-    {
-        // children must go first for next.js to work correctly
-        tree.parallel_routes
-            .move_index(tree.parallel_routes.len() - 1, 0);
     }
 
     Ok(Some(tree))

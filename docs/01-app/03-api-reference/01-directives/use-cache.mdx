@@ -75,7 +75,7 @@ export async function getData() {
 
 A cache entry's key is generated using a serialized version of its inputs, which includes:
 
-1. **Build ID** - Unique per build, changing this invalidates all cache entries
+1. **Build ID** - Unique per build, changing this invalidates all cache entries. If [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is configured, it overrides the build ID for cache key purposes.
 2. **Function ID** - A secure hash of the function's location and signature in the codebase
 3. **Serializable arguments** - Props (for components) or function arguments
 4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
@@ -95,6 +95,8 @@ async function Component({ userId }: { userId: string }) {
 ```
 
 In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
+
+> **Good to know:** When a cached function reads [root parameters](/docs/app/api-reference/functions/next-root-params), only the ones it actually reads become part of its cache key.
 
 ## Serialization
 
@@ -191,13 +193,13 @@ Cached functions execute in an isolated environment. The following constraints e
 
 ### Request-time APIs
 
-Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
+Cached functions and components **cannot** access runtime APIs like `cookies()`, `headers()`, or `searchParams`, and the restriction follows the call stack: a helper the cached function calls that reads one of these fails the same way, with the [`next-request-in-use-cache`](/docs/messages/next-request-in-use-cache) error. On a dynamically rendered route this surfaces when the route runs, so it can pass `next build` and fail under `next start`. Read these values outside the cached scope and pass them as arguments.
 
 ### Runtime caching considerations
 
 While `use cache` is designed primarily to include uncached data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
-Runtime cache behavior depends on your hosting environment:
+With the default in-memory handler, runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -207,6 +209,11 @@ Runtime cache behavior depends on your hosting environment:
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+> [!NOTE]
+> With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
+>
+> For data that needs to persist across deploys, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions or the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
@@ -272,23 +279,16 @@ The `x-nextjs-stale-time` response header communicates cache lifetime from serve
 
 ## Revalidation
 
-By default, `use cache` uses the `default` profile with these settings:
+Cached functions revalidate based on the `revalidate` and `expire` times in their `cacheLife` profile, or on-demand through tags. These two approaches are not mutually exclusive and are often paired:
 
-- **stale**: 5 minutes (client-side)
-- **revalidate**: 15 minutes (server-side)
-- **expire**: Never expires by time
+- **[Time-based](#time-based-revalidation)**: refresh automatically after a set duration with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+- **[On-demand](#on-demand-revalidation)**: invalidate after a mutation with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`updateTag`](/docs/app/api-reference/functions/updateTag).
 
-```tsx filename="lib/data.ts"
-async function getData() {
-  'use cache'
-  // Implicitly uses default profile
-  return fetch('/api/data')
-}
-```
+For example, a blog post that changes only when its author edits it can use a long `cacheLife` like `max` with a `cacheTag`, then invalidate on demand when the post is saved. A list of recent posts that updates throughout the day can use a shorter profile like `hours` to refresh on its own, without manual invalidation.
 
-### Customizing cache lifetime
+### Time-based revalidation
 
-Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function to customize cache duration:
+Set an explicit cache lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) in every `use cache` scope. It makes the cache behavior clear at the call site, instead of depending on the `default` profile or surrounding caches.
 
 ```tsx filename="lib/data.ts"
 import { cacheLife } from 'next/cache'
@@ -299,6 +299,22 @@ async function getData() {
   return fetch('/api/data')
 }
 ```
+
+If you omit `cacheLife`, the `default` profile applies and the lifetime is no longer explicit at the call site:
+
+- **stale**: 5 minutes (client-side)
+- **revalidate**: 15 minutes (server-side)
+- **expire**: never expires by time
+
+```tsx filename="lib/data.ts"
+async function getData() {
+  'use cache'
+  // Implicitly uses the 'default' profile
+  return fetch('/api/data')
+}
+```
+
+Nesting a short-lived use cache inside one without an explicit [cacheLife](/docs/app/api-reference/functions/cacheLife) fails the build during prerendering. See [Nested short-lived caches](/docs/app/api-reference/functions/cacheLife#nested-short-lived-caches) for the rule and fix.
 
 ### On-demand revalidation
 
@@ -440,6 +456,8 @@ export async function getData() {
   return data
 }
 ```
+
+> **Good to know:** When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
 
 ### Interleaving
 

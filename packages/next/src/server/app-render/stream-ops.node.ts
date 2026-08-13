@@ -30,20 +30,29 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
-import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
-import { DetachedPromise } from '../../lib/detached-promise'
+import {
+  ReplayableNodeStream,
+  type AnyStream as AnyStreamType,
+} from './app-render-prerender-utils'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import type {
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.web'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -114,52 +123,6 @@ function webToReadable(
     return stream
   }
   return Readable.fromWeb(stream as WebReadableStream)
-}
-
-// ---------------------------------------------------------------------------
-// Buffered transform – Node.js Transform that coalesces chunks written in the
-// same microtask into a single Uint8Array before pushing downstream.
-// ---------------------------------------------------------------------------
-
-function createBufferedTransformStream(): Transform {
-  let bufferedChunks: Array<Uint8Array> = []
-  let bufferByteLength = 0
-  let flushScheduled = false
-
-  function flushBuffered(stream: Transform): void {
-    if (bufferedChunks.length === 0) return
-
-    const merged = new Uint8Array(bufferByteLength)
-    let copiedBytes = 0
-    for (let i = 0; i < bufferedChunks.length; i++) {
-      const bufferedChunk = bufferedChunks[i]
-      merged.set(bufferedChunk, copiedBytes)
-      copiedBytes += bufferedChunk.byteLength
-    }
-    bufferedChunks.length = 0
-    bufferByteLength = 0
-    stream.push(merged)
-  }
-
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      bufferedChunks.push(chunk)
-      bufferByteLength += chunk.byteLength
-
-      if (!flushScheduled) {
-        flushScheduled = true
-        queueMicrotask(() => {
-          flushScheduled = false
-          flushBuffered(this)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      flushBuffered(this)
-      callback()
-    },
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -578,21 +541,39 @@ export { renderToWebFlightStream } from './stream-ops.web'
 
 export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
-  payload: any,
-  clientModules: any,
-  opts: any
+  payload: FlightPayload,
+  clientModules: FlightClientModules,
+  opts: FlightRenderOptions
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')
   }
 
+  // `renderToPipeableStream` has no `signal` option (unlike the Web
+  // `renderToReadableStream`), so pull `signal` out of the options and abort
+  // the returned pipeable ourselves when it fires. We drop the listener when
+  // the passthrough closes so a finished render's `pipeable` isn't retained by
+  // the request signal, which can outlive it.
+  const { signal, ...renderOptions } = opts ?? {}
+
   const pt = new PassThrough()
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
-    opts
+    renderOptions
   )
   pipeable.pipe(pt)
+
+  if (signal) {
+    if (signal.aborted) {
+      pipeable.abort(signal.reason)
+    } else {
+      const onAbort = () => pipeable.abort(signal.reason)
+      signal.addEventListener('abort', onAbort, { once: true })
+      pt.on('close', () => signal.removeEventListener('abort', onAbort))
+    }
+  }
+
   return pt
 }
 
@@ -604,8 +585,8 @@ export async function renderToNodeFizzStream(
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -614,9 +595,6 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        if (!deferPipe) {
-          pipeable.pipe(pt)
-        }
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -634,7 +612,15 @@ export async function renderToNodeFizzStream(
     })
   )
 
-  await shellReady.promise
+  await getTracer().trace(
+    AppRenderSpan.waitShellReady,
+    () => shellReady.promise
+  )
+
+  if (!deferPipe) {
+    await waitAtLeastOneReactRenderTask()
+    pipeable.pipe(pt)
+  }
 
   return {
     stream: pt,
@@ -652,18 +638,29 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
       ...streamOptions,
+      onShellReady() {
+        streamOptions?.onShellReady?.()
+        shellReady.resolve()
+      },
+      onShellError(error: unknown) {
+        streamOptions?.onShellError?.(error)
+        shellReady.reject(error)
+      },
       onAllReady() {
         streamOptions?.onAllReady?.()
         allReady.resolve()
       },
     })
   )
+
   pipeable.pipe(pt)
+  await shellReady.promise
 
   return {
     stream: pt,
@@ -698,7 +695,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     allReady,
     deploymentId,
     getServerInsertedHTML,
@@ -709,7 +706,7 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
+  if (waitForAllReady) {
     if (allReady) {
       await allReady
     }
@@ -723,7 +720,7 @@ export async function continueFizzStream(
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
   // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
   // 3. Head insertion – inserts server-generated HTML before </head>
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -834,7 +831,7 @@ export async function continueDynamicHTMLResumeNode(
 ): Promise<AnyStream> {
   await waitAtLeastOneReactRenderTask()
 
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -1096,7 +1093,12 @@ export function getServerPrerender(ComponentMod: {
 export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
 
+// Node counterpart of the web `teeStream`. Like the web version it assumes the
+// stream type matching its build — here a Node `Readable` — and fans out
+// through `ReplayableNodeStream`. Need three or more consumers from one source?
+// Use `ReplayableNodeStream` directly (N `createReplayStream()` calls) to avoid
+// nesting tees.
 export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
-  const [s1, s2] = nodeReadableToWebReadableStream(stream).tee()
-  return [webToReadable(s1), webToReadable(s2)]
+  const replayable = new ReplayableNodeStream(stream as Readable)
+  return [replayable.createReplayStream(), replayable.createReplayStream()]
 }

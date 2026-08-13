@@ -10,7 +10,6 @@ use std::{
 };
 
 use anyhow::Result;
-use either::Either;
 use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use owo_colors::OwoColorize;
@@ -22,13 +21,11 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, TurboBackingStorage,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
-    turbo_backing_storage,
+    BackendOptions, EvictionMode, GitVersionInfo, StartupCacheState, TurboTasksBackend,
+    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
-pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>>>;
+pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -38,7 +35,7 @@ pub type NextTurboTasks =
 /// It should not be passed to a [`turbo_tasks::function`]. For serializable information about the
 /// project, use the [`next_api::project::Project`] type instead.
 ///
-/// This type is a wrapper around an [`Arc`] and is therefore cheaply clonable. It is [`Send`] and
+/// This type is a wrapper around an [`Arc`] and is therefore cheaply cloneable. It is [`Send`] and
 /// [`Sync`].
 #[derive(Clone)]
 pub struct NextTurbopackContext {
@@ -213,6 +210,11 @@ pub fn cache_describe(next_version: &str) -> String {
     format!("v{next_version}-{}", env!("VERGEN_GIT_SHA"))
 }
 
+#[napi]
+pub fn turbopack_cache_version(next_version: String) -> String {
+    cache_describe(&next_version)
+}
+
 /// Returns version info derived from the supplied Next.js version and compile-time git metadata.
 ///
 /// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
@@ -225,21 +227,50 @@ pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
     }
 }
 
+/// Turbopack's memory eviction strategy for the persistent cache, mirroring the
+/// `experimental.turbopackMemoryEviction` config option.
+///
+/// This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+/// depend on napi). Keep the variants in sync; the `From` impl below is
+/// exhaustive, so adding a variant to one enum forces updating the other.
+#[napi(string_enum = "lowercase")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum MemoryEvictionMode {
+    /// Never evict.
+    Off,
+    /// Evict after a snapshot only once enough memory has been allocated since
+    /// the last eviction to justify the cost of restoring evicted tasks.
+    Auto,
+    /// After every snapshot, evict all evictable tasks from memory, reloading
+    /// them from disk on demand.
+    Full,
+}
+
+impl From<MemoryEvictionMode> for EvictionMode {
+    fn from(mode: MemoryEvictionMode) -> Self {
+        match mode {
+            MemoryEvictionMode::Off => EvictionMode::Off,
+            MemoryEvictionMode::Auto => EvictionMode::Auto,
+            MemoryEvictionMode::Full => EvictionMode::Full,
+        }
+    }
+}
+
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     next_version: &str,
     persistent_caching: bool,
-    _memory_limit: usize,
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
     skip_compaction: bool,
+    turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
         let (backing_storage, cache_state) = turbo_backing_storage(
-            &output_path.join("cache/turbopack"),
+            &output_path.join("cache").join("turbopack"),
             &version_info,
             is_ci,
             is_short_session,
@@ -256,11 +287,10 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
-                evict_after_snapshot: std::env::var("TURBO_ENGINE_EVICT_AFTER_SNAPSHOT")
-                    .is_ok_and(|v| v == "1" || v == "true"),
+                eviction_mode: EvictionMode::from(turbopack_memory_eviction),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
@@ -273,7 +303,7 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     })
 }

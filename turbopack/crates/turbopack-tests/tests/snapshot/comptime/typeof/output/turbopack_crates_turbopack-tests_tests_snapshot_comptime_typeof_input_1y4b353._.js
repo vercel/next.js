@@ -3,7 +3,14 @@
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 console.log('typeof require', ("TURBOPACK compile-time value", "function"));
@@ -24,7 +31,14 @@ __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$dep$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)");
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 ;
@@ -42,7 +56,14 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.z);
 __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 console.log('typeof require', ("TURBOPACK compile-time value", "function"));
