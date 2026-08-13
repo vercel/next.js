@@ -367,6 +367,8 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
 
 [patch.crates-io]
+# TODO: Remove after https://github.com/notify-rs/notify/pull/981 is released.
+notify = { git = "https://github.com/marcoshernanz/notify.git", rev = "8e42e82e0710643d8f85eba2b2086bf8fb1b8427" }
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
 # We have to very frequently bump the swc major version of mdxjs-rs

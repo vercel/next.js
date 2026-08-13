@@ -5196,9 +5196,8 @@ dependencies = [
 
 [[package]]
 name = "notify"
-version = "8.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3163f59cd3fa0e9ef8c32f242966a7b9994fd7378366099593e0e73077cd8c97"
+version = "8.2.0"
+source = "git+https://github.com/marcoshernanz/notify.git?rev=8e42e82e0710643d8f85eba2b2086bf8fb1b8427#8e42e82e0710643d8f85eba2b2086bf8fb1b8427"
 dependencies = [
  "bitflags 2.9.1",
  "fsevent-sys",
@@ -5215,8 +5214,7 @@ dependencies = [
 [[package]]
 name = "notify-types"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e0826a989adedc2a244799e823aece04662b66609d96af8dff7ac6df9a8925d"
+source = "git+https://github.com/marcoshernanz/notify.git?rev=8e42e82e0710643d8f85eba2b2086bf8fb1b8427#8e42e82e0710643d8f85eba2b2086bf8fb1b8427"
 
 [[package]]
 name = "nu-ansi-term"

@@ -1053,6 +1053,45 @@ mod tests {
             .unwrap();
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn polling_detects_subsecond_mtime_changes() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(DiskWatcherRecursiveMode::NonRecursive),
+                poll_interval: Some(Duration::from_millis(100)),
+                report_invalidation_reason: true,
+            });
+            let file_path = fs.root_path.join("file.txt");
+            let initial_mtime = SystemTime::UNIX_EPOCH
+                + Duration::from_secs(1_000_000)
+                + Duration::from_millis(100);
+            fs::write(&file_path, "initial")?;
+            fs::File::options()
+                .write(true)
+                .open(&file_path)?
+                .set_modified(initial_mtime)?;
+
+            DiskWatcher::start_watching(fs.clone()).await?;
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+
+            // Keep this mtime-only so the test never exposes a transient current-time mtime.
+            fs::File::options()
+                .write(true)
+                .open(&file_path)?
+                .set_modified(initial_mtime + Duration::from_millis(100))?;
+            wait_for_rerun(&fs, &file_path, 1).await;
+
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     /// `recursive_mode` is set explicitly rather than left to the platform default so that both
     /// watching strategies are covered on every host. `TURBO_TASKS_FORCE_WATCH_MODE` still
     /// overrides it, collapsing these into two cases.
