@@ -11,7 +11,10 @@ const binding: Binding = require(
   /* turbopackIgnore: true */ workerData.bindingPath
 )
 
-binding.workerCreated(workerId)
+binding.workerCreated({
+  options: { filename: workerData.filename, cwd: workerData.cwd },
+  workerId,
+})
 
 export const run = async (
   moduleFactory: () => Promise<{

@@ -11,7 +11,10 @@ export interface TaskMessage {
 export interface Binding {
   recvTaskMessageInWorker(workerId: number): Promise<TaskMessage>
   sendTaskMessage(msg: TaskMessage): void
-  workerCreated(workerId: number): void
+  workerCreated(creation: {
+    options: { filename: string; cwd: string }
+    workerId: number
+  }): void
 }
 
 // Export this, maybe in the future, we can add an implementation via web worker on browser
