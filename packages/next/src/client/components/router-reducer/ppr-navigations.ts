@@ -60,6 +60,7 @@ import {
   updateBFCacheEntryStaleAt,
   computeDynamicStaleAt,
 } from '../segment-cache/bfcache'
+import { registerServerActionDispatchContext } from '../../server-action-dispatch'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -1837,6 +1838,12 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
+    registerServerActionDispatchContext(
+      result.actionRoutingKeys ?? undefined,
+      result.canonicalUrl,
+      nextUrl
+    )
+
     // TODO: Implement Shell extraction as part of Cached Navigations.
     // Intentionally holding off on doing this until we decide how the Cached
     // Navigations behavior should work in combination with App Shells.
@@ -1874,7 +1881,12 @@ async function fetchMissingDynamicData(
         now,
         result.runtimePrefetchStream,
         dynamicRequestTree,
-        result.renderedSearch
+        result.renderedSearch,
+        {
+          url: result.canonicalUrl,
+          nextUrl,
+          actionRoutingKeys: result.actionRoutingKeys,
+        }
       )
         .then((processed) => {
           if (processed !== null) {

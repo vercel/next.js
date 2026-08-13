@@ -1,9 +1,11 @@
 import { parseHostHeader } from './action-handler'
 import {
+  getServerActionRoutingKeysForPage,
   getServerModuleMap,
   setManifestsSingleton,
 } from './manifests-singleton'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import { createServerActionRoutingKey } from '../../shared/lib/server-action-routing-key'
 
 describe('server module map', () => {
   const actionId = '00' + 'a'.repeat(40)
@@ -37,6 +39,15 @@ describe('server module map', () => {
       chunks: [],
       async: false,
     })
+  })
+
+  it('lists opaque routing keys for the actions owned by a route', () => {
+    const routingKeys = getServerActionRoutingKeysForPage('/test/page')
+
+    expect(routingKeys).toEqual([createServerActionRoutingKey(actionId)])
+    expect(
+      getServerActionRoutingKeysForPage('/test/without-actions')
+    ).toBeUndefined()
   })
 
   it('rejects plausible server reference IDs that are missing', () => {

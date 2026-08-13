@@ -51,6 +51,7 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
+import { pruneServerActionDispatchContexts } from '../server-action-dispatch'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -129,6 +130,7 @@ function HistoryUpdater({
         // Skip the write: it would overwrite the traversed-to entry's state.
         // The tree was rendered even though the history write is skipped.
         setLastCommittedTree(tree)
+        pruneServerActionDispatchContexts(tree)
         return
       }
     }
@@ -161,6 +163,7 @@ function HistoryUpdater({
     }
 
     setLastCommittedTree(tree)
+    pruneServerActionDispatchContexts(tree)
   }, [appRouterState])
 
   useEffect(() => {

@@ -27,6 +27,7 @@ import {
   createFromNextReadableStream,
   decodeBufferedStage,
   resolveShellStageData,
+  type FlightDecoderActionDispatchContext,
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -216,6 +217,9 @@ type RouteCacheEntryShared = {
   // true in all other cases, including on initialization when we haven't yet
   // received a response from the server.
   couldBeIntercepted: boolean
+
+  // Opaque routing keys for Server Actions handled by this route's worker.
+  actionRoutingKeys: readonly string[] | null
 
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
@@ -667,6 +671,7 @@ function createDetachedRouteCacheEntry(): PendingRouteCacheEntry {
     // could be intercepted. It's only set to false once we receive a response
     // from the server.
     couldBeIntercepted: true,
+    actionRoutingKeys: null,
     // Similarly, we don't yet know if the route supports PPR.
     supportsPerSegmentPrefetching: false,
     hasDynamicRewrite: false,
@@ -819,6 +824,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     tree: optimisticRouteTree,
     metadata: optimisticMetadataTree,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
+    actionRoutingKeys: routeWithNoSearchParams.actionRoutingKeys,
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
@@ -2115,7 +2121,10 @@ export async function fetchRouteOnCacheMiss(
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
         headers,
-        { allowPartialStream: true }
+        {
+          allowPartialStream: true,
+          actionDispatchContext: { url: canonicalUrl, nextUrl },
+        }
       )
 
       if (
@@ -2156,6 +2165,7 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      entry.actionRoutingKeys = serverData.actionRoutingKeys ?? null
       discoverKnownRoute(
         Date.now(),
         pathname,
@@ -2183,7 +2193,10 @@ export async function fetchRouteOnCacheMiss(
         await createFromNextReadableStream<NavigationFlightResponse>(
           prefetchStream,
           headers,
-          { allowPartialStream: true }
+          {
+            allowPartialStream: true,
+            actionDispatchContext: { url: canonicalUrl, nextUrl },
+          }
         )
 
       if (
@@ -2484,7 +2497,14 @@ async function fetchSegmentsOnCacheMissImpl(
     await createFromNextReadableStream<SegmentPrefetchResponse>(
       prefetchStream,
       headers,
-      { allowPartialStream: true }
+      {
+        allowPartialStream: true,
+        actionDispatchContext: {
+          url: route.canonicalUrl,
+          nextUrl,
+          actionRoutingKeys: route.actionRoutingKeys,
+        },
+      }
     )
 
   if (serverResponse.data.length === 0) {
@@ -2527,7 +2547,12 @@ async function fetchSegmentsOnCacheMissImpl(
     try {
       shellResponse = await decodeBufferedStage<SegmentPrefetchResponse>(
         buffer.subarray(0, shellOffset),
-        headers
+        headers,
+        {
+          url: route.canonicalUrl,
+          nextUrl,
+          actionRoutingKeys: route.actionRoutingKeys,
+        }
       )
     } catch {
       // The truncated prefix couldn't be decoded. Treat it as if no shell
@@ -3187,7 +3212,10 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       createFromNextReadableStream<NavigationFlightResponse>(
         prefetchStream,
         headers,
-        { allowPartialStream: true }
+        {
+          allowPartialStream: true,
+          actionDispatchContext: { url: route.canonicalUrl, nextUrl },
+        }
       ),
       response.cacheData,
     ])
@@ -3213,7 +3241,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       const shellStageData = await resolveShellStageData(
         cacheData,
         serverData,
-        headers
+        headers,
+        {
+          url: route.canonicalUrl,
+          nextUrl,
+          actionRoutingKeys: serverData.A,
+        }
       )
       if (shellStageData === null) {
         // No App Shell can be extracted. This usually means the entire response
@@ -3473,6 +3506,7 @@ function writeDynamicTreeResponseIntoCache(
     return
   }
 
+  entry.actionRoutingKeys = serverData.A ?? null
   discoverKnownRoute(
     now,
     originalPathname,
@@ -4199,7 +4233,8 @@ export async function processRuntimePrefetchStream(
   now: number,
   runtimePrefetchStream: ReadableStream<Uint8Array>,
   baseTree: FlightRouterState,
-  renderedSearch: string
+  renderedSearch: string,
+  actionDispatchContext: FlightDecoderActionDispatchContext
 ): Promise<{
   navigationSeed: NavigationSeed
   buildId: string | undefined
@@ -4214,7 +4249,7 @@ export async function processRuntimePrefetchStream(
     await createFromNextReadableStream<NavigationFlightResponse>(
       stream,
       undefined,
-      { allowPartialStream: true }
+      { allowPartialStream: true, actionDispatchContext }
     )
 
   const rootVaryParamsIterable = serverData.r ?? null

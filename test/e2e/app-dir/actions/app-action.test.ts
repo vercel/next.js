@@ -94,6 +94,14 @@ describe('app-dir action handling', () => {
 
   it('should handle basic actions correctly', async () => {
     const browser = await next.browser('/server')
+    let actionRequestHeaders: Record<string, string> | undefined
+
+    browser.on('request', (request) => {
+      const headers = request.headers()
+      if (request.method() === 'POST' && headers['next-action'] !== undefined) {
+        actionRequestHeaders = headers
+      }
+    })
 
     const cnt = await browser.elementById('count').text()
     expect(cnt).toBe('0')
@@ -116,6 +124,98 @@ describe('app-dir action handling', () => {
     await retry(async () => {
       expect(await browser.elementById('count').text()).toBe('3')
     })
+
+    expect(actionRequestHeaders?.['next-action-only']).toBeUndefined()
+    expect(actionRequestHeaders?.['next-router-state-tree']).toBeDefined()
+  })
+
+  it('should invoke an action against the current search params', async () => {
+    const browser = await next.browser('/server')
+    let actionRequestUrl: string | undefined
+
+    browser.on('request', (request) => {
+      const headers = request.headers()
+      if (request.method() === 'POST' && headers['next-action'] !== undefined) {
+        actionRequestUrl = request.url()
+      }
+    })
+
+    await browser.eval(() => {
+      window.history.pushState(null, '', '/server?invocation=1')
+    })
+    await retry(async () => {
+      expect(await browser.elementById('search-params').text()).toBe(
+        'invocation=1'
+      )
+    })
+
+    await browser.elementById('inc').click()
+    await retry(async () => {
+      expect(await browser.elementById('count').text()).toBe('1')
+    })
+
+    if (actionRequestUrl === undefined) {
+      throw new Error('Failed to capture Server Action request')
+    }
+    expect(new URL(actionRequestUrl).search).toBe('?invocation=1')
+  })
+
+  it('should dispatch actions to active URLs, preferring the canonical URL', async () => {
+    const browser = await next.browser('/parallel-action/one')
+    const actionRequestPaths: string[] = []
+
+    browser.on('request', (request) => {
+      const headers = request.headers()
+      if (request.method() === 'POST' && headers['next-action'] !== undefined) {
+        actionRequestPaths.push(new URL(request.url()).pathname)
+      }
+    })
+
+    await browser.elementByCss("[href='/parallel-action/two']").click()
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe('/parallel-action/two')
+      expect(
+        await browser.hasElementByCssSelector('#retained-shared-action')
+      ).toBe(true)
+      expect(
+        await browser.hasElementByCssSelector('#retained-only-action')
+      ).toBe(true)
+    })
+
+    await browser.elementById('retained-shared-action').click()
+    await retry(async () => {
+      expect(
+        await browser.elementById('retained-shared-action-result').text()
+      ).toBe('action invoked')
+    })
+
+    await browser.elementById('retained-only-action').click()
+    await retry(async () => {
+      expect(
+        await browser.elementById('retained-only-action-result').text()
+      ).toBe('retained action invoked')
+    })
+
+    await browser.elementById('shared-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('shared-action-result').text()).toBe(
+        'action invoked'
+      )
+    })
+
+    await browser.elementById('current-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('current-action-result').text()).toBe(
+        'action invoked'
+      )
+    })
+
+    expect(actionRequestPaths).toEqual([
+      '/parallel-action/two',
+      '/parallel-action/one',
+      '/parallel-action/two',
+      '/parallel-action/two',
+    ])
   })
 
   it('should report errors with bad inputs correctly', async () => {
@@ -901,10 +1001,23 @@ describe('app-dir action handling', () => {
   }
 
   it.each(['node', 'edge'])(
-    'should forward action request to a worker that contains the action handler (%s)',
+    'should dispatch a delayed action to its original route when no active route owns it (%s)',
     async (runtime) => {
       const cliOutputIndex = next.cliOutput.length
       const browser = await next.browser(`/delayed-action/${runtime}`)
+      const actionRequestPaths: string[] = []
+      let actionRequestHeaders: Record<string, string> | undefined
+
+      browser.on('request', (request) => {
+        const headers = request.headers()
+        if (
+          request.method() === 'POST' &&
+          headers['next-action'] !== undefined
+        ) {
+          actionRequestPaths.push(new URL(request.url()).pathname)
+          actionRequestHeaders = headers
+        }
+      })
 
       // confirm there's no data yet
       expect(await browser.elementById('delayed-action-result').text()).toBe(
@@ -928,10 +1041,24 @@ describe('app-dir action handling', () => {
           // matches a Math.random() string
           /0\.\d+/
         )
-      })
+      }, 10000)
 
       // make sure that we still are rendering other-page content
       expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
+
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
+      expect(actionRequestHeaders?.['next-action-only']).toBeUndefined()
+      expect(actionRequestHeaders?.['next-router-state-tree']).toBeUndefined()
+
+      if (isNextDev) {
+        expect(
+          (await browser.log()).some(({ message }) =>
+            message.includes(
+              'A Server Action was invoked after the route that provided it was no longer active.'
+            )
+          )
+        ).toBe(true)
+      }
 
       // make sure we didn't get any errors in the console
       expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
@@ -941,11 +1068,21 @@ describe('app-dir action handling', () => {
   )
 
   it.each(['node', 'edge'])(
-    'should not error when a forwarded action triggers a redirect (%s)',
+    'should dispatch a delayed redirect action to its original route when no active route owns it (%s)',
     async (runtime) => {
       let redirectResponseCode
+      const actionRequestPaths: string[] = []
       const browser = await next.browser(`/delayed-action/${runtime}`, {
         beforePageLoad(page) {
+          page.on('request', (request) => {
+            if (
+              request.method() === 'POST' &&
+              request.headers()['next-action'] !== undefined
+            ) {
+              actionRequestPaths.push(new URL(request.url()).pathname)
+            }
+          })
+
           page.on('response', async (res) => {
             const headers = await res.allHeaders().catch(() => ({}))
             if (headers['x-action-redirect']) {
@@ -967,7 +1104,9 @@ describe('app-dir action handling', () => {
       // confirm a successful response code on the redirected action
       await retry(async () => {
         expect(redirectResponseCode).toBe(200)
-      })
+      }, 10000)
+
+      expect(actionRequestPaths).toEqual([`/delayed-action/${runtime}`])
 
       // confirm that the redirect was handled
       await browser.waitForElementByCss('#run-action-redirect')

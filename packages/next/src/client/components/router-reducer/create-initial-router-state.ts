@@ -22,6 +22,7 @@ import {
 import { decodeStageUntilBoundary } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { registerServerActionDispatchContext } from '../../server-action-dispatch'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
@@ -69,6 +70,10 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
+  if (location !== null) {
+    registerServerActionDispatchContext(initialRSCPayload.A, canonicalUrl, null)
+  }
+
   // Decode the initial transport tree into the RouteTree type, with the
   // payload's render output embedded on each node. (discoverKnownRoute below
   // stores this tree in the route cache, which strips the data on write —
@@ -107,7 +112,7 @@ export function createInitialRouterState({
   // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
     // Learn the route pattern so we can predict it for future navigations.
-    discoverKnownRoute(
+    const fulfilledRoute = discoverKnownRoute(
       Date.now(),
       location.pathname,
       location.search as NormalizedSearch,
@@ -120,6 +125,7 @@ export function createInitialRouterState({
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
+    fulfilledRoute.actionRoutingKeys = initialRSCPayload.A ?? null
 
     // TODO: Implement Shell extraction as part of Cached Navigations.
     // Intentionally holding off on doing this until we decide how the Cached
@@ -142,7 +148,12 @@ export function createInitialRouterState({
               await decodeStageUntilBoundary<InitialRSCPayload>(
                 initialFlightStreamForCache,
                 byteLength,
-                undefined
+                undefined,
+                {
+                  url: canonicalUrl,
+                  nextUrl: null,
+                  actionRoutingKeys: initialRSCPayload.A,
+                }
               )
             const now = Date.now()
             const staleAt = await resolveStaleAt(now, staticStageResponse.s)
@@ -209,7 +220,12 @@ export function createInitialRouterState({
         Date.now(),
         initialRuntimePrefetchStream,
         initialTree,
-        initialRenderedSearch
+        initialRenderedSearch,
+        {
+          url: canonicalUrl,
+          nextUrl: null,
+          actionRoutingKeys: initialRSCPayload.A,
+        }
       )
         .then((processed) => {
           if (processed !== null) {

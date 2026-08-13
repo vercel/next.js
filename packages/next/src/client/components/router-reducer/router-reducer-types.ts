@@ -3,6 +3,7 @@ import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/decode-server-response'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import type { FreshnessPolicy } from './ppr-navigations'
+import type { ServerActionDispatchContext } from '../../server-action-dispatch'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -52,6 +53,12 @@ export interface ServerActionAction {
   type: typeof ACTION_SERVER_ACTION
   actionId: string
   actionArgs: any[]
+  /**
+   * The route that owns this action, if it was advertised in a Flight payload.
+   * Missing context falls back to the current route so version-skewed action
+   * IDs retain the existing unrecognized-action behavior.
+   */
+  actionDispatchContext: ServerActionDispatchContext | undefined
   resolve: (value: any) => void
   reject: (reason?: any) => void
   didRevalidate?: boolean
