@@ -64,6 +64,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'DevBundlerService.ensurePage',
   'BaseServer.render',
   'LoadComponents.loadComponents',
+  'RouteModule.prepare',
   'AppRender.prepareAppPageResponse',
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
