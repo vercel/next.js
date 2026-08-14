@@ -736,7 +736,7 @@ function getHighestPriorityLanes(lanes) {
     case 32768:
     case 65536:
     case 131072:
-      return lanes & 261888;
+      return lanes & -lanes;
     case 262144:
     case 524288:
     case 1048576:
@@ -808,6 +808,22 @@ function checkIfRootIsPrerendering(root, renderLanes) {
       ~(root.suspendedLanes & ~root.pingedLanes) &
       renderLanes)
   );
+}
+function getEntangledLanes(root, renderLanes) {
+  0 !== (renderLanes & 8) && (renderLanes |= renderLanes & 32);
+  var allEntangledLanes = root.entangledLanes;
+  if (0 !== allEntangledLanes)
+    for (
+      root = root.entanglements, allEntangledLanes &= renderLanes;
+      0 < allEntangledLanes;
+
+    ) {
+      var index$4 = 31 - clz32(allEntangledLanes),
+        lane = 1 << index$4;
+      renderLanes |= root[index$4];
+      allEntangledLanes &= ~lane;
+    }
+  return renderLanes;
 }
 function computeExpirationTime(lane, currentTime) {
   switch (lane) {
@@ -9542,6 +9558,14 @@ function commitNewChildToFragmentInstances(fiber, parentFragmentInstances) {
         parentFragmentInstances[i]
       );
 }
+function commitFragmentInstanceInsertionEffects(fiber) {
+  for (var parent = fiber.return; null !== parent; ) {
+    isFragmentInstanceParent(parent) &&
+      commitNewChildToFragmentInstance(fiber.stateNode, parent.stateNode);
+    if (isFragmentInstanceHostBoundary(parent)) break;
+    parent = parent.return;
+  }
+}
 function commitFragmentInstanceDeletionEffects(fiber) {
   for (var parent = fiber.return; null !== parent; ) {
     if (isFragmentInstanceParent(parent)) {
@@ -9553,8 +9577,8 @@ function commitFragmentInstanceDeletionEffects(fiber) {
           var _eventListeners$i4 = eventListeners[i];
           childInstance.removeEventListener(
             _eventListeners$i4.type,
-            _eventListeners$i4.listener,
-            _eventListeners$i4.optionsOrUseCapture
+            _eventListeners$i4.attachedListener,
+            getAttachOptions(_eventListeners$i4.optionsOrUseCapture)
           );
         }
       3 !== childInstance.nodeType &&
@@ -10863,9 +10887,10 @@ function commitDeletionEffectsOnFiber(
     case 5:
       offscreenSubtreeWasHidden ||
         safelyDetachRef(deletedFiber, nearestMountedAncestor),
-        (5 !== deletedFiber.tag && 6 !== deletedFiber.tag) ||
-          commitFragmentInstanceDeletionEffects(deletedFiber);
+        commitFragmentInstanceDeletionEffects(deletedFiber);
     case 6:
+      6 === deletedFiber.tag &&
+        commitFragmentInstanceDeletionEffects(deletedFiber);
       prevHostParent = hostParent;
       prevHostParentIsContainer = hostParentIsContainer;
       hostParent = null;
@@ -11726,14 +11751,15 @@ function recursivelyTraverseDisappearLayoutEffects(
           );
       case 5:
         safelyDetachRef(finishedWork, finishedWork.return);
-        (5 !== finishedWork.tag &&
-          27 !== finishedWork.tag &&
-          6 !== finishedWork.tag) ||
+        (5 !== finishedWork.tag && 27 !== finishedWork.tag) ||
           commitFragmentInstanceDeletionEffects(finishedWork);
         recursivelyTraverseDisappearLayoutEffects(
           finishedWork,
           layoutEffectTraversalFlags
         );
+        break;
+      case 6:
+        commitFragmentInstanceDeletionEffects(finishedWork);
         break;
       case 26:
         safelyDetachRef(finishedWork, finishedWork.return);
@@ -11838,18 +11864,8 @@ function recursivelyTraverseReappearLayoutEffects(
         0 !== (layoutEffectTraversalFlags & 2) &&
           commitHostSingletonAcquisition(finishedWork);
       case 5:
-        if (5 === finishedWork.tag || 27 === finishedWork.tag) {
-          instance = finishedWork;
-          for (var parent = instance.return; null !== parent; ) {
-            isFragmentInstanceParent(parent) &&
-              commitNewChildToFragmentInstance(
-                instance.stateNode,
-                parent.stateNode
-              );
-            if (isFragmentInstanceHostBoundary(parent)) break;
-            parent = parent.return;
-          }
-        }
+        (5 !== finishedWork.tag && 27 !== finishedWork.tag) ||
+          commitFragmentInstanceInsertionEffects(finishedWork);
         recursivelyTraverseReappearLayoutEffects(
           finishedRoot,
           finishedWork,
@@ -11860,6 +11876,9 @@ function recursivelyTraverseReappearLayoutEffects(
           flags & 4 &&
           commitHostMount(finishedWork);
         safelyAttachRef(finishedWork, finishedWork.return);
+        break;
+      case 6:
+        commitFragmentInstanceInsertionEffects(finishedWork);
         break;
       case 26:
         instance = finishedWork.stateNode;
@@ -13728,6 +13747,7 @@ function markRootSuspended(
   spawnedLane,
   didAttemptEntireTree
 ) {
+  suspendedLanes = getEntangledLanes(root, suspendedLanes);
   suspendedLanes &= ~workInProgressRootPingedLanes;
   suspendedLanes &= ~workInProgressRootInterleavedUpdatedLanes;
   root.suspendedLanes |= suspendedLanes;
@@ -13792,20 +13812,7 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootRecoverableErrors = workInProgressRootConcurrentErrors =
     null;
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1;
-  0 !== (lanes & 8) && (lanes |= lanes & 32);
-  var allEntangledLanes = root.entangledLanes;
-  if (0 !== allEntangledLanes)
-    for (
-      root = root.entanglements, allEntangledLanes &= lanes;
-      0 < allEntangledLanes;
-
-    ) {
-      var index$4 = 31 - clz32(allEntangledLanes),
-        lane = 1 << index$4;
-      lanes |= root[index$4];
-      allEntangledLanes &= ~lane;
-    }
-  entangledRenderLanes = lanes;
+  entangledRenderLanes = getEntangledLanes(root, lanes);
   finishQueueingConcurrentUpdates();
   return timeoutHandle;
 }
@@ -15452,20 +15459,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1839 = 0;
-  i$jscomp$inline_1839 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1839++
+  var i$jscomp$inline_1830 = 0;
+  i$jscomp$inline_1830 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1830++
 ) {
-  var eventName$jscomp$inline_1840 =
-      simpleEventPluginEvents[i$jscomp$inline_1839],
-    domEventName$jscomp$inline_1841 =
-      eventName$jscomp$inline_1840.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1842 =
-      eventName$jscomp$inline_1840[0].toUpperCase() +
-      eventName$jscomp$inline_1840.slice(1);
+  var eventName$jscomp$inline_1831 =
+      simpleEventPluginEvents[i$jscomp$inline_1830],
+    domEventName$jscomp$inline_1832 =
+      eventName$jscomp$inline_1831.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1833 =
+      eventName$jscomp$inline_1831[0].toUpperCase() +
+      eventName$jscomp$inline_1831.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1841,
-    "on" + capitalizedEvent$jscomp$inline_1842
+    domEventName$jscomp$inline_1832,
+    "on" + capitalizedEvent$jscomp$inline_1833
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18163,20 +18170,40 @@ FragmentInstance.prototype.addEventListener = function (
 ) {
   null === this._eventListeners && (this._eventListeners = []);
   var listeners = this._eventListeners;
-  -1 === indexOfEventListener(listeners, type, listener, optionsOrUseCapture) &&
-    (listeners.push({
+  if (
+    -1 === indexOfEventListener(listeners, type, listener, optionsOrUseCapture)
+  ) {
+    var fragmentInstance = this,
+      attachedListener = listener;
+    null != optionsOrUseCapture &&
+      "boolean" !== typeof optionsOrUseCapture &&
+      !0 === optionsOrUseCapture.once &&
+      (attachedListener = function (event) {
+        fragmentInstance.removeEventListener(
+          type,
+          listener,
+          optionsOrUseCapture
+        );
+        "function" === typeof listener
+          ? listener.call(this, event)
+          : listener.handleEvent(event);
+      });
+    var attachOptions = getAttachOptions(optionsOrUseCapture);
+    listeners.push({
       type: type,
       listener: listener,
-      optionsOrUseCapture: optionsOrUseCapture
-    }),
+      optionsOrUseCapture: optionsOrUseCapture,
+      attachedListener: attachedListener
+    });
     traverseVisibleInstancesAndTextInstances(
       this._fragmentFiber.child,
       !1,
       addEventListenerToChild,
       type,
-      listener,
-      optionsOrUseCapture
-    ));
+      attachedListener,
+      attachOptions
+    );
+  }
   this._eventListeners = listeners;
 };
 function addEventListenerToChild(child, type, listener, optionsOrUseCapture) {
@@ -18193,23 +18220,28 @@ FragmentInstance.prototype.removeEventListener = function (
   optionsOrUseCapture
 ) {
   var listeners = this._eventListeners;
-  if (null !== listeners) {
-    var index = indexOfEventListener(
+  if (
+    null !== listeners &&
+    ((listener = indexOfEventListener(
       listeners,
       type,
       listener,
       optionsOrUseCapture
+    )),
+    -1 !== listener)
+  ) {
+    var _listeners$index = listeners[listener];
+    optionsOrUseCapture = _listeners$index.attachedListener;
+    _listeners$index = getAttachOptions(_listeners$index.optionsOrUseCapture);
+    traverseVisibleInstancesAndTextInstances(
+      this._fragmentFiber.child,
+      !1,
+      removeEventListenerFromChild,
+      type,
+      optionsOrUseCapture,
+      _listeners$index
     );
-    -1 !== index &&
-      (traverseVisibleInstancesAndTextInstances(
-        this._fragmentFiber.child,
-        !1,
-        removeEventListenerFromChild,
-        type,
-        listener,
-        optionsOrUseCapture
-      ),
-      listeners.splice(index, 1));
+    listeners.splice(listener, 1);
   }
 };
 function removeEventListenerFromChild(
@@ -18224,6 +18256,11 @@ function removeEventListenerFromChild(
     optionsOrUseCapture
   );
   return !1;
+}
+function getAttachOptions(opts) {
+  return null == opts || "boolean" === typeof opts || !0 !== opts.once
+    ? opts
+    : { capture: opts.capture, passive: opts.passive, signal: opts.signal };
 }
 function normalizeListenerOptions(opts) {
   return null == opts
@@ -18271,8 +18308,8 @@ FragmentInstance.prototype.dispatchEvent = function (event) {
         var _eventListeners$i = eventListeners[i];
         temp.addEventListener(
           _eventListeners$i.type,
-          _eventListeners$i.listener,
-          _eventListeners$i.optionsOrUseCapture
+          _eventListeners$i.attachedListener,
+          getAttachOptions(_eventListeners$i.optionsOrUseCapture)
         );
       }
     parentHostFiber.appendChild(temp);
@@ -18282,8 +18319,8 @@ FragmentInstance.prototype.dispatchEvent = function (event) {
         (_eventListeners$i = eventListeners[i]),
           temp.removeEventListener(
             _eventListeners$i.type,
-            _eventListeners$i.listener,
-            _eventListeners$i.optionsOrUseCapture
+            _eventListeners$i.attachedListener,
+            getAttachOptions(_eventListeners$i.optionsOrUseCapture)
           );
     parentHostFiber.removeChild(temp);
     return event;
@@ -18706,8 +18743,8 @@ function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       var _eventListeners$i3 = eventListeners[i];
       childInstance.addEventListener(
         _eventListeners$i3.type,
-        _eventListeners$i3.listener,
-        _eventListeners$i3.optionsOrUseCapture
+        _eventListeners$i3.attachedListener,
+        getAttachOptions(_eventListeners$i3.optionsOrUseCapture)
       );
     }
   3 !== childInstance.nodeType &&
@@ -20635,16 +20672,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2271 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2262 = React.version;
 if (
-  "19.3.0-experimental-22e4f993-20260811" !==
-  isomorphicReactPackageVersion$jscomp$inline_2271
+  "19.3.0-experimental-eb8feb71-20260814" !==
+  isomorphicReactPackageVersion$jscomp$inline_2262
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2271,
-      "19.3.0-experimental-22e4f993-20260811"
+      isomorphicReactPackageVersion$jscomp$inline_2262,
+      "19.3.0-experimental-eb8feb71-20260814"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20664,24 +20701,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2936 = {
+var internals$jscomp$inline_2923 = {
   bundleType: 0,
-  version: "19.3.0-experimental-22e4f993-20260811",
+  version: "19.3.0-experimental-eb8feb71-20260814",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-22e4f993-20260811"
+  reconcilerVersion: "19.3.0-experimental-eb8feb71-20260814"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2937 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2924 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2937.isDisabled &&
-    hook$jscomp$inline_2937.supportsFiber
+    !hook$jscomp$inline_2924.isDisabled &&
+    hook$jscomp$inline_2924.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2937.inject(
-        internals$jscomp$inline_2936
+      (rendererID = hook$jscomp$inline_2924.inject(
+        internals$jscomp$inline_2923
       )),
-        (injectedHook = hook$jscomp$inline_2937);
+        (injectedHook = hook$jscomp$inline_2924);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -20927,4 +20964,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-22e4f993-20260811";
+exports.version = "19.3.0-experimental-eb8feb71-20260814";
