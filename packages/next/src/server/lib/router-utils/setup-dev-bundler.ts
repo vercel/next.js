@@ -7,6 +7,7 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
@@ -456,9 +457,21 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      // Watchpack may not report page files that are reachable only through
+      // symlinked directories. Perform a filesystem scan and merge the results
+      // with the watcher entries so all routable pages are considered.
+      const discoveredPageFiles = pagesDir
+        ? await recursiveReadDir(pagesDir, {
+            pathnameFilter: validFileMatcher.isPageFile,
+            relativePathnames: false,
+          })
+        : []
+
+      const discoveredPageFileSet = new Set(discoveredPageFiles)
+
+      const sortedKnownFiles: string[] = [
+        ...new Set([...knownFiles.keys(), ...discoveredPageFiles]),
+      ].sort(sortByPageExts(nextConfig.pageExtensions))
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
@@ -533,7 +546,8 @@ async function startWatcher(
         }
 
         if (
-          meta?.accuracy === undefined ||
+          (meta?.accuracy === undefined &&
+            !discoveredPageFileSet.has(fileName)) ||
           !validFileMatcher.isPageFile(fileName)
         ) {
           continue
