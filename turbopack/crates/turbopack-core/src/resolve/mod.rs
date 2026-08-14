@@ -1381,15 +1381,113 @@ async fn find_package(
                                     .await?;
                             for m in &*matches {
                                 if let PatternMatch::Directory(_, package_dir) = m {
-                                    packages.push(FindPackageItem::PackageDirectory {
-                                        name: get_package_name(&fs_path, package_dir)?,
-                                        dir: realpath(
-                                            package_dir,
-                                            collect_affecting_sources
-                                                .then_some(&mut affecting_sources),
-                                        )
-                                        .await?,
-                                    });
+                                    let resolved_dir = realpath(
+                                        package_dir,
+                                        collect_affecting_sources
+                                            .then_some(&mut affecting_sources),
+                                    )
+                                    .await?;
+                                    let pkg_name =
+                                        get_package_name(&fs_path, package_dir)?;
+
+                                    // pnpm virtual store deduplication:
+                                    // In pnpm monorepos, each workspace package
+                                    // gets its own symlink into `.pnpm/` virtual
+                                    // store, causing realpath() to resolve the
+                                    // same logical package (e.g. `react`) to
+                                    // different physical paths with identical
+                                    // versions but different peer dep context
+                                    // hashes. This creates duplicate module
+                                    // instances and breaks React Hooks and other
+                                    // singleton-dependent libraries.
+                                    //
+                                    // When a resolved path goes through `.pnpm/`,
+                                    // extract the versioned package identifier
+                                    // (e.g. `react@19.2.4`) and skip if an entry
+                                    // with the same name+version already exists.
+                                    // This preserves legitimate multi-version
+                                    // scenarios while deduplicating identical
+                                    // versions with different peer dep contexts.
+                                    let resolved_path =
+                                        resolved_dir.to_string();
+                                    let is_pnpm_virtual_store =
+                                        resolved_path.contains("/.pnpm/");
+
+                                    if is_pnpm_virtual_store {
+                                        // Extract versioned identifier from pnpm
+                                        // path: .pnpm/react@19.2.4_peer-hash/...
+                                        // We compare name@version, ignoring the
+                                        // peer dep hash suffix after underscore.
+                                        let pnpm_pkg_id = resolved_path
+                                            .split("/.pnpm/")
+                                            .nth(1)
+                                            .and_then(|s| s.split('/').next())
+                                            .map(|s| {
+                                                // Strip peer dep hash after version:
+                                                // react@19.2.4_hash -> react@19.2.4
+                                                // connect_mongo@5.0.0_hash -> connect_mongo@5.0.0
+                                                // Find last '@' (version separator), then
+                                                // find first '_' after it (peer dep hash).
+                                                if let Some(at_pos) = s.rfind('@') {
+                                                    let after_at = &s[at_pos..];
+                                                    if let Some(underscore_pos) = after_at.find('_') {
+                                                        &s[..at_pos + underscore_pos]
+                                                    } else {
+                                                        s
+                                                    }
+                                                } else {
+                                                    s
+                                                }
+                                            })
+                                            .unwrap_or("");
+
+                                        let already_resolved =
+                                            packages.iter().any(|p| match p {
+                                                FindPackageItem::PackageDirectory {
+                                                    dir, ..
+                                                } => {
+                                                    let existing =
+                                                        dir.to_string();
+                                                    existing
+                                                        .split("/.pnpm/")
+                                                        .nth(1)
+                                                        .and_then(|s| {
+                                                            s.split('/')
+                                                                .next()
+                                                        })
+                                                        .map(|s| {
+                                                            if let Some(at_pos) = s.rfind('@') {
+                                                                let after_at = &s[at_pos..];
+                                                                if let Some(underscore_pos) = after_at.find('_') {
+                                                                    &s[..at_pos + underscore_pos]
+                                                                } else {
+                                                                    s
+                                                                }
+                                                            } else {
+                                                                s
+                                                            }
+                                                        })
+                                                        .unwrap_or("")
+                                                        == pnpm_pkg_id
+                                                }
+                                                _ => false,
+                                            });
+                                        if !already_resolved {
+                                            packages.push(
+                                                FindPackageItem::PackageDirectory {
+                                                    name: pkg_name,
+                                                    dir: resolved_dir,
+                                                },
+                                            );
+                                        }
+                                    } else {
+                                        packages.push(
+                                            FindPackageItem::PackageDirectory {
+                                                name: pkg_name,
+                                                dir: resolved_dir,
+                                            },
+                                        );
+                                    }
                                 }
                             }
                         }
