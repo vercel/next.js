@@ -80,12 +80,18 @@ export async function findConfig<T>(
   if (filePath) {
     if (filePath.endsWith('.js')) {
       if (isESM) {
-        return (await esmImport(filePath)).default
+        const mod = await esmImport(filePath)
+        return mod && typeof mod === 'object' && 'default' in mod && mod.default !== undefined
+          ? mod.default
+          : mod
       } else {
         return require(filePath)
       }
     } else if (filePath.endsWith('.mjs')) {
-      return (await esmImport(filePath)).default
+      const mod = await esmImport(filePath)
+      return mod && typeof mod === 'object' && 'default' in mod && mod.default !== undefined
+        ? mod.default
+        : mod
     } else if (filePath.endsWith('.cjs')) {
       return require(filePath)
     }
