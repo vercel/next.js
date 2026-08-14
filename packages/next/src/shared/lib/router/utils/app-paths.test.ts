@@ -23,10 +23,27 @@ describe('selectAppPageEntry', () => {
     )
   })
 
-  it('selects the final direct entry from canonical build order', () => {
-    const appPaths = ['/foo/page', '/@alpha/foo/page', '/@beta/foo/page']
+  it('prefers the direct children page regardless of input order', () => {
+    const appPaths = [
+      '/parallel/nested-2/page',
+      '/parallel/(new)/@baz/nested-2/page',
+    ]
+
+    expect(selectAppPageEntry('/parallel/nested-2', appPaths)).toBe(
+      '/parallel/nested-2/page'
+    )
+    expect(
+      selectAppPageEntry('/parallel/nested-2', [...appPaths].reverse())
+    ).toBe('/parallel/nested-2/page')
+  })
+
+  it('deterministically selects an entry for a slot-only route', () => {
+    const appPaths = ['/@alpha/foo/page', '/@beta/foo/page']
 
     expect(selectAppPageEntry('/foo', appPaths)).toBe('/@beta/foo/page')
+    expect(selectAppPageEntry('/foo', [...appPaths].reverse())).toBe(
+      '/@beta/foo/page'
+    )
   })
 
   it('matches escaped underscore entries to decoded pathnames', () => {
