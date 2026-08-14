@@ -12,6 +12,7 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -794,7 +795,8 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true. Only applies to production builds; has no effect in development mode.
+   * true on canary releases and false on stable releases. Only applies to production builds; has
+   * no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -803,6 +805,19 @@ export interface ExperimentalConfig {
    * making chunk merging decisions and the raw size thresholds it uses.
    */
   turbopackChunking?: {
+    /**
+     * Groups of pages commonly visited together, each defined by a list of regular
+     * expressions matched against the route pathname.
+     *
+     * @example
+     * ```js
+     * clusters: [
+     *   [/^\/dashboard/, /^\/dashboard\/settings/],
+     *   [/^\/blog/, /^\/blog\/[^/]+$/],
+     * ]
+     * ```
+     */
+    clusters?: RegExp[][]
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -1174,6 +1189,13 @@ export interface ExperimentalConfig {
    * @default '100 MB'
    */
   maxPostponedStateSize?: SizeLimit
+
+  /**
+   * Disables compression of the Resume Data Cache (RDC) when persisting
+   * postponed state.
+   * @default false
+   */
+  disableResumeDataCacheCompression?: boolean
 
   /**
    * enables the minification of server code.
@@ -2292,6 +2314,7 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
+    disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
@@ -2299,6 +2322,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: true,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
+    turbopackSharedRuntime: !isStableBuild(),
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -2402,6 +2426,7 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
+    | 'disableResumeDataCacheCompression'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
@@ -2469,6 +2494,7 @@ export function getNextConfigRuntime(
     testProxy: ex.testProxy,
     runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
     maxPostponedStateSize: ex.maxPostponedStateSize,
+    disableResumeDataCacheCompression: ex.disableResumeDataCacheCompression,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,

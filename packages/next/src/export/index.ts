@@ -521,6 +521,8 @@ async function exportAppImpl(
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      disableResumeDataCacheCompression:
+        nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },

@@ -7,7 +7,7 @@ use either::Either;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_esregex::EsRegex;
+use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
@@ -1150,6 +1150,9 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackChunkingConfig {
+    /// Groups of pages commonly visited together, each defined by a list of regular expressions
+    /// matched against the route pathname. The cluster ID is the index in this list.
+    clusters: Option<Vec<Vec<RegexComponents>>>,
     /// A number between `0.0..=1.0`. Higher values weight the benefit of merging
     /// chunks for a single page load more heavily. A site's bounce rate is a good
     /// approximation if you don't have a better value.
@@ -1183,10 +1186,12 @@ pub struct TurbopackChunkingConfig {
 
 #[turbo_tasks::value]
 pub struct TurbopackChunking {
+    /// The route-matching regexes for each user-defined cluster.
+    clusters: Vec<EsRegexSet>,
     /// First-page-load priority as an integer percentage (`0..=100`), or `None` if unset.
     pub first_page_load_priority: Option<u32>,
     /// Route-matching regexes for priority routes.
-    priority_routes: Vec<EsRegex>,
+    priority_routes: EsRegexSet,
     /// Priority-route boost as an integer percentage (e.g. `150` for a 1.5x boost), or
     /// `None` to use the default.
     pub priority_boost_percent: Option<u32>,
@@ -1206,33 +1211,35 @@ pub struct TurbopackChunking {
 
 impl TurbopackChunking {
     /// Compute the [`EntryHeuristics`] for a route `pathname` by matching it against the configured
-    /// priority-route regexes.
+    /// cluster and priority-route regexes.
     pub fn entry_heuristics_for(&self, pathname: &str) -> EntryHeuristics {
-        let high_priority = self
-            .priority_routes
+        let clusters = self
+            .clusters
             .iter()
-            .filter(|regex| regex.as_regex_str().is_none())
-            .any(|regex| regex.is_match(pathname))
-            || regex::RegexSet::new(
-                self.priority_routes
-                    .iter()
-                    .filter_map(|regex| regex.as_regex_str()),
-            )
-            .is_ok_and(|set| set.is_match(pathname));
-        EntryHeuristics { high_priority }
+            .enumerate()
+            .filter(|(_, regexes)| regexes.is_match(pathname))
+            .map(|(index, _)| index as u16)
+            .collect();
+        let high_priority = self.priority_routes.is_match(pathname);
+        EntryHeuristics {
+            clusters,
+            high_priority,
+        }
     }
 }
 
-/// Compile a list of route-matching [`RegexComponents`] into [`EsRegex`]es.
-fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<Vec<EsRegex>> {
-    patterns
+/// Compile a list of route-matching [`RegexComponents`] into an [`EsRegexSet`], which builds the
+/// combined [`regex::RegexSet`] up front so that matching a route doesn't have to.
+fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<EsRegexSet> {
+    let regexes = patterns
         .iter()
         .cloned()
         .map(|pattern| {
             EsRegex::try_from(pattern)
                 .context("Invalid route pattern in `experimental.turbopackChunking`")
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    Ok(EsRegexSet::new(regexes))
 }
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
@@ -2167,12 +2174,19 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn turbopack_chunking(&self) -> Result<Vc<TurbopackChunking>> {
         let config = self.experimental.turbopack_chunking.as_ref();
+        let clusters = config
+            .and_then(|c| c.clusters.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .map(|patterns| parse_route_regexes(patterns))
+            .collect::<Result<Vec<_>>>()?;
         let priority_routes = parse_route_regexes(
             config
                 .and_then(|c| c.priority_routes.as_deref())
                 .unwrap_or_default(),
         )?;
         Ok(TurbopackChunking {
+            clusters,
             first_page_load_priority: config
                 .and_then(|c| c.first_page_load_priority)
                 .map(|priority| (priority.clamp(0.0, 1.0) * 100.0).round() as u32),
@@ -2656,7 +2670,7 @@ impl NextConfig {
             // The shared runtime / inlined bootstrap is a production-only optimization; in
             // development the per-route runtime is required for HMR.
             NextMode::Development => false,
-            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(true),
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
         }))
     }
 

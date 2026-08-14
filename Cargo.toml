@@ -100,7 +100,8 @@ opt-level = "s"
 [profile.release.package.lightningcss]
 opt-level = "s"
 
-[profile.release.package.lightningcss-napi]
+# The vendored napi glue for lightningcss; size-optimized like `lightningcss` itself.
+[profile.release.package.turbopack-lightningcss-napi]
 opt-level = "s"
 
 [profile.release.package.markdown]
@@ -199,6 +200,7 @@ turbopack-ecmascript-runtime = { path = "turbopack/crates/turbopack-ecmascript-r
 turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascript-hmr-protocol" }
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
+turbopack-lightningcss-napi = { path = "turbopack/crates/turbopack-lightningcss-napi" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
 turbopack-node = { path = "turbopack/crates/turbopack-node", default-features = false }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
@@ -282,20 +284,17 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.70", features = [
+lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.6", default-features = false, features = [
-  "visitor",
-] }
 lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
 memchr = "2.8.0"
 mime = "0.3.16"
-napi = { version = "2", default-features = false, features = [
+napi = { version = "3.10.0", default-features = false, features = [
   "napi3",
   "serde-json",
   "tokio_rt",
@@ -303,10 +302,9 @@ napi = { version = "2", default-features = false, features = [
   # Lightningcss uses this features
   "napi4",
   "napi5",
-  "compat-mode",
 ] }
-napi-derive = "2"
-napi-build = "2"
+napi-derive = "3.5.8"
+napi-build = "2.3.2"
 nohash-hasher = "0.2.0"
 notify = "8.1.0"
 owo-colors = "4.2.2"

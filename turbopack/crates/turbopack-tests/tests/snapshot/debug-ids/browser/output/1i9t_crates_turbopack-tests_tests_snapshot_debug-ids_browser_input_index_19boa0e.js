@@ -1,10 +1,13 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="f34f4684-6127-f0e7-0897-822ba1e1eea2")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="64c9678c-f7a9-2121-4902-35dfa89f5d34")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis["TURBOPACK"])) {
+var chunksToRegister = globalThis["TURBOPACK"];
+if (chunksToRegister === undefined) {
+    chunksToRegister = [];
+} else if (!Array.isArray(chunksToRegister)) {
     return;
 }
 
@@ -2473,7 +2476,6 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-var chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 var chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
@@ -2482,5 +2484,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=f34f4684-6127-f0e7-0897-822ba1e1eea2
+//# debugId=64c9678c-f7a9-2121-4902-35dfa89f5d34
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

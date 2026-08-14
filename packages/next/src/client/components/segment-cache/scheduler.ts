@@ -13,15 +13,14 @@ import {
   readRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
-  fetchSegmentsOnCacheMiss,
+  fetchSegmentPrefetchesUsingStaticRequest,
   EntryStatus,
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
   type RouteTree,
-  fetchSegmentPrefetchesUsingDynamicRequest,
+  fetchSegmentPrefetchesUsingRuntimeRequest,
   type PendingSegmentCacheEntry,
   type SegmentCacheEntry,
-  type SegmentBundle,
   convertRouteTreeToFlightRouterState,
   readOrCreateRevalidatingSegmentEntry,
   upgradeToPendingSegment,
@@ -235,8 +234,10 @@ const enum PrefetchTaskExitStatus {
  * before per-link work:
  *
  * - RouteTree: fetch the route's tree structure.
- * - Shell: fetch the route's reusable App Shell (param-free loading state),
- *   if the route can produce one and the feature is enabled. Bounded by
+ * - Shell: fetch each segment's shell-stage variant, keyed to be reusable
+ *   across all params below the root (root params are kept) — the phase's
+ *   target is the conceptual App Shell. Runs if the route can produce a
+ *   shell and the feature is enabled. Bounded by
  *   filesystem-route count, not link count — so all Shell prefetches across
  *   queued tasks complete before any Speculative prefetch runs, because
  *   shell responses are shared across every navigation to the same route.
@@ -761,11 +762,7 @@ function pingRoute(
         if (background(task)) {
           routeWithoutSearch.status = EntryStatus.Pending
           spawnPrefetchSubtask(
-            fetchRouteOnCacheMiss(
-              routeWithoutSearch,
-              keyWithoutSearch,
-              task.segmentCacheMap
-            )
+            fetchRouteOnCacheMiss(routeWithoutSearch, keyWithoutSearch)
           )
         }
         break
@@ -817,9 +814,7 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(
-        fetchRouteOnCacheMiss(route, task.key, task.segmentCacheMap)
-      )
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task.key))
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,
@@ -902,10 +897,11 @@ function pingRootRouteTree(
 
           // Derive the static walk's parameters once per pass; the walk
           // functions below receive them as arguments and are phase-agnostic.
-          // During the Shell phase the walk targets the App Shell variant of
-          // each segment (keyed at the shell vary paths); otherwise it's the
-          // ordinary per-segment static strategy. This is the only place the
-          // phase is consulted — everything below keys off the strategy.
+          // During the Shell phase the walk requests each segment's
+          // shell-stage variant (keyed at the shell vary paths); otherwise
+          // it's the ordinary per-segment static strategy. This is the only
+          // place the phase is consulted — everything below keys off
+          // the strategy.
           const staticWalkStrategy =
             task.phase === PrefetchPhase.Shell
               ? FetchStrategy.StaticShell
@@ -983,7 +979,7 @@ function pingRootRouteTree(
               )
               if (spawnedEntries.size > 0) {
                 spawnPrefetchSubtask(
-                  fetchSegmentPrefetchesUsingDynamicRequest(
+                  fetchSegmentPrefetchesUsingRuntimeRequest(
                     task,
                     route,
                     runtimeStrategy,
@@ -1006,7 +1002,7 @@ function pingRootRouteTree(
             // and fall through to Speculative.
             return PrefetchTaskExitStatus.Done
           }
-          // Prefetch multiple segments using a single dynamic request.
+          // Prefetch multiple segments using a single runtime request.
           // TODO: We can consolidate this branch with previous one by modeling
           // it as if the first segment in the new tree has runtime prefetching
           // enabled. Will do this as a follow-up refactor. Might want to remove
@@ -1030,7 +1026,7 @@ function pingRootRouteTree(
           let needsDynamicRequest = spawnedEntries.size > 0
           if (needsDynamicRequest) {
             spawnPrefetchSubtask(
-              fetchSegmentPrefetchesUsingDynamicRequest(
+              fetchSegmentPrefetchesUsingRuntimeRequest(
                 task,
                 route,
                 fetchStrategy,
@@ -1051,6 +1047,27 @@ function pingRootRouteTree(
     }
   }
   return PrefetchTaskExitStatus.Done
+}
+
+/**
+ * A linked list tracking the segments to fulfill from a single prefetch
+ * response, accumulated during the tree walk. The head is the requested
+ * segment; subsequent nodes are parent segments whose data is bundled into
+ * the same response by the server. When segments are not bundled, the list
+ * has a single node.
+ *
+ * The chain only exists during the walk: when it's finalized,
+ * pingSegmentBundle converts it into the map of spawned entries the fetch
+ * fulfills (keyed by segment request key).
+ */
+type SegmentBundle = {
+  // Null when the segment has prefetching disabled entirely
+  // (prefetch: 'force-disabled' / instant = false; Partial Prefetching
+  // segments have static data and occupy a real node). The bundle chain
+  // passes through it but no cache entry is created for it.
+  tree: RouteTree<null> | null
+  entry: SegmentCacheEntry | null
+  parent: SegmentBundle | null
 }
 
 /**
@@ -1076,7 +1093,7 @@ function pingStaticHead(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): void {
   // The head is subject to the same per-pass runtime-completeness contract
-  // as the route's segments: during an App Shell walk, and during any walk
+  // as the route's segments: during a StaticShell walk, and during any walk
   // of a Partial Prefetching route, the head needs a response at least as
   // complete as a runtime one.
   const headRequiresRuntimeCompleteness = walkRequiresRuntimeCompleteness(
@@ -1146,10 +1163,10 @@ function pingStaticHead(
  *   with a partial-prefetching config, or the global `partialPrefetching`
  *   flag — both surfaced as SubtreeHasPartialPrefetching on the route
  *   root), in both the Shell and Speculative phases.
- * - Every App Shell (StaticShell) walk, because the App Shell must be
- *   reusable across all params by definition. (In practice this is implied
- *   by the first case — the Shell phase only runs for Partial Prefetching
- *   routes.)
+ * - Every StaticShell walk — the Shell phase's walk, whose target (the
+ *   conceptual App Shell) must be reusable across all params by definition.
+ *   (In practice this is implied by the first case — the Shell phase only
+ *   runs for Partial Prefetching routes.)
  *
  * Routes without Partial Prefetching keep the static-only contract: their
  * walks prefetch static data and partial entries are acceptable — the
@@ -1185,8 +1202,9 @@ function walkRequiresRuntimeCompleteness(
 /**
  * The runtime counterpart of a pass's static walk strategy: the strategy the
  * batched runtime request uses if this walk deopts. Each phase has exactly one
- * — the Shell phase escalates to a runtime App Shell, the Speculative phase to
- * a per-link concrete runtime prefetch.
+ * — the Shell phase escalates to a shell-scoped runtime request
+ * (RuntimeShell), the Speculative phase to a per-link concrete
+ * runtime prefetch.
  */
 function getRuntimeStrategyForWalk(
   staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
@@ -1214,6 +1232,54 @@ function wouldRuntimeRequestProvideMore(
   return canNewFetchStrategyProvideMoreContent(
     entry.fetchStrategy,
     getRuntimeStrategyForWalk(staticWalkStrategy)
+  )
+}
+
+/**
+ * Whether a fulfilled shell-tier entry should take a static attempt (a
+ * spawned revalidation at the walk's static tier) before its position deopts
+ * to a runtime request. A shell-tier recorded entry (StaticShell or
+ * RuntimeShell) is not evidence that a static attempt would be pointless —
+ * unlike a concrete static (PPR) entry, where a static re-fetch would return
+ * the same bytes — so when the segment's hint says a static attempt is
+ * worthwhile (the build-time prerender accessed no runtime data), the
+ * attempt is taken and its response's own verdict decides whether to
+ * escalate afterward.
+ *
+ * Consults the revalidation slot so an attempt that already ran and settled
+ * without healing the entry (a rejected attempt: server miss or network
+ * error; a successful one upserts over the shell-tier entry, so the caller
+ * reads the healed entry instead) doesn't suppress the runtime deopt
+ * forever. The slot read creates an Empty placeholder on first evaluation —
+ * there is no read-only variant — which is harmless: when the entry is
+ * eligible, the spawn that follows claims the same slot.
+ */
+function isShellEntryEligibleForStaticAttempt(
+  now: number,
+  map: CacheMap<SegmentCacheEntry>,
+  entry: SegmentCacheEntry,
+  tree: RouteTree<null>,
+  fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
+): boolean {
+  if (
+    (entry.fetchStrategy !== FetchStrategy.StaticShell &&
+      entry.fetchStrategy !== FetchStrategy.RuntimeShell) ||
+    (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0 ||
+    // A StaticShell walk's static attempt is the shell tier itself, so it
+    // only applies when the walk's static strategy outranks the entry.
+    !canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+  ) {
+    return false
+  }
+  const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
+    now,
+    map,
+    fetchStrategy,
+    tree
+  )
+  return (
+    revalidatingEntry.status === EntryStatus.Empty ||
+    revalidatingEntry.status === EntryStatus.Pending
   )
 }
 
@@ -1584,7 +1650,7 @@ function diffRouteTreeAgainstCurrent(
         switch (fetchStrategy) {
           case FetchStrategy.LoadingBoundary: {
             // When PPR is disabled, we can't prefetch per segment. We must
-            // fallback to the old prefetch behavior and send a dynamic request.
+            // fallback to the old prefetch behavior and send a runtime request.
             // Only routes that include a loading boundary can be prefetched in
             // this way.
             //
@@ -2072,7 +2138,9 @@ function pingRuntimePrefetches(
  * produced the entry). The callers surface this signal to the per-segment
  * decision point in pingNewPartOfCacheComponentsTree (and its analog for
  * the head in pingStaticHead), which uses it during a static attempt to
- * decide whether to fall back to a runtime prefetch.
+ * decide whether to fall back to a runtime prefetch. One exception withholds
+ * the signal: a shell-tier entry whose segment carries the static-attempt
+ * hint spawns a concrete static attempt first — see the Fulfilled case.
  */
 function pingSegmentBundle(
   now: number,
@@ -2090,16 +2158,19 @@ function pingSegmentBundle(
   // already settled or in flight: the chain's terminal segments are inside
   // the deopted subtree, and re-fetching their static bundle would at best
   // duplicate the runtime request and at worst replace a runtime-complete
-  // entry (e.g. a runtime App Shell) with a less complete static fallback
-  // response.
+  // entry (e.g. a RuntimeShell-tier entry) with a less complete static
+  // fallback response.
   spawnRevalidations: boolean
 ): boolean {
-  let segmentCount = 0
-  let needsFetch = false
   let needsRuntimeRequest = false
+  // The pending entries this task owns — Empty entries upgraded here, plus
+  // any revalidations spawned here — keyed by segment request key. If any
+  // accumulate, a single fetch is spawned for the whole bundle, and the
+  // response fulfills them.
+  let spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null =
+    null
   let node: SegmentBundle | null = segments
   while (node !== null) {
-    segmentCount++
     const nodeEntry = node.entry
     const nodeTree = node.tree
     if (nodeEntry === null || nodeTree === null) {
@@ -2107,13 +2178,17 @@ function pingSegmentBundle(
       continue
     }
     switch (nodeEntry.status) {
-      case EntryStatus.Empty:
-        upgradeToPendingSegment(nodeEntry, fetchStrategy)
-        needsFetch = true
+      case EntryStatus.Empty: {
+        const pendingEntry = upgradeToPendingSegment(nodeEntry, fetchStrategy)
+        if (spawnedEntries === null) {
+          spawnedEntries = new Map()
+        }
+        spawnedEntries.set(nodeTree.requestKey, pendingEntry)
         // The pass blocks on every request it spawns, not just requests it
         // finds already in flight.
-        blockTaskOnPendingResponse(task, nodeEntry)
+        blockTaskOnPendingResponse(task, pendingEntry)
         break
+      }
       case EntryStatus.Pending:
         if (
           spawnRevalidations &&
@@ -2133,17 +2208,18 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // Block on the revalidation request we just spawned, in
             // addition to the original in-flight entry (blocked below).
-            blockTaskOnPendingResponse(task, revalidatingEntry)
-          } else {
-            node.entry = null
+            blockTaskOnPendingResponse(task, pendingEntry)
           }
-        } else {
-          node.entry = null
         }
         blockTaskOnPendingResponse(task, nodeEntry)
         break
@@ -2172,21 +2248,22 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // Block on the retry revalidation we just spawned, like any
             // other pending response. If the retry succeeds, its upsert
             // evicts the rejected entry (see evictShadowingSegmentEntries
             // in cache.ts) and the re-run pass reads the healed data. If it
             // rejects too, the re-run observes a settled revalidation and
             // moves on.
-            blockTaskOnPendingResponse(task, revalidatingEntry)
-          } else {
-            node.entry = null
+            blockTaskOnPendingResponse(task, pendingEntry)
           }
-        } else {
-          node.entry = null
         }
         // The segment failed to load, or the server intentionally omitted it
         // from a response (both are encoded as Rejected). Skip it and keep
@@ -2199,10 +2276,30 @@ function pingSegmentBundle(
           nodeEntry,
           fetchStrategy
         )
-        if (runtimeWouldProvideMore) {
+
+        // An eligible shell-tier entry takes the static attempt path below
+        // (the revalidation) instead of deopting straight to a runtime
+        // request; see isShellEntryEligibleForStaticAttempt. The attempt
+        // can't recur: its response records at least the concrete static
+        // tier, which fails the shell-tier check on the re-run pass — and an
+        // attempt that already settled without healing the entry reads as
+        // ineligible, so the deopt proceeds after all.
+        const shellEntryEligibleForStaticAttempt =
+          isShellEntryEligibleForStaticAttempt(
+            now,
+            task.segmentCacheMap,
+            nodeEntry,
+            nodeTree,
+            fetchStrategy
+          )
+
+        if (runtimeWouldProvideMore && !shellEntryEligibleForStaticAttempt) {
           // A runtime request would return more content for this segment
           // than the entry contains. Surface it via the return value, so the
-          // caller can deopt this subtree to a runtime prefetch.
+          // caller can deopt this subtree to a runtime prefetch. (An
+          // eligible shell-tier entry withholds the signal for this pass:
+          // the static attempt spawned below blocks the task, and the re-run
+          // pass reads the attempt's result instead.)
           needsRuntimeRequest = true
         }
 
@@ -2213,11 +2310,12 @@ function pingSegmentBundle(
         // re-fetched.
         //
         // Exception: when a runtime request would return more AND this walk
-        // permits one, skip the static path entirely. The runtime request
-        // covers this segment and supersedes anything a static fetch could
-        // add, so a static upgrade would at best duplicate it — delivering
-        // the same content twice — and at worst replace runtime content with
-        // static content.
+        // permits one, skip the static path entirely — unless the entry is
+        // an eligible shell-tier entry (see above), whose static attempt IS
+        // this upgrade. Otherwise the runtime request covers this segment
+        // and supersedes anything a static fetch could add, so a static
+        // upgrade would at best duplicate it — delivering the same content
+        // twice — and at worst replace runtime content with static content.
         //
         // When no runtime request is permitted, the signal is irrelevant:
         // nothing can act on it, so it must not suppress the static upgrade.
@@ -2225,6 +2323,7 @@ function pingSegmentBundle(
         // cached shell.
         const willBeSupersededByRuntimeRequest =
           runtimeWouldProvideMore &&
+          !shellEntryEligibleForStaticAttempt &&
           walkRequiresRuntimeCompleteness(fetchStrategy, route)
 
         // Check if we should attempt to upgrade a fallback ISR response to
@@ -2258,29 +2357,35 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, fetchStrategy)
-            node.entry = revalidatingEntry
-            needsFetch = true
+            const pendingEntry = upgradeToPendingSegment(
+              revalidatingEntry,
+              fetchStrategy
+            )
+            if (spawnedEntries === null) {
+              spawnedEntries = new Map()
+            }
+            spawnedEntries.set(nodeTree.requestKey, pendingEntry)
             // The pass blocks on every request it spawns, including
             // revalidations of an already-fulfilled entry.
-            blockTaskOnPendingResponse(task, revalidatingEntry)
+            blockTaskOnPendingResponse(task, pendingEntry)
           } else {
             // A non-empty revalidating entry means a request is already in
             // flight (or recently settled), so we dedupe and don't issue a
             // competing one — including for ISR-fallback upgrades, which then
             // share the same revalidation across tasks.
-            node.entry = null
             if (revalidatingEntry.status === EntryStatus.Pending) {
               // The deduped-against revalidation is still in flight, and this
               // pass depends on its response. Wait for it before the phase
               // can complete. (A settled revalidation we chose not to use
               // needs no waiting and is not a prefetch failure — the base
-              // entry here is already Fulfilled.)
+              // entry here is already Fulfilled. A settled revalidation
+              // can't strand an eligible shell-tier entry either:
+              // isShellEntryEligibleForStaticAttempt reads the slot, so a
+              // settled attempt makes the entry ineligible and the runtime
+              // deopt proceeds above.)
               blockTaskOnPendingResponse(task, revalidatingEntry)
             }
           }
-        } else {
-          node.entry = null
         }
         break
       }
@@ -2289,15 +2394,14 @@ function pingSegmentBundle(
     }
     node = node.parent
   }
-  if (needsFetch) {
+  if (spawnedEntries !== null) {
     spawnPrefetchSubtask(
-      fetchSegmentsOnCacheMiss(
+      fetchSegmentPrefetchesUsingStaticRequest(
         task,
         route,
         routeKey,
         tree,
-        segments,
-        segmentCount,
+        spawnedEntries,
         fetchStrategy
       )
     )
@@ -2321,7 +2425,7 @@ function accumulateSegmentBundle(
   parentBundle: SegmentBundle | null,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   // PPR for the normal static bundling walk; StaticShell during the Shell
-  // phase's static App Shell attempt, whose entries are keyed at the shell
+  // phase's static shell attempt, whose entries are keyed at the shell
   // vary paths.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
   // False when finishing a chain on a runtime-prefetch bailout; see
@@ -2329,8 +2433,9 @@ function accumulateSegmentBundle(
   spawnRevalidations: boolean
 ): { bundle: SegmentBundle | null; needsRuntimeRequest: boolean } {
   // Prefetching is disabled for this segment (prefetch: 'force-disabled'):
-  // the server emits null for its slot, and it participates in the bundle
-  // chain with null tree/entry so the null-slot positions line up.
+  // the server emits identity only for its response node, and it
+  // participates in the bundle chain with null tree/entry — no cache entry
+  // is created for it.
   // (Partial Prefetching segments are NOT in this mask — the server emits
   // static data for them unconditionally.) Intentionally not gated by the
   // prefetch inlining flag: we never statically prefetch unprefetchable
@@ -2369,10 +2474,21 @@ function accumulateSegmentBundle(
       // ping only reaches the terminal descendant, and if that descendant is
       // itself a decision point it consumes the signal for its own subtree,
       // leaving this ancestor's insufficiency invisible to the decision
-      // point above it.
+      // point above it. An eligible shell-tier entry withholds the signal,
+      // the same exception the bundle ping applies: deopting here would
+      // pre-empt the static attempt the chain ping spawns for this node when
+      // it reaches the terminal descendant (its Fulfilled case runs for
+      // every node in the chain).
       needsRuntimeRequest:
         segment.status === EntryStatus.Fulfilled &&
-        wouldRuntimeRequestProvideMore(segment, fetchStrategy),
+        wouldRuntimeRequestProvideMore(segment, fetchStrategy) &&
+        !isShellEntryEligibleForStaticAttempt(
+          now,
+          task.segmentCacheMap,
+          segment,
+          tree,
+          fetchStrategy
+        ),
     }
   }
 
@@ -2474,17 +2590,17 @@ function pingFullSegmentRevalidation(
     tree
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
-    // During a Full/PPRRuntime prefetch, a single dynamic request is made for all the
-    // segments that we need. So we don't initiate a request here directly. By
-    // returning a pending entry from this function, it signals to the caller
-    // that this segment should be included in the request that's sent to
-    // the server.
+    // During a Full/PPRRuntime prefetch, a single runtime request is made for
+    // all the segments that we need. So we don't initiate a request here
+    // directly. By returning a pending entry from this function, it signals
+    // to the caller that this segment should be included in the request
+    // that's sent to the server.
     const pendingSegment = upgradeToPendingSegment(
       revalidatingSegment,
       fetchStrategy
     )
-    // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
-    // when the dynamic prefetch response is written into the cache.
+    // The upsert is handled by writeSegmentDataIntoCache
+    // when the runtime request's response is written into the cache.
     return pendingSegment
   } else {
     // There's already a revalidation in progress.
@@ -2507,8 +2623,8 @@ function pingFullSegmentRevalidation(
         emptySegment,
         fetchStrategy
       )
-      // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
-      // when the dynamic prefetch response is written into the cache.
+      // The upsert is handled by writeSegmentDataIntoCache
+      // when the runtime request's response is written into the cache.
       return pendingSegment
     }
     switch (nonEmptyRevalidatingSegment.status) {

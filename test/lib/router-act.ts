@@ -23,10 +23,10 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 // - 'static': per-segment static prefetches. These carry the
 //   `next-router-segment-prefetch` header (NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
 //   in the client), which is sent both by the per-segment data fetch
-//   (`fetchSegmentsOnCacheMissImpl`) and the route tree fetch
+//   (`fetchSegmentPrefetchesUsingStaticRequest`) and the route tree fetch
 //   (`fetchRouteOnCacheMiss`).
 // - 'runtime': dynamic prefetch requests, issued by
-//   `fetchSegmentPrefetchesUsingDynamicRequest` in the client. These carry a
+//   `fetchSegmentPrefetchesUsingRuntimeRequest` in the client. These carry a
 //   FlightRouterState request tree and a `next-router-prefetch` header value
 //   of '2' (FetchStrategy.PPRRuntime) or '3' (FetchStrategy.RuntimeShell).
 //   The other strategies used by that path — LoadingBoundary ('1') and Full
