@@ -10,20 +10,27 @@ const HeadInlinedIntoSelf = 0b10000000 // 128
 const HeadOutlined = 0b100000000 // 256
 const PrefetchDisabled = 0b10000000000 // 1024
 
-// Matches the shape of RootTreePrefetch / TreePrefetch from collect-segment-
-// data.tsx. We only declare the fields we need.
-type TreePrefetch = {
-  name: string
-  prefetchHints: number
-  slots: null | { [key: string]: TreePrefetch }
-}
+// The subset of the FlightRouterState tuple the assertions below read (see
+// FlightRouterState in shared/lib/app-router-types.ts). The segment is
+// either a plain string or a dynamic param tuple whose first element is the
+// param name.
+type FlightRouterStateLike = [
+  segment: string | [paramName: string, ...rest: unknown[]],
+  parallelRoutes: { [parallelRouterKey: string]: FlightRouterStateLike },
+  refreshState?: unknown,
+  refresh?: unknown,
+  prefetchHints?: number,
+]
 
-type RootTreePrefetch = {
-  tree: TreePrefetch
+function getSegmentName(node: FlightRouterStateLike): string {
+  const segment = node[0]
+  // Dynamic segments are param tuples; use the param name, which is what
+  // the route tree is keyed by (same for every param value).
+  return typeof segment === 'string' ? segment : segment[0]
 }
 
 /**
- * Renders the TreePrefetch as an ASCII tree showing inlining decisions.
+ * Renders a FlightRouterState as an ASCII tree showing inlining decisions.
  * Segments marked with "⇣ inlined" have their data included in a descendant's
  * response instead of being fetched separately. Validates that parent/child
  * hints are consistent (every InlinedIntoChild parent must have a child with
@@ -35,9 +42,9 @@ const OUTLINED_TAG = 'outlined \u25A0'
 const INLINED_TAG = '\u21E3'.padStart(OUTLINED_TAG.length)
 const DYNAMIC_TAG = 'dynamic \u25FB'.padStart(OUTLINED_TAG.length)
 
-function renderInliningTree(tree: TreePrefetch): string {
+function renderInliningTree(tree: FlightRouterStateLike): string {
   const lines: string[] = []
-  const isHeadOutlined = (tree.prefetchHints & HeadOutlined) !== 0
+  const isHeadOutlined = ((tree[4] ?? 0) & HeadOutlined) !== 0
   collectNodes(tree, '', !isHeadOutlined, false, lines)
   if (isHeadOutlined) {
     // Metadata is not inlined into any page — render as a standalone sibling.
@@ -47,22 +54,24 @@ function renderInliningTree(tree: TreePrefetch): string {
 }
 
 function collectNodes(
-  node: TreePrefetch,
+  node: FlightRouterStateLike,
   prefix: string,
   isLast: boolean,
   hasParent: boolean,
   lines: string[],
   slotKey?: string
 ): void {
-  const prefetchDisabled = (node.prefetchHints & PrefetchDisabled) !== 0
-  const inlinedIntoChild = (node.prefetchHints & InlinedIntoChild) !== 0
-  const _parentInlined = (node.prefetchHints & ParentInlinedIntoSelf) !== 0
-  const headInlined = (node.prefetchHints & HeadInlinedIntoSelf) !== 0
+  const prefetchHints = node[4] ?? 0
+  const prefetchDisabled = (prefetchHints & PrefetchDisabled) !== 0
+  const inlinedIntoChild = (prefetchHints & InlinedIntoChild) !== 0
+  const headInlined = (prefetchHints & HeadInlinedIntoSelf) !== 0
 
   const slotPrefix =
     slotKey !== undefined && slotKey !== 'children' ? `@${slotKey}/` : ''
   const headSuffix = headInlined ? ' (+metadata)' : ''
-  const name = hasParent ? `${slotPrefix}"${node.name}"${headSuffix}` : 'root'
+  const name = hasParent
+    ? `${slotPrefix}"${getSegmentName(node)}"${headSuffix}`
+    : 'root'
   // Static prefetch is skipped for dynamic (force-disabled) segments; they
   // are not prefetched at all. Every other segment — including ones that
   // read runtime data and may be runtime prefetched — has static data and
@@ -80,31 +89,33 @@ function collectNodes(
   lines.push(`${tag}  ${prefix}${connector}${name}`)
 
   // Validate consistency between parent and children.
-  if (node.slots) {
-    const children = Object.values(node.slots)
+  const slots = node[1]
+  const keys = Object.keys(slots)
+  if (keys.length > 0) {
+    const children = Object.values(slots)
     const childrenWithParentInlined = children.filter(
-      (c) => (c.prefetchHints & ParentInlinedIntoSelf) !== 0
+      (c) => ((c[4] ?? 0) & ParentInlinedIntoSelf) !== 0
     )
     if (inlinedIntoChild && childrenWithParentInlined.length === 0) {
       throw new Error(
-        `"${node.name}" has InlinedIntoChild but no child has ParentInlinedIntoSelf`
+        `"${getSegmentName(node)}" has InlinedIntoChild but no child has ` +
+          `ParentInlinedIntoSelf`
       )
     }
     if (!inlinedIntoChild && childrenWithParentInlined.length > 0) {
-      const names = childrenWithParentInlined.map((c) => c.name).join(', ')
+      const names = childrenWithParentInlined.map(getSegmentName).join(', ')
       throw new Error(
-        `"${node.name}" does not have InlinedIntoChild but child(ren) ${names} ` +
-          `have ParentInlinedIntoSelf`
+        `"${getSegmentName(node)}" does not have InlinedIntoChild but ` +
+          `child(ren) ${names} have ParentInlinedIntoSelf`
       )
     }
 
     const childPrefix =
       prefix + (hasParent ? (isLast ? '    ' : '\u2502   ') : '')
-    const keys = Object.keys(node.slots)
     const hasMultipleSlots = keys.length > 1
     for (let i = 0; i < keys.length; i++) {
       collectNodes(
-        node.slots[keys[i]],
+        slots[keys[i]],
         childPrefix,
         i === keys.length - 1,
         true,
@@ -115,26 +126,62 @@ function collectNodes(
   }
 }
 
-// Temporary helper: fetches the route tree prefetch response and parses the
-// RootTreePrefetch object out of it. This will be replaced by end-to-end
-// tests that assert on actual client prefetch request behavior once the
-// client-side changes are done.
-async function fetchRouteTreePrefetch(
+// Reads the route tree (FlightRouterState) for `pathname` from the browser
+// history entry. The router syncs its state into
+// `window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE` after every
+// navigation (see HistoryUpdater in client/components/app-router.tsx), so we
+// can assert on the tree — including the prefetch hints on each segment —
+// without parsing any wire format.
+//
+// The navigation must be a *prefetched* client navigation: the hints ride
+// the route's /_tree prefetch response (from the build manifest), and the
+// router copies them into the live tree when it navigates using the
+// prefetched route tree. The other ways of reaching a page don't carry the
+// real hints: the tree embedded in the initial payload of a build-time
+// prerendered page is generated before collectPrefetchHints runs (it's
+// marked InliningHintsStale), and a non-prefetched navigation falls back to
+// a dynamic request, which for a static route serves that same build-time
+// payload.
+async function getRouteTreeFromHistory(
   next: any,
-  pathname: string
-): Promise<RootTreePrefetch> {
-  const res = await next.fetch(pathname, {
-    headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
-      'Next-Router-Segment-Prefetch': '/_tree',
+  pathname: string,
+  // The page the navigation starts from. Must have a LinkAccordion for
+  // `pathname`, and must be different from `pathname` so a real client
+  // navigation occurs (a same-URL navigation is special-cased as
+  // a refresh).
+  from: string = '/'
+): Promise<FlightRouterStateLike> {
+  let page: Playwright.Page
+  const browser = await next.browser(from, {
+    beforePageLoad(p: Playwright.Page) {
+      page = p
     },
   })
-  const text = await res.text()
-  // The Flight response for a plain JSON object (no React nodes) is a single
-  // line: `0:{"tree":...,"staleTime":...}`. Strip the row ID prefix and parse.
-  const jsonStr = text.slice(text.indexOf(':') + 1)
-  return JSON.parse(jsonStr)
+  const act = createRouterAct(page!)
+  // Reveal the accordion link to trigger a prefetch, and wait for all
+  // resulting requests to settle, so the navigation below is guaranteed to
+  // use the prefetched route tree.
+  await act(async () => {
+    await browser
+      .elementByCss(`input[data-link-accordion="${pathname}"]`)
+      .click()
+  })
+  // Navigate by clicking the revealed link.
+  await browser.elementByCss(`a[href="${pathname}"]`).click()
+  let json: string | null = null
+  await retry(async () => {
+    json = await browser.eval(
+      `window.location.pathname === ${JSON.stringify(pathname)} &&
+       window.history.state &&
+       window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+        ? JSON.stringify(
+            window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
+          )
+        : null`
+    )
+    expect(json).not.toBeNull()
+  })
+  return JSON.parse(json!)
 }
 
 describe('prefetch inlining', () => {
@@ -153,8 +200,8 @@ describe('prefetch inlining', () => {
     // to be inlined into the page's response. The entire chain fits within
     // the 10KB total budget, so everything collapses into a single fetch
     // for the page segment.
-    const data = await fetchRouteTreePrefetch(next, '/test-small-chain')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    const tree = await getRouteTreeFromHistory(next, '/test-small-chain')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-small-chain"
@@ -195,8 +242,8 @@ describe('prefetch inlining', () => {
     // page. Root is still small enough for the large layout to accept, so
     // root gets inlined into the large layout's response. The page is
     // fetched separately since its parent was too large.
-    const data = await fetchRouteTreePrefetch(next, '/test-outlined')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    const tree = await getRouteTreeFromHistory(next, '/test-outlined')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
      outlined ■  └── "test-outlined"
@@ -231,11 +278,11 @@ describe('prefetch inlining', () => {
   })
 
   it('preserves prefetch hints after on-demand revalidation', async () => {
-    const beforeTree = await fetchRouteTreePrefetch(
+    const beforeTree = await getRouteTreeFromHistory(
       next,
       '/test-on-demand-revalidate'
     )
-    expect(renderInliningTree(beforeTree.tree)).toMatchInlineSnapshot(`
+    expect(renderInliningTree(beforeTree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-on-demand-revalidate"
@@ -267,13 +314,11 @@ describe('prefetch inlining', () => {
       1000
     )
 
-    const afterTree = await fetchRouteTreePrefetch(
+    const afterTree = await getRouteTreeFromHistory(
       next,
       '/test-on-demand-revalidate'
     )
-    expect(renderInliningTree(afterTree.tree)).toBe(
-      renderInliningTree(beforeTree.tree)
-    )
+    expect(renderInliningTree(afterTree)).toBe(renderInliningTree(beforeTree))
   })
 
   it('parallel routes: parent inlines into one slot only', async () => {
@@ -282,11 +327,11 @@ describe('prefetch inlining', () => {
     // accepts (children). The @sidebar slot doesn't receive the parent's
     // data and is fetched independently.
     //
-    const data = await fetchRouteTreePrefetch(next, '/test-parallel')
+    const tree = await getRouteTreeFromHistory(next, '/test-parallel')
     if (isTurbopack) {
       // Turbopack iterates children before @sidebar, so the parent
       // inlines into children/__PAGE__.
-      expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+      expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
        "
                 ⇣  root
                 ⇣  └── "test-parallel"
@@ -298,7 +343,7 @@ describe('prefetch inlining', () => {
     } else {
       // Webpack iterates @sidebar before children, so the parent
       // inlines into @sidebar/__PAGE__ instead.
-      expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+      expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
        "
                 ⇣  root
                 ⇣  └── "test-parallel"
@@ -338,8 +383,10 @@ describe('prefetch inlining', () => {
   it('home: root inlines directly into page', async () => {
     // Simplest possible case: root layout + page. Root is small and inlines
     // into the page.
-    const data = await fetchRouteTreePrefetch(next, '/')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    // Start from another page so reading the home tree involves a real
+    // client navigation.
+    const tree = await getRouteTreeFromHistory(next, '/', '/test-outlined')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
      outlined ■  └── "__PAGE__" (+metadata)
@@ -353,11 +400,11 @@ describe('prefetch inlining', () => {
     // children, splitting the tree into two inlining groups:
     // [root, test-restart] → large-middle's response, and [after] → page's
     // response.
-    const data = await fetchRouteTreePrefetch(
+    const tree = await getRouteTreeFromHistory(
       next,
       '/test-restart/large-middle/after'
     )
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-restart"
@@ -400,8 +447,8 @@ describe('prefetch inlining', () => {
   it('deep chain: all small segments inline to the leaf', async () => {
     // root → test-deep → a → b → c → page, all small. Every segment in
     // the chain inlines down to the page, producing a single fetch.
-    const data = await fetchRouteTreePrefetch(next, '/test-deep/a/b/c')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    const tree = await getRouteTreeFromHistory(next, '/test-deep/a/b/c')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-deep"
@@ -443,8 +490,8 @@ describe('prefetch inlining', () => {
     // 2KB threshold. If hints were incorrectly based on the fallback, the
     // layout would get inlined. Instead it should be outlined because the
     // concrete render is large.
-    const data = await fetchRouteTreePrefetch(next, '/test-dynamic/hello')
-    const helloTree = renderInliningTree(data.tree)
+    const tree = await getRouteTreeFromHistory(next, '/test-dynamic/hello')
+    const helloTree = renderInliningTree(tree)
 
     expect(helloTree).toMatchInlineSnapshot(`
      "
@@ -457,8 +504,8 @@ describe('prefetch inlining', () => {
 
     // Different param value should produce the same hints (keyed by route
     // pattern, not concrete path)
-    const data2 = await fetchRouteTreePrefetch(next, '/test-dynamic/world')
-    expect(renderInliningTree(data2.tree)).toBe(helloTree)
+    const tree2 = await getRouteTreeFromHistory(next, '/test-dynamic/world')
+    expect(renderInliningTree(tree2)).toBe(helloTree)
 
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -540,8 +587,8 @@ describe('prefetch inlining', () => {
     // inlining pass can inline the static layout into the page's bundle. The
     // whole chain collapses: root inlines into the layout, and the layout
     // inlines into the page.
-    const data = await fetchRouteTreePrefetch(next, '/test-runtime-bailout')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    const tree = await getRouteTreeFromHistory(next, '/test-runtime-bailout')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-runtime-bailout"
@@ -609,11 +656,11 @@ describe('prefetch inlining', () => {
     // page. The layout reads cookies, so it needs a runtime prefetch to
     // resolve fully, but it still has a static response and participates in
     // inlining like any other segment.
-    const data = await fetchRouteTreePrefetch(
+    const tree = await getRouteTreeFromHistory(
       next,
       '/test-runtime-passthrough/inner'
     )
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-runtime-passthrough"
@@ -664,11 +711,11 @@ describe('prefetch inlining', () => {
     // static layout → static page. Same pass-through behavior as runtime
     // prefetch: the dynamic layout passes parent data through to its static
     // descendants. Its slot in the bundle is null but the chain isn't broken.
-    const data = await fetchRouteTreePrefetch(
+    const tree = await getRouteTreeFromHistory(
       next,
       '/test-instant-false-passthrough/inner'
     )
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
       dynamic ◻  └── "test-instant-false-passthrough"
@@ -709,11 +756,11 @@ describe('prefetch inlining', () => {
     // the parent's data should only flow into one child slot (the first
     // that accepts), not both. This extends the existing parallel route
     // inlining rule to the pass-through case.
-    const data = await fetchRouteTreePrefetch(
+    const tree = await getRouteTreeFromHistory(
       next,
       '/test-runtime-parallel/inner'
     )
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-runtime-parallel"
@@ -769,8 +816,8 @@ describe('prefetch inlining', () => {
     // along in the same request. So each prefetched sibling gets its own
     // param-specific head ahead of the navigation, without a standalone
     // head request.
-    const data = await fetchRouteTreePrefetch(next, '/test-independent-head/a')
-    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+    const tree = await getRouteTreeFromHistory(next, '/test-independent-head/a')
+    expect(renderInliningTree(tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-independent-head"

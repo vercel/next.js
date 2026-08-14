@@ -55,7 +55,6 @@ import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
-import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 interface SharedRouteFields {
@@ -2065,7 +2064,7 @@ export async function handleBuildComplete({
     ]
 
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
+      const shouldLocalize = Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -2437,6 +2436,37 @@ async function getSharedNodeAssets({
       outputFileTracingRoot,
       sharedTraceIgnores
     )
+
+    // The require hook redirects shared-runtime imports from external packages
+    // to the Pages vendored contexts. Those contexts load module.compiled, whose
+    // runtime dependency is selected dynamically. Turbopack includes this via
+    // `Project::pages_traced_modules`; trace the Webpack runtime here.
+    const pagesRuntimePath = require.resolve(
+      'next/dist/compiled/next-server/pages.runtime.prod.js'
+    )
+    const pagesRuntimeTrace = await nodeFileTrace([pagesRuntimePath], {
+      base: outputFileTracingRoot,
+      ignore: sharedIgnoreFn,
+      moduleSyncCatchall: true,
+    })
+    pagesRuntimeTrace.esmFileList.forEach((item) =>
+      pagesRuntimeTrace.fileList.add(item)
+    )
+
+    for (const tracingRootRelativeFilePath of pagesRuntimeTrace.fileList) {
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
+      await pushAsset(
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
+        bundler,
+        salt
+      )
+    }
 
     // These are modules that are necessary for bootstrapping node env
     const necessaryNodeDependencies = [
