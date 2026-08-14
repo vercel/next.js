@@ -56,6 +56,19 @@ export function getRenderedPathname(
   ) as NormalizedPathname
 }
 
+/**
+ * Like getRenderedPathname, but derived from the request URL rather than the
+ * response. Used in output: "export" mode, where the response URL has the
+ * segment filename appended to the pathname — and where rewrites don't
+ * exist, so the request pathname is always the rendered pathname.
+ */
+export function getPathnameFromRequestURL(url: URL): NormalizedPathname {
+  const pathname = url.pathname
+  return (
+    hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+  ) as NormalizedPathname
+}
+
 // Pathname parts come from `URL.pathname.split('/')`, so they are already
 // in the encoded form the URL parser produces. The server-side equivalent
 // (`get-dynamic-param.ts`) starts from a decoded param value and applies
@@ -64,7 +77,7 @@ export function getRenderedPathname(
 // `encodeURIComponent` percent-encodes them. To produce the same canonical
 // form on the client (and avoid double-encoding `%xx` sequences such as
 // `%2F` → `%252F`), we decode the URL part first and re-encode it.
-function canonicalizeURLPart(part: string): string {
+export function canonicalizeURLPart(part: string): string {
   try {
     return encodeURIComponent(decodeURIComponent(part))
   } catch {

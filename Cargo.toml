@@ -100,7 +100,8 @@ opt-level = "s"
 [profile.release.package.lightningcss]
 opt-level = "s"
 
-[profile.release.package.lightningcss-napi]
+# The vendored napi glue for lightningcss; size-optimized like `lightningcss` itself.
+[profile.release.package.turbopack-lightningcss-napi]
 opt-level = "s"
 
 [profile.release.package.markdown]
@@ -199,6 +200,7 @@ turbopack-ecmascript-runtime = { path = "turbopack/crates/turbopack-ecmascript-r
 turbopack-ecmascript-hmr-protocol = { path = "turbopack/crates/turbopack-ecmascript-hmr-protocol" }
 turbopack-env = { path = "turbopack/crates/turbopack-env" }
 turbopack-image = { path = "turbopack/crates/turbopack-image" }
+turbopack-lightningcss-napi = { path = "turbopack/crates/turbopack-lightningcss-napi" }
 turbopack-mdx = { path = "turbopack/crates/turbopack-mdx" }
 turbopack-node = { path = "turbopack/crates/turbopack-node", default-features = false }
 turbopack-resolve = { path = "turbopack/crates/turbopack-resolve" }
@@ -209,30 +211,30 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
-swc_ecma_react_compiler = "22.0.0"
+swc_ecma_react_compiler = "23.0.0"
 react_compiler = { version = "0.2", package = "forked_react_compiler" }
 
 # SWC crates
-swc_core = { version = "75.0.0", default-features = false, features = [
+swc_core = { version = "76.0.0", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
 
-swc_plugin_backend_wasmtime = "14.0.0"
-testing = "25.0.0"
+swc_plugin_backend_wasmtime = "15.0.0"
+testing = "26.0.0"
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = "0.19.0"
+browserslist-rs = "0.20.0"
 mdxjs = "1.0.4"
-modularize_imports = "15.0.0"
-styled_components = "15.0.0"
-styled_jsx = "15.0.0"
-swc_emotion = "15.0.0"
-swc_relay = "15.0.0"
-react_remove_properties = "15.0.0"
-remove_console = "15.0.0"
-preset_env_base = "8.0.1"
+modularize_imports = "16.0.0"
+styled_components = "16.0.0"
+styled_jsx = "16.0.0"
+swc_emotion = "16.0.0"
+swc_relay = "16.0.0"
+react_remove_properties = "16.0.0"
+remove_console = "16.0.0"
+preset_env_base = "9.0.0"
 
 
 # General Deps
@@ -282,20 +284,17 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.70", features = [
+lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.6", default-features = false, features = [
-  "visitor",
-] }
 lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
 memchr = "2.8.0"
 mime = "0.3.16"
-napi = { version = "2", default-features = false, features = [
+napi = { version = "3.10.0", default-features = false, features = [
   "napi3",
   "serde-json",
   "tokio_rt",
@@ -303,10 +302,9 @@ napi = { version = "2", default-features = false, features = [
   # Lightningcss uses this features
   "napi4",
   "napi5",
-  "compat-mode",
 ] }
-napi-derive = "2"
-napi-build = "2"
+napi-derive = "3.5.8"
+napi-build = "2.3.2"
 nohash-hasher = "0.2.0"
 notify = "8.1.0"
 owo-colors = "4.2.2"

@@ -2,6 +2,7 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
+import { encodeHeaderSafe } from '../../lib/encode-header-safe'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -138,7 +139,20 @@ export function unstable_cache<T extends Callback>(
       const cacheKey =
         await incrementalCache.generateSimpleCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
-      const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
+      //
+      // A cache implementation may serialize this name into an HTTP request
+      // header, so it is encoded here. Both parts can carry a character above
+      // U+00FF: the search parameters are decoded, and a JavaScript identifier
+      // may hold one. The character class leaves the separating spaces and the
+      // URL punctuation untouched, so the shape above is preserved.
+      //
+      // `toWellFormed` replaces lone surrogates, which `cb.name` can hold and
+      // which `encodeURIComponent` rejects. The name identifies the call for
+      // debug metrics, so a replacement character is an acceptable trade for
+      // not failing the render.
+      const fetchUrl = encodeHeaderSafe(
+        `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`.toWellFormed()
+      )
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
@@ -171,7 +185,6 @@ export function unstable_cache<T extends Callback>(
             case 'private-cache':
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the revalidate option is a higher precedence
               // revalidate === undefined doesn't affect timing.
@@ -424,7 +437,6 @@ function getFetchUrlPrefix(
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

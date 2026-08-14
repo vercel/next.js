@@ -141,7 +141,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -541,8 +540,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -613,6 +611,9 @@ export default abstract class Server<
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          this.nextConfig.experimental.disableResumeDataCacheCompression ??
+          false,
         exposeTestingApi:
           this.nextConfig.cacheComponents === true &&
           (this.dev === true ||

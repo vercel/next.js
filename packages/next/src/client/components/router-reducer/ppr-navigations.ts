@@ -21,10 +21,12 @@ import {
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 import { getLastCommittedTree } from './reducers/committed-state'
 import {
-  convertServerPatchToFullTree,
+  createNavigationSeed,
   type NavigationSeed,
 } from '../segment-cache/decode-server-response'
 import {
+  segmentCacheMap,
+  type SegmentCacheEntry,
   type RouteTree,
   type RSCSegmentData,
   type RefreshState,
@@ -34,17 +36,14 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
-  resolveStaleAt,
-  writePrerenderResponseIntoCache,
-  processRuntimePrefetchStream,
-  writeDynamicRenderResponseIntoCache,
+  spawnStaticStageCacheWrite,
+  writeRuntimePrefetchStreamIntoCache,
   EntryStatus,
 } from '../segment-cache/cache'
-import { FetchStrategy } from '../segment-cache/types'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import type { CacheMap } from '../segment-cache/cache-map'
 import {
   getRenderedSearchFromVaryPath,
   type PageVaryPath,
@@ -178,6 +177,8 @@ export function createInitialCacheNodeForHydration(
     seedDynamicStaleAt,
     false,
     accumulation,
+    // Hydration is bound to the shared map.
+    segmentCacheMap,
     restrictToShell
   )
   return task
@@ -225,6 +226,9 @@ export function startPPRNavigation(
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
   accumulation: NavigationRequestAccumulation,
+  // The segment cache map this navigation is bound to: a locked navigation's
+  // driving-task map, or the shared map. See `segmentCacheMap` in cache.ts.
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -250,6 +254,7 @@ export function startPPRNavigation(
     oldRootRefreshState,
     parentRefreshState,
     accumulation,
+    map,
     restrictToShell
   )
 }
@@ -269,6 +274,7 @@ function updateCacheNodeOnNavigation(
   oldRootRefreshState: RefreshState,
   parentRefreshState: RefreshState | null,
   accumulation: NavigationRequestAccumulation,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -331,6 +337,7 @@ function updateCacheNodeOnNavigation(
       seedDynamicStaleAt,
       parentNeedsDynamicRequest,
       accumulation,
+      map,
       restrictToShell
     )
   }
@@ -401,6 +408,7 @@ function updateCacheNodeOnNavigation(
       oldCacheNode !== undefined
         ? oldCacheNode.bfcacheId
         : generateBFCacheId(freshness),
+      map,
       restrictToShell
     )
     newCacheNode = result.cacheNode
@@ -542,6 +550,7 @@ function updateCacheNodeOnNavigation(
         oldRootRefreshState,
         refreshState,
         accumulation,
+        map,
         restrictToShell
       )
 
@@ -654,6 +663,7 @@ function createCacheNodeOnNavigation(
   seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
   accumulation: NavigationRequestAccumulation,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -685,6 +695,7 @@ function createCacheNodeOnNavigation(
     // This segment was not part of the previous route, so mint a fresh
     // bfcacheId.
     generateBFCacheId(freshness),
+    map,
     restrictToShell
   )
   const newCacheNode = result.cacheNode
@@ -719,6 +730,7 @@ function createCacheNodeOnNavigation(
         seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
         accumulation,
+        map,
         restrictToShell
       )
 
@@ -904,7 +916,7 @@ function reuseActiveSegmentInDefaultSlot(
     reusedRenderedSearch = oldRootRefreshState.renderedSearch
   }
 
-  const acc = { metadataVaryPath: null }
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
   const reusedRouteTree = convertReusedFlightRouterStateToRouteTree(
     parentRouteTree,
     parallelRouteKey,
@@ -947,6 +959,7 @@ function createCacheNodeForSegment(
   freshness: FreshnessPolicy,
   dynamicStaleAt: number,
   bfcacheId: number,
+  map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -1097,6 +1110,7 @@ function createCacheNodeForSegment(
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
     now,
+    map,
     tree.varyPath,
     restrictToShell
   )
@@ -1204,6 +1218,7 @@ function createCacheNodeForSegment(
     if (metadataVaryPath !== null) {
       const metadataEntry = readSegmentCacheEntryForNavigation(
         now,
+        map,
         metadataVaryPath,
         restrictToShell
       )
@@ -1413,6 +1428,9 @@ export function spawnDynamicRequests(
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock | null,
+  // The segment cache map this navigation is bound to. See `segmentCacheMap`
+  // in cache.ts.
+  map: CacheMap<SegmentCacheEntry>,
   signal: AbortSignal | undefined
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
@@ -1439,6 +1457,7 @@ export function spawnDynamicRequests(
     freshnessPolicy,
     routeCacheEntry,
     navigationLock,
+    map,
     signal
   )
 
@@ -1493,6 +1512,7 @@ export function spawnDynamicRequests(
             freshnessPolicy,
             routeCacheEntry,
             navigationLock,
+            map,
             signal
           )
         )
@@ -1771,6 +1791,7 @@ async function fetchMissingDynamicData(
   freshnessPolicy: FreshnessPolicy,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   navigationLock: NavigationLock | null,
+  map: CacheMap<SegmentCacheEntry>,
   signal: AbortSignal | undefined
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
@@ -1797,10 +1818,19 @@ async function fetchMissingDynamicData(
     }
     const now = Date.now()
 
-    const seed = convertServerPatchToFullTree(
+    const seed = createNavigationSeed(
       now,
       task.route,
       result.transportData,
+      // Navigation responses stream in incrementally, so their vary params
+      // can't be drained here — and nothing consumes them from a navigation
+      // seed (only segment-cache writes read vary params, and those decode
+      // their own, buffered, payloads).
+      null,
+      result.isResponsePartial,
+      // Navigation responses always include the param values in the tree, so
+      // there's no pathname to parse them from (nor a need to).
+      null,
       result.renderedSearch,
       result.dynamicStaleTime
     )
@@ -1812,63 +1842,29 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
-    // TODO: Implement Shell extraction as part of Cached Navigations.
-    // Intentionally holding off on doing this until we decide how the Cached
-    // Navigations behavior should work in combination with App Shells.
-    if (routeCacheEntry !== null && result.staticStageData !== null) {
-      const { response: staticStageResponse, isResponsePartial } =
-        result.staticStageData
-
-      resolveStaleAt(now, staticStageResponse.s)
-        .then((staleAt) => {
-          const buildId =
-            result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-            staticStageResponse.b
-
-          writePrerenderResponseIntoCache(
-            now,
-            FetchStrategy.PPR,
-            staticStageResponse.t ?? null,
-            buildId,
-            staticStageResponse.r ?? null,
-            staleAt,
-            dynamicRequestTree,
-            result.renderedSearch,
-            isResponsePartial
-          )
-        })
-        .catch(() => {
-          // The static stage processing failed. Not fatal — the navigation
-          // completed normally, we just won't write into the cache.
-        })
+    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
+      spawnStaticStageCacheWrite(
+        now,
+        result.staticStageResponse,
+        result.isResponsePartial,
+        result.responseHeaders,
+        dynamicRequestTree,
+        result.renderedSearch,
+        map
+      )
     }
 
     if (routeCacheEntry !== null && result.runtimePrefetchStream !== null) {
-      processRuntimePrefetchStream(
+      writeRuntimePrefetchStreamIntoCache(
         now,
         result.runtimePrefetchStream,
         dynamicRequestTree,
-        result.renderedSearch
-      )
-        .then((processed) => {
-          if (processed !== null) {
-            writeDynamicRenderResponseIntoCache(
-              now,
-              FetchStrategy.PPRRuntime,
-              processed.buildId,
-              processed.isResponsePartial,
-              processed.headVaryParams,
-              processed.rootVaryParamsIterable,
-              processed.staleAt,
-              processed.navigationSeed,
-              null
-            )
-          }
-        })
-        .catch(() => {
-          // The runtime prefetch cache write failed. Not fatal — the
-          // navigation completed normally, we just won't cache runtime data.
-        })
+        result.renderedSearch,
+        map
+      ).catch(() => {
+        // The runtime prefetch cache write failed. Not fatal — the
+        // navigation completed normally, we just won't cache runtime data.
+      })
     }
 
     // result.dynamicStaleTime is in seconds (from the server's `d` field).
@@ -1956,7 +1952,7 @@ function writeDynamicDataIntoNavigationTask(
 ): boolean {
   // A non-null data object means the response accounted for this segment,
   // even if it didn't render it (data.rsc may still be null, e.g. for the
-  // intermediate segments on the path to a patched subtree).
+  // intermediate segments on the path to a rendered subtree).
   const dynamicData = serverRouteTree.data
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled

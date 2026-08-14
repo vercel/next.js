@@ -55,7 +55,6 @@ import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
-import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 interface SharedRouteFields {
@@ -2065,7 +2064,7 @@ export async function handleBuildComplete({
     ]
 
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
+      const shouldLocalize = Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
