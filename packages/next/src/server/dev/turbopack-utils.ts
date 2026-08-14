@@ -680,6 +680,7 @@ export async function handleEntrypoints({
     await handleEntrypointsDevCleanup({
       currentEntryIssues,
       currentEntrypoints,
+      manifestLoader,
 
       ...dev,
     })
@@ -844,6 +845,7 @@ export async function handleEntrypoints({
 async function handleEntrypointsDevCleanup({
   currentEntryIssues,
   currentEntrypoints,
+  manifestLoader,
 
   assetMapper,
   changeSubscriptions,
@@ -854,11 +856,17 @@ async function handleEntrypointsDevCleanup({
 }: {
   currentEntrypoints: Entrypoints
   currentEntryIssues: EntryIssuesMap
+  manifestLoader: TurbopackManifestLoader
 } & HandleEntrypointsDevOpts) {
   // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
   for (const key of assetMapper.keys()) {
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       assetMapper.delete(key)
+      // Drop the stale partial manifest from the manifest loader as well.
+      // Otherwise a deleted route's partial manifest (e.g. app-paths) keeps
+      // being merged into the on-disk manifest and can collide with a newly
+      // added route of the same specificity until the dev server restarts.
+      manifestLoader.delete(key)
     }
   }
 
