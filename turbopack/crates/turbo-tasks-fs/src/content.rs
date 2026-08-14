@@ -166,9 +166,11 @@ pub(crate) enum FileComparison {
     Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
 )]
 pub enum LinkTarget {
-    /// A normalized target relative to the filesystem root.
+    /// A normalized target relative to the filesystem root, so that absolute system paths never
+    /// end up in the persistent cache.
     Absolute(RcStr),
-    /// The raw link-relative value read from disk.
+    /// The raw link-relative value read from disk. It is not normalized, it may contain `..`, and
+    /// it is relative to the directory containing the link.
     Relative(RcStr),
 }
 
@@ -182,11 +184,6 @@ pub enum LinkTarget {
 #[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
     /// A valid symbolic link target, stored as a unix-style path.
-    ///
-    /// [`LinkTarget::Absolute`] targets are normalized and relative to the *filesystem root* (so
-    /// that absolute system paths never end up in the persistent cache).
-    /// [`LinkTarget::Relative`] targets are raw values read from the link — unnormalized, may
-    /// contain `..` — and are relative to the *directory containing the link*.
     ///
     /// A relative `target` must stay raw so that [`FileSystem::write_link_dir`] round-trips it
     /// exactly: the value is written verbatim and compared against [`std::fs::read_link`] to

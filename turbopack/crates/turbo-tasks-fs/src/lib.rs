@@ -78,9 +78,6 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
     /// Reads the target of a symbolic link (or of a junction point on Windows).
     ///
-    /// The returned [`LinkTarget`] is root-relative and normalized for [`LinkTarget::Absolute`]
-    /// links, or the raw link-relative on-disk value for [`LinkTarget::Relative`] links.
-    ///
     /// Returns [`LinkContent::Invalid`] if the target points outside of the filesystem root, and
     /// [`LinkContent::NotFound`] if `fs_path` doesn't exist or isn't a link.
     #[turbo_tasks::function]

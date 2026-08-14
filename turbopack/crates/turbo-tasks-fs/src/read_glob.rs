@@ -88,7 +88,7 @@ async fn read_glob_internal(
                     DirectoryEntry::Symlink(path) => {
                         if let LinkContent::Link(target) = &*path.read_link().await? {
                             if matches!(
-                                *resolve_link_target(path, target).await?.get_type().await?,
+                                *resolve_link_target(path, target)?.get_type().await?,
                                 FileSystemEntryType::Directory
                             ) {
                                 // Ensure that there are no infinite link loops, but don't resolve

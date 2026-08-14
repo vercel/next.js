@@ -644,7 +644,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         match &*current_path.read_link().await? {
             LinkContent::Link(target) => {
                 symlinks.insert(current_path.clone());
-                current_path = resolve_link_target(&current_path, target).await?;
+                current_path = resolve_link_target(&current_path, target)?;
             }
             LinkContent::NotFound => {
                 error = RealPathResultError::NotFound;
@@ -672,12 +672,17 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 }
 
 /// Resolves a link target using the storage convention described by [`LinkContent::Link`].
-pub async fn resolve_link_target(
+pub fn resolve_link_target(
     link_path: &FileSystemPath,
     target: &LinkTarget,
 ) -> Result<FileSystemPath> {
     let (base, target) = match target {
-        LinkTarget::Absolute(target) => (link_path.root().owned().await?, target),
+        LinkTarget::Absolute(target) => {
+            return Ok(FileSystemPath::new_normalized_unchecked(
+                link_path.fs,
+                target.clone(),
+            ));
+        }
         LinkTarget::Relative(target) => (link_path.parent(), target),
     };
     base.join(target)

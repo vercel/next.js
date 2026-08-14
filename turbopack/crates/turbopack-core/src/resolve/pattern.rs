@@ -1612,10 +1612,7 @@ pub async fn read_matches(
                             };
                             let path = concat(&prefix, str).into();
                             if matches!(
-                                *resolve_link_target(&fs_path, target)
-                                    .await?
-                                    .get_type()
-                                    .await?,
+                                *resolve_link_target(&fs_path, target)?.get_type().await?,
                                 FileSystemEntryType::Directory
                             ) {
                                 results.push((index, PatternMatch::Directory(path, fs_path)));
@@ -1804,8 +1801,7 @@ pub async fn read_matches(
                                     if let LinkContent::Link(target) = &*fs_path.read_link().await?
                                     {
                                         if matches!(
-                                            *resolve_link_target(&fs_path, target)
-                                                .await?
+                                            *resolve_link_target(&fs_path, target)?
                                                 .get_type()
                                                 .await?,
                                             FileSystemEntryType::Directory
@@ -1830,8 +1826,7 @@ pub async fn read_matches(
                                     let fs_path = lookup_dir.join(key)?;
                                     if let LinkContent::Link(target) = &*fs_path.read_link().await?
                                         && matches!(
-                                            *resolve_link_target(&fs_path, target)
-                                                .await?
+                                            *resolve_link_target(&fs_path, target)?
                                                 .get_type()
                                                 .await?,
                                             FileSystemEntryType::Directory
@@ -1847,8 +1842,7 @@ pub async fn read_matches(
                                     let fs_path = lookup_dir.join(key)?;
                                     if let LinkContent::Link(target) = &*fs_path.read_link().await?
                                         && matches!(
-                                            *resolve_link_target(&fs_path, target)
-                                                .await?
+                                            *resolve_link_target(&fs_path, target)?
                                                 .get_type()
                                                 .await?,
                                             FileSystemEntryType::Directory

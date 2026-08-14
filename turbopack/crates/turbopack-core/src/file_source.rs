@@ -70,10 +70,7 @@ impl Asset for FileSource {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link(target) => {
                     let is_directory = matches!(
-                        *resolve_link_target(&self.path, target)
-                            .await?
-                            .get_type()
-                            .await?,
+                        *resolve_link_target(&self.path, target)?.get_type().await?,
                         FileSystemEntryType::Directory
                     );
                     Ok(AssetContent::Redirect {
