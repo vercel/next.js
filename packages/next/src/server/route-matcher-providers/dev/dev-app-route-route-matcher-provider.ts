@@ -12,6 +12,9 @@ import {
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
+import { PAGE_TYPES } from '../../../lib/page-types'
+import { promises as fs } from 'fs'
+import { createHash } from 'crypto'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -21,6 +24,15 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   }
   private readonly appDir: string
   private readonly isTurbopack: boolean
+  /**
+   * A digest of each dynamic metadata file's contents as of the last
+   * `transform()`, keyed by filename. Whether such a file also serves the
+   * `[__metadata_id__]` variant depends on its exports, so editing one has to
+   * invalidate the matchers even though the file list is unchanged. Contents
+   * are digested rather than stat'd because filesystem timestamps aren't
+   * granular enough to catch edits made in quick succession.
+   */
+  private readonly metadataFileDigests = new Map<string, string>()
 
   constructor(
     appDir: string,
@@ -35,10 +47,31 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     this.normalizers = new DevAppNormalizers(appDir, extensions, isTurbopack)
   }
 
+  private async digest(filename: string): Promise<string | null> {
+    try {
+      return createHash('sha1')
+        .update(await fs.readFile(filename))
+        .digest('hex')
+    } catch {
+      // The file is unreadable now, treat it as changed so the matchers catch
+      // up on the next transform.
+      return null
+    }
+  }
+
+  protected async isStale(): Promise<boolean> {
+    for (const [filename, digest] of this.metadataFileDigests) {
+      if ((await this.digest(filename)) !== digest) return true
+    }
+
+    return false
+  }
+
   protected async transform(
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
+    this.metadataFileDigests.clear()
     for (const filename of files) {
       // Skip static metadata files as they are served from filesystem.
       if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
@@ -71,8 +104,39 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       )
 
       if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
+        // Only metadata files that export `generateSitemaps` /
+        // `generateImageMetadata` are served from the multiple-route variant.
+        // Registering that variant unconditionally makes
+        // `/sitemap/[__metadata_id__]` swallow unrelated user routes that live
+        // under the same segment (e.g. `/sitemap/[...attrs]`), because the
+        // bundler never emits an entrypoint for it.
+        const getPageStaticInfo = (
+          require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+        ).getPageStaticInfo
+
+        // Digest the contents *before* reading the static info out of them, so
+        // that a write landing in between is seen as a change on the next
+        // `isStale()` check instead of being recorded as already applied.
+        const digest = await this.digest(filename)
+
+        const staticInfo = await getPageStaticInfo({
+          pageFilePath: filename,
+          nextConfig: {},
+          page,
+          isDev: true,
+          pageType: PAGE_TYPES.APP,
+        })
+        const hasMultipleRoutes = !!(
+          staticInfo.generateSitemaps || staticInfo.generateImageMetadata
+        )
+
+        if (digest !== null) {
+          this.metadataFileDigests.set(filename, digest)
+        }
+
         // Matching dynamic metadata routes.
-        // Add 2 possibilities for both single and multiple routes:
+        // The single route always exists; the multiple route only when the
+        // metadata file generates several of them:
         {
           // single:
           // /sitemap.ts -> /sitemap.xml/route
@@ -96,7 +160,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           })
           matchers.push(matcher)
         }
-        {
+        if (hasMultipleRoutes) {
           // multiple:
           // /sitemap.ts -> /sitemap/[__metadata_id__]/route
           // /icon.ts -> /icon/[__metadata_id__]/route
