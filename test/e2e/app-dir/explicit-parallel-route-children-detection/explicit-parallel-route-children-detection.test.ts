@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('strict-route-matching-children-detection', () => {
+describe('explicit-parallel-route-children-detection', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

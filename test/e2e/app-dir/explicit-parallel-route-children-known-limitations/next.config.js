@@ -3,7 +3,8 @@
  */
 const nextConfig = {
   experimental: {
-    strictRouteMatching: true,
+    authInterrupts: true,
+    explicitParallelRouteChildren: true,
   },
 }
 

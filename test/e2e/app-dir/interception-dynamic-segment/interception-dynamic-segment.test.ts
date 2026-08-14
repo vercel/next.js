@@ -312,8 +312,8 @@ describe('interception-dynamic-segment', () => {
        * Structure: @modal/(.)test-nested has route targets only under the
        * direct @sidebar and @panel slots, but NO ordinary route branch.
        * Expected: Should work WITHOUT an explicit children default.
-       * Reason: The intercepted layout only declares named slots, so strict
-       * matching should not synthesize a missing children slot. Its real
+       * Reason: The intercepted layout only declares named slots, so explicit
+       * children detection should not synthesize a missing slot. Its real
        * @panel default still renders because this is a newly entered owner,
        * not a retained sibling at the interception host.
        *

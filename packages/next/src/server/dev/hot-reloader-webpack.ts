@@ -1054,8 +1054,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                         .globalNotFound
                         ? true
                         : undefined,
-                      strictRouteMatching: this.config.experimental
-                        .strictRouteMatching
+                      explicitParallelRouteChildren: this.config.experimental
+                        .explicitParallelRouteChildren
                         ? true
                         : undefined,
                     }).import
@@ -1182,8 +1182,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       .globalNotFound
                       ? true
                       : undefined,
-                    strictRouteMatching: this.config.experimental
-                      .strictRouteMatching
+                    explicitParallelRouteChildren: this.config.experimental
+                      .explicitParallelRouteChildren
                       ? true
                       : undefined,
                   })
