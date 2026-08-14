@@ -937,6 +937,9 @@ export function createAppPageEntrypoint({
               optimisticRouting: Boolean(
                 nextConfig.experimental.optimisticRouting
               ),
+              parallelRouteMetadata: Boolean(
+                nextConfig.experimental.parallelRouteMetadata
+              ),
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,

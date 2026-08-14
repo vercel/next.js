@@ -50,7 +50,7 @@ export function createMetadataComponents({
 }): {
   Viewport: React.ComponentType
   Metadata: React.ComponentType
-  MetadataOutlet: React.ComponentType
+  MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
 } {
   const searchParams = createServerSearchParamsForMetadata(parsedQuery)
   const pathnameForMetadata = createServerPathnameForMetadata(pathname)
@@ -270,7 +270,7 @@ async function renderViewport(
 // Viewport tag rendering
 // ---------------------------------------------------------------------------
 
-function createViewportElements(
+export function createViewportElements(
   viewport: ResolvedViewport
 ): React.ReactElement[] {
   const tags: React.ReactElement[] = []
@@ -342,7 +342,7 @@ function createViewportElements(
 // Metadata tag rendering
 // ---------------------------------------------------------------------------
 
-function createMetadataElements(
+export function createMetadataElements(
   metadata: SelectedMetadata
 ): React.ReactElement[] {
   const tags: React.ReactElement[] = []
