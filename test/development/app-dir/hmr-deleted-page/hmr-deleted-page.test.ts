@@ -36,6 +36,16 @@ describe('hmr-deleted-page', () => {
       'old localized home route'
     )
 
+    const initialAppPathsManifest = JSON.parse(
+      await next.readFile('.next/dev/server/app-paths-manifest.json')
+    )
+    expect(initialAppPathsManifest['/[locale]/project/page']).toBe(
+      'app/[locale]/project/page.js'
+    )
+    expect(
+      initialAppPathsManifest['/[locale]/project/[projectId]/home/page']
+    ).toBe('app/[locale]/project/[projectId]/home/page.js')
+
     await next.deleteFile('app/[locale]/project/page.tsx')
     await next.deleteFile('app/[locale]/project/[projectId]/home/page.tsx')
     await next.patchFile(
