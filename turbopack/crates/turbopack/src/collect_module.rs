@@ -79,8 +79,6 @@ impl CustomModuleType for CollectModuleType {
 
 #[turbo_tasks::value]
 pub struct CollectModule {
-    // TODO have a different way of having unique collect modules per page. This still breaks if
-    // the collect module is imported in shared code
     parent_module: ResolvedVc<Box<dyn Module>>,
     namespace: RcStr,
     asset_context: ResolvedVc<ModuleAssetContext>,

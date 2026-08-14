@@ -1,11 +1,12 @@
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
     emit_collect::CollectingModule,
+    issue::{IssueExt, module::ModuleIssue},
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph, RefData,
@@ -190,6 +191,28 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             })
         },
     )?;
+
+    for collecting_module in &collecting_modules {
+        let collecting_module = ResolvedVc::upcast(*collecting_module);
+        let collecting_membership = module_entry_membership
+            .get(&collecting_module)
+            .context("Module entry membership not found")?;
+
+        if collecting_membership.len() > 1 {
+            ModuleIssue::new(
+                *collecting_module.ident().to_resolved().await?,
+                rcstr!("Invalid use of __turbopack_collect__"),
+                rcstr!(
+                    "A module containing __turbopack_collect__ must not be reachable from \
+                     multiple entry chunk groups. Move the call into an entry-specific module."
+                ),
+                None,
+            )
+            .to_resolved()
+            .await?
+            .emit();
+        }
+    }
 
     let collecting_modules = {
         let mut map: FxHashMap<RcStr, Vec<ResolvedVc<Box<dyn CollectingModule>>>> =

@@ -262,7 +262,9 @@ pub enum ReferenceType {
     Loader,
     Collect {
         namespace: RcStr,
-        // TODO this is a hack
+        // This is a hack, as it's not possible to a module with __turbopack_collect__ that is
+        // shared by multiple entry points. This invariant is currently enforced by a build-time
+        // error.
         parent_module: ResolvedVc<Box<dyn Module>>,
     },
     Custom(u8),
