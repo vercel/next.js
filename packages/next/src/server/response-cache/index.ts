@@ -16,6 +16,7 @@ import {
   toResponseCacheEntry,
 } from './utils'
 import type { RouteKind } from '../route-kind'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 
 /**
  * Parses an environment variable as a positive integer, returning the fallback
@@ -414,7 +415,13 @@ export default class ResponseCache implements ResponseCacheBase {
       // If we've already resolved the cache entry, we can't reject as we
       // already resolved the cache entry so log the error here.
       if (resolved) {
-        console.error(err)
+        // NoFallbackError is an internal control-flow mechanism used to
+        // trigger 404 responses when dynamicParams = false. It should not
+        // be logged to console.error as it triggers false-positive alerts
+        // in APM tools (Datadog, Sentry, etc.).
+        if (!(err instanceof NoFallbackError)) {
+          console.error(err)
+        }
         return null
       }
 

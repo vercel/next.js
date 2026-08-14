@@ -1,5 +1,6 @@
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import type { ResponseCacheEntry, ResponseGenerator } from './types'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 
 /**
  * In the web server, there is currently no incremental cache provided and we
@@ -115,7 +116,9 @@ export default class WebResponseCache {
         // while revalidating in the background we can't reject as
         // we already resolved the cache entry so log the error here
         if (hasResolved) {
-          console.error(err)
+          if (!(err instanceof NoFallbackError)) {
+            console.error(err)
+          }
         } else {
           rejecter(err as Error)
         }

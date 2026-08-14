@@ -2808,6 +2808,12 @@ export default abstract class Server<
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
+      // NoFallbackError is internal control flow for dynamicParams=false 404s.
+      // When bubbleNoFallback is false, handle it as a 404 without logging.
+      if (err instanceof NoFallbackError) {
+        res.statusCode = 404
+        return this.renderErrorToResponse(ctx, null)
+      }
       if (err instanceof DecodeError || err instanceof NormalizeError) {
         res.statusCode = 400
         return await this.renderErrorToResponse(ctx, err)
