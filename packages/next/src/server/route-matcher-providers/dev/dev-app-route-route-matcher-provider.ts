@@ -39,6 +39,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
+
     for (const filename of files) {
       // Skip static metadata files as they are served from filesystem.
       if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
@@ -54,9 +55,6 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       if (page.includes('/_')) continue
 
       // Turbopack uses the correct page name with the underscore normalized.
-      // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
-      // The `includes('/_')` check above needs to be moved for that to work as otherwise `%5Fsegmentname`
-      // will result in `_segmentname` which hits that includes check and be skipped.
       if (this.isTurbopack) {
         page = page.replace(/%5F/g, '_')
       }
@@ -64,6 +62,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
       const ext = path.extname(filename).slice(1)
+
       const isEntryMetadataRouteFile = isMetadataRouteFile(
         filename.replace(this.appDir, ''),
         [ext],
@@ -71,15 +70,24 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       )
 
       if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
-        // Matching dynamic metadata routes.
-        // Add 2 possibilities for both single and multiple routes:
-        {
-          // single:
-          // /sitemap.ts -> /sitemap.xml/route
-          // /icon.ts -> /icon/route
-          // We'll map the filename before normalization:
-          // sitemap.ts -> sitemap.xml/route.ts
-          // icon.ts -> icon/route.ts
+        /**
+         * Metadata routes (sitemap, robots, etc.)
+         *
+         * IMPORTANT:
+         * When using `generateSitemaps()` in `app/sitemap.ts`,
+         * Next.js does NOT generate a root `/sitemap.xml`.
+         * It only generates `/sitemap/[id].xml`.
+         *
+         * Therefore, we must NOT create the "single" sitemap matcher
+         * for `/sitemap.xml`, otherwise a false duplicate warning is emitted
+         * when `app/sitemap.xml/route.ts` exists.
+         */
+
+        const isSitemap = page === '/sitemap'
+
+        // ---------- SINGLE METADATA ROUTE ----------
+        // Skip single sitemap route for `app/sitemap.ts`
+        if (!isSitemap) {
           const metadataPage = normalizeMetadataPageToRoute(page, false)
           const metadataPathname = normalizeMetadataPageToRoute(pathname, false)
           const metadataBundlePath = normalizeMetadataPageToRoute(
@@ -87,38 +95,35 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
             false
           )
 
-          const matcher = new AppRouteRouteMatcher({
-            kind: RouteKind.APP_ROUTE,
-            page: metadataPage,
-            pathname: metadataPathname,
-            bundlePath: metadataBundlePath,
-            filename,
-          })
-          matchers.push(matcher)
-        }
-        {
-          // multiple:
-          // /sitemap.ts -> /sitemap/[__metadata_id__]/route
-          // /icon.ts -> /icon/[__metadata_id__]/route
-          // We'll map the filename before normalization:
-          // sitemap.ts -> sitemap.xml/[__metadata_id__].ts
-          // icon.ts -> icon/[__metadata_id__].ts
-          const metadataPage = normalizeMetadataPageToRoute(page, true)
-          const metadataPathname = normalizeMetadataPageToRoute(pathname, true)
-          const metadataBundlePath = normalizeMetadataPageToRoute(
-            bundlePath,
-            true
+          matchers.push(
+            new AppRouteRouteMatcher({
+              kind: RouteKind.APP_ROUTE,
+              page: metadataPage,
+              pathname: metadataPathname,
+              bundlePath: metadataBundlePath,
+              filename,
+            })
           )
+        }
 
-          const matcher = new AppRouteRouteMatcher({
+        // ---------- MULTIPLE METADATA ROUTES ----------
+        // Always generate dynamic metadata routes (e.g. /sitemap/[id].xml)
+        const metadataPage = normalizeMetadataPageToRoute(page, true)
+        const metadataPathname = normalizeMetadataPageToRoute(pathname, true)
+        const metadataBundlePath = normalizeMetadataPageToRoute(
+          bundlePath,
+          true
+        )
+
+        matchers.push(
+          new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,
             page: metadataPage,
             pathname: metadataPathname,
             bundlePath: metadataBundlePath,
             filename,
           })
-          matchers.push(matcher)
-        }
+        )
       } else {
         // Normal app routes.
         matchers.push(
