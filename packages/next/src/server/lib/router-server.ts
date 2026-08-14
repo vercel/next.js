@@ -791,6 +791,13 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
+        } else if (err instanceof NoFallbackError) {
+          // NoFallbackError is internal control-flow used when dynamicParams=false
+          // rejects an unknown param. The 404 response is already handled by
+          // handleRequest; logging it here produces false-positive errors in APM
+          // tools (Datadog, Sentry) that hook into console.error.
+          invokePath = '/404'
+          invokeStatus = '404'
         } else {
           console.error(err)
         }
