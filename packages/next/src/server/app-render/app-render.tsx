@@ -8,6 +8,7 @@ import type {
   FlightRouterState,
   RSCPayload,
   NavigationFlightResponse,
+  DynamicNavigationFlightResponse,
   ActionFlightResponse,
   InitialRSCPayload,
   PrefetchHints,
@@ -812,9 +813,8 @@ async function generateDynamicRSCPayload(
   }
 
   // Otherwise, it's a regular RSC response.
-  const baseResponse: NavigationFlightResponse = maybeAppendBuildIdToRSCPayload(
-    ctx,
-    {
+  const baseResponse: DynamicNavigationFlightResponse =
+    maybeAppendBuildIdToRSCPayload(ctx, {
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
       // Tells the client whether this route supports per-segment prefetching.
@@ -823,8 +823,7 @@ async function generateDynamicRSCPayload(
       // generated during static generation (build or ISR).
       S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
-    }
-  )
+    })
   if (transportData !== undefined) {
     baseResponse.t = transportData
   }
@@ -840,7 +839,7 @@ async function generateDynamicRSCPayload(
     baseResponse.a = options.shellByteLengthPromise
   }
   if (options?.shellUsedSessionDataPromise !== undefined) {
-    baseResponse.u = options.shellUsedSessionDataPromise
+    baseResponse.w = options.shellUsedSessionDataPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -10450,6 +10449,7 @@ async function collectSegmentData(
       // measure, but the static-prefetch hint still rides the manifest —
       // collectPrefetchHints then only builds the tree shape carrying it.
       hints = await ComponentMod.collectPrefetchHints(
+        renderOpts.cacheComponents,
         fullPageDataBuffer,
         staleTime,
         clientModules,
@@ -10520,10 +10520,10 @@ async function collectSegmentData(
     renderOpts.isFallbackUpgradeable === true
 
   // Pass the resolved hints so collectSegmentData can union them into
-  // the TreePrefetch. During the initial build the FlightRouterState in
+  // the /_tree response. During the initial build the transport tree in
   // the buffer doesn't have inlining hints yet (they were just computed
   // above), so we need to merge them in here. At runtime/ISR the hints
-  // are already embedded in the FlightRouterState, so this is null.
+  // are already embedded in the buffer's tree, so this is null.
   metadata.segmentData = await ComponentMod.collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
