@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
@@ -12,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crossbeam_utils::CachePadded;
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
 
@@ -58,6 +60,132 @@ impl<P: Ord, T> PartialOrd for HeapItem<P, T> {
     }
 }
 
+static SHARD_SEED: AtomicUsize = AtomicUsize::new(1);
+
+thread_local! {
+    static SHARD_RNG: Cell<u32> =
+        Cell::new((SHARD_SEED.fetch_add(0x9E37_79B9, Ordering::Relaxed) as u32) | 1);
+}
+
+fn shard_rand() -> u32 {
+    SHARD_RNG.with(|cell| {
+        let mut x = cell.get();
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        cell.set(x);
+        x
+    })
+}
+
+type QueueShard<P, T> = CachePadded<Mutex<BinaryHeap<HeapItem<P, T>>>>;
+
+/// A relaxed priority queue of independently locked binary heaps.
+struct ShardedQueue<P: Ord, T> {
+    shards: Box<[QueueShard<P, T>]>,
+    len: AtomicUsize,
+}
+
+impl<P: Ord, T> ShardedQueue<P, T> {
+    fn new(shard_count: usize) -> Self {
+        let shard_count = shard_count.max(1);
+        Self {
+            shards: (0..shard_count)
+                .map(|_| CachePadded::new(Mutex::new(BinaryHeap::new())))
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            len: AtomicUsize::new(0),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len.load(Ordering::Acquire) == 0
+    }
+
+    fn push(&self, item: HeapItem<P, T>) -> bool {
+        let index = if self.shards.len() == 1 {
+            0
+        } else {
+            shard_rand() as usize % self.shards.len()
+        };
+        let mut shard = self.shards[index].lock();
+        shard.push(item);
+        self.len.fetch_add(1, Ordering::AcqRel) == 0
+    }
+
+    fn pop(&self) -> Option<HeapItem<P, T>> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let shard_count = self.shards.len();
+        if shard_count == 1 {
+            return self.pop_from(0, /* blocking */ true);
+        }
+
+        // Power of two choices: sample two shards and take the better head.
+        let a = shard_rand() as usize % shard_count;
+        let b = shard_rand() as usize % shard_count;
+        if let Some(item) = self.pop_best_of_two(a, b) {
+            return Some(item);
+        }
+
+        // Non-blocking sweep, so a contended shard doesn't stall this worker.
+        for offset in 0..shard_count {
+            if let Some(item) = self.pop_from((a + offset) % shard_count, false) {
+                return Some(item);
+            }
+        }
+
+        for offset in 0..shard_count {
+            if let Some(item) = self.pop_from((a + offset) % shard_count, true) {
+                return Some(item);
+            }
+        }
+
+        None
+    }
+
+    fn pop_from(&self, index: usize, blocking: bool) -> Option<HeapItem<P, T>> {
+        let mut shard = if blocking {
+            self.shards[index].lock()
+        } else {
+            self.shards[index].try_lock()?
+        };
+        let item = shard.pop()?;
+        shrink_amortized(&mut shard);
+        self.len.fetch_sub(1, Ordering::AcqRel);
+        Some(item)
+    }
+
+    fn pop_best_of_two(&self, a: usize, b: usize) -> Option<HeapItem<P, T>> {
+        if a == b {
+            return self.pop_from(a, false);
+        }
+        // try_lock never blocks, so acquiring two locks here cannot deadlock.
+        let mut shard_a = self.shards[a].try_lock();
+        let mut shard_b = self.shards[b].try_lock();
+        let take_from_a = match (
+            shard_a.as_deref().and_then(|s| s.peek()),
+            shard_b.as_deref().and_then(|s| s.peek()),
+        ) {
+            (Some(head_a), Some(head_b)) => head_a.priority >= head_b.priority,
+            (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (None, None) => return None,
+        };
+        let shard = if take_from_a {
+            shard_a.as_mut()?
+        } else {
+            shard_b.as_mut()?
+        };
+        let item = shard.pop()?;
+        shrink_amortized(shard);
+        self.len.fetch_sub(1, Ordering::AcqRel);
+        Some(item)
+    }
+}
+
 pub struct PriorityRunner<
     C: Send + Sync + 'static,
     T: Send + 'static,
@@ -68,7 +196,7 @@ pub struct PriorityRunner<
     /// The target number of workers to spawn.
     target_workers: usize,
     /// The queue of tasks to execute. These tasks are not scheduled yet.
-    queue: Mutex<BinaryHeap<HeapItem<P, T>>>,
+    queue: ShardedQueue<P, T>,
     /// The number of active workers currently polling tasks.
     /// Workers that responded with Poll::Pending are not counted until they are polled again.
     active_workers: AtomicUsize,
@@ -83,36 +211,58 @@ impl<
 > PriorityRunner<C, T, P, E>
 {
     pub fn new(executor: E) -> Self {
+        let target_workers = tokio::runtime::Handle::current().metrics().num_workers();
+        Self::with_shard_count(executor, (target_workers * 2).next_power_of_two())
+    }
+
+    fn with_shard_count(executor: E, shard_count: usize) -> Self {
         Self {
             executor,
             target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
-            queue: Mutex::new(BinaryHeap::new()),
+            queue: ShardedQueue::new(shard_count),
             active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
-        let mut queue = self.queue.lock();
-        if !queue.is_empty() {
+        self.schedule_inner(execute_context, task, priority, || {});
+    }
+
+    // The callback lets tests pause at the queue-drain race without affecting production code.
+    fn schedule_inner(
+        self: &Arc<Self>,
+        execute_context: &Arc<C>,
+        task: T,
+        priority: P,
+        before_enqueue: impl FnOnce(),
+    ) {
+        if !self.queue.is_empty() {
+            before_enqueue();
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
-            queue.push(HeapItem { priority, task });
+            if self.queue.push(HeapItem { priority, task }) {
+                // The final worker drained the queue after schedule observed work.
+                // Reserve capacity and ensure the newly queued task has a worker.
+                let active_workers = self.active_workers.fetch_add(1, Ordering::AcqRel);
+                if active_workers >= self.target_workers
+                    || !self.spawn_worker_if_work_available(execute_context, true)
+                {
+                    self.decrease_active_workers(execute_context);
+                }
+            }
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
-        let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
+        let active_workers = self.active_workers.fetch_add(1, Ordering::AcqRel);
         if active_workers < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
-            drop(queue);
-
             let future = self.executor.execute(execute_context, task, priority);
             WorkerFuture::spawn(future, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
-            queue.push(HeapItem { priority, task });
-            drop(queue);
+            self.queue.push(HeapItem { priority, task });
 
             // Undo the added active worker since we didn't spawn a new worker.
             self.decrease_active_workers(execute_context);
@@ -122,7 +272,7 @@ impl<
     /// Tries to decrease the active worker count by 1.
     /// If there is work available in the queue, a new worker is spawned instead.
     fn reuse_or_decrease_active_workers(self: &Arc<Self>, execute_context: &Arc<C>) {
-        let active_workers = self.active_workers.load(Ordering::Relaxed) - 1;
+        let active_workers = self.active_workers.load(Ordering::Acquire) - 1;
         if active_workers >= self.target_workers
             || !self.spawn_worker_if_work_available(execute_context, true)
         {
@@ -141,24 +291,20 @@ impl<
         // If the active workers became lower we might have free
         // capacity now, so we try to spawn a new worker if
         // there is work available.
-        let active_workers = self.active_workers.fetch_sub(1, Ordering::Relaxed) - 1;
+        // AcqRel passes queue publication through worker-count changes to the
+        // thread that becomes responsible for rechecking the queue.
+        let active_workers = self.active_workers.fetch_sub(1, Ordering::AcqRel) - 1;
         if active_workers < self.target_workers {
             self.spawn_worker_if_work_available(execute_context, false);
         }
     }
 
     fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
-        let mut queue = self.queue.lock();
-        if let Some(heap_item) = queue.pop() {
-            shrink_amortized(&mut queue);
-            drop(queue);
-            Some(
-                self.executor
-                    .execute(execute_context, heap_item.task, heap_item.priority),
-            )
-        } else {
-            None
-        }
+        let heap_item = self.queue.pop()?;
+        Some(
+            self.executor
+                .execute(execute_context, heap_item.task, heap_item.priority),
+        )
     }
 
     fn spawn_worker_if_work_available(
@@ -166,16 +312,13 @@ impl<
         execute_context: &Arc<C>,
         unused_active_count: bool,
     ) -> bool {
-        let mut queue = self.queue.lock();
-        if let Some(heap_item) = queue.pop() {
-            shrink_amortized(&mut queue);
-            drop(queue);
+        if let Some(heap_item) = self.queue.pop() {
             let new_future =
                 self.executor
                     .execute(execute_context, heap_item.task, heap_item.priority);
 
             if !unused_active_count {
-                self.active_workers.fetch_add(1, Ordering::Relaxed);
+                self.active_workers.fetch_add(1, Ordering::AcqRel);
             }
             WorkerFuture::spawn(new_future, execute_context.clone(), self.clone());
             true
@@ -257,7 +400,7 @@ impl<
         if matches!(this.state, WorkerState::PendingFuture) {
             // When the worker is not active (it previously returned Poll::Pending),
             // we need to mark it as active again since it is being polled now.
-            this.runner.active_workers.fetch_add(1, Ordering::Relaxed);
+            this.runner.active_workers.fetch_add(1, Ordering::AcqRel);
             *this.state = WorkerState::UnfinishedFuture;
         }
         let last_yield = Instant::now();
@@ -287,7 +430,7 @@ impl<
                     }
                 }
                 WorkerState::Done => {
-                    let active_workers = this.runner.active_workers.load(Ordering::Relaxed);
+                    let active_workers = this.runner.active_workers.load(Ordering::Acquire);
                     if active_workers > this.runner.target_workers {
                         // There are more active workers than target, so we should end this
                         // worker.
@@ -337,6 +480,61 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_schedule_when_queue_drained_starts_worker() {
+        let runner = Arc::new(PriorityRunner::with_shard_count(
+            |results: &Arc<Mutex<Vec<u32>>>, task, _| {
+                let results = results.clone();
+                async move {
+                    results.lock().push(task);
+                }
+            },
+            2,
+        ));
+        let results = Arc::new(Mutex::new(Vec::new()));
+
+        assert!(runner.queue.push(HeapItem {
+            priority: 0,
+            task: 0,
+        }));
+        runner.active_workers.store(1, Ordering::Release);
+
+        let after_empty_check = Arc::new(Barrier::new(2));
+        let continue_enqueue = Arc::new(Barrier::new(2));
+        let schedule_task = tokio::task::spawn_blocking({
+            let runner = runner.clone();
+            let results = results.clone();
+            let after_empty_check = after_empty_check.clone();
+            let continue_enqueue = continue_enqueue.clone();
+            move || {
+                runner.schedule_inner(&results, 1, 1, || {
+                    after_empty_check.wait();
+                    continue_enqueue.wait();
+                });
+            }
+        });
+
+        after_empty_check.wait();
+        assert_eq!(runner.queue.pop().unwrap().task, 0);
+        runner.decrease_active_workers(&results);
+        continue_enqueue.wait();
+        schedule_task.await.unwrap();
+
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if results.lock().as_slice() == [1]
+                    && runner.active_workers.load(Ordering::Acquire) == 0
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("queued task was stranded without an active worker");
+        assert!(runner.queue.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_cpu_bound_tasks() {
         struct ExecutorImpl;
 
@@ -362,7 +560,7 @@ mod tests {
         let executor = ExecutorImpl;
 
         let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
-            Arc::new(PriorityRunner::new(executor));
+            Arc::new(PriorityRunner::with_shard_count(executor, 1));
         let results = Arc::new(Mutex::new(Vec::new()));
 
         for i in 0..10 {
@@ -415,7 +613,7 @@ mod tests {
         let executor = ExecutorImpl;
 
         let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
-            Arc::new(PriorityRunner::new(executor));
+            Arc::new(PriorityRunner::with_shard_count(executor, 1));
         let results = Arc::new(Mutex::new(Vec::new()));
 
         for i in 0..10 {
@@ -439,6 +637,47 @@ mod tests {
         // The last tasks are the tasks with the lowest priority
         assert!(results[8..10].contains(&2));
         assert!(results[8..10].contains(&3));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_sharded_queue_runs_every_task() {
+        struct ExecutorImpl;
+
+        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
+            type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+            fn execute(
+                &self,
+                execute_context: &Arc<Mutex<Vec<u32>>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
+                let execute_context = execute_context.clone();
+                Box::pin(async move {
+                    sleep(Duration::from_millis(2));
+                    execute_context.lock().push(task);
+                })
+            }
+        }
+
+        const COUNT: u32 = 64;
+        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
+            Arc::new(PriorityRunner::with_shard_count(ExecutorImpl, 8));
+        let results = Arc::new(Mutex::new(Vec::new()));
+
+        for i in 0..COUNT {
+            let results = results.clone();
+            runner.schedule(&results, i, i);
+        }
+
+        while results.lock().len() < COUNT as usize {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        let results = results.lock();
+
+        let mut sorted = results.clone();
+        sorted.sort_unstable();
+        assert_eq!(sorted, (0..COUNT).collect::<Vec<_>>());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
