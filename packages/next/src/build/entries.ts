@@ -531,7 +531,8 @@ export async function createEntrypoints(
               isGlobalNotFoundEnabled: config.experimental.globalNotFound
                 ? true
                 : undefined,
-              strictRouteMatching: config.experimental.strictRouteMatching
+              explicitParallelRouteChildren: config.experimental
+                .explicitParallelRouteChildren
                 ? true
                 : undefined,
             })
@@ -617,7 +618,8 @@ export async function createEntrypoints(
                 isGlobalNotFoundEnabled: config.experimental.globalNotFound
                   ? true
                   : undefined,
-                strictRouteMatching: config.experimental.strictRouteMatching
+                explicitParallelRouteChildren: config.experimental
+                  .explicitParallelRouteChildren
                   ? true
                   : undefined,
               }).import

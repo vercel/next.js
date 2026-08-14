@@ -4,8 +4,8 @@
 const nextConfig = {
   experimental: {
     // This is a temporary escape hatch for applications that need the old
-    // behavior while strict route matching rolls out by default.
-    strictRouteMatching: false,
+    // implicit children behavior while explicit detection rolls out.
+    explicitParallelRouteChildren: false,
   },
 }
 

@@ -64,7 +64,7 @@ export type AppLoaderOptions = {
   nextConfigOutput?: NextConfig['output']
   middlewareConfig: string
   isGlobalNotFoundEnabled: true | undefined
-  strictRouteMatching: true | undefined
+  explicitParallelRouteChildren: true | undefined
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -165,7 +165,7 @@ async function createTreeCodeFromPath(
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
-    strictRouteMatching,
+    explicitParallelRouteChildren,
     isDev,
   }: {
     page: string
@@ -182,7 +182,7 @@ async function createTreeCodeFromPath(
     basePath: string
     collectedDeclarations: [string, string][]
     isGlobalNotFoundEnabled: boolean
-    strictRouteMatching: boolean
+    explicitParallelRouteChildren: boolean
     isDev: boolean
   }
 ): Promise<{
@@ -331,10 +331,10 @@ async function createTreeCodeFromPath(
     const parallelSegments: string[] = []
 
     // `children` is the ordinary route branch, not an implicit slot. Keep the
-    // legacy fallback available as an opt-out, but under strict matching only
-    // add it when the filesystem actually declares ordinary route content.
+    // legacy fallback available as an opt-out, but otherwise only add it when
+    // the filesystem actually declares ordinary route content.
     if (
-      !strictRouteMatching ||
+      !explicitParallelRouteChildren ||
       (await hasDeclaredChildrenSlot(absoluteSegmentPath))
     ) {
       parallelSegments.push('children')
@@ -745,8 +745,8 @@ async function createTreeCodeFromPath(
             : `/${adjacentParallelSegment}`
 
         // Use the default path if it's found, otherwise if it's a children
-        // slot, then use a built-in fallback. Under strict matching this can
-        // only be reached for a children slot declared by ordinary route
+        // slot, then use a built-in fallback. With explicit children slots this
+        // can only be reached for a children slot declared by ordinary route
         // content; layouts composed only from named slots omit children.
         const fullSegmentPath = `${appDirPrefix}${segmentPath}${actualSegment}`
         let defaultPath = await resolver(`${fullSegmentPath}/default`)
@@ -754,8 +754,8 @@ async function createTreeCodeFromPath(
           if (adjacentParallelSegment === 'children') {
             // Legacy slot discovery can synthesize children inside an
             // interception subtree even when no ordinary route declares it.
-            // Strict route matching omits that structural child; this fallback
-            // remains for applications that explicitly disable the flag.
+            // Explicit children detection omits that structural child; this
+            // fallback remains for applications that disable the flag.
             defaultPath = isInterceptionRouteAppPath(page)
               ? PARALLEL_ROUTE_DEFAULT_NULL_PATH
               : PARALLEL_ROUTE_DEFAULT_PATH
@@ -859,7 +859,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   } = loaderOptions
 
   const isGlobalNotFoundEnabled = !!loaderOptions.isGlobalNotFoundEnabled
-  const strictRouteMatching = !!loaderOptions.strictRouteMatching
+  const explicitParallelRouteChildren =
+    !!loaderOptions.explicitParallelRouteChildren
 
   // Update FILE_TYPES on the very top-level of the loader
   if (!isGlobalNotFoundEnabled) {
@@ -1193,7 +1194,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
-    strictRouteMatching,
+    explicitParallelRouteChildren,
     isDev: !!isDev,
   })
 
@@ -1254,7 +1255,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         basePath,
         collectedDeclarations,
         isGlobalNotFoundEnabled,
-        strictRouteMatching,
+        explicitParallelRouteChildren,
         isDev: !!isDev,
       })
     }

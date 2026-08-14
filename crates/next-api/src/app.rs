@@ -170,7 +170,7 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
-            conf.strict_route_matching(),
+            conf.explicit_parallel_route_children(),
             self.project.next_mode(),
         )
     }

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 
-describe('strict-route-matching-known-limitations', () => {
+describe('explicit-parallel-route-children-known-limitations', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -109,7 +109,7 @@ describe('strict-route-matching-known-limitations', () => {
         // a successful response.
         expect(response.status).toBe(status)
 
-        // TODO(strict-route-matching): This intentionally asserts the current
+        // TODO(explicit-parallel-route-children): This intentionally asserts the current
         // broken behavior. HTTP access boundaries are only assigned to the
         // `children` LayoutRouter, so a named-only root cannot render its own
         // boundary. Flip this assertion once boundaries belong to the layout
@@ -130,7 +130,7 @@ describe('strict-route-matching-known-limitations', () => {
         redirect: 'manual',
       })
 
-      // TODO(strict-route-matching): This intentionally asserts the current
+      // TODO(explicit-parallel-route-children): This intentionally asserts the current
       // broken behavior. The MetadataOutlet that rethrows metadata and
       // viewport errors is only attached to a `children` page. With no
       // children branch, errors and redirects are swallowed and the page is
@@ -170,7 +170,7 @@ describe('strict-route-matching-known-limitations', () => {
         redirect: 'manual',
       })
 
-      // TODO(strict-route-matching): This is the same missing MetadataOutlet
+      // TODO(explicit-parallel-route-children): This is the same missing MetadataOutlet
       // limitation as the error cases above. The initial request should
       // redirect. Most soft navigations already do, but Cache Components dev
       // reproduces the same limitation while validating the full route tree.

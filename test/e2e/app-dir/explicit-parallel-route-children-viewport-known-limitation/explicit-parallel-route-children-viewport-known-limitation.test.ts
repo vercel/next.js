@@ -3,7 +3,7 @@ import { createRouterAct } from 'router-act'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
-describe('strict route matching viewport limitation', () => {
+describe('explicit parallel route children viewport limitation', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     // Cache Components requires this route to declare `instant = false`, but
@@ -40,7 +40,7 @@ describe('strict route matching viewport limitation', () => {
   it('documents how a named-only route handles a viewport error', async () => {
     const response = await next.fetch('/viewport-error')
 
-    // TODO(strict-route-matching): This intentionally asserts broken behavior.
+    // TODO(explicit-parallel-route-children): This intentionally asserts broken behavior.
     // MetadataOutlet is currently passed only through the children branch of a
     // parallel route tree. This fixture has a real @slot page but intentionally
     // has no children branch, so an initial render never places the outlet next
