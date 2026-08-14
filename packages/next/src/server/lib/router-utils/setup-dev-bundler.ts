@@ -93,6 +93,8 @@ import {
 } from '../../../lib/constants'
 import { parseUrl } from '../../../lib/url'
 import { isAPIRoute } from '../../../lib/is-api-route'
+import { isAppPageRoute } from '../../../lib/is-app-page-route'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -456,7 +458,7 @@ async function startWatcher(
       const appPageFilePaths = new Map<string, string>()
       const appRouteFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const appRouteHandlers: RouteInfo[] = []
+      const appRouteHandlers: Array<RouteInfo & { page: string }> = []
       const pageApiRoutes: RouteInfo[] = []
       const pageRoutes: RouteInfo[] = []
       const appRoutes: RouteInfo[] = []
@@ -715,21 +717,15 @@ async function startWatcher(
           const originalPageName = pageName
           pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
           const appRoute = normalizePathSep(pageName)
+          const appPath = opts.turbo
+            ? originalPageName.replace(/%5F/g, '_')
+            : originalPageName
 
           if (!appPaths[pageName]) {
             appPaths[pageName] = []
           }
-          appPaths[pageName].push(
-            opts.turbo
-              ? originalPageName.replace(/%5F/g, '_')
-              : originalPageName
-          )
-          appRouteFilePaths.set(
-            opts.turbo
-              ? originalPageName.replace(/%5F/g, '_')
-              : originalPageName,
-            fileName
-          )
+          appPaths[pageName].push(appPath)
+          appRouteFilePaths.set(appPath, fileName)
 
           if (useFileSystemPublicRoutes) {
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
@@ -746,8 +742,8 @@ async function startWatcher(
           }
 
           const routeEntry = { route: appRoute, filePath: fileName }
-          if (validFileMatcher.isAppRouterRoute(fileName)) {
-            appRouteHandlers.push(routeEntry)
+          if (isAppRouteRoute(appPath)) {
+            appRouteHandlers.push({ ...routeEntry, page: appPath })
           } else {
             appRoutes.push(routeEntry)
           }
@@ -1030,6 +1026,22 @@ async function startWatcher(
         nestedMiddleware = []
       }
 
+      // appPaths intentionally contains both pages and route handlers. The
+      // removed matcher providers classified those entries independently, so
+      // isolate pages before catch-all normalization and definition creation.
+      const appPagePaths: Record<string, string[]> = {}
+      for (const [route, routeAppPaths] of Object.entries(appPaths)) {
+        const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
+        if (pageAppPaths.length > 0) {
+          appPagePaths[route] = pageAppPaths
+        }
+      }
+
+      normalizeCatchAllRoutes(appPagePaths)
+      for (const pageAppPaths of Object.values(appPagePaths)) {
+        pageAppPaths.sort(compareAppPaths)
+      }
+
       normalizeCatchAllRoutes(appPaths)
 
       // Make sure to sort parallel routes to make the result deterministic.
@@ -1073,7 +1085,7 @@ async function startWatcher(
       >
 
       const appRouteDefinitions = [
-        ...Object.entries(appPaths).map(([route, routeAppPaths]) => {
+        ...Object.entries(appPagePaths).map(([route, routeAppPaths]) => {
           const page = selectAppPageEntry(route, routeAppPaths)
           const filePath = appRouteFilePaths.get(page)!
           return {
@@ -1085,8 +1097,7 @@ async function startWatcher(
             appPaths: routeAppPaths,
           } satisfies AppPageRouteDefinition
         }),
-        ...appRouteHandlers.map(({ route, filePath }) => {
-          const page = appPaths[route]?.[0] ?? route
+        ...appRouteHandlers.map(({ route, page, filePath }) => {
           return {
             kind: RouteKind.APP_ROUTE,
             pathname: route,
