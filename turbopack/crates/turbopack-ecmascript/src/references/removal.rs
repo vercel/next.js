@@ -3,7 +3,7 @@ use std::mem::take;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::Atom,
     base::SwcComments,
     common::{
         DUMMY_SP, Span, Spanned,
@@ -23,6 +23,7 @@ use swc_core::{
     },
     quote,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
@@ -34,14 +35,13 @@ use crate::{
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
-pub struct Unreachable {
+pub struct RemovalCodeGen {
+    comment_replacement: RcStr,
     range: AstPathRange,
 }
 
-fn unreachable_atom() -> Atom {
-    atom!("TURBOPACK unreachable")
-}
 struct UnreachableModifier {
+    comment_replacement: Atom,
     comments: SwcComments,
 }
 
@@ -53,7 +53,7 @@ impl AstModifier for UnreachableModifier {
 
         *node = Expr::Lit(Lit::Str(Str {
             span,
-            value: unreachable_atom().into(),
+            value: self.comment_replacement.clone().into(),
             raw: None,
         }));
     }
@@ -68,7 +68,7 @@ impl AstModifier for UnreachableModifier {
             Comment {
                 kind: CommentKind::Line,
                 span: DUMMY_SP,
-                text: unreachable_atom(),
+                text: self.comment_replacement.clone(),
             },
         );
 
@@ -91,6 +91,7 @@ impl AstModifier for UnreachableModifier {
 }
 
 struct UnreachableRangeModifier {
+    comment_replacement: Atom,
     comments: SwcComments,
     start_index: usize,
 }
@@ -115,7 +116,7 @@ impl UnreachableRangeModifier {
                 Comment {
                     kind: CommentKind::Line,
                     span: DUMMY_SP,
-                    text: unreachable_atom(),
+                    text: self.comment_replacement.clone(),
                 },
             );
 
@@ -134,9 +135,13 @@ impl UnreachableRangeModifier {
     }
 }
 
-impl Unreachable {
-    pub fn new(range: AstPathRange) -> Self {
-        Unreachable { range }
+/// Removes the code at the given path and replaces it with a comment.
+impl RemovalCodeGen {
+    pub fn new(comment_replacement: RcStr, range: AstPathRange) -> Self {
+        RemovalCodeGen {
+            comment_replacement,
+            range,
+        }
     }
 
     pub async fn code_generation(
@@ -145,10 +150,13 @@ impl Unreachable {
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();
 
+        let comment_replacement = Atom::from(self.comment_replacement.as_str());
+
         let visitors = match &self.range {
             AstPathRange::Exact(path) => vec![(
                 path.clone(),
                 Box::new(UnreachableModifier {
+                    comment_replacement: comment_replacement.clone(),
                     comments: comments.clone(),
                 }) as Box<dyn AstModifier>,
             )],
@@ -169,6 +177,7 @@ impl Unreachable {
                         vec![(
                             parent.to_vec(),
                             Box::new(UnreachableRangeModifier {
+                                comment_replacement: comment_replacement.clone(),
                                 comments: comments.clone(),
                                 start_index,
                             }) as Box<dyn AstModifier>,
@@ -179,6 +188,7 @@ impl Unreachable {
                         vec![(
                             parent.to_vec(),
                             Box::new(UnreachableRangeModifier {
+                                comment_replacement: comment_replacement.clone(),
                                 comments: comments.clone(),
                                 start_index,
                             }) as Box<dyn AstModifier>,
@@ -196,9 +206,9 @@ impl Unreachable {
     }
 }
 
-impl From<Unreachable> for CodeGen {
-    fn from(val: Unreachable) -> Self {
-        CodeGen::Unreachable(val)
+impl From<RemovalCodeGen> for CodeGen {
+    fn from(val: RemovalCodeGen) -> Self {
+        CodeGen::RemovalCodeGen(val)
     }
 }
 
