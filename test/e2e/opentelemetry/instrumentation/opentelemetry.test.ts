@@ -12,6 +12,7 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
+const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
 
 function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
   let collector: Collector
@@ -458,8 +459,43 @@ describe.each(
                 })
               }
             )
-          }
 
+            it('should trace route module preparation', async () => {
+              const pathname = '/api/app/param/data'
+              await next.fetch(pathname)
+
+              await retry(async () => {
+                const spans = getCollector().getSpans()
+                const rootSpan = spans.find(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'BaseServer.handleRequest' &&
+                    span.attributes?.['http.target'] === pathname
+                )
+                const prepareSpans = spans.filter(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'RouteModule.prepare' &&
+                    span.traceId === rootSpan?.traceId
+                )
+
+                expect(rootSpan).toBeDefined()
+                expect(prepareSpans).toEqual([
+                  expect.objectContaining({
+                    runtime: 'nodejs',
+                    name: 'prepare route module',
+                    traceId: rootSpan?.traceId,
+                    attributes: {
+                      'next.span_category': 'nextjs',
+                      'next.span_name': 'prepare route module',
+                      'next.span_type': 'RouteModule.prepare',
+                    },
+                    status: { code: 0 },
+                  }),
+                ])
+              })
+            })
+          }
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 
@@ -1497,6 +1533,72 @@ describe.each(
   }
 })
 
+if (isNextStart) {
+  describe('opentelemetry route module preparation with direct entrypoint handler', () => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      startCommand: 'pnpm start-entrypoint',
+      packageJson: {
+        scripts: {
+          'start-entrypoint':
+            'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+        },
+      },
+      serverReadyPattern: /- Local:/,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'production',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace route module preparation', async () => {
+      const connectedCollector = await connectCollector({
+        port: ROUTE_PREPARATION_COLLECTOR_PORT,
+      })
+      collector = connectedCollector
+      await next.start()
+
+      await next.fetch('/app/param/rsc-fetch')
+      await next.fetch('/api/app/param/data')
+
+      await retry(async () => {
+        const prepareSpans = connectedCollector
+          .getSpans()
+          .filter(
+            (span) =>
+              span.attributes?.['next.span_type'] === 'RouteModule.prepare'
+          )
+
+        expect(prepareSpans).toEqual([
+          expect.objectContaining({
+            runtime: 'nodejs',
+            name: 'prepare route module',
+            attributes: {
+              'next.span_category': 'nextjs',
+              'next.span_name': 'prepare route module',
+              'next.span_type': 'RouteModule.prepare',
+            },
+            status: { code: 0 },
+          }),
+        ])
+      })
+    })
+  })
+}
+
 describe.each(
   [
     { name: 'default', useDirectEntrypointHandler: false },
@@ -2070,8 +2172,9 @@ async function expectTrace(
       .getSpans()
       .filter(
         (span) =>
-          span.attributes?.['next.span_type'] !==
-          'LoadComponents.loadRouteModule'
+          !['LoadComponents.loadRouteModule', 'RouteModule.prepare'].includes(
+            span.attributes?.['next.span_type'] as string
+          )
       )
 
     const tree: HierSavedSpan[] = []
