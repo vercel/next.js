@@ -1521,6 +1521,70 @@ export async function copy_vendor_react(task_) {
         )
     }
 
+    const staticChildrenSet = 'globalThis[Symbol.for("next.static.children")]'
+
+    function markReactStaticChildren(source) {
+      const original = 'Object.freeze && Object.freeze(children);'
+      const replacement = `(${staticChildrenSet} || (${staticChildrenSet} = new WeakSet())).add(children);
+            ${original}`
+
+      if (source.split(original).length !== 2) {
+        throw new Error(
+          'Expected exactly one static children array freeze in the React development JSX runtime bundle.'
+        )
+      }
+
+      return source.replace(original, replacement)
+    }
+
+    function forwardUseCacheStaticChildValidation(source) {
+      const original = 'return "$T" + request;'
+      const replacement = `return (
+            "$T" +
+            (request[0] === "!"
+              ? (${staticChildrenSet} && ${staticChildrenSet}.has(parent) ? "!" : "") +
+                request.slice(1)
+              : request)
+          );`
+
+      if (source.split(original).length !== 2) {
+        throw new Error(
+          'Expected exactly one temporary function reference serialization in the React development server bundle.'
+        )
+      }
+
+      return source.replace(original, replacement)
+    }
+
+    function normalizeUseCacheTemporaryReferenceIds(source) {
+      const replacements = [
+        [
+          'return "$T" + elementReference;',
+          'return "$T" + (elementReference[0] === "!" ? elementReference.slice(1) : elementReference);',
+        ],
+        [
+          'if (void 0 !== tempRef) return "$T" + tempRef;',
+          'if (void 0 !== tempRef) return "$T" + (tempRef[0] === "!" ? tempRef.slice(1) : tempRef);',
+        ],
+        [
+          'return "$T" + counter;',
+          'return "$T" + (counter[0] === "!" ? counter.slice(1) : counter);',
+        ],
+      ]
+
+      for (const [original, replacement] of replacements) {
+        if (source.split(original).length !== 2) {
+          throw new Error(
+            'Expected exactly one additional temporary reference serialization in the React development server bundle.'
+          )
+        }
+
+        source = source.replace(original, replacement)
+      }
+
+      return source
+    }
+
     const schedulerDir = dirname(
       relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
     )
@@ -1563,7 +1627,16 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDir, 'cjs/**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        const source = file.data.toString()
+        let source = file.data.toString()
+
+        if (
+          (file.base.startsWith('react-jsx-runtime.') ||
+            file.base.startsWith('react-jsx-dev-runtime.')) &&
+          file.base.endsWith('.react-server.development.js')
+        ) {
+          source = markReactStaticChildren(source)
+        }
+
         // We replace the module/chunk loading code with our own implementation in Next.js.
         file.data = aliasVendoredReactPackages(source)
       })
@@ -1684,6 +1757,17 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
+        let source = file.data.toString()
+
+        if (
+          file.base.includes('-server.') &&
+          file.base.endsWith('.development.js')
+        ) {
+          source = forwardUseCacheStaticChildValidation(source)
+          source = normalizeUseCacheTemporaryReferenceIds(source)
+          file.data = source
+        }
+
         // We replace the module/chunk loading code with our own implementation in Next.js.
         // NOTE: We only replace module/chunk loading for server builds because the server
         // bundles have unique constraints like a runtime bundle. For browser builds this
@@ -1696,7 +1780,6 @@ export async function copy_vendor_react(task_) {
             !file.base.startsWith('react-server-dom-webpack-server.browser'))
         ) {
           const filepath = file.dir + '/' + file.base
-          const source = file.data.toString()
           const ast = parseFile(source, { sourceFileName: filepath })
           replaceIdentifiersInAst(
             ast,
@@ -1738,6 +1821,17 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
+        let source = file.data.toString()
+
+        if (
+          file.base.includes('-server.') &&
+          file.base.endsWith('.development.js')
+        ) {
+          source = forwardUseCacheStaticChildValidation(source)
+          source = normalizeUseCacheTemporaryReferenceIds(source)
+          file.data = source
+        }
+
         // We replace the module loading code with our own implementation in Next.js.
         // NOTE: We only replace module loading for server builds because the server
         // bundles have unique constraints like a runtime bundle. For browser builds this
@@ -1749,7 +1843,6 @@ export async function copy_vendor_react(task_) {
             file.base.startsWith('react-server-dom-turbopack-server')) &&
           !file.base.includes('.browser.')
         ) {
-          const source = file.data.toString()
           const filepath = file.dir + '/' + file.base
           const ast = parseFile(source, { sourceFileName: filepath })
 

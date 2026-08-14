@@ -2653,7 +2653,7 @@
           ((elementReference = request.temporaryReferences.get(value)),
           void 0 !== elementReference)
         )
-          return "$T" + elementReference;
+          return "$T" + (elementReference[0] === "!" ? elementReference.slice(1) : elementReference);
         elementReference = TaintRegistryObjects.get(value);
         void 0 !== elementReference && throwTaintViolation(elementReference);
         elementReference = request.writtenObjects;
@@ -2830,7 +2830,13 @@
           ((request = request.temporaryReferences.get(value)),
           void 0 !== request)
         )
-          return "$T" + request;
+          return (
+            "$T" +
+            (request[0] === "!"
+              ? (globalThis[Symbol.for("next.static.children")] && globalThis[Symbol.for("next.static.children")].has(parent) ? "!" : "") +
+                request.slice(1)
+              : request)
+          );
         request = TaintRegistryObjects.get(value);
         void 0 !== request && throwTaintViolation(request);
         if (value.$$typeof === TEMPORARY_REFERENCE_TAG)
@@ -3169,7 +3175,7 @@
         }
         if (void 0 !== request.temporaryReferences) {
           var tempRef = request.temporaryReferences.get(value);
-          if (void 0 !== tempRef) return "$T" + tempRef;
+          if (void 0 !== tempRef) return "$T" + (tempRef[0] === "!" ? tempRef.slice(1) : tempRef);
         }
         tempRef = request.writtenDebugObjects;
         var existingDebugReference = tempRef.get(value);
@@ -3469,7 +3475,7 @@
           ((counter = request.temporaryReferences.get(value)),
           void 0 !== counter)
         )
-          return "$T" + counter;
+          return "$T" + (counter[0] === "!" ? counter.slice(1) : counter);
         counter = request.writtenDebugObjects;
         ref = counter.get(value);
         if (void 0 !== ref) return ref;

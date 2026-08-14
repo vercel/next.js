@@ -1,4 +1,5 @@
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { isValidElement } from 'react'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
@@ -113,6 +114,74 @@ import {
 import * as Log from '../../build/output/log'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+
+const USE_CACHE_TEMPORARY_REFERENCE_PREFIX = '!'
+const VALIDATED_TEMPORARY_REFERENCE_PREFIX = '$!'
+
+/**
+ * Opts this temporary reference set into preserving React's static child key
+ * validation across the private Flight stream used by `use cache`.
+ *
+ * The vendored Flight server recognizes the prefix and removes it before
+ * serializing the reference. If the reference is inside a static JSX children
+ * array, it replaces the prefix with a validation marker for the client set.
+ */
+function createUseCacheServerTemporaryReferenceSet() {
+  const temporaryReferences = createServerTemporaryReferenceSet()
+
+  if (process.env.NODE_ENV === 'development') {
+    const getTemporaryReference =
+      temporaryReferences.get.bind(temporaryReferences)
+
+    temporaryReferences.get = (reference) => {
+      const id = getTemporaryReference(reference)
+      return id === undefined
+        ? undefined
+        : USE_CACHE_TEMPORARY_REFERENCE_PREFIX + id
+    }
+  }
+
+  return temporaryReferences
+}
+
+/**
+ * Restores React's static child key validation on JSX elements that crossed
+ * the private `use cache` Flight boundary as temporary references.
+ */
+function createUseCacheClientTemporaryReferenceSet() {
+  const temporaryReferences = createClientTemporaryReferenceSet()
+
+  if (process.env.NODE_ENV === 'development') {
+    const getTemporaryReference =
+      temporaryReferences.get.bind(temporaryReferences)
+
+    temporaryReferences.get = (reference) => {
+      const wasValidated = reference.startsWith(
+        VALIDATED_TEMPORARY_REFERENCE_PREFIX
+      )
+      const normalizedReference = wasValidated
+        ? '$' + reference.slice(VALIDATED_TEMPORARY_REFERENCE_PREFIX.length)
+        : reference
+      const value = getTemporaryReference(normalizedReference)
+
+      if (wasValidated && isValidElement(value)) {
+        const store = (
+          value as typeof value & {
+            _store?: { validated: number }
+          }
+        )._store
+
+        if (store) {
+          store.validated = 1
+        }
+      }
+
+      return value
+    }
+  }
+
+  return temporaryReferences
+}
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -1283,7 +1352,7 @@ async function generateCacheEntryImpl(
   timeoutError: UseCacheTimeoutError,
   deadlockError: UseCacheDeadlockError | undefined
 ): Promise<GenerateCacheEntryResult> {
-  const temporaryReferences = createServerTemporaryReferenceSet()
+  const temporaryReferences = createUseCacheServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
   const [, , args] =
@@ -2141,7 +2210,7 @@ export async function cache(
     args.unshift(boundArgs)
   }
 
-  const temporaryReferences = createClientTemporaryReferenceSet()
+  const temporaryReferences = createUseCacheClientTemporaryReferenceSet()
 
   // The base serialized cache key doesn't include the cookies or headers that
   // private caches are allowed to read. In production this is because private
