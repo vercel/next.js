@@ -140,7 +140,11 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  // App Router routes are not locale-aware: when a locale prefix is present it
+  // is part of the route itself (e.g. `/[lang]/...`) and must be preserved.
+  // Only the Pages Router strips the locale prefix from the export path.
+  // See https://github.com/vercel/next.js/issues/86048
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -164,7 +168,10 @@ async function exportPageImpl(
   if (isDynamic && page !== nonLocalizedPath) {
     const normalizedPage = isAppDir ? normalizeAppPath(page) : page
 
-    params = getParams(normalizedPage, updatedPath)
+    // For App Router routes match against the full path so a leading dynamic
+    // segment (e.g. `[lang]`) can capture the locale prefix; Pages Router
+    // routes match against the locale-stripped path.
+    params = getParams(normalizedPage, isAppDir ? path : updatedPath)
   }
 
   const { req, res } = createRequestResponseMocks({ url: updatedPath })

@@ -309,6 +309,14 @@ export function getResolveRoutes(
       }
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
+      // Whether the pathname carries a locale prefix that `handleLocale`
+      // stripped. App Router routes are not locale-aware: when the locale is
+      // part of the route itself (e.g. `/[lang]/...`) it can only be captured
+      // by matching against the full, un-stripped pathname.
+      // See https://github.com/vercel/next.js/issues/86048
+      const hasStrippedLocale =
+        Boolean(config.i18n) && localeResult.pathname !== curPathname
+
       for (const route of dynamicRoutes) {
         // when resolving fallback: false the
         // render worker may return a no-fallback response
@@ -318,19 +326,39 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
 
-        if (params) {
-          const pageOutput = await fsChecker.getItem(
+        // Pages Router routes (and App Router routes that don't model the
+        // locale) match against the locale-stripped pathname.
+        let params = route.match(localeResult.pathname)
+        let pageOutput: Awaited<ReturnType<typeof fsChecker.getItem>> = null
+
+        // For App Router routes, also try the full (locale-prefixed) pathname
+        // so a leading dynamic segment such as `[lang]` can capture the locale.
+        // This only happens when a locale prefix was actually stripped, so it
+        // doesn't affect non-i18n apps or routes that don't carry a locale.
+        if (hasStrippedLocale) {
+          pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || '')
           )
 
-          // i18n locales aren't matched for app dir
-          if (
-            pageOutput?.type === 'appFile' &&
-            initialLocaleResult?.detectedLocale
-          ) {
-            continue
+          if (pageOutput?.type === 'appFile') {
+            const fullParams = route.match(curPathname || '')
+            if (fullParams) {
+              params = fullParams
+            } else if (params && initialLocaleResult?.detectedLocale) {
+              // i18n locales aren't matched for app dir: when the request
+              // already carried an explicit locale prefix, an App Router route
+              // that only matches the locale-stripped pathname is not served.
+              params = false
+            }
+          }
+        }
+
+        if (params) {
+          if (!pageOutput) {
+            pageOutput = await fsChecker.getItem(
+              addPathPrefix(route.page, config.basePath || '')
+            )
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {

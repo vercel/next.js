@@ -59,6 +59,8 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -1609,15 +1611,56 @@ export default abstract class Server<
           parsedUrl.pathname = parsedMatchedPath.pathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
+        const pathnameNoBasePath = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath || ''
+        )
         const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
+          pathnameNoBasePath,
           this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
           addRequestMeta(req, 'locale', normalizeResult.detectedLocale)
         }
-        parsedUrl.pathname = normalizeResult.pathname
+
+        // App Router routes are not locale-aware: a leading dynamic segment
+        // such as `[lang]` is meant to capture the locale prefix itself. When
+        // the resolved App Router route actually consumes the locale prefix,
+        // keep it in the pathname (and treat the locale as explicit) instead of
+        // stripping it like a Pages Router route. App Router routes that don't
+        // model the locale (e.g. `/about`, `/items/[id]`) still get the locale
+        // stripped. See https://github.com/vercel/next.js/issues/86048
+        const invokeOutput = getRequestMeta(req, 'invokeOutput')
+        let appRouteConsumesLocale = false
+
+        if (
+          typeof invokeOutput === 'string' &&
+          normalizeResult.detectedLocale &&
+          this.appPathRoutes?.[invokeOutput] &&
+          isDynamicRoute(invokeOutput)
+        ) {
+          try {
+            const appRouteMatch = getRouteMatcher(getRouteRegex(invokeOutput))(
+              pathnameNoBasePath
+            )
+            appRouteConsumesLocale = Boolean(appRouteMatch)
+          } catch {
+            appRouteConsumesLocale = false
+          }
+        }
+
+        if (appRouteConsumesLocale) {
+          // Keep the locale prefix (it's a real route segment for this App
+          // Router route) but still strip the basePath, so downstream rendering
+          // receives a basePath-free, locale-prefixed pathname.
+          parsedUrl.pathname = pathnameNoBasePath
+          // The locale is an explicit route segment, so it should not be
+          // treated as inferred from the default locale.
+          removeRequestMeta(req, 'localeInferredFromDefault')
+        } else {
+          parsedUrl.pathname = normalizeResult.pathname
+        }
 
         for (const key of Object.keys(parsedUrl.query)) {
           delete parsedUrl.query[key]
