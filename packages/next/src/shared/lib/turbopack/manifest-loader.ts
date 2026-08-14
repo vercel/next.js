@@ -103,14 +103,18 @@ const getManifestPath = (
     if (!existsSync(manifestPath) && page.endsWith('/route')) {
       // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
       let basePage = removeRouteSuffix(page)
-      // For sitemap.xml routes with generateSitemaps, the manifest is at
-      // /sitemap/[__metadata_id__]/route (without .xml), because the route
-      // handler serves at /sitemap/[id] not /sitemap.xml/[id]
-      if (basePage.endsWith('/sitemap.xml')) {
-        basePage = basePage.slice(0, -'.xml'.length)
+      // Avoid doubling [__metadata_id__] when the page already uses that
+      // segment (e.g. a phantom multi-sitemap match that never wrote manifests).
+      if (!basePage.includes('/[__metadata_id__]')) {
+        // For sitemap.xml routes with generateSitemaps, the manifest is at
+        // /sitemap/[__metadata_id__]/route (without .xml), because the route
+        // handler serves at /sitemap/[id] not /sitemap.xml/[id]
+        if (basePage.endsWith('/sitemap.xml')) {
+          basePage = basePage.slice(0, -'.xml'.length)
+        }
+        let metadataPage = addRouteSuffix(addMetadataIdToRoute(basePage))
+        manifestPath = getManifestPath(metadataPage, distDir, name, type, false)
       }
-      let metadataPage = addRouteSuffix(addMetadataIdToRoute(basePage))
-      manifestPath = getManifestPath(metadataPage, distDir, name, type, false)
     }
   }
 
