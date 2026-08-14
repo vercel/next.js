@@ -5,7 +5,7 @@ import type {
 } from '../router-reducer-types'
 import { ScrollBehavior } from '../router-reducer-types'
 import { navigateToKnownRoute } from '../../segment-cache/navigation'
-import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import {
   invalidateSegmentCacheEntries,
   segmentCacheMap,
@@ -73,9 +73,14 @@ export function refreshDynamicData(
   const now = Date.now()
   // TODO: Store the dynamic stale time on the top-level state so it's known
   // during restores and refreshes.
-  const refreshSeed = convertServerPatchToFullTree(
+  const refreshSeed = createNavigationSeed(
     now,
     currentFlightRouterState,
+    // No transport data (and so no vary params, no partiality, and no
+    // pathname to parse params from) — this converts the base tree alone.
+    null,
+    null,
+    true,
     null,
     currentRenderedSearch,
     UnknownDynamicStaleTime
