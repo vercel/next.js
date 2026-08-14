@@ -121,6 +121,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::imports("imports")]
 #[case::imports_module_sync("imports-module-sync")]
 #[case::imports_module_sync_cjs("imports-module-sync-cjs")]
+#[case::imports_wildcard("imports-wildcard")]
 #[case::jsonc_parser_wrapper("jsonc-parser-wrapper")]
 // #[case::jsx_input("jsx-input")]
 // #[case::microtime_node_gyp("microtime-node-gyp")]

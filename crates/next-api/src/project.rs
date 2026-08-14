@@ -102,7 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    next_server_nft::require_hook_modules,
+    next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -2854,13 +2854,15 @@ impl Project {
         ))
     }
 
-    /// [`Project::additional_traced_modules`] plus the modules
-    /// `next/dist/server/require-hook` resolves at runtime. Only the Pages Router needs the
-    /// latter, so this is the traced module list for pages endpoints, while other endpoints use
-    /// [`Project::additional_traced_modules`].
+    /// [`Project::additional_traced_modules`] plus the modules the Pages Router resolves only at
+    /// runtime: the targets of `next/dist/server/require-hook` and the production Pages renderer.
+    /// Other endpoints use [`Project::additional_traced_modules`].
     #[turbo_tasks::function]
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
             .owned()
             .await?;
 
@@ -2870,6 +2872,7 @@ impl Project {
                 .await?
                 .into_iter()
                 .chain(hook_modules)
+                .chain(renderer_modules)
                 .collect(),
         ))
     }

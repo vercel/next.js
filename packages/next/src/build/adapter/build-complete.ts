@@ -2437,6 +2437,37 @@ async function getSharedNodeAssets({
       sharedTraceIgnores
     )
 
+    // The require hook redirects shared-runtime imports from external packages
+    // to the Pages vendored contexts. Those contexts load module.compiled, whose
+    // runtime dependency is selected dynamically. Turbopack includes this via
+    // `Project::pages_traced_modules`; trace the Webpack runtime here.
+    const pagesRuntimePath = require.resolve(
+      'next/dist/compiled/next-server/pages.runtime.prod.js'
+    )
+    const pagesRuntimeTrace = await nodeFileTrace([pagesRuntimePath], {
+      base: outputFileTracingRoot,
+      ignore: sharedIgnoreFn,
+      moduleSyncCatchall: true,
+    })
+    pagesRuntimeTrace.esmFileList.forEach((item) =>
+      pagesRuntimeTrace.fileList.add(item)
+    )
+
+    for (const tracingRootRelativeFilePath of pagesRuntimeTrace.fileList) {
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
+      await pushAsset(
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
+        bundler,
+        salt
+      )
+    }
+
     // These are modules that are necessary for bootstrapping node env
     const necessaryNodeDependencies = [
       require.resolve('next/dist/server/node-environment'),

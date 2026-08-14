@@ -254,8 +254,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0
       '@vercel/og':
-        specifier: 0.11.1
-        version: 0.11.1
+        specifier: 1.0.1
+        version: 1.0.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -563,8 +563,8 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.25.0
-        version: 0.25.0
+        specifier: 0.29.0
+        version: 0.29.0
       scheduler-builtin:
         specifier: npm:scheduler@0.28.0-canary-22e4f993-20260811
         version: scheduler@0.28.0-canary-22e4f993-20260811
@@ -1024,7 +1024,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1107,7 +1107,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.23
@@ -1228,19 +1228,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1983,7 +1983,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.3.1-canary.15
+        specifier: 16.3.1-canary.17
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6262,8 +6262,8 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@resvg/resvg-wasm@2.4.0':
-    resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
+  '@resvg/resvg-wasm@2.4.1':
+    resolution: {integrity: sha512-yi6R0HyHtsoWTRA06Col4WoDs7SvlXU3DLMNP2bdAgs7HK18dTEVl1weXgxRzi8gwLteGUbIg29zulxIB3GSdg==}
     engines: {node: '>= 10'}
 
   '@rollup/plugin-alias@3.1.1':
@@ -7701,9 +7701,9 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@vercel/og@0.11.1':
-    resolution: {integrity: sha512-02rXXRABFq1B03w3aNhcVfxkY+8Ba5QFi4ax0zS0oOiD/LL9WUd/LA7BjVPakrQmVhIBjuo2oBM5U25R9IuXMg==}
-    engines: {node: '>=16'}
+  '@vercel/og@1.0.1':
+    resolution: {integrity: sha512-uLTgu6ZIYuPuDnPpwkYhJsOjogqIhMnjjLREFpRAXjsMpCIQ2RmNX8Iz/5shDXfva1A2V0kC5j+KFVUSc4TVew==}
+    engines: {node: '>=22'}
 
   '@vercel/oidc@3.1.0':
     resolution: {integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==}
@@ -16698,8 +16698,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  satori@0.25.0:
-    resolution: {integrity: sha512-utINfLxrYrmSnLvxFT4ZwgwWa8KOjrz7ans32V5wItgHVmzESl/9i33nE38uG0miycab8hUqQtDlOpqrIpB/iw==}
+  satori@0.29.0:
+    resolution: {integrity: sha512-fPAfrwNaIQ7EsJLhY382STEqpczN6ZEH9NsKXDQgRcxUXNNPB73iAjSshzFwTaaScT68pxV0pmG6TBzDQ4sEGw==}
     engines: {node: '>=16'}
 
   sax@1.2.4:
@@ -23457,7 +23457,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@resvg/resvg-wasm@2.4.0': {}
+  '@resvg/resvg-wasm@2.4.1': {}
 
   '@rollup/plugin-alias@3.1.1(rollup@2.35.1)':
     dependencies:
@@ -25058,12 +25058,14 @@ snapshots:
       - rollup
       - supports-color
 
-  '@vercel/og@0.11.1':
+  '@vercel/og@1.0.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))':
     dependencies:
-      '@resvg/resvg-wasm': 2.4.0
-      satori: 0.25.0
+      '@resvg/resvg-wasm': 2.4.1
+      satori: 0.29.0
     optionalDependencies:
-      sharp: 0.34.5
+      sharp: 0.35.3(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
+    transitivePeerDependencies:
+      - '@types/node'
 
   '@vercel/oidc@3.1.0': {}
 
@@ -36308,7 +36310,7 @@ snapshots:
       immutable: 4.3.7
       source-map-js: 1.2.1
 
-  satori@0.25.0:
+  satori@0.29.0:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0
