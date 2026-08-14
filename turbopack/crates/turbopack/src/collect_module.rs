@@ -229,6 +229,32 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
     }
 
     #[turbo_tasks::function]
+    async fn chunk_item_content_ident(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(
+                format!(
+                    "from {:?}",
+                    self.await?
+                        .entry_chunk_group
+                        .await?
+                        .iter()
+                        .map(|m| m.ident_string())
+                        .try_join()
+                        .await?
+                )
+                .into(),
+            )
+            .into_vc())
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_item_content(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
