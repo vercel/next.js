@@ -846,6 +846,9 @@ export default class DevServer extends Server {
             pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            prerenderMatching: Boolean(
+              this.nextConfig.experimental.prerenderMatching
+            ),
           },
           httpAgentOptions,
           locales,

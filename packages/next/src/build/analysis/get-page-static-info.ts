@@ -48,7 +48,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_matcher|unstable_generateMatcher|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -82,6 +82,8 @@ export interface AppPageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
+  prerenderMatcher?: boolean
+  generatePrerenderMatcher?: boolean
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
@@ -187,6 +189,8 @@ function checkExports(
   getServerSideProps?: boolean
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  prerenderMatcher?: boolean
+  generatePrerenderMatcher?: boolean
   generateStaticParams?: boolean
   directives?: Set<string>
   exports?: Set<string>
@@ -196,6 +200,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'unstable_matcher',
+    'unstable_generateMatcher',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -207,6 +213,8 @@ function checkExports(
     let getServerSideProps: boolean = false
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
+    let prerenderMatcher = false
+    let generatePrerenderMatcher = false
     let generateStaticParams = false
     let exports = new Set<string>()
     let directives = new Set<string>()
@@ -251,6 +259,10 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
+        if (id === 'unstable_matcher') prerenderMatcher = true
+        if (id === 'unstable_generateMatcher') {
+          generatePrerenderMatcher = true
+        }
         generateStaticParams = id === 'generateStaticParams'
       }
 
@@ -264,6 +276,10 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          if (id === 'unstable_matcher') prerenderMatcher = true
+          if (id === 'unstable_generateMatcher') {
+            generatePrerenderMatcher = true
+          }
           generateStaticParams = id === 'generateStaticParams'
         }
       }
@@ -288,6 +304,15 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
+            if (!prerenderMatcher && value === 'unstable_matcher') {
+              prerenderMatcher = true
+            }
+            if (
+              !generatePrerenderMatcher &&
+              value === 'unstable_generateMatcher'
+            ) {
+              generatePrerenderMatcher = true
+            }
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
@@ -308,6 +333,8 @@ function checkExports(
       getServerSideProps,
       generateImageMetadata,
       generateSitemaps,
+      prerenderMatcher,
+      generatePrerenderMatcher,
       generateStaticParams,
       directives,
       exports,
@@ -654,6 +681,8 @@ export async function getAppPageStaticInfo({
   })
 
   const {
+    prerenderMatcher,
+    generatePrerenderMatcher,
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
@@ -684,6 +713,38 @@ export async function getAppPageStaticInfo({
 
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
+
+  const hasPrerenderMatcher = prerenderMatcher || generatePrerenderMatcher
+
+  if (hasPrerenderMatcher && !nextConfig.experimental?.prerenderMatching) {
+    throw new Error(
+      `Page "${page}" exports an unstable prerender matcher, but the experimental \`prerenderMatching\` flag is not enabled in next.config.`
+    )
+  }
+
+  if (prerenderMatcher && generatePrerenderMatcher) {
+    throw new Error(
+      `Page "${page}" cannot export both \`unstable_matcher\` and \`unstable_generateMatcher\`.`
+    )
+  }
+
+  if (hasPrerenderMatcher && /\/route\.[^/]+$/.test(pageFilePath)) {
+    throw new Error(
+      `Route "${page}" cannot export an unstable prerender matcher. It is only supported in layouts and pages.`
+    )
+  }
+
+  if (isEdgeRuntime(config.runtime) && hasPrerenderMatcher) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and an unstable prerender matcher.`
+    )
+  }
+
+  if (directives?.has('client') && hasPrerenderMatcher) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and an unstable prerender matcher export.`
+    )
+  }
 
   // Prevent edge runtime and generateStaticParams in the same file.
   if (isEdgeRuntime(config.runtime) && generateStaticParams) {
@@ -753,6 +814,8 @@ export async function getAppPageStaticInfo({
   return {
     type: PAGE_TYPES.APP,
     rsc,
+    prerenderMatcher,
+    generatePrerenderMatcher,
     generateImageMetadata,
     generateSitemaps,
     generateStaticParams,

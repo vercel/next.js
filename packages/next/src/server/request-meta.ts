@@ -14,6 +14,7 @@ import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
+import type { FallbackMode } from '../lib/fallback'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -323,6 +324,9 @@ export interface RequestMeta {
    * In production, used to defer params resolution during staged rendering.
    */
   fallbackParams?: OpaqueFallbackRouteParams
+
+  /** DEV only: the fallback mode selected from the most-specific static path. */
+  devPrerenderFallbackMode?: FallbackMode
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()

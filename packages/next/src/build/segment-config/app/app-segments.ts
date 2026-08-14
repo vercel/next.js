@@ -18,13 +18,43 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+  isGroupSegment,
+} from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+export type PrerenderParamMode =
+  | 'not-found'
+  | 'blocking'
+  | 'fallback'
+  | 'dynamic'
+
+export type PrerenderMatcher = Record<string, PrerenderParamMode>
+
+type GeneratePrerenderMatcher = () => unknown | Promise<unknown>
+
+export type PrerenderMatcherExport =
+  | {
+      readonly kind: 'static'
+      readonly value: unknown
+    }
+  | {
+      readonly kind: 'generated'
+      readonly generate: GeneratePrerenderMatcher
+    }
 
 /**
  * Parses the app config and attaches it to the segment.
  */
-function attach(segment: AppSegment, userland: unknown, route: string) {
+function attach(
+  segment: AppSegment,
+  userland: unknown,
+  route: string,
+  moduleType: 'layout' | 'page' | 'route' | undefined
+) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
@@ -61,6 +91,46 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
       )
     }
   }
+
+  const hasStaticMatcher = 'unstable_matcher' in userland
+  const hasGeneratedMatcher = 'unstable_generateMatcher' in userland
+
+  if (hasStaticMatcher || hasGeneratedMatcher) {
+    if (moduleType === 'route') {
+      throw new Error(
+        'Unstable prerender matchers are only supported in layouts and pages.'
+      )
+    }
+
+    if (hasStaticMatcher && hasGeneratedMatcher) {
+      throw new Error(
+        `Route "${route}" cannot export both \`unstable_matcher\` and \`unstable_generateMatcher\`.`
+      )
+    }
+
+    if (hasStaticMatcher) {
+      segment.prerenderMatcher = {
+        kind: 'static',
+        value: userland.unstable_matcher,
+      }
+    } else {
+      if (typeof userland.unstable_generateMatcher !== 'function') {
+        throw new Error(
+          `Route "${route}" must export \`unstable_generateMatcher\` as a function.`
+        )
+      }
+      segment.prerenderMatcher = {
+        kind: 'generated',
+        generate: userland.unstable_generateMatcher as GeneratePrerenderMatcher,
+      }
+    }
+
+    if (segment.config?.runtime === 'edge') {
+      throw new Error(
+        'Edge runtime is not supported with unstable prerender matchers.'
+      )
+    }
+  }
 }
 
 export type AppSegment = {
@@ -68,7 +138,11 @@ export type AppSegment = {
   paramName: string | undefined
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
+  moduleType: 'layout' | 'page' | 'route' | undefined
+  pathMatcher: string
+  treePath: readonly string[]
   config: AppSegmentConfig | undefined
+  prerenderMatcher: PrerenderMatcherExport | undefined
   generateStaticParams: GenerateStaticParams | undefined
   createEmptyParamsError?: () => Error
 }
@@ -85,14 +159,38 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   const segments: AppSegment[] = []
 
   // Queue will store loader trees.
-  const queue: LoaderTree[] = [routeModule.userland.loaderTree]
+  const queue: Array<{
+    loaderTree: LoaderTree
+    matcherSegments: string[]
+    treePath: string[]
+  }> = [
+    {
+      loaderTree: routeModule.userland.loaderTree,
+      matcherSegments: [],
+      treePath: [],
+    },
+  ]
 
   while (queue.length > 0) {
-    const loaderTree = queue.shift()!
+    const { loaderTree, matcherSegments, treePath } = queue.shift()!
     const [name, parallelRoutes] = loaderTree
 
+    const currentMatcherSegments = matcherSegments.slice()
+    if (
+      name &&
+      name !== PAGE_SEGMENT_KEY &&
+      name !== DEFAULT_SEGMENT_KEY &&
+      !isGroupSegment(name)
+    ) {
+      currentMatcherSegments.push(name)
+    }
+
     // Process current node
-    const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
+    const {
+      mod: userland,
+      modType: moduleType,
+      filePath,
+    } = await getLayoutOrPageModule(loaderTree)
     const isClientComponent = userland && isClientReference(userland)
 
     const param = getSegmentParam(name)
@@ -102,13 +200,17 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath,
+      moduleType,
+      pathMatcher: `/${currentMatcherSegments.join('/')}`,
+      treePath,
       config: undefined,
+      prerenderMatcher: undefined,
       generateStaticParams: undefined,
     }
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
-      attach(segment, userland, routeModule.definition.pathname)
+      attach(segment, userland, routeModule.definition.pathname, moduleType)
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -127,8 +229,17 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     }
 
     // Add all parallel routes to the queue
-    for (const parallelRoute of Object.values(parallelRoutes)) {
-      queue.push(parallelRoute)
+    for (const [parallelRouteKey, parallelRoute] of Object.entries(
+      parallelRoutes
+    )) {
+      queue.push({
+        loaderTree: parallelRoute,
+        matcherSegments: currentMatcherSegments,
+        treePath: [
+          ...treePath,
+          `/${currentMatcherSegments.join('/')}@${parallelRouteKey}`,
+        ],
+      })
     }
   }
 
@@ -163,7 +274,11 @@ async function collectAppRouteSegments(
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath: undefined,
+      moduleType: undefined,
+      pathMatcher: routeModule.definition.pathname,
+      treePath: [],
       config: undefined,
+      prerenderMatcher: undefined,
       generateStaticParams: undefined,
     } satisfies AppSegment
   })
@@ -173,9 +288,15 @@ async function collectAppRouteSegments(
   const segment = segments[segments.length - 1]
 
   segment.filePath = routeModule.definition.filename
+  segment.moduleType = 'route'
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland, routeModule.definition.pathname)
+  attach(
+    segment,
+    routeModule.userland,
+    routeModule.definition.pathname,
+    'route'
+  )
 
   return segments
 }

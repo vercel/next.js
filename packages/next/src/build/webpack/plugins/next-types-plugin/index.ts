@@ -71,6 +71,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
+  ${options.type === 'route' ? '' : 'unstable_matcher?: {}\n  unstable_generateMatcher?: Function'}
   instant?: InstantConfigForTypeCheckInternal
   prefetch?: Prefetch
   unstable_dynamicStaleTime?: number
