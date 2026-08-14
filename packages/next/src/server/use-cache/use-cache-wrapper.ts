@@ -1386,32 +1386,67 @@ async function generateCacheEntryImpl(
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
-      const abortSignal = dynamicAccessAbortSignal
-        ? AbortSignal.any([
-            dynamicAccessAbortSignal,
-            timeoutAbortController.signal,
-          ])
-        : timeoutAbortController.signal
+      // `prerender` attaches an abort listener to the signal we hand it. Node
+      // pins an `AbortSignal.any` composite in its global `gcPersistentSignals`
+      // set for as long as any listener is attached, so a composite would keep
+      // the whole cached render alive after it finishes. Own the signal instead
+      // and forward the two sources through listeners we can remove once the
+      // render settles.
+      const abortController = new AbortController()
+      const abortSignal = abortController.signal
 
-      const { prelude } = await prerender(
-        resultPromise,
-        clientReferenceManifest.clientModules,
-        {
-          environmentName: 'Cache',
-          filterStackFrame,
-          signal: abortSignal,
-          temporaryReferences,
-          onError(error) {
-            if (abortSignal.aborted && abortSignal.reason === error) {
-              return undefined
-            }
+      const onTimeoutAbort = () => {
+        abortController.abort(timeoutAbortController.signal.reason)
+      }
+      timeoutAbortController.signal.addEventListener('abort', onTimeoutAbort)
 
-            return handleError(error)
-          },
+      let onDynamicAccessAbort: (() => void) | undefined
+      if (dynamicAccessAbortSignal) {
+        onDynamicAccessAbort = () => {
+          abortController.abort(dynamicAccessAbortSignal.reason)
         }
-      )
+        dynamicAccessAbortSignal.addEventListener('abort', onDynamicAccessAbort)
+        // A composite also aborts immediately when a source is already aborted
+        // at creation time.
+        if (dynamicAccessAbortSignal.aborted) {
+          abortController.abort(dynamicAccessAbortSignal.reason)
+        }
+      }
 
-      clearTimeout(timer)
+      let prelude: ReadableStream<Uint8Array>
+      try {
+        prelude = (
+          await prerender(
+            resultPromise,
+            clientReferenceManifest.clientModules,
+            {
+              environmentName: 'Cache',
+              filterStackFrame,
+              signal: abortSignal,
+              temporaryReferences,
+              onError(error) {
+                if (abortSignal.aborted && abortSignal.reason === error) {
+                  return undefined
+                }
+
+                return handleError(error)
+              },
+            }
+          )
+        ).prelude
+      } finally {
+        clearTimeout(timer)
+        timeoutAbortController.signal.removeEventListener(
+          'abort',
+          onTimeoutAbort
+        )
+        if (dynamicAccessAbortSignal && onDynamicAccessAbort) {
+          dynamicAccessAbortSignal.removeEventListener(
+            'abort',
+            onDynamicAccessAbort
+          )
+        }
+      }
 
       if (timeoutAbortController.signal.aborted) {
         // When the timeout is reached we always error the stream. Even for
