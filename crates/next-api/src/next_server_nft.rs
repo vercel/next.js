@@ -107,18 +107,24 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    if *project.next_config().is_using_adapter().await? {
+    let is_standalone = *project.next_config().is_standalone().await?;
+
+    if *project.next_config().is_using_adapter().await? && !is_standalone {
         // When using an adapter, `next-server.js.nft.json` / `next-minimal-server.js.nft.json` are
         // not needed: they exist for `output: 'standalone'` (see `copyTracedFiles`), while an
         // adapter assembles the deployment from the per-endpoint NFTs in build-complete.ts. What
         // those two files trace on top of the endpoints - the `styled-jsx` modules the require hook
         // needs at runtime - is part of every endpoint's trace via
         // `Project::additional_traced_modules`, so nothing is lost here.
+        //
+        // The exception is `output: 'standalone'` configured alongside an adapter:
+        // `copyTracedFiles` reads `next-server.js.nft.json` unconditionally whenever standalone
+        // output is requested (adapter or not), so suppressing the pair crashes the build
+        // (see #96646).
         return Ok(Vc::cell(vec![]));
     }
 
     let has_next_support = *project.ci_has_next_support().await?;
-    let is_standalone = *project.next_config().is_standalone().await?;
 
     let minimal = ResolvedVc::upcast(
         ServerNftJsonAsset::new(project, ServerNftType::Minimal)
