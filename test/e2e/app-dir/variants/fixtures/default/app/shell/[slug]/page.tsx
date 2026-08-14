@@ -25,17 +25,12 @@ async function Slug({ params }: { params: Promise<{ slug: string }> }) {
   return <p id="slug">{slug}</p>
 }
 
-// `banner` is declared by no combination, so it cannot be baked into any
-// prerender and is read behind a boundary for the same reason the param is.
-async function Banner() {
-  return <p id="banner">{await banner()}</p>
-}
-
 // The param is awaited behind a boundary, so a fallback shell for this route
-// keeps everything above it and only leaves a hole where the param goes. That
-// is what makes the variants read above the boundary have to be resolvable
-// while prerendering the shell. See `enumerated/[slug]` for the arrangement
-// that yields an empty shell instead.
+// keeps everything above it and only leaves a hole where the param goes. It is
+// therefore the only artifact this route has, and it must not be empty. See
+// `enumerated/[slug]`, whose param is awaited above every boundary, for the
+// arrangement whose fallback shell is empty and whose unnamed params are
+// prerendered on demand instead.
 export default async function Page({
   params,
 }: {
@@ -43,13 +38,17 @@ export default async function Page({
 }) {
   return (
     <>
-      <p id="theme">{await theme()}</p>
-      <p id="locale">{await locale()}</p>
+      <Suspense fallback={<p id="theme">pending</p>}>
+        <p id="theme">{theme()}</p>
+      </Suspense>
+      <Suspense fallback={<p id="locale">pending</p>}>
+        <p id="locale">{locale()}</p>
+      </Suspense>
       <Suspense fallback={<p id="slug">pending</p>}>
         <Slug params={params} />
       </Suspense>
       <Suspense fallback={<p id="banner">pending</p>}>
-        <Banner />
+        <p id="banner">{banner()}</p>
       </Suspense>
     </>
   )

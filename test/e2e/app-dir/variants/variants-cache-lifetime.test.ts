@@ -28,9 +28,9 @@ describe('variants with a cache lifetime per combination', () => {
       headers: { cookie: 'theme=dark' },
     })
 
-    expect(before('#theme').text()).toBe('dark')
+    expect(before('#theme').last().text()).toBe('dark')
 
-    const renderedAt = before('#rendered-at').text()
+    const renderedAt = before('#rendered-at').last().text()
     expect(renderedAt).not.toBe('')
 
     const revalidateRes = await next.fetch(url('/revalidate?tag=lifetime-r'))
@@ -46,11 +46,11 @@ describe('variants with a cache lifetime per combination', () => {
         headers: { cookie: 'theme=dark' },
       })
 
-      expect(after('#rendered-at').text()).not.toBe(renderedAt)
+      expect(after('#rendered-at').last().text()).not.toBe(renderedAt)
 
       // The point of the test: the render that produced the replacement still
       // resolved the variant.
-      expect(after('#theme').text()).toBe('dark')
+      expect(after('#theme').last().text()).toBe('dark')
     })
   })
 
@@ -59,7 +59,7 @@ describe('variants with a cache lifetime per combination', () => {
       headers: { cookie: 'theme=dark' },
     })
 
-    expect($('#theme').text()).toBe('dark')
+    expect($('#theme').last().text()).toBe('dark')
   })
 
   if (isNextStart) {

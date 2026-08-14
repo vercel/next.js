@@ -2339,6 +2339,41 @@ export async function handleBuildComplete({
       // This has the same shape as `nextLocale` and `rscSuffix` above: a group
       // Next.js invents, added to the source and put into the destination.
       if (variantRoutePages.has(route.page)) {
+        // The prefixed form of the `.rsc` rule above. A prefetch asks for the
+        // payload of the route rather than for the page, and the proxy puts the
+        // prefix on that path as it does on any other.
+        //
+        // Without this rule such a request has no prefixed route. It matches
+        // nothing under the prefix once no output is written there, which is
+        // the case for a param nobody enumerated, and falls through to the
+        // plain rule. The client then receives a document where it asked for a
+        // payload, and the combination is gone.
+        //
+        // It comes before the plain-shape rule because the param group of that
+        // rule takes any character, and would otherwise take the suffix as part
+        // of the param.
+        if (appPageKeys && appPageKeys.length > 0) {
+          const rscDestination = destination.replace(/($|\?)/, '$rscSuffix$1')
+
+          dynamicRoutes.push({
+            source: route.page + '.rsc',
+            sourceRegex: buildSourceRegex(
+              `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+            ).replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            ),
+            destination:
+              rscDestination +
+              `${rscDestination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
+            has:
+              isFallbackFalse && !pageKeys.includes(route.page)
+                ? fallbackFalseHasCondition
+                : undefined,
+            missing: undefined,
+          })
+        }
+
         dynamicRoutes.push({
           source: pagePath,
           sourceRegex: buildSourceRegex(

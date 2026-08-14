@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+
 import { locale, theme } from '../../variants'
 
 // This route declares combinations and is deliberately left out of the proxy's
@@ -30,8 +32,12 @@ export async function generateStaticVariants() {
 export default async function Page() {
   return (
     <>
-      <p id="theme">{await theme()}</p>
-      <p id="locale">{await locale()}</p>
+      <Suspense fallback={<p id="theme">pending</p>}>
+        <p id="theme">{theme()}</p>
+      </Suspense>
+      <Suspense fallback={<p id="locale">pending</p>}>
+        <p id="locale">{locale()}</p>
+      </Suspense>
     </>
   )
 }

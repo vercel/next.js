@@ -27,7 +27,9 @@ export default async function Page({
 }) {
   return (
     <>
-      <p id="theme">{await theme()}</p>
+      <Suspense fallback={<p id="theme">pending</p>}>
+        <p id="theme">{theme()}</p>
+      </Suspense>
       <Suspense fallback={<p id="search-params">pending</p>}>
         <SearchParams searchParams={searchParams} />
       </Suspense>

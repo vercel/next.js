@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+
 import { cacheLife, cacheTag } from 'next/cache'
 
 import { theme } from '../../../variants'
@@ -43,13 +45,9 @@ async function cachedByTheme(currentTheme: string, slug: string) {
   return { currentTheme, renderedAt: new Date().toISOString() }
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  // TODO: Allow this without parent Suspense if at least one theme was
-  // prerendered.
+// The variant is read here rather than in the page, so that a boundary sits
+// above it. The cached call depends on the value, so it moves with the read.
+async function Cached({ params }: { params: Promise<{ slug: string }> }) {
   const currentTheme = await theme()
   const { slug } = await params
   const cached = await cachedByTheme(currentTheme, slug)
@@ -59,5 +57,24 @@ export default async function Page({
       <p id="theme">{cached.currentTheme}</p>
       <p id="rendered-at">{cached.renderedAt}</p>
     </>
+  )
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <p id="theme">pending</p>
+          <p id="rendered-at">pending</p>
+        </>
+      }
+    >
+      <Cached params={params} />
+    </Suspense>
   )
 }

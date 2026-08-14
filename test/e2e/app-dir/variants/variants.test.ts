@@ -1,5 +1,7 @@
 import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
-import { findPort } from 'next-test-utils'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from '../../../lib/router-act'
+import { findPort, retry } from 'next-test-utils'
 import { NEXT_VARIANTS_QUERY_PARAM } from 'next/dist/lib/constants'
 import { hashVariants } from 'next/dist/server/variants/hash'
 import { findVariantGroupsForPathname } from 'next/dist/server/variants/manifest'
@@ -125,14 +127,20 @@ describe('variants', () => {
     expect(light('#theme').text()).toBe('light')
   })
 
-  if (isNextStart) {
+  if (isNextStart || isNextDeploy) {
     it('should serve a route without dynamic segments from its own prerender', async () => {
       for (const theme of ['light', 'dark']) {
         const response = await next.fetch(url('/paramless'), {
           headers: { cookie: `theme=${theme}` },
         })
 
-        expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        if (isNextDeploy) {
+          expect(response.headers.get('x-vercel-cache')).toMatch(
+            /^(HIT|PRERENDER|STALE)$/
+          )
+        } else {
+          expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        }
         expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
       }
     })
@@ -146,7 +154,13 @@ describe('variants', () => {
           headers: { cookie: `theme=${theme}` },
         })
 
-        expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        if (isNextDeploy) {
+          expect(response.headers.get('x-vercel-cache')).toMatch(
+            /^(HIT|PRERENDER|STALE)$/
+          )
+        } else {
+          expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        }
         expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
       }
     })
@@ -249,6 +263,127 @@ describe('variants', () => {
     })
   }
 
+  if ((isNextStart || isNextDeploy) && process.env.__NEXT_CACHE_COMPONENTS) {
+    it('should prefetch a declared variant and leave an undeclared one to the navigation', async () => {
+      // `/on-demand/[slug]` declares `theme` and reads `banner`, which no
+      // combination declares. The declared value is baked into the artifact of
+      // the combination, so a prefetch carries it. The undeclared value is a
+      // hole that no artifact may contain, so the prefetch carries the fallback
+      // instead, and only the navigation resolves it.
+      let page: Playwright.Page | undefined
+
+      const browser = await next.browser(url('/prefetch-hub'), {
+        async beforePageLoad(p: Playwright.Page) {
+          page = p
+
+          await p.context().addCookies([
+            { name: 'theme', value: 'dark', url: next.url },
+            { name: 'banner', value: 'shown', url: next.url },
+          ])
+        },
+      })
+
+      if (!page) {
+        throw new Error('The page was not captured before it loaded.')
+      }
+
+      // A value behind a boundary reaches the payload as a row the boundary
+      // refers to, rather than inline, so these match the row.
+      const declaredValue = '"dark"\n'
+      const undeclaredValue = '"shown"\n'
+      const undeclaredFallback = '"id":"banner","children":"pending"'
+
+      // The shell of the route arrives in an app-shell prefetch, which `act`
+      // leaves out of matching unless a test asks for it. The values this test
+      // is about are in that response.
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // `act` states that a response contains something. That a response
+      // contains nothing has to be collected here, and it is the point of this
+      // test: a prefetch must not carry a value no combination declared.
+      const prefetched: string[] = []
+
+      const collect = async (response: Playwright.Response) => {
+        try {
+          prefetched.push(await response.text())
+        } catch {
+          // A response whose body is gone by now cannot carry the value either.
+        }
+      }
+
+      page.on('response', collect)
+
+      await act(
+        async () => {
+          const toggle = await browser.elementByCss(
+            'input[data-link-accordion="/on-demand/built"]'
+          )
+
+          await toggle.click()
+        },
+        { includes: declaredValue }
+      )
+
+      page.off('response', collect)
+
+      // The declared value ships with the prerender of its combination, so a
+      // prefetch carries it. The undeclared one is a hole no prerender holds,
+      // so the prefetch carries the fallback in its place instead.
+      expect(prefetched.some((body) => body.includes(undeclaredFallback))).toBe(
+        true
+      )
+      expect(prefetched.some((body) => body.includes(undeclaredValue))).toBe(
+        false
+      )
+
+      await act(async () => {
+        const link = await browser.elementByCss(
+          `a[href="${url('/on-demand/built')}"]`
+        )
+
+        await link.click()
+      })
+
+      // A value behind a boundary reaches the payload as a row the boundary
+      // refers to, so the rendered page is what states which values arrived.
+      await retry(async () => {
+        expect(await browser.elementByCss('#theme').text()).toBe('dark')
+        expect(await browser.elementByCss('#banner').text()).toBe('shown')
+      })
+
+      expect(await browser.elementByCss('#slug').text()).toBe('built')
+    })
+  }
+
+  it('should prefetch the combination of a param that was never enumerated', async () => {
+    // A prefetch asks for the RSC payload of the route, not for the page, so
+    // the path it requests carries a suffix. The prefixed rule of this route
+    // matches the plain shape only, and its param group can take a suffix as
+    // part of the param. A prefetch would then resolve the slug
+    // `never-enumerated.rsc`, and the payload would describe a different page
+    // than the one the link names.
+    //
+    // The assertion quotes the value, so a slug that kept the suffix does not
+    // satisfy it.
+    let page: Playwright.Page
+
+    const browser = await next.browser(url('/prefetch-hub'), {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+
+    const act = createRouterAct(page)
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/enumerated/never-enumerated"]'
+      )
+
+      await toggle.click()
+    })
+  })
+
   it('should resolve variants for a param that was never enumerated', async () => {
     // `on-demand` has no `generateStaticParams` row, so it is generated on
     // demand. The proxy has still resolved a combination for the request, and
@@ -272,21 +407,31 @@ describe('variants', () => {
     // only thing prerendered for it, and reading a variant above the boundary
     // means that shell can only exist if the combination is known. The param
     // itself stays a hole and resolves per request.
-    const dark = await next.render$(url('/shell/anything'), undefined, {
-      headers: { cookie: 'theme=dark' },
+    const dark = await next.browser(url('/shell/anything'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+      },
     })
 
-    expect(dark('#theme').text()).toBe('dark')
-    // The shell ships the boundary's fallback and the resolved param arrives
-    // after it, so both are present in the streamed HTML.
-    expect(dark('#slug').last().text()).toBe('anything')
-
-    const light = await next.render$(url('/shell/other'), undefined, {
-      headers: { cookie: 'theme=light' },
+    await retry(async () => {
+      expect(await dark.elementByCss('#theme').text()).toBe('dark')
+      expect(await dark.elementByCss('#slug').text()).toBe('anything')
     })
 
-    expect(light('#theme').text()).toBe('light')
-    expect(light('#slug').last().text()).toBe('other')
+    const light = await next.browser(url('/shell/other'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'light', url: next.url }])
+      },
+    })
+
+    await retry(async () => {
+      expect(await light.elementByCss('#theme').text()).toBe('light')
+      expect(await light.elementByCss('#slug').text()).toBe('other')
+    })
   })
 
   it('should read a variant no combination declared without partitioning on it', async () => {
@@ -295,20 +440,24 @@ describe('variants', () => {
     // served the shell declared for `theme=dark`, which bakes the theme and
     // leaves the banner a hole that each request fills for itself. Were the
     // banner part of the cache key instead, neither request would find a
-    // prerender at all.
-    const a = await next.render$(url('/shell/x'), undefined, {
-      headers: { cookie: 'theme=dark; banner=a' },
-    })
+    // prerender at all. The banner is behind a boundary and no prerender holds
+    // it, so the value arrives with the resume. The browser is what observes
+    // that; the document on its own still carries the fallback.
+    for (const banner of ['a', 'b']) {
+      const browser = await next.browser(url('/shell/x'), {
+        async beforePageLoad(page: Playwright.Page) {
+          await page.context().addCookies([
+            { name: 'theme', value: 'dark', url: next.url },
+            { name: 'banner', value: banner, url: next.url },
+          ])
+        },
+      })
 
-    expect(a('#theme').text()).toBe('dark')
-    expect(a('#banner').last().text()).toBe('a')
-
-    const b = await next.render$(url('/shell/x'), undefined, {
-      headers: { cookie: 'theme=dark; banner=b' },
-    })
-
-    expect(b('#theme').text()).toBe('dark')
-    expect(b('#banner').last().text()).toBe('b')
+      await retry(async () => {
+        expect(await browser.elementByCss('#theme').text()).toBe('dark')
+        expect(await browser.elementByCss('#banner').text()).toBe(banner)
+      })
+    }
   })
 
   it('should not bake a variant no combination declared into a prerender generated on demand', async () => {
@@ -317,32 +466,44 @@ describe('variants', () => {
     // That entry's key covers the param and the declared combination, but not
     // `banner`, so baking the banner would serve this request's value to every
     // later one.
-    const first = await next.render$(url('/on-demand/fresh'), undefined, {
-      headers: { cookie: 'theme=dark; banner=first' },
-    })
+    for (const banner of ['first', 'second']) {
+      const cookies = async (page: Playwright.Page) => {
+        await page.context().addCookies([
+          { name: 'theme', value: 'dark', url: next.url },
+          { name: 'banner', value: banner, url: next.url },
+        ])
+      }
 
-    expect(first('#theme').text()).toBe('dark')
-    expect(first('#banner').last().text()).toBe('first')
+      const browser = await next.browser(url('/on-demand/fresh'), {
+        beforePageLoad: cookies,
+      })
 
-    const second = await next.render$(url('/on-demand/fresh'), undefined, {
-      headers: { cookie: 'theme=dark; banner=second' },
-    })
-
-    expect(second('#theme').text()).toBe('dark')
-    expect(second('#banner').last().text()).toBe('second')
+      await retry(async () => {
+        expect(await browser.elementByCss('#theme').text()).toBe('dark')
+        expect(await browser.elementByCss('#banner').text()).toBe(banner)
+      })
+    }
   })
 
   it('should resolve a combination that was never declared', async () => {
     // `shell/[slug]` declares only `locale=en`, so this combination has no
     // prerender from the build. The proxy still resolved it, so a shell for it
     // is generated on demand rather than another combination's being served.
-    const $ = await next.render$(url('/shell/undeclared'), undefined, {
-      headers: { cookie: 'theme=dark; locale=de' },
+    const browser = await next.browser(url('/shell/undeclared'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page.context().addCookies([
+          { name: 'theme', value: 'dark', url: next.url },
+          { name: 'locale', value: 'de', url: next.url },
+        ])
+      },
     })
 
-    expect($('#theme').text()).toBe('dark')
-    expect($('#locale').text()).toBe('de')
-    expect($('#slug').last().text()).toBe('undeclared')
+    await retry(async () => {
+      expect(await browser.elementByCss('#theme').text()).toBe('dark')
+      expect(await browser.elementByCss('#locale').text()).toBe('de')
+    })
+
+    expect(await browser.elementByCss('#slug').text()).toBe('undeclared')
   })
 
   it('should not let a client name the combination it is served', async () => {
@@ -453,13 +614,21 @@ describe('variants', () => {
     // empty for exactly that reason, and a resume fills it. Without them there
     // are no holes to fill, so the request has to be rendered for itself and
     // must not seed the entry the declared combinations are served from.
-    const $ = await next.render$(url('/enumerated/a'), undefined, {
-      headers: { cookie: 'theme=dark; locale=de' },
+    const browser = await next.browser(url('/enumerated/a'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page.context().addCookies([
+          { name: 'theme', value: 'dark', url: next.url },
+          { name: 'locale', value: 'de', url: next.url },
+        ])
+      },
     })
 
-    expect($('#theme').text()).toBe('dark')
-    expect($('#locale').text()).toBe('de')
-    expect($('#slug').text()).toBe('a')
+    await retry(async () => {
+      expect(await browser.elementByCss('#theme').text()).toBe('dark')
+      expect(await browser.elementByCss('#locale').text()).toBe('de')
+    })
+
+    expect(await browser.elementByCss('#slug').text()).toBe('a')
   })
 
   // The other origin is a server on this machine's loopback interface, which a

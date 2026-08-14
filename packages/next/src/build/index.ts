@@ -3393,13 +3393,20 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
-                    // A prerender that omits variants is expected to be empty
-                    // when the route reads one above a boundary. Once the
-                    // values are gone, nothing static remains. That describes
-                    // the route, and is not a mistake to report.
+                    // A prerender that omits the variants answers every request
+                    // whose combination was not declared, and nothing later
+                    // replaces it, because a combination is not an axis a
+                    // prerender is produced for. It therefore may not be empty,
+                    // which requires a boundary above each variant read.
+                    //
+                    // Such a prerender is allowed to be empty only where the
+                    // params say so, which is where a concrete prerender backs
+                    // the shell. A route without params has no such entry, so
+                    // an absent value is not an allowance for it.
                     _allowEmptyStaticShell:
-                      route.omitsVariants === true ||
-                      !route.throwOnEmptyStaticShell,
+                      route.omitsVariants === true
+                        ? route.throwOnEmptyStaticShell === false
+                        : !route.throwOnEmptyStaticShell,
                     _variantValues: route.variantValues,
                     // A fallback shell can only be upgraded if at least one of
                     // its fallback params is a `generateStaticParams` candidate,
