@@ -281,6 +281,24 @@ fn join_atoms(atoms: &[Atom]) -> String {
         .join(",")
 }
 
+/// Returns whether `filepath` is a file inside `app_dir`.
+///
+/// The App Router file conventions are matched by filename. The same filenames
+/// are also valid Pages Router routes, where the conventions do not apply.
+/// `pages/sitemap.js` is an ordinary page, not a sitemap. Gate App Router
+/// checks on this function to keep them out of the Pages Router.
+fn is_in_app_dir(app_dir: &Option<PathBuf>, filepath: &str) -> bool {
+    let Some(app_dir) = app_dir.as_ref().and_then(|app_dir| app_dir.to_str()) else {
+        return false;
+    };
+
+    // The rest of the path must start with a separator. A plain prefix match
+    // would also accept a sibling directory such as `apparel` for `app`.
+    filepath
+        .strip_prefix(app_dir.trim_end_matches(['/', '\\']))
+        .is_some_and(|rest| rest.starts_with(['/', '\\']))
+}
+
 /// Consolidated place to parse, generate error messages for the RSC parsing
 /// errors.
 fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorKind) {
@@ -315,18 +333,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             (msg, vec![span])
         }
         RSCErrorKind::NextRscErrClientImport((source, span)) => {
-            let is_app_dir = app_dir
-                .as_ref()
-                .map(|app_dir| {
-                    if let Some(app_dir) = app_dir.as_os_str().to_str() {
-                        filepath.starts_with(app_dir)
-                    } else {
-                        false
-                    }
-                })
-                .unwrap_or_default();
-
-            let msg = if !is_app_dir {
+            let msg = if !is_in_app_dir(app_dir, filepath) {
                 format!("You're importing a module that depends on \"{source}\". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
                 format!("You're importing a module that depends on \"{source}\" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with \"use client\", so this module is also a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
@@ -842,11 +849,7 @@ impl ReactServerComponentValidator {
 
         let is_error_file = re.is_match(&self.filepath);
 
-        if is_error_file
-            && let Some(app_dir) = &self.app_dir
-            && let Some(app_dir) = app_dir.to_str()
-            && self.filepath.starts_with(app_dir)
-        {
+        if is_error_file && is_in_app_dir(&self.app_dir, &self.filepath) {
             let span = if let Some(first_item) = module.body.first() {
                 first_item.span()
             } else {
@@ -910,13 +913,10 @@ impl ReactServerComponentValidator {
             r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
         ))
         .unwrap();
-        let is_app_entry = re.is_match(&self.filepath);
+        let is_app_entry =
+            re.is_match(&self.filepath) && is_in_app_dir(&self.app_dir, &self.filepath);
 
-        if is_app_entry
-            && let Some(app_dir) = &self.app_dir
-            && let Some(app_dir) = app_dir.to_str()
-            && self.filepath.starts_with(app_dir)
-        {
+        if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
                 FxIndexMap::default();
 

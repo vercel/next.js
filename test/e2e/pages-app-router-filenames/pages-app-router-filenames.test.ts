@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('pages-metadata-filenames', () => {
+describe('pages-app-router-filenames', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -13,5 +13,10 @@ describe('pages-metadata-filenames', () => {
   it('should support getServerSideProps in a page named robots', async () => {
     const $ = await next.render$('/robots')
     expect($('#page').text()).toBe('robots')
+  })
+
+  it('should support getStaticProps in a page named page', async () => {
+    const $ = await next.render$('/page')
+    expect($('#page').text()).toBe('page')
   })
 })

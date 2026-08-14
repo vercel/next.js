@@ -100,6 +100,10 @@ fn react_server_components_errors(input: PathBuf) {
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
     let taint_enabled = input.iter().any(|s| s.to_str() == Some("taint-enabled"));
 
+    // A path segment named `app-dir` marks the fixture as an App Router file.
+    // Everything up to and including that segment becomes `appDir`. A fixture
+    // without the segment compiles as a Pages Router file, so the checks that
+    // only apply inside `appDir` do not run for it.
     let app_dir = input
         .iter()
         .position(|s| s.to_str() == Some("app-dir"))
