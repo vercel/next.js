@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-scope-hoisting/esmodule-marker/input/dep.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-scope-hoisting/esmodule-marker/input/index.js"],"sourcesContent":["'use strict'\n\n// The shape every TypeScript-compiled CommonJS module has. The `__esModule`\n// marker writes to `exports`, which a merged module has no binding for, so the\n// merge has to drop the call rather than emit it.\nObject.defineProperty(exports, '__esModule', { value: true })\n\nfunction greet(name) {\n  return 'hi ' + name\n}\n\nexports.greet = greet\n","'use strict'\n\nconst { greet } = require('./dep')\n\nexports.greeting = greet('world')\n"],"names":["greet","name"],"mappings":";;;;;;AAEA,4EAA4E;AAC5E,+EAA+E;AAC/E,kDAAkD;;AAGlD,SAASA,MAAMC,IAAI;IACjB,OAAO,QAAQA;AACjB;SAEgBD;;;;ACThB,MAAM,EAAE,OAAA,MAAK,EAAE;;;YAEI,OAAM"}}]
+}

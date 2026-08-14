@@ -131,22 +131,27 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
 
         let inner_span = tracing::info_span!("collect mergeable modules");
-        let mergeable = module_graph
+        let mergeable_modules = module_graph
             .iter_reachable_modules()?
             .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
-                    && *mergeable.is_mergeable().await?
+                    && let Some(kind) = *mergeable.merge_kind().await?
                 {
-                    return Ok(Some(module));
+                    return Ok(Some((module, kind)));
                 }
                 Ok(None)
             })
             .try_flat_join()
             .instrument(inner_span)
-            .await?
+            .await?;
+
+        let merge_kinds: FxHashMap<_, _> = mergeable_modules.iter().copied().collect();
+
+        let mergeable: FxHashSet<_> = mergeable_modules
             .into_iter()
-            .collect::<FxHashSet<_>>();
+            .map(|(module, _)| module)
+            .collect();
 
         // Pre-fetch async status for all mergeable modules using keyed access to avoid
         // reading the full AsyncModulesInfo set during the synchronous traversal below.
@@ -194,13 +199,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     && let Some(parent_module) = parent_module
                     && mergeable.contains(&parent_module)
                     && mergeable.contains(&module)
+                    // Only merge modules of the same kind: ESM importing ESM, or CommonJS
+                    // requiring CommonJS.
+                    && merge_kinds.get(&parent_module) == merge_kinds.get(&module)
                     && !async_modules.contains(&parent_module)
                     && !async_modules.contains(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
                     // A hoisted reference from a mergeable module to a non-async mergeable
-                    // module, inherit bitmaps from parent.
+                    // module of the same kind, inherit bitmaps from parent.
                     module_merged_groups.entry(node).or_default();
                     let [Some(parent_merged_groups), Some(current_merged_groups)] =
                         module_merged_groups.get_disjoint_mut([&parent_module, &node])

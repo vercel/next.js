@@ -233,7 +233,9 @@ impl CodeGen {
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
             Self::MemberReplacement(v) => v.code_generation(ctx).await,
             Self::Unreachable(v) => v.code_generation(ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,

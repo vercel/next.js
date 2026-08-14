@@ -170,11 +170,12 @@ pub trait ChunkableModule: Module {
 // module types)
 #[turbo_tasks::value_trait]
 pub trait MergeableModule: Module {
-    /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
-    /// mergeability
+    /// Whether the module can be merged, and if so whether it is ESM or CommonJS.
+    /// `None` means it can't be merged. Only modules of the same kind are merged into a
+    /// group, as mixing them requires interop between the two export shapes.
     #[turbo_tasks::function]
-    fn is_mergeable(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
+    fn merge_kind(self: Vc<Self>) -> Vc<OptionMergeableModuleKind> {
+        Vc::cell(Some(MergeableModuleKind::EcmaScript))
     }
 
     /// Create a new module representing the merged content of the given `modules`.
@@ -199,6 +200,16 @@ impl MergeableModules {
         Vc::cell(modules)
     }
 }
+
+#[derive(Copy, Clone, Debug, Hash)]
+#[turbo_tasks::value(shared)]
+pub enum MergeableModuleKind {
+    EcmaScript,
+    CommonJs,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionMergeableModuleKind(Option<MergeableModuleKind>);
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
 #[turbo_tasks::task_input]
