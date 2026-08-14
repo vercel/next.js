@@ -65,6 +65,39 @@ pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result
     ))
 }
 
+/// The Pages renderer selected dynamically by `pages/module.compiled` in Turbopack production
+/// builds. A Pages API endpoint can load the compiled module through a vendored context when an
+/// external dependency imports `next/head`, but neither dynamic edge is visible in its module
+/// graph. Include the renderer as an explicit Pages trace entry so that its runtime closure is
+/// available when the endpoint initializes.
+#[turbo_tasks::function]
+pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
+    let asset_context = Vc::upcast(externals_tracing_module_context(
+        get_tracing_compile_time_info(),
+        false,
+    ));
+    let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
+        asset_context,
+        get_next_package(project_path).await?.join("_")?,
+    ));
+
+    Ok(Vc::cell(
+        cjs_resolve(
+            next_resolve_origin,
+            Request::parse_string(
+                "next/dist/compiled/next-server/pages-turbo.runtime.prod.js".into(),
+            ),
+            CommonJsReferenceSubType::Undefined,
+            None,
+            ResolveErrorMode::Error,
+        )
+        .await?
+        .primary_modules()
+        .await?
+        .to_vec(),
+    ))
+}
+
 #[turbo_tasks::task_input]
 #[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
 enum ServerNftType {
