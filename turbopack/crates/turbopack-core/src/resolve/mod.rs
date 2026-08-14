@@ -970,6 +970,12 @@ impl ResolveResult {
     /// (prefix) is replaced with the `request_key`. It's not expected that the [ResolveResult]
     /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
     /// some, they are discarded.
+    ///
+    /// The conditions of the existing keys are kept (the `request_key`'s conditions are added on
+    /// top): they are what distinguishes results that a single request resolved to under different
+    /// export conditions (e.g. the `module-sync` and the `default` target of the same subpath, both
+    /// of which have to be kept because either can be picked at runtime), so dropping them would
+    /// collapse those results into one key.
     #[turbo_tasks::function]
     fn with_replaced_request_key(
         &self,
@@ -987,7 +993,16 @@ impl ResolveResult {
                             .request
                             .as_ref()
                             .map(|r| format!("{r}{remaining}").into()),
-                        conditions: request_key.conditions.clone(),
+                        conditions: if request_key.conditions.is_empty() {
+                            k.conditions.clone()
+                        } else {
+                            k.conditions.extend(
+                                request_key
+                                    .conditions
+                                    .iter()
+                                    .map(|(condition, value)| (condition.clone(), *value)),
+                            )
+                        },
                     },
                     v.clone(),
                 ))
