@@ -25,6 +25,7 @@ enum BaseServerSpan {
 enum LoadComponentsSpan {
   loadDefaultErrorComponents = 'LoadComponents.loadDefaultErrorComponents',
   loadComponents = 'LoadComponents.loadComponents',
+  loadRouteModule = 'LoadComponents.loadRouteModule',
 }
 
 enum NextServerSpan {
@@ -148,6 +149,7 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
