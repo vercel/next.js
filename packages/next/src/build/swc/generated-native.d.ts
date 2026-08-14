@@ -471,6 +471,7 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
+
 /** Keep in sync with [`next_core::next_config::Rewrites`] */
 export interface NapiRewrites {
   fallback: Array<NapiRewrite>
@@ -589,6 +590,11 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -698,11 +704,6 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
-
-export declare function projectActivateLazyChunk(
-  project: { __napiType: 'Project' },
-  chunkPath: RcStr
-): Promise<boolean>
 
 /**
  * Subscribes to lifecycle events of the compilation.
