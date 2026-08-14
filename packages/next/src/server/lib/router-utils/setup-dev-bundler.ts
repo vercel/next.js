@@ -26,6 +26,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
+import { getConventionFileBaseName } from '../../../build/get-convention-file-base-name'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -471,7 +472,8 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { base: fileBase, dir: fileDir } = path.parse(fileName)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
