@@ -1024,7 +1024,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1107,7 +1107,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.23
@@ -1228,19 +1228,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1956,7 +1956,7 @@ importers:
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.7.2
-        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+        version: 3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -1983,7 +1983,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.3.1-canary.17
+        specifier: 16.3.1-canary.18
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -21867,7 +21867,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       '@napi-rs/cross-toolchain': 1.0.3
@@ -21882,7 +21882,7 @@ snapshots:
       semver: 7.8.5
       typanion: 3.14.0
     optionalDependencies:
-      '@emnapi/runtime': 1.9.2
+      '@emnapi/runtime': 1.11.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
