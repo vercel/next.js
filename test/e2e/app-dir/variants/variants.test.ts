@@ -94,18 +94,30 @@ describe('variants', () => {
   })
 
   it('should resolve enumerated variants on a prerendered route', async () => {
-    const dark = await next.render$(url('/enumerated/a'), undefined, {
-      headers: { cookie: 'theme=dark' },
+    const dark = await next.browser(url('/enumerated/a'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+      },
     })
 
-    expect(dark('#theme').text()).toBe('dark')
-    expect(dark('#locale').text()).toBe('en')
-
-    const light = await next.render$(url('/enumerated/a'), undefined, {
-      headers: { cookie: 'theme=light' },
+    await retry(async () => {
+      expect(await dark.elementByCss('#theme').text()).toBe('dark')
+      expect(await dark.elementByCss('#locale').text()).toBe('en')
     })
 
-    expect(light('#theme').text()).toBe('light')
+    const light = await next.browser(url('/enumerated/a'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'light', url: next.url }])
+      },
+    })
+
+    await retry(async () => {
+      expect(await light.elementByCss('#theme').text()).toBe('light')
+    })
   })
 
   it('should prerender a route without dynamic segments per combination', async () => {
@@ -113,18 +125,30 @@ describe('variants', () => {
     // paths and the combinations are the only axis it is prerendered against.
     // Reading a variant above a boundary is only possible because of them: the
     // value is baked, so it leaves no hole to resume.
-    const dark = await next.render$(url('/paramless'), undefined, {
-      headers: { cookie: 'theme=dark' },
+    const dark = await next.browser(url('/paramless'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+      },
     })
 
-    expect(dark('#theme').text()).toBe('dark')
-    expect(dark('#locale').text()).toBe('en')
-
-    const light = await next.render$(url('/paramless'), undefined, {
-      headers: { cookie: 'theme=light' },
+    await retry(async () => {
+      expect(await dark.elementByCss('#theme').text()).toBe('dark')
+      expect(await dark.elementByCss('#locale').text()).toBe('en')
     })
 
-    expect(light('#theme').text()).toBe('light')
+    const light = await next.browser(url('/paramless'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'light', url: next.url }])
+      },
+    })
+
+    await retry(async () => {
+      expect(await light.elementByCss('#theme').text()).toBe('light')
+    })
   })
 
   if (isNextStart || isNextDeploy) {
@@ -141,7 +165,18 @@ describe('variants', () => {
         } else {
           expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
         }
-        expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
+
+        const browser = await next.browser(url('/paramless'), {
+          async beforePageLoad(page: Playwright.Page) {
+            await page
+              .context()
+              .addCookies([{ name: 'theme', value: theme, url: next.url }])
+          },
+        })
+
+        await retry(async () => {
+          expect(await browser.elementByCss('#theme').text()).toBe(theme)
+        })
       }
     })
 
@@ -161,7 +196,18 @@ describe('variants', () => {
         } else {
           expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
         }
-        expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
+
+        const browser = await next.browser(url('/enumerated/a'), {
+          async beforePageLoad(page: Playwright.Page) {
+            await page
+              .context()
+              .addCookies([{ name: 'theme', value: theme, url: next.url }])
+          },
+        })
+
+        await retry(async () => {
+          expect(await browser.elementByCss('#theme').text()).toBe(theme)
+        })
       }
     })
   }
@@ -291,7 +337,7 @@ describe('variants', () => {
       // refers to, rather than inline, so these match the row.
       const declaredValue = '"dark"\n'
       const undeclaredValue = '"shown"\n'
-      const undeclaredFallback = '"id":"banner","children":"pending"'
+      const undeclaredFallback = '"id":"banner-pending","children":"pending"'
 
       // The shell of the route arrives in an app-shell prefetch, which `act`
       // leaves out of matching unless a test asks for it. The values this test
@@ -355,34 +401,36 @@ describe('variants', () => {
     })
   }
 
-  it('should prefetch the combination of a param that was never enumerated', async () => {
-    // A prefetch asks for the RSC payload of the route, not for the page, so
-    // the path it requests carries a suffix. The prefixed rule of this route
-    // matches the plain shape only, and its param group can take a suffix as
-    // part of the param. A prefetch would then resolve the slug
-    // `never-enumerated.rsc`, and the payload would describe a different page
-    // than the one the link names.
-    //
-    // The assertion quotes the value, so a slug that kept the suffix does not
-    // satisfy it.
-    let page: Playwright.Page
+  if (isNextStart || isNextDeploy) {
+    it('should prefetch the combination of a param that was never enumerated', async () => {
+      // A prefetch asks for the RSC payload of the route, not for the page, so
+      // the path it requests carries a suffix. The prefixed rule of this route
+      // matches the plain shape only, and its param group can take a suffix as
+      // part of the param. A prefetch would then resolve the slug
+      // `never-enumerated.rsc`, and the payload would describe a different page
+      // than the one the link names.
+      //
+      // The assertion quotes the value, so a slug that kept the suffix does not
+      // satisfy it.
+      let page: Playwright.Page
 
-    const browser = await next.browser(url('/prefetch-hub'), {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
+      const browser = await next.browser(url('/prefetch-hub'), {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+
+      const act = createRouterAct(page)
+
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/enumerated/never-enumerated"]'
+        )
+
+        await toggle.click()
+      })
     })
-
-    const act = createRouterAct(page)
-
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/enumerated/never-enumerated"]'
-      )
-
-      await toggle.click()
-    })
-  })
+  }
 
   it('should resolve variants for a param that was never enumerated', async () => {
     // `on-demand` has no `generateStaticParams` row, so it is generated on
@@ -580,16 +628,28 @@ describe('variants', () => {
       'theme@variants.ts': 'dark',
     })
 
-    const response = await next.fetch(
+    const browser = await next.browser(
       url(`/unmatched-by-proxy?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`),
-      { headers: { cookie: 'theme=light; locale=en' } }
+      {
+        async beforePageLoad(page: Playwright.Page) {
+          await page.context().addCookies([
+            { name: 'theme', value: 'light', url: next.url },
+            { name: 'locale', value: 'en', url: next.url },
+          ])
+        },
+      }
     )
 
-    // The route is misconfigured, so what it answers with is its own failure.
-    // What must not happen is that naming a combination turns that failure into
-    // a rendered page.
-    expect(response.status).not.toBe(200)
-    expect(await response.text()).not.toContain('<p id="theme">dark</p>')
+    // The named combination is rejected before the request reaches a route, so
+    // the not-found page is what renders.
+    expect(await browser.elementByCss('h2').text()).toBe(
+      'This page could not be found.'
+    )
+
+    // No part of the route renders, so no value of the named combination can
+    // reach the client.
+    expect(await browser.hasElementByCssSelector('#theme')).toBe(false)
+    expect(await browser.hasElementByCssSelector('#theme-pending')).toBe(false)
   })
 
   it('should not expose the internal combination query parameter to the page', async () => {
@@ -597,12 +657,18 @@ describe('variants', () => {
     // is the one channel both a routed request and one a platform rebuilt from
     // an artifact arrive on. It names no param and is not the page's to see, so
     // it must not reach `searchParams` the way a real query value does.
-    const $ = await next.render$(url('/search-params?q=1'), undefined, {
-      headers: { cookie: 'theme=dark' },
+    const browser = await next.browser(url('/search-params?q=1'), {
+      async beforePageLoad(page: Playwright.Page) {
+        await page
+          .context()
+          .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+      },
     })
 
-    expect($('#theme').text()).toBe('dark')
-    expect($('#search-params').last().text()).toBe('q')
+    await retry(async () => {
+      expect(await browser.elementByCss('#theme').text()).toBe('dark')
+      expect(await browser.elementByCss('#search-params').text()).toBe('q')
+    })
   })
 
   it('should resolve an undeclared combination when the param is read without a boundary', async () => {

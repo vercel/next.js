@@ -35,10 +35,10 @@ export default async function Page({
 
   return (
     <>
-      <Suspense fallback={<p id="theme">pending</p>}>
+      <Suspense fallback={<p id="theme-pending">pending</p>}>
         <p id="theme">{theme()}</p>
       </Suspense>
-      <Suspense fallback={<p id="locale">pending</p>}>
+      <Suspense fallback={<p id="locale-pending">pending</p>}>
         <p id="locale">{locale()}</p>
       </Suspense>
       <p id="slug">{slug}</p>

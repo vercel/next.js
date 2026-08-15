@@ -19,11 +19,11 @@ export default async function Page({
 
   return (
     <>
-      <Suspense fallback={<p id="theme">pending</p>}>
+      <Suspense fallback={<p id="theme-pending">pending</p>}>
         <p id="theme">{theme()}</p>
       </Suspense>
       <p id="slug">{slug}</p>
-      <Suspense fallback={<p id="banner">pending</p>}>
+      <Suspense fallback={<p id="banner-pending">pending</p>}>
         <p id="banner">{banner()}</p>
       </Suspense>
     </>

@@ -27,10 +27,10 @@ export default async function Page({
 }) {
   return (
     <>
-      <Suspense fallback={<p id="theme">pending</p>}>
+      <Suspense fallback={<p id="theme-pending">pending</p>}>
         <p id="theme">{theme()}</p>
       </Suspense>
-      <Suspense fallback={<p id="search-params">pending</p>}>
+      <Suspense fallback={<p id="search-params-pending">pending</p>}>
         <SearchParams searchParams={searchParams} />
       </Suspense>
     </>

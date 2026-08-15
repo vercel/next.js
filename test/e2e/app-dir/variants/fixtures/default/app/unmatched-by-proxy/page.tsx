@@ -6,7 +6,9 @@ import { locale, theme } from '../../variants'
 // `config.matcher`, which is a misconfiguration a project can write today: the
 // matcher and the table of variants per route are separate, and nothing makes
 // them agree. The proxy therefore resolves nothing for a request here, and an
-// honest request fails on the first read.
+// honest request never renders a variant value. Without a prerendered shell to
+// serve, the first read fails the request. With one, the shell is served with a
+// 200 and the read fails during the resume, so its boundaries stay pending.
 //
 // It exists to hold that shape still, because the failure it causes is not the
 // interesting one. A request that names a combination itself would otherwise be
@@ -32,10 +34,10 @@ export async function generateStaticVariants() {
 export default async function Page() {
   return (
     <>
-      <Suspense fallback={<p id="theme">pending</p>}>
+      <Suspense fallback={<p id="theme-pending">pending</p>}>
         <p id="theme">{theme()}</p>
       </Suspense>
-      <Suspense fallback={<p id="locale">pending</p>}>
+      <Suspense fallback={<p id="locale-pending">pending</p>}>
         <p id="locale">{locale()}</p>
       </Suspense>
     </>

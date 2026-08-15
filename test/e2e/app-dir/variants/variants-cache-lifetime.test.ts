@@ -1,4 +1,5 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
+import type * as Playwright from 'playwright'
 import { retry } from 'next-test-utils'
 import { hashVariants } from 'next/dist/server/variants/hash'
 
@@ -28,9 +29,9 @@ describe('variants with a cache lifetime per combination', () => {
       headers: { cookie: 'theme=dark' },
     })
 
-    expect(before('#theme').last().text()).toBe('dark')
+    expect(before('#theme').text()).toBe('dark')
 
-    const renderedAt = before('#rendered-at').last().text()
+    const renderedAt = before('#rendered-at').text()
     expect(renderedAt).not.toBe('')
 
     const revalidateRes = await next.fetch(url('/revalidate?tag=lifetime-r'))
@@ -46,11 +47,11 @@ describe('variants with a cache lifetime per combination', () => {
         headers: { cookie: 'theme=dark' },
       })
 
-      expect(after('#rendered-at').last().text()).not.toBe(renderedAt)
+      expect(after('#rendered-at').text()).not.toBe(renderedAt)
 
       // The point of the test: the render that produced the replacement still
       // resolved the variant.
-      expect(after('#theme').last().text()).toBe('dark')
+      expect(after('#theme').text()).toBe('dark')
     })
   })
 
@@ -59,7 +60,7 @@ describe('variants with a cache lifetime per combination', () => {
       headers: { cookie: 'theme=dark' },
     })
 
-    expect($('#theme').last().text()).toBe('dark')
+    expect($('#theme').text()).toBe('dark')
   })
 
   if (isNextStart) {
@@ -68,19 +69,45 @@ describe('variants with a cache lifetime per combination', () => {
       // read outside and passed in. The `cacheLife` it selects propagates to
       // the document, so two combinations of one route expire differently and
       // each needs its own prerender manifest entry to say so.
-      const dark = await next.fetch(url('/lifetime/a'), {
+      const darkResponse = await next.fetch(url('/lifetime/a'), {
         headers: { cookie: 'theme=dark' },
       })
 
-      expect(await dark.text()).toContain('<p id="theme">dark</p>')
-      expect(dark.headers.get('cache-control')).toContain('s-maxage=3600')
+      expect(darkResponse.headers.get('cache-control')).toContain(
+        's-maxage=3600'
+      )
 
-      const light = await next.fetch(url('/lifetime/a'), {
+      const darkBrowser = await next.browser(url('/lifetime/a'), {
+        async beforePageLoad(page: Playwright.Page) {
+          await page
+            .context()
+            .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+        },
+      })
+
+      await retry(async () => {
+        expect(await darkBrowser.elementByCss('#theme').text()).toBe('dark')
+      })
+
+      const lightResponse = await next.fetch(url('/lifetime/a'), {
         headers: { cookie: 'theme=light' },
       })
 
-      expect(await light.text()).toContain('<p id="theme">light</p>')
-      expect(light.headers.get('cache-control')).toContain('s-maxage=60')
+      expect(lightResponse.headers.get('cache-control')).toContain(
+        's-maxage=60'
+      )
+
+      const lightBrowser = await next.browser(url('/lifetime/a'), {
+        async beforePageLoad(page: Playwright.Page) {
+          await page
+            .context()
+            .addCookies([{ name: 'theme', value: 'light', url: next.url }])
+        },
+      })
+
+      await retry(async () => {
+        expect(await lightBrowser.elementByCss('#theme').text()).toBe('light')
+      })
     })
 
     it('should describe the prerender that omits variants on the clean path', async () => {

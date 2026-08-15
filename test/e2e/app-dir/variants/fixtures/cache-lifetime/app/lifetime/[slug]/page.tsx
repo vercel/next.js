@@ -66,14 +66,7 @@ export default async function Page({
   params: Promise<{ slug: string }>
 }) {
   return (
-    <Suspense
-      fallback={
-        <>
-          <p id="theme">pending</p>
-          <p id="rendered-at">pending</p>
-        </>
-      }
-    >
+    <Suspense fallback={<p id="cached-pending">pending</p>}>
       <Cached params={params} />
     </Suspense>
   )
