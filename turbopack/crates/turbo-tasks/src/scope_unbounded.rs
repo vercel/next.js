@@ -19,7 +19,7 @@ use std::{
     },
 };
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Condvar, Mutex, RwLock};
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
@@ -77,6 +77,25 @@ struct UnboundedInner<'run, T: Send + 'static, R> {
     /// in the channel are still delivered, and a racing `spawn` must become a no-op before it
     /// touches `remaining_tasks`.
     aborted: AtomicBool,
+    /// Number of drainers that have **entered** [`UnboundedInner::drain`] but not yet finished
+    /// merging. Incremented as that function's first statement and decremented after its merge, so
+    /// a non-zero value means some thread may still dereference the `run`/`init`/`merge` pointers
+    /// into the caller's frame.
+    ///
+    /// This is what [`Joiner::drop`] joins on, and it is deliberately *not* `remaining_tasks`:
+    /// a drainer merges its accumulator **after** its loop exits, which is strictly after the
+    /// `on_item_finished` that drove `remaining_tasks` to zero. Joining on the item count would
+    /// free the frame while a helper was still inside `(self.merge)(..)`.
+    ///
+    /// Only helpers that actually started running are counted, which is the whole point: the
+    /// unstarted ones are cancelled outright (see [`Joiner::drop`]), so the join never waits on a
+    /// task the scheduler has not yet polled.
+    active_drainers: AtomicUsize,
+    /// Woken when `active_drainers` hits zero, so the joining thread can park instead of spinning.
+    drainers_done: Condvar,
+    /// Mutex the joining thread holds while waiting on `drainers_done`. Guards no data — the count
+    /// itself is atomic; this exists only because `Condvar` requires a lock to wait on.
+    drainers_done_mutex: Mutex<()>,
     /// Reference to the per-item closure (with turbo-tasks context re-established), shared by
     /// every drainer. It lives on `scope_unbounded`'s stack, with its `'env` borrows erased to
     /// `'static` here; see the `SAFETY` comment there.
@@ -148,6 +167,11 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
     /// shared slot once, at the end — so `run` can accumulate without touching shared state per
     /// item.
     fn drain(&self) {
+        // Register *before* touching anything reached through `self`. `Joiner::drop` joins on this
+        // count, and only a drainer that has incremented it may dereference the `run`/`init`/
+        // `merge` pointers into the caller's frame. `(self.init)()` below is already such a
+        // dereference, so the increment has to come first.
+        self.active_drainers.fetch_add(1, Ordering::Relaxed);
         let mut acc = (self.init)();
         // `recv` blocks while the queue is empty and fails once the sender is dropped and the
         // buffer is drained, so this ends exactly when the scope is finished.
@@ -182,11 +206,25 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
         }
 
         // Fold this drainer's accumulator into the shared slot.
-        let mut slot = self.results.lock();
-        *slot = Some(match slot.take() {
-            Some(existing) => (self.merge)(existing, acc),
-            None => acc,
-        });
+        {
+            let mut slot = self.results.lock();
+            *slot = Some(match slot.take() {
+                Some(existing) => (self.merge)(existing, acc),
+                None => acc,
+            });
+        }
+
+        // Last dereference of the caller's frame is done; release our registration. `Release` pairs
+        // with the `Acquire` load in `Joiner::drop`, so a joiner that observes zero also observes
+        // this drainer's merged results.
+        //
+        // The lock is taken around the notify (rather than just before it) so this can't slot
+        // between the joiner's count check and its `wait`, which would lose the wakeup and park it
+        // forever.
+        if self.active_drainers.fetch_sub(1, Ordering::Release) == 1 {
+            let _guard = self.drainers_done_mutex.lock();
+            self.drainers_done.notify_all();
+        }
     }
 }
 
@@ -242,9 +280,11 @@ fn enqueue<T: Send + 'static, R>(inner: &UnboundedInner<'_, T, R>, item: T) {
 /// Use [`scope_unbounded_with`] to accumulate a value instead.
 ///
 /// `run` is shared across the calling thread and up to `runtime workers - 1` helper tasks and may
-/// run concurrently. The calling thread drains the whole (growing) queue itself if no helper is
-/// scheduled, so it never deadlocks on a thread-limited runtime. Prefer calling from
-/// `spawn_blocking` when other work shares the task.
+/// run concurrently. Helpers are a pure optimization: the calling thread drains the whole (growing)
+/// queue itself, and the join cancels any helper the scheduler never polled rather than waiting for
+/// it — so this does not deadlock on a thread-limited or fully-occupied runtime, even one where
+/// every other worker is blocked on a lock the caller holds. Prefer calling from `spawn_blocking`
+/// when other work shares the task.
 ///
 /// Items must be `'static` (they sit in a queue drained by helper threads); the `run` closure may
 /// borrow `'env` data.
@@ -341,6 +381,9 @@ where
         work_queue: receiver,
         work_queue_sender: RwLock::new(Some(sender)),
         aborted: AtomicBool::new(false),
+        active_drainers: AtomicUsize::new(0),
+        drainers_done: Condvar::new(),
+        drainers_done_mutex: Mutex::new(()),
         run,
         results: Mutex::new(None),
         init: init_ref,
@@ -353,29 +396,55 @@ where
     struct Joiner<'a, 'run, T: Send + 'static, R> {
         inner: &'a UnboundedInner<'run, T, R>,
         helpers: tokio::task::JoinSet<()>,
-        handle: Handle,
     }
     impl<T: Send + 'static, R> Drop for Joiner<'_, '_, T, R> {
         fn drop(&mut self) {
             // Empty-initial / already-drained: nothing will `close`, so do it here.
             self.inner.close_if_idle();
-            // The calling thread is a drainer too, and was registered before this guard was built.
+            // The calling thread is a drainer too: it drains the whole (growing) queue itself, so
+            // all the *work* is guaranteed done by the time this returns, with no help from the
+            // scheduler.
             self.inner.drain();
-            // Awaiting each helper task to completion is what joins the scope: a task only
-            // finishes after its `drain` loop returned and merged, so this subsumes any counter
-            // check. Dropping the handles instead would merely detach them.
-            if !self.helpers.is_empty() {
-                let _span = info_span!("blocking").entered();
-                let helpers = &mut self.helpers;
-                // `block_on` panics if called bare on a runtime thread; `block_in_place` moves us
-                // off the scheduler first. Only reachable on a multi-thread runtime, since a
-                // current-thread runtime spawns no helpers at all (and `block_in_place` would
-                // panic there).
-                block_in_place(|| {
-                    self.handle
-                        .block_on(async { while helpers.join_next().await.is_some() {} })
-                });
+
+            // Everything below is purely about lifetimes, not work: `run`/`init`/`merge` point into
+            // this frame, so no helper may dereference them after we return.
+            //
+            // Helpers split into exactly two sets, and each is handled without ever waiting on the
+            // scheduler to run one:
+            //
+            // - **Never polled.** `abort()` on an idle task atomically claims it and marks it
+            //   cancelled (`transition_to_shutdown`), so it will never run its body and never
+            //   touches this frame. This is what makes the join independent of scheduling — the
+            //   previous version awaited these handles, which deadlocks whenever the runtime has no
+            //   thread to spare (every worker parked, e.g. blocked on a lock the caller holds).
+            // - **Already running.** `abort()` cannot preempt them: `drain` is synchronous, so
+            //   there is no await point to cancel at and the cancel bit is only observed once the
+            //   poll completes. These are exactly the drainers counted in `active_drainers`, and
+            //   waiting for that count to reach zero is bounded — each is already on a thread, the
+            //   queue is closed, so its `recv` returns `Err` and it finishes without needing to be
+            //   scheduled again.
+            //
+            // The two sets partition the helpers with no gap: a task that wins the idle race never
+            // increments, and one that has begun polling incremented before it could touch
+            // anything (see `drain`).
+            self.helpers.abort_all();
+
+            // Fast path: no helper ever entered (single-worker runtime, or all cancelled above).
+            if self.inner.active_drainers.load(Ordering::Acquire) == 0 {
+                return;
             }
+            let _span = info_span!("blocking").entered();
+            // Hand the worker slot back while parked so the runtime can keep making progress —
+            // this is a courtesy, not a correctness requirement, since the drainers we wait on are
+            // already running. Only reachable on a multi-thread runtime: a current-thread runtime
+            // spawns no helpers, so the count is zero and we returned above (and `block_in_place`
+            // would panic there).
+            block_in_place(|| {
+                let mut guard = self.inner.drainers_done_mutex.lock();
+                while self.inner.active_drainers.load(Ordering::Acquire) != 0 {
+                    self.inner.drainers_done.wait(&mut guard);
+                }
+            });
         }
     }
 
@@ -409,7 +478,6 @@ where
     let joiner = Joiner {
         inner: &inner,
         helpers,
-        handle: handle.clone(),
     };
 
     // Count the seeding loop itself as one outstanding item. Helpers are already draining, so
