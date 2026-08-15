@@ -1123,7 +1123,7 @@ impl<'a> Analyzer<'a, '_> {
                 arrow_expr,
                 ArrowExprField::Body,
             ));
-            self.visit_block_stmt_or_expr(body, &mut ast_path);
+            self.visit_arrow_function_body(body, &mut ast_path);
         }
 
         {
@@ -1157,8 +1157,9 @@ impl<'a> Analyzer<'a, '_> {
             is_generator: _,
             params,
             return_type,
-            span: _,
             type_params,
+            this_param: _,
+            span: _,
             ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
@@ -1180,7 +1181,7 @@ impl<'a> Analyzer<'a, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
 
-            self.visit_opt_block_stmt(body, &mut ast_path);
+            self.visit_opt_function_body(body, &mut ast_path);
         }
 
         {
@@ -1259,27 +1260,29 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: BlockStmtOrExpr::BlockStmt(_),
+                            body: ArrowFunctionBody::FunctionBody(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(
-                                BlockStmtOrExprField::BlockStmt,
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::FunctionBody,
                             ));
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: BlockStmtOrExpr::Expr(_),
+                            body: ArrowFunctionBody::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::Expr,
+                            ));
                             Some(path)
                         }
                         _ => None,
@@ -1932,7 +1935,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
                 expr.body.visit_with_ast_path(this, &mut ast_path);
                 // If body is a single expression treat it as a Block with an return statement
-                if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
+                if let ArrowFunctionBody::Expr(inner_expr) = &*expr.body {
                     let implicit_return_value = this.eval_context.eval(this.arena, inner_expr);
                     this.add_return_value(implicit_return_value);
                 }
