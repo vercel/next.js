@@ -67,4 +67,24 @@ describe('next/head', () => {
       'hello'
     )
   })
+
+  it('should warn and ignore invalid head tags', async () => {
+    const browser = await webdriver(next.url, '/invalid-head')
+
+    await browser.waitForElementByCss('h1')
+
+    const browserLogs = await browser.log()
+    const warning = browserLogs.find(({ message }) =>
+      message.includes('Do not use <html> in next/head')
+    )
+
+    expect(warning).toBeTruthy()
+    expect(await browser.eval(() => document.title)).toBe('Invalid Head')
+    expect(
+      await browser.eval(() => document.head.querySelector('title')?.textContent)
+    ).toBe('Invalid Head')
+    expect(
+      await browser.eval(() => document.body.querySelector('html'))
+    ).toBeNull()
+  })
 })

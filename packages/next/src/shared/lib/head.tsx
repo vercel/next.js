@@ -47,6 +47,19 @@ function onlyReactElement(
 }
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
+const VALID_HEAD_TAGS = new Set([
+  'base',
+  'link',
+  'meta',
+  'noscript',
+  'script',
+  'style',
+  'title',
+])
+
+function isValidHeadTag(h: React.ReactElement<any>) {
+  return typeof h.type !== 'string' || VALID_HEAD_TAGS.has(h.type)
+}
 
 /*
  returns a function for filtering head child elements
@@ -121,6 +134,16 @@ function reduceComponents(
 ) {
   return headChildrenElements
     .reduce(onlyReactElement, [])
+    .filter((h) => {
+      if (!isValidHeadTag(h)) {
+        warnOnce(
+          `Do not use <${h.type}> in next/head. It will be ignored. See: https://nextjs.org/docs/messages/no-head-element`
+        )
+        return false
+      }
+
+      return true
+    })
     .reverse()
     .concat(defaultHead().reverse())
     .filter(unique())
