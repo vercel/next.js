@@ -974,7 +974,7 @@ impl ResolveResult {
     fn with_replaced_request_key(
         &self,
         old_request_key: RcStr,
-        request_key: RequestKey,
+        new_request_key: RcStr,
     ) -> Result<Vc<Self>> {
         let new_primary = self
             .primary
@@ -983,11 +983,8 @@ impl ResolveResult {
                 let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
                 Some((
                     RequestKey {
-                        request: request_key
-                            .request
-                            .as_ref()
-                            .map(|r| format!("{r}{remaining}").into()),
-                        conditions: request_key.conditions.clone(),
+                        request: Some(format!("{new_request_key}{remaining}").into()),
+                        conditions: k.conditions.clone(),
                     },
                     v.clone(),
                 ))
@@ -2665,12 +2662,11 @@ async fn apply_in_package(
         };
 
         let refs = refs.clone();
-        let request_key = RequestKey::new(request.clone());
 
         if value.as_bool() == Some(false) {
             return Ok(Some(ResolveResultOrCell::Value(
                 ResolveResult::primary_with_affecting_sources(
-                    request_key,
+                    RequestKey::new(request.clone()),
                     ResolveResultItem::Ignore,
                     refs,
                 ),
@@ -2689,7 +2685,7 @@ async fn apply_in_package(
                     .with_fragment(fragment.clone()),
                 options,
             )
-            .with_replaced_request_key(value.into(), request_key);
+            .with_replaced_request_key(value.into(), request.clone());
             if options_value.collect_affecting_sources && !refs.is_empty() {
                 result = result.with_affecting_sources(refs.into_iter().map(|src| *src).collect());
             }
@@ -2831,7 +2827,7 @@ async fn resolve_module_request(
                         fragment.clone(),
                         options,
                     )
-                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone())),
+                    .with_replaced_request_key(rcstr!("."), name.clone()),
                 );
             }
             FindPackageItem::PackageFile { name, file } => {
@@ -2848,7 +2844,7 @@ async fn resolve_module_request(
                     )
                     .await?
                     .into_cell()
-                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone()));
+                    .with_replaced_request_key(rcstr!("."), name.clone());
                     results.push(resolved_result)
                 }
             }

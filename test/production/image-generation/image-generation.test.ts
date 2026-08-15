@@ -5,7 +5,7 @@ describe('image-generation', () => {
     const { next, isNextStart } = nextTestSetup({
       files: __dirname,
       dependencies: {
-        '@vercel/og': '0.11.1',
+        '@vercel/og': 'latest',
       },
     })
 

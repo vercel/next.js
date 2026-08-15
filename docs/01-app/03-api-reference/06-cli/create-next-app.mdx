@@ -142,7 +142,7 @@ You can view a list of all available examples along with setup instructions in t
 
 ### With any public GitHub example
 
-To create a new app using any public GitHub example, use the `--example` option with the GitHub repo's URL. For example:
+To create a new app using any public GitHub example, use the `--example` option with the GitHub repository's URL. For example:
 
 ```bash package="pnpm"
 pnpm create next-app --example "https://github.com/.../" [your-project-name]

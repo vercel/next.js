@@ -15,11 +15,11 @@ pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
+pub mod removal;
 pub mod require_context;
 pub mod service_worker;
 pub mod type_issue;
 pub mod typescript;
-pub mod unreachable;
 pub mod util;
 pub mod worker;
 
@@ -40,6 +40,7 @@ use indexmap::map::Entry;
 use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
+use removal::RemovalCodeGen;
 use rustc_hash::{FxHashMap, FxHashSet};
 use service_worker::ServiceWorkerAssetReference;
 use swc_core::{
@@ -92,12 +93,9 @@ use turbopack_core::{
 };
 use turbopack_resolve::{ecmascript::cjs_resolve_source, typescript::tsconfig};
 use turbopack_swc_utils::emitter::IssueEmitter;
-use unreachable::Unreachable;
 use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplacementCodeGen};
 
-pub use crate::references::esm::export::{
-    FollowExportsResult, apply_reexport_tree_shaking, follow_reexports,
-};
+pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
     ModuleTypeResult, TypeofWindow,
@@ -113,6 +111,7 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
+    chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
     module_fragments::{part_of_module, split_module},
@@ -168,6 +167,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    /// Present when the module is a statically-analyzable CommonJS module;
+    /// carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 #[turbo_tasks::value_impl]
@@ -225,6 +227,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     side_effects: ModuleSideEffects,
+    cjs_static_exports: Option<CjsStaticExports>,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -244,6 +247,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             side_effects: ModuleSideEffects::SideEffectful,
+            cjs_static_exports: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -430,6 +434,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
+                cjs_static_exports: self.cjs_static_exports,
             },
         ))
     }
@@ -461,7 +466,6 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_webpack_exports_info: bool,
     module_fragments_enabled: bool,
-    follow_reexports: bool,
     cjs_tree_shaking: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
@@ -829,6 +833,7 @@ async fn analyze_ecmascript_module_internal(
                 supports_block_scoping,
                 specified_type,
                 options.cjs_tree_shaking,
+                options.cjs_scope_hoisting,
             ));
         });
         graph.unwrap()
@@ -840,6 +845,8 @@ async fn analyze_ecmascript_module_internal(
         let effects = take(&mut var_graph.effects);
         // How each `require("…")` call's result is used, keyed by call position.
         let require_binding_usage = take(&mut var_graph.require_usage);
+        // The module's static CommonJS exports, if any, for scope hoisting.
+        analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
@@ -863,7 +870,6 @@ async fn analyze_ecmascript_module_internal(
             first_import_meta: true,
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
-            follow_reexports: options.follow_reexports,
             cjs_tree_shaking: options.cjs_tree_shaking,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
@@ -879,6 +885,10 @@ async fn analyze_ecmascript_module_internal(
         enum Action<'a> {
             Effect(Effect<'a>),
             LeaveScope(u32),
+        }
+
+        fn unreachable_comment() -> RcStr {
+            rcstr!("TURBOPACK unreachable")
         }
 
         // This is a stack of effects to process. We use a stack since during processing
@@ -912,9 +922,10 @@ async fn analyze_ecmascript_module_internal(
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
-                    analysis.add_code_gen(Unreachable::new(AstPathRange::StartAfter(
-                        start_ast_path.to_vec(),
-                    )));
+                    analysis.add_code_gen(RemovalCodeGen::new(
+                        unreachable_comment(),
+                        AstPathRange::StartAfter(start_ast_path.to_vec()),
+                    ));
                 }
                 Effect::Conditional {
                     mut condition,
@@ -933,7 +944,10 @@ async fn analyze_ecmascript_module_internal(
                     macro_rules! inactive {
                         ($block:ident) => {
                             if analyze_mode.is_code_gen() {
-                                analysis.add_code_gen(Unreachable::new($block.range.clone()));
+                                analysis.add_code_gen(RemovalCodeGen::new(
+                                    unreachable_comment(),
+                                    $block.range.clone(),
+                                ));
                             }
                         };
                     }
@@ -1701,8 +1715,6 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         origin,
         source,
         ignore_dynamic_requests,
-        follow_reexports,
-        module_fragments_enabled,
         ..
     } = state;
 
@@ -1749,7 +1761,6 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         error_mode,
         state.import_externals,
         export_usage,
-        follow_reexports && !module_fragments_enabled,
     )
     .await
 }
@@ -1767,7 +1778,6 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
-    follow_reexports: bool,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1826,7 +1836,6 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
-                follow_reexports,
             )
             .await?,
             ast_path.to_vec().into(),
@@ -2132,7 +2141,6 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
-                state.follow_reexports && !state.module_fragments_enabled,
             )
             .await?;
         }

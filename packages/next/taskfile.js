@@ -145,6 +145,9 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
     // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry

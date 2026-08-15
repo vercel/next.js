@@ -7,9 +7,11 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
-    bindgen_prelude::{Buffer, External, ToNapiValue},
-    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Env, Status, Unknown,
+    bindgen_prelude::{
+        Buffer, External, ExternalRef, FunctionRef, JsObjectValue, JsValue, Object, ToNapiValue,
+    },
+    threadsafe_function::{ThreadsafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use next_code_frame::{
@@ -90,7 +92,7 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<RootTask>,
 ) -> napi::Result<()> {
     if let Some(task) = root_task.task_id.take() {
         root_task
@@ -406,35 +408,40 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
+        let result_raw = unsafe { T::to_napi_value(env, val.result)? };
+        let result = unsafe { Unknown::from_raw_unchecked(env, result_raw) };
 
-        let result = unsafe {
-            let result = T::to_napi_value(env, val.result)?;
-            JsUnknown::from_raw(env, result)?
+        // When the result is an object, extend it in place with the `issues`
+        // property. Otherwise, produce a fresh object holding only `issues`.
+        let mut obj = if matches!(result.get_type()?, napi::ValueType::Object) {
+            Object::from_raw(env, result_raw)
+        } else {
+            Object::new(&Env::from_raw(env))?
         };
-        if matches!(result.get_type()?, napi::ValueType::Object) {
-            // SAFETY: We know that result is an object, so we can cast it to a JsObject
-            let result = unsafe { result.cast::<JsObject>() };
-
-            for key in JsObject::keys(&result)? {
-                let value: JsUnknown = result.get_named_property(&key)?;
-                obj.set_named_property(&key, value)?;
-            }
-        }
 
         obj.set_named_property("issues", val.issues)?;
 
-        Ok(unsafe { obj.raw() })
+        Ok(obj.raw())
     }
 }
 
-pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
+pub fn subscribe<
+    T: 'static + Send + Sync,
+    F: Future<Output = Result<T>> + Send,
+    V: 'static + ToNapiValue,
+>(
     ctx: NextTurbopackContext,
-    func: JsFunction,
+    env: &Env,
+    func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
-    mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
+    mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
 ) -> napi::Result<External<RootTask>> {
-    let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
+    let js_func = func.borrow_back(env)?;
+    let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
+        .build_threadsafe_function::<T>()
+        .callee_handled::<true>()
+        .build_callback(mapper)?;
+    let func = Arc::new(func);
     let task_id = ctx.turbo_tasks().spawn_root_task({
         let ctx = ctx.clone();
         move || {

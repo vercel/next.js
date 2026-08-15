@@ -58,6 +58,7 @@ impl EcmascriptBuildNodeChunkListContent {
     pub async fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
         chunks: ResolvedVc<OutputAssets>,
+        referenced_assets: ResolvedVc<OutputAssets>,
         references: ResolvedVc<OutputAssetsReferences>,
     ) -> Result<Vc<Self>> {
         let output_root = chunking_context.output_root().owned().await?;
@@ -66,12 +67,24 @@ impl EcmascriptBuildNodeChunkListContent {
         // imported chunks. `inner=false`: only follow Reference edges (async
         // loaders), not Asset-adjacent files like source maps that aren't part
         // of the module graph and can't be hot-reloaded.
+        //
+        // `referenced_assets` covers async chunks that were already expanded by
+        // the caller (e.g. chunks reachable from concatenated chunk groups).
+        // They must be tracked here too, otherwise an edit inside one of them
+        // produces no chunk list update at all.
         let async_chunks = expand_output_assets(
-            references
+            referenced_assets
                 .await?
                 .iter()
                 .copied()
-                .map(ExpandOutputAssetsInput::Reference),
+                .map(ExpandOutputAssetsInput::Asset)
+                .chain(
+                    references
+                        .await?
+                        .iter()
+                        .copied()
+                        .map(ExpandOutputAssetsInput::Reference),
+                ),
             false,
         )
         .await?;

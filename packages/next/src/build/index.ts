@@ -151,7 +151,11 @@ import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  compareAppPaths,
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -192,10 +196,6 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -797,7 +797,7 @@ async function writeStandaloneDirectory(
   nextBuildSpan: Span,
   distDir: string,
   pageKeys: { pages: string[]; app: string[] | undefined },
-  denormalizedAppPages: string[] | undefined,
+  appPageKeys: string[] | undefined,
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
@@ -815,7 +815,7 @@ async function writeStandaloneDirectory(
         requiredServerFiles.appDir,
         distDir,
         pageKeys.pages,
-        denormalizedAppPages,
+        appPageKeys,
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
@@ -1494,10 +1494,14 @@ export default async function build(
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<string>()
-      let denormalizedAppPages: string[] | undefined
+
+      // Discovery produces the entries we ask the compiler to build. Keep this
+      // input separate from the entries the compiler actually emits.
+      let discoveredAppPageKeys: string[] | undefined
+      let emittedAppPageKeys: string[] | undefined
       if (discovery.mappedAppPages) {
-        denormalizedAppPages = Object.keys(discovery.mappedAppPages)
-        for (const appKey of denormalizedAppPages) {
+        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages)
+        for (const appKey of discoveredAppPageKeys) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = NextBuildContext.mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -1665,7 +1669,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+      const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -2178,8 +2182,32 @@ export default async function build(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
+        // The app paths manifest contains only entries the compiler emitted.
+        // Post-build consumers use this filtered list so they do not look for
+        // output files belonging to candidates that were not emitted.
+        const emittedAppPageKeySet = new Set(Object.keys(appPathsManifest))
+        emittedAppPageKeys = discoveredAppPageKeys?.filter((appPageKey) =>
+          emittedAppPageKeySet.has(appPageKey)
+        )
+
+        const appPathsByPathname = new Map<string, string[]>()
         for (const key in appPathsManifest) {
-          appPathRoutes[key] = normalizeAppPath(key)
+          const pathname = normalizeAppPath(key)
+          const routeAppPaths = appPathsByPathname.get(pathname)
+          if (routeAppPaths) {
+            routeAppPaths.push(key)
+          } else {
+            appPathsByPathname.set(pathname, [key])
+          }
+        }
+
+        // Legacy deployment builders collapse this manifest by pathname using
+        // the final entry. Keep that entry aligned with selectAppPageEntry so
+        // the traced module and the module loaded at runtime cannot diverge.
+        for (const [pathname, routeAppPaths] of appPathsByPathname) {
+          for (const key of routeAppPaths.sort(compareAppPaths)) {
+            appPathRoutes[key] = pathname
+          }
         }
 
         await writeManifest(
@@ -2254,7 +2282,6 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
@@ -2366,6 +2393,7 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
+                  const originalAppPaths: string[] = []
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
@@ -2373,13 +2401,16 @@ export default async function build(
                       normalizedPath === page &&
                       mappedAppPages[originalPath]
                     ) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
+                      originalAppPaths.push(originalPath)
                     }
+                  }
+
+                  if (originalAppPaths.length > 0) {
+                    originalAppPath = selectAppPageEntry(page, originalAppPaths)
+                    pagePath = mappedAppPages[originalAppPath].replace(
+                      /^private-next-app-dir/,
+                      ''
+                    )
                   }
                 }
 
@@ -2487,7 +2518,6 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,
@@ -2912,10 +2942,6 @@ export default async function build(
           invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
         },
         {
-          featureName: 'experimental/ppr',
-          invocationCount: config.experimental.ppr ? 1 : 0,
-        },
-        {
           featureName: 'turbopackFileSystemCache',
           invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
             ? 1
@@ -3103,7 +3129,7 @@ export default async function build(
                 const isDynamicError = appConfig?.dynamic === 'error'
 
                 const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr)
+                  ? isAppCacheComponentsEnabled
                   : false
 
                 routes.forEach((route) => {
@@ -3305,8 +3331,7 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr)
+              !isAppRouteHandler && isAppCacheComponentsEnabled
                 ? true
                 : undefined
 
@@ -4454,7 +4479,7 @@ export default async function build(
               hasInstrumentationHook,
               adapterPath,
               pageKeys: pageKeys.pages,
-              appPageKeys: denormalizedAppPages,
+              appPageKeys: emittedAppPageKeys,
               routesManifest,
               prerenderManifest,
               middlewareManifest,
@@ -4474,7 +4499,7 @@ export default async function build(
               nextBuildSpan,
               distDir,
               pageKeys,
-              denormalizedAppPages,
+              emittedAppPageKeys,
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,

@@ -239,6 +239,7 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    pub cjs_scope_hoisting: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -853,7 +854,14 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
+        let exports = compute_ecmascript_module_exports(self, None).await?.exports;
+        if let EcmascriptExports::CommonJs(_) = &*exports.await? {
+            return Ok(EcmascriptExports::CommonJs(
+                self.analyze().await?.cjs_static_exports.clone(),
+            )
+            .cell());
+        }
+        Ok(*exports)
     }
 
     #[turbo_tasks::function]
