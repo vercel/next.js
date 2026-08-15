@@ -59,5 +59,4 @@ export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 export type StaticPathsResult = {
   fallbackMode: FallbackMode | undefined
   prerenderedRoutes: PrerenderedRoute[] | undefined
-  hasPrerenderMatcher?: true
 }

@@ -21,17 +21,23 @@ import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
-export type PrerenderParamMode =
-  | 'not-found'
-  | 'blocking'
-  | 'fallback'
-  | 'dynamic'
+export const PRERENDER_PARAM_MODES = [
+  'not-found',
+  'blocking',
+  'fallback',
+  'dynamic',
+] as const
+
+export type PrerenderParamMode = (typeof PRERENDER_PARAM_MODES)[number]
 
 export type PrerenderMatcher = Record<string, PrerenderParamMode>
 
 type GeneratePrerenderMatcher = () => unknown | Promise<unknown>
 
-export type PrerenderMatcherExport =
+export type PrerenderMatcherExport = {
+  readonly visibleParamNames: readonly string[]
+  readonly treePath: readonly string[]
+} & (
   | {
       readonly kind: 'static'
       readonly value: unknown
@@ -40,11 +46,17 @@ export type PrerenderMatcherExport =
       readonly kind: 'generated'
       readonly generate: GeneratePrerenderMatcher
     }
+)
 
 /**
  * Parses the app config and attaches it to the segment.
  */
-function attach(segment: AppSegment, userland: unknown, route: string) {
+function attach(
+  segment: AppSegment,
+  userland: unknown,
+  route: string,
+  matcherScope: Pick<PrerenderMatcherExport, 'visibleParamNames' | 'treePath'>
+) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
@@ -94,6 +106,7 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
 
     if (hasStaticMatcher) {
       segment.prerenderMatcher = {
+        ...matcherScope,
         kind: 'static',
         value: userland.unstable_matcher,
       }
@@ -104,6 +117,7 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
         )
       }
       segment.prerenderMatcher = {
+        ...matcherScope,
         kind: 'generated',
         generate: userland.unstable_generateMatcher as GeneratePrerenderMatcher,
       }
@@ -116,8 +130,6 @@ export type AppSegment = {
   paramName: string | undefined
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
-  visibleParamNames: readonly string[]
-  treePath: readonly string[]
   config: AppSegmentConfig | undefined
   prerenderMatcher: PrerenderMatcherExport | undefined
   generateStaticParams: GenerateStaticParams | undefined
@@ -166,8 +178,6 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath,
-      visibleParamNames: currentVisibleParamNames,
-      treePath,
       config: undefined,
       prerenderMatcher: undefined,
       generateStaticParams: undefined,
@@ -175,7 +185,10 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
-      attach(segment, userland, routeModule.definition.pathname)
+      attach(segment, userland, routeModule.definition.pathname, {
+        visibleParamNames: currentVisibleParamNames,
+        treePath,
+      })
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -228,18 +241,14 @@ async function collectAppRouteSegments(
   }
 
   // Generate all the segments.
-  const visibleParamNames: string[] = []
   const segments: AppSegment[] = parts.map((name) => {
     const param = getSegmentParam(name)
-    if (param) visibleParamNames.push(param.paramName)
 
     return {
       name,
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath: undefined,
-      visibleParamNames: visibleParamNames.slice(),
-      treePath: [],
       config: undefined,
       prerenderMatcher: undefined,
       generateStaticParams: undefined,
@@ -253,7 +262,10 @@ async function collectAppRouteSegments(
   segment.filePath = routeModule.definition.filename
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland, routeModule.definition.pathname)
+  attach(segment, routeModule.userland, routeModule.definition.pathname, {
+    visibleParamNames: [],
+    treePath: [],
+  })
 
   return segments
 }

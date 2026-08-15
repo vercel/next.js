@@ -8,7 +8,6 @@ import {
   generateRouteStaticParams,
 } from './app'
 import {
-  applyPrerenderMatcherShellValidation,
   compilePrerenderMatcher,
   validatePrerenderMatcherParams,
 } from './prerender-matcher'
@@ -60,11 +59,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['lang', false], ['top', true], ['bottom', true])
-    )
-    applyPrerenderMatcherShellValidation(
-      prerenderedRoutes,
-      pathnameSegments('lang', 'top', 'bottom'),
+      pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
       {
         policy: { lang: 'not-found', top: 'blocking' },
         lastBlockingParamIndex: 1,
@@ -99,11 +94,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['lang', false], ['top', true], ['bottom', true])
-    )
-    applyPrerenderMatcherShellValidation(
-      prerenderedRoutes,
-      pathnameSegments('lang', 'top', 'bottom'),
+      pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
       {
         policy: {
           lang: 'not-found',
@@ -661,12 +652,10 @@ const createMatcherSegment = ({
   paramName: undefined,
   paramType: undefined,
   filePath,
-  visibleParamNames,
-  treePath,
   config: undefined,
   prerenderMatcher: generate
-    ? { kind: 'generated', generate }
-    : { kind: 'static', value: matcher },
+    ? { kind: 'generated', generate, visibleParamNames, treePath }
+    : { kind: 'static', value: matcher, visibleParamNames, treePath },
   generateStaticParams: undefined,
 })
 

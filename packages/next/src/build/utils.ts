@@ -671,7 +671,6 @@ export function printCustomRoutes({
 type PageIsStaticResult = {
   isRoutePPREnabled?: boolean
   isStatic?: boolean
-  hasPrerenderMatcher?: true
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
@@ -776,7 +775,6 @@ export async function isPageStatic({
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderFallbackMode: FallbackMode | undefined
-      let hasPrerenderMatcher: true | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
@@ -897,33 +895,30 @@ export async function isPageStatic({
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
           } else {
-            ;({
-              prerenderedRoutes,
-              fallbackMode: prerenderFallbackMode,
-              hasPrerenderMatcher,
-            } = await buildAppStaticPaths({
-              dir,
-              page,
-              route,
-              cacheComponents,
-              experimentalPrerenderMatching,
-              authInterrupts,
-              useCacheTimeout,
-              staticPageGenerationTimeout,
-              segments,
-              distDir,
-              requestHeaders: {},
-              isrFlushToDisk,
-              cacheMaxMemorySize,
-              cacheHandler,
-              cacheLifeProfiles,
-              ComponentMod,
-              nextConfigOutput,
-              isRoutePPREnabled,
-              buildId,
-              deploymentId,
-              rootParamKeys,
-            }))
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              await buildAppStaticPaths({
+                dir,
+                page,
+                route,
+                cacheComponents,
+                experimentalPrerenderMatching,
+                authInterrupts,
+                useCacheTimeout,
+                staticPageGenerationTimeout,
+                segments,
+                distDir,
+                requestHeaders: {},
+                isrFlushToDisk,
+                cacheMaxMemorySize,
+                cacheHandler,
+                cacheLifeProfiles,
+                ComponentMod,
+                nextConfigOutput,
+                isRoutePPREnabled,
+                buildId,
+                deploymentId,
+                rootParamKeys,
+              }))
           }
         }
       } else {
@@ -994,7 +989,6 @@ export async function isPageStatic({
       return {
         isStatic,
         isRoutePPREnabled,
-        hasPrerenderMatcher,
         prerenderFallbackMode,
         prerenderedRoutes,
         rootParamKeys,

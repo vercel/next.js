@@ -1,10 +1,11 @@
 import type { Params } from '../../server/request/params'
-import type { AppSegment } from '../segment-config/app/app-segments'
-import type {
-  PrerenderMatcher,
-  PrerenderParamMode,
+import {
+  PRERENDER_PARAM_MODES,
+  type AppSegment,
+  type PrerenderMatcher,
+  type PrerenderParamMode,
 } from '../segment-config/app/app-segments'
-import type { FallbackRouteParam, PrerenderedRoute } from './types'
+import type { FallbackRouteParam } from './types'
 import { FallbackMode } from '../../lib/fallback'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 
@@ -17,6 +18,10 @@ function getValueType(value: unknown): string {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
   return typeof value
+}
+
+function isPrerenderParamMode(value: unknown): value is PrerenderParamMode {
+  return PRERENDER_PARAM_MODES.includes(value as PrerenderParamMode)
 }
 
 function isTreePathPrefix(
@@ -47,7 +52,7 @@ function validateMatcherExport(
     )
   }
 
-  const visibleParamNames = new Set(segment.visibleParamNames)
+  const visibleParamNames = new Set(segment.prerenderMatcher!.visibleParamNames)
   const matcher: PrerenderMatcher = {}
   for (const [paramName, mode] of Object.entries(
     value as Record<string, unknown>
@@ -62,12 +67,7 @@ function validateMatcherExport(
         `Invalid parameter "${paramName}" in \`${exportName}\` for "${page}". The export in "${segment.filePath}" may only configure parameters defined at or above its segment.`
       )
     }
-    if (
-      mode !== 'not-found' &&
-      mode !== 'blocking' &&
-      mode !== 'fallback' &&
-      mode !== 'dynamic'
-    ) {
+    if (!isPrerenderParamMode(mode)) {
       throw new Error(
         `Invalid mode for parameter "${paramName}" in \`${exportName}\` for "${page}". Expected "not-found", "blocking", "fallback", or "dynamic", but received ${JSON.stringify(mode)}.`
       )
@@ -79,7 +79,8 @@ function validateMatcherExport(
 
 type MatcherCandidate = {
   readonly mode: PrerenderParamMode
-  readonly segment: Readonly<AppSegment>
+  readonly filePath: string | undefined
+  readonly treePath: readonly string[]
 }
 
 export async function compilePrerenderMatcher(
@@ -89,7 +90,11 @@ export async function compilePrerenderMatcher(
 ): Promise<PrerenderMatcherPlan | undefined> {
   const matcherSegments = segments
     .filter((segment) => segment.prerenderMatcher !== undefined)
-    .sort((a, b) => a.treePath.length - b.treePath.length)
+    .sort(
+      (a, b) =>
+        a.prerenderMatcher!.treePath.length -
+        b.prerenderMatcher!.treePath.length
+    )
 
   if (matcherSegments.length === 0) return undefined
 
@@ -118,17 +123,21 @@ export async function compilePrerenderMatcher(
       let shadowedByDescendant = false
 
       for (const candidate of current) {
-        if (isTreePathPrefix(candidate.segment.treePath, segment.treePath)) {
+        if (isTreePathPrefix(candidate.treePath, matcherExport.treePath)) {
           continue
         }
-        if (isTreePathPrefix(segment.treePath, candidate.segment.treePath)) {
+        if (isTreePathPrefix(matcherExport.treePath, candidate.treePath)) {
           shadowedByDescendant = true
         }
         next.push(candidate)
       }
 
       if (!shadowedByDescendant) {
-        next.push({ mode, segment })
+        next.push({
+          mode,
+          filePath: segment.filePath,
+          treePath: matcherExport.treePath,
+        })
       }
       candidates.set(paramName, next)
     }
@@ -141,7 +150,7 @@ export async function compilePrerenderMatcher(
       const definitions = paramCandidates
         .map(
           (candidate) =>
-            `${candidate.segment.filePath ?? '<unknown module>'} (${candidate.mode})`
+            `${candidate.filePath ?? '<unknown module>'} (${candidate.mode})`
         )
         .join(', ')
       throw new Error(
@@ -151,12 +160,6 @@ export async function compilePrerenderMatcher(
     policy[paramName] = mode
   }
 
-  const phase: Record<PrerenderParamMode, number> = {
-    'not-found': 0,
-    blocking: 1,
-    fallback: 2,
-    dynamic: 3,
-  }
   let previousPhase = -1
   let previousParamName: string | undefined
   let lastBlockingParamIndex = -1
@@ -164,7 +167,7 @@ export async function compilePrerenderMatcher(
     const paramName = pathnameSegments[index].paramName
     const mode = policy[paramName]
     if (!mode) continue
-    const currentPhase = phase[mode]
+    const currentPhase = PRERENDER_PARAM_MODES.indexOf(mode)
     if (currentPhase < previousPhase) {
       throw new Error(
         `Invalid prerender matcher for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters to follow not-found, blocking, fallback, then dynamic order.`
@@ -183,25 +186,18 @@ export function getPrerenderMatcherFallbackMode(
   fallbackRouteParams: readonly Pick<FallbackRouteParam, 'paramName'>[],
   inferredFallbackMode: FallbackMode | undefined
 ): FallbackMode | undefined {
-  let hasBlocking = false
-  let hasFallback = false
-
   for (const { paramName } of fallbackRouteParams) {
     switch (plan.policy[paramName]) {
       case 'not-found':
         return FallbackMode.NOT_FOUND
       case 'blocking':
-        hasBlocking = true
-        break
+        return FallbackMode.BLOCKING_STATIC_RENDER
       case 'fallback':
       case 'dynamic':
-        hasFallback = true
-        break
+        return FallbackMode.PRERENDER
     }
   }
 
-  if (hasBlocking) return FallbackMode.BLOCKING_STATIC_RENDER
-  if (hasFallback) return FallbackMode.PRERENDER
   return inferredFallbackMode
 }
 
@@ -268,87 +264,6 @@ export function validatePrerenderMatcherParams(
       throw new Error(
         `Route "${page}" must configure parameter "${paramName}" as "not-found" when using an unstable prerender matcher with "output: export".`
       )
-    }
-  }
-}
-
-function getKnownPrefixLength(
-  route: Readonly<PrerenderedRoute>,
-  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
-): number {
-  let length = 0
-  while (
-    length < pathnameSegments.length &&
-    route.params.hasOwnProperty(pathnameSegments[length].paramName)
-  ) {
-    length++
-  }
-  return length
-}
-
-function isRouteAncestor(
-  prefix: Readonly<PrerenderedRoute>,
-  route: Readonly<PrerenderedRoute>,
-  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
-): boolean {
-  for (const { paramName } of pathnameSegments) {
-    if (!prefix.params.hasOwnProperty(paramName)) return true
-    if (
-      JSON.stringify(prefix.params[paramName]) !==
-      JSON.stringify(route.params[paramName])
-    ) {
-      return false
-    }
-  }
-  return true
-}
-
-export function applyPrerenderMatcherShellValidation(
-  prerenderedRoutes: readonly PrerenderedRoute[],
-  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>,
-  plan: Readonly<PrerenderMatcherPlan>
-): void {
-  const candidates = prerenderedRoutes
-    .filter((route) => {
-      const fallbackRouteParams = route.fallbackRouteParams ?? []
-      return (
-        (route.fallbackMode === FallbackMode.PRERENDER &&
-          fallbackRouteParams.some(
-            ({ paramName }) => plan.policy[paramName] === 'fallback'
-          )) ||
-        (plan.lastBlockingParamIndex >= 0 &&
-          getKnownPrefixLength(route, pathnameSegments) ===
-            plan.lastBlockingParamIndex + 1 &&
-          (fallbackRouteParams.length === 0 ||
-            route.fallbackMode === FallbackMode.PRERENDER))
-      )
-    })
-    .sort(
-      (a, b) =>
-        getKnownPrefixLength(a, pathnameSegments) -
-          getKnownPrefixLength(b, pathnameSegments) ||
-        (b.fallbackRouteParams?.length ?? 0) -
-          (a.fallbackRouteParams?.length ?? 0)
-    )
-
-  const validationRoutes: PrerenderedRoute[] = []
-  for (const candidate of candidates) {
-    if (
-      validationRoutes.some((route) =>
-        isRouteAncestor(route, candidate, pathnameSegments)
-      )
-    ) {
-      continue
-    }
-    validationRoutes.push(candidate)
-  }
-
-  for (const route of prerenderedRoutes) {
-    const validationRoute = validationRoutes.find((candidate) =>
-      isRouteAncestor(candidate, route, pathnameSegments)
-    )
-    if (validationRoute) {
-      route.throwOnEmptyStaticShell = route === validationRoute
     }
   }
 }

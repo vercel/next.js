@@ -1094,21 +1094,18 @@ export function createAppPageEntrypoint({
             return null
           }
 
-          let fallbackMode: FallbackMode | undefined
-
-          if (routeModule.isDev) {
-            // The dev prerender manifest only has one route-wide fallback
-            // field. An explicit matcher can select a different mode for each
-            // generated prefix, so prefer the per-request mode that
-            // base-server derived from the most-specific matching prefix.
-            fallbackMode =
-              getRequestMeta(req, 'devPrerenderFallbackMode') ??
-              (prerenderInfo
-                ? parseFallbackField(prerenderInfo.fallback)
-                : undefined)
-          } else if (prerenderInfo) {
-            fallbackMode = parseFallbackField(prerenderInfo.fallback)
-          }
+          // The dev prerender manifest only has one route-wide fallback
+          // field. An explicit matcher can select a different mode for each
+          // generated prefix, so prefer the per-request mode that base-server
+          // derived from the most-specific matching prefix.
+          const devPrerenderFallbackMode = routeModule.isDev
+            ? getRequestMeta(req, 'devPrerenderFallbackMode')
+            : undefined
+          let fallbackMode =
+            devPrerenderFallbackMode ??
+            (prerenderInfo
+              ? parseFallbackField(prerenderInfo.fallback)
+              : undefined)
 
           if (
             nextConfig.partialPrefetching &&
@@ -1168,8 +1165,7 @@ export function createAppPageEntrypoint({
               // getStaticPaths.
               (isProduction ||
                 prerenderInfo ||
-                getRequestMeta(req, 'devPrerenderFallbackMode') !==
-                  undefined) &&
+                devPrerenderFallbackMode !== undefined) &&
               // When fallback isn't present, abort this render so we 404
               fallbackMode === FallbackMode.NOT_FOUND
             ) {
