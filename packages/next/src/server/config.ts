@@ -454,6 +454,13 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Pruning assumes that children only exists when it is backed by an
+  // ordinary route branch. Restoring the legacy implicit children slot must
+  // therefore also restore the legacy matcher behavior.
+  if (!result.experimental.explicitParallelRouteChildren) {
+    result.experimental.strictRouteMatching = false
+  }
+
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
   // resolved object with concrete defaults, so consumers don't have to
   // resolve the values themselves.
