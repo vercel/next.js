@@ -688,6 +688,21 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        // Validate HTTP method for page requests to match production behavior
+        // Only GET and HEAD methods are allowed for page rendering
+        // This applies to pageFile and appFile types, not API routes or other handlers
+        if (
+          (matchedOutput.type === 'pageFile' ||
+            matchedOutput.type === 'appFile') &&
+          !(req.method === 'GET' || req.method === 'HEAD')
+        ) {
+          res.setHeader('Allow', ['GET', 'HEAD'])
+          res.statusCode = 405
+          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
+            invokeStatus: 405,
+          })
+        }
+
         return await invokeRender(
           parsedUrl,
           parsedUrl.pathname || '/',
