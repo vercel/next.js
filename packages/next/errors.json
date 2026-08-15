@@ -1472,5 +1472,6 @@
   "1471": "Cannot resolve a dynamic segment that has no param value: the response provides no rendered pathname to parse it from.",
   "1472": "Cannot convert a server response with no transport data and no base tree.",
   "1473": "Invariant: image cache entry \"%s\" is empty",
-  "1474": "Invariant: cannot write an empty buffer to the image cache"
+  "1474": "Invariant: cannot write an empty buffer to the image cache",
+  "1475": "Invariant: no direct app page entry found for %s"
 }
