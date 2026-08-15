@@ -895,7 +895,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
 
     it('invalid - deeper children config preferred over shallower slot config', async () => {
       // children has config deep (deeper/still/deep/page.tsx, depth 2)
-      // @anotherSlot has config shallow (page.tsx, depth 0)
+      // @anotherSlot has config shallow (default.tsx, depth 0)
       // @slot blocks with no config — cause should be children's deep config
       if (isNextDev) {
         const browser = await navigateTo(

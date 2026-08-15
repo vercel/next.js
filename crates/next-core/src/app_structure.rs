@@ -486,6 +486,16 @@ pub struct AppPageLoaderTree {
 }
 
 impl AppPageLoaderTree {
+    fn collect_page_files(&self, pages: &mut FxIndexSet<FileSystemPath>) {
+        if let Some(page) = &self.modules.page {
+            pages.insert(page.clone());
+        }
+
+        for tree in self.parallel_routes.values() {
+            tree.collect_page_files(pages);
+        }
+    }
+
     /// Returns true if there's a page match in this loader tree.
     pub fn has_page(&self) -> bool {
         if &*self.segment == "__PAGE__" {
@@ -613,6 +623,7 @@ pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
         loader_tree: ResolvedVc<AppPageLoaderTree>,
+        participating_page_files: Vec<FileSystemPath>,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppRoute {
@@ -709,6 +720,7 @@ fn add_app_page(
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
+    participating_page_files: Vec<FileSystemPath>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
@@ -717,6 +729,7 @@ fn add_app_page(
             e.insert(Entrypoint::AppPage {
                 pages: vec![page],
                 loader_tree,
+                participating_page_files,
                 root_params,
             });
             return;
@@ -742,6 +755,7 @@ fn add_app_page(
 
             let Entrypoint::AppPage {
                 pages: stored_pages,
+                participating_page_files: stored_page_files,
                 ..
             } = e.get_mut()
             else {
@@ -750,6 +764,11 @@ fn add_app_page(
 
             stored_pages.push(page);
             stored_pages.sort();
+            for page_file in participating_page_files {
+                if !stored_page_files.contains(&page_file) {
+                    stored_page_files.push(page_file);
+                }
+            }
         }
         Entrypoint::AppRoute {
             page: existing_page,
@@ -972,7 +991,96 @@ async fn directory_tree_to_entrypoints(
             );
         }
     }
+
+    let mut authored_pages = FxIndexSet::default();
+    collect_authored_page_files(&plain_tree, &mut authored_pages);
+
+    let mut matched_pages = FxIndexSet::default();
+    for entrypoint in retained_entrypoints.values() {
+        if let Entrypoint::AppPage {
+            participating_page_files,
+            ..
+        } = entrypoint
+        {
+            matched_pages.extend(participating_page_files.iter().cloned());
+        }
+    }
+
+    let unmatched_pages = authored_pages
+        .into_iter()
+        .filter(|page| !matched_pages.contains(page))
+        .collect::<Vec<_>>();
+    if !unmatched_pages.is_empty() {
+        UnmatchedAppPagesIssue {
+            app_dir,
+            pages: unmatched_pages,
+        }
+        .resolved_cell()
+        .emit();
+    }
     Ok(Vc::cell(retained_entrypoints))
+}
+
+fn collect_authored_page_files(
+    directory_tree: &PlainDirectoryTree,
+    pages: &mut FxIndexSet<FileSystemPath>,
+) {
+    if let Some(page) = &directory_tree.modules.page {
+        pages.insert(page.clone());
+    }
+
+    for subdirectory in directory_tree.subdirectories.values() {
+        collect_authored_page_files(subdirectory, pages);
+    }
+}
+
+#[turbo_tasks::value]
+struct UnmatchedAppPagesIssue {
+    app_dir: FileSystemPath,
+    pages: Vec<FileSystemPath>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnmatchedAppPagesIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.pages[0].clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Unmatched app pages")))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let page_paths = self
+            .pages
+            .iter()
+            .map(|page| {
+                let relative_path = self
+                    .app_dir
+                    .get_path_to(page)
+                    .expect("authored page should be within the app directory");
+                format!("- app/{}", relative_path)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following page files do not match any complete route:\n{page_paths}\n\nEvery \
+                 page must be part of at least one complete route. Add matching pages or default \
+                 files for the sibling parallel route slots, or remove the unreachable pages."
+            )
+            .into(),
+        )))
+    }
 }
 
 #[turbo_tasks::value]
@@ -1852,11 +1960,18 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         )
         .await?;
 
+        let loader_tree =
+            loader_tree.context("loader tree should be created for a page/default")?;
+        let mut participating_page_files = FxIndexSet::default();
+        loader_tree
+            .await?
+            .collect_page_files(&mut participating_page_files);
         add_app_page(
             app_dir.clone(),
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree.context("loader tree should be created for a page/default")?,
+            loader_tree,
+            participating_page_files.into_iter().collect(),
             root_params,
         );
     }
@@ -2052,6 +2167,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_page,
                 not_found_tree,
+                Vec::new(),
                 root_params,
             );
         }
@@ -2100,6 +2216,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_global_error_page,
                 global_error_tree,
+                Vec::new(),
                 root_params,
             );
         }
@@ -2178,18 +2295,27 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 Entrypoint::AppPage {
                     pages,
                     loader_tree: _,
+                    participating_page_files: child_participating_page_files,
                     root_params,
                 } => {
                     for page in pages {
                         let loader_tree = *loader_trees[i].await?;
                         i += 1;
 
+                        let loader_tree = loader_tree
+                            .context("loader tree should be created for a page/default")?;
+                        let mut participating_page_files = FxIndexSet::default();
+                        loader_tree
+                            .await?
+                            .collect_page_files(&mut participating_page_files);
+                        participating_page_files
+                            .extend(child_participating_page_files.iter().cloned());
                         add_app_page(
                             app_dir.clone(),
                             &mut result,
                             page.clone(),
-                            loader_tree
-                                .context("loader tree should be created for a page/default")?,
+                            loader_tree,
+                            participating_page_files.into_iter().collect(),
                             *root_params,
                         );
                     }

@@ -97,6 +97,7 @@ import { parseUrl } from '../../../lib/url'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app-pages-error'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -448,6 +449,7 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let hadUnmatchedAppPages = false
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
 
@@ -1055,10 +1057,43 @@ async function startWatcher(
         }
       }
 
-      normalizeCatchAllRoutes(appPagePaths, undefined, {
-        strictRouteMatching: nextConfig.experimental.strictRouteMatching,
-        defaultAppPaths,
-      })
+      const unmatchedAppPages = normalizeCatchAllRoutes(
+        appPagePaths,
+        undefined,
+        {
+          strictRouteMatching: nextConfig.experimental.strictRouteMatching,
+          defaultAppPaths,
+        }
+      )
+      const unmatchedAppPagesError =
+        unmatchedAppPages.length > 0
+          ? new UnmatchedAppPagesError(
+              unmatchedAppPages.map((appPath) => {
+                const filePath = appRouteFilePaths.get(appPath)
+                return filePath
+                  ? normalizePathSep(path.relative(dir, filePath))
+                  : appPath
+              })
+            )
+          : null
+      if (
+        numConflicting === 0 &&
+        unmatchedAppPagesError &&
+        !hadUnmatchedAppPages
+      ) {
+        Log.error(unmatchedAppPagesError.message)
+      }
+      // Turbopack reports unmatched pages as app-structure issues. Webpack
+      // needs an HMR server error so dev can finish booting and surface the
+      // problem to connected clients instead of throwing from this watcher.
+      if (!opts.turbo) {
+        if (numConflicting === 0 && unmatchedAppPagesError) {
+          hotReloader.setHmrServerError(unmatchedAppPagesError)
+        } else if (numConflicting === 0 && hadUnmatchedAppPages) {
+          hotReloader.clearHmrServerError()
+        }
+      }
+      hadUnmatchedAppPages = unmatchedAppPagesError !== null
       for (const pageAppPaths of Object.values(appPagePaths)) {
         pageAppPaths.sort(compareAppPaths)
       }
