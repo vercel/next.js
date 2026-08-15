@@ -7,6 +7,10 @@ import path from 'path'
 const NextESLintRule = rules['no-html-link-for-pages']
 
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
+const withCustomPageExtensionsDir = path.join(
+  __dirname,
+  'with-custom-page-extensions'
+)
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
@@ -62,6 +66,15 @@ const linterConfigWithMultipleDirectories = {
         path.join(withCustomPagesDir, 'custom-pages/list'),
       ],
     ],
+  },
+}
+const linterConfigWithCustomPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: withCustomPageExtensionsDir,
+      pageExtensions: ['mdx'],
+    },
   },
 }
 const linterConfigWithNestedContentRootDirDirectory = {
@@ -389,6 +402,33 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid custom page extension route', function () {
+    const customLinter = new Linter({
+      cwd: withCustomPageExtensionsDir,
+      configType: 'eslintrc',
+    })
+    customLinter.defineRules({
+      'no-html-link-for-pages': NextESLintRule,
+    })
+    const [report] = customLinter.verify(
+      "<a href='/faq'>FAQ</a>",
+      {
+        ...linterConfig,
+        settings: {
+          next: {
+            rootDir: withCustomPageExtensionsDir,
+            pageExtensions: ['mdx'],
+          },
+        },
+      },
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/faq/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
   it('valid link element with appDir', function () {
