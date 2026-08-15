@@ -2566,11 +2566,8 @@ function writeSegmentBundleResponseVariants(
         now,
         FetchStrategy.StaticShell,
         // When the shell IS the full response (no shell/full split), the
-        // entries this write fulfills carry full-tier content, so PPR is
-        // the strategy that describes it. They're still keyed at the shell
-        // vary path: that's the reusable slot, and it serves concrete
-        // fallback reads correctly precisely because the shell and concrete
-        // variants coincide.
+        // entries this write fulfills carry full-tier content, so PPR is the
+        // strategy that describes it.
         shellResponse === serverResponse
           ? FetchStrategy.PPR
           : FetchStrategy.StaticShell
@@ -2740,15 +2737,18 @@ function writeSegmentBundleResponse(
         : FetchStrategy.PPRRuntime
       : fetchStrategy
 
-    // Determine the vary path to key the segment at. For the full payload,
-    // re-key to a more generic path if the server tells us which params the
-    // segment varies by.
+    // Key the entry by which params the server said this segment depends on.
+    // Reusing one copy across param values is the point of the shell, but it
+    // requires knowing the content doesn't depend on those params, and the
+    // server's report is the direct evidence of that.
+    //
+    // Without that report, assume every param varies. The exception is a
+    // shell variant, which reduces param-dependent content to param
+    // fallbacks, so it really is good for any value of them.
     const payloadVaryPath =
-      fetchStrategy === FetchStrategy.StaticShell
-        ? node.tree.shellVaryPath
-        : process.env.__NEXT_VARY_PARAMS && varyParams !== null
-          ? getFulfilledSegmentVaryPath(node.tree.varyPath, varyParams)
-          : getSegmentVaryPathForRequest(FetchStrategy.PPR, node.tree)
+      process.env.__NEXT_VARY_PARAMS && varyParams !== null
+        ? getFulfilledSegmentVaryPath(node.tree.varyPath, varyParams)
+        : getSegmentVaryPathForRequest(payloadFetchStrategy, node.tree)
 
     const nodeEntry = node.entry
     if (nodeEntry !== null && nodeEntry.status === EntryStatus.Pending) {
@@ -2761,43 +2761,24 @@ function writeSegmentBundleResponse(
         responseIsUpgradeableISRFallback,
         recordedFetchStrategy
       )
-      if (fetchStrategy === FetchStrategy.StaticShell) {
-        // Re-key at the shell vary path, mirroring the RuntimeShell re-key
-        // in fulfillEntrySpawnedByRuntimePrefetch. Usually the entry already
-        // lives there, but the scheduler can also upgrade a pre-existing
-        // Empty entry at a more concrete path in place, so the re-key is
-        // load-bearing. The shadow eviction keeps a stale settled entry at
-        // a more specific path from hiding the shell entry (the just-written
-        // full payload's entry is preferred and survives it). Routed through
-        // the upsert rather than a bare set so the usual precedence rules
-        // apply: a concurrent task's response (e.g. a RuntimeShell entry)
-        // can land in the shell slot first, and this write must not
-        // downgrade it. (In the common case the slot already holds this
-        // very entry, which the upsert replaces in place.)
-        if (process.env.__NEXT_VARY_PARAMS) {
-          upsertSegmentEntry(
-            now,
-            map,
-            node.tree.shellVaryPath,
-            fulfilledEntry,
-            node.tree.varyPath
-          )
-        }
-      } else {
-        // Set the fulfilled entry into the canonical cache slot. Pass the
-        // concrete lookup path — the most specific path a read for this
-        // segment position would use — so that if the canonical path is more
-        // generic (i.e. the server re-keyed the segment), any stale settled
-        // entry at a more specific path (e.g. a partial shell entry) that
-        // would shadow this one is evicted. See evictShadowingSegmentEntries.
-        upsertSegmentEntry(
-          now,
-          map,
-          payloadVaryPath,
-          fulfilledEntry,
-          node.tree.varyPath
-        )
-      }
+      // Move the entry to that key. This is load-bearing rather than a no-op:
+      // a task spawns its entries before it knows what the response will
+      // contain, so the key it guessed can be more reusable than the response
+      // turned out to deserve.
+      //
+      // Pass the concrete lookup path — the most specific path a read for
+      // this segment position would use — so that if the entry lands at a
+      // more generic key, a stale entry at a more specific one can't shadow
+      // it. See evictShadowingSegmentEntries. The upsert (rather than a bare
+      // set) applies the usual precedence rules, so a concurrent task's more
+      // complete response already in this slot isn't downgraded.
+      upsertSegmentEntry(
+        now,
+        map,
+        payloadVaryPath,
+        fulfilledEntry,
+        node.tree.varyPath
+      )
     } else {
       // We don't own this entry. Create a detached entry and attempt to
       // upsert it into this payload's slot.
