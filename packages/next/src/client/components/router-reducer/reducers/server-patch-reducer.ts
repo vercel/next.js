@@ -4,7 +4,6 @@ import {
   type ServerPatchAction,
   type ReducerState,
   type ReadonlyReducerState,
-  ScrollBehavior,
 } from '../router-reducer-types'
 import {
   completeHardNavigation,
@@ -48,7 +47,7 @@ export function serverPatchReducer(
   // (`HistoryTraversal`), since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
-  const scrollBehavior = ScrollBehavior.Default
+  const scrollBehavior = action.scrollBehavior
   const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
   return navigateToKnownRoute(

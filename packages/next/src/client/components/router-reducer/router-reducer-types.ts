@@ -134,6 +134,11 @@ export interface ServerPatchAction {
    * redirect).
    */
   freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
+  /**
+   * The original navigation's scroll behavior, so retries preserve
+   * scroll={false} instead of resetting to the default.
+   */
+  scrollBehavior: ScrollBehavior
 }
 
 /**
