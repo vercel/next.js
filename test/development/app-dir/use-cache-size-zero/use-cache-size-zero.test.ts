@@ -33,6 +33,11 @@ describe('use-cache-size-zero', () => {
       .elementByCss('p', { waitUntil: false })
       .text()
 
+    // Wait for the cache write to settle before reloading. The generated value
+    // can finish streaming before the backing cache has persisted it, which
+    // would race the reload below and turn the expected warm hit into a miss.
+    await waitFor(2000)
+
     // Warm reload: `cacheMaxMemorySize: 0` still caches in development, so the
     // reload serves the previously cached value fast instead of regenerating
     // it. The entry keeps its default (non-dynamic) cache life, so it's served
