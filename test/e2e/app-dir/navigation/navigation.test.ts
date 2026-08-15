@@ -225,6 +225,38 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('hash-replace', () => {
+    // The route cache entry is shared across hashes, so a same-route
+    // navigation appends the incoming `url.hash` to the stored canonical URL.
+    // Seeding that entry with a hash-ful URL on initial load made a later
+    // hashless `router.replace` restore the hash it was meant to remove.
+    it('should not restore the initial hash when replacing on a dynamic route', async () => {
+      const browser = await next.browser('/hash-replace/123#modal')
+      await browser.waitForElementByCss('#hash-replace-dynamic')
+
+      await browser.elementById('replace-without-hash').click()
+
+      await retry(async () => {
+        const url = new URL(await browser.url())
+        expect(url.pathname).toBe('/hash-replace/123')
+        expect(url.hash).toBe('')
+      })
+    })
+
+    it('should not restore the initial hash when replacing on a non-dynamic route', async () => {
+      const browser = await next.browser('/hash-replace#modal')
+      await browser.waitForElementByCss('#hash-replace-index')
+
+      await browser.elementById('replace-without-hash').click()
+
+      await retry(async () => {
+        const url = new URL(await browser.url())
+        expect(url.pathname).toBe('/hash-replace')
+        expect(url.hash).toBe('')
+      })
+    })
+  })
+
   describe('hash-with-scroll-offset', () => {
     it('should scroll to the specified hash', async () => {
       const browser = await next.browser('/hash-with-scroll-offset')
