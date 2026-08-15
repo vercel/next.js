@@ -79,7 +79,11 @@ import type {
   AppRouteModule,
   AppRouteRouteModule,
 } from '../server/route-modules/app-route/module'
-import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import type {
+  FunctionsConfigManifest,
+  ManifestRoute,
+  PrerenderManifest,
+} from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
@@ -589,6 +593,93 @@ export async function printTreeView(
   )
 
   print()
+}
+
+type PrerenderMatcherDigestEntry = {
+  behavior: 'not-found' | 'blocking' | 'fallback' | 'prerender'
+  pathname: string
+}
+
+function countDynamicSegments(pathname: string): number {
+  return pathname.match(/\[[^/]+\]/g)?.length ?? 0
+}
+
+/** Prints the concrete request matchers emitted for the experimental API. */
+export function printPrerenderMatchers(
+  prerenderManifest: Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>,
+  emittedDynamicRoutes: ReadonlyArray<DynamicManifestRoute>
+): void {
+  const sourceRoutes = new Set<string>()
+  for (const route of Object.values(prerenderManifest.dynamicRoutes)) {
+    if (route.fallbackSourceRoute) {
+      sourceRoutes.add(route.fallbackSourceRoute)
+    }
+  }
+  for (const route of Object.values(prerenderManifest.routes)) {
+    if (route.srcRoute) {
+      sourceRoutes.add(route.srcRoute)
+    }
+  }
+
+  if (sourceRoutes.size === 0) return
+
+  print(underline('Experimental prerender matchers'))
+  print('More-specific rows override broader rows for the same request.')
+  print()
+
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const matchers = Object.entries(prerenderManifest.dynamicRoutes)
+      .filter(
+        ([pathname, route]) =>
+          pathname === sourceRoute || route.fallbackSourceRoute === sourceRoute
+      )
+      .map<PrerenderMatcherDigestEntry>(([pathname, route]) => ({
+        behavior:
+          route.fallback === false
+            ? 'not-found'
+            : route.fallback === null
+              ? 'blocking'
+              : 'fallback',
+        pathname,
+      }))
+      .sort(
+        (a, b) =>
+          countDynamicSegments(b.pathname) - countDynamicSegments(a.pathname) ||
+          a.pathname.localeCompare(b.pathname)
+      )
+
+    const prerenders = Object.entries(prerenderManifest.routes)
+      .filter(([, route]) => route.srcRoute === sourceRoute)
+      .map<PrerenderMatcherDigestEntry>(([pathname]) => ({
+        behavior: 'prerender',
+        pathname,
+      }))
+      .sort((a, b) => a.pathname.localeCompare(b.pathname))
+
+    const entries = [...matchers, ...prerenders]
+    const width = Math.max(...entries.map(({ behavior }) => behavior.length))
+    print(sourceRoute)
+    entries.forEach(({ behavior, pathname }, index) => {
+      print(
+        `  ${index === entries.length - 1 ? '└' : '├'} ${behavior.padEnd(width)}  ${pathname}`
+      )
+    })
+    print()
+  }
+
+  print(underline('Emitted dynamic route patterns'))
+  print('These are the patterns available to deployment routing metadata.')
+  print()
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const patterns = emittedDynamicRoutes.filter(
+      (route) => route.page === sourceRoute || route.sourcePage === sourceRoute
+    )
+    print(`${sourceRoute} (${patterns.length})`)
+    patterns.forEach((route, index) => {
+      print(`  ${index === patterns.length - 1 ? '└' : '├'} ${route.page}`)
+    })
+    print()
+  }
 }
 
 export function printCustomRoutes({
