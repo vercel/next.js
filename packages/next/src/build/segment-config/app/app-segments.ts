@@ -18,11 +18,6 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
-import {
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-  isGroupSegment,
-} from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -49,12 +44,7 @@ export type PrerenderMatcherExport =
 /**
  * Parses the app config and attaches it to the segment.
  */
-function attach(
-  segment: AppSegment,
-  userland: unknown,
-  route: string,
-  moduleType: 'layout' | 'page' | 'route' | undefined
-) {
+function attach(segment: AppSegment, userland: unknown, route: string) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
@@ -96,12 +86,6 @@ function attach(
   const hasGeneratedMatcher = 'unstable_generateMatcher' in userland
 
   if (hasStaticMatcher || hasGeneratedMatcher) {
-    if (moduleType === 'route') {
-      throw new Error(
-        'Unstable prerender matchers are only supported in layouts and pages.'
-      )
-    }
-
     if (hasStaticMatcher && hasGeneratedMatcher) {
       throw new Error(
         `Route "${route}" cannot export both \`unstable_matcher\` and \`unstable_generateMatcher\`.`
@@ -124,12 +108,6 @@ function attach(
         generate: userland.unstable_generateMatcher as GeneratePrerenderMatcher,
       }
     }
-
-    if (segment.config?.runtime === 'edge') {
-      throw new Error(
-        'Edge runtime is not supported with unstable prerender matchers.'
-      )
-    }
   }
 }
 
@@ -138,8 +116,7 @@ export type AppSegment = {
   paramName: string | undefined
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
-  moduleType: 'layout' | 'page' | 'route' | undefined
-  pathMatcher: string
+  visibleParamNames: readonly string[]
   treePath: readonly string[]
   config: AppSegmentConfig | undefined
   prerenderMatcher: PrerenderMatcherExport | undefined
@@ -161,47 +138,35 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   // Queue will store loader trees.
   const queue: Array<{
     loaderTree: LoaderTree
-    matcherSegments: string[]
+    visibleParamNames: string[]
     treePath: string[]
   }> = [
     {
       loaderTree: routeModule.userland.loaderTree,
-      matcherSegments: [],
+      visibleParamNames: [],
       treePath: [],
     },
   ]
 
   while (queue.length > 0) {
-    const { loaderTree, matcherSegments, treePath } = queue.shift()!
+    const { loaderTree, visibleParamNames, treePath } = queue.shift()!
     const [name, parallelRoutes] = loaderTree
 
-    const currentMatcherSegments = matcherSegments.slice()
-    if (
-      name &&
-      name !== PAGE_SEGMENT_KEY &&
-      name !== DEFAULT_SEGMENT_KEY &&
-      !isGroupSegment(name)
-    ) {
-      currentMatcherSegments.push(name)
-    }
-
     // Process current node
-    const {
-      mod: userland,
-      modType: moduleType,
-      filePath,
-    } = await getLayoutOrPageModule(loaderTree)
+    const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
     const isClientComponent = userland && isClientReference(userland)
 
     const param = getSegmentParam(name)
+    const currentVisibleParamNames = param
+      ? [...visibleParamNames, param.paramName]
+      : visibleParamNames
 
     const segment: AppSegment = {
       name,
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath,
-      moduleType,
-      pathMatcher: `/${currentMatcherSegments.join('/')}`,
+      visibleParamNames: currentVisibleParamNames,
       treePath,
       config: undefined,
       prerenderMatcher: undefined,
@@ -210,7 +175,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
-      attach(segment, userland, routeModule.definition.pathname, moduleType)
+      attach(segment, userland, routeModule.definition.pathname)
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -234,11 +199,8 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     )) {
       queue.push({
         loaderTree: parallelRoute,
-        matcherSegments: currentMatcherSegments,
-        treePath: [
-          ...treePath,
-          `/${currentMatcherSegments.join('/')}@${parallelRouteKey}`,
-        ],
+        visibleParamNames: currentVisibleParamNames,
+        treePath: [...treePath, parallelRouteKey],
       })
     }
   }
@@ -266,16 +228,17 @@ async function collectAppRouteSegments(
   }
 
   // Generate all the segments.
+  const visibleParamNames: string[] = []
   const segments: AppSegment[] = parts.map((name) => {
     const param = getSegmentParam(name)
+    if (param) visibleParamNames.push(param.paramName)
 
     return {
       name,
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath: undefined,
-      moduleType: undefined,
-      pathMatcher: routeModule.definition.pathname,
+      visibleParamNames: visibleParamNames.slice(),
       treePath: [],
       config: undefined,
       prerenderMatcher: undefined,
@@ -288,15 +251,9 @@ async function collectAppRouteSegments(
   const segment = segments[segments.length - 1]
 
   segment.filePath = routeModule.definition.filename
-  segment.moduleType = 'route'
 
   // Extract the segment config from the userland module.
-  attach(
-    segment,
-    routeModule.userland,
-    routeModule.definition.pathname,
-    'route'
-  )
+  attach(segment, routeModule.userland, routeModule.definition.pathname)
 
   return segments
 }

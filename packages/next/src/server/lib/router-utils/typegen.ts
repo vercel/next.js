@@ -429,6 +429,29 @@ declare module 'next/form' {
 `
 }
 
+const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
+type PrerenderMatcherFor<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
+type PrerenderMatcherExports<Route extends keyof ParamMap> =
+  | { unstable_matcher?: PrerenderMatcherFor<Route>; unstable_generateMatcher?: never }
+  | { unstable_matcher?: never; unstable_generateMatcher?: () => Promise<PrerenderMatcherFor<Route>> | PrerenderMatcherFor<Route> }
+
+`
+
+function getPrerenderMatcherKeyValidation(
+  route: string | undefined,
+  type: string
+): string {
+  return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
+    ? `
+  type __PrerenderMatcherValue =
+    typeof handler extends { unstable_matcher: infer Matcher } ? Matcher :
+    typeof handler extends { unstable_generateMatcher: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+  type __InvalidPrerenderMatcherKeys = Exclude<keyof __PrerenderMatcherValue, keyof ParamMap[${JSON.stringify(route)}]>
+  type __AssertNoInvalidPrerenderMatcherKeys<Invalid extends never> = Invalid
+  type __PrerenderMatcherKeyCheck = __AssertNoInvalidPrerenderMatcherKeys<__InvalidPrerenderMatcherKeys>`
+    : ''
+}
+
 export function generateValidatorFile(
   routesManifest: RouteTypesManifest
 ): string {
@@ -467,16 +490,10 @@ export function generateValidatorFile(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
-        const matcherKeyValidation =
-          route && (type === 'AppPageConfig' || type === 'LayoutConfig')
-            ? `
-  type __PrerenderMatcherValue =
-    typeof handler extends { unstable_matcher: infer Matcher } ? Matcher :
-    typeof handler extends { unstable_generateMatcher: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
-  type __InvalidPrerenderMatcherKeys = Exclude<keyof __PrerenderMatcherValue, keyof ParamMap[${JSON.stringify(route)}]>
-  type __AssertNoInvalidPrerenderMatcherKeys<Invalid extends never> = Invalid
-  type __PrerenderMatcherKeyCheck = __AssertNoInvalidPrerenderMatcherKeys<__InvalidPrerenderMatcherKeys>`
-            : ''
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
         // If we ever raise the TS minimum version, we can switch back.
@@ -528,13 +545,9 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
-  typeDefinitions += `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
-type PrerenderMatcherFor<Route extends AppRoutes | LayoutRoutes> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
-type PrerenderMatcherExports<Route extends AppRoutes | LayoutRoutes> =
-  | { unstable_matcher?: PrerenderMatcherFor<Route>; unstable_generateMatcher?: never }
-  | { unstable_matcher?: never; unstable_generateMatcher?: () => Promise<PrerenderMatcherFor<Route>> | PrerenderMatcherFor<Route> }
-
-`
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
 
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
@@ -727,16 +740,10 @@ export function generateValidatorFileStrict(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
-        const matcherKeyValidation =
-          route && (type === 'AppPageConfig' || type === 'LayoutConfig')
-            ? `
-  type __PrerenderMatcherValue =
-    typeof handler extends { unstable_matcher: infer Matcher } ? Matcher :
-    typeof handler extends { unstable_generateMatcher: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
-  type __InvalidPrerenderMatcherKeys = Exclude<keyof __PrerenderMatcherValue, keyof ParamMap[${JSON.stringify(route)}]>
-  type __AssertNoInvalidPrerenderMatcherKeys<Invalid extends never> = Invalid
-  type __PrerenderMatcherKeyCheck = __AssertNoInvalidPrerenderMatcherKeys<__InvalidPrerenderMatcherKeys>`
-            : ''
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         return `// Validate ${filePath}
 {
@@ -782,13 +789,9 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
-  typeDefinitions += `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
-type PrerenderMatcherFor<Route extends AppRoutes | LayoutRoutes> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
-type PrerenderMatcherExports<Route extends AppRoutes | LayoutRoutes> =
-  | { unstable_matcher?: PrerenderMatcherFor<Route>; unstable_generateMatcher?: never }
-  | { unstable_matcher?: never; unstable_generateMatcher?: () => Promise<PrerenderMatcherFor<Route>> | PrerenderMatcherFor<Route> }
-
-`
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
 
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {

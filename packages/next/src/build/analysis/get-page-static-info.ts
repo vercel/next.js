@@ -82,8 +82,6 @@ export interface AppPageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
-  prerenderMatcher?: boolean
-  generatePrerenderMatcher?: boolean
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
@@ -814,8 +812,6 @@ export async function getAppPageStaticInfo({
   return {
     type: PAGE_TYPES.APP,
     rsc,
-    prerenderMatcher,
-    generatePrerenderMatcher,
     generateImageMetadata,
     generateSitemaps,
     generateStaticParams,

@@ -10,6 +10,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
   remainingPrerenderableParams?: undefined
+  readonly isPrerenderOutput?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -44,6 +45,7 @@ type FallbackPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+  readonly isPrerenderOutput?: false
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which

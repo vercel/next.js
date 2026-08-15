@@ -1488,5 +1488,6 @@
   "1487": "Invalid value from \\`%s\\` for \"%s\". Expected an object, but received %s.",
   "1488": "Route \"%s\" must export \\`unstable_generateMatcher\\` as a function.",
   "1489": "Invalid mode for parameter \"%s\" in \\`%s\\` for \"%s\". Expected \"not-found\", \"blocking\", \"fallback\", or \"dynamic\", but received %s.",
-  "1490": "Route \"%s\" must configure parameter \"%s\" as \"not-found\" when using an unstable prerender matcher with \"output: export\"."
+  "1490": "Route \"%s\" must configure parameter \"%s\" as \"not-found\" when using an unstable prerender matcher with \"output: export\".",
+  "1491": "Invalid parameter \"%s\" in \\`%s\\` for \"%s\". The export in \"%s\" may only configure parameters defined at or above its segment."
 }
