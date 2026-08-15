@@ -49,6 +49,11 @@ describe('use-cache-size-zero', () => {
       const $ = await next.render$('/reload')
       expect($('#value').text()).not.toBe(coldValue)
     })
+
+    // Once independent requests observe convergence, confirm the next browser
+    // reload also exposes a fresh value through the user-visible path.
+    await browser.refresh()
+    expect(await browser.elementById('value').text()).not.toBe(coldValue)
   })
 
   it('shows the Cold cache badge on an initial cold load and not on a warm reload', async () => {
