@@ -234,6 +234,17 @@ export function discoverKnownRoute(
   supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
+  // A route cache entry is keyed by pathname and search only, so a single entry
+  // is shared by every hash of a route. Readers append the target's `url.hash`
+  // to this value, so storing a hash here would double it (`/p#foo#bar`).
+  // Normalize here rather than at each caller: several callers derive this from
+  // a URL that legitimately carries a fragment (`location`, a redirect target,
+  // a retried navigation).
+  const hashIndex = canonicalUrl.indexOf('#')
+  if (hashIndex !== -1) {
+    canonicalUrl = canonicalUrl.slice(0, hashIndex)
+  }
+
   const tree = routeTree
 
   const pathnameParts = splitPathnameIntoParts(pathname)

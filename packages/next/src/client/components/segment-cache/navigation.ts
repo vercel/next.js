@@ -556,9 +556,7 @@ async function navigateToUnknownRoute(
       navigationSeed.routeTree,
       metadataVaryPath,
       couldBeIntercepted,
-      // Store a hashless canonical URL: the entry is shared across hashes, and
-      // a later same-route hash nav appends `url.hash` to it.
-      createHrefFromUrl(canonicalUrl, false),
+      createHrefFromUrl(canonicalUrl),
       supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
