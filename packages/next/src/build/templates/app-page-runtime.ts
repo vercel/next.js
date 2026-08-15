@@ -73,7 +73,10 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
-import type { CacheControl } from '../../server/lib/cache-control'
+import {
+  getCacheControlHeader,
+  type CacheControl,
+} from '../../server/lib/cache-control' with { 'turbopack-transition': 'next-server-utility' }
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
@@ -818,9 +821,11 @@ export function createAppPageEntrypoint({
         fallbackRouteParams,
         renderOperation,
         allowEmptyStaticShell,
+        forceDynamicResponse,
       }: {
         span?: Span
         allowEmptyStaticShell?: boolean
+        forceDynamicResponse?: boolean
 
         /**
          * The postponed data for this render. This is only provided when resuming
@@ -863,8 +868,9 @@ export function createAppPageEntrypoint({
             allowEmptyStaticShell,
             serveStreamingMetadata,
             supportsDynamicResponse:
-              renderOperation === 'render' &&
-              (typeof postponed === 'string' || supportsDynamicResponse),
+              forceDynamicResponse ||
+              (renderOperation === 'render' &&
+                (typeof postponed === 'string' || supportsDynamicResponse)),
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -1599,22 +1605,55 @@ export function createAppPageEntrypoint({
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
-        const cacheEntry = await routeModule.handleResponse({
-          cacheKey: ssgCacheKey,
-          responseGenerator: (c) =>
-            responseGenerator({
-              span,
-              ...c,
-            }),
-          routeKind: RouteKind.APP_PAGE,
-          isOnDemandRevalidate,
-          isRoutePPREnabled,
-          req,
-          nextConfig,
-          prerenderManifest,
-          waitUntil: ctx.waitUntil,
-          isMinimalMode,
-        })
+        let cacheEntry: ResponseCacheEntry | null
+
+        try {
+          cacheEntry = await routeModule.handleResponse({
+            cacheKey: ssgCacheKey,
+            responseGenerator: (c) =>
+              responseGenerator({
+                span,
+                ...c,
+              }),
+            routeKind: RouteKind.APP_PAGE,
+            isOnDemandRevalidate,
+            isRoutePPREnabled,
+            req,
+            nextConfig,
+            prerenderManifest,
+            waitUntil: ctx.waitUntil,
+            isMinimalMode,
+          })
+        } catch (err) {
+          if (
+            !ssgCacheKey ||
+            err instanceof NoFallbackError ||
+            typeof err !== 'object' ||
+            err === null ||
+            !('digest' in err) ||
+            res.headersSent
+          ) {
+            throw err
+          }
+
+          // A static route render can fail after the response cache has started
+          // materializing its result. Render the current request dynamically so
+          // React can produce the route's error boundary instead of falling back
+          // to the server's plain-text 500 response.
+          cacheEntry = await doRender({
+            span,
+            postponed: undefined,
+            fallbackRouteParams: null,
+            renderOperation: 'render',
+            forceDynamicResponse: true,
+          })
+          cacheEntry.cacheControl = undefined
+          cacheEntry.isMiss = true
+          res.setHeader(
+            'Cache-Control',
+            getCacheControlHeader({ revalidate: 0, expire: undefined })
+          )
+        }
 
         if (isDraftMode) {
           res.setHeader(
