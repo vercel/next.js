@@ -4,9 +4,6 @@ import { retry, waitFor, waitForNoErrorToast } from 'next-test-utils'
 describe('use-cache-size-zero', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // Expose completed default-handler writes so the test can synchronize with
-    // background revalidation without relying on an elapsed-time delay.
-    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
   if (skipped) {
@@ -27,22 +24,12 @@ describe('use-cache-size-zero', () => {
     expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
       'Loading...'
     )
+    // After observing the streamed fallback, wait for the initial document to
+    // finish loading so the cold request is fully settled before reloading.
     const coldValue = await browser
-      .elementByCss('#value', { waitUntil: false })
+      .elementByCss('#value', { waitUntil: 'load' })
       .text()
     expect(coldValue).toBeDateString()
-
-    const completedReloadCacheWrites = () =>
-      next.cliOutput.match(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","[0-9a-f]+",\["reload"\],"[^"]+"\] done/g
-      )?.length ?? 0
-
-    // The value can finish streaming before the cache handler has persisted
-    // it. Wait for that write before testing the first warm reload.
-    await retry(() => {
-      expect(completedReloadCacheWrites()).toBeGreaterThan(0)
-    }, 10000)
-    const cacheWritesBeforeWarmReload = completedReloadCacheWrites()
 
     // Warm reload: `cacheMaxMemorySize: 0` still caches in development, so the
     // reload serves the previously cached value fast instead of regenerating
@@ -55,17 +42,13 @@ describe('use-cache-size-zero', () => {
       await browser.elementByCss('#value', { waitUntil: false }).text()
     ).toBe(coldValue)
 
-    // That warm reload regenerates a fresh entry in the background. The warm
-    // response can finish before that write, so wait for the handler to commit
-    // another value before checking the next reload.
-    await retry(() => {
-      expect(completedReloadCacheWrites()).toBeGreaterThan(
-        cacheWritesBeforeWarmReload
-      )
-    }, 10000)
-
-    await browser.refresh()
-    expect(await browser.elementById('value').text()).not.toBe(coldValue)
+    // That warm reload regenerates a fresh entry in the background. Poll with
+    // independent requests so we can observe convergence without navigating
+    // away from (and potentially cancelling) the warm browser request.
+    await retry(async () => {
+      const $ = await next.render$('/reload')
+      expect($('#value').text()).not.toBe(coldValue)
+    })
   })
 
   it('shows the Cold cache badge on an initial cold load and not on a warm reload', async () => {
