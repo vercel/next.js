@@ -86,6 +86,23 @@ describe('unstable prerender matching', () => {
         sourceRoute
       )
     })
+
+    it('prints the effective matcher and deployment-pattern digest', () => {
+      expect(next.cliOutput).toContain('Experimental prerender matchers')
+      expect(next.cliOutput).toContain(
+        'not-found  /[lang]/catalog/[top]/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain(
+        'blocking   /en/catalog/[top]/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain(
+        'fallback   /en/catalog/t1/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain('prerender  /en/catalog/t1/items/b1')
+      expect(next.cliOutput).toContain('/inferred-empty/[top]/items/[bottom]')
+      expect(next.cliOutput).toContain('Emitted dynamic route patterns')
+      expect(next.cliOutput).toContain('/[lang]/catalog/[top]/items/[bottom] (')
+    })
   }
 })
 
