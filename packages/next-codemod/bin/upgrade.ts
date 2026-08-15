@@ -8,6 +8,7 @@ import {
   minor,
 } from 'semver'
 import { execSync } from 'child_process'
+import findUp from 'find-up'
 import path from 'path'
 import pc from 'picocolors'
 import {
@@ -765,7 +766,7 @@ function writeOverridesField(
     // since that's the surface where silently-dropped overrides hurt most.
     const pnpmMajorVersion = getPnpmMajorVersion()
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
-      writePnpmWorkspaceOverrides(overrides)
+      writePnpmWorkspaceOverrides(overrides, packageJson.name)
       return
     }
 
@@ -811,13 +812,54 @@ function writeOverridesField(
   }
 }
 
-function writePnpmWorkspaceOverrides(overrides: Record<string, string>) {
+/**
+ * Resolve the directory that owns `pnpm-workspace.yaml`.
+ *
+ * pnpm treats the directory containing `pnpm-workspace.yaml` as the workspace
+ * root and only reads settings such as `overrides` from that single file. In a
+ * monorepo the upgrade runs from an app package, so creating a new
+ * `pnpm-workspace.yaml` next to that app's `package.json` would declare a
+ * *nested* workspace root: the app would be cut off from the real root and stop
+ * resolving `workspace:*` dependencies on its sibling packages.
+ *
+ * Walking up mirrors how pnpm itself locates the workspace root. When no
+ * manifest exists anywhere above, the project is standalone and `cwd` is the
+ * correct place to create one.
+ */
+function findPnpmWorkspaceRoot(fromDir: string): string {
+  const workspaceManifest = findUp.sync('pnpm-workspace.yaml', { cwd: fromDir })
+  return workspaceManifest ? path.dirname(workspaceManifest) : fromDir
+}
+
+function writePnpmWorkspaceOverrides(
+  overrides: Record<string, string>,
+  appPackageName: unknown
+) {
   // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
   // branch (i.e. not for npm/yarn/bun/pnpm-v10 upgrades). The package is CJS,
   // so a sync `require()` keeps this function synchronous.
   const yaml = require('js-yaml') as typeof import('js-yaml')
 
-  const filePath = path.join(cwd, 'pnpm-workspace.yaml')
+  const workspaceRoot = findPnpmWorkspaceRoot(cwd)
+  const filePath = path.join(workspaceRoot, 'pnpm-workspace.yaml')
+  const isSharedWorkspaceRoot = workspaceRoot !== cwd
+
+  // A shared workspace root's overrides apply to every package in the
+  // workspace, so an unqualified `@types/react` entry would force the upgraded
+  // app's version onto unrelated siblings. pnpm can scope an override to a
+  // single parent package with `<package>><dependency>`, which keeps the
+  // upgrade contained to the app being upgraded.
+  // x-ref: https://pnpm.io/settings/dependency-resolution#overrides
+  let scope: string | null = null
+  if (isSharedWorkspaceRoot) {
+    if (typeof appPackageName === 'string' && appPackageName !== '') {
+      scope = appPackageName
+    } else {
+      console.log(
+        `${pc.yellow('⚠')} The package.json at "${cwd}" has no "name", so the overrides below could not be scoped to it and will apply to every package in the workspace.`
+      )
+    }
+  }
 
   let doc: Record<string, any> = {}
   if (fs.existsSync(filePath)) {
@@ -831,11 +873,37 @@ function writePnpmWorkspaceOverrides(overrides: Record<string, string>) {
   if (!doc.overrides || typeof doc.overrides !== 'object') {
     doc.overrides = {}
   }
-  for (const [key, value] of Object.entries(overrides)) {
+  const changedKeys: string[] = []
+  for (const [dependency, value] of Object.entries(overrides)) {
+    const key = scope === null ? dependency : `${scope}>${dependency}`
+    if (doc.overrides[key] !== value) {
+      changedKeys.push(key)
+    }
     doc.overrides[key] = value
   }
 
+  // `js-yaml` cannot round-trip comments, so re-serializing strips them from a
+  // file we don't own. Skip the write when every override already has the value
+  // we would set — re-running the upgrade shouldn't damage the manifest.
+  if (changedKeys.length === 0) {
+    return
+  }
+
   fs.writeFileSync(filePath, yaml.dump(doc))
+
+  if (isSharedWorkspaceRoot) {
+    console.log(
+      `${pc.yellow('⚠')} pnpm only reads overrides from the workspace root, so ${changedKeys
+        .map((key) => `"${key}"`)
+        .join(
+          ', '
+        )} ${changedKeys.length === 1 ? 'was' : 'were'} written to "${filePath}".` +
+        (scope === null
+          ? ''
+          : `\n  They are scoped to "${scope}" so the rest of the workspace is unaffected.`) +
+        `\n  Comments in that file were not preserved.`
+    )
+  }
 }
 
 function warnDependenciesOutOfRange(

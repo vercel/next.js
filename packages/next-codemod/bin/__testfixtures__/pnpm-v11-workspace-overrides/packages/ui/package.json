@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/ui",
+  "version": "0.0.0",
+  "dependencies": {
+    "@types/react": "^18.2.0"
+  }
+}
