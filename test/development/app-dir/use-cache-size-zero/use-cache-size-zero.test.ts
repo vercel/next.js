@@ -24,19 +24,12 @@ describe('use-cache-size-zero', () => {
     expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
       'Loading...'
     )
-    await retry(async () => {
-      expect(
-        await browser.elementByCss('p', { waitUntil: false }).text()
-      ).toBeDateString()
-    })
+    // After observing the streamed fallback, wait for the initial document to
+    // finish loading so the cold request is fully settled before reloading.
     const coldValue = await browser
-      .elementByCss('p', { waitUntil: false })
+      .elementByCss('#value', { waitUntil: 'load' })
       .text()
-
-    // Wait for the cache write to settle before reloading. The generated value
-    // can finish streaming before the backing cache has persisted it, which
-    // would race the reload below and turn the expected warm hit into a miss.
-    await waitFor(2000)
+    expect(coldValue).toBeDateString()
 
     // Warm reload: `cacheMaxMemorySize: 0` still caches in development, so the
     // reload serves the previously cached value fast instead of regenerating
