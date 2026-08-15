@@ -157,6 +157,34 @@ describe('interception-dynamic-segment', () => {
     })
   }
 
+  if (isNextDev) {
+    it('should retain named host slots for an interception catch-all in development', async () => {
+      const { act, browser } = await createBrowserWithRouterAct('/named-host')
+
+      await browser.elementById('retained-counter').click()
+
+      await act(async () => {
+        await navigate(browser, '/named-host/named-catchall-target/photo')
+      })
+
+      expect(
+        await browser.elementById('named-host-catchall-modal').text()
+      ).toBe('Intercepted named catch-all target')
+      expect(await browser.elementById('named-host-content').text()).toContain(
+        'Named content slot'
+      )
+      expect(
+        await browser.elementById('named-host-secondary').text()
+      ).toContain('Named secondary slot without a default')
+      expect(await browser.elementById('named-host-canonical').text()).toBe(
+        'Named canonical slot'
+      )
+      expect(await browser.elementById('retained-counter').text()).toBe(
+        'Retained count: 1'
+      )
+    })
+  }
+
   if (!isNextDev) {
     /**
      * Test Case Validation: Ensure NO 404s occur during interception navigation
@@ -290,6 +318,32 @@ describe('interception-dynamic-segment', () => {
           'Canonical named target'
         )
         expect(await browser.hasElementByCss('#named-host')).toBe(false)
+      })
+
+      it('should retain named host slots for an interception catch-all', async () => {
+        const { act, browser } = await createBrowserWithRouterAct('/named-host')
+
+        await browser.elementById('retained-counter').click()
+
+        await act(async () => {
+          await navigate(browser, '/named-host/named-catchall-target/photo')
+        })
+
+        expect(
+          await browser.elementById('named-host-catchall-modal').text()
+        ).toBe('Intercepted named catch-all target')
+        expect(
+          await browser.elementById('named-host-content').text()
+        ).toContain('Named content slot')
+        expect(
+          await browser.elementById('named-host-secondary').text()
+        ).toContain('Named secondary slot without a default')
+        expect(await browser.elementById('named-host-canonical').text()).toBe(
+          'Named canonical slot'
+        )
+        expect(await browser.elementById('retained-counter').text()).toBe(
+          'Retained count: 1'
+        )
       })
 
       it('should send and render a real default for a newly entered slot owner', async () => {

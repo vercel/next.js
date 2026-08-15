@@ -369,8 +369,9 @@ describe('normalizeCatchallRoutes', () => {
       expect(appPaths).toEqual(expected)
     })
 
-    it('keeps an interception catch-all that uses the null children fallback', () => {
+    it('keeps an interception catch-all when host slots are retained', () => {
       const appPaths = {
+        '/': ['/@content/page', '/@secondary/page'],
         '/photo/[...slug]': ['/@modal/(.)photo/[...slug]/page'],
       }
       const expected = structuredClone(appPaths)
@@ -378,6 +379,67 @@ describe('normalizeCatchallRoutes', () => {
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
       expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps real children and named slots at an interception host', () => {
+      const appPaths = {
+        '/': ['/page', '/@sidebar/page'],
+        '/photo/[...slug]': ['/@modal/(.)photo/[...slug]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps named slots when children contains the interception catch-all', () => {
+      const appPaths = {
+        '/': ['/@sidebar/page'],
+        '/photo/[...slug]': ['/(.)photo/[...slug]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps slots owned by the immediate interception host through a route group', () => {
+      const appPaths = {
+        '/': ['/(host)/@modal/@sidebar/page'],
+        '/photo/[...slug]': ['/(host)/@modal/(.)photo/[...slug]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps an optional interception catch-all when host slots are retained', () => {
+      const appPaths = {
+        '/': ['/page', '/@sidebar/page'],
+        '/photo/[[...slug]]': ['/@modal/(.)photo/[[...slug]]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('prunes an incomplete catch-all inside an interception subtree', () => {
+      const appPaths = {
+        '/photo/[...slug]': ['/@modal/(.)photo/@catchall/[...slug]/page'],
+        '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
+      })
     })
   })
 })
