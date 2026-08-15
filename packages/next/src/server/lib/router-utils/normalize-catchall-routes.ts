@@ -149,7 +149,9 @@ function pruneUnrenderableCatchAllRoutes(
       catchAllAppPaths.some((catchAllAppPath) => {
         const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
         const interceptionMarkerIndex = catchAllSegments.findIndex((segment) =>
-          INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+          INTERCEPTION_ROUTE_MARKERS.some((marker) =>
+            segment.startsWith(marker)
+          )
         )
 
         for (const {
