@@ -6,6 +6,7 @@ export default function Page() {
       <p>Named content slot</p>
       <RetainedCounter />
       <LinkAccordion href="/named-target" />
+      <LinkAccordion href="/named-host/named-catchall-target/photo" />
     </div>
   )
 }
