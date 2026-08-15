@@ -81,7 +81,7 @@ export async function findConfig<T>(
     if (filePath.endsWith('.js')) {
       if (isESM) {
         const mod = await esmImport(filePath)
-        return mod && typeof mod === 'object' && 'default' in mod && mod.default !== undefined
+        return mod && typeof mod === 'object' && mod.default !== undefined
           ? mod.default
           : mod
       } else {
@@ -89,7 +89,7 @@ export async function findConfig<T>(
       }
     } else if (filePath.endsWith('.mjs')) {
       const mod = await esmImport(filePath)
-      return mod && typeof mod === 'object' && 'default' in mod && mod.default !== undefined
+      return mod && typeof mod === 'object' && mod.default !== undefined
         ? mod.default
         : mod
     } else if (filePath.endsWith('.cjs')) {
