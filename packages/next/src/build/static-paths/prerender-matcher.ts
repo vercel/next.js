@@ -9,11 +9,6 @@ import type { FallbackRouteParam } from './types'
 import { FallbackMode } from '../../lib/fallback'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 
-export type PrerenderMatcherPlan = {
-  readonly policy: Readonly<PrerenderMatcher>
-  readonly lastBlockingParamIndex: number
-}
-
 function getValueType(value: unknown): string {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
@@ -87,7 +82,7 @@ export async function compilePrerenderMatcher(
   page: string,
   segments: readonly Readonly<AppSegment>[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
-): Promise<PrerenderMatcherPlan | undefined> {
+): Promise<PrerenderMatcher | undefined> {
   const matcherSegments = segments
     .filter((segment) => segment.prerenderMatcher !== undefined)
     .sort(
@@ -162,7 +157,6 @@ export async function compilePrerenderMatcher(
 
   let previousPhase = -1
   let previousParamName: string | undefined
-  let lastBlockingParamIndex = -1
   for (let index = 0; index < pathnameSegments.length; index++) {
     const paramName = pathnameSegments[index].paramName
     const mode = policy[paramName]
@@ -173,21 +167,20 @@ export async function compilePrerenderMatcher(
         `Invalid prerender matcher for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters to follow not-found, blocking, fallback, then dynamic order.`
       )
     }
-    if (mode === 'blocking') lastBlockingParamIndex = index
     previousPhase = currentPhase
     previousParamName = paramName
   }
 
-  return { policy, lastBlockingParamIndex }
+  return policy
 }
 
 export function getPrerenderMatcherFallbackMode(
-  plan: Readonly<PrerenderMatcherPlan>,
+  matcher: Readonly<PrerenderMatcher>,
   fallbackRouteParams: readonly Pick<FallbackRouteParam, 'paramName'>[],
   inferredFallbackMode: FallbackMode | undefined
 ): FallbackMode | undefined {
   for (const { paramName } of fallbackRouteParams) {
-    switch (plan.policy[paramName]) {
+    switch (matcher[paramName]) {
       case 'not-found':
         return FallbackMode.NOT_FOUND
       case 'blocking':
@@ -202,7 +195,7 @@ export function getPrerenderMatcherFallbackMode(
 }
 
 export function getPrerenderMatcherRouteMetadata(
-  plan: Readonly<PrerenderMatcherPlan>,
+  matcher: Readonly<PrerenderMatcher>,
   fallbackRouteParams: readonly Pick<FallbackRouteParam, 'paramName'>[],
   inferredFallbackMode: FallbackMode | undefined
 ): {
@@ -210,7 +203,7 @@ export function getPrerenderMatcherRouteMetadata(
   isPrerenderOutput: false | undefined
 } {
   const fallbackMode = getPrerenderMatcherFallbackMode(
-    plan,
+    matcher,
     fallbackRouteParams,
     inferredFallbackMode
   )
@@ -224,11 +217,11 @@ export function getPrerenderMatcherRouteMetadata(
 }
 
 export function isPrerenderableParam(
-  plan: Readonly<PrerenderMatcherPlan>,
+  matcher: Readonly<PrerenderMatcher>,
   paramName: string,
   generatedByGenerateStaticParams: boolean
 ): boolean {
-  const mode = plan.policy[paramName]
+  const mode = matcher[paramName]
   return (
     mode === 'blocking' ||
     mode === 'fallback' ||
@@ -238,14 +231,14 @@ export function isPrerenderableParam(
 
 export function validatePrerenderMatcherParams(
   page: string,
-  plan: Readonly<PrerenderMatcherPlan>,
+  matcher: Readonly<PrerenderMatcher>,
   routeParams: readonly Params[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>,
   output: 'export' | 'standalone' | undefined
 ): void {
   let dynamicParamName: string | undefined
   for (const { paramName } of pathnameSegments) {
-    const mode = plan.policy[paramName]
+    const mode = matcher[paramName]
     if (mode === 'dynamic') dynamicParamName = paramName
     if (dynamicParamName && routeParams.some((params) => paramName in params)) {
       throw new Error(

@@ -60,10 +60,7 @@ describe('assignStaticShellMetadata', () => {
     assignStaticShellMetadata(
       prerenderedRoutes,
       pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
-      {
-        policy: { lang: 'not-found', top: 'blocking' },
-        lastBlockingParamIndex: 1,
-      }
+      { lang: 'not-found', top: 'blocking' }
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
@@ -96,12 +93,9 @@ describe('assignStaticShellMetadata', () => {
       prerenderedRoutes,
       pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
       {
-        policy: {
-          lang: 'not-found',
-          top: 'blocking',
-          bottom: 'fallback',
-        },
-        lastBlockingParamIndex: 1,
+        lang: 'not-found',
+        top: 'blocking',
+        bottom: 'fallback',
       }
     )
 
@@ -668,7 +662,7 @@ describe('compilePrerenderMatcher', () => {
 
   it('merges ancestors and lets a descendant replace individual params', async () => {
     let calls = 0
-    const plan = await compilePrerenderMatcher(
+    const matcher = await compilePrerenderMatcher(
       '/[lang]/catalog/[top]/items/[bottom]',
       [
         createMatcherSegment({
@@ -695,7 +689,7 @@ describe('compilePrerenderMatcher', () => {
     )
 
     expect(calls).toBe(1)
-    expect(plan?.policy).toEqual({
+    expect(matcher).toEqual({
       lang: 'not-found',
       top: 'fallback',
       bottom: 'dynamic',
@@ -777,7 +771,7 @@ describe('compilePrerenderMatcher', () => {
         ],
         pathnameParams
       )
-    ).resolves.toMatchObject({ policy: { top: 'blocking' } })
+    ).resolves.toEqual({ top: 'blocking' })
   })
 
   it('rejects the route-wide dynamicParams switch', async () => {
@@ -801,10 +795,7 @@ describe('compilePrerenderMatcher', () => {
     expect(() =>
       validatePrerenderMatcherParams(
         '/[top]/[bottom]',
-        {
-          policy: { top: 'dynamic', bottom: 'dynamic' },
-          lastBlockingParamIndex: -1,
-        },
+        { top: 'dynamic', bottom: 'dynamic' },
         [{ top: 't1' }],
         [{ paramName: 'top' }, { paramName: 'bottom' }],
         undefined
