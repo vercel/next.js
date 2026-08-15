@@ -1470,5 +1470,7 @@
   "1469": "The payload's transport tree is missing a slot that exists in the loader tree: %s",
   "1470": "`deflateResumeDataCache` should not be called in edge runtime.",
   "1471": "Cannot resolve a dynamic segment that has no param value: the response provides no rendered pathname to parse it from.",
-  "1472": "Cannot convert a server response with no transport data and no base tree."
+  "1472": "Cannot convert a server response with no transport data and no base tree.",
+  "1473": "Invariant: image cache entry \"%s\" is empty",
+  "1474": "Invariant: cannot write an empty buffer to the image cache"
 }

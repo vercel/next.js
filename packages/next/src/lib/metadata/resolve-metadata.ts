@@ -93,6 +93,32 @@ export type MetadataItems = Array<
 
 export type ViewportItems = Array<Viewport | ViewportResolver | null>
 
+type WithSelectedTitle<T> = T extends { title: AbsoluteTemplateString }
+  ? Omit<T, 'title'> & { title: string }
+  : T
+
+/**
+ * Metadata that has finished route-level resolution and post-processing. It
+ * contains only values that can be turned into metadata elements; it is never
+ * used as the parent of another metadata resolver.
+ */
+export type SelectedMetadata = Omit<
+  ResolvedMetadata,
+  | 'metadataBase'
+  | 'title'
+  | 'openGraph'
+  | 'twitter'
+  | 'themeColor'
+  | 'colorScheme'
+  | 'viewport'
+> & {
+  title: string | null
+  openGraph: WithSelectedTitle<
+    NonNullable<ResolvedMetadata['openGraph']>
+  > | null
+  twitter: WithSelectedTitle<NonNullable<ResolvedMetadata['twitter']>> | null
+}
+
 type TitleTemplates = {
   title: string | null
   twitter: string | null
@@ -1020,6 +1046,37 @@ function postProcessMetadata(
   }
 
   return metadata
+}
+
+export function createSelectedMetadata(
+  metadata: ResolvedMetadata
+): SelectedMetadata {
+  const {
+    metadataBase,
+    title,
+    openGraph,
+    twitter,
+    themeColor,
+    colorScheme,
+    viewport,
+    ...metadataTagFields
+  } = metadata
+
+  // These fields are only used while resolving metadata, or are rendered by
+  // the separate viewport pipeline.
+  void metadataBase
+  void themeColor
+  void colorScheme
+  void viewport
+
+  return {
+    ...metadataTagFields,
+    title: title?.absolute || null,
+    openGraph: openGraph
+      ? { ...openGraph, title: openGraph.title.absolute }
+      : null,
+    twitter: twitter ? { ...twitter, title: twitter.title.absolute } : null,
+  }
 }
 
 type Result<T> = null | T | Promise<null | T> | PromiseLike<null | T>
