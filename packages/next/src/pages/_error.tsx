@@ -94,7 +94,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
       'An unexpected error has occurred'
 
     return (
-      <div style={styles.error}>
+      <div className="next-error-page" style={styles.error}>
         <Head>
           <title>
             {statusCode
@@ -106,7 +106,8 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           <style
             dangerouslySetInnerHTML={{
               /* CSS minified from
-                body { margin: 0; color: #000; background: #fff; }
+                body { margin: 0; }
+                .next-error-page { color: #000; background: #fff; }
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
@@ -114,7 +115,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 ${
                   withDarkMode
                     ? `@media (prefers-color-scheme: dark) {
-                  body { color: #fff; background: #000; }
+                  .next-error-page { color: #fff; background: #000; }
                   .next-error-h1 {
                     border-right: 1px solid rgba(255, 255, 255, .3);
                   }
@@ -122,9 +123,9 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                     : ''
                 }
                */
-              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
+              __html: `body{margin:0}.next-error-page{color:#000;background:#fff}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
                 withDarkMode
-                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
+                  ? '@media (prefers-color-scheme:dark){.next-error-page{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
                   : ''
               }`,
             }}
