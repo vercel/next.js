@@ -95,8 +95,10 @@ export function createMetadataComponents({
     )
   }
 
-  async function Metadata() {
-    const tags = await getResolvedParallelMetadata(
+  // Metadata resolution must start while rendering so it observes the current
+  // work unit store.
+  function getSelectedMetadata() {
+    return getResolvedParallelMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
@@ -107,30 +109,35 @@ export function createMetadataComponents({
       // We're going to throw the error from the metadata outlet so we just render null here instead
       return null
     })
+  }
 
-    return tags
+  async function Metadata() {
+    return await getSelectedMetadata()
   }
   Metadata.displayName = 'Next.Metadata'
 
+  function MetadataBlocker() {
+    return serveStreamingMetadata
+      ? null
+      : getSelectedMetadata().then(() => null)
+  }
+
   function MetadataWrapper() {
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return (
-        <MetadataBoundary>
-          <Metadata />
-        </MetadataBoundary>
-      )
-    }
+    // Keep the same component structure in streaming and blocking renders.
+    // The blocker only holds the shell open when metadata must not stream.
+    // React requires top-level suspenseful metadata to be nested under a host
+    // element. Otherwise it becomes part of the document preamble and blocks
+    // shell flushing instead of streaming. Metadata tags are hoisted out, so
+    // this hidden wrapper remains empty.
     return (
-      <div hidden>
-        <MetadataBoundary>
+      <MetadataBoundary>
+        <div hidden>
           <Suspense name="Next.Metadata">
             <Metadata />
           </Suspense>
-        </MetadataBoundary>
-      </div>
+        </div>
+        <MetadataBlocker />
+      </MetadataBoundary>
     )
   }
 
@@ -146,16 +153,22 @@ export function createMetadataComponents({
     const pendingOutlet = metadataResolution.then(
       (resolution) => resolution.outlets.get(outletTree) ?? null
     )
+    const streamingOutlet = serveStreamingMetadata ? pendingOutlet : null
+    const blockingOutlet = serveStreamingMetadata ? null : pendingOutlet
 
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return <OutletBoundary>{pendingOutlet}</OutletBoundary>
-    }
+    // Intentionally keep two outlet positions. During PPR, prerender and
+    // resume can disagree about whether metadata should block because the
+    // request's user agent is only known at resume time. Conditionally adding
+    // or removing Suspense would then change the React tree between phases.
+    //
+    // Route the promise to exactly one stable position: inside Suspense when
+    // streaming, or outside it when blocking so navigation and regular errors
+    // follow the unsuspended path. The outlet and the unused position both
+    // render null, so this changes control flow without changing the DOM.
     return (
       <OutletBoundary>
-        <Suspense name="Next.MetadataOutlet">{pendingOutlet}</Suspense>
+        <Suspense name="Next.MetadataOutlet">{streamingOutlet}</Suspense>
+        {blockingOutlet}
       </OutletBoundary>
     )
   }
