@@ -1,8 +1,13 @@
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
 } from '../../../shared/lib/router/utils/interception-routes'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../../../shared/lib/entry-constants'
 
 type AppPathNormalizer = {
   normalize(pathname: string): string
@@ -106,8 +111,10 @@ function pruneUnrenderableRoutes(
   defaultAppPaths: Iterable<string>
 ) {
   const allAppPaths = new Set([
-    ...Object.values(appPaths).flat(),
-    ...defaultAppPaths,
+    ...Object.values(appPaths).flat().filter(isUserAppPageRoute),
+    ...[...defaultAppPaths].filter(
+      (appPath) => !isBuiltinAppPageEntry(appPath)
+    ),
   ])
   const levelsByParent = new Map<string, ParallelRouteLevel>()
 
@@ -142,16 +149,37 @@ function pruneUnrenderableRoutes(
   }
 
   for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+    const matchedPageAppPaths = matchedAppPaths.filter(isUserAppPageRoute)
+    if (matchedPageAppPaths.length === 0) continue
+
     if (
       hasIncompleteParallelRoute(
-        matchedAppPaths,
+        matchedPageAppPaths,
         levelsByParent.values(),
         allAppPaths
       )
     ) {
-      delete appPaths[route]
+      const nonPageAppPaths = matchedAppPaths.filter(
+        (appPath) => !isUserAppPageRoute(appPath)
+      )
+      if (nonPageAppPaths.length === 0) {
+        delete appPaths[route]
+      } else {
+        appPaths[route] = nonPageAppPaths
+      }
     }
   }
+}
+
+function isUserAppPageRoute(appPath: string): boolean {
+  return isAppPageRoute(appPath) && !isBuiltinAppPageEntry(appPath)
+}
+
+function isBuiltinAppPageEntry(appPath: string): boolean {
+  return (
+    appPath === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+    appPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+  )
 }
 
 function hasIncompleteParallelRoute(
