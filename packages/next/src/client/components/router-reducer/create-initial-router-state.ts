@@ -5,7 +5,7 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
 import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
-import { createInitialCacheNodeForHydration } from './ppr-navigations'
+import { createInitialCacheNodeForHydration } from '../render-tree'
 import {
   writeRuntimePrefetchStreamIntoCache,
   spawnStaticStageCacheWrite,

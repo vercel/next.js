@@ -6,39 +6,24 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
   ACTION_RESTORE,
-  type NavigateAction,
-  ACTION_HMR_REFRESH,
-  PrefetchKind,
   ScrollBehavior,
-  type AppHistoryState,
 } from './router-reducer/router-reducer-types'
 import { reducer } from './router-reducer/router-reducer'
-import { addTransitionType, startTransition } from 'react'
+import { startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
-import {
-  FetchStrategy,
-  type PrefetchTaskFetchStrategy,
-} from './segment-cache/types'
-import { prefetch as prefetchWithSegmentCache } from './segment-cache/prefetch'
-import { navigate } from './segment-cache/navigation'
-import {
-  dispatchAppRouterAction,
-  dispatchGestureState,
-} from './use-action-queue'
-import { resetKnownRoutes } from './segment-cache/optimistic-routes'
-import { FreshnessPolicy } from './router-reducer/ppr-navigations'
+import { navigate } from './app-router-state'
+import { dispatchGestureState } from './use-action-queue'
+import { FreshnessPolicy } from './render-tree'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
 import type {
   AppRouterInstance,
   NavigateOptions,
-  PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { startRouterTransition } from './router-transition'
+import { push, replace, refresh, hmrRefresh } from './navigator'
+import { prefetchRoute } from './prefetch'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -269,72 +254,6 @@ export function getCurrentAppRouterState(): AppRouterState | null {
   return globalActionQueue !== null ? globalActionQueue.state : null
 }
 
-function getAppRouterActionQueue(): AppRouterActionQueue {
-  if (globalActionQueue === null) {
-    throw new Error(
-      'Internal Next.js error: Router action dispatched before initialization.'
-    )
-  }
-  return globalActionQueue
-}
-
-export function dispatchNavigateAction(
-  href: string,
-  navigateType: NavigateAction['navigateType'],
-  scrollBehavior: ScrollBehavior,
-  linkInstanceRef: LinkInstance | null,
-  transitionTypes: string[] | undefined,
-  prefetchIntent: RouterTransitionPrefetchIntent | null
-): void {
-  // TODO: This stuff could just go into the reducer. Leaving as-is for now
-  // since we're about to rewrite all the router reducer stuff anyway.
-
-  if (transitionTypes) {
-    for (const type of transitionTypes) {
-      addTransitionType(type)
-    }
-  }
-
-  const url = new URL(addBasePath(href), location.href)
-  if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-    window.next.__pendingUrl = url
-  }
-
-  setLinkForCurrentNavigation(linkInstanceRef)
-  startRouterTransition(
-    href,
-    navigateType,
-    getAppRouterActionQueue().state.tree,
-    prefetchIntent
-  )
-
-  dispatchAppRouterAction({
-    type: ACTION_NAVIGATE,
-    url,
-    isExternalUrl: isExternalURL(url),
-    locationSearch: location.search,
-    scrollBehavior,
-    navigateType,
-  })
-}
-
-export function dispatchTraverseAction(
-  href: string,
-  historyState: AppHistoryState | undefined
-) {
-  startRouterTransition(
-    href,
-    'traverse',
-    getAppRouterActionQueue().state.tree,
-    null
-  )
-  dispatchAppRouterAction({
-    type: ACTION_RESTORE,
-    url: new URL(href),
-    historyState,
-  })
-}
-
 /**
  * (Experimental) Perform a gesture navigation. This dispatches through React's
  * useOptimistic instead of the main action queue, allowing the state to be
@@ -391,10 +310,6 @@ function gesturePush(href: string, options?: NavigateOptions): void {
   }
 }
 
-// Tracks the newest HMR refresh generation so that a newer refresh can abort
-// the request of the one it supersedes. Development only.
-let activeHmrRefreshController: AbortController | null = null
-
 /**
  * The app router that is exposed through `useRouter`. These are public API
  * methods. Internal Next.js code should call the lower level methods directly
@@ -403,121 +318,11 @@ let activeHmrRefreshController: AbortController | null = null
 export const publicAppRouterInstance: AppRouterInstance = {
   back: () => window.history.back(),
   forward: () => window.history.forward(),
-  prefetch:
-    // Unlike the old implementation, the Segment Cache doesn't store its
-    // data in the router reducer state; it writes into a global mutable
-    // cache. So we don't need to dispatch an action.
-    (href: string, options?: PrefetchOptions) => {
-      if (isJavaScriptURLString(href)) {
-        throw new Error(
-          'Next.js has blocked a javascript: URL as a security precaution.'
-        )
-      }
-      const actionQueue = getAppRouterActionQueue()
-      const prefetchKind = options?.kind ?? PrefetchKind.AUTO
-
-      // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
-      // This will be possible when we update its API to not take a PrefetchKind.
-      let fetchStrategy: PrefetchTaskFetchStrategy
-      switch (prefetchKind) {
-        case PrefetchKind.AUTO: {
-          // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
-          fetchStrategy = FetchStrategy.PPR
-          break
-        }
-        case PrefetchKind.FULL: {
-          fetchStrategy = FetchStrategy.Full
-          break
-        }
-        default: {
-          prefetchKind satisfies never
-          // Despite typescript thinking that this can't happen,
-          // we might get an unexpected value from user code.
-          // We don't know what they want, but we know they want a prefetch,
-          // so use the default.
-          fetchStrategy = FetchStrategy.PPR
-        }
-      }
-
-      prefetchWithSegmentCache(
-        href,
-        actionQueue.state.nextUrl,
-        actionQueue.state.tree,
-        fetchStrategy,
-        options?.onInvalidate ?? null
-      )
-    },
-  replace: (href: string, options?: NavigateOptions) => {
-    if (isJavaScriptURLString(href)) {
-      throw new Error(
-        'Next.js has blocked a javascript: URL as a security precaution.'
-      )
-    }
-    startTransition(() => {
-      dispatchNavigateAction(
-        href,
-        'replace',
-        options?.scroll === false
-          ? ScrollBehavior.NoScroll
-          : ScrollBehavior.Default,
-        null,
-        options?.transitionTypes,
-        null
-      )
-    })
-  },
-  push: (href: string, options?: NavigateOptions) => {
-    if (isJavaScriptURLString(href)) {
-      throw new Error(
-        'Next.js has blocked a javascript: URL as a security precaution.'
-      )
-    }
-    startTransition(() => {
-      dispatchNavigateAction(
-        href,
-        'push',
-        options?.scroll === false
-          ? ScrollBehavior.NoScroll
-          : ScrollBehavior.Default,
-        null,
-        options?.transitionTypes,
-        null
-      )
-    })
-  },
-  refresh: () => {
-    startTransition(() => {
-      dispatchAppRouterAction({
-        type: ACTION_REFRESH,
-      })
-    })
-  },
-  hmrRefresh: () => {
-    if (process.env.NODE_ENV !== 'development') {
-      throw new Error(
-        'hmrRefresh can only be used in development mode. Please use refresh instead.'
-      )
-    } else {
-      // Reset the known routes table so that route predictions are cleared
-      // when routes change during development.
-      resetKnownRoutes()
-      let signal: AbortSignal | undefined
-      if (process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
-        // Abort the superseded generation before scheduling the new one, so its
-        // request is torn down as early as possible. Halting (not rejecting)
-        // makes the abort safe regardless of order.
-        activeHmrRefreshController?.abort()
-        activeHmrRefreshController = new AbortController()
-        signal = activeHmrRefreshController.signal
-      }
-      startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_HMR_REFRESH,
-          signal,
-        })
-      })
-    }
-  },
+  prefetch: prefetchRoute,
+  replace: replace,
+  push: push,
+  refresh: refresh,
+  hmrRefresh: hmrRefresh,
   // Default value. Each route segment provides its own value at runtime. Refer
   // to `useRouter()`.
   bfcacheId: '0',
