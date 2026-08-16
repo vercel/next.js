@@ -970,6 +970,43 @@ async fn directory_tree_to_entrypoints(
         }
     }
 
+    let ordinary_routes = retained_entrypoints
+        .iter()
+        .filter_map(|(route, entrypoint)| {
+            (!route.contains_interception() && matches!(entrypoint, Entrypoint::AppPage { .. }))
+                .then_some(route)
+        })
+        .collect::<Vec<_>>();
+    let missing_canonical_interception_routes = retained_entrypoints
+        .iter()
+        .filter_map(|(interception_route, entrypoint)| {
+            let Entrypoint::AppPage {
+                participating_page_files,
+                ..
+            } = entrypoint
+            else {
+                return None;
+            };
+            let canonical_route = interception_route.intercepted_path()?;
+            if canonical_route.is_route_pattern_covered_by(ordinary_routes.iter().copied()) {
+                return None;
+            }
+
+            Some((
+                interception_route.clone(),
+                canonical_route,
+                participating_page_files.first()?.clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    if !missing_canonical_interception_routes.is_empty() {
+        MissingCanonicalInterceptionRoutesIssue {
+            routes: missing_canonical_interception_routes,
+        }
+        .resolved_cell()
+        .emit();
+    }
+
     let mut authored_pages = FxIndexSet::default();
     collect_authored_page_files(&plain_tree, &mut authored_pages);
 
@@ -998,6 +1035,52 @@ async fn directory_tree_to_entrypoints(
     }
 
     Ok(Vc::cell(retained_entrypoints))
+}
+
+#[turbo_tasks::value]
+struct MissingCanonicalInterceptionRoutesIssue {
+    routes: Vec<(AppPath, AppPath, FileSystemPath)>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for MissingCanonicalInterceptionRoutesIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.routes[0].2.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Interception routes must have a canonical route"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let routes = self
+            .routes
+            .iter()
+            .map(|(interception_route, canonical_route, _)| {
+                format!("- {interception_route} (expected {canonical_route})")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following interception routes do not have a canonical \
+                 route:\n{routes}\n\nEvery interception route must have a matching \
+                 non-interception route so the URL can be loaded directly or refreshed."
+            )
+            .into(),
+        )))
+    }
 }
 
 fn collect_authored_page_files(

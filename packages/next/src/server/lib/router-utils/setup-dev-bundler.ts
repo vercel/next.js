@@ -98,6 +98,8 @@ import { isAPIRoute } from '../../../lib/is-api-route'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app-pages-error'
+import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
+import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -449,7 +451,7 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
-    let hadUnmatchedAppPages = false
+    let previousRouteMatchingError: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
 
@@ -1065,32 +1067,40 @@ async function startWatcher(
           defaultAppPaths,
         }
       )
-      const unmatchedAppPagesError =
-        unmatchedAppPages.length > 0
-          ? new UnmatchedAppPagesError(
-              unmatchedAppPages.map(
-                (appPath) => appRouteFilePaths.get(appPath) ?? appPath
-              )
+      const missingCanonicalInterceptionRoutes = nextConfig.experimental
+        .strictRouteMatching
+        ? findMissingCanonicalInterceptionRoutes(appPagePaths)
+        : []
+      const routeMatchingError =
+        missingCanonicalInterceptionRoutes.length > 0
+          ? new MissingCanonicalInterceptionRoutesError(
+              missingCanonicalInterceptionRoutes
             )
-          : null
+          : unmatchedAppPages.length > 0
+            ? new UnmatchedAppPagesError(
+                unmatchedAppPages.map(
+                  (appPath) => appRouteFilePaths.get(appPath) ?? appPath
+                )
+              )
+            : null
       if (
         numConflicting === 0 &&
-        unmatchedAppPagesError &&
-        !hadUnmatchedAppPages
+        routeMatchingError &&
+        routeMatchingError.message !== previousRouteMatchingError
       ) {
-        Log.error(unmatchedAppPagesError.message)
+        Log.error(routeMatchingError.message)
       }
-      // Turbopack reports unmatched pages as app-structure issues. Webpack
-      // needs an HMR server error so dev can finish booting and surface the
-      // problem to connected clients instead of throwing from this watcher.
+      // Turbopack reports route-matching failures as app-structure issues.
+      // Webpack needs an HMR server error so dev can finish booting and surface
+      // the problem to connected clients instead of throwing from this watcher.
       if (!opts.turbo) {
-        if (numConflicting === 0 && unmatchedAppPagesError) {
-          hotReloader.setHmrServerError(unmatchedAppPagesError)
-        } else if (numConflicting === 0 && hadUnmatchedAppPages) {
+        if (numConflicting === 0 && routeMatchingError) {
+          hotReloader.setHmrServerError(routeMatchingError)
+        } else if (numConflicting === 0 && previousRouteMatchingError) {
           hotReloader.clearHmrServerError()
         }
       }
-      hadUnmatchedAppPages = unmatchedAppPagesError !== null
+      previousRouteMatchingError = routeMatchingError?.message ?? null
       for (const pageAppPaths of Object.values(appPagePaths)) {
         pageAppPaths.sort(compareAppPaths)
       }

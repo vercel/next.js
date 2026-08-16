@@ -10,6 +10,112 @@ export const INTERCEPTION_ROUTE_MARKERS = [
 
 export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
 
+export type MissingCanonicalInterceptionRoute = {
+  interceptionRoute: string
+  canonicalRoute: string
+}
+
+type RoutePattern = {
+  prefix: Array<string | null>
+  minLength: number
+  unbounded: boolean
+}
+
+function parseRoutePattern(route: string): RoutePattern {
+  const segments = route.split('/').filter(Boolean)
+  const tail = segments.at(-1)
+  const isOptionalCatchAll =
+    tail !== undefined && tail.startsWith('[[...') && tail.endsWith(']]')
+  const isCatchAll =
+    tail !== undefined && tail.startsWith('[...') && tail.endsWith(']')
+  const unbounded = isOptionalCatchAll || isCatchAll
+  const prefixSegments = unbounded ? segments.slice(0, -1) : segments
+
+  return {
+    prefix: prefixSegments.map((segment) =>
+      segment.startsWith('[') && segment.endsWith(']') ? null : segment
+    ),
+    minLength:
+      prefixSegments.length + (isCatchAll && !isOptionalCatchAll ? 1 : 0),
+    unbounded,
+  }
+}
+
+function acceptsLength(pattern: RoutePattern, length: number): boolean {
+  return pattern.unbounded
+    ? length >= pattern.minLength
+    : length === pattern.minLength
+}
+
+function prefixCovers(
+  canonical: RoutePattern,
+  intercepted: RoutePattern
+): boolean {
+  return canonical.prefix.every((canonicalSegment, index) => {
+    if (canonicalSegment === null) return true
+
+    const interceptedSegment = intercepted.prefix[index]
+    return (
+      interceptedSegment !== undefined &&
+      interceptedSegment !== null &&
+      canonicalSegment === interceptedSegment
+    )
+  })
+}
+
+function patternCoversAtLength(
+  canonical: RoutePattern,
+  intercepted: RoutePattern,
+  length: number
+): boolean {
+  return (
+    acceptsLength(canonical, length) &&
+    acceptsLength(intercepted, length) &&
+    prefixCovers(canonical, intercepted)
+  )
+}
+
+/** Returns whether ordinary route patterns cover every URL in `route`. */
+function isRoutePatternCovered(route: string, ordinaryRoutes: RoutePattern[]) {
+  const intercepted = parseRoutePattern(route)
+
+  if (!intercepted.unbounded) {
+    return ordinaryRoutes.some((pattern) =>
+      patternCoversAtLength(pattern, intercepted, intercepted.minLength)
+    )
+  }
+
+  let unboundedCoverageStart = Infinity
+  for (const pattern of ordinaryRoutes) {
+    if (pattern.unbounded && prefixCovers(pattern, intercepted)) {
+      unboundedCoverageStart = Math.min(
+        unboundedCoverageStart,
+        Math.max(intercepted.minLength, pattern.minLength)
+      )
+    }
+  }
+
+  if (unboundedCoverageStart === Infinity) return false
+
+  // An optional or required catchall can have its shorter paths covered by
+  // fixed routes before another catchall takes over the remaining suffix.
+  for (
+    let length = intercepted.minLength;
+    length < unboundedCoverageStart;
+    length++
+  ) {
+    if (
+      !ordinaryRoutes.some((pattern) =>
+        patternCoversAtLength(pattern, intercepted, length)
+      )
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
   return (
@@ -105,4 +211,32 @@ export function extractInterceptionRouteInformation(
   }
 
   return { interceptingRoute, interceptedRoute }
+}
+
+/**
+ * Finds interception matchers that cannot be loaded as an ordinary request.
+ *
+ * This must run after catch-all normalization and pruning so `appPaths`
+ * contains the final matcher set rather than every possible matcher candidate.
+ */
+export function findMissingCanonicalInterceptionRoutes(
+  appPaths: Record<string, string[]>
+): MissingCanonicalInterceptionRoute[] {
+  const canonicalRoutes = Object.keys(appPaths).filter(
+    (route) => !isInterceptionRouteAppPath(route)
+  )
+  const canonicalRoutePatterns = canonicalRoutes.map(parseRoutePattern)
+
+  return Object.keys(appPaths)
+    .filter(isInterceptionRouteAppPath)
+    .map((interceptionRoute) => ({
+      interceptionRoute,
+      canonicalRoute:
+        extractInterceptionRouteInformation(interceptionRoute).interceptedRoute,
+    }))
+    .filter(
+      ({ canonicalRoute }) =>
+        !isRoutePatternCovered(canonicalRoute, canonicalRoutePatterns)
+    )
+    .sort((a, b) => a.interceptionRoute.localeCompare(b.interceptionRoute))
 }

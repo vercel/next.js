@@ -35,18 +35,12 @@ describe('unmatched-app-pages', () => {
     expect(output).toContain('app/(pruning-group)/grouped/[...slug]/page.tsx')
     expect(output).toContain('app/nested-parallel/@outer/[...slug]/page.tsx')
     expect(output).toContain('app/nested-parallel/[...slug]/page.tsx')
-    expect(output).toContain(
-      'app/interception-host/@canonical/intercepted/[...slug]/page.tsx'
-    )
     expect(output).not.toContain('app/optional-catchall/specific/page.tsx')
     expect(output).not.toContain(
       'app/(pruning-group)/grouped/specific/page.tsx'
     )
     expect(output).not.toContain(
       'app/nested-parallel/@outer/@inner/specific/page.tsx'
-    )
-    expect(output).not.toContain(
-      'app/interception-host/@modal/(.)intercepted/[...slug]/page.tsx'
     )
     expect(output).not.toContain('app/declared-children/page.tsx')
   })
