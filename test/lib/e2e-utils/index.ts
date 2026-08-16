@@ -8,6 +8,8 @@ import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
 
+const { reportTestFileProgress } = require('../test-file-progress')
+
 export type { NextInstance }
 export type { Playwright } from '../browsers/playwright'
 
@@ -341,13 +343,17 @@ export function nextTestSetup(
   let next: NextInstance | undefined
   if (!skipped) {
     beforeAll(async () => {
+      reportTestFileProgress('next-setup')
       next = await createNext(options)
+      reportTestFileProgress('next-ready')
     })
     afterAll(async () => {
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
+      reportTestFileProgress('next-teardown')
       await next?.destroy()
+      reportTestFileProgress('next-teardown-complete')
     })
   }
 

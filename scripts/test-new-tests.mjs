@@ -8,6 +8,12 @@ import {
   previewTarballUrl,
 } from './wait-for-preview-tarball.mjs'
 
+// Development tests can explicitly allow up to five minutes for one setup or
+// test. Give that work a minute of grace, while still ending a file early
+// enough to preserve its diagnostics before the 30-minute CI job timeout.
+const DEV_TEST_STALL_TIMEOUT_MS = 6 * 60 * 1000
+const DEV_TEST_FILE_TIMEOUT_MS = 12 * 60 * 1000
+
 /**
  * Run tests for added/changed tests in the current branch
  * CLI Options:
@@ -145,6 +151,16 @@ async function main() {
           NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
           NEXT_EXTERNAL_TESTS_FILTERS,
           NEXT_FLAKE_DETECTION: '1',
+          NEXT_TEST_FILE_STALL_TIMEOUT_MS:
+            testMode === 'dev'
+              ? (process.env.NEXT_TEST_FILE_STALL_TIMEOUT_MS ??
+                String(DEV_TEST_STALL_TIMEOUT_MS))
+              : process.env.NEXT_TEST_FILE_STALL_TIMEOUT_MS,
+          NEXT_TEST_FILE_TIMEOUT_MS:
+            testMode === 'dev'
+              ? (process.env.NEXT_TEST_FILE_TIMEOUT_MS ??
+                String(DEV_TEST_FILE_TIMEOUT_MS))
+              : process.env.NEXT_TEST_FILE_TIMEOUT_MS,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD:
             testMode === 'start' || testMode === 'deploy' ? '1' : undefined,
