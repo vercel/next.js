@@ -13,6 +13,12 @@ export type NormalizeCatchAllRoutesOptions = {
   defaultAppPaths?: Iterable<string>
 }
 
+type ParallelRouteLevel = {
+  parentSegments: string[]
+  namedSlots: Set<string>
+  hasChildrenSlot: boolean
+}
+
 const defaultNormalizer: AppPathNormalizer = {
   normalize(pathname: string): string {
     return normalizeAppPath(pathname).replace(/%5F/g, '_')
@@ -83,19 +89,19 @@ export function normalizeCatchAllRoutes(
   }
 
   if (strictRouteMatching) {
-    pruneUnrenderableCatchAllRoutes(appPaths, defaultAppPaths)
+    pruneUnrenderableRoutes(appPaths, defaultAppPaths)
   }
 }
 
 /**
- * Removes catch-all-derived routes that can never render because another slot
- * at the same level has neither a matching page nor an explicit default.
+ * Removes routes that can never render because a declared slot at a matching
+ * layout level has neither a matching page nor an explicit default.
  *
  * The built-in default for such a slot always calls `notFound()`. Keeping the
- * route in the matcher set therefore makes it shadow the ordinary not-found
- * path without ever being able to render successfully.
+ * route in the matcher set would therefore retain a matcher that can never
+ * construct a complete loader tree.
  */
-function pruneUnrenderableCatchAllRoutes(
+function pruneUnrenderableRoutes(
   appPaths: Record<string, string[]>,
   defaultAppPaths: Iterable<string>
 ) {
@@ -103,14 +109,7 @@ function pruneUnrenderableCatchAllRoutes(
     ...Object.values(appPaths).flat(),
     ...defaultAppPaths,
   ])
-  const levelsByParent = new Map<
-    string,
-    {
-      parentSegments: string[]
-      namedSlots: Set<string>
-      hasChildrenSlot: boolean
-    }
-  >()
+  const levelsByParent = new Map<string, ParallelRouteLevel>()
 
   for (const appPath of allAppPaths) {
     const segments = splitAppPath(appPath)
@@ -143,63 +142,63 @@ function pruneUnrenderableCatchAllRoutes(
   }
 
   for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
-    const catchAllAppPaths = matchedAppPaths.filter(isCatchAll)
-
     if (
-      catchAllAppPaths.some((catchAllAppPath) => {
-        const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
-        const interceptionMarkerIndex = catchAllSegments.findIndex((segment) =>
-          INTERCEPTION_ROUTE_MARKERS.some((marker) =>
-            segment.startsWith(marker)
-          )
-        )
-
-        for (const {
-          parentSegments,
-          namedSlots,
-          hasChildrenSlot,
-        } of levelsByParent.values()) {
-          if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
-
-          const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
-          const siblingSlots = [
-            ...(hasChildrenSlot ? ['children'] : []),
-            ...namedSlots,
-          ]
-          // An interception response replaces one slot while retaining every
-          // sibling owned by layouts up to the interception marker. Those
-          // siblings use the null retain marker rather than a page or default.
-          // Slots inside the newly selected subtree still match normally.
-          const retainsInterceptionSiblings =
-            interceptionMarkerIndex !== -1 &&
-            parentSegments.length <= interceptionMarkerIndex
-
-          for (const siblingSlot of siblingSlots) {
-            if (siblingSlot === catchAllSlot) continue
-
-            const hasMatchedPage = matchedAppPaths.some((appPath) =>
-              isPathInSlot(appPath, parentSegments, siblingSlot)
-            )
-            const hasDefault = allAppPaths.has(
-              getDefaultAppPath(parentSegments, siblingSlot)
-            )
-
-            if (
-              !hasMatchedPage &&
-              !hasDefault &&
-              !retainsInterceptionSiblings
-            ) {
-              return true
-            }
-          }
-        }
-
-        return false
-      })
+      hasIncompleteParallelRoute(
+        matchedAppPaths,
+        levelsByParent.values(),
+        allAppPaths
+      )
     ) {
       delete appPaths[route]
     }
   }
+}
+
+function hasIncompleteParallelRoute(
+  matchedAppPaths: string[],
+  levels: Iterable<ParallelRouteLevel>,
+  allAppPaths: Set<string>
+): boolean {
+  const matchedSegments = matchedAppPaths.map((appPath) =>
+    splitAppPath(appPath).slice(0, -1)
+  )
+
+  for (const { parentSegments, namedSlots, hasChildrenSlot } of levels) {
+    const pathsAtLevel = matchedSegments.filter((segments) =>
+      hasPathPrefix(segments, parentSegments)
+    )
+    if (pathsAtLevel.length === 0) continue
+
+    // An interception response replaces one slot while retaining every
+    // sibling owned by layouts up to the interception marker. Those siblings
+    // use the null retain marker rather than a page or default. Slots inside
+    // the newly selected subtree still match normally.
+    const retainsInterceptionSiblings = pathsAtLevel.some((segments) => {
+      const interceptionMarkerIndex = segments.findIndex((segment) =>
+        INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+      )
+      return (
+        interceptionMarkerIndex !== -1 &&
+        parentSegments.length <= interceptionMarkerIndex
+      )
+    })
+
+    const slots = [...(hasChildrenSlot ? ['children'] : []), ...namedSlots]
+    for (const slot of slots) {
+      const hasMatchedPage = matchedAppPaths.some((appPath) =>
+        isPathInSlot(appPath, parentSegments, slot)
+      )
+      const hasDefault = allAppPaths.has(
+        getDefaultAppPath(parentSegments, slot)
+      )
+
+      if (!hasMatchedPage && !hasDefault && !retainsInterceptionSiblings) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 function splitAppPath(appPath: string): string[] {
