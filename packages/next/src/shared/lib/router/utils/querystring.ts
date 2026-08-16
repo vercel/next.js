@@ -1,17 +1,46 @@
 import type { ParsedUrlQuery } from 'querystring'
 
+/**
+ * Adds one entry to a query object.
+ *
+ * `query[key] = value` cannot be used: for a `key` of `__proto__` that reaches
+ * the setter inherited from `Object.prototype`, which replaces the object's
+ * prototype instead of adding an entry, and the parameter disappears from the
+ * query altogether. Defining the property keeps the ordinary object shape that
+ * `router.query` consumers rely on, unlike a null-prototype object.
+ */
+function defineQueryValue(
+  query: ParsedUrlQuery,
+  key: string,
+  value: string | string[]
+): void {
+  Object.defineProperty(query, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  })
+}
+
 export function searchParamsToUrlQuery(
   searchParams: URLSearchParams
 ): ParsedUrlQuery {
   const query: ParsedUrlQuery = {}
   for (const [key, value] of searchParams.entries()) {
-    const existing = query[key]
-    if (typeof existing === 'undefined') {
-      query[key] = value
+    // Reading `query[key]` goes through the prototype chain, so a parameter
+    // named after an `Object.prototype` member (`constructor`, `toString`,
+    // `valueOf`, ...) reads back the inherited value and is mistaken for a
+    // parameter that was already seen.
+    const existing = Object.prototype.hasOwnProperty.call(query, key)
+      ? query[key]
+      : undefined
+
+    if (existing === undefined) {
+      defineQueryValue(query, key, value)
     } else if (Array.isArray(existing)) {
       existing.push(value)
     } else {
-      query[key] = [existing, value]
+      defineQueryValue(query, key, [existing, value])
     }
   }
   return query
