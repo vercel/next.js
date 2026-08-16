@@ -59,4 +59,11 @@ export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 export type StaticPathsResult = {
   fallbackMode: FallbackMode | undefined
   prerenderedRoutes: PrerenderedRoute[] | undefined
+
+  /**
+   * DEV only: when an explicit matcher contains `fallback`, the first fallback
+   * parameter and every parameter after it must remain unknown while
+   * validating the fallback shell.
+   */
+  validationFallbackRouteParams?: readonly FallbackRouteParam[]
 }

@@ -328,6 +328,9 @@ export interface RequestMeta {
   /** DEV only: the fallback mode selected from the most-specific static path. */
   devPrerenderFallbackMode?: FallbackMode
 
+  /** DEV only: params made unknown while validating the selected shell. */
+  devPrerenderValidationFallbackParams?: OpaqueFallbackRouteParams | null
+
   /**
    * DEV only: Request timings in process.hrtime.bigint()
    */

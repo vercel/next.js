@@ -1,9 +1,6 @@
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
-import type {
-  AppSegment,
-  PrerenderMatcher,
-} from '../segment-config/app/app-segments'
+import type { AppSegment } from '../segment-config/app/app-segments'
 import type {
   FallbackRouteParam,
   PrerenderedRoute,
@@ -44,10 +41,9 @@ import { getImplicitTags } from '../../server/lib/implicit-tags'
 import {
   compilePrerenderMatcher,
   getPrerenderMatcherFallbackMode,
-  getPrerenderMatcherRouteMetadata,
-  isPrerenderableParam,
   validatePrerenderMatcherParams,
 } from './prerender-matcher'
+import { isPageAllowedToBlock } from '../../server/app-render/instant-validation/instant-config'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -436,30 +432,22 @@ interface TrieNode {
  * `/blog/[slug]` should not throw because `/blog/first-post` is a more specific concrete route.
  *
  * @param prerenderedRoutes - The prerendered routes.
- * @param pathnameSegments - The pathname params and whether each one is still
- * prerenderable via generateStaticParams.
- * @param prerenderMatcher - The explicit matcher policy, when configured.
+ * @param pathnameSegments - The pathname params and whether each one can still
+ * be filled by a more specific prerender.
+ * @param explicitFallbackParamName - The first parameter explicitly configured
+ * as fallback, when one exists.
  */
 export function assignStaticShellMetadata(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
-    readonly hasGenerateStaticParams: boolean
+    readonly isPrerenderable: boolean
   }>,
-  prerenderMatcher?: Readonly<PrerenderMatcher>
+  explicitFallbackParamName?: string
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
     return
-  }
-
-  let lastBlockingParamIndex = -1
-  if (prerenderMatcher) {
-    for (let index = 0; index < pathnameSegments.length; index++) {
-      if (prerenderMatcher[pathnameSegments[index].paramName] === 'blocking') {
-        lastBlockingParamIndex = index
-      }
-    }
   }
 
   // Initialize the root of the Trie. This node represents the starting point
@@ -526,12 +514,11 @@ export function assignStaticShellMetadata(
   // for very deep routing structures.
   const stack: Array<{
     node: TrieNode
-    depth: number
     hasValidatedMatcherAncestor: boolean
-  }> = [{ node: root, depth: 0, hasValidatedMatcherAncestor: false }]
+  }> = [{ node: root, hasValidatedMatcherAncestor: false }]
 
   while (stack.length > 0) {
-    const { node, depth, hasValidatedMatcherAncestor } = stack.pop()!
+    const { node, hasValidatedMatcherAncestor } = stack.pop()!
 
     // `hasChildren` indicates if this node has any more specific concrete
     // parameter combinations branching off from it. If true, it means this
@@ -541,22 +528,17 @@ export function assignStaticShellMetadata(
     // If the current node has routes associated with it (meaning, routes whose
     // concrete parameters lead to this node's path in the Trie).
     if (node.routes.length > 0) {
-      if (!hasValidatedMatcherAncestor && prerenderMatcher) {
+      if (!hasValidatedMatcherAncestor && explicitFallbackParamName) {
         for (const route of node.routes) {
           const fallbackRouteParams = route.fallbackRouteParams ?? []
           const isExplicitFallback =
             route.fallbackMode === FallbackMode.PRERENDER &&
             fallbackRouteParams.some(
-              ({ paramName }) => prerenderMatcher[paramName] === 'fallback'
+              ({ paramName }) => paramName === explicitFallbackParamName
             )
-          const isBlockingBoundary =
-            lastBlockingParamIndex >= 0 &&
-            depth === lastBlockingParamIndex + 1 &&
-            (fallbackRouteParams.length === 0 ||
-              route.fallbackMode === FallbackMode.PRERENDER)
 
           if (
-            (isExplicitFallback || isBlockingBoundary) &&
+            isExplicitFallback &&
             (!matcherValidationRoute ||
               fallbackRouteParams.length >
                 (matcherValidationRoute.fallbackRouteParams?.length ?? 0))
@@ -616,16 +598,16 @@ export function assignStaticShellMetadata(
           )
           const remainingPrerenderableParams: FallbackRouteParam[] = []
 
-          // Only unresolved pathname params that can still be filled by
-          // generateStaticParams belong here. Once we hit an unresolved param
-          // that is purely dynamic, the rest of the shell also stays dynamic
-          // and cannot be completed into a more specific prerendered shell.
+          // Only unresolved pathname params that can still be prerendered
+          // belong here. Once we hit an unresolved param that is purely
+          // dynamic, the rest of the shell also stays dynamic and cannot be
+          // completed into a more specific prerendered shell.
           for (const segment of pathnameSegments) {
             if (route.params.hasOwnProperty(segment.paramName)) {
               continue
             }
 
-            if (!segment.hasGenerateStaticParams) {
+            if (!segment.isPrerenderable) {
               break
             }
 
@@ -652,7 +634,6 @@ export function assignStaticShellMetadata(
     for (const child of node.children.values()) {
       stack.push({
         node: child,
-        depth: depth + 1,
         hasValidatedMatcherAncestor:
           hasValidatedMatcherAncestor || matcherValidationRoute !== undefined,
       })
@@ -1014,29 +995,48 @@ export async function buildAppStaticPaths({
     nextConfigOutput === 'export'
   )
   const generatedParamNames = new Set<string>()
-  for (const params of routeParams) {
-    for (const paramName of Object.keys(params)) {
-      generatedParamNames.add(paramName)
+  const missingParamNames = new Set<string>()
+  if (routeParams.length > 0) {
+    for (const { paramName } of pathnameRouteParamSegments) {
+      for (const params of routeParams) {
+        if (paramName in params) {
+          generatedParamNames.add(paramName)
+        } else {
+          missingParamNames.add(paramName)
+        }
+      }
     }
   }
   const prerenderablePathSegments = pathnameRouteParamSegments.map(
-    (segment) => ({
-      paramName: segment.paramName,
-      hasGenerateStaticParams: prerenderMatcher
-        ? isPrerenderableParam(
-            prerenderMatcher,
-            segment.paramName,
-            generatedParamNames.has(segment.paramName)
-          )
-        : generatedParamNames.has(segment.paramName),
-    })
+    (segment) => {
+      const mode = prerenderMatcher?.[segment.paramName]
+      return {
+        paramName: segment.paramName,
+        isPrerenderable:
+          mode === 'blocking' ||
+          mode === 'fallback' ||
+          (mode === undefined && generatedParamNames.has(segment.paramName)),
+      }
+    }
   )
+  let validationFallbackRouteParams: readonly FallbackRouteParam[] | undefined
+  if (prerenderMatcher) {
+    const firstFallbackParamIndex = pathnameRouteParamSegments.findIndex(
+      ({ paramName }) => prerenderMatcher[paramName] === 'fallback'
+    )
+    if (firstFallbackParamIndex !== -1) {
+      validationFallbackRouteParams = pathnameRouteParamSegments
+        .slice(firstFallbackParamIndex)
+        .map(({ paramName, paramType }) => ({ paramName, paramType }))
+    }
+  }
 
   if (prerenderMatcher) {
     validatePrerenderMatcherParams(
       page,
       prerenderMatcher,
-      routeParams,
+      generatedParamNames,
+      missingParamNames,
       pathnameRouteParamSegments,
       nextConfigOutput
     )
@@ -1077,19 +1077,10 @@ export async function buildAppStaticPaths({
     }
   }
 
-  const missingParamNames: string[] = []
-  if (routeParams.length > 0) {
-    for (const { paramName } of pathnameRouteParamSegments) {
-      if (routeParams.some((params) => !(paramName in params))) {
-        missingParamNames.push(paramName)
-      }
-    }
-  }
-
   // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
     pathnameRouteParamSegments.length === 0 ||
-    (routeParams.length > 0 && missingParamNames.length === 0)
+    (routeParams.length > 0 && missingParamNames.size === 0)
 
   if (
     nextConfigOutput === 'export' &&
@@ -1097,7 +1088,7 @@ export async function buildAppStaticPaths({
     !hadAllParamsGenerated
   ) {
     throw new Error(
-      `Page "${page}" returned incomplete params from "generateStaticParams()". With "output: export", every params object must include all dynamic route parameters. Missing: ${missingParamNames.map((name) => `"${name}"`).join(', ')}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+      `Page "${page}" returned incomplete params from "generateStaticParams()". With "output: export", every params object must include all dynamic route parameters. Missing: ${[...missingParamNames].map((name) => `"${name}"`).join(', ')}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
     )
   }
 
@@ -1130,20 +1121,34 @@ export async function buildAppStaticPaths({
   const getFallbackMetadata = (
     fallbackRouteParams: readonly FallbackRouteParam[],
     fallbackRootParams: readonly string[]
-  ) =>
-    prerenderMatcher
-      ? getPrerenderMatcherRouteMetadata(
-          prerenderMatcher,
-          fallbackRouteParams,
-          inferredFallbackMode
-        )
-      : {
-          fallbackMode: calculateFallbackMode(
-            dynamicParams,
-            fallbackRootParams,
-            fallbackMode
-          ),
-        }
+  ): {
+    fallbackMode: FallbackMode | undefined
+    isPrerenderOutput?: false
+  } => {
+    if (prerenderMatcher) {
+      const resolvedFallbackMode = getPrerenderMatcherFallbackMode(
+        prerenderMatcher,
+        fallbackRouteParams,
+        inferredFallbackMode
+      )
+      return {
+        fallbackMode: resolvedFallbackMode,
+        isPrerenderOutput:
+          fallbackRouteParams.length > 0 &&
+          resolvedFallbackMode !== FallbackMode.PRERENDER
+            ? false
+            : undefined,
+      }
+    }
+
+    return {
+      fallbackMode: calculateFallbackMode(
+        dynamicParams,
+        fallbackRootParams,
+        fallbackMode
+      ),
+    }
+  }
 
   const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
 
@@ -1291,15 +1296,44 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
+    const explicitFallbackParamName =
+      validationFallbackRouteParams?.[0]?.paramName
+
+    if (explicitFallbackParamName) {
+      const hasFallbackValidationRoute = prerenderedRoutes.some(
+        (prerenderedRoute) =>
+          prerenderedRoute.fallbackMode === FallbackMode.PRERENDER &&
+          prerenderedRoute.fallbackRouteParams?.some(
+            ({ paramName }) => paramName === explicitFallbackParamName
+          )
+      )
+
+      if (!hasFallbackValidationRoute) {
+        const loaderTree =
+          'loaderTree' in ComponentMod.routeModule.userland
+            ? ComponentMod.routeModule.userland.loaderTree
+            : undefined
+        const allowsBlocking =
+          loaderTree !== undefined && (await isPageAllowedToBlock(loaderTree))
+
+        if (!allowsBlocking) {
+          throw new Error(
+            `Route "${page}" configures parameter "${explicitFallbackParamName}" as "fallback", but generateStaticParams did not produce a parameter combination that reaches that fallback boundary. Add a result that provides every preceding blocking parameter, or export \`const instant = false\` to opt out of static shell validation.`
+          )
+        }
+      }
+    }
+
     assignStaticShellMetadata(
       prerenderedRoutes,
       prerenderablePathSegments,
-      prerenderMatcher
+      explicitFallbackParamName
     )
   }
 
   return {
     fallbackMode,
     prerenderedRoutes,
+    validationFallbackRouteParams,
   }
 }

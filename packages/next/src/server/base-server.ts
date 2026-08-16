@@ -156,7 +156,10 @@ import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
-import type { PrerenderedRoute } from '../build/static-paths/types'
+import type {
+  FallbackRouteParam,
+  PrerenderedRoute,
+} from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
@@ -2041,6 +2044,7 @@ export default abstract class Server<
     staticPaths?: string[]
     prerenderedRoutes?: PrerenderedRoute[]
     fallbackMode?: FallbackMode
+    validationFallbackRouteParams?: readonly FallbackRouteParam[]
   }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
@@ -2482,49 +2486,70 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          // Replicate, on demand, the per-URL fallback set a production build
-          // writes to the prerender manifest. Production matches the requested
-          // URL to the most-specific prerendered route and defers that route's
-          // `fallbackRouteParams` (so `generateStaticParams`-covered params
-          // resolve in the static shell and only the uncovered ones are
-          // deferred). The dev prerender manifest isn't populated for these
-          // ad-hoc routes, but `getStaticPaths` already computed every
-          // prerendered route here, so we do the same match: among the routes
-          // whose canonical regex matches this URL, pick the one with the
-          // fewest fallback params (the most-specific) and thread it via the
-          // `fallbackParams` meta. A fully-covered concrete route (e.g.
-          // `/blog/a`) has zero fallback params and is the most-specific match
-          // for its own URL, so it must be considered alongside the others: it
-          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
-          // statically-known params out of the deferred set.
-          let perUrlFallbackRouteParams: NonNullable<
-            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
-          > | null = null
+          // The foreground render remains value-sensitive: select the
+          // most-specific generated route that matches this URL. Validation is
+          // value-insensitive: unless an explicit fallback boundary overrides
+          // it below, use the most-specific param shape generated anywhere for
+          // this route. For example, a generated `/t1/b1` proves the `*/*`
+          // shape for validation of `/t2/b2`, even though it is not a cache hit
+          // for the foreground request.
+          let perUrlPrerenderedRoute: PrerenderedRoute | undefined
+          let smallestFallbackRouteParams:
+            | readonly FallbackRouteParam[]
+            | undefined
           let perUrlFallbackMode: FallbackMode | undefined
           for (const route of pathsResults.prerenderedRoutes) {
             const fallbackRouteParams = route.fallbackRouteParams ?? []
+            if (
+              smallestFallbackRouteParams === undefined ||
+              fallbackRouteParams.length < smallestFallbackRouteParams.length
+            ) {
+              smallestFallbackRouteParams = fallbackRouteParams
+            }
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
             if (
-              perUrlFallbackRouteParams === null ||
-              fallbackRouteParams.length < perUrlFallbackRouteParams.length
+              perUrlPrerenderedRoute === undefined ||
+              fallbackRouteParams.length <
+                (perUrlPrerenderedRoute.fallbackRouteParams?.length ?? 0)
             ) {
-              perUrlFallbackRouteParams = fallbackRouteParams
+              perUrlPrerenderedRoute = route
               perUrlFallbackMode = route.fallbackMode
             }
           }
           if (perUrlFallbackMode !== undefined) {
             addRequestMeta(req, 'devPrerenderFallbackMode', perUrlFallbackMode)
           }
-          if (
-            perUrlFallbackRouteParams &&
-            perUrlFallbackRouteParams.length > 0
-          ) {
+
+          let requestFallbackRouteParams =
+            perUrlPrerenderedRoute?.fallbackRouteParams ?? []
+          const explicitValidationFallbackRouteParams =
+            pathsResults.validationFallbackRouteParams
+          if (explicitValidationFallbackRouteParams) {
+            const explicitFallbackParamNames = new Set(
+              explicitValidationFallbackRouteParams.map(
+                ({ paramName }) => paramName
+              )
+            )
+            requestFallbackRouteParams = requestFallbackRouteParams.filter(
+              ({ paramName }) => explicitFallbackParamNames.has(paramName)
+            )
+          }
+          if (requestFallbackRouteParams.length > 0) {
             addRequestMeta(
               req,
               'fallbackParams',
-              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
+              createOpaqueFallbackRouteParams(requestFallbackRouteParams)!
+            )
+          }
+          const validationFallbackRouteParams =
+            explicitValidationFallbackRouteParams ?? smallestFallbackRouteParams
+          if (validationFallbackRouteParams) {
+            addRequestMeta(
+              req,
+              'devPrerenderValidationFallbackParams',
+              createOpaqueFallbackRouteParams(validationFallbackRouteParams)
             )
           }
         }

@@ -1,4 +1,3 @@
-import type { Params } from '../../server/request/params'
 import {
   PRERENDER_PARAM_MODES,
   type AppSegment,
@@ -113,27 +112,15 @@ export async function compilePrerenderMatcher(
     const matcher = validateMatcherExport(page, segment, value, routeParamNames)
 
     for (const [paramName, mode] of Object.entries(matcher)) {
-      const current = candidates.get(paramName) ?? []
-      const next: MatcherCandidate[] = []
-      let shadowedByDescendant = false
-
-      for (const candidate of current) {
-        if (isTreePathPrefix(candidate.treePath, matcherExport.treePath)) {
-          continue
-        }
-        if (isTreePathPrefix(matcherExport.treePath, candidate.treePath)) {
-          shadowedByDescendant = true
-        }
-        next.push(candidate)
-      }
-
-      if (!shadowedByDescendant) {
-        next.push({
-          mode,
-          filePath: segment.filePath,
-          treePath: matcherExport.treePath,
-        })
-      }
+      const next = (candidates.get(paramName) ?? []).filter(
+        (candidate) =>
+          !isTreePathPrefix(candidate.treePath, matcherExport.treePath)
+      )
+      next.push({
+        mode,
+        filePath: segment.filePath,
+        treePath: matcherExport.treePath,
+      })
       candidates.set(paramName, next)
     }
   }
@@ -194,45 +181,11 @@ export function getPrerenderMatcherFallbackMode(
   return inferredFallbackMode
 }
 
-export function getPrerenderMatcherRouteMetadata(
-  matcher: Readonly<PrerenderMatcher>,
-  fallbackRouteParams: readonly Pick<FallbackRouteParam, 'paramName'>[],
-  inferredFallbackMode: FallbackMode | undefined
-): {
-  fallbackMode: FallbackMode | undefined
-  isPrerenderOutput: false | undefined
-} {
-  const fallbackMode = getPrerenderMatcherFallbackMode(
-    matcher,
-    fallbackRouteParams,
-    inferredFallbackMode
-  )
-  return {
-    fallbackMode,
-    isPrerenderOutput:
-      fallbackRouteParams.length > 0 && fallbackMode !== FallbackMode.PRERENDER
-        ? false
-        : undefined,
-  }
-}
-
-export function isPrerenderableParam(
-  matcher: Readonly<PrerenderMatcher>,
-  paramName: string,
-  generatedByGenerateStaticParams: boolean
-): boolean {
-  const mode = matcher[paramName]
-  return (
-    mode === 'blocking' ||
-    mode === 'fallback' ||
-    (mode === undefined && generatedByGenerateStaticParams)
-  )
-}
-
 export function validatePrerenderMatcherParams(
   page: string,
   matcher: Readonly<PrerenderMatcher>,
-  routeParams: readonly Params[],
+  generatedParamNames: ReadonlySet<string>,
+  missingParamNames: ReadonlySet<string>,
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>,
   output: 'export' | 'standalone' | undefined
 ): void {
@@ -240,15 +193,12 @@ export function validatePrerenderMatcherParams(
   for (const { paramName } of pathnameSegments) {
     const mode = matcher[paramName]
     if (mode === 'dynamic') dynamicParamName = paramName
-    if (dynamicParamName && routeParams.some((params) => paramName in params)) {
+    if (dynamicParamName && generatedParamNames.has(paramName)) {
       throw new Error(
         `Route "${page}" cannot prerender parameter "${paramName}" because parameter "${dynamicParamName}" is configured as "dynamic".`
       )
     }
-    if (
-      mode === 'not-found' &&
-      routeParams.some((params) => !(paramName in params))
-    ) {
+    if (mode === 'not-found' && missingParamNames.has(paramName)) {
       throw new Error(
         `Route "${page}" configures parameter "${paramName}" as "not-found", but generateStaticParams returned a result without that parameter.`
       )

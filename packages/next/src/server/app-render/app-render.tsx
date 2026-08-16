@@ -1350,6 +1350,32 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
   }
 }
 
+function getDevValidationFallbackRouteParams(
+  req: BaseNextRequest,
+  requestFallbackRouteParams: OpaqueFallbackRouteParams | null
+) {
+  const validationFallbackRouteParams = getRequestMeta(
+    req,
+    'devPrerenderValidationFallbackParams'
+  )
+
+  return validationFallbackRouteParams === undefined
+    ? requestFallbackRouteParams
+    : validationFallbackRouteParams
+}
+
+function hasSameFallbackRouteParams(
+  left: OpaqueFallbackRouteParams | null,
+  right: OpaqueFallbackRouteParams | null
+): boolean {
+  if (left === right) return true
+  if (left === null || right === null || left.size !== right.size) return false
+  for (const key of left.keys()) {
+    if (!right.has(key)) return false
+  }
+  return true
+}
+
 /**
  * Fork of `generateDynamicFlightRenderResult` that renders using `renderWithRestartOnCacheMissInDev`
  * to ensure correct separation of environments Prerender/Server (for use in Cache Components)
@@ -1374,6 +1400,10 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     },
     url,
   } = ctx
+  const validationFallbackRouteParams = getDevValidationFallbackRouteParams(
+    req,
+    fallbackParams
+  )
 
   const {
     onInstrumentationRequestError,
@@ -1409,13 +1439,16 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
-  const getPayload = async (requestStore: RequestStore) => {
+  const getPayload = async (
+    requestStore: RequestStore,
+    payloadCtx: AppRenderContext = ctx
+  ) => {
     const payload: RSCPayload &
       RSCPayloadDevProperties &
       RSCInitialPayloadPartialDev = await workUnitAsyncStorage.run(
       requestStore,
       generateDynamicRSCPayload,
-      ctx,
+      payloadCtx,
       undefined
     )
 
@@ -1513,7 +1546,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       getPayload,
       onError,
       shouldValidate,
-      fallbackRouteParams: fallbackParams,
+      validationFallbackRouteParams,
       getDevRenderDidError: () => didErrorObservably,
       navigationKind: {
         type: 'prefetched-client',
@@ -3517,6 +3550,10 @@ async function renderToStream(
     requestId,
     workStore,
   } = ctx
+  const validationFallbackRouteParams = getDevValidationFallbackRouteParams(
+    req,
+    fallbackParams
+  )
 
   const {
     basePath,
@@ -3698,18 +3735,20 @@ async function renderToStream(
       ) {
         let debugChannelClientStream: ReplayableNodeStream | undefined
 
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        const getPayload = async (requestStore: RequestStore) => {
+        const getPayload = async (
+          payloadRequestStore: RequestStore,
+          payloadCtx: AppRenderContext = ctx
+        ) => {
           const payload: InitialRSCPayload & RSCPayloadDevProperties =
             await workUnitAsyncStorage.run(
-              requestStore,
+              payloadRequestStore,
               getRSCPayload,
               tree,
-              ctx,
+              payloadCtx,
               { is404: res.statusCode === 404, isPrerendering: false }
             )
 
-          if (isBypassingCachesInDev(requestStore, workStore)) {
+          if (isBypassingCachesInDev(payloadRequestStore, workStore)) {
             // Mark the RSC payload to indicate that caches were bypassed in dev.
             // This lets the client know not to cache anything based on this render.
             if (renderOpts.setCacheStatus) {
@@ -3751,7 +3790,7 @@ async function renderToStream(
               getPayload,
               onError: serverComponentsErrorHandler,
               shouldValidate: true,
-              fallbackRouteParams: fallbackParams,
+              validationFallbackRouteParams,
               getDevRenderDidError: () => didErrorObservably,
               // An initial HTML load serves the static shell; runtime and
               // dynamic content stream in afterward.
@@ -4728,11 +4767,62 @@ function runDevValidationInBackground(
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   getDevRenderDidError: () => boolean,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    requestStore: RequestStore,
+    ctx?: AppRenderContext
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   validationGeneration: DevValidationGeneration
 ): void {
   const validationAbortSignal = validationGeneration.signal
+  let validationCtx = ctx
+  let validationResult = result
+  let validationRequestStore = requestStore
+  let createValidationRequestStore = createRequestStore
+  let getValidationPayload = (store: RequestStore) => getPayload(store)
+
+  // Depending on how the foreground render was entered, its fallback params
+  // may be stored on the render context, the request store, or both.
+  if (
+    !hasSameFallbackRouteParams(ctx.fallbackRouteParams, fallbackRouteParams) ||
+    !hasSameFallbackRouteParams(
+      requestStore.fallbackParams ?? null,
+      fallbackRouteParams
+    )
+  ) {
+    const validationInterpolatedParams = interpolateParallelRouteParams(
+      ctx.componentMod.routeModule.userland.loaderTree,
+      ctx.renderOpts.params ?? {},
+      ctx.pagePath,
+      fallbackRouteParams
+    )
+    const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
+      validationInterpolatedParams,
+      fallbackRouteParams,
+      ctx.renderOpts.experimental.optimisticRouting
+    )
+    validationCtx = {
+      ...ctx,
+      getDynamicParamFromSegment,
+      interpolatedParams: validationInterpolatedParams,
+      fallbackRouteParams,
+    }
+    const validationRootParams = getRootParams(
+      ctx.componentMod.routeModule.userland.loaderTree,
+      getDynamicParamFromSegment
+    )
+    createValidationRequestStore = () =>
+      Object.assign(createRequestStore(), {
+        rootParams: validationRootParams,
+        fallbackParams: fallbackRouteParams,
+      })
+    validationRequestStore = createValidationRequestStore()
+    getValidationPayload = (store) => getPayload(store, validationCtx)
+
+    // The foreground render used a different param shape, so its Flight
+    // chunks cannot seed this validation. Force the existing warm-render path.
+    validationResult = { ...result, hadCacheMiss: true }
+  }
 
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4765,13 +4855,13 @@ function runDevValidationInBackground(
             const lazyInputs = await prepareValidationInputs(
               prefetchMode,
               navigationKind,
-              result,
-              requestStore,
+              validationResult,
+              validationRequestStore,
               validationDebugChannel,
-              ctx,
+              validationCtx,
               prerenderResumeDataCache,
-              createRequestStore,
-              getPayload,
+              createValidationRequestStore,
+              getValidationPayload,
               onError,
               validationAbortSignal
             )
@@ -4819,7 +4909,7 @@ function runDevValidationInBackground(
 
             if (devValidationWorker) {
               const snapshot = await buildDevValidationSnapshot(
-                ctx,
+                validationCtx,
                 instantInputs,
                 staticInputs,
                 prefetchMode,
@@ -4863,7 +4953,7 @@ function runDevValidationInBackground(
                     prefetchMode,
                     instantInputs,
                     staticInputs,
-                    toValidationRenderContext(ctx),
+                    toValidationRenderContext(validationCtx),
                     fallbackRouteParams,
                     devRenderDidError,
                     validationAbortSignal
@@ -5771,9 +5861,12 @@ async function renderWithWarmCachesForValidationInDev(
 
 interface StagedRenderWithCachesInDevOptions extends StagedDevRenderOptions {
   createRequestStore: () => RequestStore
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>
+  getPayload: (
+    requestStore: RequestStore,
+    ctx?: AppRenderContext
+  ) => Promise<RSCPayload>
   shouldValidate: boolean
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  validationFallbackRouteParams: OpaqueFallbackRouteParams | null
   getDevRenderDidError: () => boolean
 }
 
@@ -5959,7 +6052,7 @@ async function stagedRenderWithCachesInDev({
   getPayload,
   onError,
   shouldValidate,
-  fallbackRouteParams,
+  validationFallbackRouteParams,
   getDevRenderDidError,
   navigationKind,
   requestAbortSignal,
@@ -6051,7 +6144,7 @@ async function stagedRenderWithCachesInDev({
           requestStore,
           validationDebugChannel,
           ctx,
-          fallbackRouteParams,
+          validationFallbackRouteParams,
           prerenderResumeDataCache,
           getDevRenderDidError,
           createRequestStore,

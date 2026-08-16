@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
+import { getDevCliValidationOutput } from 'e2e-utils/instant-validation'
 import { retry } from 'next-test-utils'
 
 type DynamicRoute = {
@@ -31,6 +32,7 @@ describe('unstable prerender matching', () => {
       ['/dynamic-suffix/t2/items/b2', 't2/b2'],
       ['/no-example-fallback/t2/items/b2', 't2/b2'],
       ['/no-example-blocking/t2/items/b2', 't2/b2'],
+      ['/no-example-blocking-fallback/t2/items/b2', 't2/b2'],
     ]) {
       const response = await next.fetch(pathname)
       expect(response.status).toBe(200)
@@ -293,5 +295,103 @@ describe('unstable prerender matcher fallback validation', () => {
     expect(next.cliOutput).toContain(
       'Error occurred prerendering page "/t1/[bottom]"'
     )
+  })
+})
+
+describe('unstable prerender matcher fallback boundary validation', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'missing-fallback-seed'),
+    skipStart: true,
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    it.skip('skipped', () => {})
+    return
+  }
+
+  beforeAll(async () => {
+    if (isNextDev) {
+      await next.start()
+      await next.fetch('/t1/b1')
+    } else {
+      await next.build().catch(() => {})
+    }
+  })
+
+  it('requires a generated prefix before an explicit fallback', async () => {
+    await retry(() => {
+      expect(next.cliOutput).toContain(
+        'generateStaticParams did not produce a parameter combination that reaches that fallback boundary'
+      )
+      expect(next.cliOutput).toContain(
+        'export `const instant = false` to opt out of static shell validation'
+      )
+    })
+  })
+})
+
+describe('unstable prerender matcher development shell validation', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'dev-shell-validation'),
+    skipStart: true,
+    skipDeployment: true,
+    env: {
+      NEXT_TEST_LOG_VALIDATION: '1',
+    },
+  })
+
+  if (skipped || !isNextDev) {
+    it.skip('only runs in development', () => {})
+    return
+  }
+
+  beforeAll(async () => {
+    await next.start()
+  })
+
+  async function renderAndWaitForValidation(pathname: string) {
+    const outputIndex = next.cliOutput.length
+    const response = await next.fetch(pathname)
+    expect(response.status).toBe(200)
+
+    return getDevCliValidationOutput(`http://n${pathname}`, () =>
+      next.cliOutput.slice(outputIndex)
+    )
+  }
+
+  it('uses the most-specific generated shape for an inferred generated value', async () => {
+    const inferredKnown = await renderAndWaitForValidation('/inferred/t1/b2')
+    expect(inferredKnown).not.toContain(
+      'Error: Route "/inferred/[top]/[bottom]"'
+    )
+  })
+
+  it('uses the most-specific generated shape for an inferred novel param', async () => {
+    const inferredNovel = await renderAndWaitForValidation('/inferred/t2/b2')
+    expect(inferredNovel).not.toContain(
+      'Error: Route "/inferred/[top]/[bottom]"'
+    )
+  })
+
+  it('uses the most-specific generated shape when no fallback is configured', async () => {
+    const blockingOnlyNovel = await renderAndWaitForValidation(
+      '/blocking-only/t2/b2'
+    )
+    expect(blockingOnlyNovel).not.toContain(
+      'Error: Route "/blocking-only/[top]/[bottom]"'
+    )
+  })
+
+  it('treats an explicitly blocking param as known', async () => {
+    const blockingNovel = await renderAndWaitForValidation('/blocking/t2/b2')
+    expect(blockingNovel).not.toContain(
+      'Error: Route "/blocking/[top]/[bottom]"'
+    )
+  })
+
+  it('treats an explicitly fallback param as unknown', async () => {
+    const fallbackKnown = await renderAndWaitForValidation('/fallback/t1/b2')
+    expect(fallbackKnown).toContain('Error: Route "/fallback/[top]/[bottom]"')
   })
 })

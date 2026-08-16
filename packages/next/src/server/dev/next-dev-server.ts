@@ -91,7 +91,10 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type { PrerenderedRoute } from '../../build/static-paths/types'
+import type {
+  FallbackRouteParam,
+  PrerenderedRoute,
+} from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -828,6 +831,7 @@ export default class DevServer extends Server {
     prerenderedRoutes?: PrerenderedRoute[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
+    validationFallbackRouteParams?: readonly FallbackRouteParam[]
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -884,7 +888,11 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+        const {
+          prerenderedRoutes,
+          fallbackMode: fallback,
+          validationFallbackRouteParams,
+        } = res.value
 
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
@@ -920,10 +928,14 @@ export default class DevServer extends Server {
           staticPaths: string[] | undefined
           prerenderedRoutes: PrerenderedRoute[] | undefined
           fallbackMode: FallbackMode | undefined
+          validationFallbackRouteParams:
+            | readonly FallbackRouteParam[]
+            | undefined
         } = {
           staticPaths: prerenderedRoutes?.map((route) => route.pathname),
           prerenderedRoutes,
           fallbackMode: fallback,
+          validationFallbackRouteParams,
         }
 
         if (

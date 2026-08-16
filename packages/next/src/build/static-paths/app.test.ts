@@ -19,23 +19,23 @@ function pathnameSegments(
   ...segments: Array<string | [string, boolean]>
 ): Array<{
   paramName: string
-  hasGenerateStaticParams: boolean
+  isPrerenderable: boolean
 }> {
   return segments.map((segment) =>
     Array.isArray(segment)
       ? {
           paramName: segment[0],
-          hasGenerateStaticParams: segment[1],
+          isPrerenderable: segment[1],
         }
       : {
           paramName: segment,
-          hasGenerateStaticParams: false,
+          isPrerenderable: false,
         }
   )
 }
 
 describe('assignStaticShellMetadata', () => {
-  it('validates the fallback shell after a blocking matcher boundary', () => {
+  it('keeps the most-specific shell without an explicit fallback', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: { lang: 'en', top: 't1' },
@@ -59,12 +59,11 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
-      { lang: 'not-found', top: 'blocking' }
+      pathnameSegments(['lang', false], ['top', true], ['bottom', true])
     )
 
-    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
-    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
   })
 
   it('requires an explicit fallback shell to be non-empty', () => {
@@ -92,11 +91,7 @@ describe('assignStaticShellMetadata', () => {
     assignStaticShellMetadata(
       prerenderedRoutes,
       pathnameSegments(['lang', false], ['top', true], ['bottom', true]),
-      {
-        lang: 'not-found',
-        top: 'blocking',
-        bottom: 'fallback',
-      }
+      'bottom'
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
@@ -796,7 +791,8 @@ describe('compilePrerenderMatcher', () => {
       validatePrerenderMatcherParams(
         '/[top]/[bottom]',
         { top: 'dynamic', bottom: 'dynamic' },
-        [{ top: 't1' }],
+        new Set(['top']),
+        new Set(['bottom']),
         [{ paramName: 'top' }, { paramName: 'bottom' }],
         undefined
       )

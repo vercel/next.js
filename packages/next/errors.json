@@ -1489,5 +1489,6 @@
   "1488": "Route \"%s\" must export \\`unstable_generateMatcher\\` as a function.",
   "1489": "Invalid mode for parameter \"%s\" in \\`%s\\` for \"%s\". Expected \"not-found\", \"blocking\", \"fallback\", or \"dynamic\", but received %s.",
   "1490": "Route \"%s\" must configure parameter \"%s\" as \"not-found\" when using an unstable prerender matcher with \"output: export\".",
-  "1491": "Invalid parameter \"%s\" in \\`%s\\` for \"%s\". The export in \"%s\" may only configure parameters defined at or above its segment."
+  "1491": "Invalid parameter \"%s\" in \\`%s\\` for \"%s\". The export in \"%s\" may only configure parameters defined at or above its segment.",
+  "1492": "Route \"%s\" configures parameter \"%s\" as \"fallback\", but generateStaticParams did not produce a parameter combination that reaches that fallback boundary. Add a result that provides every preceding blocking parameter, or export \\`const instant = false\\` to opt out of static shell validation."
 }
