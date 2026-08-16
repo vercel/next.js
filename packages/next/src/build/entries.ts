@@ -47,6 +47,7 @@ import {
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import {
   isInternalComponent,
@@ -59,6 +60,8 @@ import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
 import { UnmatchedAppPagesError } from '../shared/lib/errors/unmatched-app-pages-error'
+import { MissingCanonicalInterceptionRoutesError } from '../shared/lib/errors/missing-canonical-interception-routes-error'
+import { findMissingCanonicalInterceptionRoutes } from '../shared/lib/router/utils/interception-routes'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -431,6 +434,21 @@ export async function createEntrypoints(
       strictRouteMatching: config.experimental.strictRouteMatching,
       defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
     })
+    const appPagePathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).flatMap(([route, routeAppPaths]) => {
+        const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
+        return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
+      })
+    )
+    const missingCanonicalInterceptionRoutes = config.experimental
+      .strictRouteMatching
+      ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
+      : []
+    if (missingCanonicalInterceptionRoutes.length > 0) {
+      throw new MissingCanonicalInterceptionRoutesError(
+        missingCanonicalInterceptionRoutes
+      )
+    }
     if (unmatchedAppPages.length > 0) {
       throw new UnmatchedAppPagesError(
         unmatchedAppPages.map((appPath) => {
