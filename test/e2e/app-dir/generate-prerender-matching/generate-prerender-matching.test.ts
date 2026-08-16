@@ -235,6 +235,52 @@ describe('experimental parameter matching complex route shapes', () => {
   }
 })
 
+describe('experimental parameter matching foreground policy', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'foreground-policy'),
+  })
+
+  if (skipped || isNextDev) {
+    it.skip('only runs against a production route cache', () => {})
+    return
+  }
+
+  function readShellMarker(body: string): string {
+    const match = body.match(/data-shell-marker="[^"]+">([^<]+)</)
+    expect(match).not.toBeNull()
+    return match![1]
+  }
+
+  async function render(pathname: string) {
+    const response = await next.fetch(pathname)
+    expect(response.status).toBe(200)
+    const body = await response.text()
+    expect(body).toContain(`<p id="params">${pathname.split('/').at(-1)}</p>`)
+    return { body, marker: readShellMarker(body) }
+  }
+
+  it('generates a distinct shell before returning a blocking miss', async () => {
+    const first = await render('/blocking/novel-a')
+    const other = await render('/blocking/novel-b')
+
+    expect(other.marker).not.toBe(first.marker)
+    expect(first.body).not.toContain('<p id="shell">waiting for params</p>')
+    expect(other.body).not.toContain('<p id="shell">waiting for params</p>')
+
+    const repeat = await render('/blocking/novel-a')
+    expect(repeat.marker).toBe(first.marker)
+  })
+
+  it('returns the shared build shell for a fallback miss', async () => {
+    const first = await render('/fallback/novel-a')
+    const other = await render('/fallback/novel-b')
+
+    expect(other.marker).toBe(first.marker)
+    expect(first.body).toContain('<p id="shell">waiting for params</p>')
+    expect(other.body).toContain('<p id="shell">waiting for params</p>')
+  })
+})
+
 describe('experimental parameter matching ordering validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'invalid-order'),
