@@ -80,4 +80,13 @@ export default async function middleware(request) {
     console.log(String(new URL('/new-home#fragment', url)))
     return Response.redirect(new URL('/new-home#fragment', url))
   }
+
+  if (url.pathname === '/relative-location') {
+    // a manually constructed response with a relative Location header,
+    // which is valid per RFC 9110 (https://github.com/vercel/next.js/issues/73989)
+    return new Response(null, {
+      status: 307,
+      headers: { location: '/new-home' },
+    })
+  }
 }
