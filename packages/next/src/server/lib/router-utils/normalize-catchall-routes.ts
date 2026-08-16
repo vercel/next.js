@@ -5,7 +5,9 @@ import {
   isInterceptionRouteAppPath,
 } from '../../../shared/lib/router/utils/interception-routes'
 import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/entry-constants'
 
@@ -18,10 +20,26 @@ export type NormalizeCatchAllRoutesOptions = {
   defaultAppPaths?: Iterable<string>
 }
 
+export type IncompatibleParallelRouteSlots = {
+  layoutPath: string
+  route: string
+  missingSlots: string[]
+}
+
+export type NormalizeCatchAllRoutesResult = {
+  unmatchedAppPages: string[]
+  incompatibleParallelRouteSlots: IncompatibleParallelRouteSlots[]
+}
+
 type ParallelRouteLevel = {
   parentSegments: string[]
   namedSlots: Set<string>
   hasChildrenSlot: boolean
+}
+
+type ParallelRouteTopology = {
+  allAppPaths: Set<string>
+  levelsByParent: Map<string, ParallelRouteLevel>
 }
 
 const defaultNormalizer: AppPathNormalizer = {
@@ -36,7 +54,8 @@ const defaultNormalizer: AppPathNormalizer = {
  * the catch-all. If it finds a match, it will add the catch-all to the parallel route's list of possible routes.
  *
  * @param appPaths The appPaths to transform
- * @returns Page app paths that are not present in any retained matcher.
+ * @returns Page app paths that are not present in any retained matcher and
+ * incompatible static matchers found before they were pruned.
  */
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
@@ -45,13 +64,9 @@ export function normalizeCatchAllRoutes(
     strictRouteMatching = false,
     defaultAppPaths = [],
   }: NormalizeCatchAllRoutesOptions = {}
-): string[] {
+): NormalizeCatchAllRoutesResult {
   const pageAppPaths = strictRouteMatching
-    ? new Set(
-        Object.values(appPaths)
-          .flat()
-          .filter((appPath) => appPath.endsWith('/page'))
-      )
+    ? new Set(Object.values(appPaths).flat().filter(isUserAppPageRoute))
     : undefined
   const catchAllRoutes = [
     ...new Set(
@@ -102,35 +117,248 @@ export function normalizeCatchAllRoutes(
   }
 
   if (strictRouteMatching) {
-    pruneUnrenderableRoutes(appPaths, defaultAppPaths)
+    const topology = createParallelRouteTopology(appPaths, defaultAppPaths)
+    pruneUnrenderableCatchAllRoutes(appPaths, topology)
+    const incompatibleParallelRouteSlots =
+      findIncompatibleParallelRouteSlotsWithTopology(appPaths, topology)
+    pruneUnrenderableRoutes(appPaths, topology)
 
     const matchedAppPaths = new Set(Object.values(appPaths).flat())
-    return [...pageAppPaths!]
-      .filter((appPath) => !matchedAppPaths.has(appPath))
-      .sort()
+    return {
+      unmatchedAppPages: [...pageAppPaths!]
+        .filter((appPath) => !matchedAppPaths.has(appPath))
+        .sort(),
+      incompatibleParallelRouteSlots,
+    }
   }
 
-  return []
+  return {
+    unmatchedAppPages: [],
+    incompatibleParallelRouteSlots: [],
+  }
 }
 
 /**
- * Removes routes that can never render because a declared slot at a matching
- * layout level has neither a matching page nor an explicit default.
+ * Finds ordinary route matchers that cannot construct every slot owned by a
+ * layout. Interception routes are partial updates and intentionally use
+ * different matching semantics.
+ */
+export function findIncompatibleParallelRouteSlots(
+  appPaths: Record<string, string[]>,
+  defaultAppPaths: Iterable<string> = []
+): IncompatibleParallelRouteSlots[] {
+  return findIncompatibleParallelRouteSlotsWithTopology(
+    appPaths,
+    createParallelRouteTopology(appPaths, defaultAppPaths)
+  )
+}
+
+function findIncompatibleParallelRouteSlotsWithTopology(
+  appPaths: Record<string, string[]>,
+  { allAppPaths, levelsByParent }: ParallelRouteTopology
+): IncompatibleParallelRouteSlots[] {
+  const incompatibleRoutes: IncompatibleParallelRouteSlots[] = []
+
+  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+    if (isBuiltin(route) || isInterceptionRouteAppPath(route)) continue
+
+    // Interception branches can be carried alongside an ordinary matcher, but
+    // they retain state instead of satisfying a hard-navigation slot.
+    const ordinaryAppPaths = matchedAppPaths.filter(
+      (appPath) =>
+        isUserAppPageRoute(appPath) && !isInterceptionRouteAppPath(appPath)
+    )
+    if (ordinaryAppPaths.length === 0) continue
+
+    for (const {
+      parentSegments,
+      namedSlots,
+      hasChildrenSlot,
+    } of levelsByParent.values()) {
+      if (
+        !ordinaryAppPaths.some((appPath) =>
+          hasPathPrefix(splitAppPath(appPath), parentSegments)
+        )
+      ) {
+        continue
+      }
+
+      const siblingSlots = [
+        ...(hasChildrenSlot ? ['children'] : []),
+        ...namedSlots,
+      ]
+      const missingSlots = siblingSlots.filter((slot) => {
+        const hasMatchedPage = ordinaryAppPaths.some((appPath) =>
+          isPathInSlot(appPath, parentSegments, slot)
+        )
+        const hasDefault = allAppPaths.has(
+          getDefaultAppPath(parentSegments, slot)
+        )
+        return !hasMatchedPage && !hasDefault
+      })
+
+      if (missingSlots.length > 0) {
+        incompatibleRoutes.push({
+          layoutPath: `/${parentSegments.join('/')}`,
+          route,
+          missingSlots: missingSlots.sort(),
+        })
+      }
+    }
+  }
+
+  return incompatibleRoutes.sort((a, b) =>
+    a.layoutPath === b.layoutPath
+      ? a.route.localeCompare(b.route)
+      : a.layoutPath.localeCompare(b.layoutPath)
+  )
+}
+
+function isBuiltin(appPath: string): boolean {
+  return (
+    appPath === UNDERSCORE_NOT_FOUND_ROUTE ||
+    appPath === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+    appPath === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+    appPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+  )
+}
+
+/**
+ * Removes catch-all-derived routes that can never render because another slot
+ * at the same level has neither a matching page nor an explicit default.
  *
  * The built-in default for such a slot always calls `notFound()`. Keeping the
  * route in the matcher set would therefore retain a matcher that can never
  * construct a complete loader tree.
  */
+function pruneUnrenderableCatchAllRoutes(
+  appPaths: Record<string, string[]>,
+  { allAppPaths, levelsByParent }: ParallelRouteTopology
+) {
+  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+    const catchAllAppPaths = matchedAppPaths.filter(
+      (appPath) => isUserAppPageRoute(appPath) && isCatchAll(appPath)
+    )
+
+    if (
+      catchAllAppPaths.some((catchAllAppPath) => {
+        const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
+        const interceptionMarkerIndex = catchAllSegments.findIndex((segment) =>
+          INTERCEPTION_ROUTE_MARKERS.some((marker) =>
+            segment.startsWith(marker)
+          )
+        )
+
+        for (const {
+          parentSegments,
+          namedSlots,
+          hasChildrenSlot,
+        } of levelsByParent.values()) {
+          if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
+
+          const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
+          const siblingSlots = [
+            ...(hasChildrenSlot ? ['children'] : []),
+            ...namedSlots,
+          ]
+          // An interception response replaces one slot while retaining every
+          // sibling owned by layouts up to the interception marker. Those
+          // siblings use the null retain marker rather than a page or default.
+          // Slots inside the newly selected subtree still match normally.
+          const retainsInterceptionSiblings =
+            interceptionMarkerIndex !== -1 &&
+            parentSegments.length <= interceptionMarkerIndex
+
+          for (const siblingSlot of siblingSlots) {
+            if (siblingSlot === catchAllSlot) continue
+
+            const hasMatchedPage = matchedAppPaths.some((appPath) =>
+              isPathInSlot(appPath, parentSegments, siblingSlot)
+            )
+            const hasDefault = allAppPaths.has(
+              getDefaultAppPath(parentSegments, siblingSlot)
+            )
+
+            if (
+              !hasMatchedPage &&
+              !hasDefault &&
+              !retainsInterceptionSiblings
+            ) {
+              return true
+            }
+          }
+        }
+
+        return false
+      })
+    ) {
+      const nonPageAppPaths = matchedAppPaths.filter(
+        (appPath) => !isUserAppPageRoute(appPath)
+      )
+      if (nonPageAppPaths.length === 0) {
+        delete appPaths[route]
+      } else {
+        appPaths[route] = nonPageAppPaths
+      }
+    }
+  }
+}
+
+/**
+ * Removes every route that cannot construct all slots at a matching layout
+ * level. Catch-all-derived routes are removed by the earlier pass so the
+ * caller can report only incompatible static matchers between the two passes.
+ */
 function pruneUnrenderableRoutes(
   appPaths: Record<string, string[]>,
-  defaultAppPaths: Iterable<string>
+  { allAppPaths, levelsByParent }: ParallelRouteTopology
 ) {
+  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+    const matchedPageAppPaths = matchedAppPaths.filter(isUserAppPageRoute)
+    if (matchedPageAppPaths.length === 0) continue
+
+    if (
+      hasIncompleteParallelRoute(
+        matchedPageAppPaths,
+        levelsByParent.values(),
+        allAppPaths
+      )
+    ) {
+      const nonPageAppPaths = matchedAppPaths.filter(
+        (appPath) => !isUserAppPageRoute(appPath)
+      )
+      if (nonPageAppPaths.length === 0) {
+        delete appPaths[route]
+      } else {
+        appPaths[route] = nonPageAppPaths
+      }
+    }
+  }
+}
+
+function createParallelRouteTopology(
+  appPaths: Record<string, string[]>,
+  defaultAppPaths: Iterable<string>
+): ParallelRouteTopology {
   const allAppPaths = new Set([
-    ...Object.values(appPaths).flat().filter(isUserAppPageRoute),
+    ...Object.entries(appPaths)
+      .filter(([route]) => !isBuiltin(route))
+      .flatMap(([, matchedAppPaths]) => matchedAppPaths)
+      .filter(isUserAppPageRoute),
     ...[...defaultAppPaths].filter(
       (appPath) => !isBuiltinAppPageEntry(appPath)
     ),
   ])
+
+  return {
+    allAppPaths,
+    levelsByParent: collectParallelRouteLevels(allAppPaths),
+  }
+}
+
+function collectParallelRouteLevels(
+  allAppPaths: Iterable<string>
+): Map<string, ParallelRouteLevel> {
   const levelsByParent = new Map<string, ParallelRouteLevel>()
 
   for (const appPath of allAppPaths) {
@@ -163,27 +391,7 @@ function pruneUnrenderableRoutes(
     }
   }
 
-  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
-    const matchedPageAppPaths = matchedAppPaths.filter(isUserAppPageRoute)
-    if (matchedPageAppPaths.length === 0) continue
-
-    if (
-      hasIncompleteParallelRoute(
-        matchedPageAppPaths,
-        levelsByParent.values(),
-        allAppPaths
-      )
-    ) {
-      const nonPageAppPaths = matchedAppPaths.filter(
-        (appPath) => !isUserAppPageRoute(appPath)
-      )
-      if (nonPageAppPaths.length === 0) {
-        delete appPaths[route]
-      } else {
-        appPaths[route] = nonPageAppPaths
-      }
-    }
-  }
+  return levelsByParent
 }
 
 function isUserAppPageRoute(appPath: string): boolean {
