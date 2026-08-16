@@ -527,6 +527,14 @@ impl AppPageLoaderTree {
         true
     }
 
+    fn contains_catchall_page(&self) -> bool {
+        (&*self.segment == "__PAGE__" && self.page.is_catchall())
+            || self
+                .parallel_routes
+                .values()
+                .any(AppPageLoaderTree::contains_catchall_page)
+    }
+
     fn is_builtin_not_found_default(&self, builtin_default: &FileSystemPath) -> bool {
         &*self.segment == "__DEFAULT__"
             && self.modules.default.as_ref().is_some_and(|default| {
@@ -559,6 +567,62 @@ impl AppPageLoaderTree {
                     declared_slots,
                     owner_layout,
                 )
+        })
+    }
+
+    fn collect_builtin_not_found_defaults(
+        &self,
+        builtin_default: &FileSystemPath,
+        declared_slots: &FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+        parent_layout: Option<&FileSystemPath>,
+        missing_slots: &mut FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+    ) {
+        let owner_layout = self.modules.layout.as_ref().or(parent_layout);
+
+        for (slot, tree) in &self.parallel_routes {
+            if tree.is_builtin_not_found_default(builtin_default) {
+                if let Some(owner_layout) = owner_layout
+                    && declared_slots
+                        .get(owner_layout)
+                        .is_some_and(|slots| slots.contains(slot))
+                {
+                    missing_slots
+                        .entry(owner_layout.clone())
+                        .or_default()
+                        .insert(slot.clone());
+                }
+            } else {
+                tree.collect_builtin_not_found_defaults(
+                    builtin_default,
+                    declared_slots,
+                    owner_layout,
+                    missing_slots,
+                );
+            }
+        }
+    }
+
+    /// Returns true when one slot matches through a catch-all while a different slot at the same
+    /// level can only render Next.js' built-in not-found default.
+    fn has_unmatched_parallel_route(
+        &self,
+        builtin_default: &FileSystemPath,
+        declared_slots: &FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+        parent_layout: Option<&FileSystemPath>,
+    ) -> bool {
+        let owner_layout = self.modules.layout.as_ref().or(parent_layout);
+        let slots_at_level = owner_layout.and_then(|layout| declared_slots.get(layout));
+
+        self.parallel_routes.iter().any(|(catchall_key, tree)| {
+            slots_at_level.is_some_and(|slots| slots.contains(catchall_key))
+                && tree.contains_catchall_page()
+                && self.parallel_routes.iter().any(|(default_key, tree)| {
+                    default_key != catchall_key
+                        && slots_at_level.is_some_and(|slots| slots.contains(default_key))
+                        && tree.is_builtin_not_found_default(builtin_default)
+                })
+        }) || self.parallel_routes.values().any(|tree| {
+            tree.has_unmatched_parallel_route(builtin_default, declared_slots, owner_layout)
         })
     }
 
@@ -948,26 +1012,77 @@ async fn directory_tree_to_entrypoints(
     let plain_tree = directory_tree.into_plain().await?;
     let mut declared_slots = FxIndexMap::default();
     collect_declared_parallel_route_slots(&plain_tree, &mut declared_slots);
-    let mut retained_entrypoints = FxIndexMap::default();
+    let mut candidate_entrypoints = FxIndexMap::default();
 
     // Loader trees built while walking a subtree may still contain temporary synthesized
-    // defaults that disappear when sibling pages are combined. Prune only the finalized root
-    // entrypoints so complete routes are never discarded based on an intermediate tree.
+    // defaults that disappear when sibling pages are combined. Inspect only the finalized root
+    // entrypoints so complete routes are never discarded based on an intermediate tree. This
+    // layer retains incomplete static matchers long enough to report their exact slot topology;
+    // incomplete catch-all matchers preserve the pruning behavior from the lower layer.
     for (app_path, entrypoint) in entrypoints_ref.iter() {
         let is_incomplete = match entrypoint {
             Entrypoint::AppPage { loader_tree, .. } => loader_tree
                 .await?
-                .contains_declared_builtin_not_found_default(
-                    &builtin_default,
-                    &declared_slots,
-                    None,
-                ),
+                .has_unmatched_parallel_route(&builtin_default, &declared_slots, None),
             _ => false,
         };
 
         if !is_incomplete {
-            retained_entrypoints.insert(app_path.clone(), entrypoint.clone());
+            candidate_entrypoints.insert(app_path.clone(), entrypoint.clone());
         }
+    }
+
+    let mut incompatible_parallel_route_slots = Vec::new();
+    let mut retained_entrypoints = FxIndexMap::default();
+
+    // Report incomplete static matchers from their finalized loader trees, but still prune them
+    // from the matcher set. Interception routes intentionally use synthetic retain markers and
+    // therefore follow different reporting rules.
+    for (app_path, entrypoint) in &candidate_entrypoints {
+        let Entrypoint::AppPage { loader_tree, .. } = entrypoint else {
+            retained_entrypoints.insert(app_path.clone(), entrypoint.clone());
+            continue;
+        };
+        let loader_tree = loader_tree.await?;
+        if !loader_tree.contains_declared_builtin_not_found_default(
+            &builtin_default,
+            &declared_slots,
+            None,
+        ) {
+            retained_entrypoints.insert(app_path.clone(), entrypoint.clone());
+            continue;
+        }
+        if app_path.intercepted_path().is_some() {
+            continue;
+        }
+
+        let mut missing_slots = FxIndexMap::default();
+        loader_tree.collect_builtin_not_found_defaults(
+            &builtin_default,
+            &declared_slots,
+            None,
+            &mut missing_slots,
+        );
+        if missing_slots.is_empty() {
+            bail!(
+                "Invariant: strict route matching retained the incomplete route matcher \
+                 `{app_path}`"
+            );
+        }
+        incompatible_parallel_route_slots.extend(
+            missing_slots
+                .into_iter()
+                .map(|(layout, slots)| (layout, app_path.clone(), slots.into_iter().collect())),
+        );
+    }
+
+    if !incompatible_parallel_route_slots.is_empty() {
+        IncompatibleParallelRouteSlotsIssue {
+            app_dir: app_dir.clone(),
+            routes: incompatible_parallel_route_slots,
+        }
+        .resolved_cell()
+        .emit();
     }
 
     // This assertion is intentionally separate from the filtering condition above. It guards
@@ -1061,6 +1176,93 @@ async fn directory_tree_to_entrypoints(
 #[turbo_tasks::value]
 struct MissingCanonicalInterceptionRoutesIssue {
     routes: Vec<(AppPath, AppPath, FileSystemPath)>,
+}
+
+#[turbo_tasks::value]
+struct IncompatibleParallelRouteSlotsIssue {
+    app_dir: FileSystemPath,
+    routes: Vec<(FileSystemPath, AppPath, Vec<RcStr>)>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for IncompatibleParallelRouteSlotsIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.routes[0].0.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Parallel route slots cannot render the same URLs"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut routes_by_layout = FxIndexMap::<FileSystemPath, Vec<_>>::default();
+        for (layout, route, missing_slots) in &self.routes {
+            routes_by_layout
+                .entry(layout.clone())
+                .or_default()
+                .push((route.clone(), missing_slots.clone()));
+        }
+
+        let mut layouts = routes_by_layout
+            .into_iter()
+            .map(|(layout, mut routes)| {
+                routes.sort_by_cached_key(|(route, _)| route.to_string());
+                let layout_path = self
+                    .app_dir
+                    .get_path_to(&layout)
+                    .expect("parallel route layout should be within the app directory")
+                    .to_string();
+                let routes = routes
+                    .into_iter()
+                    .map(|(route, missing_slots)| {
+                        let missing_slots = missing_slots
+                            .iter()
+                            .map(|slot| {
+                                if &**slot == "children" {
+                                    slot.to_string()
+                                } else {
+                                    format!("@{slot}")
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "- {route} is missing a matching page or default.tsx in \
+                             {missing_slots}"
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                (layout_path, routes)
+            })
+            .collect::<Vec<_>>();
+        layouts.sort_by(|a, b| a.0.cmp(&b.0));
+        let layouts = layouts
+            .into_iter()
+            .map(|(layout_path, routes)| format!("app/{layout_path}\n{routes}"))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following layouts have parallel route slots that cannot render the same \
+                 URLs:\n{layouts}\n\nEvery URL matched by one slot must have a matching page or \
+                 default.tsx in every sibling slot."
+            )
+            .into(),
+        )))
+    }
 }
 
 #[async_trait]
@@ -1449,7 +1651,6 @@ async fn directory_tree_to_loader_tree(
     let plain_tree_vc = directory_tree.into_plain();
     let plain_tree = &*plain_tree_vc.await?;
     let strict_route_matching = *strict_route_matching.await?;
-
     let mut missing_defaults = Vec::new();
     let tree = directory_tree_to_loader_tree_internal(
         app_dir.clone(),
