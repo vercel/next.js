@@ -14,6 +14,43 @@ When [deploying](/docs/app/getting-started/deploying) your Next.js app, you may 
 
 When self-hosting, it's recommended to use a reverse proxy (like nginx) in front of your Next.js server rather than exposing it directly to the internet. A reverse proxy can handle malformed requests, slow connection attacks, payload size limits, rate limiting, and other security concerns, offloading these tasks from the Next.js server. This allows the server to dedicate its resources to rendering rather than request validation.
 
+### Forwarded headers
+
+Behind a reverse proxy, Next.js uses forwarded headers in several places to determine information about the original request:
+
+- `x-forwarded-host`: the hostname originally requested by the client
+- `x-forwarded-proto`: the original request protocol (`http` or `https`)
+- `x-forwarded-port`: the original request port
+- `x-forwarded-for`: the originating client IP address
+
+If the relevant forwarded headers are missing, Next.js may fall back to information from the connection or request received from the proxy. In a reverse proxy setup, those values can describe the proxy-to-Next.js connection rather than the original client request, which may result in incorrect absolute URLs or redirects.
+
+Next.js does not expose an Express-style `trust proxy` setting for configuring trusted proxy addresses. Your reverse proxy should set forwarded headers such as `x-forwarded-host` and `x-forwarded-proto` itself instead of passing through values supplied by the client.
+
+For example, with nginx:
+
+```nginx
+location / {
+  proxy_pass http://127.0.0.1:3000;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+### TLS termination
+
+A common setup terminates TLS at the reverse proxy and forwards plain HTTP to Next.js. In this case, ensure the proxy sets `x-forwarded-proto: https`.
+
+Otherwise, Next.js may treat the request as `http`, which can affect behavior that depends on the request protocol, including generated absolute URLs.
+
+### Server Actions
+
+Server Actions compare the `origin` header against `x-forwarded-host` (or `host`) to protect against CSRF. If the hostname used by the browser differs from the one Next.js receives, for example when a proxy serves the application under a different domain, configure [`serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions#allowedorigins).
+
+> **Good to know:** When using [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output), the `HOSTNAME` environment variable controls the address the server binds to, such as `0.0.0.0`. It does not represent the public hostname. The public hostname should be provided through the `Host` or `x-forwarded-host` headers.
+
 ## Image Optimization
 
 [Image Optimization](/docs/app/api-reference/components/image) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/api-reference/components/image#loader).
