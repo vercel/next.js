@@ -65,6 +65,8 @@ export type AppLoaderOptions = {
   middlewareConfig: string
   isGlobalNotFoundEnabled: true | undefined
   explicitParallelRouteChildren: true | undefined
+  strictRouteMatching: true | undefined
+  isFinalRouteMatcher: true | undefined
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -166,6 +168,8 @@ async function createTreeCodeFromPath(
     collectedDeclarations,
     isGlobalNotFoundEnabled,
     explicitParallelRouteChildren,
+    strictRouteMatching,
+    isFinalRouteMatcher,
     isDev,
   }: {
     page: string
@@ -183,6 +187,8 @@ async function createTreeCodeFromPath(
     collectedDeclarations: [string, string][]
     isGlobalNotFoundEnabled: boolean
     explicitParallelRouteChildren: boolean
+    strictRouteMatching: boolean
+    isFinalRouteMatcher: boolean
     isDev: boolean
   }
 ): Promise<{
@@ -356,12 +362,14 @@ async function createTreeCodeFromPath(
   ): Promise<{
     treeCode: string
     containsInterception: boolean
+    containsBuiltinNotFoundDefault: boolean
   }> {
     const segmentPath = segments.join('/')
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
     const interceptingParallelKeys = new Set<string>()
+    let containsBuiltinNotFoundDefault = false
     // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
@@ -677,12 +685,14 @@ async function createTreeCodeFromPath(
         const {
           treeCode: pageSubtreeCode,
           containsInterception: subtreeContainsInterception,
+          containsBuiltinNotFoundDefault: subtreeContainsBuiltinNotFoundDefault,
         } = await createSubtreePropsFromSegmentPath(
           subSegmentPath,
           nestedCollectedDeclarations
         )
 
         subtreeCode = pageSubtreeCode
+        containsBuiltinNotFoundDefault ||= subtreeContainsBuiltinNotFoundDefault
         if (subtreeContainsInterception) {
           interceptingParallelKeys.add(normalizedParallelKey)
         }
@@ -712,6 +722,10 @@ async function createTreeCodeFromPath(
       interceptingParallelKeys.size > 0
 
     function setSyntheticDefault(key: string, defaultPath: string) {
+      if (defaultPath === PARALLEL_ROUTE_DEFAULT_PATH) {
+        containsBuiltinNotFoundDefault = true
+      }
+
       const varName = `default${nestedCollectedDeclarations.length}`
       nestedCollectedDeclarations.push([varName, defaultPath])
       props[key] = `[
@@ -806,13 +820,28 @@ async function createTreeCodeFromPath(
       containsInterception:
         isInterceptionRouteAppPath(segmentPath) ||
         interceptingParallelKeys.size > 0,
+      containsBuiltinNotFoundDefault,
     }
   }
 
-  const { treeCode } = await createSubtreePropsFromSegmentPath(
-    [],
-    collectedDeclarations
-  )
+  const { treeCode, containsBuiltinNotFoundDefault } =
+    await createSubtreePropsFromSegmentPath([], collectedDeclarations)
+
+  if (
+    strictRouteMatching &&
+    isFinalRouteMatcher &&
+    !isInterceptionRouteAppPath(page) &&
+    containsBuiltinNotFoundDefault &&
+    !isNotFoundRoute &&
+    !isAppErrorRoute
+  ) {
+    // A retained ordinary matcher must be able to construct its complete
+    // route tree. An interception tree is a partial update and may
+    // intentionally contain synthetic slots.
+    throw new Error(
+      `Invariant: strict route matching retained the incomplete route matcher ${page}`
+    )
+  }
 
   return {
     treeCode: `${treeCode}.children;`,
@@ -861,6 +890,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const isGlobalNotFoundEnabled = !!loaderOptions.isGlobalNotFoundEnabled
   const explicitParallelRouteChildren =
     !!loaderOptions.explicitParallelRouteChildren
+  const strictRouteMatching = !!loaderOptions.strictRouteMatching
+  const isFinalRouteMatcher = !!loaderOptions.isFinalRouteMatcher
 
   // Update FILE_TYPES on the very top-level of the loader
   if (!isGlobalNotFoundEnabled) {
@@ -896,7 +927,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
-
   // All normalized app paths for computing static siblings across route groups
   const allNormalizedAppPaths = allNormalizedAppPathsOption ?? []
 
@@ -1195,6 +1225,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     collectedDeclarations,
     isGlobalNotFoundEnabled,
     explicitParallelRouteChildren,
+    strictRouteMatching,
+    isFinalRouteMatcher,
     isDev: !!isDev,
   })
 
@@ -1256,6 +1288,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         collectedDeclarations,
         isGlobalNotFoundEnabled,
         explicitParallelRouteChildren,
+        strictRouteMatching,
+        isFinalRouteMatcher,
         isDev: !!isDev,
       })
     }

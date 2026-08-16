@@ -1496,5 +1496,6 @@
   "1495": "Route \"%s\": Next.js encountered \\`unstable_navigation()\\` during prerendering or a navigation.\\n\\n\\`unstable_navigation()\\` called outside of \\`<Suspense>\\` may prevent the navigation from being instant, leading to a slower user experience.\\n\\nWays to fix this:\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n  - [block] Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/instant-shell-url-data",
   "1496": "%s segments do not unblock new data in %s prefetches",
   "1497": "The following page files do not match any complete route:\\n%s\\n\\nEvery page must be part of at least one complete route. Add matching pages or default files for the sibling parallel route slots, or remove the unreachable pages.",
-  "1498": "The following interception routes do not have a canonical route:\\n%s\\n\\nEvery interception route must have a matching non-interception route so the URL can be loaded directly or refreshed."
+  "1498": "The following interception routes do not have a canonical route:\\n%s\\n\\nEvery interception route must have a matching non-interception route so the URL can be loaded directly or refreshed.",
+  "1499": "Invariant: strict route matching retained the incomplete route matcher %s"
 }
