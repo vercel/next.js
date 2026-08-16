@@ -166,6 +166,75 @@ describe('experimental parameter matching', () => {
   }
 })
 
+describe('experimental parameter matching complex route shapes', () => {
+  const { next, isNextStart } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'complex-routes'),
+  })
+
+  it('applies root and catch-all parameter policies in order', async () => {
+    for (const pathname of [
+      '/en/catch-all/known/deep',
+      '/en/catch-all/novel/deep',
+    ]) {
+      const response = await next.fetch(pathname)
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain(
+        `en/${pathname.split('/').slice(3).join('/')}`
+      )
+    }
+
+    expect((await next.fetch('/fr/catch-all/novel/deep')).status).toBe(404)
+  })
+
+  it('closes both forms of an optional catch-all miss', async () => {
+    for (const pathname of [
+      '/en/optional-catch-all',
+      '/en/optional-catch-all/known/deep',
+    ]) {
+      expect((await next.fetch(pathname)).status).toBe(200)
+    }
+
+    expect((await next.fetch('/en/optional-catch-all/novel')).status).toBe(404)
+    expect((await next.fetch('/fr/optional-catch-all')).status).toBe(404)
+  })
+
+  it('merges an agreed policy for a param shared by parallel slots', async () => {
+    for (const item of ['known', 'novel']) {
+      const response = await next.fetch(`/en/parallel/${item}`)
+      expect(response.status).toBe(200)
+      const html = await response.text()
+      expect(html).toContain(`children:en/${item}`)
+      expect(html).toContain(`left:en/${item}`)
+      expect(html).toContain(`right:en/${item}`)
+    }
+
+    expect((await next.fetch('/fr/parallel/novel')).status).toBe(404)
+  })
+
+  if (isNextStart) {
+    it('emits root-gated matchers for catch-all and parallel routes', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      ) as {
+        dynamicRoutes: Record<string, DynamicRoute>
+      }
+
+      expect(
+        manifest.dynamicRoutes['/[lang]/catch-all/[...parts]'].fallback
+      ).toBe(false)
+      expect(
+        typeof manifest.dynamicRoutes['/en/catch-all/[...parts]'].fallback
+      ).toBe('string')
+      expect(manifest.dynamicRoutes['/[lang]/parallel/[item]'].fallback).toBe(
+        false
+      )
+      expect(
+        typeof manifest.dynamicRoutes['/en/parallel/[item]'].fallback
+      ).toBe('string')
+    })
+  }
+})
+
 describe('experimental parameter matching ordering validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'invalid-order'),
