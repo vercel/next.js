@@ -951,6 +951,27 @@ async fn directory_tree_to_entrypoints(
         }
     }
 
+    // This assertion is intentionally separate from the filtering condition above. It guards
+    // future changes to entrypoint construction or pruning that might retain an incomplete tree.
+    for (app_path, entrypoint) in &retained_entrypoints {
+        let Entrypoint::AppPage { loader_tree, .. } = entrypoint else {
+            continue;
+        };
+        if !app_path.contains_interception()
+            && loader_tree
+                .await?
+                .contains_declared_builtin_not_found_default(
+                    &builtin_default,
+                    &declared_slots,
+                    None,
+                )
+        {
+            bail!(
+                "Invariant: strict route matching retained the incomplete route matcher \
+                 `{app_path}`"
+            );
+        }
+    }
     Ok(Vc::cell(retained_entrypoints))
 }
 
