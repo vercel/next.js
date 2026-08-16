@@ -169,15 +169,21 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
     fn drain(&self) {
         // Register *before* touching anything reached through `self`. `Joiner::drop` joins on this
         // count, and only a drainer that has incremented it may dereference the `run`/`init`/
-        // `merge` pointers into the caller's frame. `(self.init)()` below is already such a
-        // dereference, so the increment has to come first.
+        // `merge` pointers into the caller's frame — `(self.init)()`, `(self.run)(..)` and
+        // `(self.merge)(..)` below are all such dereferences.
         self.active_drainers.fetch_add(1, Ordering::Relaxed);
-        let mut acc = (self.init)();
+        // Built on the first item, not on entry: a drainer that never receives one contributes
+        // nothing to the fold. Otherwise the result would depend on how many drainers happened to
+        // start — including idle helpers that got no work — so a caller whose `init()` is not a
+        // `merge` identity would see a scheduling-dependent answer.
+        let mut acc: Option<R> = None;
         // `recv` blocks while the queue is empty and fails once the sender is dropped and the
         // buffer is drained, so this ends exactly when the scope is finished.
         //
-        // TODO: a single long-running tail item leaves the other drainers blocked here with no work
-        // to steal. Consider a timeout/steal strategy if that becomes a problem in practice.
+        // TODO: drainers park here whenever the queue is momentarily empty — including mid-pass,
+        // when one long-running job is about to spawn many successors — and hold their worker while
+        // parked. Letting an idle drainer time out and hand the worker back is the fix; see the
+        // TODO on `scope_unbounded_with`.
         while let Ok(item) = self.work_queue.recv() {
             // Post-abort: discard without running, so the wind-down can't re-grow the queue.
             if self.aborted.load(Ordering::Acquire) {
@@ -185,7 +191,9 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
                 continue;
             }
             let spawner = Scope { inner: self };
-            let result = catch_unwind(AssertUnwindSafe(|| (self.run)(&spawner, item, &mut acc)));
+            // First item on this drainer: build the accumulator now.
+            let acc = acc.get_or_insert_with(self.init);
+            let result = catch_unwind(AssertUnwindSafe(|| (self.run)(&spawner, item, acc)));
             // Abort *before* `on_item_finished` so the close and this item's decrement can't both
             // observe a non-zero count and leave nobody to close the queue.
             let panic = match result {
@@ -205,8 +213,8 @@ impl<T: Send + 'static, R> UnboundedInner<'_, T, R> {
             self.on_item_finished(panic);
         }
 
-        // Fold this drainer's accumulator into the shared slot.
-        {
+        // Fold this drainer's accumulator into the shared slot if it was populated.
+        if let Some(acc) = acc {
             let mut slot = self.results.lock();
             *slot = Some(match slot.take() {
                 Some(existing) => (self.merge)(existing, acc),
@@ -325,7 +333,12 @@ where
 /// own stack and pays one lock acquisition on the way out. In profiles of the GC collect pass,
 /// per-item shared atomics were several percent of total time.
 ///
-/// Returns the result of `init()` when no drainer ever runs an item (e.g. an empty `initial`).
+/// `init` is called once per drainer that receives at least one item — never for an idle helper —
+/// but *how many* drainers that is depends on scheduling, not on the work. So `init()` must return
+/// an identity for `merge`, or the result varies run to run. (`0` for a sum, an empty collection
+/// for a concat, `Default::default()` for a struct of counters.)
+///
+/// Returns `init()` when no item is ever processed (e.g. an empty `initial`).
 ///
 /// # Panics and aborts
 ///
@@ -337,8 +350,21 @@ where
 /// - On a panic, the panic is re-raised after the join and **all accumulated results are
 ///   discarded** — the return value is only produced on the normal path.
 ///
-/// TODO: this occupies every worker for the whole call duration. If work turns out to be bursty,
-/// let workers time out when there is not enough work and spawn more when new work is produced.
+/// TODO: this occupies every worker for the whole call duration, because drainers park in `recv`
+/// rather than exiting when the queue is empty. Two independent steps:
+///
+/// - **Shrink** (`recv_timeout`): an idle helper merges and exits, handing its worker back.
+///   Raceless — helpers are a pure optimization and the calling thread never times out, so losing
+///   one can only cost throughput, never correctness or termination.
+/// - **Grow** (respawn from `enqueue` when queue depth warrants): needs the `JoinSet` replaced with
+///   abort handles behind a lock, since `spawn_on` takes `&mut self` while `enqueue` has `&self`. A
+///   lost wakeup is **accepted** here: a helper deciding to exit concurrently with an `enqueue`
+///   that still counts it as live leaves the item for another drainer — worst case the calling
+///   thread, which always drains. Self-feeding jobs (one long job spawning hundreds of successors)
+///   make that reachable but rare, and tolerating it avoids a CAS protocol between exit and spawn.
+///
+/// Measure before building grow: if the queue rarely empties mid-pass, shrink alone captures most
+/// of the benefit, and grow would only thrash helpers at the timeout boundary.
 pub fn scope_unbounded_with<'env, T, R, F, Init, Merge>(
     initial: impl IntoIterator<Item = T>,
     init: Init,
@@ -455,8 +481,8 @@ where
     // naming `UnboundedInner<'static, T, R>` would require `R: 'static`, which the fold API cannot
     // promise.
     //
-    // SAFETY: `Joiner::drop` awaits every helper task before this function returns, so no erased
-    // reference outlives `'env` or the `inner` stack slot it points at.
+    // SAFETY: `Joiner::drop` awaits or aborts every helper task before this function returns, so no
+    // erased reference outlives `'env` or the `inner` stack slot it points at.
     let erased: &(dyn Drainable + Send + Sync + '_) = &inner;
     let erased: &'static (dyn Drainable + Send + Sync + 'static) = unsafe {
         std::mem::transmute::<
@@ -497,13 +523,10 @@ where
         panic::resume_unwind(err);
     }
 
-    // The calling thread always drains (via `Joiner::drop`), so it has merged at least its own
-    // accumulator — even when it processed no items and `initial` was empty.
-    inner
-        .results
-        .lock()
-        .take()
-        .expect("every drainer merges its accumulator before the join completes")
+    // Every drainer that ran an item has merged by now. When none did (an empty `initial`, or every
+    // item discarded by an abort) the slot is empty, and the result is a single `init()` — the
+    // identity of the fold.
+    inner.results.lock().take().unwrap_or_else(init)
 }
 
 #[cfg(test)]
@@ -907,8 +930,8 @@ mod tests {
         assert_eq!(collected, (0..ITEMS).collect::<Vec<_>>());
     }
 
-    /// With no items there is still exactly one drainer (the calling thread), so the result is
-    /// `init()` rather than a panic or a missing value.
+    /// With no items, no drainer builds an accumulator, so the result is exactly one `init()` —
+    /// not a fold of one per drainer that happened to start.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_unbounded_with_empty_returns_init() {
         let total = tokio::task::spawn_blocking(|| {
@@ -921,10 +944,7 @@ mod tests {
         })
         .await
         .unwrap();
-        // No item ran, so no accumulator was ever mutated; merging the idle drainers' inits is the
-        // only contribution. At minimum the calling thread's init must be present.
-        assert!(total >= 42, "expected at least one init(), got {total}");
-        assert_eq!(total % 42, 0, "result must be a fold of init() values");
+        assert_eq!(total, 42, "expected exactly one init(), got {total}");
     }
 
     /// On a `current_thread` runtime there are no helpers, so the calling thread is the only
