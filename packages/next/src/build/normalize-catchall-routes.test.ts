@@ -357,16 +357,42 @@ describe('normalizeCatchallRoutes', () => {
       })
     })
 
-    it('does not prune routes without a catch-all match', () => {
+    it('prunes a static matcher when a real children slot is unmatched', () => {
       const appPaths = {
-        '/foo': ['/@first/foo/page'],
-        '/bar': ['/@second/bar/page'],
+        '/': ['/page'],
+        '/details': ['/@panel/details/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/@panel/default'],
+      })
+
+      expect(appPaths).toEqual({
+        '/': ['/page'],
+      })
+    })
+
+    it('keeps a static matcher when every declared slot matches', () => {
+      const appPaths = {
+        '/foo': ['/@first/foo/page', '/@second/foo/page'],
       }
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
       expect(appPaths).toEqual(expected)
+    })
+
+    it('prunes static matchers with incompatible named slots', () => {
+      const appPaths = {
+        '/foo': ['/@first/foo/page'],
+        '/bar': ['/@second/bar/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({})
     })
 
     it('keeps an interception catch-all when host slots are retained', () => {
@@ -376,7 +402,10 @@ describe('normalizeCatchallRoutes', () => {
       }
       const expected = structuredClone(appPaths)
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/@modal/default'],
+      })
 
       expect(appPaths).toEqual(expected)
     })
@@ -388,14 +417,17 @@ describe('normalizeCatchallRoutes', () => {
       }
       const expected = structuredClone(appPaths)
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/@modal/default'],
+      })
 
       expect(appPaths).toEqual(expected)
     })
 
     it('keeps named slots when children contains the interception catch-all', () => {
       const appPaths = {
-        '/': ['/@sidebar/page'],
+        '/': ['/page', '/@sidebar/page'],
         '/photo/[...slug]': ['/(.)photo/[...slug]/page'],
       }
       const expected = structuredClone(appPaths)
@@ -407,7 +439,7 @@ describe('normalizeCatchallRoutes', () => {
 
     it('keeps slots owned by the immediate interception host through a route group', () => {
       const appPaths = {
-        '/': ['/(host)/@modal/@sidebar/page'],
+        '/': ['/(host)/@modal/page', '/(host)/@modal/@sidebar/page'],
         '/photo/[...slug]': ['/(host)/@modal/(.)photo/[...slug]/page'],
       }
       const expected = structuredClone(appPaths)
@@ -424,12 +456,15 @@ describe('normalizeCatchallRoutes', () => {
       }
       const expected = structuredClone(appPaths)
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/@modal/default'],
+      })
 
       expect(appPaths).toEqual(expected)
     })
 
-    it('prunes an incomplete catch-all inside an interception subtree', () => {
+    it('prunes every incomplete matcher inside an interception subtree', () => {
       const appPaths = {
         '/photo/[...slug]': ['/@modal/(.)photo/@catchall/[...slug]/page'],
         '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
@@ -437,9 +472,7 @@ describe('normalizeCatchallRoutes', () => {
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
-      expect(appPaths).toEqual({
-        '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
-      })
+      expect(appPaths).toEqual({})
     })
   })
 })
