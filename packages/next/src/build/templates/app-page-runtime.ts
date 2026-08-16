@@ -529,9 +529,10 @@ export function createAppPageEntrypoint({
       ? true
       : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
-    // PPR shells are generated for streaming metadata. Requests that require
-    // blocking metadata must bypass the shell so the prerender and dynamic
-    // render use the same metadata tree.
+    // A PPR shell has already closed its head before the dynamic render resumes.
+    // Blocking metadata resolved during the resume would therefore be emitted
+    // after the head, where HTML-limited bots cannot observe it. Bypass the
+    // shell so blocking metadata is included in the initial document head.
     const shouldForceDynamicPPRRender =
       isRoutePPREnabled && !serveStreamingMetadata
 
