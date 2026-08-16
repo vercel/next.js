@@ -245,6 +245,38 @@ describe('normalizeCatchallRoutes', () => {
       expect(appPaths).toEqual(expected)
     })
 
+    it('does not infer children from built-in routes', () => {
+      const appPaths = {
+        '/_not-found': ['/built-in/global-not-found'],
+        '/_global-error': ['/built-in/app-error'],
+        '/[case]': ['/@slot/[case]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: [
+          '/_not-found/page',
+          '/_global-error/page',
+          '/@slot/default',
+        ],
+      })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('does not apply page completeness to route handlers', () => {
+      const appPaths = {
+        '/': ['/page', '/@slot/page'],
+        '/icon.png': ['/@slot/icon/route'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
     it('prunes only the incomplete catch-all matcher', () => {
       const appPaths = {
         '/foo': ['/foo/page'],
