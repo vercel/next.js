@@ -21,6 +21,7 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  NON_STANDARD_NODE_ENV,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   WEBPACK_LAYERS,
@@ -1425,7 +1426,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const dir = path.join(__dirname)
 
-process.env.NODE_ENV = 'production'
+// Match the \`next start\` behavior: default to production, but respect an
+// explicitly provided NODE_ENV (e.g. \`test\`) and warn when it differs, as
+// running React with a non-production NODE_ENV severely regresses
+// server-side rendering performance.
+if (process.env.NODE_ENV && process.env.NODE_ENV !== 'production') {
+  console.warn('${NON_STANDARD_NODE_ENV}')
+}
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 process.chdir(__dirname)
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
