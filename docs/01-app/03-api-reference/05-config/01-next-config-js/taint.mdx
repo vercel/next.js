@@ -63,7 +63,7 @@ In this case, the `getUserDetails` function returns data about a given user. We 
 ```ts switcher
 import { experimental_taintObjectReference } from 'react'
 
-function getUserDetails(id: string): UserDetails {
+async function getUserDetails(id: string): Promise<UserDetails> {
   const user = await db.queryUserById(id)
 
   experimental_taintObjectReference(
@@ -78,7 +78,7 @@ function getUserDetails(id: string): UserDetails {
 ```js switcher
 import { experimental_taintObjectReference } from 'react'
 
-function getUserDetails(id) {
+async function getUserDetails(id) {
   const user = await db.queryUserById(id)
 
   experimental_taintObjectReference(
@@ -158,7 +158,7 @@ We can taint the `config.SERVICE_API_KEY` value.
 ```ts switcher
 import { experimental_taintUniqueValue } from 'react'
 
-function getSystemConfig(): SystemConfig {
+async function getSystemConfig(): Promise<SystemConfig> {
   const config = await config.getConfigDetails()
 
   experimental_taintUniqueValue(
@@ -174,7 +174,7 @@ function getSystemConfig(): SystemConfig {
 ```js switcher
 import { experimental_taintUniqueValue } from 'react'
 
-function getSystemConfig() {
+async function getSystemConfig() {
   const config = await config.getConfigDetails()
 
   experimental_taintUniqueValue(
