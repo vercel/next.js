@@ -87,11 +87,11 @@ describe('Cache Components Fallback Validation', () => {
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/partial/[top]/unwrapped/layout.tsx (8:3) @ Layout
-     >  8 |   await params
-          |   ^",
+       "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+     > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+         |                          ^",
        "stack": [
-         "Layout app/partial/[top]/unwrapped/layout.tsx (8:3)",
+         "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
        ],
      }
     `)

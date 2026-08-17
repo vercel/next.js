@@ -88,4 +88,14 @@ export type StaticPathsResult = {
 
   /** Logical request matchers, independent of the artifacts rendered for them. */
   prerenderRouteMatchers?: PrerenderRouteMatcher[]
+
+  /** Whether fallback modes came from an explicit prerender matcher. */
+  hasPrerenderMatcher?: true
+
+  /**
+   * DEV only: when an explicit matcher contains `fallback`, the first fallback
+   * parameter and every parameter after it must remain unknown while
+   * validating the fallback shell.
+   */
+  validationFallbackRouteParams?: readonly FallbackRouteParam[]
 }

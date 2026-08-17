@@ -1135,7 +1135,35 @@ export function createAppPageEntrypoint({
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
+          const devPrerenderMatcherOutcome =
+            routeModule.isDev && !isDebugPrerender
+              ? getRequestMeta(req, 'devPrerenderMatcherOutcome')
+              : undefined
+
+          // Closed paths are rejected before the fallback prerender gate below.
+          // This is request matching, so it still applies to ordinary dev renders.
           if (
+            !isMinimalMode &&
+            (devPrerenderMatcherOutcome === 'not-found' ||
+              ((isProduction || prerenderInfo) &&
+                fallbackMode === FallbackMode.NOT_FOUND)) &&
+            staticPathKey &&
+            !didRespond &&
+            !isDraftMode &&
+            pageIsDynamic &&
+            (isProduction || !isPrerendered)
+          ) {
+            if (nextConfig.adapterPath) {
+              return await render404()
+            }
+            throw new NoFallbackError()
+          }
+
+          if (
+            // Ordinary dev requests always use the request-specific render
+            // below. Only production, forced background work, and explicit
+            // shell debugging may enter fallback prerender handling.
+            (isProduction || forceStaticRender || isDebugPrerender) &&
             !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
@@ -1144,21 +1172,6 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // if the page has dynamicParams: false and this pathname wasn't
-            // prerendered trigger the no fallback handling
-            if (
-              // In development, fall through to render to handle missing
-              // getStaticPaths.
-              (isProduction || prerenderInfo) &&
-              // When fallback isn't present, abort this render so we 404
-              fallbackMode === FallbackMode.NOT_FOUND
-            ) {
-              if (nextConfig.adapterPath) {
-                return await render404()
-              }
-              throw new NoFallbackError()
-            }
-
             // When cacheComponents is enabled, we can use the fallback
             // response if the request is not a dynamic RSC request because the
             // RSC data when this feature flag is enabled does not contain any

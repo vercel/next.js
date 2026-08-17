@@ -429,6 +429,30 @@ declare module 'next/form' {
 `
 }
 
+const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
+type PrerenderMatcherFor<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
+type PrerenderMatcherExports<Route extends keyof ParamMap> =
+  | { unstable_matcher?: PrerenderMatcherFor<Route>; unstable_generateMatcher?: never }
+  | { unstable_matcher?: never; unstable_generateMatcher?: () => Promise<PrerenderMatcherFor<Route>> | PrerenderMatcherFor<Route> }
+
+`
+
+function getPrerenderMatcherKeyValidation(
+  route: string | undefined,
+  type: string
+): string {
+  return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
+    ? `
+  type __PrerenderMatcherValue =
+    typeof handler extends { unstable_matcher: infer Matcher } ? Matcher :
+    typeof handler extends { unstable_generateMatcher: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+  type __InvalidPrerenderMatcherKeys = Exclude<keyof __PrerenderMatcherValue, keyof ParamMap[${JSON.stringify(route)}]>
+  type __AssertNoInvalidPrerenderMatcherKeys<Invalid extends never> = Invalid
+  const __prerenderMatcherKeyCheck: __AssertNoInvalidPrerenderMatcherKeys<__InvalidPrerenderMatcherKeys> | undefined = undefined
+  void __prerenderMatcherKeyCheck`
+    : ''
+}
+
 export function generateValidatorFile(
   routesManifest: RouteTypesManifest
 ): string {
@@ -467,6 +491,10 @@ export function generateValidatorFile(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
         // If we ever raise the TS minimum version, we can switch back.
@@ -478,6 +506,7 @@ export function generateValidatorFile(
     importPath.replace(/\.tsx?$/, '.js')
   )})
   type __Check = __IsExpected<typeof handler>
+  ${matcherKeyValidation}
   // @ts-ignore
   type __Unused = __Check
 }`
@@ -517,6 +546,10 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
@@ -531,7 +564,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & PrerenderMatcherExports<Route>
 
 `
   }
@@ -571,7 +604,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & PrerenderMatcherExports<Route>
 
 `
   }
@@ -708,6 +741,10 @@ export function generateValidatorFileStrict(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         return `// Validate ${filePath}
 {
@@ -715,6 +752,7 @@ export function generateValidatorFileStrict(
     importPath.replace(/\.tsx?$/, '.js')
   )})
   handler satisfies ${typeWithRoute}
+  ${matcherKeyValidation}
 }`
       })
       .join('\n\n')
@@ -752,6 +790,10 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.JSXElementConstructor<PageProps<Route>>
@@ -766,7 +808,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & PrerenderMatcherExports<Route>
 
 `
   }
@@ -806,7 +848,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & PrerenderMatcherExports<Route>
 
 `
   }

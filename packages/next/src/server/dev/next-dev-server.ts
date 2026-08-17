@@ -81,7 +81,11 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type { PrerenderedRoute } from '../../build/static-paths/types'
+import type {
+  FallbackRouteParam,
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -736,8 +740,11 @@ export default class DevServer extends Server {
     isAppPath: boolean
   }): Promise<{
     prerenderedRoutes?: PrerenderedRoute[]
+    prerenderRouteMatchers?: PrerenderRouteMatcher[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
+    hasPrerenderMatcher?: true
+    validationFallbackRouteParams?: readonly FallbackRouteParam[]
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -755,6 +762,9 @@ export default class DevServer extends Server {
           config: {
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            prerenderMatching: Boolean(
+              this.nextConfig.experimental.prerenderMatching
+            ),
           },
           httpAgentOptions,
           locales,
@@ -790,7 +800,13 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+        const {
+          prerenderedRoutes,
+          prerenderRouteMatchers,
+          fallbackMode: fallback,
+          hasPrerenderMatcher,
+          validationFallbackRouteParams,
+        } = res.value
 
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
@@ -825,14 +841,23 @@ export default class DevServer extends Server {
         const value: {
           staticPaths: string[] | undefined
           prerenderedRoutes: PrerenderedRoute[] | undefined
+          prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
           fallbackMode: FallbackMode | undefined
+          hasPrerenderMatcher: true | undefined
+          validationFallbackRouteParams:
+            | readonly FallbackRouteParam[]
+            | undefined
         } = {
           staticPaths: prerenderedRoutes?.map((route) => route.pathname),
           prerenderedRoutes,
+          prerenderRouteMatchers,
           fallbackMode: fallback,
+          hasPrerenderMatcher,
+          validationFallbackRouteParams,
         }
 
         if (
+          !hasPrerenderMatcher &&
           res.value?.fallbackMode !== undefined &&
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
@@ -853,9 +878,10 @@ export default class DevServer extends Server {
           // the route whose pathname matches the page pattern (e.g.
           // /dynamic-params/[slug]) and has fallback route params describing
           // which params are unknown at build time.
-          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
-            (route) => route.pathname === pathname
-          )
+          const fallbackRoute =
+            prerenderRouteMatchers?.find(
+              (route) => route.pathname === pathname
+            ) ?? prerenderedRoutes?.find((route) => route.pathname === pathname)
 
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
@@ -865,8 +891,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
-            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
+            fallbackRootParams: fallbackRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
