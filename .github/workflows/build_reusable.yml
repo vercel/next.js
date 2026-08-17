@@ -105,9 +105,7 @@ env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
-  # Read token for the auth-protected preview-builds npm mirror, used by deploy
-  # tests to install Next.js artifacts during the remote build.
-  PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+  PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
 
 jobs:
   build:
