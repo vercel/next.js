@@ -127,6 +127,7 @@ function createTestFileProgressMonitor(options) {
     if (progress && progress.sequence !== lastSequence) {
       lastSequence = progress.sequence
       lastObservedAt = now()
+      stalled = false
     }
 
     if (!stalled && now() - lastObservedAt >= options.stallTimeoutMs) {

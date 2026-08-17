@@ -10,7 +10,6 @@ const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
-const treeKill = require('tree-kill')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
@@ -21,7 +20,6 @@ const { buildTestReport } = require('./scripts/test-report')
 const {
   createTestFileProgressMonitor,
   formatTestFileProgress,
-  readTestFileProgress,
 } = require('./test/lib/test-file-progress')
 
 // --- Test profile and result caching via actions cache ---
@@ -52,7 +50,6 @@ class TestProfile {
     'NEXT_TEST_BROWSER_WS_ENDPOINT',
     'NEXT_TEST_FILE_PROGRESS_PATH',
     'NEXT_TEST_FILE_STALL_TIMEOUT_MS',
-    'NEXT_TEST_FILE_TIMEOUT_MS',
     'TURBO_TASKS_AVAILABLE_PARALLELISM',
   ])
 
@@ -725,19 +722,17 @@ ${ENDGROUP}`)
     return Number.isFinite(value) && value > 0 ? value : 0
   }
   const stallTimeoutMs = getTimeout('NEXT_TEST_FILE_STALL_TIMEOUT_MS')
-  const fileTimeoutMs = getTimeout('NEXT_TEST_FILE_TIMEOUT_MS')
 
   const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
-      const progressPath =
-        stallTimeoutMs || fileTimeoutMs
-          ? path.join(
-              os.tmpdir(),
-              `next-test-progress-${process.pid}-${randomUUID()}.json`
-            )
-          : undefined
+      const progressPath = stallTimeoutMs
+        ? path.join(
+            os.tmpdir(),
+            `next-test-progress-${process.pid}-${randomUUID()}.json`
+          )
+        : undefined
 
       const args = [
         ...(process.env.CI ? ['--ci'] : []),
@@ -849,79 +844,29 @@ ${ENDGROUP}`)
 
       children.add(child)
 
-      /** @type {Error | undefined} */
-      let timeoutError
-      /** @type {NodeJS.Timeout | undefined} */
-      let fileTimeout
-      /** @type {NodeJS.Timeout | undefined} */
-      let killFallback
       /** @type {ReturnType<typeof createTestFileProgressMonitor> | undefined} */
       let progressMonitor
-
-      /**
-       * @param {string} reason
-       * @param {ReturnType<typeof readTestFileProgress>} [progress]
-       */
-      const terminateForTimeout = (reason, progress) => {
-        if (timeoutError) return
-
-        const currentProgress =
-          progress ?? (progressPath ? readTestFileProgress(progressPath) : null)
-        timeoutError = new Error(`${test.file} ${reason}`)
-        process.stderr.write(
-          `\n❌ ${test.file} ${reason}\n${formatTestFileProgress(currentProgress)}\n`
-        )
-
-        if (!child.pid) {
-          child.kill('SIGKILL')
-          return
-        }
-
-        treeKill(child.pid, 'SIGKILL', (err) => {
-          if (err) {
-            process.stderr.write(
-              `Failed to kill test process tree: ${err.message}\n`
-            )
-            child.kill('SIGKILL')
-          }
-        })
-        killFallback = setTimeout(() => child.kill('SIGKILL'), 10_000)
-        killFallback.unref()
-      }
 
       if (progressPath && stallTimeoutMs) {
         progressMonitor = createTestFileProgressMonitor({
           progressPath,
           stallTimeoutMs,
-          onStall: (progress) =>
-            terminateForTimeout(
-              `made no progress for ${stallTimeoutMs / 1000}s`,
-              progress
-            ),
+          onStall: (progress) => {
+            process.stderr.write(
+              `\n⚠️ ${test.file} has made no progress for ${stallTimeoutMs / 1000}s\n${formatTestFileProgress(progress)}\n`
+            )
+          },
         })
-      }
-      if (fileTimeoutMs) {
-        fileTimeout = setTimeout(
-          () =>
-            terminateForTimeout(
-              `exceeded the ${fileTimeoutMs / 1000}s file timeout`
-            ),
-          fileTimeoutMs
-        )
-        fileTimeout.unref()
       }
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (fileTimeout) clearTimeout(fileTimeout)
-        if (killFallback) clearTimeout(killFallback)
         progressMonitor?.stop()
         if (progressPath && !progressMonitor) {
           fs.rmSync(progressPath, { force: true })
           fs.rmSync(`${progressPath}.tmp`, { force: true })
         }
-        const isChildExitWithNonZero =
-          timeoutError !== undefined || code !== 0 || signal !== null
+        const isChildExitWithNonZero = code !== 0 || signal !== null
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
@@ -952,13 +897,9 @@ ${ENDGROUP}`)
             }
             outputSema.release()
           }
-          const err =
-            timeoutError ??
-            new Error(
-              code
-                ? `failed with code: ${code}`
-                : `failed with signal: ${signal}`
-            )
+          const err = new Error(
+            code ? `failed with code: ${code}` : `failed with signal: ${signal}`
+          )
           // @ts-expect-error
           err.output = outputChunks
             .map(({ chunk }) => chunk.toString())

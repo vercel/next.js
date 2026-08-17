@@ -57,7 +57,7 @@ describe('test file progress', () => {
     expect(readTestFileProgress(progressPath)).toBeNull()
   })
 
-  it('resets the stall deadline when progress changes', () => {
+  it('resets the stall deadline and reports a later stall', () => {
     let now = 0
     const onStall = jest.fn()
     const monitor = createTestFileProgressMonitor({
@@ -83,6 +83,16 @@ describe('test file progress', () => {
     expect(onStall).toHaveBeenCalledTimes(1)
     expect(onStall).toHaveBeenCalledWith(
       expect.objectContaining({ testName: 'a test' })
+    )
+
+    now = 2_000
+    reportTestFileProgress('test-start', 'another test')
+    monitor.check()
+    now = 3_000
+    monitor.check()
+    expect(onStall).toHaveBeenCalledTimes(2)
+    expect(onStall).toHaveBeenLastCalledWith(
+      expect.objectContaining({ testName: 'another test' })
     )
 
     monitor.stop()
