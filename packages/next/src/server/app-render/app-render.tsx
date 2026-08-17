@@ -5477,7 +5477,7 @@ async function streamStagedRenderInDev({
   // earlier on a cache miss). When streaming live (a client navigation), it's
   // surfaced through the Flight payload as `_revealAfter`: the client decodes
   // it and defers resolving the response's deferred RSCs on it (see
-  // `ppr-navigations`), so a Suspense boundary's children aren't revealed
+  // `render-tree`), so a Suspense boundary's children aren't revealed
   // before their row has been decoded, which would flush a premature fallback.
   // React serializes the promise as a pending row whose resolution row is
   // emitted only when we resolve it here, and that row follows the children's

@@ -1,7 +1,6 @@
 import React, {
   useEffect,
   useMemo,
-  startTransition,
   useInsertionEffect,
   useDeferredValue,
 } from 'react'
@@ -11,7 +10,6 @@ import {
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../shared/lib/app-router-types'
-import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type {
   AppHistoryState,
   AppRouterState,
@@ -24,7 +22,7 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
@@ -38,11 +36,11 @@ import {
 } from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
-  dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
   type GlobalErrorState,
 } from './app-router-instance'
+import { legacyUrgentBFCacheRestore, restore, traverse } from './navigator'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
@@ -99,14 +97,7 @@ function handlePopState(state: PopStateEvent['state']): void {
     return
   }
 
-  // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-  // Without startTransition works if the cache is there for this path
-  startTransition(() => {
-    dispatchTraverseAction(
-      window.location.href,
-      state.__PRIVATE_NEXTJS_INTERNALS_TREE
-    )
-  })
+  traverse(window.location.href, state.__PRIVATE_NEXTJS_INTERNALS_TREE)
 }
 
 function HistoryUpdater({
@@ -288,11 +279,10 @@ function Router({
       // of the last MPA navigation.
       globalMutable.pendingMpaPath = undefined
 
-      dispatchAppRouterAction({
-        type: ACTION_RESTORE,
-        url: new URL(window.location.href),
-        historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-      })
+      legacyUrgentBFCacheRestore(
+        new URL(window.location.href),
+        window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+      )
     }
 
     window.addEventListener('pageshow', handlePageShow)
@@ -377,13 +367,7 @@ function Router({
       const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
-      startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_RESTORE,
-          url: new URL(url ?? href, href),
-          historyState: appHistoryState,
-        })
-      })
+      restore(new URL(url ?? href, href), appHistoryState)
     }
 
     /**

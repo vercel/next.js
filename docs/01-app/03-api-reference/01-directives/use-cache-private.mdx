@@ -49,8 +49,6 @@ export default nextConfig
 
 Then add `'use cache: private'` to your function along with a `cacheLife` configuration.
 
-> **Good to know**: This directive is not available in Route Handlers.
-
 ### Basic example
 
 In this example, we demonstrate that you can access cookies within a `'use cache: private'` scope:

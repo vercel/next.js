@@ -151,7 +151,11 @@ import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  compareAppPaths,
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -2186,8 +2190,24 @@ export default async function build(
           emittedAppPageKeySet.has(appPageKey)
         )
 
+        const appPathsByPathname = new Map<string, string[]>()
         for (const key in appPathsManifest) {
-          appPathRoutes[key] = normalizeAppPath(key)
+          const pathname = normalizeAppPath(key)
+          const routeAppPaths = appPathsByPathname.get(pathname)
+          if (routeAppPaths) {
+            routeAppPaths.push(key)
+          } else {
+            appPathsByPathname.set(pathname, [key])
+          }
+        }
+
+        // Legacy deployment builders collapse this manifest by pathname using
+        // the final entry. Keep that entry aligned with selectAppPageEntry so
+        // the traced module and the module loaded at runtime cannot diverge.
+        for (const [pathname, routeAppPaths] of appPathsByPathname) {
+          for (const key of routeAppPaths.sort(compareAppPaths)) {
+            appPathRoutes[key] = pathname
+          }
         }
 
         await writeManifest(
@@ -2373,6 +2393,7 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
+                  const originalAppPaths: string[] = []
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
@@ -2380,13 +2401,16 @@ export default async function build(
                       normalizedPath === page &&
                       mappedAppPages[originalPath]
                     ) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
+                      originalAppPaths.push(originalPath)
                     }
+                  }
+
+                  if (originalAppPaths.length > 0) {
+                    originalAppPath = selectAppPageEntry(page, originalAppPaths)
+                    pagePath = mappedAppPages[originalAppPath].replace(
+                      /^private-next-app-dir/,
+                      ''
+                    )
                   }
                 }
 
