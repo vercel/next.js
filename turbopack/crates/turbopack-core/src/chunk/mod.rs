@@ -498,6 +498,8 @@ pub struct ChunkGroupContentInner {
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    #[bincode(with = "turbo_bincode::indexset")]
+    pub worker_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 
