@@ -57,7 +57,7 @@ export function createMetadataComponents({
     )
       .then(async (resolution) => {
         const selected = await resolution.selectedViewport
-        if (selected.status === 'resolved') {
+        if (selected.status === 'resolved' && selected.value !== undefined) {
           return <>{createViewportElements(selected.value)}</>
         }
         if (
@@ -73,9 +73,12 @@ export function createMetadataComponents({
             selected.status,
             interpolatedParams,
             metadataContext,
-            resolution.selectedKeyPath
+            resolution.selectedViewportKeyPath
           )
-          if (convention.status === 'resolved') {
+          if (
+            convention.status === 'resolved' &&
+            convention.value !== undefined
+          ) {
             return <>{createViewportElements(convention.value)}</>
           }
         }
@@ -202,7 +205,7 @@ async function getResolvedParallelMetadataImpl(
     errorType
   )
   const selected = await resolution.selectedMetadata
-  if (selected.status === 'resolved') {
+  if (selected.status === 'resolved' && selected.value !== undefined) {
     return <>{createMetadataElements(selected.value)}</>
   }
   if (
@@ -218,9 +221,9 @@ async function getResolvedParallelMetadataImpl(
       selected.status,
       interpolatedParams,
       metadataContext,
-      resolution.selectedKeyPath
+      resolution.selectedMetadataKeyPath
     )
-    if (convention.status === 'resolved') {
+    if (convention.status === 'resolved' && convention.value !== undefined) {
       return <>{createMetadataElements(convention.value)}</>
     }
   }

@@ -928,7 +928,10 @@ impl ReactServerComponentValidator {
                         possibly_invalid_exports
                             .insert(export_name.clone(), (InvalidExportKind::General, *span));
                     }
-                    "generateMetadata" | "metadata" => {
+                    "generateMetadata"
+                    | "metadata"
+                    | "unstable_selectMetadata"
+                    | "unstable_selectViewport" => {
                         possibly_invalid_exports
                             .insert(export_name.clone(), (InvalidExportKind::Metadata, *span));
                     }
@@ -1034,9 +1037,12 @@ impl ReactServerComponentValidator {
                         );
                     }
                     InvalidExportKind::Metadata => {
-                        // Client entry can't export `generateMetadata` or `metadata`.
+                        // Client entries can't export metadata APIs.
                         if is_client_entry
-                            && (export_name == "generateMetadata" || export_name == "metadata")
+                            && (export_name == "generateMetadata"
+                                || export_name == "metadata"
+                                || export_name == "unstable_selectMetadata"
+                                || export_name == "unstable_selectViewport")
                         {
                             report_error(
                                 &self.app_dir,

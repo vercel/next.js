@@ -10,6 +10,10 @@ export const metadata = {
 
 export default async function Layout({
   children,
+  error: _error,
+  imageError: _imageError,
+  login: _login,
+  viewportError: _viewportError,
 }: {
   children: ReactNode
   error: ReactNode
