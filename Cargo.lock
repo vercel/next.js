@@ -10001,6 +10001,7 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",

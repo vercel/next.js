@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
+    hash::BuildHasherDefault,
     io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
@@ -13,6 +14,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
@@ -20,6 +22,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -1524,6 +1527,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .parallel_scheduler
                         .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
                             let _span = span.clone().entered();
+
                             if indices.len() == 1 {
                                 // If we only have one file, we can just move it
                                 let index = indices[0];
@@ -1547,6 +1551,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 });
                             }
 
+                            // A tombstone is dead if no older SST contains a matching key.
+                            // Returns `true`` if the tombstone is definitely dead (no false
+                            // positives), if `false` is returned then the tomstone is only likely
+                            // to be alive since the amqf may have  false positive match for the
+                            let tombstone_is_dead = {
+                                // Filters of every SST older than this job.
+                                //
+                                // A tombstone only suppresses values older than itself, and within
+                                // the job `MergeIter` yields
+                                // newest-first so the loop below already drops
+                                // those. What remains is everything older than the job's oldest
+                                // member.
+                                let oldest_index_in_job = indices
+                                    .iter()
+                                    .copied()
+                                    .min()
+                                    .expect("merge jobs are not empty");
+                                let older_filters = ssts_with_ranges[..oldest_index_in_job]
+                                    .iter()
+                                    .map(|sst| {
+                                        let entry =
+                                            meta_files[sst.meta_index].entry(sst.index_in_meta);
+                                        (entry.min_hash(), entry.max_hash(), entry.amqf())
+                                    })
+                                    .collect::<Vec<_>>();
+                                move |hash: u64| {
+                                    !older_filters.iter().any(|(min, max, amqf)| {
+                                        hash >= *min
+                                            && hash <= *max
+                                            && amqf.contains_fingerprint(hash)
+                                    })
+                                }
+                            };
                             // Open SST files independently for compaction.
                             // Uses MADV_SEQUENTIAL for better OS page management
                             // and avoids caching mmaps on MetaEntry's OnceLock.
@@ -1675,6 +1712,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             // - MultiValue: skip all older entries after encountering a tombstone
                             //   (which signals deletion of all prior values for this key)
                             let mut skip_remaining_for_this_key = false;
+                            // Values deleted by key-value tombstones in the current key group.
+                            // Reset at each key boundary.
+                            let mut deleted_values_for_this_key: AutoSet<
+                                RcBytes,
+                                BuildHasherDefault<FxHasher>,
+                                1,
+                            > = AutoSet::default();
                             let family_config = &self.config.family_configs[family as usize];
 
                             for entry in iter {
@@ -1682,7 +1726,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 if current_key.as_ref() != Some(&entry.key) {
                                     // we changed keys so undo this flag
                                     skip_remaining_for_this_key = false;
+                                    deleted_values_for_this_key.clear();
                                     current_key = Some(entry.key.clone());
+                                }
+                                // Key-value tombstones sort first within a group, so each is
+                                // recorded before the values it might delete.
+                                // See: `crate::collector_entry::sort_rank`
+                                if let IterValue::KeyValueDeleted { value } = &entry.value {
+                                    deleted_values_for_this_key.insert(value.clone());
+                                    // Applied to this job's values above; keep it only if an SST
+                                    // outside the job could still hold a matching key.
+                                    if tombstone_is_dead(entry.hash) {
+                                        continue;
+                                    }
+                                } else if !deleted_values_for_this_key.is_empty()
+                                    // Deleted values cannot match blobs, just normal payloads.
+                                    && let IterValue::Slice { value } = &entry.value
+                                    && deleted_values_for_this_key.contains(value)
+                                {
+                                    // Deleted by a key-value tombstone seen earlier in this group.
+                                    continue;
                                 }
                                 if !skip_remaining_for_this_key {
                                     let is_used = used_key_hashes
@@ -1696,8 +1759,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     match family_config.kind {
                                         FamilyKind::MultiValue => {
                                             // For MultiValue families we only skip remaining if we
-                                            // see a tombstone
-                                            if matches!(entry.value, IterValue::Deleted) {
+                                            // see a key tombstone. Key-value tombstones are
+                                            // handled above and never reach here.
+                                            if matches!(entry.value, IterValue::KeyDeleted) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1706,6 +1770,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             // else that comes out must be skipped
                                             skip_remaining_for_this_key = true;
                                         }
+                                    }
+                                    // If this is a tombstone, see if we need to retain it or not.
+                                    if matches!(entry.value, IterValue::KeyDeleted)
+                                        && tombstone_is_dead(entry.hash)
+                                    {
+                                        continue;
                                     }
                                     collector.add_entry(
                                         entry,
@@ -1944,6 +2014,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         #[cfg(feature = "stats")]
         let mut found_in_sst = false;
 
+        // Values deleted by key-value tombstones seen so far. Because we walk meta files newest
+        // first, and tombstones sort first within a key group, every tombstone that could apply to
+        // a value has already been seen by the time we reach that value.
+        let mut deleted_values: AutoSet<ArcBytes, BuildHasherDefault<FxHasher>, 1> =
+            AutoSet::default();
+
         let mut size = 0;
 
         for meta in inner.meta_files.iter().rev() {
@@ -1973,20 +2049,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             found_in_sst = true;
                         }
                         inner.accessed_key_hashes[family].insert(hash);
-                        // Process values. Tombstones sort last within a key group,
-                        // so when we see a tombstone, we can return immediately.
                         for value in values {
                             match value {
-                                LookupValue::Deleted => {
+                                LookupValue::KeyDeleted => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                                     if !FIND_ALL {
                                         span.record("result_size", "deleted");
                                         return Ok(SmallVec::new());
                                     }
-                                    // Tombstone is last in key group. Return accumulated
-                                    // values (from this SST and newer layers). Stop
-                                    // searching older SSTs.
+                                    // A key tombstone deletes every older value for this
+                                    // key. Return what we accumulated from this SST and newer
+                                    // layers and stop searching older SSTs.
                                     if output.is_empty() {
                                         span.record("result_size", "deleted");
                                     } else {
@@ -1994,9 +2068,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                     return Ok(output);
                                 }
+                                LookupValue::KeyValueDeleted { value } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                    // Cannot terminate the search: older layers may hold other
+                                    // values for the same key.
+                                    deleted_values.insert(value);
+                                }
                                 LookupValue::Slice { value } => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                    if deleted_values.contains(&value) {
+                                        continue;
+                                    }
                                     if !FIND_ALL {
                                         span.record("result_size", value.len());
                                         return Ok(SmallVec::from_buf([value]));
@@ -2008,6 +2092,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                                     let blob = self.read_blob(sequence_number)?;
+                                    if deleted_values.iter().any(|d| **d == *blob) {
+                                        continue;
+                                    }
                                     if !FIND_ALL {
                                         span.record("result_size", blob.len());
                                         return Ok(SmallVec::from_buf([blob]));
@@ -2120,11 +2207,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             if let Some(result) = result {
                 inner.accessed_key_hashes[family].insert(hash);
                 let result = match result {
-                    LookupValue::Deleted => {
+                    LookupValue::KeyDeleted => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                         deleted += 1;
                         None
+                    }
+                    LookupValue::KeyValueDeleted { .. } => {
+                        // Key-value tombstones are only written to MultiValue families, and
+                        // `batch_get` rejects those above.
+                        bail!(
+                            "unexpected key-value tombstone in SingleValue family {}",
+                            self.config.family_configs[family].name
+                        )
                     }
                     LookupValue::Slice { value } => {
                         #[cfg(feature = "stats")]
