@@ -102,7 +102,12 @@ on:
         type: string
         default: 'yes'
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  # Newest @napi-rs/cli that runs on Node.js 20.9.0 (NODE_LTS_VERSION below):
+  # 3.5.0+ depends on @inquirer/prompts 8, whose @inquirer/core 11 requires
+  # `util.styleText` (Node >= 20.12) and crashes at CLI startup. The CLI here
+  # only orchestrates cargo and names artifacts (types are committed), so
+  # drifting from the workspace devDependency (3.7.2) is acceptable.
+  NAPI_CLI_VERSION: 3.4.1
   TURBO_VERSION: 2.9.4
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
   NODE_LTS_VERSION: 20.9.0

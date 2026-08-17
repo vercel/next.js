@@ -188,6 +188,12 @@ async function writeToCacheDir(
   etag: string,
   upstreamEtag: string
 ) {
+  if (buffer.byteLength === 0) {
+    throw new Error(
+      'Invariant: cannot write an empty buffer to the image cache'
+    )
+  }
+
   const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const filename = join(
     /* turbopackIgnore: true */
@@ -216,6 +222,9 @@ async function readFromCacheDir(cacheDir: string, cacheKey: string) {
   )
   const filePath = join(/* turbopackIgnore: true */ dir, file)
   const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
+  if (buffer.byteLength === 0) {
+    throw new Error(`Invariant: image cache entry "${cacheKey}" is empty`)
+  }
   const expireAt = Number(expireAtSt)
   const maxAge = Number(maxAgeSt)
   return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }

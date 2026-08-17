@@ -227,6 +227,7 @@ export const experimentalSchema = {
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  concurrentRouterQueue: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -251,6 +252,7 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
