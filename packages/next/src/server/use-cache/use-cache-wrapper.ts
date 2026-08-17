@@ -93,7 +93,6 @@ import {
   UseCacheDeadlockError,
   UseCacheTimeoutError,
 } from './use-cache-errors'
-import { CachePrerenderAbortController } from './cache-prerender-abort-controller'
 import {
   createHangingInputAbortSignal,
   throwToInterruptStaticGeneration,
@@ -1387,16 +1386,18 @@ async function generateCacheEntryImpl(
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
-      let cachePrerenderAbortController:
-        | CachePrerenderAbortController
-        | undefined
+      let cleanupAbortController: AbortController | undefined
       let abortSignal = timeoutAbortController.signal
       if (dynamicAccessAbortSignal) {
-        cachePrerenderAbortController = new CachePrerenderAbortController(
+        // React attaches an abort listener to this signal. Node retains a
+        // non-empty composite while it has listeners, so add an owned source
+        // that can release it after the prerender settles.
+        cleanupAbortController = new AbortController()
+        abortSignal = AbortSignal.any([
           dynamicAccessAbortSignal,
-          timeoutAbortController.signal
-        )
-        abortSignal = cachePrerenderAbortController.signal
+          timeoutAbortController.signal,
+          cleanupAbortController.signal,
+        ])
       }
 
       let prelude: ReadableStream<Uint8Array>
@@ -1421,7 +1422,7 @@ async function generateCacheEntryImpl(
         prelude = prerenderResult.prelude
       } finally {
         clearTimeout(timer)
-        cachePrerenderAbortController?.dispose()
+        cleanupAbortController?.abort()
       }
 
       if (timeoutAbortController.signal.aborted) {
