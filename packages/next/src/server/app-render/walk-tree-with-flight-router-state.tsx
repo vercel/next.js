@@ -22,6 +22,7 @@ import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
+import type { ResolvedPartialPrefetching } from './prefetch-config'
 
 /**
  * The result of rendering a navigation (or refresh/action) response: the
@@ -46,6 +47,7 @@ export type NavigationResponseTree = {
  */
 export async function walkTreeWithFlightRouterState({
   loaderTreeToFilter,
+  routePartialPrefetching,
   parentParams,
   flightRouterState,
   parentIsInsideSharedLayout,
@@ -60,6 +62,7 @@ export async function walkTreeWithFlightRouterState({
   hintTree,
 }: {
   loaderTreeToFilter: LoaderTree
+  routePartialPrefetching: ResolvedPartialPrefetching
   parentParams: { [key: string]: string | string[] }
   flightRouterState?: FlightRouterState
   rscHead: HeadData
@@ -81,7 +84,6 @@ export async function walkTreeWithFlightRouterState({
     parsedRequestHeaders,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -169,7 +171,7 @@ export async function walkTreeWithFlightRouterState({
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
-          partialPrefetching,
+          routePartialPrefetching,
           getDynamicParamFromSegment,
           rootLayoutIncluded
         )
@@ -178,7 +180,7 @@ export async function walkTreeWithFlightRouterState({
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
-          partialPrefetching,
+          routePartialPrefetching,
           getDynamicParamFromSegment,
           query,
           rootLayoutIncluded
@@ -200,7 +202,7 @@ export async function walkTreeWithFlightRouterState({
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
-          partialPrefetching,
+          routePartialPrefetching,
           getDynamicParamFromSegment
         )
       : await createTransportTreeFromLoaderTree(
@@ -208,7 +210,7 @@ export async function walkTreeWithFlightRouterState({
           hintTree,
           prefetchInliningEnabled,
           ctx.missingPrefetchHintPolicy,
-          partialPrefetching,
+          routePartialPrefetching,
           getDynamicParamFromSegment,
           query,
           rootLayoutIncluded
@@ -228,6 +230,7 @@ export async function walkTreeWithFlightRouterState({
       {
         ctx,
         loaderTree: loaderTreeToFilter,
+        routePartialPrefetching,
         parentParams: currentParams,
         parentOptionalCatchAllParamName: null,
         parentRuntimePrefetchable: false,
@@ -286,6 +289,7 @@ export async function walkTreeWithFlightRouterState({
     const subtreeResult = await walkTreeWithFlightRouterState({
       ctx,
       loaderTreeToFilter: parallelRoute,
+      routePartialPrefetching,
       parentParams: currentParams,
       flightRouterState:
         flightRouterState && flightRouterState[1][parallelRouteKey],
@@ -339,6 +343,7 @@ export async function walkTreeWithFlightRouterState({
  */
 export async function createFullTreeForNavigation({
   loaderTree,
+  routePartialPrefetching,
   rscHead,
   injectedCSS,
   injectedJS,
@@ -348,6 +353,7 @@ export async function createFullTreeForNavigation({
   MetadataOutlet,
 }: {
   loaderTree: LoaderTree
+  routePartialPrefetching: ResolvedPartialPrefetching
   flightRouterState?: FlightRouterState
   rscHead: HeadData
   injectedCSS: Set<string>
@@ -368,6 +374,7 @@ export async function createFullTreeForNavigation({
   const tree = await createComponentTree({
     ctx,
     loaderTree,
+    routePartialPrefetching,
     parentParams: {},
     parentOptionalCatchAllParamName: null,
     parentRuntimePrefetchable: false,

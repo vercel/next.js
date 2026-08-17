@@ -50,38 +50,6 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
   )
 }
 
-/**
- * Matches any `prefetch` config that enables Partial Prefetching for the
- * segment: 'partial' or 'unstable_eager'. A route with Partial Prefetching
- * enabled also runtime-caches its navigations, so this gates the runtime
- * prefetch spawn.
- */
-export async function anySegmentHasPartialPrefetchingEnabled(
-  tree: LoaderTree
-): Promise<boolean> {
-  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
-
-  // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).prefetch
-    : undefined
-  if (prefetchConfig === 'partial' || prefetchConfig === 'unstable_eager') {
-    return true
-  }
-
-  const { parallelRoutes } = parseLoaderTree(tree)
-  for (const parallelRouteKey in parallelRoutes) {
-    const parallelRoute = parallelRoutes[parallelRouteKey]
-    const hasChildPartialPrefetching =
-      await anySegmentHasPartialPrefetchingEnabled(parallelRoute)
-    if (hasChildPartialPrefetching) {
-      return true
-    }
-  }
-
-  return false
-}
-
 export async function isPageAllowedToBlock(tree: LoaderTree): Promise<boolean> {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 

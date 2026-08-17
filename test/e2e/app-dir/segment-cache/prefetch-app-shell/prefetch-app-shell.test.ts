@@ -28,20 +28,13 @@ describe('App Shell prefetching', () => {
     // Reveal the LinkAccordion for /posts/1. This caches the App Shell
     // for the route — the param-independent content of the page that's
     // reusable for any /posts/[id].
+    // The route reads request data, so its static-attempt hint is unset
+    // and the prefetch deopts to a runtime request.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/posts/1"]')
         .click()
-    }, [
-      // Two runtime responses carry the shell text, in order: the Shell
-      // phase's runtime App Shell request, then the Speculative phase's
-      // batched per-link runtime prefetch. The route reads request data,
-      // so its static-attempt hint is unset and the prefetch deopts to
-      // runtime requests — the runtime-completeness contract of Partial
-      // Prefetching routes.
-      { includes: 'App shell for posts', kind: 'runtime' },
-      { includes: 'App shell for posts', kind: 'runtime' },
-    ])
+    }, [{ includes: 'App shell for posts', kind: 'runtime' }])
 
     await act(async () => {
       // Click the link to /posts/124. This link is rendered with
@@ -107,40 +100,46 @@ describe('App Shell prefetching', () => {
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /posts/1 (default/auto prefetch). The page itself is partial
-    // (non-eager), but the path segments above it are eager, so the
-    // Speculative pass still walks them. Unlike /partial (covered by the
-    // next test), this route is dynamic — it reads cookies — so its
-    // static-attempt hint is unset and the walked segments deopt to a
-    // per-link runtime prefetch, which serves the whole subtree, page
-    // included.
+    // (non-eager). Unlike /partial (covered by the next test), this route
+    // is dynamic — it reads cookies — so its static-attempt hint is unset
+    // and the walked segments deopt to a runtime shell prefetch.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/posts/1"]')
         .click()
-    }, [
-      // Two runtime responses carry the shell text, in order: the Shell
-      // phase's runtime App Shell request, then the Speculative phase's
-      // batched per-link runtime prefetch. The route reads request data,
-      // so its static-attempt hint is unset and the prefetch deopts to
-      // runtime requests — the runtime-completeness contract of Partial
-      // Prefetching routes.
-      { includes: 'App shell for posts', kind: 'runtime' },
-      { includes: 'App shell for posts', kind: 'runtime' },
-    ])
+    }, [{ includes: 'App shell for posts', kind: 'runtime' }])
 
     // Reveal /posts/2 — a different param that shares the same App Shell.
-    // The shell is already cached and is not re-fetched, but the hint-unset
-    // deopt issues a runtime prefetch for the new param's subtree, so the
-    // per-link content for param 2 arrives ahead of any navigation.
-    // Contrast with the /partial route in the next test, whose hint is set:
-    // there the cached shell satisfies the second link with no requests.
-    await act(
-      async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/posts/2"]')
-          .click()
-      },
-      { includes: 'Post 2', kind: 'runtime' }
+    // The shell is already cached and is not re-fetched.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/posts/2"]')
+        .click()
+    }, 'no-requests')
+
+    await act(async () => {
+      // Click the link to /posts/2. The cached App
+      // Shell should render immediately, before any navigation response
+      // arrives.
+      await browser.elementByCss('a[href="/posts/2"]').click()
+
+      // While the navigation response is blocked (we're still in the
+      // `act` block), the cached App Shell should already be visible.
+      expect(await browser.elementById('shell').text()).toEqual(
+        'App shell for posts'
+      )
+      // Sesssion data (cookies) is not dependent on URL-data, so they are
+      // allowed to be accessed in the shell.
+      expect(await browser.elementById('cookie-value').text()).toEqual(
+        'Cookie: none'
+      )
+    })
+
+    // After the outer act unblocks the navigation, params resolve and the
+    // dynamic content streams in.
+    expect(await browser.elementById('param-value').text()).toEqual('Post 2')
+    expect(await browser.elementById('dynamic-content').text()).toEqual(
+      'Post body for 2'
     )
   })
 
@@ -165,7 +164,7 @@ describe('App Shell prefetching', () => {
           .elementByCss('input[data-link-accordion="/partial/1"]')
           .click()
       },
-      { includes: 'Partial app shell' }
+      { includes: 'Partial app shell', kind: 'static' }
     )
 
     // Reveal /partial/2 — a different param that shares the same app shell. The
@@ -308,7 +307,7 @@ describe('App Shell prefetching', () => {
       await browser
         .elementByCss('input[data-link-accordion="/static-posts/1"]')
         .click()
-    }, [{ includes: 'App shell for static posts' }])
+    }, [{ includes: 'App shell for static posts', kind: 'static' }])
 
     // Click the link to /static-posts/124 — a different param than what
     // was prefetched, rendered with prefetch={false}. The cached App
@@ -351,13 +350,8 @@ describe('App Shell prefetching', () => {
         .elementByCss('input[data-link-accordion="/short-stale/1"]')
         .click()
     }, [
-      // Two runtime responses carry the shell text, in order: the Shell
-      // phase's runtime App Shell request, then the Speculative phase's
-      // batched per-link runtime prefetch. The route reads request data,
-      // so its static-attempt hint is unset and the prefetch deopts to
-      // runtime requests — the runtime-completeness contract of Partial
-      // Prefetching routes.
-      { includes: 'App shell for short-stale', kind: 'runtime' },
+      // The route reads request data, so its static-attempt hint is unset
+      // and the prefetch deopts to a runtime request.
       { includes: 'App shell for short-stale', kind: 'runtime' },
     ])
 
@@ -417,7 +411,7 @@ describe('App Shell prefetching', () => {
       await browser
         .elementByCss('input[data-link-accordion="/static-short-stale/1"]')
         .click()
-    }, [{ includes: 'App shell for static short-stale posts' }])
+    }, [{ includes: 'App shell for static short-stale posts', kind: 'static' }])
 
     await act(async () => {
       // Click the link to /static-short-stale/124 — a different param than
@@ -478,16 +472,8 @@ describe('App Shell prefetching', () => {
           )
           .click()
       }, [
-        // Two runtime responses carry the shell text, in order: the Shell
-        // phase's runtime App Shell request, then the Speculative phase's
-        // batched per-link runtime prefetch. The route reads request data,
-        // so its static-attempt hint is unset and the prefetch deopts to
-        // runtime requests — the runtime-completeness contract of Partial
-        // Prefetching routes.
-        {
-          includes: 'App shell for posts with root param: en',
-          kind: 'runtime',
-        },
+        // The route reads request data, so its static-attempt hint is unset and the prefetch
+        // deopts to a runtime request.
         {
           includes: 'App shell for posts with root param: en',
           kind: 'runtime',
@@ -552,7 +538,12 @@ describe('App Shell prefetching', () => {
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [{ includes: 'App shell for static posts with root param: en' }])
+      }, [
+        {
+          includes: 'App shell for static posts with root param: en',
+          kind: 'static',
+        },
+      ])
 
       // Click the link to /with-root-param/en/static-posts/124 — a different param than what
       // was prefetched, rendered with prefetch={false}. The cached App
@@ -599,15 +590,8 @@ describe('App Shell prefetching', () => {
           )
           .click()
       }, [
-        // Two runtime responses carry the shell text, in order: the Shell
-        // phase's runtime App Shell request, then the Speculative phase's
-        // per-link runtime prefetch (the page reads cookies, so the hint
-        // is unset and the prefetch deopts to a runtime request). Unlike
-        // the /posts routes, no static bundle fetch fires in between: the
-        // page has no non-root params, so its runtime App Shell entry is
-        // already as complete as any static response could be.
-        { includes: 'App shell for page with root param: en' },
-        { includes: 'App shell for page with root param: en' },
+        // The page reads cookies, so the hint is unset and the prefetch deopts to a runtime request.
+        { includes: 'App shell for page with root param: en', kind: 'runtime' },
       ])
 
       await act(async () => {
@@ -664,7 +648,7 @@ describe('App Shell prefetching', () => {
             )
             .click()
         },
-        { includes: 'App shell for page with root param: en' }
+        { includes: 'App shell for page with root param: en', kind: 'static' }
       )
 
       await act(async () => {
@@ -715,16 +699,8 @@ describe('App Shell prefetching', () => {
           )
           .click()
       }, [
-        // Two runtime responses carry the shell text, in order: the Shell
-        // phase's runtime App Shell request, then the Speculative phase's
-        // batched per-link runtime prefetch. The route reads request data,
-        // so its static-attempt hint is unset and the prefetch deopts to
-        // runtime requests — the runtime-completeness contract of Partial
-        // Prefetching routes.
-        {
-          includes: 'App shell for posts with root param: en',
-          kind: 'runtime',
-        },
+        // The route reads request data, so its static-attempt hint is unset
+        // and the prefetch deopts to a runtime request.
         {
           includes: 'App shell for posts with root param: en',
           kind: 'runtime',
@@ -777,16 +753,8 @@ describe('App Shell prefetching', () => {
           )
           .click()
       }, [
-        // Two runtime responses carry the shell text, in order: the Shell
-        // phase's runtime App Shell request, then the Speculative phase's
-        // batched per-link runtime prefetch. The route reads request data,
-        // so its static-attempt hint is unset and the prefetch deopts to
-        // runtime requests — the runtime-completeness contract of Partial
-        // Prefetching routes.
-        {
-          includes: 'App shell for posts with root param: fr',
-          kind: 'runtime',
-        },
+        // The route reads request data, so its static-attempt hint is unset
+        // and the prefetch deopts to a runtime request.
         {
           includes: 'App shell for posts with root param: fr',
           kind: 'runtime',
@@ -837,7 +805,12 @@ describe('App Shell prefetching', () => {
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [{ includes: 'App shell for static posts with root param: en' }])
+      }, [
+        {
+          includes: 'App shell for static posts with root param: en',
+          kind: 'static',
+        },
+      ])
 
       await act(async () => {
         const startingUrl = await browser.url()

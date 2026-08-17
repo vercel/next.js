@@ -306,12 +306,15 @@ import {
   type AdvanceableRenderStage,
 } from './staged-rendering'
 import {
-  anySegmentHasPartialPrefetchingEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidationInDev,
   anySegmentNeedsInstantValidationInBuild,
   resolveInstantConfigSamplesForPage,
 } from './instant-validation/instant-config'
+import {
+  routeHasPartialPrefetchingEnabled,
+  resolvePartialPrefetchingConfigForRoute,
+} from './prefetch-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
   createWebDebugChannel,
@@ -750,11 +753,17 @@ async function generateDynamicRSCPayload(
         key: getFlightMetadataKey(requestId),
       })
     )
+    const routePartialPrefetching =
+      await resolvePartialPrefetchingConfigForRoute(
+        loaderTree,
+        ctx.renderOpts.partialPrefetching
+      )
 
     const responseTree = needsFullTree
       ? await createFullTreeForNavigation({
           ctx,
           loaderTree,
+          routePartialPrefetching,
           rscHead,
           injectedCSS: new Set(),
           injectedJS: new Set(),
@@ -765,6 +774,7 @@ async function generateDynamicRSCPayload(
       : await walkTreeWithFlightRouterState({
           ctx,
           loaderTreeToFilter: loaderTree,
+          routePartialPrefetching,
           parentParams: {},
           flightRouterState,
           rscHead,
@@ -1105,8 +1115,10 @@ async function generateStagedDynamicFlightRenderResultNode(
   // is embedded in the RSC payload. This is gated because it adds extra server
   // processing and increases the response payload size.
   if (
-    Boolean(renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
+    await routeHasPartialPrefetchingEnabled(
+      loaderTree,
+      renderOpts.partialPrefetching
+    )
   ) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
@@ -2160,11 +2172,17 @@ async function getRSCPayload(
     serveStreamingMetadata,
   })
 
+  const routePartialPrefetching = await resolvePartialPrefetchingConfigForRoute(
+    tree,
+    ctx.renderOpts.partialPrefetching
+  )
+
   const preloadCallbacks: PreloadCallbacks = []
 
   const initialTree = await createFullComponentTree({
     ctx,
     loaderTree: tree,
+    routePartialPrefetching,
     parentParams: {},
     parentOptionalCatchAllParamName: null,
     parentRuntimePrefetchable: false,
@@ -2358,12 +2376,17 @@ async function getErrorRSCPayload(
     )
   )
 
+  const routePartialPrefetching = await resolvePartialPrefetchingConfigForRoute(
+    tree,
+    ctx.renderOpts.partialPrefetching
+  )
+
   const initialTree = await createFullTransportTreeFromLoaderTree(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
-    ctx.renderOpts.partialPrefetching,
+    routePartialPrefetching,
     getDynamicParamFromSegment,
     query
   )
@@ -3851,8 +3874,10 @@ async function renderToStream(
         // `prefetch` of 'partial' or 'unstable_eager') or globally (the
         // `partialPrefetching` config).
         if (
-          Boolean(renderOpts.partialPrefetching) ||
-          (await anySegmentHasPartialPrefetchingEnabled(tree))
+          await routeHasPartialPrefetchingEnabled(
+            tree,
+            renderOpts.partialPrefetching
+          )
         ) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
@@ -5289,12 +5314,13 @@ async function getPrefetchingModeForPage(
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
   // TODO(app-shells): support "unstable_eager"
-  if (renderOpts.partialPrefetching) {
-    debug?.('using prefetching mode Partial because of next.config.js')
-    return PrefetchingMode.Partial
-  }
-  if (await anySegmentHasPartialPrefetchingEnabled(loaderTree)) {
-    debug?.('using prefetching mode Partial because of segment config')
+  if (
+    await routeHasPartialPrefetchingEnabled(
+      loaderTree,
+      renderOpts.partialPrefetching
+    )
+  ) {
+    debug?.('using prefetching mode Partial')
     return PrefetchingMode.Partial
   }
 

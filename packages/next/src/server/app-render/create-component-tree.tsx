@@ -58,8 +58,10 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
+import type { ResolvedPartialPrefetching } from './prefetch-config'
 
 type CreateComponentTreeProps = {
+  routePartialPrefetching: ResolvedPartialPrefetching
   loaderTree: LoaderTree
   parentParams: Params
   parentOptionalCatchAllParamName: string | null
@@ -128,6 +130,7 @@ const cacheNodeKey = 'c'
 async function createComponentTreeInternal(
   {
     loaderTree: tree,
+    routePartialPrefetching,
     parentParams,
     parentOptionalCatchAllParamName,
     rootLayoutIncluded,
@@ -143,6 +146,7 @@ async function createComponentTreeInternal(
     hintTree,
   }: {
     loaderTree: LoaderTree
+    routePartialPrefetching: ResolvedPartialPrefetching
     parentParams: Params
     parentOptionalCatchAllParamName: string | null
     rootLayoutIncluded: boolean
@@ -191,7 +195,6 @@ async function createComponentTreeInternal(
     parseLoaderTree(tree)
 
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
 
   const {
     layout,
@@ -598,7 +601,7 @@ async function createComponentTreeInternal(
             childHintTree,
             prefetchInliningEnabled,
             ctx.missingPrefetchHintPolicy,
-            partialPrefetching,
+            routePartialPrefetching,
             getDynamicParamFromSegment,
             query,
             rootLayoutIncludedAtThisLevelOrAbove
@@ -620,6 +623,7 @@ async function createComponentTreeInternal(
           childNode = await createComponentTreeInternal(
             {
               loaderTree: parallelRoute,
+              routePartialPrefetching,
               parentParams: currentParams,
               parentOptionalCatchAllParamName: optionalCatchAllParamName,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
@@ -739,7 +743,7 @@ async function createComponentTreeInternal(
     hintTree,
     prefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
-    partialPrefetching,
+    routePartialPrefetching,
     !rootLayoutIncluded
   )
 
