@@ -30,6 +30,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
+import { isResponseAlreadySent } from './is-response-already-sent'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
@@ -536,7 +537,7 @@ export async function initialize(opts: {
         invokedOutputs,
       })
 
-      if (res.closed || res.finished) {
+      if (isResponseAlreadySent(res, finished)) {
         return
       }
 
@@ -822,6 +823,14 @@ export async function initialize(opts: {
         return null
       }
 
+      // Nothing above returned, but the response may still have been sent - an
+      // async res.end() (compression) leaves res.finished false. Rendering a 404
+      // into it would be wasted work, and the assignment would corrupt the status
+      // that instrumentation reads on 'finish'.
+      if (res.headersSent) {
+        return
+      }
+
       const appNotFound = opts.dev
         ? development?.bundler?.serverFields.hasAppNotFound
         : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
@@ -847,6 +856,14 @@ export async function initialize(opts: {
     try {
       await handleRequest(0)
     } catch (err) {
+      // The response may already be on the wire when this throws, in which case
+      // neither the error render below nor res.end() can do anything but corrupt
+      // it. Log and leave it alone.
+      if (res.headersSent) {
+        console.error(err)
+        return
+      }
+
       try {
         let invokePath = '/500'
         let invokeStatus = '500'
