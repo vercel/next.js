@@ -93,6 +93,7 @@ import {
   UseCacheDeadlockError,
   UseCacheTimeoutError,
 } from './use-cache-errors'
+import { CachePrerenderAbortController } from './cache-prerender-abort-controller'
 import {
   createHangingInputAbortSignal,
   throwToInterruptStaticGeneration,
@@ -1386,32 +1387,36 @@ async function generateCacheEntryImpl(
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
-      const abortSignal = dynamicAccessAbortSignal
-        ? AbortSignal.any([
-            dynamicAccessAbortSignal,
-            timeoutAbortController.signal,
-          ])
-        : timeoutAbortController.signal
-
-      const { prelude } = await prerender(
-        resultPromise,
-        clientReferenceManifest.clientModules,
-        {
-          environmentName: 'Cache',
-          filterStackFrame,
-          signal: abortSignal,
-          temporaryReferences,
-          onError(error) {
-            if (abortSignal.aborted && abortSignal.reason === error) {
-              return undefined
-            }
-
-            return handleError(error)
-          },
-        }
+      const cachePrerenderAbortController = new CachePrerenderAbortController(
+        dynamicAccessAbortSignal,
+        timeoutAbortController.signal
       )
+      const abortSignal = cachePrerenderAbortController.signal
 
-      clearTimeout(timer)
+      let prelude: ReadableStream<Uint8Array>
+      try {
+        const prerenderResult = await prerender(
+          resultPromise,
+          clientReferenceManifest.clientModules,
+          {
+            environmentName: 'Cache',
+            filterStackFrame,
+            signal: abortSignal,
+            temporaryReferences,
+            onError(error) {
+              if (abortSignal.aborted && abortSignal.reason === error) {
+                return undefined
+              }
+
+              return handleError(error)
+            },
+          }
+        )
+        prelude = prerenderResult.prelude
+      } finally {
+        clearTimeout(timer)
+        cachePrerenderAbortController.dispose()
+      }
 
       if (timeoutAbortController.signal.aborted) {
         // When the timeout is reached we always error the stream. Even for
