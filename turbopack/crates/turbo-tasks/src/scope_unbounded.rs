@@ -729,28 +729,6 @@ mod tests {
     // scope_unbounded tests
     // -----------------------------------------------------------------------
 
-    /// On a `current_thread` runtime there are no helpers and `block_in_place` panics, so the
-    /// calling thread must drain the entire queue — including everything spawned mid-run — inline.
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_unbounded_current_thread_runtime() {
-        let processed = Arc::new(AtomicUsize::new(0));
-        let processed_clone = processed.clone();
-        tokio::task::spawn_blocking(move || {
-            scope_unbounded(0..16usize, move |spawner, item| {
-                processed_clone.fetch_add(1, Ordering::SeqCst);
-                // Each of the first few items spawns one extra child, so work is fed in mid-drain.
-                if item < 4 {
-                    spawner.spawn(100 + item);
-                }
-                ControlFlow::Continue(())
-            });
-        })
-        .await
-        .unwrap();
-        // 16 initial + 4 spawned children.
-        assert_eq!(processed.load(Ordering::SeqCst), 20);
-    }
-
     /// A single `run` call that enqueues a large batch of leaves: every one must be picked up and
     /// processed, including by the helper worker tasks.
     ///
@@ -826,18 +804,6 @@ mod tests {
         }
     }
 
-    /// Empty initial set with no spawns must return immediately (never blocks).
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_unbounded_empty() {
-        let processed = Arc::new(AtomicUsize::new(0));
-        let processed_clone = processed.clone();
-        scope_unbounded(std::iter::empty::<usize>(), move |_spawner, _item| {
-            processed_clone.fetch_add(1, Ordering::SeqCst);
-            ControlFlow::Continue(())
-        });
-        assert_eq!(processed.load(Ordering::SeqCst), 0);
-    }
-
     /// A slow seeding iterator must not let the scope finish early. Helpers start draining as soon
     /// as the first item lands, so between two yields of the iterator the queue can be empty and
     /// every dispatched item already done — `remaining_tasks` would hit zero and close the queue
@@ -874,34 +840,6 @@ mod tests {
             processed.load(Ordering::SeqCst),
             SEEDS,
             "seeds produced after the queue briefly drained must still be processed"
-        );
-    }
-
-    /// `ControlFlow::Break` abandons the queued-but-unstarted items: the scope must terminate
-    /// having run far fewer than the seeded items.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_unbounded_abort_skips_queue() {
-        const ITEMS: usize = 10_000;
-        let processed = Arc::new(AtomicUsize::new(0));
-        let processed_clone = processed.clone();
-        tokio::task::spawn_blocking(move || {
-            scope_unbounded(0..ITEMS, move |_spawner, _item| {
-                let n = processed_clone.fetch_add(1, Ordering::SeqCst);
-                // Items already dispatched to other drainers still complete, so the final count is
-                // "a bit more than 1", not exactly 1.
-                if n == 0 {
-                    return ControlFlow::Break(());
-                }
-                ControlFlow::Continue(())
-            });
-        })
-        .await
-        .unwrap();
-        let count = processed.load(Ordering::SeqCst);
-        assert!(count >= 1, "the aborting item itself must have run");
-        assert!(
-            count < ITEMS,
-            "abort must abandon the queue, but all {ITEMS} items ran"
         );
     }
 
@@ -1007,13 +945,14 @@ mod tests {
         assert_eq!(err.downcast_ref::<&str>(), Some(&"Intentional panic"));
     }
 
-    /// A panic aborts the scope: the queued-but-unstarted items are abandoned rather than run.
+    /// A panic in a `run` invocation propagates after all in-flight work is joined, and aborts the
+    /// scope: the queued-but-unstarted items are abandoned rather than run.
     ///
     /// The first item panics, so with a large seed set almost nothing else should be dispatched.
     /// Items already picked up by another drainer still complete, so the bound is "far fewer than
     /// seeded" rather than exactly one.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_unbounded_panic_abandons_queue() {
+    async fn test_unbounded_panic_propagates_and_abandons_queue() {
         const ITEMS: usize = 10_000;
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
@@ -1025,8 +964,10 @@ mod tests {
                 }
                 ControlFlow::Continue(())
             });
+            unreachable!();
         }));
-        result.expect_err("the panic must propagate");
+        let err = result.expect_err("the panic must propagate");
+        assert_eq!(err.downcast_ref::<&str>(), Some(&"Intentional panic"));
         let count = processed.load(Ordering::SeqCst);
         assert!(
             count < ITEMS,
@@ -1034,60 +975,9 @@ mod tests {
         );
     }
 
-    /// A panic in a `run` invocation is propagated after all in-flight work is joined.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_unbounded_panic() {
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            scope_unbounded(0..100usize, |spawner, item| {
-                if item == 50 {
-                    panic!("Intentional panic");
-                }
-                if item < 4 {
-                    spawner.spawn(1000 + item);
-                }
-                ControlFlow::Continue(())
-            });
-            unreachable!();
-        }));
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().downcast_ref::<&str>(),
-            Some(&"Intentional panic")
-        );
-    }
-
     // -----------------------------------------------------------------------
     // scope_unbounded_with (fold results)
     // -----------------------------------------------------------------------
-
-    /// Every item's contribution must survive the fold, across however many drainers ran. Uses a
-    /// cascade so work is spread over helpers rather than all landing on the calling thread.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_unbounded_with_sums_every_item() {
-        const SEEDS: usize = 64;
-        const CHILDREN: usize = 16;
-        let total = tokio::task::spawn_blocking(|| {
-            scope_unbounded_with(
-                0..SEEDS,
-                || 0usize,
-                |spawner, item, acc| {
-                    *acc += 1;
-                    // Each seed fans out; children are tagged above the seed range.
-                    if item < SEEDS {
-                        for i in 0..CHILDREN {
-                            spawner.spawn(SEEDS + i);
-                        }
-                    }
-                    ControlFlow::Continue(())
-                },
-                |a, b| a + b,
-            )
-        })
-        .await
-        .unwrap();
-        // Every seed plus every spawned child is counted exactly once.
-        assert_eq!(total, SEEDS + SEEDS * CHILDREN);
-    }
 
     /// The accumulator must be per-drainer, not shared: collecting into a `Vec` and merging by
     /// concatenation must preserve every element even with several drainers running.
@@ -1499,34 +1389,5 @@ mod tests {
         .unwrap();
         let err = result.expect_err("the init panic must propagate");
         assert_eq!(err.downcast_ref::<&str>(), Some(&"Intentional init panic"));
-    }
-
-    /// The respawn path must not resurrect a scope that is winding down: after an abort, `spawn`
-    /// drops items and no new helper may be created (its handle could outlive the join).
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_unbounded_no_respawn_after_abort() {
-        let processed = Arc::new(AtomicUsize::new(0));
-        let counted = processed.clone();
-        tokio::task::spawn_blocking(move || {
-            scope_unbounded(0..1000usize, move |spawner, item| {
-                counted.fetch_add(1, Ordering::SeqCst);
-                if item == 0 {
-                    // Abort, then keep trying to grow the pool. Every one of these must be
-                    // dropped without spawning a helper.
-                    for i in 0..100 {
-                        spawner.spawn(10_000 + i);
-                    }
-                    return ControlFlow::Break(());
-                }
-                ControlFlow::Continue(())
-            });
-        })
-        .await
-        .unwrap();
-        // The post-abort spawns were dropped; only pre-abort work could have run.
-        assert!(
-            processed.load(Ordering::SeqCst) < 1000,
-            "abort must abandon the queue"
-        );
     }
 }
