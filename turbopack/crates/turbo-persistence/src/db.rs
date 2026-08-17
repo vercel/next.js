@@ -2,7 +2,8 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
-    io::{BufWriter, Write},
+    hash::BuildHasherDefault,
+    io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
@@ -13,6 +14,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
@@ -20,6 +22,8 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use rustc_hash::FxHasher;
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
@@ -159,24 +163,76 @@ impl WriteOperationGuard<'_> {
     }
 }
 
-/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
-/// `seq`.
+/// The contents of the `CURRENT` file: which sequence number is committed, and when that commit
+/// happened.
 ///
-/// The write is made atomic by writing `seq` to a temporary `CURRENT.next` file, flushing it, and
-/// then `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and
-/// replaces the destination on Windows, so a concurrent or crashing writer can never observe a
-/// torn `CURRENT` (in-place overwrites, by contrast, can leave a partially-written value on a
-/// crash mid-write). After the rename we fsync the directory so the new `CURRENT` → inode mapping
-/// survives a crash.
+/// # Compatibility
+///
+/// Unlike other parts of the persistent database the `CURRENT` file is occasionally read by other
+/// versions of turbopack, so we should be careful when updating this struct
+///
+/// - Never rename a field. This will break readers from other versions
+/// - Never remove a field, unless it has always had `[serde(default)]`
+/// - Never change the type of a field
+/// - New fields should be `#[serde(default)]` and semantically optional to readers from other
+///   versions
+/// - Never add `#[serde(deny_unknown_fields)]`.
+///
+/// Field names are also parsed outside this crate (next.js reads `CURRENT` directly, in
+/// `turbopack-cache-seed.ts`), so a rename would have to move in lockstep there too.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentDbVersion {
+    /// The highest sequence number that is part of the committed database.
+    pub max_sequence_number: u32,
+    /// When this database was last committed to.
+    pub commit_time: Timestamp,
+}
+
+/// Reads the `CURRENT` file in the database directory `path`.
+///
+/// Returns `Ok(None)` if the file doesn't exist, which for a writable database means "not
+/// initialized yet".
+pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
+    let current_path = path.join("CURRENT");
+    let content = match fs::read(&current_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e).context("Failed to read CURRENT file"),
+    };
+
+    serde_json::from_slice::<CurrentDbVersion>(&content)
+        .with_context(|| {
+            format!(
+                "CURRENT file at {} is corrupt ({} bytes)",
+                current_path.display(),
+                content.len()
+            )
+        })
+        .map(Some)
+}
+
+/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
+/// `seq`, stamping it as used now.
+///
+/// The write is made atomic by writing to a temporary `CURRENT.next` file, flushing it, and then
+/// `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and replaces the
+/// destination on Windows, so a concurrent or crashing writer can never observe a torn `CURRENT`
+/// (in-place overwrites, by contrast, can leave a partially-written value on a crash mid-write).
+/// After the rename we fsync the directory so the new `CURRENT` → inode mapping survives a crash.
 fn commit_current(path: &Path, seq: u32) -> Result<()> {
+    let version: &CurrentDbVersion = &CurrentDbVersion {
+        max_sequence_number: seq,
+        commit_time: Timestamp::now(),
+    };
+    let mut contents =
+        serde_json::to_string(version).context("Failed to serialize the CURRENT file")?;
+    contents.push('\n');
     let next_path = path.join("CURRENT.next");
     let mut next_file = File::create(&next_path)?;
-    next_file.write_u32::<BE>(seq)?;
+    next_file.write_all(contents.as_bytes())?;
     next_file.sync_data()?;
     drop(next_file);
-
     fs::rename(&next_path, path.join("CURRENT"))?;
-
     // Fsync the directory. This is the single durability barrier for a commit: by the time we get
     // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
     // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
@@ -459,7 +515,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Ok(())
             }
             Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
+                if !read_only && e.kind() == ErrorKind::NotFound {
                     self.create_and_init_directory()
                         .context("Creating and initializing persistence directory failed")?;
                     Ok(())
@@ -479,18 +535,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Loads an existing database directory and performs cleanup if necessary.
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
-        let mut current_file = match File::open(self.path.join("CURRENT")) {
-            Ok(file) => file,
-            Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
-                    return Ok(false);
-                } else {
-                    return Err(e).context("Failed to open CURRENT file");
-                }
-            }
+        let current = match read_current_version(&self.path)? {
+            Some(version) => version.max_sequence_number,
+            None if !read_only => return Ok(false),
+            None => bail!("Failed to open database: CURRENT file is missing"),
         };
-        let current = current_file.read_u32::<BE>()?;
-        drop(current_file);
 
         let mut deleted_files = HashSet::new();
         for entry in entries {
@@ -1478,6 +1527,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .parallel_scheduler
                         .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
                             let _span = span.clone().entered();
+
                             if indices.len() == 1 {
                                 // If we only have one file, we can just move it
                                 let index = indices[0];
@@ -1501,6 +1551,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 });
                             }
 
+                            // A tombstone is dead if no older SST contains a matching key.
+                            // Returns `true`` if the tombstone is definitely dead (no false
+                            // positives), if `false` is returned then the tomstone is only likely
+                            // to be alive since the amqf may have  false positive match for the
+                            let tombstone_is_dead = {
+                                // Filters of every SST older than this job.
+                                //
+                                // A tombstone only suppresses values older than itself, and within
+                                // the job `MergeIter` yields
+                                // newest-first so the loop below already drops
+                                // those. What remains is everything older than the job's oldest
+                                // member.
+                                let oldest_index_in_job = indices
+                                    .iter()
+                                    .copied()
+                                    .min()
+                                    .expect("merge jobs are not empty");
+                                let older_filters = ssts_with_ranges[..oldest_index_in_job]
+                                    .iter()
+                                    .map(|sst| {
+                                        let entry =
+                                            meta_files[sst.meta_index].entry(sst.index_in_meta);
+                                        (entry.min_hash(), entry.max_hash(), entry.amqf())
+                                    })
+                                    .collect::<Vec<_>>();
+                                move |hash: u64| {
+                                    !older_filters.iter().any(|(min, max, amqf)| {
+                                        hash >= *min
+                                            && hash <= *max
+                                            && amqf.contains_fingerprint(hash)
+                                    })
+                                }
+                            };
                             // Open SST files independently for compaction.
                             // Uses MADV_SEQUENTIAL for better OS page management
                             // and avoids caching mmaps on MetaEntry's OnceLock.
@@ -1629,6 +1712,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             // - MultiValue: skip all older entries after encountering a tombstone
                             //   (which signals deletion of all prior values for this key)
                             let mut skip_remaining_for_this_key = false;
+                            // Values deleted by key-value tombstones in the current key group.
+                            // Reset at each key boundary.
+                            let mut deleted_values_for_this_key: AutoSet<
+                                RcBytes,
+                                BuildHasherDefault<FxHasher>,
+                                1,
+                            > = AutoSet::default();
                             let family_config = &self.config.family_configs[family as usize];
 
                             for entry in iter {
@@ -1636,7 +1726,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 if current_key.as_ref() != Some(&entry.key) {
                                     // we changed keys so undo this flag
                                     skip_remaining_for_this_key = false;
+                                    deleted_values_for_this_key.clear();
                                     current_key = Some(entry.key.clone());
+                                }
+                                // Key-value tombstones sort first within a group, so each is
+                                // recorded before the values it might delete.
+                                // See: `crate::collector_entry::sort_rank`
+                                if let IterValue::KeyValueDeleted { value } = &entry.value {
+                                    deleted_values_for_this_key.insert(value.clone());
+                                    // Applied to this job's values above; keep it only if an SST
+                                    // outside the job could still hold a matching key.
+                                    if tombstone_is_dead(entry.hash) {
+                                        continue;
+                                    }
+                                } else if !deleted_values_for_this_key.is_empty()
+                                    // Deleted values cannot match blobs, just normal payloads.
+                                    && let IterValue::Slice { value } = &entry.value
+                                    && deleted_values_for_this_key.contains(value)
+                                {
+                                    // Deleted by a key-value tombstone seen earlier in this group.
+                                    continue;
                                 }
                                 if !skip_remaining_for_this_key {
                                     let is_used = used_key_hashes
@@ -1650,8 +1759,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     match family_config.kind {
                                         FamilyKind::MultiValue => {
                                             // For MultiValue families we only skip remaining if we
-                                            // see a tombstone
-                                            if matches!(entry.value, IterValue::Deleted) {
+                                            // see a key tombstone. Key-value tombstones are
+                                            // handled above and never reach here.
+                                            if matches!(entry.value, IterValue::KeyDeleted) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1660,6 +1770,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             // else that comes out must be skipped
                                             skip_remaining_for_this_key = true;
                                         }
+                                    }
+                                    // If this is a tombstone, see if we need to retain it or not.
+                                    if matches!(entry.value, IterValue::KeyDeleted)
+                                        && tombstone_is_dead(entry.hash)
+                                    {
+                                        continue;
                                     }
                                     collector.add_entry(
                                         entry,
@@ -1898,6 +2014,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         #[cfg(feature = "stats")]
         let mut found_in_sst = false;
 
+        // Values deleted by key-value tombstones seen so far. Because we walk meta files newest
+        // first, and tombstones sort first within a key group, every tombstone that could apply to
+        // a value has already been seen by the time we reach that value.
+        let mut deleted_values: AutoSet<ArcBytes, BuildHasherDefault<FxHasher>, 1> =
+            AutoSet::default();
+
         let mut size = 0;
 
         for meta in inner.meta_files.iter().rev() {
@@ -1927,20 +2049,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             found_in_sst = true;
                         }
                         inner.accessed_key_hashes[family].insert(hash);
-                        // Process values. Tombstones sort last within a key group,
-                        // so when we see a tombstone, we can return immediately.
                         for value in values {
                             match value {
-                                LookupValue::Deleted => {
+                                LookupValue::KeyDeleted => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                                     if !FIND_ALL {
                                         span.record("result_size", "deleted");
                                         return Ok(SmallVec::new());
                                     }
-                                    // Tombstone is last in key group. Return accumulated
-                                    // values (from this SST and newer layers). Stop
-                                    // searching older SSTs.
+                                    // A key tombstone deletes every older value for this
+                                    // key. Return what we accumulated from this SST and newer
+                                    // layers and stop searching older SSTs.
                                     if output.is_empty() {
                                         span.record("result_size", "deleted");
                                     } else {
@@ -1948,9 +2068,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                     return Ok(output);
                                 }
+                                LookupValue::KeyValueDeleted { value } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                    // Cannot terminate the search: older layers may hold other
+                                    // values for the same key.
+                                    deleted_values.insert(value);
+                                }
                                 LookupValue::Slice { value } => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                    if deleted_values.contains(&value) {
+                                        continue;
+                                    }
                                     if !FIND_ALL {
                                         span.record("result_size", value.len());
                                         return Ok(SmallVec::from_buf([value]));
@@ -1962,6 +2092,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                                     let blob = self.read_blob(sequence_number)?;
+                                    if deleted_values.iter().any(|d| **d == *blob) {
+                                        continue;
+                                    }
                                     if !FIND_ALL {
                                         span.record("result_size", blob.len());
                                         return Ok(SmallVec::from_buf([blob]));
@@ -2074,11 +2207,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             if let Some(result) = result {
                 inner.accessed_key_hashes[family].insert(hash);
                 let result = match result {
-                    LookupValue::Deleted => {
+                    LookupValue::KeyDeleted => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                         deleted += 1;
                         None
+                    }
+                    LookupValue::KeyValueDeleted { .. } => {
+                        // Key-value tombstones are only written to MultiValue families, and
+                        // `batch_get` rejects those above.
+                        bail!(
+                            "unexpected key-value tombstone in SingleValue family {}",
+                            self.config.family_configs[family].name
+                        )
                     }
                     LookupValue::Slice { value } => {
                         #[cfg(feature = "stats")]
