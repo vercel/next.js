@@ -151,7 +151,7 @@ export async function ContactPage({ params }) {
 
 ### Tainting a unique value
 
-In this case, we can access the server configuration by awaiting calls to `config.getConfigDetails`. However, the system configuration contains the `SERVICE_API_KEY` that we don't want to expose to clients.
+In this case, we can access the server configuration by awaiting calls to `configService.getConfigDetails`. However, the system configuration contains the `SERVICE_API_KEY` that we don't want to expose to clients.
 
 We can taint the `config.SERVICE_API_KEY` value.
 
@@ -159,7 +159,7 @@ We can taint the `config.SERVICE_API_KEY` value.
 import { experimental_taintUniqueValue } from 'react'
 
 async function getSystemConfig(): Promise<SystemConfig> {
-  const config = await config.getConfigDetails()
+  const config = await configService.getConfigDetails()
 
   experimental_taintUniqueValue(
     'Do not pass configuration tokens to the client',
@@ -175,7 +175,7 @@ async function getSystemConfig(): Promise<SystemConfig> {
 import { experimental_taintUniqueValue } from 'react'
 
 async function getSystemConfig() {
-  const config = await config.getConfigDetails()
+  const config = await configService.getConfigDetails()
 
   experimental_taintUniqueValue(
     'Do not pass configuration tokens to the client',
