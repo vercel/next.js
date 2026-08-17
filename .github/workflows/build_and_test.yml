@@ -457,11 +457,20 @@ jobs:
         # instead of restoring successful files from the previous attempt.
         export NEXT_TEST_SKIP_RESULT_CACHE=1
 
-        node run-tests.js \
-          --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }}
+        if [[ "${{ github.head_ref }}" == "jstory/debug-stalled-test-files" && "${{ matrix.group }}" == "1/7" ]]; then
+          # Reproduce PR #97403's timed-out shard exactly. Test timings have
+          # since reassigned all but 29 of these files to other shards.
+          xargs node run-tests.js \
+            --concurrency 8 \
+            -- \
+            < .github/workflows/pr-97403-turbopack-dev-shard.txt
+        else
+          node run-tests.js \
+            --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
+            --timings \
+            --require-timings \
+            -g ${{ matrix.group }}
+        fi
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
