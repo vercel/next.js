@@ -453,6 +453,9 @@ jobs:
         # absolute limit still leaves 15 minutes to report before the job ends.
         export NEXT_TEST_FILE_STALL_TIMEOUT_MS=360000
         export NEXT_TEST_FILE_TIMEOUT_MS=900000
+        # This diagnostic branch needs every focused rerun to execute the shard
+        # instead of restoring successful files from the previous attempt.
+        export NEXT_TEST_SKIP_RESULT_CACHE=1
 
         node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
