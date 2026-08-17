@@ -15,6 +15,10 @@ export const dynamic = 'force-dynamic'
 
 export default function Layout({
   children,
+  error: _error,
+  imageError: _imageError,
+  login: _login,
+  viewportError: _viewportError,
 }: {
   children: ReactNode
   error: ReactNode

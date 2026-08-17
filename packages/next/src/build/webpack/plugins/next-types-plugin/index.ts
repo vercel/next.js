@@ -46,12 +46,17 @@ function createTypeGuardFile(
     slots?: string[]
   }
 ) {
+  const metadataTypeImports =
+    options.type === 'layout'
+      ? 'MetadataSelector, ResolvingMetadata, ResolvingViewport, ViewportSelector'
+      : 'ResolvingMetadata, ResolvingViewport'
+
   return `// File: ${fullPath}
 import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
-    : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
+    : `import type { ${metadataTypeImports} } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
 import type { InstantConfigForTypeCheckInternal, Prefetch } from 'next/dist/build/segment-config/app/app-segment-config.js'
@@ -90,6 +95,12 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
+  ${
+    options.type === 'layout'
+      ? `unstable_selectMetadata?: MetadataSelector
+  unstable_selectViewport?: ViewportSelector`
+      : ''
+  }
   `
   }
 }, TEntry, ''>>()

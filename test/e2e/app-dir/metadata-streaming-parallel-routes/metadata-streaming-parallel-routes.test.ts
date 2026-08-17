@@ -132,6 +132,60 @@ describe('app-dir - metadata-streaming', () => {
     expect($('title').text()).toBe('bar lexical title')
   })
 
+  it('should allow a layout to select metadata and viewport handles independently', async () => {
+    const $ = await next.render$('/selector-handle')
+    expect($('title').text()).toBe('selected bar title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('light')
+  })
+
+  it('should use the closest selector above a fork', async () => {
+    const $ = await next.render$('/selector-ancestor/nested')
+    expect($('title').text()).toBe('ancestor selected foo title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('dark')
+  })
+
+  it('should allow a layout to return rewritten selected metadata', async () => {
+    const $ = await next.render$('/selector-resolved')
+    expect($('title').text()).toBe('rewritten foo title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('dark')
+  })
+
+  it('should pass a resolved nested selection to the next fork', async () => {
+    const $ = await next.render$('/selector-nested')
+    expect($('title').text()).toBe('nested selected title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('dark')
+  })
+
+  it('should expose navigation status without selecting its slot', async () => {
+    const res = await next.fetch('/selector-not-found')
+    const $ = await next.render$('/selector-not-found')
+
+    expect(res.status).toBe(200)
+    expect($('title').text()).toBe('fallback after not found title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('dark')
+    expect($('#unrendered-not-found-page').length).toBe(0)
+  })
+
+  it('should replay selector errors through a rendered outlet', async () => {
+    const browser = await next.browser('/selector-error')
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#selector-error').text()).toBe(
+        'metadata selector error reached boundary'
+      )
+    })
+  })
+
+  it('should replay viewport selector errors through a rendered outlet', async () => {
+    const browser = await next.browser('/viewport-selector-error')
+
+    await retry(async () => {
+      expect(
+        await browser.elementByCss('#viewport-selector-error').text()
+      ).toBe('viewport selector error reached boundary')
+    })
+  })
+
   it('should prefer a real named slot over an implicit children fallback', async () => {
     // first page is /parallel-routes-no-children/first,
     // second page is /parallel-routes-no-children/second
