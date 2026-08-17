@@ -77,6 +77,7 @@ pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Resu
     let asset_context = Vc::upcast(externals_tracing_module_context(
         get_tracing_compile_time_info(),
         false,
+        None,
     ));
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
