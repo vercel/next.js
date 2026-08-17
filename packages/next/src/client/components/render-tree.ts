@@ -1,29 +1,29 @@
 import type {
   FlightRouterState,
   Segment,
-} from '../../../shared/lib/app-router-types'
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type { HeadData, ScrollRef } from '../../../shared/lib/app-router-types'
-import { PrefetchHint } from '../../../shared/lib/app-router-types'
+} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
+import type { HeadData, ScrollRef } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
 import {
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
-import { createHrefFromUrl } from './create-href-from-url'
-import { fetchServerResponse } from './fetch-server-response'
-import { dispatchAppRouterAction } from '../use-action-queue'
+} from '../../shared/lib/segment'
+import { matchSegment } from './match-segments'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import { dispatchAppRouterAction } from './use-action-queue'
 import {
   ACTION_SERVER_PATCH,
   type ServerPatchAction,
-} from './router-reducer-types'
-import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
-import { getLastCommittedTree } from './reducers/committed-state'
+} from './router-reducer/router-reducer-types'
+import { isNavigatingToNewRootLayout } from './router-reducer/is-navigating-to-new-root-layout'
+import { getLastCommittedTree } from './router-reducer/reducers/committed-state'
 import {
   createNavigationSeed,
   type NavigationSeed,
-} from '../segment-cache/decode-server-response'
+} from './segment-cache/decode-server-response'
 import {
   segmentCacheMap,
   type SegmentCacheEntry,
@@ -39,15 +39,15 @@ import {
   spawnStaticStageCacheWrite,
   writeRuntimePrefetchStreamIntoCache,
   EntryStatus,
-} from '../segment-cache/cache'
-import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
-import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
-import type { NormalizedSearch } from '../segment-cache/cache-key'
-import type { CacheMap } from '../segment-cache/cache-map'
+} from './segment-cache/cache'
+import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import { urlSearchParamsToParsedUrlQuery } from '../route-params'
+import type { NormalizedSearch } from './segment-cache/cache-key'
+import type { CacheMap } from './segment-cache/cache-map'
 import {
   getRenderedSearchFromVaryPath,
   type PageVaryPath,
-} from '../segment-cache/vary-path'
+} from './segment-cache/vary-path'
 import {
   readFromBFCache,
   readFromBFCacheDuringRegularNavigation,
@@ -55,7 +55,7 @@ import {
   writeHeadToBFCache,
   updateBFCacheEntryStaleAt,
   computeDynamicStaleAt,
-} from '../segment-cache/bfcache'
+} from './segment-cache/bfcache'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -2293,7 +2293,7 @@ function createDeferredRsc<
 export function getCurrentNavigationLock(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { getCurrentNavigationGate } =
-      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     return getCurrentNavigationGate()
   }
   return null
@@ -2311,7 +2311,7 @@ export function getCurrentNavigationLock(): NavigationLock | null {
 export function beginLockedNavigation(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { beginLockedNavigation: begin } =
-      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     return begin()
   }
   return null
@@ -2326,7 +2326,7 @@ export function beginLockedNavigation(): NavigationLock | null {
 export function resetNavigationLockToPending(): void {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { resetNavigationLockToPending: reset } =
-      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     reset()
   }
 }

@@ -10,12 +10,12 @@ import {
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
-} from '../ppr-navigations'
+} from '../../render-tree'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import {
   completeHardNavigation,
   completeTraverseNavigation,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
 import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import { segmentCacheMap } from '../../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'

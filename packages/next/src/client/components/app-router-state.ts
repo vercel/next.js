@@ -1,10 +1,10 @@
 import type {
   FlightRouterState,
   ScrollRef,
-} from '../../../shared/lib/app-router-types'
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import { fetchServerResponse } from '../router-reducer/fetch-server-response'
+} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   spawnDynamicRequests,
@@ -12,8 +12,8 @@ import {
   beginLockedNavigation,
   type NavigationLock,
   type NavigationRequestAccumulation,
-} from '../router-reducer/ppr-navigations'
-import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+} from './render-tree'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   EntryStatus,
   segmentCacheMap,
@@ -23,23 +23,29 @@ import {
   spawnStaticStageCacheWrite,
   writeRuntimePrefetchStreamIntoCache,
   type FulfilledRouteCacheEntry,
-} from './cache'
-import { discoverKnownRoute } from './optimistic-routes'
-import { createCacheKey, type NormalizedSearch } from './cache-key'
-import type { CacheMap } from './cache-map'
-import { schedulePrefetchTask } from './scheduler'
-import { PrefetchPriority, FetchStrategy } from './types'
-import { getLinkForCurrentNavigation } from '../links'
-import type { AppRouterState } from '../router-reducer/router-reducer-types'
-import { ScrollBehavior } from '../router-reducer/router-reducer-types'
-import { computeChangedPath } from '../router-reducer/compute-changed-path'
-import { isJavaScriptURLString } from '../../lib/javascript-url'
-import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
-import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
+} from './segment-cache/cache'
+import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import {
+  createCacheKey,
+  type NormalizedSearch,
+} from './segment-cache/cache-key'
+import type { CacheMap } from './segment-cache/cache-map'
+import { schedulePrefetchTask } from './segment-cache/scheduler'
+import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { getLinkForCurrentNavigation } from './links'
+import type { AppRouterState } from './router-reducer/router-reducer-types'
+import { ScrollBehavior } from './router-reducer/router-reducer-types'
+import { computeChangedPath } from './router-reducer/compute-changed-path'
+import { isJavaScriptURLString } from '../lib/javascript-url'
+import {
+  UnknownDynamicStaleTime,
+  computeDynamicStaleAt,
+} from './segment-cache/bfcache'
+import { createLinkPrefetchPartialError } from '../../shared/lib/instant-messages'
 import {
   createNavigationSeed,
   type NavigationSeed,
-} from './decode-server-response'
+} from './segment-cache/decode-server-response'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -71,7 +77,7 @@ export function navigate(
   // requested.
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     if (isNavigationLocked()) {
       // Signal that a new locked navigation is starting. This force-resolves the
       // previous locked navigation's withheld data (so a reused shared segment
@@ -304,7 +310,7 @@ export function navigateToKnownRoute(
   let restrictToShell = false
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { shouldRestrictNavigationToShell } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
       navigationSeed.routeTree.prefetchHints,
@@ -867,7 +873,7 @@ async function ensurePrefetchThenNavigate(
   // cares about has settled — so the navigation below reads present data
   // rather than a still-in-flight entry.
   const { beginNavigationLockPrefetch } =
-    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
   const navigationLockPrefetch = beginNavigationLockPrefetch()
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
@@ -906,7 +912,7 @@ async function ensurePrefetchThenNavigate(
   // document load transition it to captured-MPA.
   if (!result.pushRef.mpaNavigation) {
     const { updateCapturedSPAToTree } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     updateCapturedSPAToTree(currentFlightRouterState, result.tree)
   }
 

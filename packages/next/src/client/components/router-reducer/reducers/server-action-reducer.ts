@@ -56,7 +56,7 @@ import {
   completeHardNavigation,
   navigateToKnownRoute,
   navigate,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
 import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import { discoverKnownRoute } from '../../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
@@ -67,7 +67,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
-import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../../render-tree'
 import { processFetch } from '../fetch-server-response'
 import {
   invalidateBfCache,

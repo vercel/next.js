@@ -138,6 +138,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
 // Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_cjs_node20("module-sync-condition-cjs-node20")]
+// A `require()` of a subpath export that hands the `module-sync` condition an ESM file and
+// `default` a CommonJS one (not a case that any of the above cover): both have to be traced.
+#[case::module_sync_condition_cjs_subpath("module-sync-condition-cjs-subpath")]
+// The same, but with the package reachable through two `node_modules` directories, as in a pnpm
+// install: merging the results of both must not drop either target.
+#[case::module_sync_condition_cjs_nested_symlink("module-sync-condition-cjs-nested-symlink")]
 #[case::module_sync_condition_es("module-sync-condition-es")]
 #[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
 // Turbopack always includes the module-sync version, regardless of the current Node version

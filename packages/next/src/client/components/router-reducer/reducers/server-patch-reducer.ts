@@ -9,10 +9,10 @@ import {
 import {
   completeHardNavigation,
   navigateToKnownRoute,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
 import { segmentCacheMap } from '../../segment-cache/cache'
 import { refreshReducer } from './refresh-reducer'
-import { getCurrentNavigationLock } from '../ppr-navigations'
+import { getCurrentNavigationLock } from '../../render-tree'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
