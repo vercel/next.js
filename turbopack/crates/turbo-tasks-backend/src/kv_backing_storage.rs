@@ -369,12 +369,16 @@ impl TurboBackingStorage {
         Ok(task_ids)
     }
 
+    /// Reads the stored `category` for `task_id`.
+    ///
+    /// `None` means the database had no key for it. That is distinct from `Some` of an empty
+    /// [`TaskStorage`] (a key that decoded to nothing), which is what lets a `MustExist` open tell
+    /// "absent everywhere" from "present but empty".
     pub(crate) fn lookup_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
-    ) -> Result<()> {
+    ) -> Result<Option<TaskStorage>> {
         let inner = &*self.inner;
         let Some(bytes) = inner
             .database
@@ -383,12 +387,14 @@ impl TurboBackingStorage {
                 format!("Looking up task storage for {task_id} from database failed")
             })?
         else {
-            return Ok(());
+            return Ok(None);
         };
+        let mut storage = TaskStorage::default();
         let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
         storage
             .decode(category, &mut decoder)
-            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
+            .with_context(|| format!("Failed to decode {category:?}"))?;
+        Ok(Some(storage))
     }
 
     pub(crate) fn batch_lookup_data(

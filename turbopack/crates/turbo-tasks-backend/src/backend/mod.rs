@@ -330,6 +330,20 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
+    /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
+    /// hook to exercise the non-fabricating existence guarantee: this panics (debug builds) if
+    /// `task` exists in neither memory nor persistent storage (rather than fabricating a
+    /// blank).
+    #[doc(hidden)]
+    pub fn assert_task_exists_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let _ = ctx.task(task, TaskDataCategory::All);
+    }
+
     fn should_restore(&self) -> bool {
         self.options.storage_mode.is_some()
     }
@@ -1793,7 +1807,9 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id, TaskDataCategory::Data);
+        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
+        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
+        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
