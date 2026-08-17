@@ -233,7 +233,7 @@ async function registerAdditionalClientReferenceManifests(
 }
 
 declare const __turbopack_server_hmr_apply__:
-  | ((update: NodeJsPartialHmrUpdate) => void)
+  | ((runtimeRoot: string, update: NodeJsPartialHmrUpdate) => void)
   | undefined
 
 /**
@@ -262,8 +262,19 @@ export async function applyHmrUpdate(
     return 'no-runtime'
   }
 
+  const runtimeRoots = new Set<string>()
+  for (const entry of globalThis.__turbopack_server_hmr_handlers__?.values() ??
+    []) {
+    runtimeRoots.add(entry.runtimeRoot)
+  }
+  if (runtimeRoots.size === 0) {
+    return 'no-runtime'
+  }
+
   try {
-    __turbopack_server_hmr_apply__(update)
+    for (const runtimeRoot of runtimeRoots) {
+      __turbopack_server_hmr_apply__(runtimeRoot, update)
+    }
   } catch {
     // The dev server responds to the same failure by re-evaluating every
     // module from disk. This thread cannot be repaired in place either, so the
