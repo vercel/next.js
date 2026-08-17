@@ -1386,46 +1386,39 @@ async function generateCacheEntryImpl(
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
-      let cleanupAbortController: AbortController | undefined
-      let abortSignal = timeoutAbortController.signal
+      const abortSignal = dynamicAccessAbortSignal
+        ? AbortSignal.any([
+            dynamicAccessAbortSignal,
+            timeoutAbortController.signal,
+          ])
+        : timeoutAbortController.signal
+
+      const { prelude } = await prerender(
+        resultPromise,
+        clientReferenceManifest.clientModules,
+        {
+          environmentName: 'Cache',
+          filterStackFrame,
+          signal: abortSignal,
+          temporaryReferences,
+          onError(error) {
+            if (abortSignal.aborted && abortSignal.reason === error) {
+              return undefined
+            }
+
+            return handleError(error)
+          },
+        }
+      )
+
+      clearTimeout(timer)
+      const didTimeout = timeoutAbortController.signal.aborted
       if (dynamicAccessAbortSignal) {
-        // React attaches an abort listener to this signal. Node retains a
-        // non-empty composite while it has listeners, so add an owned source
-        // that can release it after the prerender settles.
-        cleanupAbortController = new AbortController()
-        abortSignal = AbortSignal.any([
-          dynamicAccessAbortSignal,
-          timeoutAbortController.signal,
-          cleanupAbortController.signal,
-        ])
+        // Release React's listener from the composite signal.
+        timeoutAbortController.abort()
       }
 
-      let prelude: ReadableStream<Uint8Array>
-      try {
-        const prerenderResult = await prerender(
-          resultPromise,
-          clientReferenceManifest.clientModules,
-          {
-            environmentName: 'Cache',
-            filterStackFrame,
-            signal: abortSignal,
-            temporaryReferences,
-            onError(error) {
-              if (abortSignal.aborted && abortSignal.reason === error) {
-                return undefined
-              }
-
-              return handleError(error)
-            },
-          }
-        )
-        prelude = prerenderResult.prelude
-      } finally {
-        clearTimeout(timer)
-        cleanupAbortController?.abort()
-      }
-
-      if (timeoutAbortController.signal.aborted) {
+      if (didTimeout) {
         // When the timeout is reached we always error the stream. Even for
         // fallback shell prerenders we don't want to return a hanging promise,
         // which would allow the function to become a dynamic hole. Because that
