@@ -10083,6 +10083,7 @@ dependencies = [
  "either",
  "erased-serde",
  "event-listener",
+ "fixedbitset",
  "futures",
  "indexmap 2.13.0",
  "parking_lot",
