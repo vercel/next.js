@@ -26,7 +26,10 @@ import {
   VARIANTS_NOT_ROUTED_PATH,
   VARIANTS_PATH_PREFIX,
 } from '../../lib/constants'
-import { hasVariantsPrefix } from '../../server/variants/prefix'
+import {
+  hasVariantsPrefix,
+  removeVariantsPrefix,
+} from '../../server/variants/prefix'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import {
@@ -1763,9 +1766,18 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
+
+        // The prefix of a combination comes off before the lookup, because a
+        // `page` never carries one: the entry that holds the route keys is the
+        // plain one, and the prefixed alias beside it is skipped here. Without
+        // this, every combination of a route finds no keys at all, and its
+        // params stop partitioning the entry, so two params that share a
+        // combination are served each other's render.
         const routeKeys =
           routesManifest.dynamicRoutes.find(
-            (item) => item.page === dynamicRoute && !item.variantsPrefixed
+            (item) =>
+              item.page === removeVariantsPrefix(dynamicRoute) &&
+              !item.variantsPrefixed
           )?.routeKeys || {}
 
         // The combination joins the params in the cache key. Without it, every
@@ -2325,20 +2337,43 @@ export async function handleBuildComplete({
       }
 
       // A request that the proxy resolved a combination for arrives under the
-      // prefix of that combination, and the prefix names no route. This rule
-      // matches the prefix, captures it, and sends the request on to the plain
-      // route, so that the origin receives a path it can resolve to a page like
-      // any other.
+      // prefix of that combination. This rule matches that prefix, captures it,
+      // and keeps it on the destination, so that the request reaches the
+      // prerender written for the combination rather than the one written with
+      // every variant left out.
       //
-      // The capture is what makes the combination part of the cache key. A
-      // router that keys on capture groups filters them by `allowQuery`, and
-      // the prerender output lists this group there. The prefix therefore
-      // partitions the cache without naming an output, and that is what lets
-      // one page serve every combination of itself.
+      // Only a param the build never named reaches this rule. A param it did
+      // name has an output under the prefix already, and the filesystem is
+      // checked before a rewrite, so such a request is served from that output
+      // and never arrives here.
+      //
+      // The prefix has to stay on the destination for that remaining case. The
+      // prerender of a combination is the one that can resolve the param on
+      // demand and keep the result: it holds no shell, because the values of
+      // the combination are baked and only the param is missing. The prerender
+      // that omits the variants holds a shell that stands in for every
+      // combination, so a request sent there is answered from that shell and
+      // resumed each time, and no prerender for the param is ever kept.
+      //
+      // The capture is put into the query as well, because that is what the
+      // cache key is built from: a router that keys on capture groups filters
+      // them by `allowQuery`, and the prerender output lists this group there.
       //
       // This has the same shape as `nextLocale` and `rscSuffix` above: a group
       // Next.js invents, added to the source and put into the destination.
       if (variantRoutePages.has(route.page)) {
+        // The prefix sits where the source regex expects it, after `basePath`
+        // and before the locale, so that the destination names the path the
+        // outputs of this combination were written to.
+        const variantsDestination =
+          path.posix.join(
+            '/',
+            config.basePath,
+            `/${VARIANTS_PATH_PREFIX}/$${NEXT_VARIANTS_QUERY_PARAM}`,
+            shouldLocalize ? '/$nextLocale' : '',
+            pagePath
+          ) + getDestinationQuery(route.routeKeys)
+
         // The prefixed form of the `.rsc` rule above. A prefetch asks for the
         // payload of the route rather than for the page, and the proxy puts the
         // prefix on that path as it does on any other.
@@ -2353,10 +2388,13 @@ export async function handleBuildComplete({
         // rule takes any character, and would otherwise take the suffix as part
         // of the param.
         if (appPageKeys && appPageKeys.length > 0) {
-          const rscDestination = destination.replace(/($|\?)/, '$rscSuffix$1')
+          const rscDestination = variantsDestination.replace(
+            /($|\?)/,
+            '$rscSuffix$1'
+          )
 
           dynamicRoutes.push({
-            source: route.page + '.rsc',
+            source: pagePath + '.rsc',
             sourceRegex: buildSourceRegex(
               `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
             ).replace(
@@ -2366,10 +2404,7 @@ export async function handleBuildComplete({
             destination:
               rscDestination +
               `${rscDestination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
-            has:
-              isFallbackFalse && !pageKeys.includes(route.page)
-                ? fallbackFalseHasCondition
-                : undefined,
+            has: suffixedHas,
             missing: undefined,
           })
         }
@@ -2380,8 +2415,8 @@ export async function handleBuildComplete({
             `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
           ),
           destination:
-            destination +
-            `${destination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
+            variantsDestination +
+            `${variantsDestination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
           has: plainHas,
           missing: undefined,
         })
