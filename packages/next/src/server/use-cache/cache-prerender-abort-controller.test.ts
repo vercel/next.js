@@ -16,10 +16,11 @@ describe('CachePrerenderAbortController', () => {
     expect(controller.signal.reason).toBe(reason)
   })
 
-  it('forwards timeout aborts without a dynamic access signal', () => {
+  it('forwards timeout aborts', () => {
+    const dynamicAccessController = new AbortController()
     const timeoutController = new AbortController()
     const controller = new CachePrerenderAbortController(
-      undefined,
+      dynamicAccessController.signal,
       timeoutController.signal
     )
     const reason = new Error('timeout')

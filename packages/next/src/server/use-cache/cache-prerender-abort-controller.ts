@@ -5,14 +5,11 @@
  */
 export class CachePrerenderAbortController implements EventListenerObject {
   private readonly controller: AbortController
-  private readonly dynamicAccessSignal: AbortSignal | undefined
+  private readonly dynamicAccessSignal: AbortSignal
   private readonly timeoutSignal: AbortSignal
   readonly signal: AbortSignal
 
-  constructor(
-    dynamicAccessSignal: AbortSignal | undefined,
-    timeoutSignal: AbortSignal
-  ) {
+  constructor(dynamicAccessSignal: AbortSignal, timeoutSignal: AbortSignal) {
     const controller = new AbortController()
 
     this.controller = controller
@@ -22,9 +19,7 @@ export class CachePrerenderAbortController implements EventListenerObject {
 
     // Keep the same priority as the previous AbortSignal.any() call when both
     // sources are already aborted.
-    if (dynamicAccessSignal) {
-      this.listen(dynamicAccessSignal)
-    }
+    this.listen(dynamicAccessSignal)
     if (!this.signal.aborted) {
       this.listen(timeoutSignal)
     }
@@ -51,7 +46,7 @@ export class CachePrerenderAbortController implements EventListenerObject {
   }
 
   dispose(): void {
-    this.dynamicAccessSignal?.removeEventListener('abort', this)
+    this.dynamicAccessSignal.removeEventListener('abort', this)
     this.timeoutSignal.removeEventListener('abort', this)
   }
 }
