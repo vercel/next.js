@@ -136,17 +136,17 @@ describe('middleware - development errors', () => {
       })
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? '⨯ unhandledRejection:  Error: async boom!' +
+          ? '⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               // TODO(veil): Sourcemap to original name i.e. "default"
               '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
           : isRspack
-            ? '\n⨯ unhandledRejection:  Error: async boom!' +
+            ? '\n⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at __rspack_default_export (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
-            : '\n⨯ unhandledRejection:  Error: async boom!' +
+            : '\n⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at default (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"

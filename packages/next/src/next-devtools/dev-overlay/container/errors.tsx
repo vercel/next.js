@@ -441,9 +441,9 @@ export function getBlockingRouteErrorDetails(
   }
 
   const isBlockingPageLoadError =
-    message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#') ||
-    message.includes('/instant-shell-url-data#')
+    message.includes('/blocking-prerender-runtime') ||
+    message.includes('/blocking-prerender-dynamic') ||
+    message.includes('/instant-shell-url-data')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',

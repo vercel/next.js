@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function PrivateCached() {
   'use cache: private'

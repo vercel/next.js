@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -19,7 +22,7 @@ use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
@@ -33,7 +36,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
     source_pos::SourcePos,
 };
 
@@ -46,7 +49,7 @@ use crate::{
     },
 };
 
-pub type CssOutput = (ToCssResult, Option<Rope>);
+pub type CssOutput = (ToCssResult, Option<StructuredSourceMap>);
 
 #[turbo_tasks::value(transparent)]
 struct LightningCssTargets(
@@ -98,7 +101,7 @@ async fn get_lightningcss_browser_targets(
 }
 
 async fn stylesheet_to_css(
-    ss: &StyleSheet<'_, '_>,
+    ss: &StyleSheet<'_>,
     code: &str,
     minify_type: MinifyType,
     enable_srcmap: bool,
@@ -158,14 +161,14 @@ pub enum ParseCssResult {
         code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheet<'static, 'static>,
+        stylesheet: StyleSheet<'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
-        options: ParserOptions<'static, 'static>,
+        options: ParserOptions<'static>,
     },
     Unparsable,
     NotFound,
@@ -191,12 +194,13 @@ pub enum CssWithPlaceholderResult {
 }
 
 #[turbo_tasks::value(shared, serialization = "skip")]
+#[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        source_map: ResolvedVc<FileContent>,
+        source_map: Option<StructuredSourceMap>,
     },
     Unparsable,
     NotFound,
@@ -329,11 +333,7 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                source_map: if let Some(srcmap) = srcmap {
-                    FileContent::Content(File::from(srcmap)).resolved_cell()
-                } else {
-                    FileContent::NotFound.resolved_cell()
-                },
+                source_map: srcmap,
             }
             .cell())
         }
@@ -405,16 +405,43 @@ pub async fn parse_css(
     .await
 }
 
+/// Strips a leading UTF-8 byte-order mark, if present.
+fn strip_bom(code: &str) -> &str {
+    code.strip_prefix('\u{feff}').unwrap_or(code)
+}
+
+/// Builds the [`SourcePos`] for a lightningcss error/warning location.
+///
+/// Lightning CSS counts columns from the start of the string it's given.
+/// Since we hand it a BOM-stripped copy, its column numbers on line 0 are one
+/// character behind the same position in the original (un-stripped) source
+/// that code frames are rendered from. Add that character back when the
+/// original code had a BOM and the location is on its first line.
+fn source_pos_for_loc(loc: &lightningcss::error::ErrorLocation, code_had_bom: bool) -> SourcePos {
+    SourcePos {
+        line: loc.line,
+        // lightningcss::ErrorLocation is 1-based for column only
+        column: if code_had_bom && loc.line == 0 {
+            loc.column
+        } else {
+            loc.column - 1
+        },
+    }
+}
+
 /// Parse a CSS stylesheet and run CSS module validation.
 ///
 /// Does not handle parser warnings — the caller is responsible for configuring
 /// the `warnings` field in `config` and processing collected warnings.
-fn parse_css_stylesheet<'a, 'o>(
+fn parse_css_stylesheet<'a>(
     code: &'a str,
-    config: ParserOptions<'o, 'a>,
+    config: ParserOptions<'a>,
     ty: CssModuleType,
     source: ResolvedVc<Box<dyn Source>>,
-) -> Result<StyleSheet<'a, 'o>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
+) -> Result<StyleSheet<'a>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
+    // Lightning CSS tokenizes a leading byte-order mark as content instead of
+    // skipping it, which misaligns the parser and rejects the first token.
+    let code = strip_bom(code);
     let mut ss = StyleSheet::parse(code, config)?;
 
     if matches!(ty, CssModuleType::Module) {
@@ -441,7 +468,7 @@ async fn process_content(
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
-    fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
+    fn without_warnings<'i>(config: ParserOptions<'i>) -> ParserOptions<'static> {
         ParserOptions {
             filename: config.filename,
             css_modules: config.css_modules,
@@ -451,6 +478,8 @@ async fn process_content(
             flags: config.flags,
         }
     }
+
+    let code_had_bom = code.starts_with('\u{feff}');
 
     // `@custom-media` is draft syntax and behind a parser flag.
     //
@@ -470,9 +499,9 @@ async fn process_content(
                 pattern: Pattern {
                     segments: smallvec![
                         Segment::Name,
-                        Segment::Literal("__"),
+                        Segment::Literal(Cow::Borrowed("__")),
                         Segment::Hash,
-                        Segment::Literal("__"),
+                        Segment::Literal(Cow::Borrowed("__")),
                         Segment::Local,
                     ],
                 },
@@ -524,11 +553,7 @@ async fn process_content(
                     let issue_source = match &err.loc {
                         Some(loc) => IssueSource::from_single_line_col(
                             source,
-                            SourcePos {
-                                // lightningcss::ErrorLocation is 1-based for column only
-                                line: loc.line,
-                                column: loc.column - 1,
-                            },
+                            source_pos_for_loc(loc, code_had_bom),
                         ),
                         None => IssueSource::from_source_only(source),
                     };
@@ -561,11 +586,7 @@ async fn process_content(
                     let issue_source = match &e.loc {
                         Some(loc) => IssueSource::from_single_line_col(
                             source,
-                            SourcePos {
-                                // lightningcss::ErrorLocation is 1-based for column only
-                                line: loc.line,
-                                column: loc.column - 1,
-                            },
+                            source_pos_for_loc(loc, code_had_bom),
                         ),
                         None => IssueSource::from_source_only(source),
                     };
@@ -601,11 +622,7 @@ async fn process_content(
                 let issue_source = match &e.loc {
                     Some(loc) => IssueSource::from_single_line_col(
                         source,
-                        SourcePos {
-                            // lightningcss::ErrorLocation is 1-based for column only
-                            line: loc.line,
-                            column: loc.column - 1,
-                        },
+                        source_pos_for_loc(loc, code_had_bom),
                     ),
                     None => IssueSource::from_source_only(source),
                 };
@@ -733,7 +750,9 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
     }
 }
 
-fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
+fn generate_css_source_map(
+    source_map: &parcel_sourcemap::SourceMap,
+) -> Result<StructuredSourceMap> {
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
@@ -758,9 +777,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
     let mut map = builder.into_sourcemap();
     add_default_ignore_list(&mut map);
-    let mut result = vec![];
-    map.to_writer(&mut result)?;
-    Ok(Rope::from(result))
+    StructuredSourceMap::from_swc_map(map)
 }
 
 #[turbo_tasks::value]
@@ -818,7 +835,7 @@ mod tests {
         visitor::Visit,
     };
 
-    use super::{CssError, CssValidator};
+    use super::{CssError, CssValidator, source_pos_for_loc, strip_bom};
 
     fn lint_lightningcss(code: &str) -> Vec<CssError> {
         let mut ss = StyleSheet::parse(
@@ -977,6 +994,45 @@ mod tests {
             ":where(div) {
                 color: red;
             }",
+        );
+    }
+
+    #[test]
+    fn strip_bom_lets_lightningcss_parse() {
+        let with_bom = "\u{feff}@layer a {}";
+
+        assert!(StyleSheet::parse(with_bom, ParserOptions::default()).is_err());
+        assert!(StyleSheet::parse(strip_bom(with_bom), ParserOptions::default()).is_ok());
+        assert_eq!(strip_bom("@layer a {}"), "@layer a {}");
+    }
+
+    #[test]
+    fn source_pos_for_loc_corrects_line_one_column_for_bom_files() {
+        // Column reported against the BOM-stripped copy we hand to lightningcss.
+        let loc = lightningcss::error::ErrorLocation {
+            filename: String::new(),
+            line: 0,
+            column: 12,
+        };
+
+        // No BOM: the existing 1-based-to-0-based conversion is unaffected.
+        assert_eq!(source_pos_for_loc(&loc, false).column, 11);
+
+        // With a BOM: add the stripped character back so the position still
+        // lines up with the original (un-stripped) source that code frames
+        // are read from.
+        assert_eq!(source_pos_for_loc(&loc, true).column, 12);
+
+        // Only line 0 (the file's first line) is affected — the BOM never
+        // contains a newline, so later lines are already aligned.
+        let later_line = lightningcss::error::ErrorLocation {
+            filename: String::new(),
+            line: 1,
+            column: 12,
+        };
+        assert_eq!(
+            source_pos_for_loc(&later_line, true).column,
+            source_pos_for_loc(&later_line, false).column,
         );
     }
 }

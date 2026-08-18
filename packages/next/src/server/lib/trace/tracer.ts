@@ -67,7 +67,11 @@ export function isBubbledError(error: unknown): error is BubbledError {
   return error instanceof BubbledError
 }
 
-const closeSpanWithError = (span: Span, error?: Error) => {
+const closeSpanWithError = (
+  span: Span,
+  error?: Error,
+  endTime?: Parameters<Span['end']>[0]
+) => {
   if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
@@ -77,10 +81,11 @@ const closeSpanWithError = (span: Span, error?: Error) => {
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
-  span.end()
+  span.end(endTime)
 }
 
 type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
+  endTime?: Parameters<Span['end']>[0]
   parentSpan?: Span
   spanName?: string
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
@@ -185,6 +190,7 @@ type NextAttributeNames =
   | 'next.page'
   | 'next.rsc'
   | 'next.segment'
+  | 'next.span_category'
   | 'next.span_name'
   | 'next.span_type'
   | 'next.clientComponentLoadCount'
@@ -255,11 +261,20 @@ class NextTracerImpl implements NextTracer {
   }
 
   public getActiveScopeSpan(): Span | undefined {
+    const localSpanRecorder = getLocalSpanRecorder()
+    const activeLocalSpan = localSpanRecorder?.getActiveLocalSpan()
+    if (
+      activeLocalSpan &&
+      localSpanRecorder?.isOpenTelemetryIsolatedSpan(activeLocalSpan)
+    ) {
+      return activeLocalSpan
+    }
+
     const activeSpan = trace.getSpan(context.active())
     if (activeSpan || !process.env.__NEXT_DEV_SERVER) {
       return activeSpan
     }
-    return getLocalSpanRecorder()?.getActiveLocalSpan()
+    return activeLocalSpan
   }
 
   /**
@@ -337,8 +352,9 @@ class NextTracerImpl implements NextTracer {
     const [type, fnOrOptions, fnOrEmpty] = args
     const tracingEnabled =
       Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled()
+    const localSpanRecorder = getLocalSpanRecorder()
     const localSpanRecordingEnabled =
-      getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false
+      localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false
 
     if (!tracingEnabled && !localSpanRecordingEnabled) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
@@ -364,18 +380,27 @@ class NextTracerImpl implements NextTracer {
 
     const spanName = options.spanName ?? type
 
-    if (
-      (!NextVanillaSpanAllowlist.has(type) &&
-        process.env.NEXT_OTEL_VERBOSE !== '1') ||
-      options.hideSpan
-    ) {
+    const parentSpan = options.parentSpan ?? this.getActiveScopeSpan()
+    const isolatedParentSpan =
+      parentSpan && localSpanRecorder?.isOpenTelemetryIsolatedSpan(parentSpan)
+        ? parentSpan
+        : undefined
+    const shouldDelegateSpan =
+      !isolatedParentSpan &&
+      (NextVanillaSpanAllowlist.has(type) ||
+        process.env.NEXT_OTEL_VERBOSE === '1')
+    const shouldTraceSpan =
+      shouldDelegateSpan ||
+      (localSpanRecorder?.isRequestInsightsEnabled() ?? false)
+
+    if (!shouldTraceSpan || options.hideSpan) {
       return fn()
     }
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
-    let spanContext = this.getSpanContext(
-      options?.parentSpan ?? this.getActiveScopeSpan()
-    )
+    let spanContext = isolatedParentSpan
+      ? context.active()
+      : this.getSpanContext(parentSpan)
 
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
@@ -392,6 +417,7 @@ class NextTracerImpl implements NextTracer {
     const spanId = getSpanId()
 
     options.attributes = {
+      'next.span_category': 'nextjs',
       'next.span_name': spanName,
       'next.span_type': type,
       ...options.attributes,
@@ -402,8 +428,9 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         spanContext,
-        tracingEnabled,
+        tracingEnabled && shouldDelegateSpan,
         localSpanRecordingEnabled,
+        isolatedParentSpan,
         (span: Span) => {
           let startTime: number | undefined
           if (
@@ -453,13 +480,13 @@ class NextTracerImpl implements NextTracer {
             try {
               return fn(span, (err) => {
                 if (err) {
-                  closeSpanWithError(span, err)
+                  closeSpanWithError(span, err, options.endTime)
                 } else {
-                  span.end()
+                  span.end(options.endTime)
                 }
               })
             } catch (err: any) {
-              closeSpanWithError(span, err)
+              closeSpanWithError(span, err, options.endTime)
               throw err
             } finally {
               onCleanup()
@@ -472,24 +499,24 @@ class NextTracerImpl implements NextTracer {
               // If there's error make sure it throws
               return result
                 .then((res) => {
-                  span.end()
+                  span.end(options.endTime)
                   // Need to pass down the promise result,
                   // it could be react stream response with error { error, stream }
                   return res
                 })
                 .catch((err) => {
-                  closeSpanWithError(span, err)
+                  closeSpanWithError(span, err, options.endTime)
                   throw err
                 })
                 .finally(onCleanup)
             } else {
-              span.end()
+              span.end(options.endTime)
               onCleanup()
             }
 
             return result
           } catch (err: any) {
-            closeSpanWithError(span, err)
+            closeSpanWithError(span, err, options.endTime)
             onCleanup()
             throw err
           }
@@ -504,6 +531,7 @@ class NextTracerImpl implements NextTracer {
     parentContext: Context,
     tracingEnabled: boolean,
     localSpanRecordingEnabled: boolean,
+    isolatedParentSpan: Span | undefined,
     fn: (span: Span) => T
   ): T {
     if (tracingEnabled) {
@@ -517,18 +545,31 @@ class NextTracerImpl implements NextTracer {
                   spanName,
                   options,
                   parentContext,
-                  span
+                  span,
+                  isolatedParentSpan
                 )
               : span
           )
       )
     }
 
-    const span = this.createLocalRecordingSpan(spanName, options, parentContext)
-    const activeContext = trace.setSpan(context.active(), span)
-
-    return getLocalSpanRecorder()!.withLocalSpan(span, () =>
-      context.with(activeContext, fn, undefined, span)
+    const span = this.createLocalRecordingSpan(
+      spanName,
+      options,
+      parentContext,
+      undefined,
+      isolatedParentSpan
+    )
+    const localSpanRecorder = getLocalSpanRecorder()!
+    return localSpanRecorder.withLocalSpan(span, () =>
+      localSpanRecorder.isOpenTelemetryIsolatedSpan(span)
+        ? fn(span)
+        : context.with(
+            trace.setSpan(context.active(), span),
+            fn,
+            undefined,
+            span
+          )
     )
   }
 
@@ -536,19 +577,23 @@ class NextTracerImpl implements NextTracer {
     name: string,
     options: TracerSpanOptions,
     parentContext: Context,
-    delegateSpan?: Span
+    delegateSpan?: Span,
+    isolatedParentSpan?: Span
   ): Span {
-    const parentSpanContext = trace.getSpanContext(parentContext)
+    const parentSpanContext =
+      isolatedParentSpan?.spanContext() ?? trace.getSpanContext(parentContext)
     const delegateSpanContext = delegateSpan?.spanContext()
 
     return getLocalSpanRecorder()!.createLocalSpan({
       name,
       attributes: options.attributes,
       links: options.links,
+      startTime: options.startTime,
       delegateSpan,
       traceId: delegateSpanContext?.traceId ?? parentSpanContext?.traceId,
       spanId: delegateSpanContext?.spanId,
       parentSpanId: parentSpanContext?.spanId,
+      isolateOpenTelemetry: isolatedParentSpan !== undefined,
     })
   }
 
@@ -570,7 +615,8 @@ class NextTracerImpl implements NextTracer {
 
     if (
       !NextVanillaSpanAllowlist.has(name) &&
-      process.env.NEXT_OTEL_VERBOSE !== '1'
+      process.env.NEXT_OTEL_VERBOSE !== '1' &&
+      !process.env.__NEXT_DEV_SERVER
     ) {
       return fn
     }
@@ -603,27 +649,45 @@ class NextTracerImpl implements NextTracer {
   public startSpan(type: SpanTypes): Span
   public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
-    const [type, options]: [string, TracerSpanOptions | undefined] = args as any
+    const [type, passedOptions]: [string, TracerSpanOptions | undefined] =
+      args as any
+    const options: TracerSpanOptions = passedOptions
+      ? {
+          ...passedOptions,
+          attributes: {
+            'next.span_category': 'nextjs',
+            ...passedOptions.attributes,
+          },
+        }
+      : { attributes: { 'next.span_category': 'nextjs' } }
 
+    const localSpanRecorder = getLocalSpanRecorder()
+    const parentSpan = options.parentSpan ?? this.getActiveScopeSpan()
+    const isolatedParentSpan =
+      parentSpan && localSpanRecorder?.isOpenTelemetryIsolatedSpan(parentSpan)
+        ? parentSpan
+        : undefined
     const parentContext =
-      this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan()) ??
+      (isolatedParentSpan ? undefined : this.getSpanContext(parentSpan)) ??
       context.active()
     const localSpanRecordingEnabled =
-      getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false
+      localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false
 
     if (!localSpanRecordingEnabled) {
       return this.getTracerInstance().startSpan(type, options, parentContext)
     }
 
-    const delegateSpan = this.isOpenTelemetryEnabled()
-      ? this.getTracerInstance().startSpan(type, options, parentContext)
-      : undefined
+    const delegateSpan =
+      !isolatedParentSpan && this.isOpenTelemetryEnabled()
+        ? this.getTracerInstance().startSpan(type, options, parentContext)
+        : undefined
 
     return this.createLocalRecordingSpan(
       type,
-      options ?? {},
+      options,
       parentContext,
-      delegateSpan
+      delegateSpan,
+      isolatedParentSpan
     )
   }
 
@@ -656,12 +720,15 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withSpan<T>(span: Span, fn: () => T): T {
-    const spanContext = trace.setSpan(context.active(), span)
     const recorder = getLocalSpanRecorder()
     if (recorder?.isLocalRecordingSpan(span)) {
-      return recorder.withLocalSpan(span, () => context.with(spanContext, fn))
+      return recorder.withLocalSpan(span, () =>
+        recorder.isOpenTelemetryIsolatedSpan(span)
+          ? fn()
+          : context.with(trace.setSpan(context.active(), span), fn)
+      )
     }
-    return context.with(spanContext, fn)
+    return context.with(trace.setSpan(context.active(), span), fn)
   }
 }
 

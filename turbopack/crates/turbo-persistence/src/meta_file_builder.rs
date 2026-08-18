@@ -9,7 +9,10 @@ use fs_err::File;
 use qfilter::Filter;
 use zerocopy::IntoBytes;
 
-use crate::{meta_file::EntryHeader, static_sorted_file_builder::StaticSortedFileBuilderMeta};
+use crate::{
+    meta_file::{EntryHeader, META_FILE_MAGIC},
+    static_sorted_file_builder::StaticSortedFileBuilderMeta,
+};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
@@ -54,7 +57,7 @@ impl<'a> MetaFileBuilder<'a> {
         // Wrap the writer to count the bytes written, so callers can accumulate written-byte totals
         // without stat'ing the file afterwards.
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
-        file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
+        file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
 
         self.obsolete_sst_files.sort();

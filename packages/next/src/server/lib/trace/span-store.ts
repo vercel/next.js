@@ -1,4 +1,5 @@
 import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 
 export type SpanStoreAttributes = Record<string, AttributeValue>
 
@@ -24,6 +25,7 @@ export type SpanStoreRecord = {
   spanId?: string
   parentSpanId?: string
   requestId?: string
+  requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
   route?: string
   url?: string
@@ -46,7 +48,7 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
   }
 
   const spanRecord: SpanStoreRecord = {
-    timestamp: Date.now(),
+    timestamp: getCurrentTimestamp(),
     ...record,
   }
 
@@ -74,10 +76,18 @@ export function isLocalSpanRecordingEnabled(): boolean {
 }
 
 export function isRequestInsightsEnabled(): boolean {
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return false
+  }
+
   const value = process.env.__NEXT_REQUEST_INSIGHTS
   return isEnabledEnvValue(value)
 }
 
 function isEnabledEnvValue(value: string | undefined): boolean {
   return value === '1' || value === 'true' || (value as unknown) === true
+}
+
+function getCurrentTimestamp(): number {
+  return performance.timeOrigin + performance.now()
 }

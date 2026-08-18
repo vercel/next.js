@@ -59,6 +59,10 @@ impl EvalContext {
         self.imports.is_esm(specified_type)
     }
 
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        self.imports.is_cjs(specified_type)
+    }
+
     pub(super) fn eval_prop_name<'a>(&self, arena: &'a Bump, prop: &PropName) -> JsValue<'a> {
         match prop {
             PropName::Ident(ident) => ident.sym.clone().into(),
