@@ -4,8 +4,8 @@ use swc_core::{
     base::SwcComments,
     ecma::{
         ast::{
-            BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat, Program, Prop,
-            SimpleAssignTarget, Stmt, Str, SwitchCase,
+            BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
+            Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
         },
         visit::AstParentKind,
     },
@@ -144,6 +144,7 @@ pub trait AstModifier: Send + Sync {
     method!(visit_mut_lit, Lit);
     method!(visit_mut_str, Str);
     method!(visit_mut_block_stmt, BlockStmt);
+    method!(visit_mut_function_body, FunctionBody);
     method!(visit_mut_switch_case, SwitchCase);
     method!(visit_mut_program, Program);
 }
@@ -174,6 +175,7 @@ impl_modify!(visit_mut_call_expr, CallExpr);
 impl_modify!(visit_mut_lit, Lit);
 impl_modify!(visit_mut_str, Str);
 impl_modify!(visit_mut_block_stmt, BlockStmt);
+impl_modify!(visit_mut_function_body, FunctionBody);
 impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
