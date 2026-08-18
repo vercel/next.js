@@ -385,9 +385,13 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
 
 const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
-function createPrerenderInterruptedError(message: string): Error {
+export function createPrerenderInterruptedError(message: string): Error {
   const error = new Error(message)
   ;(error as any).digest = NEXT_PRERENDER_INTERRUPTED
+  // Assignment overwrites V8's private CallSite slot. Leaving the lazy stack
+  // intact would let a retained AbortSignal.reason pin the whole render graph
+  // (~1.7MB vs ~1KB). These frames are never read in production.
+  error.stack = `${error.name}: ${error.message}`
   return error
 }
 
