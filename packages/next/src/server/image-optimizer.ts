@@ -973,6 +973,53 @@ export async function fetchExternalImage(
   return { buffer, contentType, cacheControl, etag }
 }
 
+/**
+ * How long to wait for the internal response to finish streaming before giving
+ * up on it. This only ever fires when something has gone wrong: the response is
+ * a local file read that is already bounded by `maximumResponseBody`.
+ */
+const INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS = 30_000
+
+/**
+ * `hasStreamed` settles on the mocked response's `finish`, `end` or `error`
+ * event, and nothing guarantees that one of them ever fires — `send` can tear
+ * the underlying file stream down without ending the response.
+ *
+ * That matters more than a single stuck request: `ResponseCache` coalesces
+ * every request for a given transform onto one generator, and only releases the
+ * key once that generator settles. A generator that never settles therefore
+ * leaves its transform permanently unresponsive for every client, until the
+ * process restarts. Bounding the wait keeps the key releasable and, just as
+ * importantly, makes the failure show up in the logs.
+ */
+async function waitForInternalResponse(
+  hasStreamed: Promise<boolean>,
+  href: string
+): Promise<void> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      hasStreamed,
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          Log.error(
+            'internal image response never finished streaming for',
+            href
+          )
+          reject(
+            new ImageError(
+              504,
+              '"url" parameter is valid but internal response never finished streaming'
+            )
+          )
+        }, INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
 export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
@@ -988,15 +1035,19 @@ export async function fetchInternalImage(
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
+    // Deliberately not wired to `_req.socket`. This request is shared between
+    // every client waiting on the same transform, so it must not depend on any
+    // one of them staying connected: `send` watches `res.socket` through
+    // `on-finished`, and would destroy the shared stream as soon as the first
+    // requester hung up.
     const mocked = createRequestResponseMocks({
       url: href,
       method,
-      socket: _req.socket,
       maximumResponseBody,
     })
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
-    await mocked.res.hasStreamed
+    await waitForInternalResponse(mocked.res.hasStreamed, href)
 
     if (!mocked.res.statusCode) {
       Log.error('image response failed for', href, mocked.res.statusCode)
