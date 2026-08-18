@@ -1378,6 +1378,9 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    /// Forks the client router's entry-point modules to the experimental
+    /// concurrent router queue implementation via the import map.
+    concurrent_router_queue: Option<bool>,
     // `rename_all = "camelCase"` would lowercase the acronym to `blockingSsr`;
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
@@ -2428,6 +2431,11 @@ impl NextConfig {
                 .expose_testing_api_in_production_build
                 .unwrap_or(false),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_concurrent_router_queue(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.concurrent_router_queue.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

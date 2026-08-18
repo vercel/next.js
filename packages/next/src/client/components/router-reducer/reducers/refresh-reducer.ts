@@ -4,14 +4,14 @@ import type {
   RefreshAction,
 } from '../router-reducer-types'
 import { ScrollBehavior } from '../router-reducer-types'
-import { navigateToKnownRoute } from '../../segment-cache/navigation'
+import { navigateToKnownRoute } from '../../app-router-state'
 import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import {
   invalidateSegmentCacheEntries,
   segmentCacheMap,
 } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../../render-tree'
 import {
   invalidateBfCache,
   UnknownDynamicStaleTime,

@@ -16,11 +16,11 @@ pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
+pub mod removal;
 pub mod require_context;
 pub mod service_worker;
 pub mod type_issue;
 pub mod typescript;
-pub mod unreachable;
 pub mod util;
 pub mod worker;
 
@@ -40,6 +40,7 @@ use indexmap::map::Entry;
 use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
+use removal::RemovalCodeGen;
 use rustc_hash::{FxHashMap, FxHashSet};
 use service_worker::ServiceWorkerAssetReference;
 use swc_core::{
@@ -91,7 +92,6 @@ use turbopack_core::{
 };
 use turbopack_resolve::{ecmascript::cjs_resolve_source, typescript::tsconfig};
 use turbopack_swc_utils::emitter::IssueEmitter;
-use unreachable::Unreachable;
 use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplacementCodeGen};
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
@@ -880,6 +880,10 @@ async fn analyze_ecmascript_module_internal(
             LeaveScope(u32),
         }
 
+        fn unreachable_comment() -> RcStr {
+            rcstr!("TURBOPACK unreachable")
+        }
+
         // This is a stack of effects to process. We use a stack since during processing
         // of an effect we might want to add more effects into the middle of the
         // processing. Using a stack where effects are appended in reverse
@@ -911,9 +915,10 @@ async fn analyze_ecmascript_module_internal(
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
-                    analysis.add_code_gen(Unreachable::new(AstPathRange::StartAfter(
-                        start_ast_path.to_vec(),
-                    )));
+                    analysis.add_code_gen(RemovalCodeGen::new(
+                        unreachable_comment(),
+                        AstPathRange::StartAfter(start_ast_path.to_vec()),
+                    ));
                 }
                 Effect::Conditional {
                     mut condition,
@@ -932,7 +937,10 @@ async fn analyze_ecmascript_module_internal(
                     macro_rules! inactive {
                         ($block:ident) => {
                             if analyze_mode.is_code_gen() {
-                                analysis.add_code_gen(Unreachable::new($block.range.clone()));
+                                analysis.add_code_gen(RemovalCodeGen::new(
+                                    unreachable_comment(),
+                                    $block.range.clone(),
+                                ));
                             }
                         };
                     }
