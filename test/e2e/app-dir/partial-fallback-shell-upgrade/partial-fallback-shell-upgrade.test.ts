@@ -240,4 +240,25 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
       'generic shell should remain shared without partialPrefetching'
     )
   })
+
+  it('keeps blocking not-found responses stable after the first request', async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await next.fetch('/blocking/missing')
+      const html = await response.text()
+
+      expect(response.status).toBe(404)
+      expect(html).toContain('<meta name="robots" content="noindex"')
+    }
+  })
+
+  it('serves valid ungenerated params before and after the first request', async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await next.fetch('/blocking/runtime')
+
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain(
+        '<p id="blocking-slug">runtime</p>'
+      )
+    }
+  })
 })
