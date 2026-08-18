@@ -471,7 +471,7 @@ For a full explanation of the tag architecture (including soft tags and multi-in
 
 ## Soft Tags
 
-Soft tags are implicit tags that Next.js automatically generates based on the route path. For example, the route `/blog/hello` generates soft tags for `/`, `/blog`, `/blog/hello`, and their corresponding layout entries. These tags are prefixed internally with `_N_T_`.
+Soft tags are implicit tags that Next.js automatically generates based on the route path. Every segment in the path gets a layout tag, plus the leaf route itself. For example, the route `/blog/hello` generates soft tags for `/layout`, `/blog/layout`, `/blog/hello/layout`, and `/blog/hello`. These tags are prefixed internally with `_N_T_`.
 
 Soft tags enable [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath) to work through the same tag-based cache system. When `revalidatePath('/blog/hello')` is called, it invalidates all cache entries associated with that path's soft tags.
 
