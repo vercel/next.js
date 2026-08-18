@@ -1,6 +1,7 @@
 use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
+    sync::LazyLock,
 };
 
 use anyhow::{Context, Result, bail};
@@ -777,51 +778,47 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
 
-        #[cfg(debug_assertions)]
-        {
-            use std::sync::LazyLock;
-            static PRINT_CHUNK_GROUP_INFO: LazyLock<bool> =
-                LazyLock::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
-                    Some(v) => v == "1",
-                    None => false,
-                });
-            if *PRINT_CHUNK_GROUP_INFO {
-                use std::{
-                    collections::{BTreeMap, BTreeSet},
-                    path::absolute,
-                };
+        static PRINT_CHUNK_GROUP_INFO: LazyLock<bool> =
+            LazyLock::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
+                Some(v) => v == "1",
+                None => false,
+            });
+        if *PRINT_CHUNK_GROUP_INFO {
+            use std::{
+                collections::{BTreeMap, BTreeSet},
+                path::absolute,
+            };
 
-                let mut buckets = BTreeMap::default();
-                for (module, key) in &module_chunk_groups {
-                    if !key.is_empty() {
-                        buckets
-                            .entry(key.iter().collect::<Vec<_>>())
-                            .or_insert(BTreeSet::new())
-                            .insert(module.ident().to_string().await?);
-                    }
+            let mut buckets = BTreeMap::default();
+            for (module, key) in &module_chunk_groups {
+                if !key.is_empty() {
+                    buckets
+                        .entry(key.iter().collect::<Vec<_>>())
+                        .or_insert(BTreeSet::new())
+                        .insert(module.ident().to_string().await?);
                 }
-
-                let mut result = vec![];
-                result.push("Chunk Groups:".to_string());
-                for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
-                    result.push(format!(
-                        "  {:?}: {}",
-                        i,
-                        key.debug_str(chunk_groups_map.keys()).await?
-                    ));
-                }
-                result.push("# Module buckets:".to_string());
-                for (key, modules) in buckets.iter() {
-                    result.push(format!("## {:?}:", key.iter().collect::<Vec<_>>()));
-                    for module in modules {
-                        result.push(format!("  {module}"));
-                    }
-                    result.push("".to_string());
-                }
-                let f = absolute("chunk_group_info.log")?;
-                println!("written to {}", f.display());
-                std::fs::write(f, result.join("\n"))?;
             }
+
+            let mut result = vec![];
+            result.push("Chunk Groups:".to_string());
+            for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
+                result.push(format!(
+                    "  {:?}: {}",
+                    i,
+                    key.debug_str(chunk_groups_map.keys()).await?
+                ));
+            }
+            result.push("# Module buckets:".to_string());
+            for (key, modules) in buckets.iter() {
+                result.push(format!("## {:?}:", key.iter().collect::<Vec<_>>()));
+                for module in modules {
+                    result.push(format!("  {module}"));
+                }
+                result.push("".to_string());
+            }
+            let f = absolute("chunk_group_info.log")?;
+            println!("Wrote Chunk Group Info to {}", f.display());
+            std::fs::write(f, result.join("\n"))?;
         }
 
         // Resolve per-chunk-group chunking heuristics. Entry
