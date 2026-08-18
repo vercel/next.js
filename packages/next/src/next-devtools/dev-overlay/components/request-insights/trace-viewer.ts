@@ -58,10 +58,12 @@ const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
-  'NextNodeServer.matchRoute',
   'DevBundlerService.ensurePage',
   'BaseServer.render',
   'LoadComponents.loadComponents',
+  'LoadComponents.loadRouteModule',
+  'RouteModule.prepare',
+  'AppRouteRouteModule.loadUserland',
   'AppRender.prepareAppPageResponse',
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
