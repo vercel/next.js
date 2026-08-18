@@ -906,16 +906,14 @@ function pingRootRouteTree(
               ? FetchStrategy.StaticShell
               : FetchStrategy.PPR
 
+          // In PPF, links may skip speculative prefetching if they only need a shell.
           if (
             staticWalkStrategy === FetchStrategy.PPR &&
-            !subtreeHasSpeculativePrefetch(
+            !needsSpeculativePrefetch(
               task.fetchStrategy,
-              tree.prefetchHints
+              route.tree.prefetchHints
             )
           ) {
-            // Nothing in the target route needs to be speculatively prefetched.
-            // Bail out. (A PPR walk is the Speculative pass; same check as
-            // the per-subtree bail in pingNewPartOfCacheComponentsTree.)
             return PrefetchTaskExitStatus.Done
           }
 
@@ -1472,15 +1470,11 @@ function pingNewPartOfCacheComponentsTree(
   // runtime data carries it, and the dynamic holes are filled by the
   // navigation-time request.
 
+  // In PPF, links may skip speculative prefetching if they only need a shell.
   if (
-    // Only the Speculative pass skips subtrees with nothing to speculatively
-    // prefetch. (It's also the only pass that walks at FetchStrategy.PPR;
-    // the Shell phase walks at StaticShell and covers the whole new tree.)
     fetchStrategy === FetchStrategy.PPR &&
-    !subtreeHasSpeculativePrefetch(task.fetchStrategy, tree.prefetchHints)
+    !needsSpeculativePrefetch(task.fetchStrategy, route.tree.prefetchHints)
   ) {
-    // Nothing in the new part of the tree needs to be speculatively prefetched.
-    // Bail out.
     return PrefetchTaskExitStatus.Done
   }
 
@@ -2675,17 +2669,17 @@ function doesCurrentSegmentMatchCachedSegment(
  * Prefetching we only do this if the Link's prefetch prop is set to true —
  * otherwise the subtree relies on the shell that the Shell phase prefetches.
  */
-export function subtreeHasSpeculativePrefetch(
-  fetchStrategy: FetchStrategy,
-  prefetchHints: number
+export function needsSpeculativePrefetch(
+  taskfetchStrategy: PrefetchTaskFetchStrategy,
+  rootPrefetchHints: number
 ): boolean {
-  return (
-    // Check if this is a "full" prefetch (<Link prefetch={true}>).
-    fetchStrategy === FetchStrategy.Full ||
-    // Nothing in this subtree opts into Partial Prefetching, so there's no
-    // shared app shell for it to rely on — speculatively prefetch all of it.
-    (prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) === 0
-  )
+  if ((rootPrefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0) {
+    // PPF - only needs a speculative prefetch if this is a `<Link prefetch={true}>`.
+    return taskfetchStrategy === FetchStrategy.Full
+  } else {
+    // non-PPF -- all prefetches are speculative.
+    return true
+  }
 }
 
 // -----------------------------------------------------------------------------
