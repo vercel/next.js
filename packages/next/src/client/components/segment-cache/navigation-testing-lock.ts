@@ -535,8 +535,8 @@ export function getCurrentNavigationGate(): Promise<void> | null {
  * enabled for the target route, and no whole-route ("speculative") prefetch
  * would have been made, only the shell is prefetched — so that's all a
  * navigation should be allowed to match. A speculative prefetch happens for a
- * `<Link prefetch={true}>` or an eagerly-prefetched subtree, in which case the
- * concrete-param entry is genuinely warm and may be matched.
+ * `<Link prefetch={true}>`, in which case the concrete-param entry is genuinely
+ * warm and may be matched.
  *
  * Always returns false outside the testing API, via the aliased
  * `navigation-testing-lock.disabled` module.
