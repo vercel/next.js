@@ -156,15 +156,11 @@ describe('fetchInternalImage', () => {
   })
 
   describe('when the requester goes away', () => {
-    // The internal request is shared by every client waiting on the same
-    // transform, so it must survive any single one of them disconnecting.
     it('completes even though the requesting socket is already closed', async () => {
       const size = 4 * 1024 * 1024
       const filePath = join(tmpdir(), `fetch-internal-image-disconnect.bin`)
       await fs.writeFile(filePath, Buffer.alloc(size, 1))
 
-      // `send` decides a response is done by watching the socket through
-      // `on-finished`; a disconnected client reports `writable: false`.
       const closedSocket = Object.assign(new EventEmitter(), {
         writable: false,
       })
@@ -197,8 +193,6 @@ describe('fetchInternalImage', () => {
       }
     })
 
-    // Safety net: whatever the reason, the promise has to settle, because
-    // `ResponseCache` only releases the coalesced cache key once it does.
     it('rejects rather than hanging when the response never finishes', async () => {
       jest.useFakeTimers()
 
@@ -211,7 +205,6 @@ describe('fetchInternalImage', () => {
             res.statusCode = 200
             res.getHeader = jest.fn(() => 'image/jpeg')
             res.write(Buffer.alloc(16))
-            // Deliberately never calls `res.end()`.
           }
         )
 

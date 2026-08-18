@@ -57,6 +57,7 @@ const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
+const INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS = 30_000
 
 let _sharp: typeof import('sharp').default
 
@@ -973,25 +974,6 @@ export async function fetchExternalImage(
   return { buffer, contentType, cacheControl, etag }
 }
 
-/**
- * How long to wait for the internal response to finish streaming before giving
- * up on it. This only ever fires when something has gone wrong: the response is
- * a local file read that is already bounded by `maximumResponseBody`.
- */
-const INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS = 30_000
-
-/**
- * `hasStreamed` settles on the mocked response's `finish`, `end` or `error`
- * event, and nothing guarantees that one of them ever fires — `send` can tear
- * the underlying file stream down without ending the response.
- *
- * That matters more than a single stuck request: `ResponseCache` coalesces
- * every request for a given transform onto one generator, and only releases the
- * key once that generator settles. A generator that never settles therefore
- * leaves its transform permanently unresponsive for every client, until the
- * process restarts. Bounding the wait keeps the key releasable and, just as
- * importantly, makes the failure show up in the logs.
- */
 async function waitForInternalResponse(
   hasStreamed: Promise<boolean>,
   href: string
@@ -1032,14 +1014,8 @@ export async function fetchInternalImage(
   ) => Promise<void>
 ): Promise<ImageUpstream> {
   try {
-    // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
-    // Deliberately not wired to `_req.socket`. This request is shared between
-    // every client waiting on the same transform, so it must not depend on any
-    // one of them staying connected: `send` watches `res.socket` through
-    // `on-finished`, and would destroy the shared stream as soon as the first
-    // requester hung up.
     const mocked = createRequestResponseMocks({
       url: href,
       method,
