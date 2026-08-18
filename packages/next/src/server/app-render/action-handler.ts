@@ -48,6 +48,12 @@ import {
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
+import {
+  ACTION_FORWARDED_HEADER,
+  ACTION_FORWARDED_VALUE,
+  getActionForwardingOrigin,
+  getForwardedHostValue,
+} from './action-forwarding'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
@@ -225,26 +231,9 @@ async function createForwardedActionResponse(
   // indicate that this action request was forwarded from another worker
   // we use this to skip rendering the flight tree so that we don't update the UI
   // with the response from the forwarded worker
-  forwardedHeaders.set('x-action-forwarded', '1')
+  forwardedHeaders.set(ACTION_FORWARDED_HEADER, ACTION_FORWARDED_VALUE)
 
-  // TODO: Remove __NEXT_PRIVATE_ORIGIN
-  let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
-  if (origin === undefined) {
-    const initUrl = getRequestMeta(req, 'initURL')
-    if (initUrl !== undefined) {
-      try {
-        const parsedUrl = new URL(initUrl)
-        origin = parsedUrl.origin
-      } catch (error) {
-        throw new Error(
-          'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
-          { cause: error }
-        )
-      }
-    } else {
-      throw new InvariantError('Missing initURL')
-    }
-  }
+  const origin = getActionForwardingOrigin(req)
 
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
@@ -285,9 +274,9 @@ async function createForwardedActionResponse(
       },
     })
 
-    if (
-      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
-    ) {
+    const responseContentType = response.headers.get('content-type')
+
+    if (responseContentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -309,6 +298,14 @@ async function createForwardedActionResponse(
       res.statusCode = 404
       return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
+
+    console.error(
+      `Failed to forward Server Action response: expected an RSC response but received status ${response.status}${
+        responseContentType
+          ? ` with content type \`${limitUntrustedHeaderValueForLogs(responseContentType)}\``
+          : ''
+      }.`
+    )
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)
@@ -397,25 +394,7 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    // TODO: Remove __NEXT_PRIVATE_ORIGIN
-    let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
-    if (origin === undefined) {
-      const initUrl = getRequestMeta(req, 'initURL')
-      if (initUrl !== undefined) {
-        try {
-          const parsedUrl = new URL(initUrl)
-
-          origin = parsedUrl.origin
-        } catch (error) {
-          throw new Error(
-            'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
-            { cause: error }
-          )
-        }
-      } else {
-        throw new InvariantError('Missing initURL')
-      }
-    }
+    const origin = getActionForwardingOrigin(req)
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
@@ -512,11 +491,7 @@ export function parseHostHeader(
   headers: IncomingHttpHeaders,
   originDomain?: string
 ) {
-  const forwardedHostHeader = headers['x-forwarded-host']
-  const forwardedHostHeaderValue =
-    forwardedHostHeader && Array.isArray(forwardedHostHeader)
-      ? forwardedHostHeader[0]
-      : forwardedHostHeader?.split(',')?.[0]?.trim()
+  const forwardedHostHeaderValue = getForwardedHostValue(headers)
   const hostHeader = headers['host']
 
   if (originDomain) {
@@ -754,7 +729,7 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  const actionWasForwarded = Boolean(req.headers[ACTION_FORWARDED_HEADER])
   // A fetch action targeting a fallback route has no concrete params with
   // which to resume the destination page.
   const isActionOnlyFallbackRequest =
