@@ -561,12 +561,11 @@ pub struct StreamingSstWriter<E: Entry> {
     // entries by key. Kept on the writer so a flush does not allocate.
     /// Concatenated key bytes of the block being sorted.
     key_order_bytes: Vec<u8>,
-    /// `(start, end)` into `key_order_bytes` for each entry of the block being sorted.
-    key_ranges: Vec<(u32, u32)>,
-    /// Block-relative entry positions, sorted by key.
-    key_order: Vec<u32>,
+    /// `(key_start, key_end, block_relative_index)` per entry, sorted by the key bytes the range
+    /// points at in `key_order_bytes`.
+    key_order: Vec<(u32, u32, u32)>,
     /// While applying the permutation: where each original entry currently lives.
-    current_pos: Vec<u32>,
+    slot_of: Vec<u32>,
     /// While applying the permutation: which original entry currently occupies each slot.
     occupant: Vec<u32>,
 
@@ -631,9 +630,8 @@ impl<E: Entry> StreamingSstWriter<E> {
             ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
             key_order_bytes: Vec::new(),
-            key_ranges: Vec::new(),
             key_order: Vec::new(),
-            current_pos: Vec::new(),
+            slot_of: Vec::new(),
             occupant: Vec::new(),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
@@ -912,84 +910,77 @@ impl<E: Entry> StreamingSstWriter<E> {
         Ok(())
     }
 
-    /// Reorders `pending_keys[start..end]` into key order, in place.
+    /// Reorders `pending_keys[start..end]` into key order.
     ///
     /// Only used for no-hash blocks, whose on-disk order is key order rather than the incoming
     /// `(hash, key)` order.
     ///
     /// This permutes only the *contents* of one block. Which block a key lands in is still decided
-    /// by hash, so the index block and every hash-range invariant are unaffected.
+    /// by hash, so the index block and every hash-range invariant are unaffected. The one ordering
+    /// dependency is the block's boundary hash, which [`Self::flush_key_block`] reads *before*
+    /// calling this.
     ///
-    /// Mutating `pending_keys` in place is safe because a flushed range is never read again — both
-    /// callers only ever go on to look at indices at or past `end`, and the range is drained soon
-    /// after. The one ordering dependency is the block's boundary hash, which
-    /// [`Self::flush_key_block`] reads *before* calling this.
-    ///
-    /// Key bytes are materialized once into `key_order_bytes` rather than compared through
-    /// [`Entry::write_key_to`], which is the trait's only key accessor and would otherwise
-    /// re-serialize each key on every comparison.
+    /// Keys are serialized once into a scratch buffer and sorted as `(range, index)` pairs, because
+    /// [`Entry::write_key_to`] is the trait's only key accessor and sorting the entries directly
+    /// would re-serialize each key on every comparison. A key block holds at most
+    /// `MAX_KEY_BLOCK_ENTRIES` entries and both scratch buffers are reused across flushes.
     fn sort_block_by_key(&mut self, start: usize, end: usize) {
-        // Serialize each key once into a flat scratch buffer, recording its range. Sorting the
-        // entries directly would otherwise call `write_key_to` on every comparison.
-        self.key_order_bytes.clear();
-        self.key_ranges.clear();
-        self.key_ranges.reserve(end - start);
-        for i in start..end {
-            let key_start = self.key_order_bytes.len();
-            self.pending_keys[i]
-                .entry
-                .write_key_to(&mut self.key_order_bytes);
-            let key_end = self.key_order_bytes.len();
-            debug_assert!(key_end <= u32::MAX as usize);
-            self.key_ranges.push((key_start as u32, key_end as u32));
-        }
-
-        // Sort block-relative positions by their key bytes. `sort_by` is stable, so equal keys keep
-        // their incoming relative order — that carries the key-value-tombstone-first /
-        // key-tombstone-last ranking readers depend on in MultiValue families.
         let Self {
             key_order_bytes,
-            key_ranges,
             key_order,
-            current_pos,
+            slot_of,
             occupant,
             pending_keys,
             ..
         } = self;
+
+        key_order_bytes.clear();
         key_order.clear();
-        key_order.extend(0..key_ranges.len() as u32);
-        key_order.sort_by(|&a, &b| {
-            let (a_start, a_end) = key_ranges[a as usize];
-            let (b_start, b_end) = key_ranges[b as usize];
-            key_order_bytes[a_start as usize..a_end as usize]
-                .cmp(&key_order_bytes[b_start as usize..b_end as usize])
+        key_order.reserve(end - start);
+        for (offset, pending) in pending_keys.range(start..end).enumerate() {
+            let key_start = key_order_bytes.len();
+            pending.entry.write_key_to(key_order_bytes);
+            let key_end = key_order_bytes.len();
+            debug_assert!(key_end <= u32::MAX as usize);
+            key_order.push((key_start as u32, key_end as u32, offset as u32));
+        }
+
+        // Stable, so equal keys keep their incoming relative order — that carries the
+        // key-value-tombstone-first / key-tombstone-last ranking readers depend on in MultiValue
+        // families.
+        key_order.sort_by_key(|&(key_start, key_end, _)| {
+            &key_order_bytes[key_start as usize..key_end as usize]
         });
 
-        // Apply the permutation to the entries by following its cycles, so each entry is moved at
-        // most once and nothing is cloned. `key_order[i]` is the *original* position of the entry
-        // that belongs at `i`, so applying it needs to track where entries have been moved to:
-        // `current_pos[o]` is where original entry `o` now lives, and `occupant[s]` is which
-        // original entry currently sits in slot `s`.
+        // Apply the permutation over a contiguous slice by following its cycles, so each entry is
+        // moved at most once and no placeholder value is needed for the generic `E`.
+        //
+        // `key_order[dst].2` is the *original* position of the entry that belongs at `dst`, so
+        // applying it requires tracking where entries have moved: `slot_of[o]` is where original
+        // entry `o` now lives, and `occupant[s]` is which original entry sits in slot `s`.
+        //
+        // The range may sit anywhere in the deque (`advance_boundary_to` flushes a prefix while
+        // entries are still queued behind it), so this must not push, insert, or drain — each of
+        // which would shift the untouched tail and, for a mid-deque range, cost O(len) per entry.
         let entries = &mut pending_keys.make_contiguous()[start..end];
         debug_assert_eq!(entries.len(), key_order.len());
 
-        current_pos.clear();
-        current_pos.extend(0..entries.len() as u32);
+        slot_of.clear();
+        slot_of.extend(0..entries.len() as u32);
         occupant.clear();
         occupant.extend(0..entries.len() as u32);
 
-        for (dst, &wanted) in key_order.iter().enumerate() {
-            let src = current_pos[wanted as usize] as usize;
+        for (dst, &(_, _, wanted)) in key_order.iter().enumerate() {
+            let src = slot_of[wanted as usize] as usize;
             if src == dst {
                 continue;
             }
             entries.swap(dst, src);
-            // Slot `dst` now holds `wanted`; whatever was in `dst` has moved to `src`.
             let displaced = occupant[dst];
             occupant[dst] = wanted;
             occupant[src] = displaced;
-            current_pos[wanted as usize] = dst as u32;
-            current_pos[displaced as usize] = src as u32;
+            slot_of[wanted as usize] = dst as u32;
+            slot_of[displaced as usize] = src as u32;
         }
     }
 
