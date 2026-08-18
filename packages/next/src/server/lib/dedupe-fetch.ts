@@ -2,7 +2,7 @@
  * Based on https://github.com/facebook/react/blob/d4e78c42a94be027b4dc7ed2659a5fddfbf9bd4e/packages/react/src/ReactFetch.js
  */
 import * as React from 'react'
-import { cloneResponse, cancelUnconsumedBodyOnAbort } from './clone-response'
+import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
@@ -39,7 +39,61 @@ type CacheEntry = [
   key: string,
   promise: Promise<Response>,
   response: Response | null,
+  cacheSignalAborted: boolean,
 ]
+
+const RESPONSE = 2
+const CACHE_SIGNAL_ABORTED = 3
+
+const entriesBySignal = new WeakMap<AbortSignal, CacheEntry[]>()
+
+function cancelRetainedResponse(entry: CacheEntry): void {
+  const body = entry[RESPONSE]?.body
+  if (body && !body.locked) {
+    body.cancel('Retained response is no longer needed').catch(() => {})
+  }
+}
+
+function registerForCleanup(
+  entry: CacheEntry,
+  signal: AbortSignal | null
+): void {
+  if (!signal) {
+    return
+  }
+
+  if (signal.aborted) {
+    entry[CACHE_SIGNAL_ABORTED] = true
+    return
+  }
+
+  const existing = entriesBySignal.get(signal)
+  if (existing) {
+    existing.push(entry)
+    return
+  }
+
+  const entries = [entry]
+  entriesBySignal.set(signal, entries)
+  signal.addEventListener(
+    'abort',
+    () => {
+      entriesBySignal.delete(signal)
+      for (const cacheEntry of entries) {
+        cacheEntry[CACHE_SIGNAL_ABORTED] = true
+        cancelRetainedResponse(cacheEntry)
+      }
+    },
+    { once: true }
+  )
+}
+
+function retainResponse(entry: CacheEntry, response: Response): void {
+  entry[RESPONSE] = response
+  if (entry[CACHE_SIGNAL_ABORTED]) {
+    cancelRetainedResponse(entry)
+  }
+}
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
   const getCacheEntries = React.cache(
@@ -91,30 +145,12 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       url = request.url
     }
 
-    // React aborts the current cache scope's signal when that scope settles —
-    // on success ("All cacheSignals are now aborted to allow clean up of any
-    // unused resources"), error, or explicit abort — which is exactly when the
-    // clone we retain below (entry[2]) is no longer needed. Releasing it then,
-    // rather than waiting for GC, keeps the off-heap `tee()` bytes from piling
-    // up under sustained load. This fires for fetches issued inside `"use
-    // cache"` (which run in their own cache scope, not a render) as well as
-    // render-level fetches. `cacheSignal()` is `null` outside an RSC cache
-    // scope, where the `FinalizationRegistry` in `cloneResponse` is the
-    // backstop. See https://github.com/vercel/next.js/issues/92287
-    //
-    // The React types model `cacheSignal()`'s result as an opaque `CacheSignal`,
-    // but at runtime it is the cache scope's `AbortSignal`.
-    const cacheSignal =
-      typeof React.cacheSignal === 'function'
-        ? (React.cacheSignal() as AbortSignal | null)
-        : null
-
     const cacheEntries = getCacheEntries(url)
     for (let i = 0, j = cacheEntries.length; i < j; i += 1) {
       const [key, promise] = cacheEntries[i]
       if (key === cacheKey) {
         return promise.then(() => {
-          const response = cacheEntries[i][2]
+          const response = cacheEntries[i][RESPONSE]
           if (!response) throw new InvariantError('No cached response')
 
           // We're cloning the response using this utility because there exists
@@ -122,10 +158,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
           // following pull request for more details:
           // https://github.com/vercel/next.js/pull/73274
           const [cloned1, cloned2] = cloneResponse(response)
-          cacheEntries[i][2] = cloned2
-          // cloned2 is retained here un-read for a later duplicate; release it
-          // when the cache scope settles instead of waiting for GC.
-          cancelUnconsumedBodyOnAbort(cacheSignal, cloned2.body)
+          retainResponse(cacheEntries[i], cloned2)
           return cloned1
         })
       }
@@ -134,8 +167,11 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     // We pass the original arguments here in case normalizing the Request
     // doesn't include all the options in this environment.
     const promise = originalFetch(resource, options)
-    const entry: CacheEntry = [cacheKey, promise, null]
+    // React aborts this signal when the cache scope settles, after which its
+    // retained response clones are no longer needed.
+    const entry: CacheEntry = [cacheKey, promise, null, false]
     cacheEntries.push(entry)
+    registerForCleanup(entry, React.cacheSignal() as AbortSignal | null)
 
     return promise.then((response) => {
       // We're cloning the response using this utility because there exists
@@ -143,10 +179,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       // following pull request for more details:
       // https://github.com/vercel/next.js/pull/73274
       const [cloned1, cloned2] = cloneResponse(response)
-      entry[2] = cloned2
-      // cloned2 is retained here un-read for a later duplicate; release it
-      // when the cache scope settles instead of waiting for GC.
-      cancelUnconsumedBodyOnAbort(cacheSignal, cloned2.body)
+      retainResponse(entry, cloned2)
       return cloned1
     })
   }

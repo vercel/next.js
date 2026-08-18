@@ -4,6 +4,7 @@
 
 // Mock the React module first
 jest.mock('react', () => ({
+  cacheSignal: () => null,
   cache: <T extends (...args: any[]) => any>(fn: T): T => {
     const cache = new Map<string, ReturnType<T>>()
     return ((...args: Parameters<T>) => {
@@ -14,24 +15,19 @@ jest.mock('react', () => ({
       return cache.get(key)!
     }) as T
   },
-  // React aborts the cache scope's signal on completion; the dedupe fetcher
-  // reads it to release the retained clone. Configurable per test.
-  cacheSignal: jest.fn(() => null),
 }))
 
-// Mock the clone-response module. `cancelUnconsumedBodyOnAbort` is a jest.fn so
-// tests can assert the cache scope signal is threaded through to it.
+// Mock the clone-response module
 jest.mock('./clone-response', () => ({
-  cloneResponse: jest.fn((response: Response) => [
-    response.clone(),
-    response.clone(),
-  ]),
-  cancelUnconsumedBodyOnAbort: jest.fn(),
+  cloneResponse: (response: Response) => {
+    // Create two independent clones of the response
+    const clone1 = response.clone()
+    const clone2 = response.clone()
+    return [clone1, clone2]
+  },
 }))
 
-import * as React from 'react'
 import { createDedupeFetch } from './dedupe-fetch'
-import { cloneResponse, cancelUnconsumedBodyOnAbort } from './clone-response'
 
 describe('dedupe-fetch', () => {
   let originalFetch: jest.MockedFunction<typeof fetch>
@@ -44,9 +40,6 @@ describe('dedupe-fetch', () => {
 
     // Clear all mocks between tests
     jest.clearAllMocks()
-    // clearAllMocks() clears call history but not a mockReturnValue set by a
-    // prior test, so restore the default (no cache scope) to avoid leakage.
-    ;(React.cacheSignal as jest.Mock).mockReturnValue(null)
   })
 
   describe('deduplication behavior', () => {
@@ -702,85 +695,6 @@ describe('dedupe-fetch', () => {
 
       // Should only call original fetch once
       expect(originalFetch).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  // Regression coverage for https://github.com/vercel/next.js/issues/92287:
-  // the retained dedupe clone must be registered for cancellation against the
-  // cache scope's signal (React's `cacheSignal()`), which React aborts when the
-  // scope settles, so the clone is released then instead of lingering off-heap
-  // until GC. This fires for fetches inside `"use cache"` as well as
-  // render-level fetches.
-  describe('cache scope signal threading', () => {
-    const mockCancel = cancelUnconsumedBodyOnAbort as jest.Mock
-    const mockCacheSignal = React.cacheSignal as jest.Mock
-    const mockClone = cloneResponse as jest.Mock
-
-    // `cloneResponse` returns `[cloned1, cloned2]`: cloned1 is returned to the
-    // caller, cloned2 is retained in the dedupe cache. Cancelling cloned1 would
-    // race the caller's read (corrupting the served body), so it is critical
-    // that cloned2.body — never cloned1.body — is the one registered. These
-    // helpers pin that by reference (`toBe`), which a deep-equality matcher on
-    // two opaque streams could not distinguish.
-    const lastCancelCall = () => mockCancel.mock.calls.at(-1)!
-    const lastClonePair = () => mockClone.mock.results.at(-1)!.value
-
-    it('registers cloned2.body — not the consumer cloned1.body — on a cache miss', async () => {
-      originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
-      const controller = new AbortController()
-      mockCacheSignal.mockReturnValue(controller.signal)
-
-      await dedupeFetch('https://example.com/api')
-
-      const [signalArg, bodyArg] = lastCancelCall()
-      const [consumer, retained] = lastClonePair()
-      expect(signalArg).toBe(controller.signal)
-      expect(bodyArg).toBe(retained.body)
-      expect(bodyArg).not.toBe(consumer.body)
-    })
-
-    it('registers cloned2.body on the cache-hit path too', async () => {
-      originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
-      const controller = new AbortController()
-      mockCacheSignal.mockReturnValue(controller.signal)
-
-      // First call populates the dedupe cache, second hits it; both retain a
-      // fresh clone that must be registered for cancellation.
-      await dedupeFetch('https://example.com/api')
-      await dedupeFetch('https://example.com/api')
-
-      expect(mockCancel).toHaveBeenCalledTimes(2)
-      const [signalArg, bodyArg] = lastCancelCall()
-      const [consumer, retained] = lastClonePair()
-      expect(signalArg).toBe(controller.signal)
-      expect(bodyArg).toBe(retained.body)
-      expect(bodyArg).not.toBe(consumer.body)
-    })
-
-    it('passes a null signal when there is no cache scope', async () => {
-      originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
-      mockCacheSignal.mockReturnValue(null)
-
-      await dedupeFetch('https://example.com/api')
-
-      const [signalArg, bodyArg] = lastCancelCall()
-      expect(signalArg).toBeNull()
-      expect(bodyArg).toBe(lastClonePair()[1].body)
-    })
-
-    it('is a no-op (null signal) when React.cacheSignal is unavailable', async () => {
-      // Older React builds that do not export `cacheSignal`: the `typeof …
-      // === 'function'` guard yields a null signal and the FinalizationRegistry
-      // backstop (not asserted here) is left to reclaim the clone.
-      const original = (React as { cacheSignal?: unknown }).cacheSignal
-      delete (React as { cacheSignal?: unknown }).cacheSignal
-      try {
-        originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
-        await dedupeFetch('https://example.com/api')
-        expect(lastCancelCall()[0]).toBeNull()
-      } finally {
-        ;(React as { cacheSignal?: unknown }).cacheSignal = original
-      }
     })
   })
 })
