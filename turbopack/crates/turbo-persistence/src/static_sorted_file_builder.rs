@@ -912,13 +912,18 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// dependency is the block's boundary hash, which [`Self::flush_key_block`] reads *before*
     /// calling this.
     fn sort_block_by_key(&mut self, start: usize, end: usize) {
-        // The range may sit anywhere in the deque — `advance_boundary_to` flushes a prefix while
-        // entries are still queued behind it — so this sorts a subslice in place rather than
-        // draining and reinserting, which would shift the untouched tail.
+        // Sort the block's entries where they sit. The range may be anywhere in the deque —
+        // `advance_boundary_to` flushes a prefix while entries are still queued behind it — so this
+        // must not drain and reinsert, which would shift the untouched tail.
+        //
+        // `make_contiguous` is a memmove of at most the queue's length and leaves the deque
+        // contiguous, so the following flushes in a batch find it already contiguous and pay
+        // nothing. Entries are only ever appended at the back and drained from the front, so the
+        // deque never becomes badly fragmented.
         let entries = &mut self.pending_keys.make_contiguous()[start..end];
         // Stable, so equal keys keep their incoming relative order — that carries the
         // key-value-tombstone-first / key-tombstone-last ranking readers depend on in MultiValue
-        // families. Keys are contiguous, so this compares them in place with no scratch buffer.
+        // families. Keys are contiguous, so comparisons read them in place with no scratch buffer.
         entries.sort_by(|a, b| a.entry.key_bytes().cmp(b.entry.key_bytes()));
     }
 
