@@ -1,4 +1,16 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
+import type { Page } from 'playwright'
+
+const browserOptions = {
+  beforePageLoad(page: Page) {
+    // Block all image requests to external hosts immediately so we are not introducing flakes due
+    // to long DNS timeouts
+    page.route(
+      /^https:\/\/(?:customresolver\.com|arbitraryurl\.com)\//,
+      (route) => route.abort()
+    )
+  },
+}
 
 describe('Custom Resolver Tests', () => {
   const { next } = nextTestSetup({
@@ -29,7 +41,7 @@ describe('Custom Resolver Tests', () => {
   describe('SSR Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/', { waitUntil: 'domcontentloaded' })
+      browser = await next.browser('/', browserOptions)
     })
     runTests(() => browser)
   })
@@ -37,9 +49,7 @@ describe('Custom Resolver Tests', () => {
   describe('Client-side Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/client-side', {
-        waitUntil: 'domcontentloaded',
-      })
+      browser = await next.browser('/client-side', browserOptions)
     })
     runTests(() => browser)
   })
