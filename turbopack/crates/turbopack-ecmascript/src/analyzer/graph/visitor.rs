@@ -2694,32 +2694,37 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.effects.extend(self.arena, take(&mut effects));
     }
 
+    fn visit_function_body<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast FunctionBody,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let mut effects = take(&mut self.effects);
+        let hoisted_effects = take(&mut self.hoisted_effects);
+
+        let (_, returns_unconditionally) = self.enter_block(LexicalContext::Block, |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
+        // By handling this logic here instead of in enter_fn, we naturally skip it
+        // for arrow functions with single expression bodies, since they just don't hit this
+        // path.
+        if !returns_unconditionally {
+            self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
+        }
+        self.effects
+            .extend(self.arena, take(&mut self.hoisted_effects));
+        effects.extend(self.arena, take(&mut self.effects));
+        self.hoisted_effects = hoisted_effects;
+        self.effects = effects;
+    }
+
     fn visit_block_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         match self.cur_lexical_context() {
-            LexicalContext::Function { .. } => {
-                let mut effects = take(&mut self.effects);
-                let hoisted_effects = take(&mut self.hoisted_effects);
-
-                let (_, returns_unconditionally) =
-                    self.enter_block(LexicalContext::Block, |this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
-                // By handling this logic here instead of in enter_fn, we naturally skip it
-                // for arrow functions with single expression bodies, since they just don't hit this
-                // path.
-                if !returns_unconditionally {
-                    self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
-                }
-                self.effects
-                    .extend(self.arena, take(&mut self.hoisted_effects));
-                effects.extend(self.arena, take(&mut self.effects));
-                self.hoisted_effects = hoisted_effects;
-                self.effects = effects;
-            }
+            LexicalContext::Function { .. } => unreachable!("function bodies use FunctionBody"),
             LexicalContext::ControlFlow { .. } => {
                 self.with_block(LexicalContext::Block, |this| {
                     n.visit_children_with_ast_path(this, ast_path)
