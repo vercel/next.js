@@ -127,6 +127,15 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>Complete shell</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/runtime-shell-complete">
+            Complete runtime shell
+          </LinkAccordion>
+        </li>
+      </ul>
     </main>
   )
 }
