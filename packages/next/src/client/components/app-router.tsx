@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useInsertionEffect,
   useDeferredValue,
+  Fragment,
 } from 'react'
 import {
   AppRouterContext,
@@ -199,7 +200,16 @@ function Head({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  return useDeferredValue(head, resolvedPrefetchRsc)
+  //
+  // Hoistable metadata (`<meta>`, `<link>`) is inserted into `document.head`
+  // outside the React tree. Swapping the RSC tree without remounting can leave
+  // the previous hoistables mounted alongside the new ones (e.g. both
+  // `og:type=website` from a layout/prefetch shell and `og:type=article` from
+  // the destination). Key by which value is currently shown so the prefetch →
+  // final transition fully releases the old tags. See GitHub #97472.
+  const deferredHead = useDeferredValue(head, resolvedPrefetchRsc)
+  const phase = deferredHead === head ? 'h' : 'p'
+  return <Fragment key={phase}>{deferredHead}</Fragment>
 }
 
 /**

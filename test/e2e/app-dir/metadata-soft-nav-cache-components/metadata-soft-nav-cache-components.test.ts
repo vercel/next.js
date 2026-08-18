@@ -55,6 +55,42 @@ describe('metadata-soft-nav-cache-components', () => {
     })
   })
 
+  // Regression for GitHub #97472: after soft nav to an already-prefetched
+  // route with dynamic metadata, hoistable <meta> tags from the prefetch /
+  // layout head must be released — not left mounted next to the destination's
+  // tags (e.g. both og:type=website and og:type=article).
+  it('replaces prefetched open graph tags instead of stacking them', async () => {
+    let page: Playwright.Page = null as any
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    await act(async () => {
+      await browser.elementByCss('input[data-link-accordion="/slow"]').click()
+    })
+
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/slow"]').click()
+      },
+      { includes: 'Slow content' }
+    )
+
+    await browser.waitForElementByCss('#slow-content')
+
+    await retry(async () => {
+      const ogTypes = await browser.eval(() =>
+        [...document.head.querySelectorAll('meta[property="og:type"]')].map(
+          (m) => (m as HTMLMetaElement).content
+        )
+      )
+      expect(ogTypes).toEqual(['article'])
+    })
+  })
+
   it('does not blank a complete static title when navigating to a prefetched route with a dynamic body', async () => {
     let page: Playwright.Page = null as any
     const browser = await next.browser('/', {

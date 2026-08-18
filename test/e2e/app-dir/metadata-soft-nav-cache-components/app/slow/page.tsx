@@ -6,7 +6,15 @@ import { Suspense } from 'react'
 // part of the prefetchable App Shell and must be fetched on navigation.
 export async function generateMetadata(): Promise<Metadata> {
   await connection()
-  return { title: 'Slow Page' }
+  return {
+    title: 'Slow Page',
+    openGraph: {
+      type: 'article',
+      title: 'Slow Page',
+      description: 'Dynamic article open graph',
+      url: '/slow',
+    },
+  }
 }
 
 async function DynamicContent() {

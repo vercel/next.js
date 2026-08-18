@@ -6,6 +6,14 @@ export const metadata = {
   // to this default (or retain the previous route's title) — it must never be
   // dropped to an empty string (which makes the browser tab show the URL).
   title: { default: 'Home Default', template: '%s | Site' },
+  metadataBase: new URL('https://example.com'),
+  openGraph: {
+    type: 'website',
+    siteName: 'Site',
+    title: 'Home Default',
+    description: 'Layout open graph defaults',
+    url: '/',
+  },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
