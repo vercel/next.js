@@ -168,7 +168,7 @@ $ pnpm unpack-next path/to/project
 
 ## Developing the Dev Overlay
 
-The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
+The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/next-devtools/README.md).
 
 ## `NODE_ENV` vs `__NEXT_DEV_SERVER`
 
