@@ -242,8 +242,16 @@ pub trait Entry {
     fn key_hash(&self) -> u64;
     /// Returns the length of the key
     fn key_len(&self) -> usize;
+    /// Returns the key's bytes.
+    ///
+    /// Keys are contiguous (see [`StoreKey`][crate::StoreKey]), so this hands them out directly.
+    /// [`StreamingSstWriter::sort_block_by_key`] relies on that to compare keys in place instead of
+    /// serializing each one first.
+    fn key_bytes(&self) -> &[u8];
     /// Writes the key to a buffer
-    fn write_key_to(&self, buf: &mut Vec<u8>);
+    fn write_key_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self.key_bytes());
+    }
 
     /// Returns the value
     fn value(&self) -> EntryValue<'_>;
@@ -256,8 +264,8 @@ impl<E: Entry> Entry for &E {
     fn key_len(&self) -> usize {
         (*self).key_len()
     }
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        (*self).write_key_to(buf)
+    fn key_bytes(&self) -> &[u8] {
+        (*self).key_bytes()
     }
     fn value(&self) -> EntryValue<'_> {
         (*self).value()
@@ -557,18 +565,6 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // Reusable scratch for [`Self::sort_block_by_key`], which reorders a no-hash key block's
-    // entries by key. Kept on the writer so a flush does not allocate.
-    /// Concatenated key bytes of the block being sorted.
-    key_order_bytes: Vec<u8>,
-    /// `(key_start, key_end, block_relative_index)` per entry, sorted by the key bytes the range
-    /// points at in `key_order_bytes`.
-    key_order: Vec<(u32, u32, u32)>,
-    /// While applying the permutation: where each original entry currently lives.
-    slot_of: Vec<u32>,
-    /// While applying the permutation: which original entry currently occupies each slot.
-    occupant: Vec<u32>,
-
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
     collected_fingerprints: Vec<u32>,
@@ -629,10 +625,6 @@ impl<E: Entry> StreamingSstWriter<E> {
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
-            key_order_bytes: Vec::new(),
-            key_order: Vec::new(),
-            slot_of: Vec::new(),
-            occupant: Vec::new(),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
@@ -919,69 +911,15 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// by hash, so the index block and every hash-range invariant are unaffected. The one ordering
     /// dependency is the block's boundary hash, which [`Self::flush_key_block`] reads *before*
     /// calling this.
-    ///
-    /// Keys are serialized once into a scratch buffer and sorted as `(range, index)` pairs, because
-    /// [`Entry::write_key_to`] is the trait's only key accessor and sorting the entries directly
-    /// would re-serialize each key on every comparison. A key block holds at most
-    /// `MAX_KEY_BLOCK_ENTRIES` entries and both scratch buffers are reused across flushes.
     fn sort_block_by_key(&mut self, start: usize, end: usize) {
-        let Self {
-            key_order_bytes,
-            key_order,
-            slot_of,
-            occupant,
-            pending_keys,
-            ..
-        } = self;
-
-        key_order_bytes.clear();
-        key_order.clear();
-        key_order.reserve(end - start);
-        for (offset, pending) in pending_keys.range(start..end).enumerate() {
-            let key_start = key_order_bytes.len();
-            pending.entry.write_key_to(key_order_bytes);
-            let key_end = key_order_bytes.len();
-            debug_assert!(key_end <= u32::MAX as usize);
-            key_order.push((key_start as u32, key_end as u32, offset as u32));
-        }
-
+        // The range may sit anywhere in the deque — `advance_boundary_to` flushes a prefix while
+        // entries are still queued behind it — so this sorts a subslice in place rather than
+        // draining and reinserting, which would shift the untouched tail.
+        let entries = &mut self.pending_keys.make_contiguous()[start..end];
         // Stable, so equal keys keep their incoming relative order — that carries the
         // key-value-tombstone-first / key-tombstone-last ranking readers depend on in MultiValue
-        // families.
-        key_order.sort_by_key(|&(key_start, key_end, _)| {
-            &key_order_bytes[key_start as usize..key_end as usize]
-        });
-
-        // Apply the permutation over a contiguous slice by following its cycles, so each entry is
-        // moved at most once and no placeholder value is needed for the generic `E`.
-        //
-        // `key_order[dst].2` is the *original* position of the entry that belongs at `dst`, so
-        // applying it requires tracking where entries have moved: `slot_of[o]` is where original
-        // entry `o` now lives, and `occupant[s]` is which original entry sits in slot `s`.
-        //
-        // The range may sit anywhere in the deque (`advance_boundary_to` flushes a prefix while
-        // entries are still queued behind it), so this must not push, insert, or drain — each of
-        // which would shift the untouched tail and, for a mid-deque range, cost O(len) per entry.
-        let entries = &mut pending_keys.make_contiguous()[start..end];
-        debug_assert_eq!(entries.len(), key_order.len());
-
-        slot_of.clear();
-        slot_of.extend(0..entries.len() as u32);
-        occupant.clear();
-        occupant.extend(0..entries.len() as u32);
-
-        for (dst, &(_, _, wanted)) in key_order.iter().enumerate() {
-            let src = slot_of[wanted as usize] as usize;
-            if src == dst {
-                continue;
-            }
-            entries.swap(dst, src);
-            let displaced = occupant[dst];
-            occupant[dst] = wanted;
-            occupant[src] = displaced;
-            slot_of[wanted as usize] = dst as u32;
-            slot_of[displaced as usize] = src as u32;
-        }
+        // families. Keys are contiguous, so this compares them in place with no scratch buffer.
+        entries.sort_by(|a, b| a.entry.key_bytes().cmp(b.entry.key_bytes()));
     }
 
     /// Flushes a single key block from `pending_keys[start..end]`.
@@ -1502,8 +1440,8 @@ mod tests {
             self.key.len()
         }
 
-        fn write_key_to(&self, buf: &mut Vec<u8>) {
-            buf.extend_from_slice(&self.key);
+        fn key_bytes(&self) -> &[u8] {
+            &self.key
         }
 
         fn value(&self) -> EntryValue<'_> {

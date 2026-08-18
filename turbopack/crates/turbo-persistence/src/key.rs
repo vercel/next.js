@@ -173,50 +173,48 @@ impl<T: QueryKey> QueryKey for &'_ T {
 }
 
 /// A trait for keys that can be stored in the database. They need to allow hashing and comparison.
+///
+/// A stored key must be **contiguous**: [`Self::as_slice`] hands out its bytes directly, which lets
+/// the SST writer sort a block by key without re-serializing each key on every comparison.
+/// Composite keys therefore have to be concatenated by the caller before being stored. That is no
+/// burden in practice — the production implementor wraps an owned buffer — and querying is
+/// unaffected, since [`QueryKey`] still supports non-contiguous keys such as tuples.
 pub trait StoreKey: KeyBase + Ord {
-    fn write_to(&self, buf: &mut Vec<u8>);
+    /// The key's bytes.
+    fn as_slice(&self) -> &[u8];
+
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self.as_slice());
+    }
 }
 
 impl<const N: usize> StoreKey for [u8; N] {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&self[..]);
+    fn as_slice(&self) -> &[u8] {
+        &self[..]
     }
 }
 
 impl StoreKey for Vec<u8> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl StoreKey for Box<[u8]> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl StoreKey for &'_ [u8] {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
-    }
-}
-
-impl StoreKey for u8 {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.push(*self);
-    }
-}
-
-impl<A: StoreKey, B: StoreKey> StoreKey for (A, B) {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        self.0.write_to(buf);
-        self.1.write_to(buf);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl<T: StoreKey> StoreKey for &'_ T {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        (*self).write_to(buf);
+    fn as_slice(&self) -> &[u8] {
+        (*self).as_slice()
     }
 }
 

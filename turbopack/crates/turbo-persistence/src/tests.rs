@@ -106,6 +106,18 @@ impl ParallelScheduler for RayonParallelScheduler {
     }
 }
 
+/// Builds the `(u8, [u8; 4])`-shaped key some tests use, as an owned contiguous key.
+///
+/// [`StoreKey`] is only implemented for contiguous keys, since the one production implementor
+/// (`WriteBuffer` in turbo-tasks-backend) wraps an owned buffer. Tests that want a composite key
+/// therefore concatenate it themselves rather than relying on a tuple impl.
+fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
+    let mut key = Vec::with_capacity(1 + suffix.len());
+    key.push(prefix);
+    key.extend_from_slice(&suffix);
+    key.into_boxed_slice()
+}
+
 #[test]
 fn full_cycle() -> Result<()> {
     let mut test_cases = Vec::new();
@@ -514,13 +526,9 @@ fn persist_changes() -> Result<()> {
     let path = tempdir.path();
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
-    fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
-        key: u8,
-        value: u8,
-    ) -> Result<()> {
+    fn put(b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
-            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+            b.put(0, tuple_key(key, i.to_be_bytes()), vec![value].into())?;
         }
         Ok(())
     }
@@ -646,13 +654,9 @@ fn partial_compaction() -> Result<()> {
     let path = tempdir.path();
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
-    fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
-        key: u8,
-        value: u8,
-    ) -> Result<()> {
+    fn put(b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
-            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+            b.put(0, tuple_key(key, i.to_be_bytes()), vec![value].into())?;
         }
         Ok(())
     }
@@ -747,14 +751,14 @@ fn merge_file_removal() -> Result<()> {
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
     fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
+        b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>,
         key: u8,
         value: u32,
     ) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
             b.put(
                 0,
-                (key, i.to_be_bytes()),
+                tuple_key(key, i.to_be_bytes()),
                 value.to_be_bytes().to_vec().into(),
             )?;
         }
