@@ -86,7 +86,11 @@ impl EcmascriptBrowserRuntimeChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            let supports_arrow_functions = *environment
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?;
+            code = minify(code, source_maps, mangle, supports_arrow_functions)?;
         }
 
         Ok(code.cell())

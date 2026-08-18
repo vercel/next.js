@@ -1,9 +1,49 @@
 import { nextTestSetup } from 'e2e-utils'
 import { execSync } from 'child_process'
+import { readFileSync, readdirSync } from 'fs'
+import { join } from 'path'
+import { parse } from 'acorn'
 
 const dependencies = {
+  acorn: '8.15.0',
   'es-check': '9.6.4',
   browserslist: '4.28.1',
+}
+
+function findJsFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name)
+
+    if (entry.isDirectory()) {
+      return findJsFiles(path)
+    }
+
+    return path.endsWith('.js') ? [path] : []
+  })
+}
+
+function hasArrowFunction(source: string): boolean {
+  let found = false
+
+  function visit(value: unknown) {
+    if (found || value === null || typeof value !== 'object') {
+      return
+    }
+
+    if (!Array.isArray(value) && 'type' in value) {
+      if (value.type === 'ArrowFunctionExpression') {
+        found = true
+        return
+      }
+    }
+
+    for (const child of Object.values(value)) {
+      visit(child)
+    }
+  }
+
+  visit(parse(source, { ecmaVersion: 'latest', sourceType: 'module' }))
+  return found
 }
 
 describe('escheck-output', () => {
@@ -95,6 +135,12 @@ describe('escheck-output', () => {
 
       console.log(esCheckOutput)
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+
+      const filesWithArrowFunctions = findJsFiles(
+        join(next.testDir, '.next/static')
+      ).filter((path) => hasArrowFunction(readFileSync(path, 'utf8')))
+
+      expect(filesWithArrowFunctions).toEqual([])
     })
   })
 })
