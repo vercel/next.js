@@ -154,7 +154,12 @@ describe('bfcache-regression', () => {
 
   if (isNextDev) {
     // Persistence only exists in dev.
-    it('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
+    // TODO: Remove this test together with the debug channel persistence.
+    // Documents are served with `no-store`, so a back navigation always
+    // re-fetches the page and never restores it from the HTTP cache. The
+    // persisted entries that this test prunes are therefore never read, and
+    // the recovery reload it asserts no longer happens.
+    it.skip('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
       // The debug channel for the initial document is buffered and persisted to
       // IndexedDB so it can be restored when the browser serves the page from
       // the HTTP cache (back-forward navigation). Persistence is bounded to a
