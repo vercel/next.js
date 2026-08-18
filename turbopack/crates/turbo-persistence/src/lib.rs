@@ -75,6 +75,9 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
         }
     }
 }
+/// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
+/// a copy of the value inline.
+pub use constants::MAX_INLINE_VALUE_SIZE;
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};

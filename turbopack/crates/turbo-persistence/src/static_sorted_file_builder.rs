@@ -15,9 +15,11 @@ use crate::{
     meta_file::MetaEntryFlags,
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH,
-        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH, DELETED_VALUE_REF_SIZE,
-        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, MEDIUM_VALUE_REF_SIZE,
+        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
+        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
+        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE, MEDIUM_VALUE_REF_SIZE,
         SMALL_VALUE_REF_SIZE,
     },
 };
@@ -65,6 +67,12 @@ const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
 /// fall back to variable-size layout.
 const MAX_FIXED_KEY_LEN: usize = u8::MAX as usize;
 
+/// Maximum value size that can use fixed-size key block layout.
+///
+/// Mixed-type fixed blocks store the value size in a single header byte, since it can no longer be
+/// derived from a single shared entry type.
+const MAX_FIXED_VAL_SIZE: usize = u8::MAX as usize;
+
 /// Newtype for the key block entry type byte.
 ///
 /// This encodes what kind of value reference an entry has (small, medium, blob, deleted, or
@@ -74,33 +82,46 @@ struct EntryType(u8);
 
 /// Tracks whether a key block's entries are uniform enough for fixed-size layout.
 ///
+/// Fixed layout needs a uniform *stride*, which requires a uniform key length and a uniform value
+/// size. A uniform value *type* is a stronger condition that additionally lets the type be hoisted
+/// into the block header; when types differ but sizes agree, the type is stored per entry instead
+/// (1 byte, still cheaper than the 4-byte offset table entry a variable block would need).
+///
 /// State transitions:
-/// - `Unknown` → first entry → `Fixed { key_len, value_type }`
-/// - `Fixed` + matching entry → stays `Fixed`
-/// - `Fixed` + mismatched key_len or value_type → `Variable`
+/// - `Unknown` → first entry → `Fixed`
+/// - `Fixed` + matching key_len and value type → stays `Fixed`
+/// - `Fixed` + matching key_len and value *size* → `Fixed` with `value_type: None`
+/// - `Fixed` + mismatched key_len or value size → `Variable`
 /// - `Variable` → stays `Variable`
 #[derive(Clone, Copy)]
 enum KeyBlockFormat {
     /// No entries yet — format undetermined.
     Unknown,
-    /// All entries so far have uniform key length and value type.
-    Fixed { key_len: u8, value_type: EntryType },
-    /// Entries have mixed key lengths or value types; must use offset table.
+    /// All entries so far have uniform key length and value size.
+    Fixed {
+        key_len: u8,
+        val_size: u8,
+        /// The shared entry type, or `None` if entries have differing types of the same size.
+        value_type: Option<EntryType>,
+    },
+    /// Entries have mixed key lengths or value sizes; must use offset table.
     Variable,
 }
 
 impl KeyBlockFormat {
     /// Updates the format after seeing an entry with the given key length and value type.
     ///
-    /// A `Fixed` state is only reachable when all entries have matching key length and value type,
+    /// A `Fixed` state is only reachable when all entries have matching key length and value size,
     /// and the key length fits in a u8 (required by the on-disk header).
     fn update(&mut self, key_len: usize, value_type: EntryType) {
+        let val_size = value_type_val_size(value_type);
         *self = match *self {
             KeyBlockFormat::Unknown => {
-                if key_len <= MAX_FIXED_KEY_LEN {
+                if key_len <= MAX_FIXED_KEY_LEN && val_size <= MAX_FIXED_VAL_SIZE {
                     KeyBlockFormat::Fixed {
                         key_len: key_len as u8,
-                        value_type,
+                        val_size: val_size as u8,
+                        value_type: Some(value_type),
                     }
                 } else {
                     KeyBlockFormat::Variable
@@ -108,10 +129,13 @@ impl KeyBlockFormat {
             }
             KeyBlockFormat::Fixed {
                 key_len: k,
+                val_size: s,
                 value_type: v,
-            } if k as usize == key_len && v == value_type => KeyBlockFormat::Fixed {
+            } if k as usize == key_len && s as usize == val_size => KeyBlockFormat::Fixed {
                 key_len: k,
-                value_type: v,
+                val_size: s,
+                // Collapse to `None` as soon as two entries disagree on type.
+                value_type: v.filter(|v| *v == value_type),
             },
             KeyBlockFormat::Fixed { .. } | KeyBlockFormat::Variable => KeyBlockFormat::Variable,
         };
@@ -250,7 +274,11 @@ pub enum EntryValue<'l> {
     /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
     /// Tombstone. The value was removed.
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone. Only the one carried value was removed; other values for the same key
+    /// survive. MultiValue families only. The value must be at most [`MAX_INLINE_VALUE_SIZE`]
+    /// bytes.
+    KeyValueDeleted { value: &'l [u8] },
 }
 
 #[derive(Debug, Clone)]
@@ -392,7 +420,13 @@ enum ValueRef {
     /// Large blob stored externally.
     Blob { blob_id: u32 },
     /// Tombstone.
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone: deletes only the carried value from the key's group. The value is
+    /// stored inline, exactly like [`ValueRef::Inline`].
+    KeyValueDeleted {
+        data: [u8; MAX_INLINE_VALUE_SIZE],
+        len: u8,
+    },
 }
 
 impl ValueRef {
@@ -403,7 +437,10 @@ impl ValueRef {
             ValueRef::Medium { .. } => KEY_BLOCK_ENTRY_TYPE_MEDIUM,
             ValueRef::Inline { len, .. } => KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + *len,
             ValueRef::Blob { .. } => KEY_BLOCK_ENTRY_TYPE_BLOB,
-            ValueRef::Deleted => KEY_BLOCK_ENTRY_TYPE_DELETED,
+            ValueRef::KeyDeleted => KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+            ValueRef::KeyValueDeleted { len, .. } => {
+                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + *len
+            }
         })
     }
 
@@ -437,7 +474,10 @@ impl ValueRef {
                 BE::write_u32(&mut scratch, *blob_id);
                 buffer.extend(scratch);
             }
-            ValueRef::Deleted => { /* no value bytes */ }
+            ValueRef::KeyDeleted => { /* no value bytes */ }
+            ValueRef::KeyValueDeleted { data, len } => {
+                buffer.extend(&data[..*len as usize]);
+            }
             ValueRef::PendingSmall { .. } => {
                 unreachable!("PendingSmall should have been resolved");
             }
@@ -703,7 +743,17 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::Deleted => ValueRef::Deleted,
+            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyValueDeleted { value } => {
+                // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
+                debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+                let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
+                data[..value.len()].copy_from_slice(value);
+                ValueRef::KeyValueDeleted {
+                    data,
+                    len: value.len() as u8,
+                }
+            }
         };
 
         self.push_pending_key_entry(entry, value_ref);
@@ -843,6 +893,7 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         if let KeyBlockFormat::Fixed {
             key_len: key_size,
+            val_size,
             value_type,
         } = info.format
         {
@@ -851,6 +902,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 entry_count as u32,
                 has_hash,
                 key_size,
+                val_size,
                 value_type,
             );
             for i in start..end {
@@ -1123,13 +1175,18 @@ impl<'l> KeyBlockBuilder<'l> {
 // ---------------------------------------------------------------------------
 
 /// The size of the fixed-size key block header (block type + entry count + key size + value type).
+/// Mixed-type blocks append one more byte for the value size.
 const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 
-/// Builder for a fixed-size key block where all entries share the same key size and value type.
+/// Builder for a fixed-size key block where all entries share the same key size and value size.
 ///
-/// No offset table is written — entry positions are computed arithmetically from the stride.
+/// No offset table is written — entry positions are computed arithmetically from the stride. When
+/// entries share a value size but not a value type, the header records
+/// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
 struct FixedKeyBlockBuilder<'l> {
     buffer: &'l mut Vec<u8>,
+    /// Whether each entry writes its own type byte (set for mixed-type blocks).
+    per_entry_type: bool,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
@@ -1138,11 +1195,12 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         entry_count: u32,
         has_hash: bool,
         key_size: u8,
-        value_type: EntryType,
+        val_size: u8,
+        value_type: Option<EntryType>,
     ) -> Self {
         let hash_len: usize = if has_hash { 8 } else { 0 };
-        let val_size = value_type_val_size(value_type);
-        let stride = hash_len + key_size as usize + val_size;
+        let per_entry_type = value_type.is_none();
+        let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
         buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
 
         let block_type = if has_hash {
@@ -1156,19 +1214,30 @@ impl<'l> FixedKeyBlockBuilder<'l> {
             (entry_count >> 8) as u8,
             entry_count as u8,
             key_size,
-            value_type.0,
+            value_type.map_or(FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, |ty| ty.0),
         ]);
+        // Mixed-type blocks cannot derive the value size from the header's type byte, so it is
+        // written explicitly.
+        if per_entry_type {
+            buffer.push(val_size);
+        }
 
-        Self { buffer }
+        Self {
+            buffer,
+            per_entry_type,
+        }
     }
 
-    /// Writes a single entry (hash + key + value data) to the block.
+    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef, has_hash: bool) {
         if has_hash {
             self.buffer
                 .extend_from_slice(&entry.key_hash().to_be_bytes());
         }
         entry.write_key_to(self.buffer);
+        if self.per_entry_type {
+            self.buffer.push(value_ref.entry_type().0);
+        }
         value_ref.write_value_to(self.buffer);
     }
 
@@ -1186,7 +1255,11 @@ fn value_type_val_size(ty: EntryType) -> usize {
         KEY_BLOCK_ENTRY_TYPE_SMALL => SMALL_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => MEDIUM_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_BLOB => BLOB_VALUE_REF_SIZE,
-        KEY_BLOCK_ENTRY_TYPE_DELETED => DELETED_VALUE_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => KEY_DELETED_REF_SIZE,
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            (ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize
         }
@@ -1260,7 +1333,8 @@ mod tests {
         /// Already-formatted block with `uncompressed_size = 0` (stored as-is).
         MediumRaw(Vec<u8>),
         Blob(u32),
-        Deleted,
+        KeyDeleted,
+        KeyValueDeleted(Vec<u8>),
     }
 
     impl TestEntry {
@@ -1292,7 +1366,7 @@ mod tests {
         }
 
         fn deleted(key: &[u8]) -> Self {
-            Self::new(key, TestValueKind::Deleted)
+            Self::new(key, TestValueKind::KeyDeleted)
         }
 
         fn medium_raw(key: &[u8], value: &[u8]) -> Self {
@@ -1335,7 +1409,8 @@ mod tests {
                     block: v,
                 },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
-                TestValueKind::Deleted => EntryValue::Deleted,
+                TestValueKind::KeyDeleted => EntryValue::KeyDeleted,
+                TestValueKind::KeyValueDeleted(v) => EntryValue::KeyValueDeleted { value: v },
             }
         }
     }
@@ -1409,8 +1484,22 @@ mod tests {
                 };
                 assert_eq!(*sequence_number, *expected_id);
             }
-            (TestValueKind::Deleted, SstLookupResult::Found(values))
-                if values.len() == 1 && matches!(values[0], LookupValue::Deleted) => {}
+            (TestValueKind::KeyDeleted, SstLookupResult::Found(values))
+                if values.len() == 1 && matches!(values[0], LookupValue::KeyDeleted) => {}
+            (TestValueKind::KeyValueDeleted(expected), SstLookupResult::Found(values))
+                if values.len() == 1
+                    && matches!(values[0], LookupValue::KeyValueDeleted { .. }) =>
+            {
+                let LookupValue::KeyValueDeleted { value } = &values[0] else {
+                    unreachable!()
+                };
+                assert_eq!(
+                    value.as_ref(),
+                    expected.as_slice(),
+                    "tombstone value mismatch for key {:?}",
+                    std::str::from_utf8(&entry.key)
+                );
+            }
             _ => {
                 panic!(
                     "Unexpected lookup result for key {:?}",
@@ -1710,7 +1799,7 @@ mod tests {
                                 std::str::from_utf8(&entry.key)
                             );
                         }
-                        (LookupValue::Deleted, LookupValue::Deleted) => {}
+                        (LookupValue::KeyDeleted, LookupValue::KeyDeleted) => {}
                         (
                             LookupValue::Blob {
                                 sequence_number: s1,
@@ -1764,6 +1853,108 @@ mod tests {
         assert!(
             meta.block_count >= 3,
             "expected at least 2 key blocks + 1 index block"
+        );
+
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    /// Reads the first key block of an SST, returning its raw (uncompressed) bytes.
+    ///
+    /// Block 0 is always a key block; the block offset table sits at the end of the file.
+    fn read_first_block(dir: &Path, seq: u32, block_count: u16) -> Result<Vec<u8>> {
+        let data = fs_err::read(dir.join(format!("{seq:08}.sst")))?;
+        let offsets_start = data.len() - block_count as usize * size_of::<u32>();
+        let end = BE::read_u32(&data[offsets_start..]) as usize;
+        let raw = &data[..end];
+        // Each block is prefixed by BLOCK_HEADER_SIZE bytes: 4B uncompressed size + 4B checksum.
+        // An uncompressed size of 0 means the block is stored as-is.
+        let uncompressed_size = BE::read_u32(raw) as usize;
+        let body = &raw[BLOCK_HEADER_SIZE..];
+        Ok(if uncompressed_size == 0 {
+            body.to_vec()
+        } else {
+            let mut out = vec![0u8; uncompressed_size];
+            lzzzz::lz4::decompress(body, &mut out)?;
+            out
+        })
+    }
+
+    /// A tombstone and a value of the same size keep the block in fixed layout.
+    ///
+    /// This is what makes tombstones cheap for uniform-key families like the task cache: without
+    /// the mixed-type layout, one tombstone would demote its whole block to the variable format
+    /// and add a 4-byte offset table entry for every entry in it.
+    #[test]
+    fn fixed_layout_survives_mixed_value_types_of_equal_size() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+
+        // Uniform 8-byte keys, uniform 4-byte values, but two different entry types.
+        let mut entries: Vec<TestEntry> = (0..64u64)
+            .map(|i| {
+                let key = format!("k-{i:06}");
+                if i % 4 == 0 {
+                    TestEntry::new(
+                        key.as_bytes(),
+                        TestValueKind::KeyValueDeleted(vec![0xAAu8; 4]),
+                    )
+                } else {
+                    TestEntry::inline(key.as_bytes(), &[0xBBu8; 4])
+                }
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let block = read_first_block(dir.path(), 1, meta.block_count)?;
+
+        assert!(
+            block[0] == BLOCK_TYPE_FIXED_KEY_WITH_HASH || block[0] == BLOCK_TYPE_FIXED_KEY_NO_HASH,
+            "mixed value types of equal size should stay in fixed layout, got block type {}",
+            block[0]
+        );
+        assert_eq!(
+            block[5], FIXED_KEY_BLOCK_MIXED_VALUE_TYPE,
+            "block should be marked mixed-type"
+        );
+        assert_eq!(block[6], 4, "value size should be recorded in the header");
+
+        // The layout is only useful if it still reads back correctly.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        Ok(())
+    }
+
+    /// Differing value *sizes* cannot share a stride, so the block must fall back to variable
+    /// layout rather than silently misreading entries.
+    #[test]
+    fn mixed_value_sizes_fall_back_to_variable_layout() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+
+        let mut entries: Vec<TestEntry> = (0..64u64)
+            .map(|i| {
+                let key = format!("k-{i:06}");
+                let len = if i % 4 == 0 { 2 } else { 4 };
+                TestEntry::inline(key.as_bytes(), &vec![0xCCu8; len])
+            })
+            .collect();
+        sort_entries(&mut entries);
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let block = read_first_block(dir.path(), 1, meta.block_count)?;
+        assert!(
+            block[0] == BLOCK_TYPE_KEY_WITH_HASH || block[0] == BLOCK_TYPE_KEY_NO_HASH,
+            "differing value sizes should use variable layout, got block type {}",
+            block[0]
         );
 
         let sst = open_sst(dir.path(), 1, &meta)?;

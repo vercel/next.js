@@ -26,6 +26,16 @@ export default function Page() {
           <LinkAccordion href="/test-dynamic/hello">Dynamic</LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/test-dynamic/world">
+            Dynamic (world)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-on-demand-revalidate">
+            On-demand revalidate
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/test-runtime-bailout">
             Runtime bailout
           </LinkAccordion>

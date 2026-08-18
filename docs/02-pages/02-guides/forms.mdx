@@ -96,7 +96,7 @@ export default function Page() {
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
-For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
+For more advanced server-side validation, you can use a schema validation library like [Zod](https://zod.dev/) or [Valibot](https://valibot.dev/) to validate the form fields before mutating the data:
 
 ```ts filename="pages/api/submit.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'

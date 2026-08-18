@@ -11,7 +11,10 @@ import { recursiveReadDir } from '../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import {
@@ -55,7 +58,6 @@ import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
-import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 interface SharedRouteFields {
@@ -194,6 +196,37 @@ type PrerenderClassification =
       compute?: never
       htmlSize?: never
     }
+
+// App paths sharing a pathname collapse into one Adapter output. Put the
+// canonical entry first because later paths only merge assets into that output.
+function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
+  const appPathsByPathname = new Map<string, string[]>()
+
+  for (const page of appPageKeys) {
+    const pathname = normalizeAppPath(page)
+    const appPaths = appPathsByPathname.get(pathname)
+
+    if (appPaths) {
+      appPaths.push(page)
+    } else {
+      appPathsByPathname.set(pathname, [page])
+    }
+  }
+
+  const orderedAppPageKeys: string[] = []
+  for (const [pathname, appPaths] of appPathsByPathname) {
+    const entryPage = selectAppPageEntry(pathname, appPaths)
+    orderedAppPageKeys.push(entryPage)
+
+    for (const appPath of appPaths) {
+      if (appPath !== entryPage) {
+        orderedAppPageKeys.push(appPath)
+      }
+    }
+  }
+
+  return orderedAppPageKeys
+}
 
 export interface AdapterOutput {
   /**
@@ -1093,7 +1126,7 @@ export async function handleBuildComplete({
       const appDistDir = path.join(distDir, 'server', 'app')
 
       if (appPageKeys) {
-        for (const page of appPageKeys) {
+        for (const page of orderAppPageKeysByEntry(appPageKeys)) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
             continue
           }
@@ -2065,7 +2098,7 @@ export async function handleBuildComplete({
     ]
 
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
+      const shouldLocalize = Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -2437,6 +2470,37 @@ async function getSharedNodeAssets({
       outputFileTracingRoot,
       sharedTraceIgnores
     )
+
+    // The require hook redirects shared-runtime imports from external packages
+    // to the Pages vendored contexts. Those contexts load module.compiled, whose
+    // runtime dependency is selected dynamically. Turbopack includes this via
+    // `Project::pages_traced_modules`; trace the Webpack runtime here.
+    const pagesRuntimePath = require.resolve(
+      'next/dist/compiled/next-server/pages.runtime.prod.js'
+    )
+    const pagesRuntimeTrace = await nodeFileTrace([pagesRuntimePath], {
+      base: outputFileTracingRoot,
+      ignore: sharedIgnoreFn,
+      moduleSyncCatchall: true,
+    })
+    pagesRuntimeTrace.esmFileList.forEach((item) =>
+      pagesRuntimeTrace.fileList.add(item)
+    )
+
+    for (const tracingRootRelativeFilePath of pagesRuntimeTrace.fileList) {
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
+      await pushAsset(
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
+        bundler,
+        salt
+      )
+    }
 
     // These are modules that are necessary for bootstrapping node env
     const necessaryNodeDependencies = [
