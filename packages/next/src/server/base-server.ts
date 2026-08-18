@@ -1611,15 +1611,26 @@ export default abstract class Server<
           parsedUrl.pathname = parsedMatchedPath.pathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
+        const pathnameNoBasePath = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath || ''
+        )
         const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
+          pathnameNoBasePath,
           this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
           addRequestMeta(req, 'locale', normalizeResult.detectedLocale)
         }
-        parsedUrl.pathname = normalizeResult.pathname
+        // The resolver already selected an App route using this literal
+        // pathname, so keep its locale segment for App Router param parsing.
+        if (getRequestMeta(req, 'didMatchLocalePrefixedPath')) {
+          parsedUrl.pathname = pathnameNoBasePath
+          removeRequestMeta(req, 'localeInferredFromDefault')
+        } else {
+          parsedUrl.pathname = normalizeResult.pathname
+        }
 
         for (const key of Object.keys(parsedUrl.query)) {
           delete parsedUrl.query[key]
