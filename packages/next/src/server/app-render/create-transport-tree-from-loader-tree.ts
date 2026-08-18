@@ -15,6 +15,7 @@ import {
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import type { ResolvedPartialPrefetching } from './prefetch-config'
 
 export type MissingPrefetchHintPolicy =
   | 'mark-stale'
@@ -61,7 +62,7 @@ export async function computeSegmentPrefetchHints(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  routePartialPrefetching: ResolvedPartialPrefetching,
   // Whether this segment is at or above the root layout (no layout was found
   // above it).
   isRootLayoutOrAbove: boolean
@@ -74,13 +75,15 @@ export async function computeSegmentPrefetchHints(
   // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
   const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
-  const prefetchConfig =
-    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
-    (partialPrefetching === 'unstable_eager'
-      ? 'unstable_eager'
-      : partialPrefetching
-        ? 'partial'
-        : undefined)
+
+  /**
+   * NOTE: Do not use for determining whether Partial Prefetching is on.
+   * we determine that via `routePartialPrefetching`.
+   * */
+  const segmentPrefetchConfig = mod
+    ? (mod as AppSegmentConfig).prefetch
+    : undefined
+
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -130,25 +133,36 @@ export async function computeSegmentPrefetchHints(
     prefetchHints |= PrefetchHint.SubtreeHasInstantFalse
   }
 
-  if (prefetchConfig === 'partial') {
-    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
-  } else if (prefetchConfig === 'unstable_eager') {
-    // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
-    // as eager, so App Shells keeps prefetching it instead of relying on the
-    // shared app shell.
-    prefetchHints |=
-      PrefetchHint.SubtreeHasPartialPrefetching |
-      PrefetchHint.SubtreeHasEagerPrefetch
-  } else if (prefetchConfig === 'force-disabled') {
-    prefetchHints |= PrefetchHint.PrefetchDisabled
+  switch (routePartialPrefetching) {
+    case false: {
+      // This route does not use partial prefetching.
+      // If we're not using App Shells, then all prefetches are speculative/eager.
+      prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
+      break
+    }
+    case true: {
+      // This route uses App Shells, either from `partialPrefetching: true` or `prefetch = "partial".
+      prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+      break
+    }
+    case 'unstable_eager': {
+      // This route uses App Shells + eager per-link prefetches, either from
+      // `partialPrefetching: 'unstable_eager'` or `prefetch = "unstable_eager".
+      // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
+      // as eager, so App Shells keeps prefetching it instead of relying on the
+      // shared app shell.
+      prefetchHints |=
+        PrefetchHint.SubtreeHasPartialPrefetching |
+        PrefetchHint.SubtreeHasEagerPrefetch
+      break
+    }
+    default: {
+      routePartialPrefetching satisfies never
+    }
   }
 
-  // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial'. 'unstable_eager' already set the bit above. Under App Shells,
-  // a subtree with no eager segment skips its Speculative prefetch and relies
-  // on the shared app shell instead.
-  if (prefetchConfig !== 'partial') {
-    prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
+  if (segmentPrefetchConfig === 'force-disabled') {
+    prefetchHints |= PrefetchHint.PrefetchDisabled
   }
 
   // Check if this segment has a loading boundary
@@ -176,7 +190,7 @@ async function createTransportTreeFromLoaderTreeImpl(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  routePartialPrefetching: ResolvedPartialPrefetching,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
   didFindRootLayout: boolean
@@ -190,7 +204,7 @@ async function createTransportTreeFromLoaderTreeImpl(
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
-    partialPrefetching,
+    routePartialPrefetching,
     !didFindRootLayout
   )
 
@@ -211,7 +225,7 @@ async function createTransportTreeFromLoaderTreeImpl(
       childHintNode,
       prefetchInliningEnabled,
       missingPrefetchHintPolicy,
-      partialPrefetching,
+      routePartialPrefetching,
       getDynamicParamFromSegment,
       searchParams,
       didFindRootLayout
@@ -254,7 +268,7 @@ export async function createTransportTreeFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  routePartialPrefetching: ResolvedPartialPrefetching,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
   // Whether a root layout was already found above this loader tree slice, so a
@@ -268,7 +282,7 @@ export async function createTransportTreeFromLoaderTree(
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
-    partialPrefetching,
+    routePartialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
     didFindRootLayout
@@ -285,7 +299,7 @@ export async function createFullTransportTreeFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  routePartialPrefetching: ResolvedPartialPrefetching,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any
 ): Promise<FullTransportNode> {
@@ -298,7 +312,7 @@ export async function createFullTransportTreeFromLoaderTree(
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
-    partialPrefetching,
+    routePartialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
     false
@@ -314,7 +328,7 @@ export async function createRouteTreePrefetch(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  routePartialPrefetching: ResolvedPartialPrefetching,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   // See note on createTransportTreeFromLoaderTree's didFindRootLayout.
   didFindRootLayout: boolean = false
@@ -329,7 +343,7 @@ export async function createRouteTreePrefetch(
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
-    partialPrefetching,
+    routePartialPrefetching,
     getDynamicParamFromSegment,
     searchParams,
     didFindRootLayout
