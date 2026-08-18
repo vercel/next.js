@@ -10,7 +10,7 @@ export default async function Page() {
   return (
     <>
       <p id="submitted">{submitted}</p>
-      <form id="mpa-form" action={recordSubmission}>
+      <form id="action-form" action={recordSubmission}>
         <button type="submit">Submit</button>
       </form>
     </>

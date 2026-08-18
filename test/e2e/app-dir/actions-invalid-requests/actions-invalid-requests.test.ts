@@ -131,9 +131,43 @@ describe('server actions - invalid requests', () => {
 
         if (!isNextDeploy) {
           expect(getLogs()).not.toContain('⨯ SyntaxError')
+          expect(getLogs()).toContain(
+            'Failed to decode a Server Action request'
+          )
         }
       }
     )
+
+    // The decoder quotes the offending input in its message, so the log line
+    // carries bytes from the request body. They have to be escaped, or a
+    // crafted body can forge log lines.
+    it('should not let a crafted body forge a log line', async () => {
+      const actionId = await getValidActionId()
+      const forged = '\n  ⨯ Error: forged by the request body\n'
+      const res = await next.fetch('/', {
+        method: 'POST',
+        headers: {
+          accept: 'text/x-component',
+          'content-type': 'text/plain;charset=UTF-8',
+          'next-action': actionId,
+          origin: next.url,
+        },
+        body: forged + '[',
+      })
+
+      expect(res.status).toBe(400)
+
+      if (!isNextDeploy) {
+        const logs = getLogs()
+        expect(logs).toContain('Failed to decode a Server Action request')
+        // The decoder echoes the start of the body, so an unescaped message
+        // would break here and leave a line of the attacker's choosing. The
+        // escaped form keeps those bytes on the warning's own line.
+        expect(
+          logs.split('\n').some((line) => line.startsWith('  ⨯ Error'))
+        ).toBe(false)
+      }
+    })
 
     it('should 400 rather than 500 for a fetch action with an unparseable multipart body', async () => {
       const actionId = await getValidActionId()
@@ -176,33 +210,35 @@ describe('server actions - invalid requests', () => {
   })
 
   describe('regressions', () => {
-    it('should still execute a genuine MPA form submission', async () => {
-      const browser = await next.browser('/', { disableJavaScript: true })
+    // The same form drives both cases: without JS the browser posts it as an
+    // MPA action, with JS React submits it as a fetch action.
+    const submitForm = async (
+      browser: Awaited<ReturnType<typeof next.browser>>
+    ) => {
       expect(await browser.elementByCss('#submitted').text()).toBe('no')
 
-      await browser.elementByCss('form#mpa-form button[type="submit"]').click()
+      await browser
+        .elementByCss('form#action-form button[type="submit"]')
+        .click()
 
       // The action sets a cookie that the page reads back on re-render.
       await retry(async () => {
         expect(await browser.elementByCss('#submitted').text()).toBe('yes')
       })
 
+      // Neither rejection path should have been taken.
       expect(getLogs()).not.toContain('Failed to find Server Action')
-      expect(getLogs()).not.toContain('Bad Request')
+      expect(getLogs()).not.toContain(
+        'Failed to decode a Server Action request'
+      )
+    }
+
+    it('should still execute a genuine MPA form submission', async () => {
+      await submitForm(await next.browser('/', { disableJavaScript: true }))
     })
 
     it('should still execute a genuine fetch action', async () => {
-      const browser = await next.browser('/')
-      expect(await browser.elementByCss('#submitted').text()).toBe('no')
-
-      await browser.elementByCss('form#mpa-form button[type="submit"]').click()
-
-      await retry(async () => {
-        expect(await browser.elementByCss('#submitted').text()).toBe('yes')
-      })
-
-      expect(getLogs()).not.toContain('Failed to find Server Action')
-      expect(getLogs()).not.toContain('Bad Request')
+      await submitForm(await next.browser('/'))
     })
   })
 })

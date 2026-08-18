@@ -503,7 +503,7 @@ type Host =
 /**
  * Ensures the value of the header can't create long logs.
  */
-function limitUntrustedHeaderValueForLogs(value: string) {
+function limitUntrustedValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
@@ -636,7 +636,7 @@ export async function handleAction({
    */
   const handleMalformedActionRequest = (err: unknown): HandleActionResult => {
     // Malformed payloads are common in the wild, so this is a warning, not an error.
-    console.warn(err)
+    console.warn(describeDecodeFailureForLogs(err))
 
     res.setHeader('content-type', 'text/plain')
     res.statusCode = 400
@@ -700,7 +700,7 @@ export async function handleAction({
         // this is malformed client input, so we reject it as a bad request.
         return handleMalformedActionRequest(
           new Error(
-            `Invalid \`origin\` header from a forwarded Server Actions request: ${limitUntrustedHeaderValueForLogs(
+            `Invalid \`origin\` header from a forwarded Server Actions request: ${limitUntrustedValueForLogs(
               originHeader
             )}.`
           )
@@ -736,11 +736,9 @@ export async function handleAction({
       if (host) {
         // This seems to be an CSRF attack. We should not proceed the action.
         console.error(
-          `\`${
-            host.type
-          }\` header with value \`${limitUntrustedHeaderValueForLogs(
+          `\`${host.type}\` header with value \`${limitUntrustedValueForLogs(
             host.value
-          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+          )}\` does not match \`origin\` header with value \`${limitUntrustedValueForLogs(
             originHost
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
@@ -921,7 +919,6 @@ export async function handleAction({
                   { temporaryReferences }
                 )
               } catch (err) {
-                if (isBodySizeLimitError(err)) throw err
                 return handleMalformedActionRequest(err)
               }
             } else {
@@ -1018,7 +1015,6 @@ export async function handleAction({
                 { temporaryReferences }
               )
             } catch (err) {
-              if (isBodySizeLimitError(err)) throw err
               return handleMalformedActionRequest(err)
             }
           }
@@ -1105,8 +1101,8 @@ export async function handleAction({
                 ])
               } catch (err) {
                 abortController.abort()
-                // A body size violation has its own status code (413) and is
-                // handled below; anything else is an unparseable payload.
+                // The size limit runs concurrently with decoding here, so a
+                // body size violation can surface as this rejection.
                 if (isBodySizeLimitError(err)) throw err
                 return handleMalformedActionRequest(err)
               }
@@ -1226,7 +1222,6 @@ export async function handleAction({
                 { temporaryReferences }
               )
             } catch (err) {
-              if (isBodySizeLimitError(err)) throw err
               return handleMalformedActionRequest(err)
             }
           }
@@ -1545,12 +1540,32 @@ function getActionModIdOrError(
 }
 
 /**
- * Body size limit violations are surfaced as `ApiError`s carrying their own
- * status code, so they must not be reported as malformed input.
+ * Body size limit violations are surfaced as `ApiError`s. They currently end up
+ * as a 500 (see the TODO on the catch-all handler about responding with a 413
+ * instead), and reclassifying them as malformed input would be a separate
+ * behavior change, so they are rethrown rather than answered with a 400.
  */
 function isBodySizeLimitError(err: unknown): boolean {
   const { ApiError } = require('../api-utils') as typeof import('../api-utils')
-  return err instanceof ApiError
+  return err instanceof ApiError && err.statusCode === 413
+}
+
+/**
+ * Renders a decoder failure as a single log line. The Flight decoder quotes the
+ * offending input in its message (as does `JSON.parse`), so the message
+ * contains bytes taken straight from the request body. `JSON.stringify` escapes
+ * newlines and other control characters so that a crafted body can't forge log
+ * lines or emit terminal escape sequences, and the length cap keeps a flood of
+ * scanner traffic from filling the log. The stack is dropped because it only
+ * ever points into the decoder.
+ */
+function describeDecodeFailureForLogs(err: unknown): string {
+  const description =
+    err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+
+  return `Failed to decode a Server Action request: ${JSON.stringify(
+    limitUntrustedValueForLogs(description)
+  )}`
 }
 
 const $ACTION_ = '$ACTION_'
