@@ -2,10 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { execSync } from 'child_process'
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
-import { parse } from 'acorn'
+import ts from 'typescript'
 
 const dependencies = {
-  acorn: '8.15.0',
   'es-check': '9.6.4',
   browserslist: '4.28.1',
 }
@@ -23,26 +22,29 @@ function findJsFiles(directory: string): string[] {
 }
 
 function hasArrowFunction(source: string): boolean {
+  const sourceFile = ts.createSourceFile(
+    'output.js',
+    source,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.JS
+  )
   let found = false
 
-  function visit(value: unknown) {
-    if (found || value === null || typeof value !== 'object') {
+  function visit(node: ts.Node) {
+    if (found) {
       return
     }
 
-    if (!Array.isArray(value) && 'type' in value) {
-      if (value.type === 'ArrowFunctionExpression') {
-        found = true
-        return
-      }
+    if (ts.isArrowFunction(node)) {
+      found = true
+      return
     }
 
-    for (const child of Object.values(value)) {
-      visit(child)
-    }
+    ts.forEachChild(node, visit)
   }
 
-  visit(parse(source, { ecmaVersion: 'latest', sourceType: 'module' }))
+  visit(sourceFile)
   return found
 }
 
