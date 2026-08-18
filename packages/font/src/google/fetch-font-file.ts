@@ -11,6 +11,14 @@ export async function fetchFontFile(url: string, isDev: boolean) {
     if (url.startsWith('/')) {
       return fs.readFileSync(url)
     }
+    // `null` in the mock map means "this file fetch failed", matching how
+    // stylesheet mocks already encode a failed CSS request.
+    const mocked = require(process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) as
+      | Record<string, unknown>
+      | undefined
+    if (mocked && mocked[url] === null) {
+      throw new Error(`Failed to fetch font file from \`${url}\` (HTTP 404)`)
+    }
     return Buffer.from(url)
   }
 

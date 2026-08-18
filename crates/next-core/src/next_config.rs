@@ -2854,7 +2854,7 @@ impl NextConfig {
         Ok(FetchClientConfig {
             connect_timeout,
             timeout,
-            max_retries: 1,
+            max_retries: 3,
             ..Default::default()
         }
         .cell())
