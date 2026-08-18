@@ -1321,6 +1321,7 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileS
 struct MissingNextFolderIssue {
     path: FileSystemPath,
     root: FileSystemPath,
+    external_next_symlink: Option<RcStr>,
 }
 
 #[async_trait]
@@ -1357,7 +1358,7 @@ impl Issue for MissingNextFolderIssue {
             _ => rcstr!("{unknown}"),
         };
 
-        Ok(Some(StyledString::Stack(vec![
+        let mut lines = vec![
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Resolved from: ")),
                 StyledString::Strong(context_path),
@@ -1368,6 +1369,26 @@ impl Issue for MissingNextFolderIssue {
             ]),
             StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
             StyledString::Line(vec![StyledString::Text(rcstr!("Possible causes:"))]),
+        ];
+
+        if let Some(target) = &self.external_next_symlink {
+            lines.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "  - node_modules/next resolves outside the Turbopack root: "
+                )),
+                StyledString::Strong(target.clone()),
+            ]));
+            lines.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!("    Configure ")),
+                StyledString::Code(rcstr!("turbopack.root")),
+                StyledString::Text(rcstr!(
+                    " to include both the project and that external store, or disable pnpm's \
+                     global virtual store for this project."
+                )),
+            ]));
+        }
+
+        lines.extend([
             StyledString::Line(vec![StyledString::Text(rcstr!(
                 "  - node_modules is being reorganized by a concurrent install (e.g. pnpm adding \
                  a package with a `next` peer dependency). This is transient and should clear \
@@ -1397,7 +1418,9 @@ impl Issue for MissingNextFolderIssue {
                 "Note: To ensure a hermetic build and a portable cache, files outside of the \
                  workspace root are not compiled."
             ))]),
-        ])))
+        ]);
+
+        Ok(Some(StyledString::Stack(lines)))
     }
 
     fn documentation_link(&self) -> RcStr {
@@ -1421,14 +1444,52 @@ pub async fn try_get_next_package(
     if let Some(source) = result.await?.first_source() {
         Ok(Vc::cell(Some(source.ident().await?.path.parent())))
     } else {
+        let external_next_symlink =
+            external_next_symlink_target(context_directory.clone(), root.clone()).await?;
         MissingNextFolderIssue {
             path: context_directory,
             root,
+            external_next_symlink,
         }
         .resolved_cell()
         .emit();
         Ok(Vc::cell(None))
     }
+}
+
+async fn external_next_symlink_target(
+    context_directory: FileSystemPath,
+    root: FileSystemPath,
+) -> Result<Option<RcStr>> {
+    let Some(root_sys_path) = to_sys_path(root.clone()).await? else {
+        return Ok(None);
+    };
+    let root_sys_path = std::fs::canonicalize(&root_sys_path).unwrap_or(root_sys_path);
+
+    let mut lookup_path = context_directory;
+    let mut lookup_path_value = lookup_path.clone();
+    while lookup_path_value.is_inside_ref(&root) {
+        let candidate = lookup_path.join("node_modules/next")?;
+        if let Some(candidate_sys_path) = to_sys_path(candidate).await?
+            && let Ok(metadata) = std::fs::symlink_metadata(&candidate_sys_path)
+            && metadata.file_type().is_symlink()
+            && let Ok(target) = std::fs::canonicalize(&candidate_sys_path)
+            && !target.starts_with(&root_sys_path)
+        {
+            return Ok(Some(
+                target.to_str().unwrap_or("{unknown external path}").into(),
+            ));
+        }
+
+        lookup_path = lookup_path.parent();
+        let new_lookup_path_value = lookup_path.clone();
+        if new_lookup_path_value == lookup_path_value {
+            break;
+        }
+        lookup_path_value = new_lookup_path_value;
+    }
+
+    Ok(None)
 }
 
 pub async fn insert_alias_option<const N: usize>(
