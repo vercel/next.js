@@ -5,7 +5,11 @@ import type { RenderOpts } from '../app-render/types'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
-import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
+import {
+  FLIGHT_HEADERS,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+} from '../../client/components/app-router-headers'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -21,18 +25,48 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
-import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
-function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
-  const cleaned = HeadersAdapter.from(headers)
-  for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header)
-  }
+/**
+ * Internal request headers that userland `headers()` must not expose. They stay
+ * on the shared request headers for framework plumbing.
+ *
+ * Every internal header that the client can send must be listed here. The
+ * sealed userland view reads through to the shared request headers, so an
+ * omission leaks the header to userland.
+ *
+ * The names are lowercased because `HeadersAdapter.seal` matches them in
+ * lowercase.
+ */
+const HIDDEN_REQUEST_HEADERS: ReadonlySet<string> = new Set(
+  [
+    ...FLIGHT_HEADERS,
+    // The client sends these dev-only request IDs so the server can route debug
+    // information back to the originating request. Like the flight headers,
+    // they are internal plumbing.
+    NEXT_REQUEST_ID_HEADER,
+    NEXT_HTML_REQUEST_ID_HEADER,
+  ].map((header) => header.toLowerCase())
+)
 
-  return HeadersAdapter.seal(cleaned)
+function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
+  // The sealed userland view must not copy the request headers.
+  // `HeadersAdapter.from` returns a `Headers` instance unchanged, so the view
+  // reads through to `NextRequest.headers`. A copy detaches `headers()` from
+  // the writes that Proxy makes to `NextRequest.headers` afterwards.
+  //
+  // The view must also not delete the internal headers. Because
+  // `HeadersAdapter.from` does not copy, a delete removes them from the shared
+  // `req.headers`. The dev server reads the request-id headers from the raw
+  // request again, for example when it renders a redirect target after a server
+  // action. Their removal breaks the dev debug channel routing.
+  return HeadersAdapter.seal(
+    HeadersAdapter.from(headers),
+    HIDDEN_REQUEST_HEADERS
+  )
 }
 
 function getMutableCookies(
@@ -77,19 +111,62 @@ type RequestResponsePair =
   | { req: NextRequest; res: undefined } // in an api route or middleware
 
 /**
+ * The fields the request store actually reads from `req` / `res`. Decoupling
+ * the store's construction from `IncomingMessage` / `BaseNextRequest` /
+ * `NextRequest` lets it be built without a real `req`/`res` (e.g. by the `'use
+ * cache'` deadlock probe worker, which only has a serializable snapshot of the
+ * outer request).
+ */
+export type RequestStoreInputs = {
+  phase: RequestStore['phase']
+  /**
+   * Raw headers, either as a Web `Headers` instance or Node's
+   * `IncomingHttpHeaders`.
+   */
+  headers: Headers | IncomingHttpHeaders
+  /**
+   * Called whenever userspace mutates cookies (via `cookies().set(...)` etc.).
+   * Real renders wire this to `res.setHeader('Set-Cookie', cookies)`. Pass
+   * `undefined` for callers without a response (e.g. probe workers). Cookie
+   * writes during `'render'` are still gated by
+   * `MutableRequestCookiesAdapter`'s phase guard, so leaving this off doesn't
+   * silently accept writes that would otherwise be rejected.
+   */
+  onUpdateCookies: ((cookies: string[]) => void) | undefined
+  url: { pathname: string; search?: string }
+  rootParams: Params
+  implicitTags: ImplicitTags
+  resumeDataCache: ResumeDataCache | null
+  previewProps: WrapperRenderOpts['previewProps']
+  isHmrRefresh: boolean | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  /**
+   * The hash of the most recent server component change (dev only). Included in
+   * `"use cache"` cache keys so that cached entries are revalidated after an
+   * edit, for every client, regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash: string | undefined
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined
+}
+
+/**
  * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
  * then merge those into the existing cookie object, so that when `cookies()` is accessed
  * it's able to read the newly set cookies.
  */
 function mergeMiddlewareCookies(
-  req: RequestContext['req'],
+  headers: Headers | IncomingHttpHeaders,
   existingCookies: RequestCookies | ResponseCookies
 ) {
+  // TODO: this only fires for `IncomingHttpHeaders`; `Headers` instances
+  // silently fall through (the `in` check and bracket access don't reach header
+  // values stored in internal slots). Confirm whether edge / Web `Headers`
+  // callers need this merge or already handle it elsewhere.
   if (
-    'x-middleware-set-cookie' in req.headers &&
-    typeof req.headers['x-middleware-set-cookie'] === 'string'
+    'x-middleware-set-cookie' in headers &&
+    typeof headers['x-middleware-set-cookie'] === 'string'
   ) {
-    const setCookieValue = req.headers['x-middleware-set-cookie']
+    const setCookieValue = headers['x-middleware-set-cookie']
     const responseHeaders = new Headers()
 
     for (const cookie of splitCookiesString(setCookieValue)) {
@@ -115,24 +192,31 @@ export function createRequestStoreForRender(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | null,
-  devFallbackParams: OpaqueFallbackRouteParams | null
+  resumeDataCache: ResumeDataCache | null,
+  fallbackParams: OpaqueFallbackRouteParams | null,
+  hmrRefreshHash: string | undefined
 ): RequestStore {
-  return createRequestStoreImpl(
+  return createRequestStore({
     // Pages start in render phase by default
-    'render',
-    req,
-    res,
+    phase: 'render',
+    headers: req.headers,
+    onUpdateCookies:
+      onUpdateCookies ??
+      (res
+        ? (cookies: string[]) => {
+            res.setHeader('Set-Cookie', cookies)
+          }
+        : undefined),
     url,
     rootParams,
     implicitTags,
-    onUpdateCookies,
-    renderResumeDataCache,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
-    devFallbackParams
-  )
+    hmrRefreshHash,
+    fallbackParams,
+  })
 }
 
 export function createRequestStoreForAPI(
@@ -140,44 +224,48 @@ export function createRequestStoreForAPI(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  previewProps: WrapperRenderOpts['previewProps']
+  previewProps: WrapperRenderOpts['previewProps'],
+  hmrRefreshHash: string | undefined
 ): RequestStore {
-  return createRequestStoreImpl(
+  return createRequestStore({
     // API routes start in action phase by default
-    'action',
-    req,
-    undefined,
-    url,
-    {},
-    implicitTags,
+    phase: 'action',
+    headers: req.headers,
     onUpdateCookies,
-    null,
+    url,
+    rootParams: {},
+    implicitTags,
+    resumeDataCache: null,
     previewProps,
-    false,
-    undefined,
-    null
-  )
+    isHmrRefresh: false,
+    serverComponentsHmrCache: undefined,
+    hmrRefreshHash,
+    fallbackParams: null,
+  })
 }
 
-function createRequestStoreImpl(
-  phase: RequestStore['phase'],
-  req: RequestContext['req'],
-  res: RequestContext['res'],
-  url: RequestContext['url'],
-  rootParams: Params,
-  implicitTags: RequestContext['implicitTags'],
-  onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | null,
-  previewProps: WrapperRenderOpts['previewProps'],
-  isHmrRefresh: RequestContext['isHmrRefresh'],
-  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  devFallbackParams: OpaqueFallbackRouteParams | null | undefined
-): RequestStore {
-  function defaultOnUpdateCookies(cookies: string[]) {
-    if (res) {
-      res.setHeader('Set-Cookie', cookies)
-    }
-  }
+/**
+ * Build a `RequestStore` from a serializable, request-shaped input. Used
+ * directly by the existing `createRequestStoreForRender` /
+ * `createRequestStoreForAPI` wrappers, and by side-process consumers like the
+ * `'use cache'` deadlock probe worker that don't have a real `req`/`res` pair
+ * but do have a forwarded snapshot of the outer request's headers etc.
+ */
+export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
+  const {
+    phase,
+    headers,
+    onUpdateCookies,
+    url,
+    rootParams,
+    implicitTags,
+    resumeDataCache,
+    previewProps,
+    isHmrRefresh,
+    serverComponentsHmrCache,
+    hmrRefreshHash,
+    fallbackParams,
+  } = inputs
 
   const cache: {
     headers?: ReadonlyHeaders
@@ -200,7 +288,7 @@ function createRequestStoreImpl(
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could
         // mutate the underlying data.
-        cache.headers = getHeaders(req.headers)
+        cache.headers = getHeaders(headers)
       }
 
       return cache.headers
@@ -209,11 +297,9 @@ function createRequestStoreImpl(
       if (!cache.cookies) {
         // if middleware is setting cookie(s), then include those in
         // the initial cached cookies so they can be read in render
-        const requestCookies = new RequestCookies(
-          HeadersAdapter.from(req.headers)
-        )
+        const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
 
-        mergeMiddlewareCookies(req, requestCookies)
+        mergeMiddlewareCookies(headers, requestCookies)
 
         // Seal the cookies object that'll freeze out any methods that could
         // mutate the underlying data.
@@ -227,12 +313,9 @@ function createRequestStoreImpl(
     },
     get mutableCookies() {
       if (!cache.mutableCookies) {
-        const mutableCookies = getMutableCookies(
-          req.headers,
-          onUpdateCookies || (res ? defaultOnUpdateCookies : undefined)
-        )
+        const mutableCookies = getMutableCookies(headers, onUpdateCookies)
 
-        mergeMiddlewareCookies(req, mutableCookies)
+        mergeMiddlewareCookies(headers, mutableCookies)
 
         cache.mutableCookies = mutableCookies
       }
@@ -250,7 +333,7 @@ function createRequestStoreImpl(
       if (!cache.draftMode) {
         cache.draftMode = new DraftModeProvider(
           previewProps,
-          req,
+          headers,
           this.cookies,
           this.mutableCookies
         )
@@ -258,12 +341,13 @@ function createRequestStoreImpl(
 
       return cache.draftMode
     },
-    renderResumeDataCache: renderResumeDataCache ?? null,
+    resumeDataCache: resumeDataCache ?? null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
-    devFallbackParams,
+    hmrRefreshHash,
+    fallbackParams,
   }
 }
 

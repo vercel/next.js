@@ -1,0 +1,13 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-errors/input/index.js:14:9  TP1008 import.meta.glob() second argument must be an object literal
+  
+      10 |   return import.meta.glob(123)
+      11 | }
+      12 | 
+      13 | function getNonObjOptions() {
+         +          v-------------------------------------v
+      14 +   return import.meta.glob('./dir/*.js', 'eager')
+         +          ^-------------------------------------^
+      15 | }
+      16 | 
+      17 | it('should emit errors for invalid glob calls', () => {
+      18 |   // The compile-time errors are the main verification (issue snapshots).

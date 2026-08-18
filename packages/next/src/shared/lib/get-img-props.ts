@@ -1,4 +1,4 @@
-import { warnOnce } from './utils/warn-once'
+import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
 import type {
@@ -230,6 +230,29 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
+        // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+        // double-encoding with the `encodeURIComponent(src)` below
+        const qIndex = src.indexOf('?')
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(src.slice(qIndex + 1))
+          const srcDpl = params.get('dpl')
+          if (!srcDpl) {
+            // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+            params.append('dpl', deploymentId)
+            src = src.slice(0, qIndex) + '?' + params.toString()
+          }
+        } else {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          src = src + `?dpl=${deploymentId}`
+        }
+      }
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 
@@ -438,6 +461,8 @@ export function getImgProps(
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('./utils/warn-once') as typeof import('./utils/warn-once')
     if (config.output === 'export' && isDefaultLoader && !unoptimized) {
       throw new Error(
         `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.

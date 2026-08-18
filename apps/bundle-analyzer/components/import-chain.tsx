@@ -11,6 +11,7 @@ import {
   Server,
   Globe,
   MessageCircleQuestion,
+  Package,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type {
@@ -21,6 +22,7 @@ import type {
 } from '@/lib/analyze-data'
 import { splitIdent } from '@/lib/utils'
 import clsx from 'clsx'
+import { Button } from '@/components/ui/button'
 
 interface ImportChainProps {
   startFileId: number
@@ -51,6 +53,7 @@ interface DependentInfo {
   sourceIndex: number | undefined
   ident: string
   isAsync: boolean
+  isTraced: boolean
   depth: number
 }
 
@@ -130,7 +133,7 @@ export function ImportChain({
   environmentFilter,
 }: ImportChainProps) {
   // Filter to include only the current route
-  const [showAll, setShowAll] = useState(false)
+  const [currentRouteOnly, setCurrentRouteOnly] = useState(true)
 
   // Track which dependent is selected at each level
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
@@ -168,7 +171,7 @@ export function ImportChain({
     const startModuleIndices = getModuleIndicesFromSourceIndex(
       startFileId
     ).filter((moduleIndex) => {
-      if (!showAll && !depthMap.has(moduleIndex)) {
+      if (currentRouteOnly && !depthMap.has(moduleIndex)) {
         return false
       }
       let module = modulesData.module(moduleIndex)
@@ -218,6 +221,7 @@ export function ImportChain({
           .map((index: number) => ({
             index,
             async: false,
+            traced: false,
             depth: depthMap.get(index) ?? Infinity,
           })),
         ...modulesData
@@ -225,6 +229,15 @@ export function ImportChain({
           .map((index: number) => ({
             index,
             async: true,
+            traced: false,
+            depth: depthMap.get(index) ?? Infinity,
+          })),
+        ...modulesData
+          .tracedModuleDependents(currentModuleIndex)
+          .map((index: number) => ({
+            index,
+            async: false,
+            traced: true,
             depth: depthMap.get(index) ?? Infinity,
           })),
       ]
@@ -232,7 +245,7 @@ export function ImportChain({
       // Filter out dependents that would create a cycle
       const validDependents = dependentModuleIndices.filter(
         ({ index, depth }) =>
-          !visitedModules.has(index) && (isFinite(depth) || showAll)
+          !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
       )
 
       if (validDependents.length === 0) {
@@ -242,7 +255,7 @@ export function ImportChain({
 
       // Build info for each dependent
       const dependentsInfo: DependentInfo[] = validDependents.map(
-        ({ index: moduleIndex, async: isAsync, depth }) => {
+        ({ index: moduleIndex, async: isAsync, traced: isTraced, depth }) => {
           const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
           let ident = modulesData.module(moduleIndex)?.ident || ''
           return {
@@ -250,6 +263,7 @@ export function ImportChain({
             sourceIndex,
             ident,
             isAsync,
+            isTraced,
             depth,
           }
         }
@@ -276,7 +290,7 @@ export function ImportChain({
       const selectedDepInfo = dependentsInfo[actualIdx]
       const selectedDepModule = modulesData.module(selectedDepInfo.moduleIndex)
 
-      if (!selectedDepModule) break
+      if (!selectedDepModule || selectedDepModule.ident == null) break
 
       result.push({
         moduleIndex: selectedDepInfo.moduleIndex,
@@ -304,7 +318,7 @@ export function ImportChain({
     analyzeData,
     modulesData,
     selectedIndices,
-    showAll,
+    currentRouteOnly,
     depthMap,
     environmentFilter,
   ])
@@ -336,7 +350,23 @@ export function ImportChain({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-foreground">Import chain</h3>
+      <div className="flex items-center space-x-2">
+        <h3 className="text-xs font-semibold text-foreground flex-1">
+          Import Chain
+        </h3>
+        <label
+          className="inline-flex items-center space-x-2 text-xs cursor-pointer"
+          title="Only include dependent modules that are part of the current route's bundle"
+        >
+          <span>Current route only</span>
+          <input
+            type="checkbox"
+            className="form-checkbox h-4 w-4 text-primary"
+            checked={currentRouteOnly}
+            onChange={() => setCurrentRouteOnly((prev) => !prev)}
+          />
+        </label>
+      </div>
       <div className="space-y-0">
         {chain.map((level, index) => {
           const previousPath = index > 0 ? chain[index - 1].path : null
@@ -357,6 +387,11 @@ export function ImportChain({
                 {currentItemInfo?.isAsync && (
                   <span className="text-xs text-muted-foreground italic">
                     (async)
+                  </span>
+                )}
+                {currentItemInfo?.isTraced && (
+                  <span className="text-xs text-muted-foreground italic">
+                    (traced)
                   </span>
                 )}
                 {index > 0 ? (
@@ -389,19 +424,7 @@ export function ImportChain({
               {currentItemInfo?.isAsync && <div className="h-8" />}
               <div className="flex items-center gap-2">
                 <div className="flex flex-col gap-1 items-center">
-                  {!level.layer ? (
-                    <div title="Unknown">
-                      <MessageCircleQuestion className="w-3 h-3 text-gray-500" />
-                    </div>
-                  ) : /app/.test(level.layer || '') ? (
-                    <div title="App Router">
-                      <Box className="w-3 h-3 text-green-500" />
-                    </div>
-                  ) : (
-                    <div title="Pages Router">
-                      <File className="w-3 h-3 text-purple-500" />
-                    </div>
-                  )}
+                  <LayerIcon layer={level.layer} />
                 </div>
 
                 <div className="flex-1 border border-border rounded px-2 py-1 bg-background">
@@ -503,23 +526,47 @@ export function ImportChain({
         })}
         {chain.length === 0 && (
           <p className="text-muted-foreground italic text-xs">
-            No dependents found
+            No dependents found.{' '}
+            {currentRouteOnly ? (
+              <Button
+                variant="link"
+                className="inline p-0 text-xs h-auto"
+                onClick={() => setCurrentRouteOnly(false)}
+              >
+                Show all routes.
+              </Button>
+            ) : null}
           </p>
         )}
       </div>
-      <div className="pt-2">
-        <label className="inline-flex items-center space-x-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            className="form-checkbox h-4 w-4 text-primary"
-            checked={showAll}
-            onChange={() => setShowAll((prev) => !prev)}
-          />
-          <span>
-            Show all dependents (including those outside current route)
-          </span>
-        </label>
-      </div>
     </div>
   )
+}
+
+function LayerIcon({ layer }: { layer: string | undefined }) {
+  if (!layer || layer === 'external') {
+    return (
+      <div title="Unknown">
+        <MessageCircleQuestion className="w-3 h-3 text-gray-500" />
+      </div>
+    )
+  } else if (layer.includes('app')) {
+    return (
+      <div title={`App Router (${layer})`}>
+        <Box className="w-3 h-3 text-green-500" />
+      </div>
+    )
+  } else if (layer === 'externals-tracing') {
+    return (
+      <div title="External Asset">
+        <Package className="w-3 h-3" />
+      </div>
+    )
+  } else {
+    return (
+      <div title={`Pages Router (${layer})`}>
+        <File className="w-3 h-3 text-purple-500" />
+      </div>
+    )
+  }
 }

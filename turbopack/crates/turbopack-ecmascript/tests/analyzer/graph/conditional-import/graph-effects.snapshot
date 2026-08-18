@@ -1,8 +1,155 @@
 [
-    Call {
-        func: FreeVar(
-            "import",
+    Conditional {
+        condition: Constant(
+            True,
         ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                0,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Cons,
+                        ),
+                    ],
+                ),
+            },
+            else: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                0,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Alt,
+                        ),
+                    ],
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 18..34,
+    },
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -46,7 +193,7 @@
         ],
         span: 11..35,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Member {
         obj: Member(
@@ -265,10 +412,188 @@
         ],
         span: 57..64,
     },
-    Call {
-        func: FreeVar(
-            "import",
+    Conditional {
+        condition: Binary(
+            7,
+            Member(
+                5,
+                Member(
+                    3,
+                    FreeVar(
+                        "process",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "env",
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "NEXT_RUNTIME",
+                        ),
+                    ),
+                ),
+            ),
+            StrictEqual,
+            Constant(
+                Str(
+                    Atom(
+                        "edge",
+                    ),
+                ),
+            ),
         ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                1,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Cons,
+                        ),
+                    ],
+                ),
+            },
+            else: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                1,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Alt,
+                        ),
+                    ],
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 57..196,
+    },
+    DynamicImport {
         args: [
             Value(
                 Tenary(
@@ -356,7 +681,7 @@
         ],
         span: 47..198,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Conditional {
         condition: Constant(
@@ -365,10 +690,7 @@
         kind: IfElse {
             then: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -424,7 +746,7 @@
                         ],
                         span: 226..237,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -451,10 +773,7 @@
             },
             else: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -510,7 +829,7 @@
                         ],
                         span: 254..265,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
@@ -893,10 +1212,7 @@
         ],
         span: 399..434,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -949,10 +1265,10 @@
         ],
         span: 438..449,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     ImportedBinding {
-        esm_reference_index: 4,
+        esm_reference_index: 5,
         export: Some(
             "z",
         ),

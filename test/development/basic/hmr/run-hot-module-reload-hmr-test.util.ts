@@ -184,11 +184,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
     // Added because of a regression in react-hot-loader, see issues: #4246 #4273
     // Also: https://github.com/vercel/styled-jsx/issues/425
     it('should update styles in a dynamic component correctly', async () => {
-      const browser = await next.browser(
-        basePath + '/hmr/style-dynamic-component'
-      )
+      const browser = await next.browser(basePath + '/hmr/dynamic-component')
       const secondBrowser = await next.browser(
-        basePath + '/hmr/style-dynamic-component'
+        basePath + '/hmr/dynamic-component'
       )
       const pagePath = join('components', 'hmr', 'dynamic.js')
       const originalContent = await next.readFile(pagePath)
@@ -200,12 +198,12 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(initialFontSize).toBe('100px')
 
         const initialHtml = await next.render(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         expect(initialHtml.includes('100px')).toBeTruthy()
 
         const $initialHtml = await next.render$(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         const initialServerClassName =
           $initialHtml('#dynamic-component').attr('class')
@@ -233,11 +231,11 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(browserHtml.includes('font-size:100px')).toBe(false)
 
         const editedHtml = await next.render(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         expect(editedHtml.includes('200px')).toBeTruthy()
         const $editedHtml = await next.render$(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         const editedServerClassName =
           $editedHtml('#dynamic-component').attr('class')
@@ -246,6 +244,40 @@ export function runHotModuleReloadHmrTest(nextConfig: {
       } finally {
         // Finally is used so that we revert the content back to the original regardless of the test outcome
         // restore the about page content.
+        await next.patchFile(pagePath, originalContent)
+      }
+    })
+
+    it('should update text in a dynamic component correctly', async () => {
+      const browser = await next.browser(basePath + '/hmr/dynamic-component')
+      const pagePath = join('components', 'hmr', 'dynamic.js')
+      const originalContent = await next.readFile(pagePath)
+      try {
+        const div = await browser.elementByCss('#dynamic-component')
+        const initialText = await div.text()
+        expect(initialText).toContain('Dynamic Component')
+
+        const timeOrigin = await browser.eval('performance.timeOrigin')
+
+        const editedContent = originalContent.replace(
+          'Dynamic Component',
+          'Dynamic Component UPDATED'
+        )
+
+        // Change the component text
+        await next.patchFile(pagePath, editedContent)
+
+        // Wait for HMR to propagate the text update
+        await retry(async () => {
+          const editedDiv = await browser.elementByCss('#dynamic-component')
+          const editedText = await editedDiv.text()
+          expect(editedText).toContain('Dynamic Component UPDATED')
+        })
+
+        // Ensure the page was updated via HMR and not a full reload
+        expect(await browser.eval('performance.timeOrigin')).toEqual(timeOrigin)
+      } finally {
+        // Restore the original content
         await next.patchFile(pagePath, originalContent)
       }
     })

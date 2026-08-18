@@ -1,0 +1,1 @@
+export const generateStaticParams = async () => []

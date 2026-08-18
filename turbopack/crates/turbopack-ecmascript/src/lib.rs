@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -11,17 +10,23 @@
 pub mod analyzer;
 pub mod annotations;
 pub mod async_chunk;
+pub mod bytes_source_transform;
 pub mod chunk;
+pub mod chunk_list;
 pub mod code_gen;
+pub mod embed_js;
 mod errors;
-pub mod inlined_bytes_module;
+pub mod hmr;
+pub mod json_source_transform;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod rename;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub mod single_file_ecmascript_output;
@@ -29,8 +34,8 @@ pub mod source_map;
 pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
-pub(crate) mod transform;
-pub mod tree_shake;
+pub mod text_source_transform;
+pub mod transform;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -45,24 +50,18 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
-use chunk::EcmascriptChunkItem;
-use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
+use bincode::{Decode, Encode};
 use either::Either;
 use itertools::Itertools;
-use parse::{ParseResult, parse};
-use path_visitor::ApplyVisitors;
-use references::esm::UrlRewriteBehavior;
-pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use smallvec::SmallVec;
-pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
-        SourceMapper, Span, SpanSnippetError, SyntaxContext,
+        SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
         source_map::{FileLinesResult, Files, SourceMapLookupError},
         util::take::Take,
@@ -74,75 +73,70 @@ use swc_core::{
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
-        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
+        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
 };
 use tracing::{Instrument, Level, instrument};
-pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin,
-};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
+    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
+        AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
         MinifyType, ModuleChunkItemIdExt, ModuleId,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     reference::ModuleReferences,
     reference_type::InnerAssets,
-    resolve::{
-        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
-        parse::Request,
-    },
+    resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
-// TODO remove this
-pub use turbopack_resolve::ecmascript as resolve;
 
-use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     analyzer::graph::EvalContext,
-    chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
-    code_gen::{CodeGens, ModifiableAst},
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+        placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
+    },
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::generate_js_source_map,
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{base::EsmAssetReferences, export},
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
+pub use crate::{
+    references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
+    static_code::StaticEcmascriptCode,
+    swc_comments::swc_comments_to_single_threaded,
+    transform::{
+        CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+        TransformPlugin,
+    },
+};
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
+    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -151,6 +145,7 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -161,47 +156,24 @@ pub enum SpecifiedModuleType {
     Clone,
     Copy,
     Default,
-    Serialize,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum TreeShakingMode {
-    ModuleFragments,
-    #[default]
-    ReexportsOnly,
-}
-
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
     CodeGeneration,
-    /// For bundling and tracing of referenced files.
+    /// For bundling and finding references to external referenced files
     CodeGenerationAndTracing,
-    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    /// For tracing transitive external references (i.e. no codegen).
     Tracing,
 }
 
 impl AnalyzeMode {
-    pub fn is_tracing(self) -> bool {
+    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
+    pub fn is_tracing_assets(self) -> bool {
         match self {
             AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
             AnalyzeMode::CodeGeneration => false,
@@ -216,23 +188,9 @@ impl AnalyzeMode {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
-
 /// The constant to replace `typeof window` with.
-#[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -241,8 +199,10 @@ pub enum TypeofWindow {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    /// variant of tree shaking to use
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    /// Whether re-exports are followed for tree shaking.
+    pub follow_reexports: bool,
+    /// Whether module fragments tree shaking is enabled.
+    pub module_fragments_enabled: bool,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
     /// Determines how to treat `new URL(...)` rewrites.
@@ -275,10 +235,15 @@ pub struct EcmascriptOptions {
     pub enable_exports_info_inlining: bool,
 
     pub inline_helpers: bool,
+    /// Whether to infer side effect free modules via local analysis. Defaults to true.
+    pub infer_module_side_effects: bool,
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
+    pub cjs_scope_hoisting: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -325,6 +290,7 @@ pub struct EcmascriptModuleAssetBuilder {
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     options: ResolvedVc<EcmascriptOptions>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
+    side_effect_free_packages: Option<ResolvedVc<Glob>>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
@@ -348,6 +314,7 @@ impl EcmascriptModuleAssetBuilder {
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
+                self.side_effect_free_packages.map(|g| *g),
                 *inner_assets,
             )
         } else {
@@ -358,12 +325,80 @@ impl EcmascriptModuleAssetBuilder {
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
+                self.side_effect_free_packages.map(|g| *g),
             )
         }
     }
 }
 
+/// Stores the raw bytes of the last successfully parsed version of a module.
+///
+/// Cached as a turbo-tasks cell inside `failsafe_parse`: the always-equal
+/// `PartialEq` impl means that re-running the task does not replace the cell,
+/// so the interior `Mutex<Option<Rope>>` (and its stored rope) survive across
+/// task executions. A `SerializationInvalidator` keeps the persistence layer
+/// in sync with the in-memory mutation.
+#[turbo_tasks::value(eq = "manual")]
+struct LastSuccessfulSource {
+    #[bincode(with = "parking_lot_mutex_bincode")]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    source: parking_lot::Mutex<Option<Rope>>,
+    /// Notifies the backend when the in-memory `source` changes so that the
+    /// serialized task state is written back to the persistence layer.
+    #[turbo_tasks(debug_ignore)]
+    serialization_invalidator: SerializationInvalidator,
+}
+
+impl LastSuccessfulSource {
+    fn get(&self) -> Option<Rope> {
+        self.source.lock().clone()
+    }
+
+    fn set(&self, rope: Rope) {
+        *self.source.lock() = Some(rope);
+        self.serialization_invalidator.invalidate();
+    }
+
+    fn clear(&self) {
+        *self.source.lock() = None;
+        self.serialization_invalidator.invalidate();
+    }
+}
+
+impl Default for LastSuccessfulSource {
+    fn default() -> Self {
+        Self {
+            source: parking_lot::Mutex::new(None),
+            serialization_invalidator: get_serialization_invalidator(),
+        }
+    }
+}
+
+impl std::fmt::Debug for LastSuccessfulSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LastSuccessfulSource")
+    }
+}
+
+// Always-equal so that re-celling a freshly constructed `LastSuccessfulSource`
+// does not overwrite the existing cell — the interior `Mutex` holds the
+// cross-execution state and must survive task re-runs.
+impl PartialEq for LastSuccessfulSource {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for LastSuccessfulSource {}
+
+// No-op hash to uphold the `Hash` / `Eq` contract (equal values must hash
+// identically). The interior `Mutex` content is not part of the cache identity.
+impl std::hash::Hash for LastSuccessfulSource {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -371,34 +406,16 @@ pub struct EcmascriptModuleAsset {
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
     pub options: ResolvedVc<EcmascriptOptions>,
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
+    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
-    #[turbo_tasks(debug_ignore)]
-    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
-}
-impl core::fmt::Debug for EcmascriptModuleAsset {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_struct("EcmascriptModuleAsset")
-            .field("source", &self.source)
-            .field("asset_context", &self.asset_context)
-            .field("ty", &self.ty)
-            .field("transforms", &self.transforms)
-            .field("options", &self.options)
-            .field("compile_time_info", &self.compile_time_info)
-            .field("inner_assets", &self.inner_assets)
-            .finish()
-    }
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     #[turbo_tasks::function]
-    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+    fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
 #[turbo_tasks::value_trait]
@@ -452,6 +469,7 @@ impl EcmascriptModuleAsset {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -460,6 +478,7 @@ impl EcmascriptModuleAsset {
             transforms,
             options,
             compile_time_info,
+            side_effect_free_packages,
             inner_assets: None,
         }
     }
@@ -494,36 +513,68 @@ impl ModuleTypeResult {
     }
 }
 
+impl EcmascriptModuleAsset {
+    /// Attempts to re-parse the module from the last known-good file bytes.
+    ///
+    /// Returns `None` if no saved source is available or if any step fails, in
+    /// which case the caller should fall back to the current (broken) result.
+    /// On failure the cached source is cleared so we don't keep retrying it.
+    async fn try_parse_last_successful_source(
+        &self,
+        last_successful_source: &LastSuccessfulSource,
+    ) -> Option<Vc<ParseResult>> {
+        let rope = last_successful_source.get()?;
+        let result: Result<Vc<ParseResult>> = async {
+            let node_env = self
+                .compile_time_info
+                .await?
+                .defines
+                .read_process_env(rcstr!("NODE_ENV"))
+                .owned()
+                .await?
+                .unwrap_or_else(|| rcstr!("development"));
+            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
+                .await
+        }
+        .await;
+        match result {
+            Ok(result) => Some(result),
+            Err(_) => {
+                // A failure is very unexpected, but we don't want to keep bad bytes around
+                last_successful_source.clear();
+                None
+            }
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        let real_result = this.parse().await?;
-        if this.options.await?.keep_last_successful_parse {
+    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse().await?;
+        if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
-            let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse
-                    .set_unconditionally(real_result_value.clone());
-                real_result_value
+            // The cell stored here survives re-runs of this task because
+            // `LastSuccessfulSource`'s `PartialEq` is always-equal: the
+            // compare-and-update path preserves the existing cell (and its
+            // interior `Mutex<Option<Rope>>`) whenever this function is
+            // re-executed.
+            let last_successful_source = LastSuccessfulSource::default().cell().await?;
+            if let ParseResult::Ok { program_source, .. } = &*real_result_value {
+                // Store the bytes that `parse()` actually saw as the
+                // last-known-good source.
+                last_successful_source.set(program_source.clone());
+                Ok(real_result)
             } else {
-                let state_ref = this.last_successful_parse.get();
-                state_ref.as_ref().unwrap_or(&real_result_value).clone()
-            };
-            Ok(ReadRef::cell(result_value))
+                Ok(self
+                    .try_parse_last_successful_source(&last_successful_source)
+                    .await
+                    .unwrap_or(real_result))
+            }
         } else {
             Ok(real_result)
         }
-    }
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
-        self.failsafe_parse()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.ty.cell()
     }
 }
 
@@ -581,7 +632,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             async_module: analyze_ref.async_module,
             generate_source_map,
             original_source_map: analyze_ref.source_map,
-            exports: analyze_ref.exports,
+            exports: self.get_exports().to_resolved().await?,
             async_module_info,
         }
         .cell())
@@ -593,7 +644,7 @@ async fn determine_module_type_for_directory(
     context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
-        find_context_file(context_path, package_json().resolve().await?, false).await?;
+        find_context_file(context_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
@@ -621,35 +672,37 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             ty,
             transforms,
             options,
-
             compile_time_info,
+            side_effect_free_packages,
             inner_assets: None,
-            last_successful_parse: Default::default(),
-        })
+        }))
     }
 
     #[turbo_tasks::function]
-    pub async fn new_with_inner_assets(
+    async fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
         inner_assets: ResolvedVc<InnerAssets>,
     ) -> Result<Vc<Self>> {
         if inner_assets.await?.is_empty() {
@@ -660,17 +713,19 @@ impl EcmascriptModuleAsset {
                 *transforms,
                 *options,
                 *compile_time_info,
+                side_effect_free_packages.map(|g| *g),
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
+                origin_path: source.ident().await?.path.clone(),
                 source,
                 asset_context,
                 ty,
                 transforms,
                 options,
                 compile_time_info,
+                side_effect_free_packages,
                 inner_assets: Some(inner_assets),
-                last_successful_parse: Default::default(),
             }))
         }
     }
@@ -681,23 +736,31 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
+    }
+
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
+        let node_env = self
+            .compile_time_info
+            .await?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+            .await?
+            .unwrap_or_else(|| rcstr!("development"));
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
+            node_env,
             options.analyze_mode == AnalyzeMode::Tracing,
             options.inline_helpers,
         ))
@@ -717,7 +780,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(self.origin_path().await?.parent()).await
+        determine_module_type_for_directory(this.origin_path.parent()).await
     }
 }
 
@@ -728,12 +791,13 @@ impl Module for EcmascriptModuleAsset {
         let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
+                ident = ident.with_asset(name.clone(), asset.ident().to_resolved().await?);
             }
         }
-        ident.add_modifier(rcstr!("ecmascript"));
-        ident.layer = Some(self.asset_context.into_trait_ref().await?.layer());
-        Ok(AssetIdent::new(ident))
+        Ok(ident
+            .with_modifier(rcstr!("ecmascript"))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -756,35 +820,33 @@ impl Module for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
+    async fn side_effects(self: Vc<Self>) -> Result<Vc<ModuleSideEffects>> {
+        let this = self.await?;
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        );
-        Ok(if *pkg_side_effect_free.await? {
-            pkg_side_effect_free
-        } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+        // We need to respect package.json configuration over any static analysis we might do.
+        Ok((match *get_side_effect_free_declaration(
+            self.ident().await?.path.clone(),
+            this.side_effect_free_packages.map(|g| *g),
+        )
+        .await?
+        {
+            SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
+            SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
+            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
         })
+        .cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
-        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
-            module: self,
-            chunking_context,
-        }))
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -792,12 +854,43 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*self.analyze().await?.exports)
+        let exports = compute_ecmascript_module_exports(self, None).await?.exports;
+        if let EcmascriptExports::CommonJs(_) = &*exports.await? {
+            return Ok(EcmascriptExports::CommonJs(
+                self.analyze().await?.cjs_static_exports.clone(),
+            )
+            .cell());
+        }
+        Ok(*exports)
     }
 
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let span = tracing::info_span!(
+            "code generation",
+            name = display(self.ident().to_string().await?)
+        );
+        async {
+            let async_module_options = self.get_async_module().module_options(async_module_info);
+            let content = self.module_content(chunking_context, async_module_info);
+            EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
+                .to_resolved()
+                .await
+                .map(|r| *r)
+        }
+        .instrument(span)
+        .await
     }
 }
 
@@ -837,99 +930,12 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<OptionModule>> {
-        Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
-            if let Some(request) = request.await?.request() {
-                inner_assets.await?.get(&request).copied()
-            } else {
-                None
-            }
-        } else {
-            None
-        }))
-    }
-}
-
-#[turbo_tasks::value]
-struct ModuleChunkItem {
-    module: ResolvedVc<EcmascriptModuleAsset>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for ModuleChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        panic!("content() should not be called");
-    }
-
-    #[turbo_tasks::function]
-    async fn content_with_async_module_info(
-        self: Vc<Self>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let span = tracing::info_span!(
-            "code generation",
-            name = display(self.asset_ident().to_string().await?)
-        );
-        async {
-            let this = self.await?;
-            let async_module_options = this
-                .module
-                .get_async_module()
-                .module_options(async_module_info);
-
-            // TODO check if we need to pass async_module_info at all
-            let content = this
-                .module
-                .module_content(*this.chunking_context, async_module_info);
-
-            EcmascriptChunkItemContent::new(content, *this.chunking_context, async_module_options)
-                .resolve()
-                .await
-        }
-        .instrument(span)
-        .await
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -937,14 +943,14 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Rope>,
+    pub source_map: Option<StructuredSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,
@@ -1043,9 +1049,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -1220,7 +1226,7 @@ impl EcmascriptModuleContent {
                     **m != first_entry
                         && *modules.get(*m).unwrap() == MergeableModuleExposure::External
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
+                .map(|m| m.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
@@ -1235,6 +1241,41 @@ impl EcmascriptModuleContent {
         ))
         .await
     }
+}
+
+/// Comments delimiting the early hoisted statements, which [`merge_modules`] moves in front of the
+/// merged module so that a cyclic importer can't re-enter it before they ran.
+const EARLY_HOIST_START: &str = " TURBOPACK EARLY HOIST START";
+const EARLY_HOIST_END: &str = " TURBOPACK EARLY HOIST END";
+
+fn early_hoist_comment(text: &str) -> Comment {
+    Comment {
+        kind: CommentKind::Line,
+        span: DUMMY_SP,
+        text: text.into(),
+    }
+}
+
+/// Finds the statements delimited by [`EARLY_HOIST_START`] and [`EARLY_HOIST_END`], as an inclusive
+/// index range over `body` covering both delimiters. Must run before the spans are rewritten.
+fn early_hoist_range(
+    comments: &SwcComments,
+    body: impl Iterator<Item = Span>,
+) -> Option<(usize, usize)> {
+    let (mut start, mut end) = (None, None);
+    for (i, span) in body.enumerate() {
+        let Some(leading) = comments.get_leading(span.lo) else {
+            continue;
+        };
+        for comment in leading {
+            if comment.text == EARLY_HOIST_START {
+                start = Some(i);
+            } else if comment.text == EARLY_HOIST_END {
+                end = Some(i);
+            }
+        }
+    }
+    Some((start?, end?))
 }
 
 /// Merges multiple Ecmascript modules into a single AST, setting the syntax contexts correctly so
@@ -1307,7 +1348,8 @@ async fn merge_modules(
             // corresponding export in the module that exports it.
             if let Some(&module) = self.reverse_module_contexts.get(ctxt) {
                 let eval_context_exports = self.export_contexts.get(&module).unwrap();
-                // TODO looking up an Atom in a Map<RcStr, _>
+                // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
+                // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
                 let (local, local_ctxt) = if let Some((local, local_ctxt)) =
                     eval_context_exports.get(&sym_rc_str)
@@ -1320,10 +1362,11 @@ async fn merge_modules(
                     // generating this variable.
                     (None, SyntaxContext::empty())
                 } else {
-                    panic!(
+                    self.error = Err(anyhow::anyhow!(
                         "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
                          {eval_context_exports:?}",
-                    );
+                    ));
+                    return;
                 };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);
@@ -1404,18 +1447,32 @@ async fn merge_modules(
         let mut unique_contexts_cache =
             FxHashMap::with_capacity_and_hasher(contents.len() * 5, Default::default());
 
+        let mut merged_prelude = Vec::new();
         let mut prepare_module =
             |module_count: usize,
              current_module_idx: usize,
              (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
              program: &mut Program,
+             merged_prelude: &mut Vec<ModuleItem>,
              lookup_table: &mut Vec<ModulePosition>| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
                     scope_hoisting_syntax_contexts: Some((module_contexts, _)),
+                    comments: CodeGenResultComments::Single { extra_comments, .. },
                     ..
                 } = content
                 {
+                    // The delimiter comments are keyed by the original spans, so this has to happen
+                    // before the visitor below rewrites them.
+                    let early_hoisted = match &*program {
+                        Program::Module(module) => {
+                            early_hoist_range(extra_comments, module.body.iter().map(|i| i.span()))
+                        }
+                        Program::Script(script) => {
+                            early_hoist_range(extra_comments, script.body.iter().map(|s| s.span()))
+                        }
+                    };
+
                     let modules_header_width = module_count.next_power_of_two().trailing_zeros();
                     GLOBALS.set(globals_merged, || {
                         let mut visitor = SetSyntaxContextVisitor {
@@ -1434,6 +1491,21 @@ async fn merge_modules(
                         program.visit_mut_with(&mut visitor);
                         visitor.error
                     })?;
+
+                    // Move the delimited statements out, dropping the two delimiters themselves.
+                    if let Some((start, end)) = early_hoisted {
+                        let mut hoisted: Vec<ModuleItem> = match program {
+                            Program::Module(module) => module.body.drain(start..=end).collect(),
+                            Program::Script(script) => script
+                                .body
+                                .drain(start..=end)
+                                .map(ModuleItem::Stmt)
+                                .collect(),
+                        };
+                        hoisted.pop();
+                        hoisted.remove(0);
+                        merged_prelude.extend(hoisted);
+                    }
 
                     Ok(match program.take() {
                         Program::Module(module) => Either::Left(module.body.into_iter()),
@@ -1465,6 +1537,7 @@ async fn merge_modules(
                     i,
                     &contents[i],
                     &mut programs[i],
+                    &mut merged_prelude,
                     &mut lookup_table,
                 )
                 .map_err(|err| (i, err))
@@ -1495,6 +1568,7 @@ async fn merge_modules(
                                         index,
                                         &contents[index],
                                         &mut programs[index],
+                                        &mut merged_prelude,
                                         &mut lookup_table,
                                     )
                                     .map_err(|err| (index, err))?
@@ -1547,7 +1621,7 @@ async fn merge_modules(
 
         let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
-            body: result,
+            body: merged_prelude.into_iter().chain(result).collect(),
             span: DUMMY_SP,
             shebang: None,
         });
@@ -1560,23 +1634,24 @@ async fn merge_modules(
     let (merged_ast, inserted) = match result {
         Ok(v) => v,
         Err((content_idx, err)) => {
-            return Err(err.context(format!(
-                "Processing {}",
-                contents[content_idx].0.ident().to_string().await?
-            )));
+            return Err(
+                // ast-grep-ignore: no-context-turbofmt
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?),
+            );
         }
     };
 
-    debug_assert!(
-        inserted.len() == contents.len(),
-        "Not all merged modules were inserted: {:?}",
-        contents
-            .iter()
-            .enumerate()
-            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
-            .try_join()
-            .await?,
-    );
+    if cfg!(debug_assertions) && inserted.len() != contents.len() {
+        bail!(
+            "Not all merged modules were inserted: {:?}",
+            contents
+                .iter()
+                .enumerate()
+                .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+                .try_join()
+                .await?,
+        );
+    }
 
     let comments = contents
         .iter_mut()
@@ -1778,8 +1853,8 @@ async fn process_parse_result(
 
                     let export_contexts = eval_context
                         .map_either(
-                            |e| Cow::Owned(e.imports.exports),
-                            |e| Cow::Borrowed(&e.imports.exports),
+                            |e| Cow::Owned(e.imports.exports_ids),
+                            |e| Cow::Borrowed(&e.imports.exports_ids),
                         )
                         .into_inner();
                     let preserved_exports =
@@ -1804,7 +1879,7 @@ async fn process_parse_result(
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
-                            text: format!(" MERGED MODULE: {}", ident.to_string().await?).into(),
+                            text: (&*turbofmt!(" MERGED MODULE: {}", ident).await?).into(),
                         })
                     } else {
                         None
@@ -1843,7 +1918,8 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            let early_hoisted_count =
+                process_content_with_code_gens(&mut program, globals, &mut code_gens);
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -1859,6 +1935,31 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
+                // Delimit the early hoisted statements, which `merge_modules` moves in front of
+                // the merged module this module is part of.
+                if retain_syntax_context.is_some() && early_hoisted_count > 0 {
+                    let end = Span::dummy_with_cmt();
+                    extra_comments.add_leading(end.lo, early_hoist_comment(EARLY_HOIST_END));
+                    let start = Span::dummy_with_cmt();
+                    extra_comments.add_leading(start.lo, early_hoist_comment(EARLY_HOIST_START));
+                    let (end, start) = (
+                        Stmt::Empty(EmptyStmt { span: end }),
+                        Stmt::Empty(EmptyStmt { span: start }),
+                    );
+                    match &mut program {
+                        Program::Module(module) => {
+                            module
+                                .body
+                                .insert(early_hoisted_count, ModuleItem::Stmt(end));
+                            module.body.insert(0, ModuleItem::Stmt(start));
+                        }
+                        Program::Script(script) => {
+                            script.body.insert(early_hoisted_count, end);
+                            script.body.insert(0, start);
+                        }
+                    }
+                }
+
                 if let Some(prepend_ident_comment) = prepend_ident_comment {
                     let span = Span::dummy_with_cmt();
                     extra_comments.add_leading(span.lo, prepend_ident_comment);
@@ -1919,15 +2020,18 @@ async fn process_parse_result(
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
                 ParseResult::Unparsable { messages } => {
-                    let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
                         .and_then(|m| m.first().map(|f| format!("\n{f}")))
                         .unwrap_or("".into());
-                    let msg = format!("Could not parse module '{path}'\n{error_messages}");
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}'\n{error_messages}",
+                        ident.await?.path
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -1950,11 +2054,14 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}', file not found");
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}', file not found",
+                        ident.await?.path
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -2026,6 +2133,7 @@ async fn with_consumed_parse_result<T>(
                     globals,
                     eval_context,
                     comments,
+                    ..
                 }) => (
                     program.take(),
                     &*source_map,
@@ -2051,6 +2159,7 @@ async fn with_consumed_parse_result<T>(
                         globals,
                         eval_context,
                         comments,
+                        ..
                     } = &**parsed
                     else {
                         unreachable!();
@@ -2074,7 +2183,7 @@ async fn with_consumed_parse_result<T>(
 
 async fn emit_content(
     content: CodeGenResult,
-    additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    additional_ids: SmallVec<[ModuleId; 1]>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,
@@ -2088,6 +2197,15 @@ async fn emit_content(
     } = content;
 
     let generate_source_map = source_map.is_some();
+
+    // Collect identifier names for source maps before emitting
+    let source_map_names = if generate_source_map {
+        let mut collector = IdentCollector::default();
+        program.visit_with(&mut collector);
+        collector.into_map()
+    } else {
+        Default::default()
+    };
 
     let mut bytes: Vec<u8> = vec![];
     // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
@@ -2124,19 +2242,27 @@ async fn emit_content(
     }
 
     let source_map = if generate_source_map {
+        let original_source_maps = original_source_map
+            .iter()
+            .map(|map| map.generate_source_map())
+            .try_join()
+            .await?;
+        let original_source_maps = original_source_maps
+            .iter()
+            .filter_map(|map| map.as_content())
+            .map(|map| map.content())
+            .collect::<Vec<_>>();
+
         Some(generate_js_source_map(
             &*source_map,
             mappings,
-            original_source_map
-                .iter()
-                .map(|map| map.generate_source_map())
-                .try_flat_join()
-                .await?,
+            original_source_maps,
             matches!(
                 original_source_map,
                 CodeGenResultOriginalSourceMap::Single(_)
             ),
             true,
+            source_map_names,
         )?)
     } else {
         None
@@ -2152,12 +2278,13 @@ async fn emit_content(
     .cell())
 }
 
+/// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     code_gens: &mut Vec<CodeGeneration>,
-) {
+) -> usize {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
@@ -2198,6 +2325,7 @@ fn process_content_with_code_gens(
         }
     });
 
+    let early_hoisted_count = early_hoisted_stmts.len();
     match program {
         Program::Module(ast::Module { body, .. }) => {
             body.splice(
@@ -2228,6 +2356,7 @@ fn process_content_with_code_gens(
             );
         }
     };
+    early_hoisted_count
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
@@ -2585,6 +2714,17 @@ impl SourceMapper for CodeGenResultSourceMap {
             }
         }
     }
+    fn map_raw_pos(&self, pos: BytePos) -> BytePos {
+        match self {
+            CodeGenResultSourceMap::None => BytePos::DUMMY,
+            CodeGenResultSourceMap::Single { .. } => pos,
+            CodeGenResultSourceMap::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                ..
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
+        }
+    }
 }
 impl SourceMapperExt for CodeGenResultSourceMap {
     fn get_code_map(&self) -> &dyn SourceMapper {
@@ -2749,7 +2889,7 @@ impl CodeGenResultComments {
                 .map_err(|_| anyhow!("Failed to grab lock on the index map for byte positions"))?;
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)
@@ -2766,7 +2906,7 @@ impl CodeGenResultComments {
         let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)

@@ -1,29 +1,18 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs};
 
 use crate::{
     chunk::ChunkableModule, module::Module, module_graph::chunk_group_info::RoaringBitmapWrapper,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
+    Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
 )]
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -43,19 +32,8 @@ impl ModuleOrBatch {
     }
 }
 
-#[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),

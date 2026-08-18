@@ -37,7 +37,10 @@ export function computeActiveEntries(
     moduleIndex < modulesData.moduleCount();
     moduleIndex++
   ) {
-    const ident = modulesData.module(moduleIndex)!.ident
+    const ident = modulesData.module(moduleIndex)?.ident
+    if (ident == null) {
+      continue
+    }
 
     if (
       potentialEntryDependents.some((entryIdent) => ident.includes(entryIdent))
@@ -111,6 +114,14 @@ export function computeModuleDepthMap(
           delayedModules.sort((a, b) => b.depth - a.depth)
         }
         delayedQueue.queue.push(depIndex)
+      }
+    }
+
+    // Process traced dependencies
+    const tracedDependencies = modulesData.tracedModuleDependencies(moduleIndex)
+    for (const depIndex of tracedDependencies) {
+      if (!depthMap.has(depIndex)) {
+        depthMap.set(depIndex, newDepth)
       }
     }
 

@@ -4,17 +4,18 @@ import {
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  makeHangingPromise,
+  makeDynamicHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -27,13 +28,9 @@ export function connection(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        `Route ${workStore.route} used \`connection()\` inside \`after()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`connection()\` inside \`after()\` while rendering. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -56,6 +53,7 @@ export function connection(): Promise<void> {
             `Route ${workStore.route} used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, connection)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
@@ -67,6 +65,7 @@ export function connection(): Promise<void> {
             `Route ${workStore.route} used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, connection)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
@@ -74,24 +73,28 @@ export function connection(): Promise<void> {
           throw new Error(
             `Route ${workStore.route} used \`connection()\` inside a function cached with \`unstable_cache()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`connection()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+          )
         case 'prerender':
         case 'prerender-client':
         case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
-          return makeHangingPromise(
+          return makeDynamicHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             '`connection()`'
           )
-        case 'prerender-ppr':
-          // We use React's postpone API to interrupt rendering here to create a
-          // dynamic hole
-          return postponeWithTracking(
-            workStore.route,
-            'connection',
-            workUnitStore.dynamicTracking
+        case 'validation-client': {
+          // TODO(NAR-789): make this consistent with the actual browser behavior when we change it.
+          // Until then, erroring is fine.
+          const exportName = '`connection`'
+          throw new InvariantError(
+            `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
+        }
         case 'prerender-legacy':
           // We throw an error here to interrupt prerendering to mark the route
           // as dynamic
@@ -114,6 +117,8 @@ export function connection(): Promise<void> {
               workUnitStore,
               RenderStage.Dynamic
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            return workUnitStore.asyncApiPromises.connection
           } else {
             return Promise.resolve(undefined)
           }
@@ -124,5 +129,7 @@ export function connection(): Promise<void> {
   }
 
   // If we end up here, there was no work store or work unit store present.
+  // TODO(NAR-789): connection() is not currently statically prevented from being imported in client components,
+  // so we always error about a missing work unit store.
   throwForMissingRequestStore(callingExpression)
 }

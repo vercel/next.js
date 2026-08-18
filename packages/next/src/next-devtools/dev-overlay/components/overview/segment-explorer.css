@@ -41,7 +41,6 @@
   display: flex;
   align-items: center;
   white-space: pre;
-  cursor: default;
   color: var(--color-gray-1000);
 }
 
@@ -90,10 +89,15 @@
   line-height: 16px;
   font-size: var(--size-12);
   font-weight: 500;
-  user-select: none;
-  cursor: pointer;
   background-color: var(--color-gray-300);
   color: var(--color-gray-1000);
+  cursor: pointer;
+  text-align: center;
+}
+
+.segment-explorer-file-label:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 .segment-explorer-file-label-text {
   display: inline-flex;
@@ -126,7 +130,6 @@
   color: var(--color-gray-900);
   border: 1px dashed var(--color-gray-500);
   height: 24px;
-  cursor: default;
 }
 .segment-explorer-file-label--builtin svg {
   margin-left: 4px;

@@ -1,5 +1,4 @@
-import webdriver, { type Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation', () => {
@@ -17,7 +16,7 @@ describe('router autoscrolling on navigation', () => {
     browser: Playwright,
     options: { x: number; y: number }
   ) => {
-    await retry(async () => {
+    await retry(async function expectScrolledTo() {
       const top = await getTopScroll(browser)
       const left = await getLeftScroll(browser)
       expect({ top, left }).toEqual({ top: options.y, left: options.x })
@@ -33,19 +32,33 @@ describe('router autoscrolling on navigation', () => {
     await waitForScrollToComplete(browser, options)
   }
 
+  const setScrollPaddingTop = async (
+    browser: Playwright,
+    scrollPaddingTop: string
+  ) => {
+    const rule = `html { scroll-padding-top: ${scrollPaddingTop}; }`
+
+    // Avoid mutating the root style attribute, which React owns and validates
+    // during client navigations.
+    await browser.eval(`
+      const sheet = new CSSStyleSheet()
+      sheet.replaceSync(${JSON.stringify(rule)})
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+    `)
+  }
+
   describe('vertical scroll', () => {
     it('should scroll to top of document when navigating between to pages without layout', async () => {
-      const browser = await webdriver(next.url, '/0/0/100/10000/page1')
+      const browser = await next.browser('/0/0/100/10000/page1')
 
       await scrollTo(browser, { x: 0, y: 1000 })
-      expect(await getTopScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/100/10000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 0 })
     })
 
     it("should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport", async () => {
-      const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
+      const browser = await next.browser('/0/1000/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 1500 })
       expect(await getTopScroll(browser)).toBe(1500)
@@ -55,7 +68,7 @@ describe('router autoscrolling on navigation', () => {
     })
 
     it("should scroll down to the navigated page when it's below viewort", async () => {
-      const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
+      const browser = await next.browser('/0/1000/100/1000/page1')
       expect(await getTopScroll(browser)).toBe(0)
 
       await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
@@ -63,37 +76,57 @@ describe('router autoscrolling on navigation', () => {
     })
 
     it('should not scroll when the top of the page is in the viewport', async () => {
-      const browser = await webdriver(next.url, '/10/1000/100/1000/page1')
+      const browser = await next.browser('/10/1000/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 800 })
-      expect(await getTopScroll(browser)).toBe(800)
 
       await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 800 })
     })
 
     it('should not scroll to top of document if page in viewport', async () => {
-      const browser = await webdriver(next.url, '/10/100/100/1000/page1')
+      const browser = await next.browser('/10/100/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 50 })
-      expect(await getTopScroll(browser)).toBe(50)
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 50 })
     })
 
+    it.each(['100px', '50%'])(
+      'should scroll when the page top is obscured by scroll padding (%s)',
+      async (scrollPaddingTop) => {
+        const browser = await next.browser('/10/100/100/1000/page1')
+
+        await setScrollPaddingTop(browser, scrollPaddingTop)
+        await scrollTo(browser, { x: 0, y: 50 })
+
+        await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
+        await waitForScrollToComplete(browser, { x: 0, y: 0 })
+      }
+    )
+
+    it('should maintain scroll when the page top is below the scroll padding boundary', async () => {
+      const browser = await next.browser('/10/1000/100/1000/page1')
+
+      await setScrollPaddingTop(browser, '100px')
+      await scrollTo(browser, { x: 0, y: 800 })
+
+      await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
+      await waitForScrollToComplete(browser, { x: 0, y: 800 })
+    })
+
     it('should scroll to top of document if possible while giving focus to page', async () => {
-      const browser = await webdriver(next.url, '/10/100/100/1000/page1')
+      const browser = await next.browser('/10/100/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 200 })
-      expect(await getTopScroll(browser)).toBe(200)
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 0 })
     })
 
     it('should scroll to top of document with new metadata', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       // scroll to bottom
       await browser.eval(
@@ -112,11 +145,9 @@ describe('router autoscrolling on navigation', () => {
 
   describe('horizontal scroll', () => {
     it("should't scroll horizontally", async () => {
-      const browser = await webdriver(next.url, '/0/0/10000/10000/page1')
+      const browser = await next.browser('/0/0/10000/10000/page1')
 
       await scrollTo(browser, { x: 1000, y: 1000 })
-      expect(await getLeftScroll(browser)).toBe(1000)
-      expect(await getTopScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/10000/10000/page2")`)
       await waitForScrollToComplete(browser, { x: 1000, y: 0 })
@@ -125,20 +156,18 @@ describe('router autoscrolling on navigation', () => {
 
   describe('router.refresh()', () => {
     it('should not scroll when called alone', async () => {
-      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+      const browser = await next.browser('/10/10000/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 12000 })
-      expect(await getTopScroll(browser)).toBe(12000)
 
       await browser.eval(`window.router.refresh()`)
       await waitForScrollToComplete(browser, { x: 0, y: 12000 })
     })
 
     it('should not stop router.push() from scrolling', async () => {
-      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+      const browser = await next.browser('/10/10000/100/1000/page1')
 
       await scrollTo(browser, { x: 0, y: 12000 })
-      expect(await getTopScroll(browser)).toBe(12000)
 
       await browser.eval(`
       window.React.startTransition(() => {
@@ -154,7 +183,7 @@ describe('router autoscrolling on navigation', () => {
     ;(isNextDev ? it : it.skip)(
       'should not scroll the page when we hot reload',
       async () => {
-        const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+        const browser = await next.browser('/10/10000/100/1000/page1')
 
         await scrollTo(browser, { x: 0, y: 12000 })
 
@@ -178,9 +207,36 @@ describe('router autoscrolling on navigation', () => {
     )
   })
 
+  describe('server action refresh', () => {
+    it('should not scroll when refresh() is called from a server action', async () => {
+      const browser = await next.browser('/server-action-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      // Scroll down past the first spacer div
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      // Click the refresh button which calls refresh() via a server action
+      await browser.elementByCss('#refresh-button').click()
+
+      // Wait for the action to complete by checking the server timestamp
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      // Scroll position should be preserved
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
+  })
+
   describe('bugs', () => {
     it('Should scroll to the top of the layout when the first child is display none', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.scrollTo(0, 500)')
       await browser
         .elementByCss('#to-invisible-first-element')
@@ -190,7 +246,7 @@ describe('router autoscrolling on navigation', () => {
     })
 
     it('Should scroll to the top of the layout when the first child is position fixed', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.scrollTo(0, 500)')
       await browser
         .elementByCss('#to-fixed-first-element')
@@ -200,7 +256,7 @@ describe('router autoscrolling on navigation', () => {
     })
 
     it('Should scroll to the top of the layout when the first child is position sticky', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.scrollTo(0, 500)')
       await browser
         .elementByCss('#to-sticky-first-element')
@@ -210,12 +266,10 @@ describe('router autoscrolling on navigation', () => {
     })
 
     it('Should apply scroll when loading.js is used', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.scrollTo(0, 500)')
-      await browser
-        .elementByCss('#to-loading-scroll')
-        .click()
-        .waitForElementByCss('#loading-component')
+      await browser.elementByCss('#to-loading-scroll').click()
+      await browser.waitForElementByCss('#loading-component')
       await check(() => browser.eval('window.scrollY'), 0)
       await browser.waitForElementByCss('#content-that-is-visible')
       await check(() => browser.eval('window.scrollY'), 0)
@@ -246,5 +300,22 @@ describe('router autoscrolling on navigation', () => {
         expect(await browser.eval(`window.scrollY`)).toBe(0)
       })
     })
+  })
+
+  it('should scroll to top even if React hoists children', async () => {
+    const browser = await next.browser('/')
+
+    // scroll to bottom
+    await browser.eval(
+      `window.scrollTo(0, ${await browser.eval('document.documentElement.scrollHeight')})`
+    )
+    // Just need to scroll by something
+    expect(await getTopScroll(browser)).toBeGreaterThan(0)
+
+    await browser.elementByCss('[href="/hoisted"]').click()
+    expect(
+      await browser.eval('document.documentElement.scrollHeight')
+    ).toBeGreaterThan(0)
+    await waitForScrollToComplete(browser, { x: 0, y: 0 })
   })
 })

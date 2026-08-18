@@ -1,31 +1,21 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use bitfield::bitfield;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc, trace::TraceRawVcs};
 
-use super::available_modules::{AvailableModules, AvailableModulesSet};
+use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
 
 bitfield! {
-    #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, Serialize, Deserialize, PartialEq, Eq, Hash)]
+    #[turbo_tasks::task_input]
+    #[derive(Clone, Copy, Default, TraceRawVcs, PartialEq, Eq, Hash, Encode, Decode)]
     pub struct AvailabilityFlags(u8);
     impl Debug;
     pub is_in_async_module, set_is_in_async_module: 0;
 }
 
-#[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Clone,
-    Copy,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-)]
+#[turbo_tasks::task_input]
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, TraceRawVcs, Encode, Decode)]
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.
@@ -44,7 +34,7 @@ impl AvailabilityInfo {
         self.available_modules
     }
 
-    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
+    pub async fn with_modules(self, modules: OperationVc<AvailableModulesSet>) -> Result<Self> {
         Ok(if let Some(available_modules) = self.available_modules {
             Self {
                 flags: self.flags,

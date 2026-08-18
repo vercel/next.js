@@ -22,7 +22,93 @@ Replacing `<transform>` and `<path>` with appropriate values.
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Upgrade
+
+Upgrades your Next.js application, automatically running codemods and updating Next.js, React, and React DOM.
+
+```bash filename="Terminal"
+npx @next/codemod upgrade [revision]
+```
+
+### Options
+
+- `revision` (optional): Specify the upgrade type (`patch`, `minor`, `major`), an NPM dist tag (e.g. `latest`, `canary`, `rc`), or an exact version (e.g. `15.0.0`). Defaults to `minor` for stable versions.
+- `--verbose`: Show more detailed output during the upgrade process.
+- `-y, --yes`: Skip every interactive prompt and accept its default (upgrade React past 18, enable Turbopack, apply all recommended codemods, run the React 19 codemods). Also auto-enabled when stdin is not a TTY (CI, an AI coding agent, or any non-interactive shell), so you usually don't need to pass it explicitly.
+
+For example:
+
+```bash filename="Terminal"
+# Upgrade to the latest patch (e.g. 16.0.7 -> 16.0.8)
+npx @next/codemod upgrade patch
+
+# Upgrade to the latest minor (e.g. 15.3.7 -> 15.4.8). This is the default.
+npx @next/codemod upgrade minor
+
+# Upgrade to the latest major (e.g. 15.5.7 -> 16.0.7)
+npx @next/codemod upgrade major
+
+# Upgrade to a specific version
+npx @next/codemod upgrade 16
+
+# Upgrade to the canary release
+npx @next/codemod upgrade canary
+
+# Run from an agent or CI: skip every prompt
+npx @next/codemod upgrade canary --yes
+```
+
+> **Good to know**:
+>
+> - If the target version is the same as or lower than your current version, the command exits without making changes.
+> - During the upgrade, you may be prompted to choose which Next.js codemods to apply and run React 19 codemods if upgrading React.
+> - When invoked by an AI coding agent or in CI (anywhere stdin isn't a TTY), the upgrade runs non-interactively and accepts every default. Pass `--yes` to force this behavior even from a terminal.
+
 ## Codemods
+
+### 16.3
+
+#### Opt every route out of Cache Components validation
+
+##### `cache-components-instant-false`
+
+```bash filename="Terminal"
+npx @next/codemod@canary cache-components-instant-false ./app
+```
+
+This codemod adds `export const instant = false` to every `{page,layout,default}` file in your app directory that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
+
+> **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+
+```diff filename="app/page.tsx"
++ // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
++ // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
++ export const instant = false
++
+  export default function Page() {
+    return <h1>Hello</h1>
+  }
+```
+
+See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) guide for the full adoption path.
+
+#### Remove `prefetch = 'partial'` Route Segment Config after enabling Partial Prefetching
+
+##### `remove-partial-prefetch`
+
+```bash filename="Terminal"
+npx @next/codemod@canary remove-partial-prefetch ./app
+```
+
+This codemod removes `export const prefetch = 'partial'` from the `{page,layout}` files in your app directory, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
+
+> **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+
+```diff filename="app/products/[slug]/page.tsx"
+- export const prefetch = 'partial'
+```
+
+See the [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) guide for the full adoption path.
 
 ### 16.0
 
@@ -180,7 +266,7 @@ export default eslintConfig
 npx @next/codemod@latest app-dir-runtime-config-experimental-edge .
 ```
 
-This codemod transforms [Route Segment Config `runtime`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime) value `experimental-edge` to `edge`.
+This codemod transforms [Route Segment Config `runtime`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/runtime) value `experimental-edge` to `edge`.
 
 For example:
 

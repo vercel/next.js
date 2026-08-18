@@ -5,9 +5,10 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
+import { PHASE_PRODUCTION_BUILD } from '../../../shared/lib/constants'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
-import type { NextConfig } from '../../../server/config-shared'
+import { normalizeConfig, type NextConfig } from '../../../server/config-shared'
 import { NextResponse } from '../../../server/web/exports'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import type {
@@ -81,13 +82,19 @@ export async function unstable_getResponseFromNextConfig({
   cookies = {},
 }: {
   url: string
-  nextConfig: NextConfig
+  nextConfig:
+    | NextConfig
+    | ((...args: any[]) => NextConfig | Promise<NextConfig>)
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
   const parsedUrl = parse(url, true)
   const request = constructRequest({ url, headers, cookies })
-  const routes = await loadCustomRoutes(nextConfig)
+  const resolvedConfig = await normalizeConfig(
+    PHASE_PRODUCTION_BUILD,
+    nextConfig
+  )
+  const routes = await loadCustomRoutes(resolvedConfig)
 
   const headerRoutes = routes.headers.map((route) =>
     buildCustomRoute('header', route)

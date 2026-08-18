@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     base::SwcComments,
     ecma::{
@@ -21,7 +21,7 @@ use crate::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
-            CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
             CjsRequireResolveAssetReferenceCodeGen,
         },
         constant_condition::ConstantConditionCodeGen,
@@ -33,12 +33,14 @@ use crate::{
             url::UrlAssetReferenceCodeGen,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
+        import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
-        replace_parent_with_child::ReplaceParentWithChild,
+        removal::RemovalCodeGen,
         require_context::RequireContextAssetReferenceCodeGen,
-        unreachable::Unreachable,
-        worker::WorkerAssetReferenceCodeGen,
+        service_worker::ServiceWorkerAssetReferenceCodeGen,
+        worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
 
@@ -175,7 +177,7 @@ impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
@@ -188,19 +190,23 @@ pub enum CodeGen {
     EsmModuleItem(EsmModuleItem),
     ExportsInfoBinding(ExportsInfoBinding),
     ExportsInfoRef(ExportsInfoRef),
+    CjsExportsDropCodeGen(CjsExportsDropCodeGen),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
     MemberReplacement(MemberReplacement),
-    Unreachable(Unreachable),
+    RemovalCodeGen(RemovalCodeGen),
     CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen),
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
     EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
     EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen),
+    ImportMetaGlobAssetReferenceCodeGen(ImportMetaGlobAssetReferenceCodeGen),
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
-    ReplaceParentWithChild(ReplaceParentWithChild),
+    ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
+    ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
+    WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
 
 impl CodeGen {
@@ -214,26 +220,32 @@ impl CodeGen {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(),
-            Self::ConstantValueCodeGen(v) => v.code_generation(),
+            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
+            Self::CjsExportsDropCodeGen(v) => v.code_generation(ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
             Self::MemberReplacement(v) => v.code_generation(ctx).await,
-            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::RemovalCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ReplaceParentWithChild(v) => v.code_generation(),
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ModuleHotReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
+            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

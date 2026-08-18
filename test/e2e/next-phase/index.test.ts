@@ -23,6 +23,9 @@ describe('next-phase', () => {
   if (skipped) return
 
   it('should render page with next phase correctly', async () => {
+    await next.fetch('/')
+    await next.fetch('/foo')
+
     const phases = {
       dev: 'phase-development-server',
       build: 'phase-production-build',
@@ -33,9 +36,6 @@ describe('next-phase', () => {
 
     expect(next.cliOutput).toContain(currentPhase)
     expect(next.cliOutput).not.toContain(nonExistedPhase)
-
-    await next.fetch('/')
-    await next.fetch('/foo')
 
     if (isNextDev) {
       expect(next.cliOutput).not.toContain(phases.start)

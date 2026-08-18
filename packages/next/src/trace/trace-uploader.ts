@@ -1,13 +1,17 @@
 import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
-import child_process from 'child_process'
 import assert from 'assert'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { getGitBranch, getGitCommit } from '../lib/helpers/git'
 
-const COMMON_ALLOWED_EVENTS = ['memory-usage']
+const COMMON_ALLOWED_EVENTS = [
+  'memory-usage',
+  'turbopack-persistence',
+  'turbopack-compaction',
+]
 
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
@@ -15,6 +19,7 @@ const COMMON_ALLOWED_EVENTS = ['memory-usage']
 const DEV_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'client-hmr-latency',
+  'render-path',
   'hot-reloader',
   'webpack-invalid-client',
   'webpack-invalidated-server',
@@ -98,14 +103,17 @@ interface TraceEvent {
 interface TraceMetadata {
   anonymousId: string
   arch: string
+  branch: string
   commit: string
   cpus: number
+  isVercelEnvironment: boolean
   isTurboSession: boolean
   mode: string
   nextVersion: string
   pkgName: string
   platform: string
   sessionId: string
+  enabledFeatures: Record<string, unknown>
 }
 
 ;(async function upload() {
@@ -124,14 +132,11 @@ interface TraceMetadata {
   )
   const pkgName = projectPkgJson.name
 
-  const commit = child_process
-    .spawnSync(
-      os.platform() === 'win32' ? 'git.exe' : 'git',
-      ['rev-parse', 'HEAD'],
-      { shell: true }
-    )
-    .stdout.toString()
-    .trimEnd()
+  const isVercelEnvironment = !!process.env.VERCEL
+
+  const commit = getGitCommit(projectDir) ?? ''
+
+  const branch = getGitBranch(projectDir) ?? ''
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
@@ -139,12 +144,41 @@ interface TraceMetadata {
   })
 
   const sessionTrace = []
+  let sessionEnabledFeatures: Record<string, unknown> = {}
+  const spanEnabledFeatures = new Map<number, Record<string, unknown>>()
+
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
     for (const event of lineEvents) {
       if (event.traceId !== traceId) {
         // Only consider events for the current session
         continue
+      }
+
+      // Extract enabled features from the root span (next-dev or next-build)
+      if (
+        event.parentId === undefined &&
+        event.tags &&
+        (event.name === 'next-dev' || event.name === 'next-build')
+      ) {
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('feature.')) {
+            sessionEnabledFeatures[key] = value
+          }
+        }
+      }
+
+      // Collect feature tags from all events for inheritance
+      if (event.tags) {
+        const enabledFeatures: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('feature.')) {
+            enabledFeatures[key] = value
+          }
+        }
+        if (Object.keys(enabledFeatures).length > 0) {
+          spanEnabledFeatures.set(event.id, enabledFeatures)
+        }
       }
 
       if (
@@ -160,23 +194,38 @@ interface TraceMetadata {
     }
   }
 
+  // Apply feature tag inheritance to session trace
+  const sessionTraceWithInheritance = sessionTrace.map((event) => {
+    if (event.parentId !== undefined) {
+      const parentFlags = spanEnabledFeatures.get(event.parentId)
+      if (parentFlags && Object.keys(parentFlags).length > 0) {
+        // Inherit parent flags, but child's own tags take precedence
+        return { ...event, tags: { ...parentFlags, ...event.tags } }
+      }
+    }
+    return event
+  })
+
   const body: TraceRequestBody = {
     metadata: {
       anonymousId,
       arch: os.arch(),
+      branch,
       commit,
       cpus: os.cpus().length,
+      isVercelEnvironment,
       isTurboSession,
       mode,
       nextVersion,
       pkgName,
       platform: os.platform(),
       sessionId,
+      enabledFeatures: sessionEnabledFeatures,
     },
     // The trace file can contain events spanning multiple sessions.
     // Only submit traces for the current session, as the metadata we send is
     // intended for this session only.
-    traces: [sessionTrace],
+    traces: [sessionTraceWithInheritance],
   }
 
   if (isDebugEnabled) {

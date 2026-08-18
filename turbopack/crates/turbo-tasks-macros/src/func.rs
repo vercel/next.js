@@ -4,14 +4,14 @@ use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{ToTokens, quote, quote_spanned};
 use rustc_hash::FxHashSet;
 use syn::{
-    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
-    GenericArgument, Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments,
-    PathSegment, Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath,
-    TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, FnArg, GenericArgument,
+    Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
+    ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
+    token,
     visit_mut::VisitMut,
 };
 
@@ -213,33 +213,23 @@ impl TurboFn<'_> {
 
     /// The signature of the exposed function. This is the original signature
     /// converted to a standard turbo_tasks function signature.
-    pub fn signature(&self) -> Signature {
-        let exposed_inputs: Punctuated<_, Token![,]> = self
+    pub fn signature(&self) -> TokenStream {
+        let exposed_inputs = self
             .this
             .as_ref()
             .into_iter()
             .chain(self.exposed_inputs.iter())
             .map(|input| {
-                FnArg::Typed(PatType {
-                    attrs: Vec::new(),
-                    pat: Box::new(Pat::Ident(PatIdent {
-                        attrs: Default::default(),
-                        by_ref: None,
-                        mutability: None,
-                        ident: input.ident.clone(),
-                        subpat: None,
-                    })),
-                    colon_token: Default::default(),
-                    ty: if self.operation {
-                        // operations shouldn't have their arguments rewritten, they require all
-                        // arguments are explicitly `NonLocalValue`s
-                        Box::new(input.ty.clone())
-                    } else {
-                        Box::new(expand_task_input_type(&input.ty).into_owned())
-                    },
-                })
-            })
-            .collect();
+                let ident = &input.ident;
+                let ty = if self.operation {
+                    // operations shouldn't have their arguments rewritten, they require all
+                    // arguments are explicitly `NonLocalValue`s
+                    input.ty.to_token_stream()
+                } else {
+                    expand_task_input_type(&input.ty).to_token_stream()
+                };
+                quote! { #ident: #ty }
+            });
 
         let ident = &self.ident;
         let orig_output = &self.output;
@@ -249,15 +239,15 @@ impl TurboFn<'_> {
                 .then(|| parse_quote!(turbo_tasks::OperationVc)),
         );
 
-        parse_quote! {
-            fn #ident(#exposed_inputs) -> #new_output
+        quote! {
+            fn #ident(#(#exposed_inputs),*) -> #new_output
         }
     }
 
-    pub fn trait_signature(&self) -> Signature {
+    pub fn trait_signature(&self) -> TokenStream {
         let signature = self.signature();
 
-        parse_quote! {
+        quote! {
             #signature where Self: Sized
         }
     }
@@ -462,18 +452,25 @@ impl TurboFn<'_> {
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
                 return Some(FilterTraitCallArgsTokens {
                     filter_owned: quote! {
-                        |magic_any| {
+                        |arg: &mut dyn turbo_tasks::DynTaskInputsStorage| {
                             let (#(#exposed_input_idents,)*) =
-                                *turbo_tasks::macro_helpers
-                                    ::downcast_args_owned::<(#(#exposed_input_types,)*)>(magic_any);
-                            ::std::boxed::Box::new((#(#inline_input_idents,)*))
+                                turbo_tasks::macro_helpers
+                                    ::downcast_stack_args_owned::<(#(#exposed_input_types,)*)>(arg);
+
+                            let inline = (#(#inline_input_idents,)*);
+                            let resolved =
+                                turbo_tasks::macro_helpers::input_resolution(&inline);
+                            (
+                                resolved,
+                                turbo_tasks::HeapDynTaskInputsStorage::new(::std::boxed::Box::new(inline))
+                            )
                         }
                     },
                     filter_and_resolve: quote! {
-                        |magic_any| {
+                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs| {
                             Box::pin(async move {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
-                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
+                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
                                 let resolved = (#(
                                     <_ as turbo_tasks::TaskInput>::resolve_input(
                                         #inline_input_idents
@@ -481,7 +478,7 @@ impl TurboFn<'_> {
                                 )*);
                                 Ok(
                                     ::std::boxed::Box::new(resolved)
-                                    as ::std::boxed::Box<dyn turbo_tasks::MagicAny>
+                                    as ::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>
                                 )
                             })
                         }
@@ -494,19 +491,19 @@ impl TurboFn<'_> {
 
     pub fn persistence(&self) -> impl ToTokens {
         quote! {
-            turbo_tasks::macro_helpers::get_persistence_from_inputs(&*inputs)
+            turbo_tasks::macro_helpers::get_persistence_from_inputs(&inputs)
         }
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
         quote! {
-            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &*inputs)
+            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &inputs)
         }
     }
 
-    fn converted_this(&self) -> Option<Expr> {
+    fn converted_this(&self) -> Option<TokenStream> {
         self.this.as_ref().map(|Input { ty: _, ident }| {
-            parse_quote! {
+            quote! {
                 turbo_tasks::Vc::into_raw(#ident)
             }
         })
@@ -546,9 +543,9 @@ impl TurboFn<'_> {
     }
 
     /// The block of the exposed function for a dynamic dispatch call to the given trait.
-    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> Block {
+    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> TokenStream {
         let Some(converted_this) = self.converted_this() else {
-            return parse_quote! {
+            return quote! {
                 {
                     unimplemented!("trait methods without self are not yet supported")
                 }
@@ -560,19 +557,26 @@ impl TurboFn<'_> {
         let assertions = self.get_assertions();
         let inputs = self.exposed_input_idents();
         let persistence = self.persistence_with_this();
-        parse_quote! {
+        quote! {
             {
                 #assertions
-                let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let inputs = (#(#inputs,)*);
                 let this = #converted_this;
+                let inputs_resolved =
+                    turbo_tasks::macro_helpers::input_resolution(&inputs);
                 let persistence = #persistence;
-                static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
-                        turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
+                let mut arg = turbo_tasks::StackDynTaskInputsStorage::new(inputs);
+                static TRAIT_METHOD: &'static turbo_tasks::TraitMethod = &#trait_type_ident
+                    .methods[turbo_tasks::macro_helpers::index_of_method_name(
+                        #trait_type_ident.methods,
+                        stringify!(#ident),
+                    )];
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
-                        *TRAIT_METHOD,
+                        TRAIT_METHOD,
                         this,
-                        inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                        &mut arg,
+                        inputs_resolved,
                         persistence,
                     )
                 )
@@ -581,7 +585,7 @@ impl TurboFn<'_> {
     }
 
     /// The block of the exposed function for a static dispatch call to the given native function.
-    pub fn static_block(&self, native_function_ident: &Ident) -> Block {
+    pub fn static_block(&self, native_function_ident: &Ident) -> TokenStream {
         let output = &self.output;
         let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
@@ -589,17 +593,21 @@ impl TurboFn<'_> {
             && let Some(converted_this) = self.converted_this()
         {
             let persistence = self.persistence_with_this();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
-                    let inputs = std::boxed::Box::new((#(#inputs,)*));
                     let this = #converted_this;
+                    let inputs = (#(#inputs,)*);
+                    let inputs_resolved =
+                        turbo_tasks::macro_helpers::input_resolution(&inputs);
                     let persistence = #persistence;
+                    let mut arg = turbo_tasks::StackDynTaskInputsStorage::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             &#native_function_ident,
                             Some(this),
-                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            &mut arg,
+                            inputs_resolved,
                             persistence,
                         )
                     )
@@ -607,16 +615,20 @@ impl TurboFn<'_> {
             }
         } else {
             let persistence = self.persistence();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
-                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let inputs = (#(#inputs,)*);
+                    let inputs_resolved =
+                        turbo_tasks::macro_helpers::input_resolution(&inputs);
                     let persistence = #persistence;
+                    let mut arg = turbo_tasks::StackDynTaskInputsStorage::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             &#native_function_ident,
                             None,
-                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            &mut arg,
+                            inputs_resolved,
                             persistence,
                         )
                     )
@@ -624,7 +636,7 @@ impl TurboFn<'_> {
             }
         };
         if self.operation {
-            block = parse_quote! {
+            block = quote! {
                 {
                     let vc_output = #block;
                     // Assumption: The turbo-tasks manager will not create a local task for a
@@ -735,6 +747,13 @@ pub struct FunctionArguments {
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     pub operation: Option<Span>,
+    /// Should the task be marked as a root in the aggregation graph on initial creation?
+    /// Root tasks start with aggregation number `u32::MAX`.
+    pub root: Option<Span>,
+    /// Should the task be marked as session dependent? Session dependent tasks are re-executed
+    /// when restored from persistent cache because they depend on external state (filesystem,
+    /// environment, network) that may change between sessions.
+    pub session_dependent: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -759,10 +778,17 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
+                ("root", Meta::Path(_)) => {
+                    parsed_args.root = Some(meta.span());
+                }
+                ("session_dependent", Meta::Path(_)) => {
+                    parsed_args.session_dependent = Some(meta.span());
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", or \"operation\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
+                         \"root\", or \"session_dependent\"",
                     ));
                 }
             }
@@ -774,7 +800,10 @@ impl Parse for FunctionArguments {
 
 fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
-        ReturnType::Default => parse_quote! { () },
+        ReturnType::Default => Type::Tuple(TypeTuple {
+            paren_token: token::Paren::default(),
+            elems: Punctuated::new(),
+        }),
         ReturnType::Type(_, return_type) => (**return_type).clone(),
     }
 }
@@ -902,6 +931,7 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
         new_output = match new_output {
             Type::Group(TypeGroup { elem, .. }) => *elem,
             Type::Tuple(TypeTuple { elems, .. }) if elems.is_empty() => {
+                // special case for returning nothing
                 Type::Path(parse_quote!(turbo_tasks::Vc<()>))
             }
             Type::Path(TypePath {
@@ -956,7 +986,14 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
                     found_vc = true;
                     break; // Vc is the bottom-most level
                 }
-                if ident == "Result" && args.len() == 1 {
+                if ident == "ResolvedVc" && args.len() == 1 {
+                    let GenericArgument::Type(ty) =
+                        args.first().expect("ResolvedVc<...> type has an argument")
+                    else {
+                        break;
+                    };
+                    Type::Path(parse_quote!(turbo_tasks::Vc<#ty>))
+                } else if ident == "Result" && args.len() == 1 {
                     let GenericArgument::Type(ty) =
                         args.first().expect("Result<...> type has an argument")
                     else {
@@ -976,8 +1013,9 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
             .span()
             .unwrap()
             .error(
-                "Expected return type to be `turbo_tasks::Vc<T>` or `anyhow::Result<Vc<T>>`. \
-                 Unable to process type.",
+                "Expected return type to be `turbo_tasks::Vc<T>`,  `anyhow::Result<Vc<T>>`, \
+                 `turbo_tasks::ResolvedVc<T>` or `anyhow::Result<ResolvedVc<T>>`. Unable to \
+                 process type.",
             )
             .emit();
     } else if let Some(replace_vc) = replace_vc {
@@ -1080,18 +1118,16 @@ pub struct FilterTraitCallArgsTokens {
 pub struct NativeFn {
     pub function_global_name: TokenStream,
     pub function_path_string: String,
-    pub function_path: ExprPath,
+    pub function_path: TokenStream,
     pub is_method: bool,
     /// Used only if `is_method` is true.
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
+    pub is_root: bool,
+    pub is_session_dependent: bool,
 }
 
 impl NativeFn {
-    pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::NativeFunction }
-    }
-
     pub fn definition(&self) -> TokenStream {
         let Self {
             function_global_name,
@@ -1100,59 +1136,45 @@ impl NativeFn {
             is_method,
             is_self_used,
             filter_trait_call_args,
+            is_root,
+            is_session_dependent,
         } = self;
 
-        if *is_method {
-            let arg_filter = if let Some(filter) = filter_trait_call_args {
-                let FilterTraitCallArgsTokens {
-                    filter_owned,
-                    filter_and_resolve,
-                } = filter;
-                quote! {
-                    ::std::option::Option::Some((
-                        #filter_owned,
-                        #filter_and_resolve,
-                    ))
-                }
-            } else {
-                quote! { ::std::option::Option::None }
-            };
+        let task_fn = if *is_method && *is_self_used {
+            quote! { turbo_tasks::macro_helpers::into_task_fn_with_this(#function_path) }
+        } else {
+            quote! { turbo_tasks::macro_helpers::into_task_fn(#function_path) }
+        };
 
-            if *is_self_used {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method(
-                            #function_path_string,
-                            #function_global_name,
-                            #arg_filter,
-                            #function_path,
-                        )
-                    }
-                }
-            } else {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
-                            #function_path_string,
-                            #function_global_name,
-                            #arg_filter,
-                            #function_path,
-                        )
-                    }
-                }
+        let arg_meta = if let Some(filter) = filter_trait_call_args {
+            let FilterTraitCallArgsTokens {
+                filter_owned,
+                filter_and_resolve,
+            } = filter;
+            quote! {
+                turbo_tasks::macro_helpers::ArgMeta::with_filter_trait_call_from(
+                    &#task_fn,
+                    Some(#filter_owned),
+                    Some(#filter_and_resolve),
+                )
             }
         } else {
             quote! {
-                {
-                    #[allow(deprecated)]
-                    turbo_tasks::macro_helpers::NativeFunction::new_function(
-                        #function_path_string,
-                        #function_global_name,
-                        #function_path,
-                    )
-                }
+                turbo_tasks::macro_helpers::ArgMeta::new_from(&#task_fn)
+            }
+        };
+
+        quote! {
+            {
+                #[allow(deprecated)]
+                turbo_tasks::macro_helpers::NativeFunction::new(
+                    #function_path_string,
+                    #function_global_name,
+                    #arg_meta,
+                    &#task_fn,
+                    #is_root,
+                    #is_session_dependent,
+                )
             }
         }
     }

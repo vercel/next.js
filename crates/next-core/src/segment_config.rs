@@ -1,36 +1,38 @@
-use std::{borrow::Cow, future::Future};
+use std::borrow::Cow;
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
+use serde::Deserialize;
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    analyzer::{ConstantNumber, ConstantValue, JsValue, ObjectPart, graph::EvalContext},
+    analyzer::{
+        Bump, ConstantNumber, ConstantValue, JsValue, ObjectPart, ThreadLocal, graph::EvalContext,
+    },
     parse::{ParseResult, parse},
 };
 
@@ -42,7 +44,17 @@ use crate::{
 };
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -54,7 +66,17 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -69,7 +91,7 @@ pub enum NextSegmentFetchCache {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum NextRevalidate {
     #[default]
@@ -95,7 +117,14 @@ pub struct NextSegmentConfig {
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub instant: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub prefetch: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -136,13 +165,11 @@ impl NextSegmentConfig {
             name: &str,
         ) -> Result<()> {
             match (a.as_ref(), b) {
-                (Some(a), Some(b)) => {
-                    if *a != *b {
-                        bail!(
-                            "Sibling segment configs have conflicting values for {}",
-                            name
-                        )
-                    }
+                (Some(a), Some(b)) if *a != *b => {
+                    bail!(
+                        "Sibling segment configs have conflicting values for {}",
+                        name
+                    )
                 }
                 (None, Some(b)) => {
                     *a = Some(b.clone());
@@ -212,14 +239,14 @@ impl NextSegmentConfigParsingIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(
                 format!(
@@ -229,62 +256,42 @@ impl Issue for NextSegmentConfigParsingIssue {
                 .into(),
             ),
             StyledString::Text(self.error.clone()),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.ident.await?.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "The exported configuration object in a source file needs to have a very specific \
-                 format from which some properties can be statically parsed at compiled-time."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "The exported configuration object in a source file needs to have a very specific \
+             format from which some properties can be statically parsed at compiled-time."
+        ))))
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.detail)
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        match self.detail {
+            Some(d) => Ok(Some((*d.await?).clone())),
+            None => Ok(None),
+        }
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-        ))
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config")
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
@@ -359,7 +366,8 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let path = source.ident().path().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
@@ -388,6 +396,9 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        // node_env is not used here: EcmascriptInputTransforms::empty() means no
+        // transforms are applied, so TransformContext::node_env is never accessed.
+        rcstr!("development"),
         false,
         false,
     )
@@ -404,12 +415,25 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     };
 
+    // Arena for the `JsValue`s produced while evaluating config expressions;
+    // freed when this function returns.
+    let arena = ThreadLocal::new();
     let config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(source, mode, &mut config, eval_context, ident, init, span).await
+                parse_config_value(
+                    source,
+                    mode,
+                    &mut config,
+                    eval_context,
+                    &arena,
+                    ident,
+                    init,
+                    span,
+                )
+                .await
             };
 
             for item in &module_ast.body {
@@ -493,36 +517,69 @@ pub async fn parse_segment_config_from_source(
     )
     .await?;
 
-    if mode == ParseSegmentMode::App
-        && let Some(span) = config.generate_static_params
-        && module_ast
-            .body
-            .iter()
-            .take_while(|i| match i {
-                ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                ModuleItem::ModuleDecl(_) => false,
-            })
-            .filter_map(|i| i.as_stmt())
-            .any(|f| match f {
-                Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-                    Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
-                    _ => false,
-                },
+    let is_client_entry = module_ast
+        .body
+        .iter()
+        .take_while(|i| match i {
+            ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+            ModuleItem::ModuleDecl(_) => false,
+        })
+        .filter_map(|i| i.as_stmt())
+        .any(|f| match f {
+            Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
                 _ => false,
-            })
-    {
-        invalid_config(
-            source,
-            "generateStaticParams",
-            span,
-            rcstr!(
-                "App pages cannot use both \"use client\" and export function \
-                 \"generateStaticParams()\"."
-            ),
-            None,
-            IssueSeverity::Error,
-        )
-        .await?;
+            },
+            _ => false,
+        });
+
+    if mode == ParseSegmentMode::App && is_client_entry {
+        if let Some(span) = config.generate_static_params {
+            invalid_config(
+                source,
+                "generateStaticParams",
+                span,
+                rcstr!(
+                    "App pages cannot use both \"use client\" and export function \
+                     \"generateStaticParams()\"."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.instant {
+            invalid_config(
+                source,
+                "instant",
+                span,
+                rcstr!(
+                    "\"instant\" is a route segment config and can only be used when the segment \
+                     is a Server Component module. Remove the \"use client\" directive to use \
+                     this API."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.prefetch {
+            invalid_config(
+                source,
+                "prefetch",
+                span,
+                rcstr!(
+                    "\"prefetch\" is a route segment config and can only be used when the segment \
+                     is a Server Component module. Remove the \"use client\" directive to use \
+                     this API."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
     }
 
     Ok(config.cell())
@@ -533,7 +590,7 @@ async fn invalid_config(
     key: &str,
     span: Span,
     error: RcStr,
-    value: Option<&JsValue>,
+    value: Option<&JsValue<'_>>,
     severity: IssueSeverity,
 ) -> Result<()> {
     let detail = if let Some(value) = value {
@@ -562,30 +619,34 @@ async fn parse_config_value(
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
+    arena: &ThreadLocal<Bump>,
     key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies ProxyConfig`, usually this is already
-        // transpiled away, but we are looking at the original source here.
-        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
-            Some(&**expr)
-        } else {
-            init
+        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+        // this is already transpiled away, but we are looking at the original source here.
+        let init = match init {
+            Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+            _ => init,
         };
-        init.map(|init| eval_context.eval(init)).map(|v| {
-            // Special case, as we don't call `link` here: assume that `undefined` is a free
-            // variable.
-            if let JsValue::FreeVar(name) = &v
-                && name == "undefined"
-            {
-                JsValue::Constant(ConstantValue::Undefined)
-            } else {
-                v
-            }
-        })
+        init.map(|init| eval_context.eval(arena.get_or_default(), init))
+            .map(|v| {
+                // Special case, as we don't call `link` here: assume that `undefined` is a free
+                // variable.
+                if let JsValue::FreeVar(name) = &v
+                    && name == "undefined"
+                {
+                    JsValue::Constant(ConstantValue::Undefined)
+                } else {
+                    v
+                }
+            })
     };
 
     match &*key {
@@ -940,6 +1001,12 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
+        "instant" => {
+            config.instant = Some(span);
+        }
+        "prefetch" => {
+            config.prefetch = Some(span);
+        }
         _ => {}
     }
 
@@ -951,7 +1018,7 @@ async fn parse_static_string_or_array_from_js_value(
     span: Span,
     key: &str,
     sub_key: &str,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<RcStr>>> {
     Ok(match value {
         // Single value is turned into a single-element Vec.
@@ -1004,129 +1071,130 @@ async fn parse_static_string_or_array_from_js_value(
 async fn parse_route_matcher_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher = async |value: &JsValue, sub_key: &str, matcher_idx: usize| {
-        let mut route_has = vec![];
-        if let JsValue::Array { items, .. } = value {
-            for (i, item) in items.iter().enumerate() {
-                if let JsValue::Object { parts, .. } = item {
-                    let mut route_type = None;
-                    let mut route_key = None;
-                    let mut route_value = None;
+    let parse_matcher_kind_matcher =
+        async |value: &JsValue<'_>, sub_key: &str, matcher_idx: usize| {
+            let mut route_has = vec![];
+            if let JsValue::Array { items, .. } = value {
+                for (i, item) in items.iter().enumerate() {
+                    if let JsValue::Object { parts, .. } = item {
+                        let mut route_type = None;
+                        let mut route_key = None;
+                        let mut route_value = None;
 
-                    for matcher_part in parts {
-                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
-                            match part_key.as_str() {
-                                Some("type") => {
-                                    if let Some(part_value) = part_value.as_str().filter(|v| {
-                                        *v == "header"
-                                            || *v == "cookie"
-                                            || *v == "query"
-                                            || *v == "host"
-                                    }) {
-                                        route_type = Some(part_value);
-                                    } else {
+                        for matcher_part in parts {
+                            if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
+                                match part_key.as_str() {
+                                    Some("type") => {
+                                        if let Some(part_value) = part_value.as_str().filter(|v| {
+                                            *v == "header"
+                                                || *v == "cookie"
+                                                || *v == "query"
+                                                || *v == "host"
+                                        }) {
+                                            route_type = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
+                                                     must be one of the strings: 'header', \
+                                                     'cookie', 'query', 'host'"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("key") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_key = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].key` \
+                                                     must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("value") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_value = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].\
+                                                     value` must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    _ => {
                                         invalid_config(
                                             source,
                                             "config",
                                             span,
                                             format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
-                                                 must be one of the strings: 'header', 'cookie', \
-                                                 'query', 'host'"
+                                                "Unexpected property in \
+                                                 `matcher[{matcher_idx}].{sub_key}[{i}]` object"
                                             )
                                             .into(),
-                                            Some(part_value),
+                                            Some(part_key),
                                             IssueSeverity::Error,
                                         )
                                         .await?;
                                     }
-                                }
-                                Some("key") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_key = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].key` must \
-                                                 be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                Some("value") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_value = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].value` \
-                                                 must be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                _ => {
-                                    invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!(
-                                            "Unexpected property in \
-                                             `matcher[{matcher_idx}].{sub_key}[{i}]` object"
-                                        )
-                                        .into(),
-                                        Some(part_key),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await?;
                                 }
                             }
                         }
-                    }
-                    let r = match route_type {
-                        Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("host") => route_value.map(|route_value| RouteHas::Host {
-                            value: route_value.into(),
-                        }),
-                        _ => None,
-                    };
+                        let r = match route_type {
+                            Some("header") => route_key.map(|route_key| RouteHas::Header {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("query") => route_key.map(|route_key| RouteHas::Query {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("host") => route_value.map(|route_value| RouteHas::Host {
+                                value: route_value.into(),
+                            }),
+                            _ => None,
+                        };
 
-                    if let Some(r) = r {
-                        route_has.push(r);
+                        if let Some(r) = r {
+                            route_has.push(r);
+                        }
                     }
                 }
             }
-        }
 
-        anyhow::Ok(route_has)
-    };
+            anyhow::Ok(route_has)
+        };
 
     let mut matchers = vec![];
 

@@ -9,11 +9,17 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { DecodeError } from '../../shared/lib/utils'
+import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -23,13 +29,15 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { isPostpone } from './router-utils/is-postpone'
+import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  REQUEST_INSIGHTS_DEV_ENDPOINT,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -48,7 +56,7 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
-import { blockCrossSite } from './router-utils/block-cross-site'
+import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -59,10 +67,51 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
+import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from './trace/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
+
+// ModuleBuildError can cross compiled module boundaries, so constructor
+// identity is not reliable. Check its stable fields and string prefix instead.
+function isModuleBuildError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as {
+    code?: unknown
+    constructor?: { name?: unknown }
+    name?: unknown
+  }
+  const errorString = String(error)
+
+  return (
+    maybeError.name === 'ModuleBuildError' ||
+    maybeError.code === 'ModuleBuildError' ||
+    maybeError.constructor?.name === 'ModuleBuildError' ||
+    errorString.startsWith('ModuleBuildError:') ||
+    errorString.startsWith('Error [ModuleBuildError]:')
+  )
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return deobfuscateText(error.message)
+  }
+
+  return deobfuscateText(String(error))
+}
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -89,6 +138,7 @@ export async function initialize(opts: {
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
+  serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -97,11 +147,25 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  // Capture the bundler before loading the config
+  const bundlerBeforeConfig = opts.dev ? getBundlerFromEnv() : undefined
+
+  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    {
+      silent: false,
+      reportExperimentalFeatures(features) {
+        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
+        )
+      },
+    }
   )
+  if (bundlerBeforeConfig !== undefined) {
+    finalizeBundlerFromConfig(bundlerBeforeConfig)
+  }
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -118,9 +182,13 @@ export async function initialize(opts: {
 
   const renderServer: LazyRenderServerInstance = {}
 
-  let developmentBundler: DevBundler | undefined
-
-  let devBundlerService: DevBundlerService | undefined
+  let development:
+    | {
+        bundler: DevBundler
+        service: DevBundlerService
+        config: NextConfigComplete
+      }
+    | undefined = undefined
 
   let originalFetch = globalThis.fetch
 
@@ -146,7 +214,32 @@ export async function initialize(opts: {
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
       : trace('setup-dev-bundler')
-    developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+
+    // In development, it's always the complete config.
+    let developmentConfig = config as NextConfigComplete
+
+    // Resolve the effective serverFastRefresh value.
+    // Both default to enabled (true). CLI takes precedence over config.
+    const cliServerFastRefresh = opts.serverFastRefresh
+    const configServerFastRefresh =
+      developmentConfig.experimental?.turbopackServerFastRefresh
+    let effectiveServerFastRefresh: boolean | undefined
+    if (
+      cliServerFastRefresh !== undefined &&
+      configServerFastRefresh !== undefined &&
+      cliServerFastRefresh !== configServerFastRefresh
+    ) {
+      Log.warn(
+        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+      )
+      effectiveServerFastRefresh = cliServerFastRefresh
+    } else {
+      // Default to true when neither CLI nor config specifies a value.
+      effectiveServerFastRefresh =
+        cliServerFastRefresh ?? configServerFastRefresh ?? true
+    }
+
+    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
         renderServer,
@@ -155,24 +248,34 @@ export async function initialize(opts: {
         telemetry,
         fsChecker,
         dir: opts.dir,
-        nextConfig: config,
+        nextConfig: developmentConfig,
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
+        serverFastRefresh: effectiveServerFastRefresh,
       })
     )
 
-    devBundlerService = new DevBundlerService(
+    let devBundlerService = new DevBundlerService(
       developmentBundler,
       // The request handler is assigned below, this allows us to create a lazy
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      }
+      },
+      Boolean(developmentConfig.experimental.requestInsights)
     )
+
+    development = {
+      bundler: developmentBundler,
+      service: devBundlerService,
+      config: developmentConfig,
+    }
   }
+  const devMemoryThresholdRestart =
+    development?.config.experimental.devMemoryThresholdRestart !== false
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
@@ -183,6 +286,48 @@ export async function initialize(opts: {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
+    }
+
+    if (opts.dev && req.url) {
+      if (config.experimental.requestInsights) {
+        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      }
+
+      const urlParts = req.url.split('?', 1)
+      const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
+
+      if (pathname === REQUEST_INSIGHTS_DEV_ENDPOINT) {
+        if (
+          development &&
+          blockCrossSiteDEV(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
+          return
+        }
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        if (
+          !config.experimental.requestInsights &&
+          !isRequestInsightsEnabled()
+        ) {
+          res.statusCode = 404
+          res.end(
+            JSON.stringify({
+              error:
+                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+            })
+          )
+          return
+        }
+
+        res.statusCode = 200
+        res.end(JSON.stringify(getRequestInsightsSnapshot()))
+        return
+      }
     }
 
     if (
@@ -239,6 +384,14 @@ export async function initialize(opts: {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
+
+      // On client disconnect the middleware never ends its zlib stream, which
+      // then leaks past GC. See `releaseCompressionStream`.
+      res.once('close', () => {
+        if (res.writableFinished) return
+
+        releaseCompressionStream(res)
+      })
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
@@ -328,8 +481,15 @@ export async function initialize(opts: {
       }
 
       // handle hot-reloader first
-      if (developmentBundler) {
-        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
+      if (development) {
+        if (
+          blockCrossSiteDEV(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
           return
         }
 
@@ -346,9 +506,9 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        const parsedUrl = url.parse(req.url || '/')
+        const parsedUrl = parseUrlUtil(req.url || '/')
 
-        const hotReloaderResult = await developmentBundler.hotReloader.run(
+        const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
           res,
           parsedUrl
@@ -380,7 +540,7 @@ export async function initialize(opts: {
         return
       }
 
-      if (developmentBundler && matchedOutput?.type === 'devVirtualFsItem') {
+      if (development && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -392,12 +552,12 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        if (resHeaders) {
+        if (resHeaders !== null) {
           for (const key of Object.keys(resHeaders)) {
             res.setHeader(key, resHeaders[key])
           }
         }
-        const result = await developmentBundler.requestHandler(req, res)
+        const result = await development.bundler.requestHandler(req, res)
 
         if (result.finished) {
           return
@@ -419,8 +579,10 @@ export async function initialize(opts: {
       })
 
       // apply any response headers from routing
-      for (const key of Object.keys(resHeaders || {})) {
-        res.setHeader(key, resHeaders[key])
+      if (resHeaders !== null) {
+        for (const key of Object.keys(resHeaders)) {
+          res.setHeader(key, resHeaders[key])
+        }
       }
 
       // handle redirect
@@ -472,8 +634,15 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          if (matchedOutput.itemPath.startsWith('/service-worker/')) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+            res.setHeader('Service-Worker-Allowed', config.basePath || '/')
+          } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+            // Development assets stay revalidatable. `serveStatic` adds an
+            // `ETag`, so the browser sends a conditional request and reuses the
+            // stored body when the server answers `304`. This keeps the browser
+            // from downloading every chunk again on each page load.
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
               'Cache-Control',
@@ -484,14 +653,9 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(
-            url.parse('/405', true),
-            '/405',
-            handleIndex,
-            {
-              invokeStatus: 405,
-            }
-          )
+          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
+            invokeStatus: 405,
+          })
         }
 
         try {
@@ -550,7 +714,7 @@ export async function initialize(opts: {
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
-              url.parse(invokePath, true),
+              parseUrlUtil(invokePath),
               invokePath,
               handleIndex,
               {
@@ -565,18 +729,44 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        // fsChecker preserves compilation errors from its dev ensure step so
+        // the route remains matched. Log the compiler diagnostic, then render
+        // the matched route as a 500 instead of falling through to a 404.
+        if (matchedOutput.error && development) {
+          development.bundler.logErrorWithOriginalStack(
+            matchedOutput.error,
+            matchedOutput.type === 'appFile' ? 'app-dir' : undefined
+          )
+        }
+
         return await invokeRender(
           parsedUrl,
           parsedUrl.pathname || '/',
           handleIndex,
           {
             invokeOutput: matchedOutput.itemPath,
+            ...(matchedOutput.error
+              ? {
+                  invokeStatus: 500,
+                  invokeError: matchedOutput.error,
+                }
+              : undefined),
+            // fsChecker owns the route match for filesystem requests. Forward
+            // it so BaseServer does not need the removed matcher manager.
+            ...(matchedOutput.route
+              ? {
+                  match: {
+                    definition: matchedOutput.route,
+                    params: matchedOutput.params,
+                  },
+                }
+              : undefined),
           }
         )
       }
 
       // We want the original pathname without any basePath or proxy rewrites.
-      if (opts.dev && isChromeDevtoolsWorkspaceUrl(req.url)) {
+      if (development && isChromeDevtoolsWorkspaceUrl(req.url)) {
         await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
         return
       }
@@ -617,6 +807,18 @@ export async function initialize(opts: {
         return null
       }
 
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
+
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
       if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
         res.statusCode = 404
@@ -625,7 +827,7 @@ export async function initialize(opts: {
       }
 
       const appNotFound = opts.dev
-        ? developmentBundler?.serverFields.hasAppNotFound
+        ? development?.bundler?.serverFields.hasAppNotFound
         : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
@@ -656,11 +858,15 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
+        } else if (isModuleBuildError(err)) {
+          // Webpack compilation failures may bubble out of invokeRender. Log
+          // the readable diagnostic without printing the wrapper stack again.
+          Log.error(getErrorMessage(err))
         } else {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+        return await invokeRender(parseUrlUtil(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {
@@ -692,15 +898,22 @@ export async function initialize(opts: {
     dev: !!opts.dev,
     server: opts.server,
     serverFields: {
-      ...(developmentBundler?.serverFields || {}),
-      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+      ...(development?.bundler?.serverFields || {}),
+      setIsrStatus: development?.service?.setIsrStatus.bind(
+        development?.service
+      ),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: devBundlerService,
+    bundlerService: development?.service,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
+    distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
+    devMemoryThresholdRestart,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -715,7 +928,7 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: config,
+    nextConfig: getNextConfigRuntime(config),
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
@@ -724,34 +937,29 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setCacheStatus: config.cacheComponents
-      ? devBundlerService?.setCacheStatus.bind(devBundlerService)
+      ? development?.service?.setCacheStatus.bind(development?.service)
       : undefined,
-    setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
-    setReactDebugChannel: config.experimental.reactDebugChannel
-      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+    setIsrStatus: development?.service?.setIsrStatus.bind(development?.service),
+    setReactDebugChannel: development?.config.experimental.reactDebugChannel
+      ? development?.service?.setReactDebugChannel.bind(development?.service)
       : undefined,
-    sendErrorsToBrowser:
-      devBundlerService?.sendErrorsToBrowser.bind(devBundlerService),
+    sendErrorsToBrowser: development?.service?.sendErrorsToBrowser.bind(
+      development?.service
+    ),
   }
 
-  const logError = async (
-    type: 'uncaughtException' | 'unhandledRejection',
-    err: Error | undefined
-  ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    if (type === 'unhandledRejection') {
-      Log.error('unhandledRejection: ', err)
-    } else if (type === 'uncaughtException') {
-      Log.error('uncaughtException: ', err)
-    }
+  const logError = async (err: Error | undefined) => {
+    Log.error('uncaughtException: ', err)
   }
 
-  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
+  process.on('uncaughtException', logError)
+
+  // The render server may run in the same process and have already registered
+  // the unhandled rejection listener, in which case we must not register
+  // another one, to avoid logging unhandled rejections multiple times.
+  if (!isUnhandledRejectionListenerRegistered()) {
+    registerUnhandledRejectionListener()
+  }
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -759,7 +967,7 @@ export async function initialize(opts: {
     opts,
     renderServer.instance,
     renderServerOpts,
-    developmentBundler?.ensureMiddleware
+    development?.bundler?.ensureMiddleware
   )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
@@ -773,9 +981,14 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler && req.url) {
+      if (opts.dev && development && req.url) {
         if (
-          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+          blockCrossSiteDEV(
+            req,
+            socket,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
         ) {
           return
         }
@@ -796,13 +1009,13 @@ export async function initialize(opts: {
         }
 
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(
+          return development.bundler.hotReloader.onHMR(
             req,
             socket,
             head,
@@ -818,7 +1031,7 @@ export async function initialize(opts: {
                 client.send(
                   JSON.stringify({
                     type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
-                    data: devBundlerService?.appIsrManifest || {},
+                    data: development.service?.appIsrManifest || {},
                   } satisfies AppIsrManifestMessage)
                 )
               }
@@ -834,12 +1047,13 @@ export async function initialize(opts: {
           )
         },
       })
-      const { matchedOutput, parsedUrl } = await resolveRoutes({
-        req,
-        res,
-        isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
-      })
+      const { finished, matchedOutput, parsedUrl, statusCode } =
+        await resolveRoutes({
+          req,
+          res,
+          isUpgradeReq: true,
+          signal: signalFromNodeResponse(socket),
+        })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported
@@ -847,8 +1061,12 @@ export async function initialize(opts: {
         return socket.end()
       }
 
-      if (parsedUrl.protocol) {
-        return await proxyRequest(req, socket, parsedUrl, head)
+      if (finished && parsedUrl.protocol) {
+        if (!statusCode) {
+          return await proxyRequest(req, socket, parsedUrl, head)
+        }
+
+        return socket.end()
       }
 
       // If there's no matched output, we don't handle the request as user's
@@ -864,7 +1082,13 @@ export async function initialize(opts: {
     upgradeHandler,
     server: handlers.server,
     closeUpgraded() {
-      developmentBundler?.hotReloader?.close()
+      development?.bundler?.hotReloader?.close()
     },
+    distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
+    agentRules: config.agentRules,
+    devMemoryThresholdRestart,
   }
 }

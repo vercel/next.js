@@ -72,6 +72,7 @@ pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut = make_sho
 pub const TURBOPACK_IMPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("i");
 pub const TURBOPACK_ESM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("s");
 pub const TURBOPACK_EXPORT_VALUE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("v");
+pub const TURBOPACK_EXPORT_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("q");
 pub const TURBOPACK_EXPORT_NAMESPACE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("n");
 pub const TURBOPACK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("c");
 pub const TURBOPACK_MODULES: &TurbopackRuntimeFunctionShortcut = make_shortcut!("M");
@@ -80,26 +81,29 @@ pub const TURBOPACK_LOAD_BY_URL: &TurbopackRuntimeFunctionShortcut = make_shortc
 pub const TURBOPACK_CLEAR_CHUNK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("C");
 pub const TURBOPACK_DYNAMIC: &TurbopackRuntimeFunctionShortcut = make_shortcut!("j");
 pub const TURBOPACK_RESOLVE_ABSOLUTE_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("P");
+pub const TURBOPACK_RESOLVE_FILE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("F");
 pub const TURBOPACK_RELATIVE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("U");
 pub const TURBOPACK_RESOLVE_MODULE_ID_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("R");
-pub const TURBOPACK_WORKER_BLOB_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("b");
 pub const TURBOPACK_ASYNC_MODULE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("a");
 pub const TURBOPACK_EXTERNAL_REQUIRE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("x");
 pub const TURBOPACK_EXTERNAL_IMPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("y");
 pub const TURBOPACK_REFRESH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("k");
 pub const TURBOPACK_REQUIRE_STUB: &TurbopackRuntimeFunctionShortcut = make_shortcut!("z");
 pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("t");
-pub const TURBOPACK_WASM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("w");
-pub const TURBOPACK_WASM_MODULE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("u");
 pub const TURBOPACK_GLOBAL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("g");
+pub const TURBOPACK_CHUNK_RELATIVE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("h");
+pub const TURBOPACK_RUNTIME_ROOT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("w");
+pub const TURBOPACK_CHUNK_BASE_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("b");
+pub const TURBOPACK_ASSET_SUFFIX: &TurbopackRuntimeFunctionShortcut = make_shortcut!("X");
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 22] = [
+pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 25] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),
     ("__turbopack_export_value__", TURBOPACK_EXPORT_VALUE),
+    ("__turbopack_export_url__", TURBOPACK_EXPORT_URL),
     ("__turbopack_export_namespace__", TURBOPACK_EXPORT_NAMESPACE),
     ("__turbopack_cache__", TURBOPACK_CACHE),
     ("__turbopack_modules__", TURBOPACK_MODULES),
@@ -110,12 +114,12 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         "__turbopack_resolve_absolute_path__",
         TURBOPACK_RESOLVE_ABSOLUTE_PATH,
     ),
+    ("__turbopack_resolve_file_url__", TURBOPACK_RESOLVE_FILE_URL),
     ("__turbopack_relative_url__", TURBOPACK_RELATIVE_URL),
     (
         "__turbopack_resolve_module_id_path__",
         TURBOPACK_RESOLVE_MODULE_ID_PATH,
     ),
-    ("__turbopack_worker_blob_url__", TURBOPACK_WORKER_BLOB_URL),
     ("__turbopack_external_require__", TURBOPACK_EXTERNAL_REQUIRE),
     ("__turbopack_external_import__", TURBOPACK_EXTERNAL_IMPORT),
     ("__turbopack_refresh__", TURBOPACK_REFRESH),
@@ -125,6 +129,11 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         "__turbopack_clear_chunk_cache__",
         TURBOPACK_CLEAR_CHUNK_CACHE,
     ),
-    ("__turbopack_wasm__", TURBOPACK_WASM),
-    ("__turbopack_wasm_module__", TURBOPACK_WASM_MODULE),
+    (
+        "__turbopack_chunk_relative_url__",
+        TURBOPACK_CHUNK_RELATIVE_URL,
+    ),
+    ("__turbopack_chunk_base_path__", TURBOPACK_CHUNK_BASE_PATH),
+    ("__turbopack_chunk_asset_suffix__", TURBOPACK_ASSET_SUFFIX),
+    ("__turbopack_runtime_root__", TURBOPACK_RUNTIME_ROOT),
 ];

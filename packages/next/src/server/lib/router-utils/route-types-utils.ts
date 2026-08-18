@@ -10,6 +10,8 @@ import {
   generateRouteTypesFile,
   generateLinkTypesFile,
   generateValidatorFile,
+  generateValidatorFileStrict,
+  generateRouteTypesFileStrict,
 } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
@@ -21,21 +23,27 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../../shared/lib/entry-constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import type { RouteInfo, SlotInfo } from '../../../build/file-classifier'
+import type {
+  RootParamInfo,
+  RootParamValueType,
+} from './root-params-type-utils'
 
-interface RouteInfo {
+// Internal route info with extracted params for the manifest
+interface ManifestRouteInfo {
   path: string
   groups: { [groupName: string]: Group }
 }
 
 export interface RouteTypesManifest {
-  appRoutes: Record<string, RouteInfo>
-  pageRoutes: Record<string, RouteInfo>
-  layoutRoutes: Record<string, RouteInfo & { slots: string[] }>
-  appRouteHandlerRoutes: Record<string, RouteInfo>
-  /** Map of redirect source => RouteInfo */
-  redirectRoutes: Record<string, RouteInfo>
-  /** Map of rewrite source => RouteInfo */
-  rewriteRoutes: Record<string, RouteInfo>
+  appRoutes: Record<string, ManifestRouteInfo>
+  pageRoutes: Record<string, ManifestRouteInfo>
+  layoutRoutes: Record<string, ManifestRouteInfo & { slots: string[] }>
+  appRouteHandlerRoutes: Record<string, ManifestRouteInfo>
+  /** Map of redirect source => ManifestRouteInfo */
+  redirectRoutes: Record<string, ManifestRouteInfo>
+  /** Map of rewrite source => ManifestRouteInfo */
+  rewriteRoutes: Record<string, ManifestRouteInfo>
   /** File paths for validation */
   appPagePaths: Set<string>
   pagesRouterPagePaths: Set<string>
@@ -44,6 +52,8 @@ export interface RouteTypesManifest {
   pageApiRoutes: Set<string>
   /** Direct mapping from file paths to routes for validation */
   filePathToRoute: Map<string, string>
+  /** Root params collected from root layouts, with their possible runtime value types */
+  rootParams: Map<string, RootParamInfo>
 }
 
 // Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
@@ -141,6 +151,63 @@ function resolveInterceptingRoute(route: string): string {
 }
 
 /**
+ * Collects root params from the manifest's layout routes with universality tracking.
+ * A root layout is the shallowest layout in each branch — no ancestor layout above it.
+ * A param is "universal" if it appears in ALL root layouts.
+ *
+ * Uses the already-extracted `groups` from `manifest.layoutRoutes` (via `getRouteRegex`)
+ * rather than re-parsing segments.
+ */
+function collectRootParamsFromLayouts(
+  layoutRoutes: RouteTypesManifest['layoutRoutes']
+): Map<string, RootParamInfo> {
+  const routes = Object.keys(layoutRoutes)
+
+  // Find root layouts: layouts with no ancestor layout above them.
+  const rootLayoutRoutes = routes.filter(
+    // If there are no other layouts whose paths are prefixes of this layout,
+    // then it's a root layout.
+    (route) =>
+      !routes.some(
+        (other) =>
+          other !== route && (other === '/' || route.startsWith(other + '/'))
+      )
+  )
+
+  if (rootLayoutRoutes.length === 0) {
+    return new Map()
+  }
+
+  // The same param name can have different runtime shapes
+  // across roots, so track both param names and shapes.
+  const rootParams = new Map<string, RootParamInfo>()
+
+  for (const route of rootLayoutRoutes) {
+    for (const [name, group] of Object.entries(layoutRoutes[route].groups)) {
+      const info = rootParams.get(name) ?? new Set<RootParamValueType>()
+
+      info.add(group.repeat ? 'string[]' : 'string')
+      if (group.optional) {
+        info.add('undefined')
+      }
+
+      rootParams.set(name, info)
+    }
+  }
+
+  // Any param missing from a root layout can be undefined.
+  for (const [name, info] of rootParams) {
+    if (
+      rootLayoutRoutes.some((route) => !(name in layoutRoutes[route].groups))
+    ) {
+      info.add('undefined')
+    }
+  }
+
+  return rootParams
+}
+
+/**
  * Creates a route types manifest from processed route data
  * (used for both build and dev)
  */
@@ -157,12 +224,12 @@ export async function createRouteTypesManifest({
   validatorFilePath,
 }: {
   dir: string
-  pageRoutes: Array<{ route: string; filePath: string }>
-  appRoutes: Array<{ route: string; filePath: string }>
-  appRouteHandlers: Array<{ route: string; filePath: string }>
-  pageApiRoutes: Array<{ route: string; filePath: string }>
-  layoutRoutes: Array<{ route: string; filePath: string }>
-  slots: Array<{ name: string; parent: string }>
+  pageRoutes: RouteInfo[]
+  appRoutes: RouteInfo[]
+  appRouteHandlers: RouteInfo[]
+  pageApiRoutes: RouteInfo[]
+  layoutRoutes: RouteInfo[]
+  slots: SlotInfo[]
   redirects?: NextConfigComplete['redirects']
   rewrites?: NextConfigComplete['rewrites']
   validatorFilePath?: string
@@ -186,6 +253,7 @@ export async function createRouteTypesManifest({
     appRouteHandlerRoutes: {},
     redirectRoutes: {},
     rewriteRoutes: {},
+    rootParams: new Map(),
     appRouteHandlers: new Set(
       appRouteHandlers.map(({ filePath }) => getRelativePath(filePath))
     ),
@@ -346,6 +414,9 @@ export async function createRouteTypesManifest({
     }
   }
 
+  // Collect root params from layout routes
+  manifest.rootParams = collectRootParamsFromLayouts(manifest.layoutRoutes)
+
   return manifest
 }
 
@@ -361,7 +432,12 @@ export async function writeRouteTypesManifest(
   }
 
   // Write the main routes.d.ts file
-  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    config.experimental.strictRouteTypes
+      ? generateRouteTypesFileStrict(manifest)
+      : generateRouteTypesFile(manifest)
+  )
 
   // Write the link.d.ts file if typedRoutes is enabled
   if (config.typedRoutes === true) {
@@ -372,7 +448,8 @@ export async function writeRouteTypesManifest(
 
 export async function writeValidatorFile(
   manifest: RouteTypesManifest,
-  filePath: string
+  filePath: string,
+  strict: boolean
 ) {
   const dirname = path.dirname(filePath)
 
@@ -380,5 +457,10 @@ export async function writeValidatorFile(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
-  await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    strict
+      ? generateValidatorFileStrict(manifest)
+      : generateValidatorFile(manifest)
+  )
 }

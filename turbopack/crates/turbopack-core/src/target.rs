@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
+use bincode::{Decode, Encode};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone, ValueToString)]
 pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>
     pub arch: Arch,
@@ -173,9 +174,7 @@ impl CompileTarget {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -216,9 +215,7 @@ impl Display for Arch {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -247,6 +244,13 @@ impl Platform {
             Self::Unknown => "unknown",
         }
     }
+
+    pub fn path_separator(&self) -> RcStr {
+        match self {
+            Self::Win32 => rcstr!("\\"),
+            _ => rcstr!("/"),
+        }
+    }
 }
 
 impl Display for Platform {
@@ -255,9 +259,7 @@ impl Display for Platform {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 pub enum Endianness {
     Big,
@@ -279,9 +281,7 @@ impl Display for Endianness {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 pub enum Libc {
     Glibc,

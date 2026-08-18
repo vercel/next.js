@@ -3,13 +3,28 @@
 const path = require('path')
 const fsp = require('fs/promises')
 const process = require('process')
+const { pathToFileURL } = require('url')
 const execa = require('execa')
 const { Octokit } = require('octokit')
 const SemVer = require('semver')
 const yargs = require('yargs')
+const {
+  replayLocalCommitsAsSigned,
+  upsertBranchRef,
+} = require('./github-utils/signed-commit')
 
-/** @type {any} */
-const fetch = require('node-fetch')
+// Use this script to update Next's vendored copy of React and related packages:
+//
+// Basic usage (defaults to most recent React canary version):
+//   pnpm run sync-react
+//
+// Update package.json but skip installing the dependencies automatically:
+//   pnpm run sync-react --no-install
+//
+// Sync from a local checkout of React (requires having React built first):
+//   pnpm run sync-react --version /path/to/react/checkout/
+// Sync from a React commit (can be a commit on a PR)
+//   pnpm run sync-react --version vp:///commit-sha
 
 const repoOwner = 'vercel'
 const repoName = 'next.js'
@@ -45,6 +60,13 @@ const appManifestsInstallingNextjsPeerDependencies = [
 ]
 
 async function getSchedulerVersion(reactVersion) {
+  if (reactVersion.startsWith('file://')) {
+    return reactVersion
+  }
+  if (reactVersion.startsWith('vp:')) {
+    return reactVersion
+  }
+
   const url = `https://registry.npmjs.org/react-dom/${reactVersion}`
   const response = await fetch(url, {
     headers: {
@@ -62,13 +84,26 @@ async function getSchedulerVersion(reactVersion) {
   return manifest.dependencies['scheduler']
 }
 
-// Use this script to update Next's vendored copy of React and related packages:
-//
-// Basic usage (defaults to most recent React canary version):
-//   pnpm run sync-react
-//
-// Update package.json but skip installing the dependencies automatically:
-//   pnpm run sync-react --no-install
+/**
+ * @param {string} packageName
+ * @param {string} versionStr An NPM version or a file URL to a React checkout
+ * @returns {string}
+ */
+function getPackageVersion(packageName, versionStr) {
+  if (versionStr.startsWith('file://')) {
+    return new URL(packageName, versionStr).href
+  }
+  if (versionStr.startsWith('vp:')) {
+    const { pathname } = new URL(versionStr)
+    const [, commit, releaseChannel] = pathname.split('/')
+    return new URL(
+      `/react/commits/${commit}/${packageName}@${releaseChannel}`,
+      'https://vercel-packages.vercel.app'
+    ).href
+  }
+
+  return `npm:${packageName}@${versionStr}`
+}
 
 async function sync({ channel, newVersionStr, noInstall }) {
   const useExperimental = channel === 'experimental'
@@ -88,32 +123,49 @@ async function sync({ channel, newVersionStr, noInstall }) {
     return
   }
 
-  const baseSchedulerVersionStr = devDependencies[
-    useExperimental ? 'scheduler-experimental-builtin' : 'scheduler-builtin'
-  ].replace(/^npm:scheduler@/, '')
   const newSchedulerVersionStr = await getSchedulerVersion(newVersionStr)
   console.log(`Updating "scheduler@${channel}" to ${newSchedulerVersionStr}...`)
 
-  for (const [dep, version] of Object.entries(devDependencies)) {
-    if (version.endsWith(baseVersionStr)) {
-      devDependencies[dep] = version.replace(baseVersionStr, newVersionStr)
-    } else if (version.endsWith(baseSchedulerVersionStr)) {
-      devDependencies[dep] = version.replace(
-        baseSchedulerVersionStr,
-        newSchedulerVersionStr
-      )
+  for (const packageName of ['react', 'react-dom']) {
+    devDependencies[
+      `${packageName}${useExperimental ? '-experimental' : ''}-builtin`
+    ] = getPackageVersion(packageName, newVersionStr)
+
+    if (!useExperimental) {
+      pnpmOverrides[packageName] = getPackageVersion(packageName, newVersionStr)
     }
   }
-  for (const [dep, version] of Object.entries(pnpmOverrides)) {
-    if (version.endsWith(baseVersionStr)) {
-      pnpmOverrides[dep] = version.replace(baseVersionStr, newVersionStr)
-    } else if (version.endsWith(baseSchedulerVersionStr)) {
-      pnpmOverrides[dep] = version.replace(
-        baseSchedulerVersionStr,
-        newSchedulerVersionStr
-      )
-    }
+
+  for (const packageName of [
+    'react-server-dom-turbopack',
+    'react-server-dom-webpack',
+  ]) {
+    devDependencies[`${packageName}${useExperimental ? '-experimental' : ''}`] =
+      getPackageVersion(packageName, newVersionStr)
   }
+
+  devDependencies[
+    `scheduler-${useExperimental ? 'experimental-' : ''}builtin`
+  ] = getPackageVersion('scheduler', newSchedulerVersionStr)
+  if (!useExperimental) {
+    pnpmOverrides.scheduler = getPackageVersion(
+      'scheduler',
+      newSchedulerVersionStr
+    )
+
+    // TODO: Should be handled like the other React packages
+    devDependencies['react-is-builtin'] = newVersionStr.startsWith('file://')
+      ? new URL('react-is', newVersionStr).href
+      : newVersionStr.startsWith('vp:')
+        ? getPackageVersion('react-is', newVersionStr)
+        : `npm:react-is@${newVersionStr}`
+    pnpmOverrides['react-is'] = newVersionStr.startsWith('file://')
+      ? new URL('react-is', newVersionStr).href
+      : newVersionStr.startsWith('vp:')
+        ? getPackageVersion('react-is', newVersionStr)
+        : `npm:react-is@${newVersionStr}`
+  }
+
   await fsp.writeFile(
     path.join(cwd, 'package.json'),
     JSON.stringify(pkgJson, null, 2) +
@@ -122,8 +174,51 @@ async function sync({ channel, newVersionStr, noInstall }) {
   )
 }
 
-function extractInfoFromReactVersion(reactVersion) {
-  const match = reactVersion.match(
+/**
+ * @typedef {object} ReactVersionInfo
+ * @property {string} semverVersion - The semver version of React.
+ * @property {string} releaseLabel - The release label of React (e.g. "canary", "rc").
+ * @property {string} sha - The commit SHA of the React version.
+ * @property {string} dateString - The date string of the React version.
+ * @returns {ReactVersionInfo}
+ */
+function extractInfoFromReactVersion(versionStr) {
+  if (versionStr.startsWith('file://')) {
+    return {
+      dateString: new Date().toISOString().split('T')[0],
+      releaseLabel: 'local',
+      semverVersion: '0.0.0',
+      sha: 'local',
+    }
+  }
+  if (versionStr.startsWith('vp:')) {
+    const { pathname } = new URL(versionStr)
+    const [, commit] = pathname.split('/')
+    return {
+      dateString: new Date().toISOString().split('T')[0],
+      releaseLabel: 'vercel-packages',
+      semverVersion: '0.0.0',
+      sha: commit,
+    }
+  }
+  if (versionStr.startsWith('https:')) {
+    const url = new URL(versionStr)
+    if (url.hostname === 'vercel-packages.vercel.app') {
+      // e.g https://vercel-packages.vercel.app/react/commits/bc50ab4bffa17f507386554a8ef3c3ed4f37fe1b/react@canary
+      const [, , , commit] = url.pathname.split('/')
+      return {
+        dateString: new Date().toISOString().split('T')[0],
+        releaseLabel: `vercel-packages`,
+        semverVersion: '0.0.0',
+        sha: commit,
+      }
+    }
+    throw new Error(
+      `Unsupported URL '${versionStr}'. Only vercel-packages.vercel.app URLs are supported.`
+    )
+  }
+
+  const match = versionStr.match(
     /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )
   return match ? match.groups : null
@@ -134,10 +229,10 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   let changelog = []
   for (let currentPage = 1; ; currentPage++) {
     const url = `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
-    const headers = {}
+    const headers = new Headers()
     // GITHUB_TOKEN is optional but helps in case of rate limiting during development.
     if (process.env.GITHUB_TOKEN) {
-      headers.Authorization = `token ${process.env.GITHUB_TOKEN}`
+      headers.set('Authorization', `token ${process.env.GITHUB_TOKEN}`)
     }
     const response = await fetch(url, {
       headers,
@@ -214,7 +309,7 @@ async function main() {
     .options('actor', {
       type: 'string',
       description:
-        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be used for notifications but not commit attribution.',
+        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be assigned to the Pull Request for notifications, but neither the commits nor the Pull Request are attributed to them.',
     })
     .options('create-pull', {
       default: false,
@@ -228,8 +323,20 @@ async function main() {
         'Creates commits for each intermediate step. Useful to create better diffs for GitHub.',
     })
     .options('install', { default: true, type: 'boolean' })
-    .options('version', { default: null, type: 'string' }).argv
-  const { actor, createPull, commit, install, version } = argv
+    .options('version', {
+      default: null,
+      type: 'string',
+      description:
+        'e.g. 19.3.0-canary-?-? or vp:///commit-sha for a build from a specific React commit (can be a commit on a PR)',
+    }).argv
+  let { actor, createPull, commit, install, version } = argv
+  if (version !== null && version.startsWith('/')) {
+    version = pathToFileURL(version).href
+    // Ensure trailing slash so that the URL is treated as a directory.
+    if (!version.endsWith('/')) {
+      version += '/'
+    }
+  }
 
   async function commitEverything(message) {
     await execa('git', ['add', '-A'])
@@ -249,11 +356,32 @@ async function main() {
         'Pass an actor via `--actor "some-actor"`.'
     )
   }
-  const githubToken = process.env.GITHUB_TOKEN
-  if (createPull && !githubToken) {
-    throw new Error(
-      `Environment variable 'GITHUB_TOKEN' not specified but required when --create-pull is specified.`
-    )
+  const releaseGithubToken = process.env.RELEASE_GITHUB_TOKEN
+  const releaseAppSlug = process.env.RELEASE_GITHUB_APP_SLUG
+  const releaseAppUserId = process.env.RELEASE_GITHUB_APP_USER_ID
+  if (createPull) {
+    if (!releaseGithubToken) {
+      throw new Error(
+        `Environment variable 'RELEASE_GITHUB_TOKEN' not specified but required when --create-pull is specified.`
+      )
+    }
+    if (!releaseAppSlug || !releaseAppUserId) {
+      throw new Error(
+        `Environment variables 'RELEASE_GITHUB_APP_SLUG' and 'RELEASE_GITHUB_APP_USER_ID' must be set when --create-pull is specified.`
+      )
+    }
+
+    // Set the git author up-front so all subsequent local commits made by
+    // this script (intermediate `--commit` steps and the final PR commit)
+    // succeed even on CI runners that don't have a default git identity.
+    // The values themselves are discarded by the GitHub REST API: the
+    // GPG-signed commits on the remote are attributed to the app token's
+    // identity regardless of local git config. The same app token opens the
+    // Pull Request, so the PR author matches the commit author.
+    const botUserName = `${releaseAppSlug}[bot]`
+    const botUserEmail = `${releaseAppUserId}+${releaseAppSlug}[bot]@users.noreply.github.com`
+    await execa('git', ['config', 'user.name', botUserName])
+    await execa('git', ['config', 'user.email', botUserEmail])
   }
 
   let newVersionStr = version
@@ -279,9 +407,19 @@ Or, run this command with no arguments to use the most recently published versio
 `
     )
   }
-  const { sha: newSha, dateString: newDateString } = newVersionInfo
+  const {
+    sha: newSha,
+    dateString: newDateString,
+    releaseLabel,
+  } = newVersionInfo
 
-  const branchName = `update/react/${newVersionStr}`
+  const branchName =
+    releaseLabel === 'local'
+      ? // left to user to name their local sync branch
+        `update/react/local`
+      : releaseLabel === 'vercel-packages'
+        ? `update/react/remote/vercel-packages/${newSha}`
+        : `update/react/${newVersionStr}`
   if (createPull) {
     const { exitCode, all, command } = await execa(
       'git',
@@ -319,8 +457,17 @@ Or, run this command with no arguments to use the most recently published versio
     ''
   )
 
+  let experimentalNewVersionStr = `0.0.0-experimental-${newSha}-${newDateString}`
+  if (version !== null && version.startsWith('file://')) {
+    experimentalNewVersionStr = new URL('build/oss-experimental/', version).href
+    newVersionStr = new URL('build/oss-stable/', version).href
+  } else if (releaseLabel === 'vercel-packages') {
+    experimentalNewVersionStr = `vp:///${newSha}/experimental`
+    newVersionStr = `vp:///${newSha}/canary`
+  }
+
   await sync({
-    newVersionStr: `0.0.0-experimental-${newSha}-${newDateString}`,
+    newVersionStr: experimentalNewVersionStr,
     noInstall: !install,
     channel: 'experimental',
   })
@@ -470,23 +617,27 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   let prDescription = ''
-  if (syncPagesRouterReact) {
-    prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
-  }
-
-  // Fetch the changelog from GitHub and print it to the console.
-  prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`
-  try {
-    const changelog = await getChangelogFromGitHub(baseSha, newSha)
-    if (changelog === null) {
-      prDescription += `GitHub reported no changes between ${baseSha} and ${newSha}.`
-    } else {
-      prDescription += `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+  if (newVersionInfo.releaseLabel === 'local') {
+    prDescription = "Can't generate a changelog for local builds"
+  } else {
+    if (syncPagesRouterReact) {
+      prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
     }
-  } catch (error) {
-    console.error(error)
-    prDescription +=
-      '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
+
+    // Fetch the changelog from GitHub and print it to the console.
+    prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`
+    try {
+      const changelog = await getChangelogFromGitHub(baseSha, newSha)
+      if (changelog === null) {
+        prDescription += `GitHub reported no changes between ${baseSha} and ${newSha}.`
+      } else {
+        prDescription += `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+      }
+    } catch (error) {
+      console.error(error)
+      prDescription +=
+        '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
+    }
   }
 
   if (!install) {
@@ -508,15 +659,44 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   if (createPull) {
-    const octokit = new Octokit({ auth: githubToken })
+    const octokit = new Octokit({ auth: releaseGithubToken })
     const prTitle = `Upgrade React from \`${baseSha}-${baseDateString}\` to \`${newSha}-${newDateString}\``
 
     await execa('git', ['checkout', '-b', branchName])
     // We didn't commit intermediate steps yet so now we need to commit to create a PR.
     if (!commit) {
-      commitEverything(prTitle)
+      await commitEverything(prTitle)
     }
-    await execa('git', ['push', 'origin', branchName])
+
+    // Branch protection on canary requires signed commits. Push each local
+    // commit to the remote as a GitHub-signed commit via the REST API
+    // instead of `git push` (which would push unsigned commits).
+    const baseRef = process.env.GITHUB_REF_NAME || 'canary'
+    const remoteBaseSha = (
+      await execa('git', ['rev-parse', `origin/${baseRef}`])
+    ).stdout.trim()
+    const localCommitSha = (
+      await execa('git', ['rev-parse', 'HEAD'])
+    ).stdout.trim()
+
+    const { headSha: finalSignedSha } = await replayLocalCommitsAsSigned({
+      token: releaseGithubToken,
+      owner: repoOwner,
+      repo: repoName,
+      fromBaseSha: remoteBaseSha,
+      toLocalSha: localCommitSha,
+      // commitEverything uses --allow-empty for steps that didn't change
+      // any files (e.g. when Pages Router doesn't need a sync); preserve
+      // that on the remote signed commits.
+      allowEmpty: true,
+    })
+    await upsertBranchRef({
+      token: releaseGithubToken,
+      owner: repoOwner,
+      repo: repoName,
+      branch: branchName,
+      sha: finalSignedSha,
+    })
     const pullRequest = await octokit.rest.pulls.create({
       owner: repoOwner,
       repo: repoName,
@@ -527,6 +707,31 @@ Or run this command again without the --no-install flag to do both automatically
       body: prDescription,
     })
     console.log('Created pull request %s', pullRequest.data.html_url)
+
+    // Enable GitHub auto-merge with the squash method so the PR merges
+    // automatically once required checks pass. GitHub has no REST field for
+    // this, so it must be enabled via the GraphQL mutation on the PR node id.
+    // The commit title is left to GitHub's default (the PR title with the PR
+    // number), while an explicit empty commitBody keeps the squash commit
+    // description empty regardless of the repo's squash message setting.
+    await octokit.graphql(
+      `mutation ($pullRequestId: ID!) {
+         enablePullRequestAutoMerge(
+           input: {
+             pullRequestId: $pullRequestId
+             mergeMethod: SQUASH
+             commitBody: ""
+           }
+         ) {
+           pullRequest {
+             autoMergeRequest {
+               enabledAt
+             }
+           }
+         }
+       }`,
+      { pullRequestId: pullRequest.data.node_id }
+    )
 
     await Promise.all([
       actor

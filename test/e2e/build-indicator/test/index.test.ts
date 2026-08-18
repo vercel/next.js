@@ -49,49 +49,51 @@ describe('Build Activity Indicator', () => {
         expect(result.exitCode).toBe(1)
       }
 
-      expect(next.cliOutput).toContain(
-        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
-      )
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        )
+      })
     })
   })
 
   if (isNextDev) {
-    describe.each(['pages', 'app'])('Enabled - (%s)', (pagesOrApp) => {
-      const { next } = nextTestSetup({
-        files: join(__dirname, '..'),
-      })
+    // A 400 ms delay was introduced to avoid flashing the indicator for fast
+    // builds. A simple test app like this usually compiles much faster, so we
+    // skip this test for now, until we find a better way to test the indicator.
+    describe.skip('build indicator', () => {
+      describe.each(['pages', 'app'])('Enabled - (%s)', (pagesOrApp) => {
+        const { next } = nextTestSetup({
+          files: join(__dirname, '..'),
+        })
 
-      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-        'webpack only',
-        () => {
-          it('Shows the build indicator when a page is built during navigation', async () => {
-            const browser = await next.browser(
-              pagesOrApp === 'pages' ? '/' : '/app'
-            )
-            await installCheckVisible(browser)
-            await browser.elementByCss('#to-a').click()
-            await retry(async () => {
-              const wasVisible = await browser.eval('window.showedBuilder')
-              expect(wasVisible).toBe(true)
-            })
+        it('Shows the build indicator when a page is built during navigation', async () => {
+          const browser = await next.browser(
+            pagesOrApp === 'pages' ? '/' : '/app'
+          )
+          await installCheckVisible(browser)
+          await browser.elementByCss('#to-a').click()
+          await retry(async () => {
+            const wasVisible = await browser.eval('window.showedBuilder')
+            expect(wasVisible).toBe(true)
           })
-        }
-      )
+        })
 
-      it('Shows build indicator when page is built from modifying', async () => {
-        const browser = await next.browser(
-          pagesOrApp === 'pages' ? '/b' : '/app/b'
-        )
-        await installCheckVisible(browser)
-        const pagePath =
-          pagesOrApp === 'pages' ? 'pages/b.js' : 'app/app/b/page.js'
+        it('Shows build indicator when page is built from modifying', async () => {
+          const browser = await next.browser(
+            pagesOrApp === 'pages' ? '/b' : '/app/b'
+          )
+          await installCheckVisible(browser)
+          const pagePath =
+            pagesOrApp === 'pages' ? 'pages/b.js' : 'app/app/b/page.js'
 
-        await next.patchFile(pagePath, (content) => content.replace('b', 'c'))
+          await next.patchFile(pagePath, (content) => content.replace('b', 'c'))
 
-        await retry(async () => {
-          const wasVisible = await browser.eval('window.showedBuilder')
+          await retry(async () => {
+            const wasVisible = await browser.eval('window.showedBuilder')
 
-          expect(wasVisible).toBe(true)
+            expect(wasVisible).toBe(true)
+          })
         })
       })
     })
