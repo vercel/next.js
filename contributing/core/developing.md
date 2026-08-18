@@ -76,6 +76,8 @@ _You can skip these steps if you don't intend to modify any Rust code._
    pnpm install
    ```
 
+   > **Note**: On a fresh clone, if `pnpm dev` fails with "Cannot find module", run `pnpm build` first to compile the necessary internal packages.
+
 1. Start developing and watch for JavaScript code changes using
    [Turborepo](https://turborepo.dev/):
 
