@@ -668,18 +668,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         }
                         ChunkingType::Emitted {
                             merge_tag: _,
-                            is_async,
                             emit_to_all_entries: _,
                         } => {
                             // TODO ideally this would get the chunk group bitset of the parent
                             // ChunkGroup::Entry
                             ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                if *is_async {
-                                    // TODO is this correct?
-                                    ChunkGroupKey::Async(node)
-                                } else {
-                                    ChunkGroupKey::Collected(node)
-                                },
+                                ChunkGroupKey::Collected(node),
                             )))
                         }
                         ChunkingType::Collected { .. } => {

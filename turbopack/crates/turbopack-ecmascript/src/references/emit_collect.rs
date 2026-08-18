@@ -117,8 +117,6 @@ impl ModuleReference for EmitReference {
         Some(ChunkingType::Emitted {
             merge_tag: self.namespace.clone(),
             emit_to_all_entries: self.emit_to_all_entries,
-            // TODO make configurable
-            is_async: false,
         })
     }
 

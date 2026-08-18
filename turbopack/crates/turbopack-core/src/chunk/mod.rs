@@ -370,12 +370,10 @@ pub enum ChunkingType {
         merge_tag: RcStr,
         /// false = emit to current entry, true = emit to all entries
         emit_to_all_entries: bool,
-        /// whether to insert an async loader in-between
-        is_async: bool,
     },
     /// During the build process, edges with ChunkingType::Emitted are collected and reattached to
     /// the collecting module. These should not be used manually in a reference.
-    Collected { merge_tag: RcStr, is_async: bool },
+    Collected { merge_tag: RcStr },
     /// Chunk this reference once per entry, like async loaders.
     PerEntry,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
@@ -423,19 +421,14 @@ impl Display for ChunkingType {
             ChunkingType::Emitted {
                 merge_tag,
                 emit_to_all_entries,
-                is_async,
             } => {
                 write!(
                     f,
-                    "Emitted(merge_tag: {merge_tag}, emit_to_all_entries: {emit_to_all_entries}, \
-                     is_async: {is_async})"
+                    "Emitted(merge_tag: {merge_tag}, emit_to_all_entries: {emit_to_all_entries})"
                 )
             }
-            ChunkingType::Collected {
-                merge_tag,
-                is_async,
-            } => {
-                write!(f, "Collected(merge_tag: {merge_tag}, is_async: {is_async})")
+            ChunkingType::Collected { merge_tag } => {
+                write!(f, "Collected(merge_tag: {merge_tag})")
             }
             ChunkingType::Shared {
                 inherit_async,
@@ -507,18 +500,12 @@ impl ChunkingType {
             ChunkingType::Emitted {
                 merge_tag,
                 emit_to_all_entries,
-                is_async,
             } => ChunkingType::Emitted {
                 merge_tag: merge_tag.clone(),
                 emit_to_all_entries: *emit_to_all_entries,
-                is_async: *is_async,
             },
-            ChunkingType::Collected {
-                merge_tag,
-                is_async,
-            } => ChunkingType::Collected {
+            ChunkingType::Collected { merge_tag } => ChunkingType::Collected {
                 merge_tag: merge_tag.clone(),
-                is_async: *is_async,
             },
             ChunkingType::Shared {
                 inherit_async: _,
