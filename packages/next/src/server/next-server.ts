@@ -1825,6 +1825,13 @@ export default class NextNodeServer extends BaseServer<
               middlewareModule,
             request: {
               ...requestData,
+              // The Node.js middleware module resolves the project and dist
+              // directories from the request meta to load manifests (e.g. the
+              // prerender manifest for draft mode preview props).
+              requestMeta: {
+                relativeProjectDir: relative(process.cwd(), this.dir),
+                distDir: this.distDir,
+              },
               body: hasRequestBody
                 ? requestData.body.cloneBodyStream()
                 : undefined,
