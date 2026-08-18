@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0ba9cj3.js",
-    {"otherChunks":["output/[root-of-the-server]__07l1lih._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)"]}
+    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_0hjnd3a.js",
+    {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1qzlx3f.js","output/[root-of-the-server]__1t51a13._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -691,6 +691,25 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
+// Paths of every JS chunk whose module factories have been installed into this
+// runtime instance (page, worker, …), in registration order.
+//
+// Web workers get a fresh runtime realm, so module factories cannot be handed to
+// them directly (functions are not structured-cloneable). Instead `createWorker`
+// passes this list along with the worker's own chunks, and the worker re-imports
+// them — cheap, because the browser has them cached already. This is what lets
+// worker chunk groups use normal (nested) availability info instead of
+// `AvailabilityInfo::root()`, which is what breaks the self-referencing-worker
+// chunking cycle.
+const loadedJsChunkPaths = new Set();
+function registerLoadedJsChunk(chunk) {
+    loadedJsChunkPaths.add(getPathFromScript(chunk));
+}
+// Shared runtime primitive consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths() {
+    return Array.from(loadedJsChunkPaths);
+}
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents = new Map();
 // Registry mapping a component chunk's path to its size in bytes, used by the
@@ -970,6 +989,9 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
+// Shared runtime primitive: the JS chunks already loaded in this runtime, used
+// by the bundled worker helper so a child worker can re-import them.
+browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -2117,6 +2139,8 @@ function registerChunk(registration) {
         let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
+        // Only factory-bearing registrations are useful to pass on to a worker.
+        registerLoadedJsChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -2483,4 +2507,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0ba9cj3.js.map
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_0hjnd3a.js.map
