@@ -585,7 +585,7 @@ impl<'a> Parser<'a> {
                     if in_range {
                         // invariant: in_range is only set when there is
                         // already at least one character seen.
-                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), '-') {
+                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), c) {
                             return Err(self.error(kind));
                         }
                     } else {
