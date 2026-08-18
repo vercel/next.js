@@ -2,22 +2,45 @@
  * @jest-environment node
  */
 
-import {
-  createPrerenderInterruptedError,
-  isPrerenderInterruptedError,
-} from './dynamic-rendering'
+import { isPrerenderInterruptedError } from './dynamic-rendering'
+import { abortAndThrowOnSynchronousRequestDataAccess } from './dynamic-rendering'
 
-describe('createPrerenderInterruptedError', () => {
-  it('is recognized by isPrerenderInterruptedError and does not keep V8 frames', () => {
-    const error = createPrerenderInterruptedError(
-      'Route / needs to bail out of prerendering at this point because it used Date.now().'
-    )
+function makePrerenderStore() {
+  const controller = new AbortController()
+  return {
+    type: 'prerender',
+    controller,
+    dynamicTracking: {
+      isDebugDynamicAccesses: false,
+      dynamicAccesses: [],
+      syncDynamicErrorWithStack: null,
+      syncDynamicErrorWithStackPostMicrotask: false,
+    },
+    runtimeDataAccessed: { resolve() {} },
+    shouldAttemptStaticPrefetch: null,
+  } as any
+}
 
-    expect(isPrerenderInterruptedError(error)).toBe(true)
-    expect(error.name).toBe('Error')
-    // Assignment materializes the stack as name + message only, dropping the
-    // CallSite frames that would retain the creating closure / render graph.
-    expect(error.stack).toBe(`${error.name}: ${error.message}`)
-    expect(error.stack).not.toMatch(/\n\s+at /)
+describe('prerender interrupt abort reason', () => {
+  it('reuses one Error constructed at module load, not on the render stack', () => {
+    function render() {
+      try {
+        abortAndThrowOnSynchronousRequestDataAccess(
+          '/',
+          'Date.now()',
+          new Error('sync'),
+          makePrerenderStore()
+        )
+      } catch (err) {
+        return err as Error
+      }
+    }
+
+    const first = render()
+    const second = render()
+
+    expect(first).toBe(second)
+    expect(isPrerenderInterruptedError(first)).toBe(true)
+    expect(first.stack).not.toMatch(/at render /)
   })
 })
