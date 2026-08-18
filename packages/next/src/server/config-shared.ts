@@ -521,6 +521,12 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  /**
+   * Replaces the client router's sequential action queue with a rewritten
+   * concurrent implementation. The implementations are swapped at the module
+   * level by the bundler; the inactive one is not included in the bundle.
+   */
+  concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -805,6 +811,19 @@ export interface ExperimentalConfig {
    * making chunk merging decisions and the raw size thresholds it uses.
    */
   turbopackChunking?: {
+    /**
+     * Groups of pages commonly visited together, each defined by a list of regular
+     * expressions matched against the route pathname.
+     *
+     * @example
+     * ```js
+     * clusters: [
+     *   [/^\/dashboard/, /^\/dashboard\/settings/],
+     *   [/^\/blog/, /^\/blog\/[^/]+$/],
+     * ]
+     * ```
+     */
+    clusters?: RegExp[][]
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -1168,6 +1187,13 @@ export interface ExperimentalConfig {
    * @default '100 MB'
    */
   maxPostponedStateSize?: SizeLimit
+
+  /**
+   * Disables compression of the Resume Data Cache (RDC) when persisting
+   * postponed state.
+   * @default false
+   */
+  disableResumeDataCacheCompression?: boolean
 
   /**
    * enables the minification of server code.
@@ -2214,6 +2240,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    concurrentRouterQueue: false,
     instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
@@ -2286,6 +2313,7 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
+    disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
@@ -2397,6 +2425,7 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
+    | 'disableResumeDataCacheCompression'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
@@ -2464,6 +2493,7 @@ export function getNextConfigRuntime(
     testProxy: ex.testProxy,
     runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
     maxPostponedStateSize: ex.maxPostponedStateSize,
+    disableResumeDataCacheCompression: ex.disableResumeDataCacheCompression,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,

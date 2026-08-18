@@ -3586,11 +3586,48 @@ var objectIs = "function" === typeof Object.is ? Object.is : is,
   actionStateCounter = 0,
   actionStateMatchingIndex = -1,
   thenableIndexCounter = 0,
-  thenableState = null,
-  RecoverableException = Error(formatProdErrorMessage(605)),
-  suspendedRecoverableError = null;
-function createFatalRecoverableError(recoverable) {
-  return Error(formatProdErrorMessage(604), { cause: recoverable });
+  thenableState = null;
+function createRecoverableError(recoverable) {
+  recoverable = recoverable._reason;
+  if ("function" === typeof recoverable)
+    try {
+      var initializedReason = recoverable();
+    } catch ($jscomp$unused$catch) {
+      initializedReason =
+        "The reason for browser-only rendering could not be determined because its initializer threw.";
+    }
+  else initializedReason = recoverable;
+  initializedReason = Error(
+    formatProdErrorMessage(603),
+    void 0 === recoverable ? void 0 : { cause: initializedReason }
+  );
+  Object.defineProperty(initializedReason, REACT_RECOVERABLE_TYPE, {
+    value: !0
+  });
+  return initializedReason;
+}
+function isRecoverableError(error) {
+  return "object" !== typeof error || null === error
+    ? !1
+    : !0 === error[REACT_RECOVERABLE_TYPE];
+}
+function cloneRecoverableErrorAsFatal(recoverableError) {
+  var fatalRecoverableError = Error(
+    formatProdErrorMessage(604),
+    hasOwnProperty.call(recoverableError, "cause")
+      ? { cause: recoverableError.cause }
+      : void 0
+  );
+  recoverableError = recoverableError.stack;
+  if (void 0 !== recoverableError) {
+    var frameStart = recoverableError.indexOf("\n");
+    fatalRecoverableError.stack =
+      fatalRecoverableError.name +
+      ": " +
+      fatalRecoverableError.message +
+      (-1 === frameStart ? "" : recoverableError.slice(frameStart));
+  } else fatalRecoverableError.stack = void 0;
+  return fatalRecoverableError;
 }
 var renderPhaseUpdates = null,
   numberOfReRenders = 0;
@@ -3798,10 +3835,7 @@ var HooksDispatcher = {
       if (null !== usable && "object" === typeof usable) {
         if ("function" === typeof usable.then) return unwrapThenable(usable);
         if (usable.$$typeof === REACT_RECOVERABLE_TYPE)
-          throw (
-            ((suspendedRecoverableError = createFatalRecoverableError(usable)),
-            RecoverableException)
-          );
+          throw createRecoverableError(usable);
         if (usable.$$typeof === REACT_CONTEXT_TYPE) return usable._currentValue;
       }
       throw Error(formatProdErrorMessage(438, String(usable)));
@@ -4183,6 +4217,7 @@ function RequestInstance(
   rootFormatContext,
   progressiveChunkSize,
   onError,
+  onBrowserBailout,
   onAllReady,
   onShellReady,
   onShellError,
@@ -4211,6 +4246,7 @@ function RequestInstance(
   this.partialBoundaries = [];
   this.postponedState = this.trackedPostpones = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.onBrowserBailout = void 0 === onBrowserBailout ? noop : onBrowserBailout;
   this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
   this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
   this.onShellError = void 0 === onShellError ? noop : onShellError;
@@ -4224,6 +4260,7 @@ function createRequest(
   rootFormatContext,
   progressiveChunkSize,
   onError,
+  onBrowserBailout,
   onAllReady,
   onShellReady,
   onShellError,
@@ -4236,6 +4273,7 @@ function createRequest(
     rootFormatContext,
     progressiveChunkSize,
     onError,
+    onBrowserBailout,
     onAllReady,
     onShellReady,
     onShellError,
@@ -4279,6 +4317,7 @@ function createPrerenderRequest(
   rootFormatContext,
   progressiveChunkSize,
   onError,
+  onBrowserBailout,
   onAllReady,
   onShellReady,
   onShellError,
@@ -4291,6 +4330,7 @@ function createPrerenderRequest(
     rootFormatContext,
     progressiveChunkSize,
     onError,
+    onBrowserBailout,
     onAllReady,
     onShellReady,
     onShellError,
@@ -4309,6 +4349,7 @@ function resumeRequest(
   postponedState,
   renderState,
   onError,
+  onBrowserBailout,
   onAllReady,
   onShellReady,
   onShellError,
@@ -4320,6 +4361,7 @@ function resumeRequest(
     postponedState.rootFormatContext,
     postponedState.progressiveChunkSize,
     onError,
+    onBrowserBailout,
     onAllReady,
     onShellReady,
     onShellError,
@@ -4388,6 +4430,7 @@ function resumeAndPrerenderRequest(
   postponedState,
   renderState,
   onError,
+  onBrowserBailout,
   onAllReady,
   onShellReady,
   onShellError,
@@ -4398,6 +4441,7 @@ function resumeAndPrerenderRequest(
     postponedState,
     renderState,
     onError,
+    onBrowserBailout,
     onAllReady,
     onShellReady,
     onShellError,
@@ -4629,8 +4673,8 @@ function getThrownInfo(node$jscomp$0) {
   return errorInfo;
 }
 function logRecoverableError(request, error, errorInfo) {
-  if (error === RecoverableException)
-    return (suspendedRecoverableError = null), "";
+  if (isRecoverableError(error))
+    return (request = request.onBrowserBailout), request(error, errorInfo), "";
   request = request.onError;
   error = request(error, errorInfo);
   if (null == error || "string" === typeof error)
@@ -4643,7 +4687,7 @@ function fatalError(request, error) {
   onFatalError(error);
   null !== request.destination
     ? ((request.status = 13), closeWithError(request.destination, error))
-    : ((request.status = 12), (request.fatalError = error));
+    : ((request.status = 12), request.aborted || (request.fatalError = error));
 }
 function finishSuspenseListRow(request, row) {
   unblockSuspenseListRow(request, row.next, row.hoistables);
@@ -6290,18 +6334,15 @@ function finishAbortedTask(task, request, error) {
       segment = task.blockedSegment;
     if (null === segment || 3 === segment.status) {
       var errorInfo = getThrownInfo(task.componentStack),
-        isRecoverableAbort =
-          "object" === typeof error &&
-          null !== error &&
-          error.$$typeof === REACT_RECOVERABLE_TYPE;
+        isRecoverableReason = isRecoverableError(error);
       if (null === boundary) {
         boundary = task.replay;
         if (null === boundary) {
-          isRecoverableAbort ||
+          isRecoverableReason ||
           null === request.trackedPostpones ||
           null === segment
-            ? isRecoverableAbort
-              ? ((task = createFatalRecoverableError(error)),
+            ? isRecoverableReason
+              ? ((task = cloneRecoverableErrorAsFatal(error)),
                 logRecoverableError(request, task, errorInfo),
                 12 !== request.status &&
                   13 !== request.status &&
@@ -6321,16 +6362,13 @@ function finishAbortedTask(task, request, error) {
           (boundary.pendingTasks--,
           0 === boundary.pendingTasks &&
             0 < boundary.nodes.length &&
-            (isRecoverableAbort
-              ? ((errorInfo = ""), (segment = RecoverableException))
-              : ((errorInfo = logRecoverableError(request, error, errorInfo)),
-                (segment = error)),
+            ((errorInfo = logRecoverableError(request, error, errorInfo)),
             abortRemainingReplayNodes(
               request,
               null,
               boundary.nodes,
               boundary.slots,
-              segment,
+              error,
               errorInfo
             )),
           request.pendingRootTasks--,
@@ -6339,7 +6377,7 @@ function finishAbortedTask(task, request, error) {
         var trackedPostpones$65 = request.trackedPostpones;
         if (4 !== boundary.status) {
           if (
-            !isRecoverableAbort &&
+            !isRecoverableReason &&
             null !== trackedPostpones$65 &&
             null !== segment
           )
@@ -6353,9 +6391,7 @@ function finishAbortedTask(task, request, error) {
               finishedTask(request, boundary, task.row, segment)
             );
           boundary.status = 4;
-          errorInfo = isRecoverableAbort
-            ? ""
-            : logRecoverableError(request, error, errorInfo);
+          errorInfo = logRecoverableError(request, error, errorInfo);
           boundary.errorDigest = errorInfo;
           untrackBoundary(request, boundary);
           boundary.parentFlushed &&
@@ -6762,14 +6798,15 @@ function performWork(request$jscomp$1) {
                   finishSuspenseListRow(request, row);
                 request.allPendingTasks--;
                 if (null === boundary$jscomp$0)
-                  if (x$jscomp$0 === RecoverableException) {
-                    if (null === suspendedRecoverableError)
-                      throw Error(formatProdErrorMessage(606));
-                    request$jscomp$0 = suspendedRecoverableError;
-                    suspendedRecoverableError = null;
-                    var useError = request$jscomp$0;
-                    logRecoverableError(request, useError, errorInfo$jscomp$0);
-                    fatalError(request, useError);
+                  if (isRecoverableError(x$jscomp$0)) {
+                    var fatalRecoverableError =
+                      cloneRecoverableErrorAsFatal(x$jscomp$0);
+                    logRecoverableError(
+                      request,
+                      fatalRecoverableError,
+                      errorInfo$jscomp$0
+                    );
+                    fatalError(request, fatalRecoverableError);
                   } else
                     logRecoverableError(
                       request,
@@ -7435,13 +7472,17 @@ function enqueueFlush(request) {
 }
 function startFlowing(request, destination) {
   if (12 === request.status)
-    (request.status = 13), closeWithError(destination, request.fatalError);
+    (request.status = 13),
+      (request = request.fatalError),
+      isRecoverableError(request) &&
+        (request = cloneRecoverableErrorAsFatal(request)),
+      closeWithError(destination, request);
   else if (13 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
       flushCompletedQueues(request, destination);
-    } catch (error) {
-      logRecoverableError(request, error, {}), fatalError(request, error);
+    } catch (error$73) {
+      logRecoverableError(request, error$73, {}), fatalError(request, error$73);
     }
   }
 }
@@ -7456,15 +7497,20 @@ function finishAbort(request, abortableTasks) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$73) {
-    logRecoverableError(request, error$73, {}), fatalError(request, error$73);
+  } catch (error$74) {
+    logRecoverableError(request, error$74, {}), fatalError(request, error$74);
   }
 }
 function abort(request, reason) {
   if (!(request.aborted || (11 !== request.status && 10 !== request.status))) {
+    var isRecoverableReason =
+      "object" === typeof reason &&
+      null !== reason &&
+      reason.$$typeof === REACT_RECOVERABLE_TYPE;
     request.aborted = !0;
-    reason =
-      void 0 === reason
+    reason = isRecoverableReason
+      ? createRecoverableError(reason)
+      : void 0 === reason
         ? Error(formatProdErrorMessage(432))
         : "object" === typeof reason &&
             null !== reason &&
@@ -7543,12 +7589,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-11eddecd-20260805" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-eb8feb71-20260814" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-11eddecd-20260805"
+        "19.3.0-canary-eb8feb71-20260814"
       )
     );
 }
@@ -7583,6 +7629,7 @@ exports.prerender = function (children, options) {
         createRootFormatContext(options ? options.namespaceURI : void 0),
         options ? options.progressiveChunkSize : void 0,
         options ? options.onError : void 0,
+        options ? options.onBrowserBailout : void 0,
         function () {
           var stream = new ReadableStream(
             {
@@ -7653,6 +7700,7 @@ exports.renderToReadableStream = function (children, options) {
         createRootFormatContext(options ? options.namespaceURI : void 0),
         options ? options.progressiveChunkSize : void 0,
         options ? options.onError : void 0,
+        options ? options.onBrowserBailout : void 0,
         onAllReady,
         function () {
           var stream = new ReadableStream(
@@ -7712,6 +7760,7 @@ exports.resume = function (children, postponedState, options) {
           void 0
         ),
         options ? options.onError : void 0,
+        options ? options.onBrowserBailout : void 0,
         onAllReady,
         function () {
           var stream = new ReadableStream(
@@ -7764,6 +7813,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
         void 0
       ),
       options ? options.onError : void 0,
+      options ? options.onBrowserBailout : void 0,
       function () {
         var stream = new ReadableStream(
           {
@@ -7799,4 +7849,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-11eddecd-20260805";
+exports.version = "19.3.0-canary-eb8feb71-20260814";

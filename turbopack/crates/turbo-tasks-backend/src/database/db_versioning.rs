@@ -2,11 +2,11 @@ use std::{
     env,
     ffi::{OsStr, OsString},
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use anyhow::Result;
-use fs_err::{DirEntry, read_dir, remove_dir_all, rename};
+use fs_err::{DirEntry, metadata, read_dir, remove_dir_all, rename};
 use jiff::Timestamp;
 use turbo_persistence::read_current_version;
 
@@ -135,13 +135,13 @@ pub fn handle_db_versioning(
                 }
 
                 // With no TTL nothing is retained, so don't read an age that can't change the
-                // outcome — which also means a corrupt `CURRENT` can't fail the run.
+                // outcome.
                 let Some(ttl) = ttl else {
                     evict(entry);
                     continue;
                 };
 
-                let age = time_since_last_commit(&entry)?;
+                let age = time_since_last_commit(&entry);
                 if age > ttl {
                     evict(entry);
                     continue;
@@ -193,17 +193,34 @@ fn ttl_from_days(days: u64) -> Duration {
 /// How long ago the version directory `entry` was last committed to, read from the `commit_time`
 /// its `CURRENT` file records
 ///
-/// A directory with no `CURRENT` isn't a database we finished writing — access to the cache root is
-/// serialized, so it can't be one that's mid-initialization — and gets [`Duration::MAX`] so it's
-/// evicted ahead of any real cache
-fn time_since_last_commit(entry: &DirEntry) -> Result<Duration> {
-    let Some(version) = read_current_version(&entry.path())? else {
-        return Ok(Duration::MAX);
-    };
-    Ok(Timestamp::now()
-        .duration_since(version.commit_time)
-        .try_into()
-        .unwrap_or_default())
+/// - If the `CURRENT` file is missing return [`Duration::MAX`] so it's evicted ahead of any real
+///   cache
+/// - If the `CURRENT` file is from a different version that we cannot parse, use the `mtime`
+///     - If the mtime is unreadable, return [`Duration::MAX`] since we assume some kind of disk
+///       corruption
+///
+/// NOTE: this is a rare place where we read `CURRENT` files from different versions of the engine,
+/// so it's the only reader that has to tolerate a format it doesn't understand — hence the mtime
+/// fallback rather than propagating the parse error. We only read `commit_time`, which is stable
+/// across every format that has it.
+fn time_since_last_commit(entry: &DirEntry) -> Duration {
+    let path = entry.path();
+    match read_current_version(&path) {
+        Ok(Some(version)) => Timestamp::now()
+            .duration_since(version.commit_time)
+            .try_into()
+            // if somehow the time is in the future
+            .unwrap_or(Duration::MAX),
+        Ok(None) => Duration::MAX,
+        Err(_) => {
+            // fallback to mtime
+            metadata(path.join("CURRENT"))
+                .and_then(|metadata| metadata.modified())
+                .ok()
+                .and_then(|mtime| SystemTime::now().duration_since(mtime).ok())
+                .unwrap_or(Duration::MAX)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -321,39 +338,95 @@ mod tests {
         assert_eq!(entry_names(base_path), vec![CURRENT_VERSION]);
     }
 
-    /// A `CURRENT` that exists but can't be parsed is an unexpected failure, not something to
-    /// silently act on: the error propagates instead of the directory being deleted.
-    #[test]
-    fn test_corrupt_current_propagates_error() {
+    /// A `CURRENT` we can't parse — most likely the pre-JSON format, a bare big-endian `u32` — is
+    /// aged by its mtime rather than failing the run. A freshly written one is inside the TTL, so
+    /// it takes the retention slot.
+    #[rstest]
+    #[case::old_u32_format(&0u32.to_be_bytes())]
+    #[case::garbage(b"not json")]
+    fn test_unparsable_current_falls_back_to_mtime(#[case] contents: &[u8]) {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
 
         create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
-        let corrupt = base_path.join("corrupt-version");
-        fs::create_dir(&corrupt).unwrap();
-        fs::write(corrupt.join("CURRENT"), b"not json").unwrap();
+        let legacy = base_path.join("legacy-version");
+        fs::create_dir(&legacy).unwrap();
+        fs::write(legacy.join("CURRENT"), contents).unwrap();
 
-        assert!(
-            handle_db_versioning(base_path, &version_info(), /* is_ci */ false).is_err(),
-            "an unreadable CURRENT should surface as an error"
-        );
-        assert!(
-            entry_names(base_path).contains(&"corrupt-version".to_string()),
-            "the directory should not have been deleted"
+        handle_db_versioning(base_path, &version_info(), /* is_ci */ false).unwrap();
+
+        assert_eq!(
+            entry_names(base_path),
+            vec!["legacy-version", CURRENT_VERSION]
         );
     }
 
-    /// On CI every other version is evicted regardless of age, so an unreadable `CURRENT` in one of
-    /// them is never consulted and can't fail the run.
+    #[rstest]
+    #[case::recent(Duration::from_secs(60), &["future-version", "mock-version"])]
+    #[case::past_ttl(
+        ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS) + Duration::from_secs(60),
+        &["mock-version"],
+    )]
+    fn test_current_with_unknown_fields_uses_its_commit_time(
+        #[case] committed_ago: Duration,
+        #[case] expected: &[&str],
+    ) {
+        let tmp_dir = TempDir::new().unwrap();
+        let base_path = tmp_dir.path();
+
+        create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
+
+        // The mtime here is "now", so relying on it instead would retain even the stale case.
+        let future = base_path.join("future-version");
+        fs::create_dir(&future).unwrap();
+        let commit_time = Timestamp::now() - jiff::SignedDuration::try_from(committed_ago).unwrap();
+        fs::write(
+            future.join("CURRENT"),
+            format!(
+                r#"{{"max_sequence_number":0,"commit_time":"{commit_time}","added_later":{{"a":1}}}}"#
+            ),
+        )
+        .unwrap();
+
+        handle_db_versioning(base_path, &version_info(), /* is_ci */ false).unwrap();
+
+        assert_eq!(entry_names(base_path), expected);
+    }
+
+    /// The age of an unparsable `CURRENT` comes from its mtime, so it's a real age that the TTL
+    /// can act on — not [`Duration::MAX`], which would evict it unconditionally.
     #[test]
-    fn test_ci_ignores_unreadable_current() {
+    fn test_unparsable_current_is_aged_by_mtime() {
+        let tmp_dir = TempDir::new().unwrap();
+        let legacy = tmp_dir.path().join("legacy-version");
+        fs::create_dir(&legacy).unwrap();
+        fs::write(legacy.join("CURRENT"), 0u32.to_be_bytes()).unwrap();
+
+        let age = {
+            let path: &Path = &legacy;
+            metadata(path.join("CURRENT"))
+                .and_then(|metadata| metadata.modified())
+                .ok()
+                .and_then(|mtime| SystemTime::now().duration_since(mtime).ok())
+                .unwrap_or(Duration::MAX)
+        };
+        assert!(
+            age < Duration::from_secs(60),
+            "a just-written CURRENT should read as recent, got {age:?}"
+        );
+    }
+
+    /// On CI every other version is evicted regardless of age, so the mtime fallback doesn't buy a
+    /// legacy-format database a reprieve there.
+    #[test]
+    fn test_ci_evicts_unreadable_current() {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
 
         create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
         let corrupt = base_path.join("corrupt-version");
         fs::create_dir(&corrupt).unwrap();
-        fs::write(corrupt.join("CURRENT"), b"not json").unwrap();
+        fs::write(corrupt.join("CURRENT"), 0u32.to_be_bytes()).unwrap();
 
         handle_db_versioning(base_path, &version_info(), /* is_ci */ true).unwrap();
 

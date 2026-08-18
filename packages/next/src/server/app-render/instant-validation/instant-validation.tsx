@@ -730,7 +730,10 @@ type SegmentData = {
 function createSegmentData(data: TransportSegmentData): SegmentData {
   return {
     node: data.r,
-    isPartial: data.p,
+    // Page payloads always carry the boolean form of `p`; the promise
+    // encoding only appears in per-segment prefetch responses. Treat it
+    // conservatively as partial if it ever shows up here.
+    isPartial: typeof data.p === 'boolean' ? data.p : true,
     varyParams: data.v,
   }
 }

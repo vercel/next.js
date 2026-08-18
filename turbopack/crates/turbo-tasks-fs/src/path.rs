@@ -11,6 +11,7 @@ use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
     turbobail, turbofmt,
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
 
 use crate::{
@@ -398,6 +399,15 @@ impl FileSystemPath {
         self.fs().read(self.clone()).parse_json5()
     }
 
+    /// Hashes the file content (but not as a byte-exact content hash). This does NOT follow
+    /// symlinks, so use this when you only want the hash of the file itself, not whatever it
+    /// might point to.
+    ///
+    /// This is basically `isSymlink ? self.read_link().hash() : self.read().hash()`.
+    pub fn hash_file(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        hash_file(self.clone(), salt, algorithm)
+    }
+
     /// Reads content of a directory.
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
@@ -679,6 +689,25 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+async fn hash_file(
+    path: FileSystemPath,
+    salt: Vc<RcStr>,
+    algorithm: HashAlgorithm,
+) -> Result<Vc<RcStr>> {
+    match *path.get_type().await? {
+        FileSystemEntryType::File => Ok(path.read().hash(salt, algorithm)),
+        FileSystemEntryType::Symlink => Ok(path.read_link().hash(salt, algorithm)),
+        FileSystemEntryType::NotFound | FileSystemEntryType::Error => {
+            // Should this rather be `return None`?
+            turbobail!("Cannot hash content of missing path {path}")
+        }
+        FileSystemEntryType::Directory | FileSystemEntryType::Other => {
+            turbobail!("Cannot hash content of non-file path {path}")
+        }
+    }
 }
 
 #[cfg(test)]

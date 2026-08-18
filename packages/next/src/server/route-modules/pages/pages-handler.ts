@@ -687,9 +687,14 @@ export const getHandler = ({
           )
         }
 
-        // In dev, we should not cache pages for any reason.
+        // Documents and data responses must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         // Draft mode should never be cached

@@ -16,7 +16,7 @@ describe.each([
 ])(
   'cache-components-tasks - $description',
   ({ fixturePath, hasRuntimePrefetch }) => {
-    const { next, isTurbopack, isNextDev } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),
     })
 
@@ -79,19 +79,6 @@ describe.each([
       await retry(() => assertLogs(browser))
       assertNoUnexpectedErrorsInCli()
 
-      if (isNextDev && isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
-
       // After a revalidation the subsequent warmup render must discard stale
       // cache entries.
       // This should not affect the environment labels.
@@ -118,19 +105,6 @@ describe.each([
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
       assertNoUnexpectedErrorsInCli()
-
-      if (isNextDev && isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
 
       // After a revalidation the subsequent warmup render must discard stale
       // cache entries.
