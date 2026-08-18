@@ -29,7 +29,7 @@ describe('Custom Resolver Tests', () => {
   describe('SSR Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/')
+      browser = await next.browser('/', { waitUntil: 'domcontentloaded' })
     })
     runTests(() => browser)
   })
@@ -37,7 +37,9 @@ describe('Custom Resolver Tests', () => {
   describe('Client-side Custom Loader Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/client-side')
+      browser = await next.browser('/client-side', {
+        waitUntil: 'domcontentloaded',
+      })
     })
     runTests(() => browser)
   })

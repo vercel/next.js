@@ -289,7 +289,7 @@ describe('Image Component Tests', () => {
   describe('SSR Image Component Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/')
+      browser = await next.browser('/', { waitUntil: 'domcontentloaded' })
     })
     runTests(() => browser)
 
@@ -337,7 +337,9 @@ describe('Image Component Tests', () => {
       ).toBe('intrinsic')
     })
     it('should not pass config to custom loader prop', async () => {
-      const loaderBrowser = await next.browser('/loader-prop')
+      const loaderBrowser = await next.browser('/loader-prop', {
+        waitUntil: 'domcontentloaded',
+      })
       expect(
         await loaderBrowser.elementById('loader-prop-img').getAttribute('src')
       ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
@@ -354,7 +356,7 @@ describe('Image Component Tests', () => {
   describe('Client-side Image Component Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/')
+      browser = await next.browser('/', { waitUntil: 'domcontentloaded' })
       await browser.waitForElementByCss('#clientlink').click()
     })
     runTests(() => browser)
@@ -402,7 +404,9 @@ describe('Image Component Tests', () => {
   describe('SSR Lazy Loading Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/lazy')
+      browser = await next.browser('/lazy', {
+        waitUntil: 'domcontentloaded',
+      })
     })
     lazyLoadingTests(() => browser)
   })
@@ -410,7 +414,7 @@ describe('Image Component Tests', () => {
   describe('Client-side Lazy Loading Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/')
+      browser = await next.browser('/', { waitUntil: 'domcontentloaded' })
       await browser.waitForElementByCss('#lazylink').click()
       await new Promise((r) => setTimeout(r, 500))
     })
