@@ -24,10 +24,13 @@ Compared to a custom React error boundary, `catchError` is designed to work with
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
+  const message =
+    error instanceof Error ? error.message : 'An unexpected error occurred'
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -42,10 +45,13 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, retry }) {
+  const message =
+    error instanceof Error ? error.message : 'An unexpected error occurred'
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -71,11 +77,11 @@ A function that renders the error UI when an error is caught. It receives two ar
 - `props` — The props passed to the wrapper component (excluding `children`).
 - `errorInfo` — An object containing information about the error:
 
-| Property | Type                                                                                        | Description                                                                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `error`  | [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) | The error instance that was caught.                                                                                                             |
-| `retry`  | `() => void`                                                                                | Re-fetches and re-renders the error boundary's children. If successful, the fallback is replaced with the re-rendered result.                   |
-| `reset`  | `() => void`                                                                                | Resets the error state and re-renders without re-fetching. Use [`retry()`](/docs/app/api-reference/file-conventions/error#retry) in most cases. |
+| Property | Type         | Description                                                                                                                                     |
+| -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error`  | `unknown`    | The value that was caught. Narrow the value before accessing properties such as `message`.                                                      |
+| `retry`  | `() => void` | Re-fetches and re-renders the error boundary's children. If successful, the fallback is replaced with the re-rendered result.                   |
+| `reset`  | `() => void` | Resets the error state and re-renders without re-fetching. Use [`retry()`](/docs/app/api-reference/file-conventions/error#retry) in most cases. |
 
 The `fallback` function must be a Client Component (or defined in a `'use client'` module).
 
@@ -121,9 +127,12 @@ In most cases, use `retry()` instead of `reset()`. The `reset()` function only c
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: {}, { error, retry, reset }: ErrorInfo) {
+  const message =
+    error instanceof Error ? error.message : 'An unexpected error occurred'
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
       <button onClick={() => reset()}>Reset</button>
     </div>
@@ -139,9 +148,12 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, retry, reset }) {
+  const message =
+    error instanceof Error ? error.message : 'An unexpected error occurred'
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
       <button onClick={() => reset()}>Reset</button>
     </div>
