@@ -45,6 +45,7 @@ dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
+jiff = "0.2.10"
 lzzzz = { workspace = true, optional = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }

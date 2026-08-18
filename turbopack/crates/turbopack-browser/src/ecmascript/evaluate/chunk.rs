@@ -191,7 +191,7 @@ impl EcmascriptBrowserEvaluateChunk {
             let runtime_type = *this.chunking_context.runtime_type().await?;
             // Detect async modules from the whole-app graph in production. In development the graph
             // is per-page, so always include the machinery.
-            let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
+            let include_async_module_runtime = if matches!(runtime_type, RuntimeType::Production) {
                 !this.module_graph.async_module_info().await?.is_empty()
             } else {
                 true
@@ -208,7 +208,7 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
-                        has_async_modules,
+                        include_async_module_runtime,
                         this.chunking_context.chunk_loading(),
                         *this.chunking_context.generate_component_chunks().await?,
                     );

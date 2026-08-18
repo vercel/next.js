@@ -5,7 +5,7 @@ import { join } from 'path'
 
 const getImage = (filepath: string) => readFile(join(__dirname, filepath))
 
-const detectContentType = async (buffer: Buffer, isRetry = false) => {
+const detectContentType = async (buffer: Buffer, attempt = 0) => {
   let maxBlockedMs = 0
   let lastTick = performance.now()
   let running = true
@@ -25,13 +25,14 @@ const detectContentType = async (buffer: Buffer, isRetry = false) => {
   maxBlockedMs = Math.max(maxBlockedMs, performance.now() - lastTick)
 
   if (maxBlockedMs > 1) {
-    if (isRetry) {
+    // The sampled gaps also include JIT warmup and scheduler noise; a real
+    // regression (GHSA-q8wf-6r8g-63ch) fails every attempt.
+    if (attempt >= 4) {
       throw new Error(
         `detectContentType blocked the event loop for ${maxBlockedMs.toFixed(1)}ms`
       )
     } else {
-      // try again because the first run after compile can be slow due to JIT optimizations
-      return await detectContentType(buffer, true)
+      return await detectContentType(buffer, attempt + 1)
     }
   }
   return result
@@ -48,6 +49,33 @@ describe('detectContentType', () => {
     const buffer = Buffer.alloc(50_000_001).fill(' ')
     expect(await detectContentType(buffer)).toBe(null)
   })
+  it.each([
+    ['html', '/test.html'],
+    ['ppm', '/test.ppm'],
+    ['pgm', '/test.pgm'],
+    ['pam', '/test.pam'],
+    ['pfm', '/test.pfm'],
+    ['csv', '/test.csv'],
+    ['vips', '/test.vips'],
+    ['hdr', '/test.hdr'],
+    ['exr', '/test.exr'],
+    ['fits', '/test.fits'],
+    ['j2c', '/test.j2c'],
+    ['psd', '/test.psd'],
+    ['tga', '/test.tga'],
+    ['cur', '/test.cur'],
+    ['dds', '/test.dds'],
+    ['ktx', '/test.ktx'],
+  ])(
+    'should not allow %s because detectContentType returns null',
+    async (_name, filename) => {
+      const buffer = await getImage(
+        `../../../test/e2e/image-optimizer/app/public${filename}`
+      )
+      console.log('has buffer', buffer.length)
+      expect(await detectContentType(buffer)).toBe(null)
+    }
+  )
   it('should return jpg', async () => {
     const buffer = await getImage('./images/test.jpg')
     expect(await detectContentType(buffer)).toBe('image/jpeg')
@@ -55,6 +83,10 @@ describe('detectContentType', () => {
   it('should return png', async () => {
     const buffer = await getImage('./images/test.png')
     expect(await detectContentType(buffer)).toBe('image/png')
+  })
+  it('should return gif', async () => {
+    const buffer = await getImage('./images/test.gif')
+    expect(await detectContentType(buffer)).toBe('image/gif')
   })
   it('should return webp', async () => {
     const buffer = await getImage('./images/animated.webp')

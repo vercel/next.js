@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
@@ -659,6 +659,42 @@ jobs:
           name: pnpm-publish-summary
           path: pnpm-publish-summary.json
           if-no-files-found: ignore
+
+  reportPublishFailure:
+    name: report publish failure to slack
+    needs:
+      - deploy-target
+      - publishRelease
+    # Only alert for runs that would publish (production == v* tag push) where
+    # the publish did not succeed. In a production run publishRelease's own `if`
+    # is true, so it is only 'skipped' when a build dependency failed and
+    # 'failure' when it ran and failed -- both are caught by `!= 'success'`.
+    # `always()` is required so a skipped/failed publishRelease doesn't skip this
+    # job too (same pattern as the buildPassed job below).
+    if: >-
+      ${{
+        always() &&
+        needs.deploy-target.outputs.value == 'production' &&
+        needs.publishRelease.result != 'success'
+      }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_PUBLISH_SLACK_WEBHOOK_URL }}
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
+        with:
+          # The url is intentionally missing the protocol,
+          # allowing it to be transformed into an actual link in the Slack workflow
+          # (through slightly hacky means).
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.ref_name) }},
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']

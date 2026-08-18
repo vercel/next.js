@@ -41,7 +41,7 @@ pub use self::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
         EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item,
     },
-    placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
+    placeable::{CjsStaticExports, EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::value]

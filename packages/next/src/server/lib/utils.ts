@@ -289,6 +289,31 @@ export function parseValidPositiveInteger(value: string): number {
 
 export const RESTART_EXIT_CODE = 77
 
+type HeapStatistics = {
+  used_heap_size: number
+  heap_size_limit: number
+}
+
+/**
+ * @internal
+ */
+export function getMemoryRestartStats<T extends HeapStatistics>(
+  isDev: boolean,
+  devMemoryThresholdRestart: boolean,
+  getHeapStatistics: () => T
+): T | undefined {
+  if (!isDev || !devMemoryThresholdRestart) {
+    return undefined
+  }
+
+  const heapStatistics = getHeapStatistics()
+  if (heapStatistics.used_heap_size > 0.8 * heapStatistics.heap_size_limit) {
+    return heapStatistics
+  }
+
+  return undefined
+}
+
 export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
 
 /**

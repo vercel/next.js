@@ -7,7 +7,7 @@ import { cookies } from 'next/headers'
 export const instant = {
   unstable_samples: [{ params: { lang: 'en' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

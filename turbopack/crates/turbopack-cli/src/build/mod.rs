@@ -245,6 +245,9 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
+            // Shared by every build-time JS evaluation, each with its own module graph but all
+            // emitting the same runtime chunk.
+            .shared_runtime_chunk(true)
             .build(),
         ),
         load_env(root_path.clone()),

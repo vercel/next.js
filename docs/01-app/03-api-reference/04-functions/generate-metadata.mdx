@@ -383,7 +383,6 @@ export const metadata = {
 <meta name="generator" content="Next.js" />
 <meta name="keywords" content="Next.js,React,JavaScript" />
 <meta name="referrer" content="origin-when-cross-origin" />
-<meta name="color-scheme" content="dark" />
 <meta name="creator" content="Jiachi Liu" />
 <meta name="publisher" content="Sebastian Markbåge" />
 <meta name="format-detection" content="telephone=no, address=no, email=no" />
@@ -1124,7 +1123,7 @@ The following metadata types do not currently have built-in support. However, th
 | `<style>`                     | Learn more about [styling in Next.js](/docs/app/getting-started/css).                                                                                                                                                                        |
 | `<script>`                    | Learn more about [using scripts](/docs/app/guides/scripts).                                                                                                                                                                                  |
 | `<link rel="stylesheet" />`   | `import` stylesheets directly in the layout or page itself.                                                                                                                                                                                  |
-| `<link rel="preload />`       | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                              |
+| `<link rel="preload" />`      | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                              |
 | `<link rel="preconnect" />`   | Use [ReactDOM preconnect method](#link-relpreconnect)                                                                                                                                                                                        |
 | `<link rel="dns-prefetch" />` | Use [ReactDOM prefetchDNS method](#link-reldns-prefetch)                                                                                                                                                                                     |
 
@@ -1422,5 +1421,5 @@ export const metadata = {
 | Version   | Changes                                                                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `v15.2.0` | Introduced streaming support to `generateMetadata`.                                                                                                     |
-| `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
+| `v14.0.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
 | `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |

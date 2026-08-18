@@ -605,6 +605,20 @@ export function registerHeadAndReportingTests(
         }
       })
 
+      it('valid - instant = false in a "use cache" layout opts out of static shell validation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-use-cache-instant-false'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-use-cache-instant-false'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
       it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo('/shells/invalid-runtime-params/123')
@@ -927,4 +941,247 @@ export function registerHeadAndReportingTests(
       })
     })
   }
+
+  describe('validation failures point to the first blocking await', () => {
+    it('multiple dynamic awaits in sequence', async () => {
+      if (isNextDev) {
+        const browser = await navigateTo(
+          '/suspense-in-root/blocking-attribution/dynamic-then-dynamic'
+        )
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/blocking-attribution/dynamic-then-dynamic/page.tsx (1:24) @ instant
+         > 1 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/blocking-attribution/dynamic-then-dynamic/page.tsx (1:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1437",
+           "description": "Next.js encountered uncached data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/blocking-attribution/dynamic-then-dynamic/page.tsx (16:9) @ loadOuter
+         > 16 |   await new Promise((resolve) => setTimeout(resolve)) // 1 (correct)
+              |         ^",
+           "stack": [
+             "loadOuter app/suspense-in-root/blocking-attribution/dynamic-then-dynamic/page.tsx (16:9)",
+             "Page app/suspense-in-root/blocking-attribution/dynamic-then-dynamic/page.tsx (4:9)",
+           ],
+         }
+        `)
+      } else {
+        const result = await prerender(
+          '/suspense-in-root/blocking-attribution/dynamic-then-dynamic'
+        )
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/blocking-attribution/dynamic-then-dynamic": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at a (<anonymous>)
+         Build-time instant validation failed for route "/suspense-in-root/blocking-attribution/dynamic-then-dynamic".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/blocking-attribution/dynamic-then-dynamic" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
+      }
+    })
+
+    it('multiple runtime awaits in sequence', async () => {
+      if (isNextDev) {
+        const browser = await navigateTo(
+          '/suspense-in-root/blocking-attribution/runtime-then-runtime'
+        )
+        if (partialPrefetching) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (3:33) @ instant
+           > 3 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1439",
+             "description": "Next.js encountered URL data outside of Suspense.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (13:22) @ Page
+           > 13 |   await searchParams.then((sp) => sp.foo) // 1 (correct)
+                |                      ^",
+             "stack": [
+               "Promise.then <anonymous>",
+               "Page app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (13:22)",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (3:33) @ instant
+           > 3 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (13:22) @ Page
+           > 13 |   await searchParams.then((sp) => sp.foo) // 1 (correct)
+                |                      ^",
+             "stack": [
+               "Promise.then <anonymous>",
+               "Page app/suspense-in-root/blocking-attribution/runtime-then-runtime/page.tsx (13:22)",
+             ],
+           }
+          `)
+        }
+      } else {
+        const result = await prerender(
+          '/suspense-in-root/blocking-attribution/runtime-then-runtime'
+        )
+        if (partialPrefetching) {
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/blocking-attribution/runtime-then-runtime": Next.js encountered URL data during prerendering or a navigation.
+
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/blocking-attribution/runtime-then-runtime".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/blocking-attribution/runtime-then-runtime" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        } else {
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/blocking-attribution/runtime-then-runtime": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/blocking-attribution/runtime-then-runtime".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/blocking-attribution/runtime-then-runtime" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      }
+    })
+
+    it('session data then dynamic data', async () => {
+      // TODO(instant-validation): Arguably, we should point to `await cookies()` first,
+      // but due to our the discriminated error message strategy we favor holes that are still
+      // present in the runtime retry render. This can be confusing if we have runtime and then dynamic data
+      // in the same place. At least we can assert that we're pointing to the first await that was blocking in the runtime stage.
+      if (isNextDev) {
+        const browser = await navigateTo(
+          '/suspense-in-root/blocking-attribution/session-then-dynamic'
+        )
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (4:33) @ instant
+         > 4 | export const instant: Instant = { level: 'experimental-error' }
+             |                                 ^",
+               "stack": [
+                 "instant app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (4:33)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1437",
+           "description": "Next.js encountered uncached data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (24:9) @ loadInner
+         > 24 |   await new Promise((resolve) => setTimeout(resolve)) // 2 (not correct, but expected)
+              |         ^",
+           "stack": [
+             "loadInner app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (24:9)",
+             "loadOuter app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (20:9)",
+             "Page app/suspense-in-root/blocking-attribution/session-then-dynamic/page.tsx (7:3)",
+           ],
+         }
+        `)
+      } else {
+        const result = await prerender(
+          '/suspense-in-root/blocking-attribution/session-then-dynamic'
+        )
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/blocking-attribution/session-then-dynamic": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at a (<anonymous>)
+         Build-time instant validation failed for route "/suspense-in-root/blocking-attribution/session-then-dynamic".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/blocking-attribution/session-then-dynamic" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
+      }
+    })
+  })
 }

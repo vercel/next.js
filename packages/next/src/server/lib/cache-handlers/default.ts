@@ -58,7 +58,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
   const memoryCache = new LRUCache<PrivateCacheEntry>(
     maxSize,
-    (entry) => entry.size
+    (entry, cacheKey) => entry.size + cacheKey.length
   )
   const pendingSets = new Map<string, Promise<void>>()
 
