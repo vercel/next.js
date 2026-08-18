@@ -319,7 +319,7 @@ export class ClientReferenceManifestPlugin {
         let resource =
           mod.type === 'css/mini-extract'
             ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
-            : mod.resource
+            : mod.resourceResolveData?.path || mod.resource
 
         if (!resource) {
           return
