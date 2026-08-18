@@ -816,7 +816,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 }
                 result.push("".to_string());
             }
-            let f = absolute("chunk_group_info.log")?;
+            let f = absolute(format!("chunk_group_info_{}.log", visit_count))?;
             println!("Wrote Chunk Group Info to {}", f.display());
             std::fs::write(f, result.join("\n"))?;
         }
