@@ -18,10 +18,30 @@ export interface ServerModuleMap {
   }
 }
 
+/**
+ * Marks a not-found error so that callers decoding an action payload can tell
+ * it apart from other decoding failures. A well-formed ID that isn't in this
+ * build means client/server skew, which a client can recover from by reloading
+ * to pick up the current build. That is not true of a payload we simply
+ * couldn't parse, nor of an ID that never had the right shape to begin with
+ * (see `getInvalidServerReferenceIdError`), so those stay unmarked.
+ */
+const ACTION_NOT_FOUND = Symbol.for('next.action-not-found')
+
+export function isActionNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && ACTION_NOT_FOUND in error
+  )
+}
+
 export function getActionNotFoundError(actionId: string | null): Error {
-  return new Error(
+  const error = new Error(
     `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
   )
+
+  Object.defineProperty(error, ACTION_NOT_FOUND, { value: true })
+
+  return error
 }
 
 export function getInvalidServerReferenceIdError(id: string): Error {

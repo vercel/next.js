@@ -96,9 +96,11 @@ describe('server actions - invalid requests', () => {
       expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
 
       if (!isNextDeploy) {
+        // The log names the unresolvable id, which is what makes a skew report
+        // actionable.
         await retry(async () =>
           expect(getLogs()).toContain(
-            'Failed to find Server Action. This request might be from an older or newer deployment.'
+            `Failed to find Server Action "${missingActionId}". This request might be from an older or newer deployment.`
           )
         )
       }

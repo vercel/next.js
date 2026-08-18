@@ -195,7 +195,7 @@ describe('unrecognized server actions', () => {
 
             await retry(async () =>
               expect(getLogs()).toInclude(
-                'Failed to find Server Action. This request might be from an older or newer deployment'
+                `Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment`
               )
             )
           }

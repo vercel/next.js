@@ -58,6 +58,7 @@ import {
   getServerModuleMap,
   getActionNotFoundError,
   getInvalidServerReferenceIdError,
+  isActionNotFoundError,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { normalizeFilePath } from './segment-explorer-path'
@@ -647,6 +648,18 @@ export async function handleAction({
     }
   }
 
+  /**
+   * Turns a failure from the Flight decoder into a response. A payload can fail
+   * to decode because it references a server action that no longer exists in
+   * this build -- for instance a bound argument holding a stale server
+   * reference -- which is skew, and gets the same 404 the client router already
+   * knows how to recover from. Anything else is a payload we couldn't parse.
+   */
+  const handleActionDecodeFailure = (err: unknown): HandleActionResult =>
+    isActionNotFoundError(err)
+      ? handleUnrecognizedAction(err)
+      : handleMalformedActionRequest(err)
+
   // If it can't be a Server Action, skip handling.
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
@@ -919,17 +932,21 @@ export async function handleAction({
                   { temporaryReferences }
                 )
               } catch (err) {
-                return handleMalformedActionRequest(err)
+                return handleActionDecodeFailure(err)
               }
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+              const invalidPayloadError = findInvalidActionPayloadError(
+                formData,
+                serverModuleMap
+              )
+              if (invalidPayloadError) {
                 // The payload references action IDs that don't exist in this build.
                 // This can be deployment skew or manipulated input -- either way it's
                 // not a server fault, so we respond like any other unrecognized action
                 // (404) rather than throwing, which used to surface as a 500.
-                return handleUnrecognizedAction(getActionNotFoundError(null))
+                return handleUnrecognizedAction(invalidPayloadError)
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -1015,7 +1032,7 @@ export async function handleAction({
                 { temporaryReferences }
               )
             } catch (err) {
-              return handleMalformedActionRequest(err)
+              return handleActionDecodeFailure(err)
             }
           }
         } else if (
@@ -1104,7 +1121,7 @@ export async function handleAction({
                 // The size limit runs concurrently with decoding here, so a
                 // body size violation can surface as this rejection.
                 if (isBodySizeLimitError(err)) throw err
-                return handleMalformedActionRequest(err)
+                return handleActionDecodeFailure(err)
               }
             } else {
               // Multipart POST, but not a fetch action.
@@ -1139,12 +1156,16 @@ export async function handleAction({
                 return handleMalformedActionRequest(err)
               }
 
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+              const invalidPayloadError = findInvalidActionPayloadError(
+                formData,
+                serverModuleMap
+              )
+              if (invalidPayloadError) {
                 // The payload references action IDs that don't exist in this build.
                 // This can be deployment skew or manipulated input -- either way it's
                 // not a server fault, so we respond like any other unrecognized action
                 // (404) rather than throwing, which used to surface as a 500.
-                return handleUnrecognizedAction(getActionNotFoundError(null))
+                return handleUnrecognizedAction(invalidPayloadError)
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1222,7 +1243,7 @@ export async function handleAction({
                 { temporaryReferences }
               )
             } catch (err) {
-              return handleMalformedActionRequest(err)
+              return handleActionDecodeFailure(err)
             }
           }
         } else {
@@ -1576,11 +1597,15 @@ const $ACTION_ID_ = '$ACTION_ID_'
  * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
+ *
+ * Returns `null` when the payload can be decoded as an MPA action, or the error
+ * to report when it can't. The error names the offending action ID whenever one
+ * could be extracted, since that is the useful part when diagnosing skew.
  */
-function areAllActionIdsValid(
+function findInvalidActionPayloadError(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
-): boolean {
+): Error | null {
   let seenActionRefs = 0
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert that all
@@ -1593,8 +1618,9 @@ function areAllActionIdsValid(
 
     if (key.startsWith($ACTION_ID_)) {
       // No Bound args case
-      if (isInvalidActionIdFieldName(key, serverModuleMap)) {
-        return false
+      const error = getInvalidActionIdFieldNameError(key, serverModuleMap)
+      if (error) {
+        return error
       }
 
       hasAtLeastOneAction = true
@@ -1603,7 +1629,7 @@ function areAllActionIdsValid(
         // We only expect to see at most 2 $ACTION_REF_ fields in the form data:
         // one from <form action="..." method="post">
         // and one from <input action="..." type="submit">
-        return false
+        return getActionNotFoundError(null)
       }
 
       // Bound args case
@@ -1611,50 +1637,55 @@ function areAllActionIdsValid(
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
       const actionFields = mpaFormData.getAll(actionDescriptorField)
       if (actionFields.length !== 1) {
-        return false
+        return getActionNotFoundError(null)
       }
       const actionField = actionFields[0]
       if (typeof actionField !== 'string') {
-        return false
+        return getActionNotFoundError(null)
       }
 
-      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
-        return false
+      const error = getInvalidStringActionDescriptorError(
+        actionField,
+        serverModuleMap
+      )
+      if (error) {
+        return error
       }
       hasAtLeastOneAction = true
     }
   }
-  return hasAtLeastOneAction
+
+  return hasAtLeastOneAction ? null : getActionNotFoundError(null)
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-function isInvalidStringActionDescriptor(
+function getInvalidStringActionDescriptorError(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap
-): unknown {
+): Error | null {
   if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
-    return true
+    return getActionNotFoundError(null)
   }
 
   const from = ACTION_DESCRIPTOR_ID_PREFIX.length
   const to = actionDescriptor.indexOf('"', from)
   if (to === -1) {
-    return true
+    return getActionNotFoundError(null)
   }
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
   if (!mightBeServerReferenceId(actionId)) {
-    return true
+    return getInvalidServerReferenceIdError(actionId)
   }
 
-  return lookupServerModuleEntry(actionId, serverModuleMap) == null
+  return getUnresolvedActionIdError(actionId, serverModuleMap)
 }
 
-function isInvalidActionIdFieldName(
+function getInvalidActionIdFieldNameError(
   actionIdFieldName: string,
   serverModuleMap: ServerModuleMap
-): boolean {
+): Error | null {
   // The field name must always start with $ACTION_ID_ but since it is
   // the id is extracted from the key of the field we have already validated
   // this before entering this function
@@ -1662,26 +1693,28 @@ function isInvalidActionIdFieldName(
   if (!mightBeServerReferenceId(actionId)) {
     // this field name has too few or too many characters
     // or it is otherwise in the wrong format
-    return true
+    return getInvalidServerReferenceIdError(actionId)
   }
 
-  return lookupServerModuleEntry(actionId, serverModuleMap) == null
+  return getUnresolvedActionIdError(actionId, serverModuleMap)
 }
 
 /**
- * `serverModuleMap` is a proxy that throws for IDs that aren't registered in
- * this build (rather than returning `undefined`), so callers that only want to
- * know whether an ID resolves have to tolerate that. An unresolvable ID is not
- * a server fault -- it's skew or manipulated input -- and the caller turns this
- * into a 404 rather than letting the throw surface as a 500.
+ * Returns the error explaining why `actionId` doesn't resolve in this build, or
+ * `null` if it does. `serverModuleMap` is a proxy that throws for unregistered
+ * IDs rather than returning `undefined`, so the throw is captured and returned:
+ * an unresolvable ID is skew or manipulated input rather than a server fault,
+ * and the caller answers 404 instead of letting it surface as a 500.
  */
-function lookupServerModuleEntry(
+function getUnresolvedActionIdError(
   actionId: string,
   serverModuleMap: ServerModuleMap
-): ServerModuleMap[string] | null {
+): Error | null {
   try {
-    return serverModuleMap[actionId] ?? null
-  } catch {
-    return null
+    return serverModuleMap[actionId] == null
+      ? getActionNotFoundError(actionId)
+      : null
+  } catch (err) {
+    return err instanceof Error ? err : getActionNotFoundError(actionId)
   }
 }
