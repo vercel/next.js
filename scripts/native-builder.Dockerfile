@@ -112,7 +112,7 @@ ARG CARGO_BINSTALL_VERSION=1.18.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v${CARGO_BINSTALL_VERSION}/cargo-binstall-${ARCH}-unknown-linux-musl.tgz" \
       | tar xz -C /root/.cargo/bin && \
-    npm i -g @napi-rs/cli@2.18.4 && \
+    npm i -g @napi-rs/cli@3.7.2 && \
     cargo binstall --no-confirm --targets "${ARCH}-unknown-linux-musl" cargo-rustflags@0.4.0 && \
     cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache && \
     node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version

@@ -415,7 +415,8 @@ export async function exportPages(
     const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
           renderResumeDataCachesByPage[pageKey],
-          renderOpts.experimental.maxPostponedStateSizeBytes
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
         )
       : undefined
 
