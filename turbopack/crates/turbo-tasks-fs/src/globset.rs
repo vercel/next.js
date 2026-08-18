@@ -653,6 +653,7 @@ mod tests {
         "(?:a|b|c(?:/)?)(?:/h(?:/.*)?)?"
     )]
     #[case::classes("[abc]/d/**", "[abc]/d/.*", "[abc](?:/d(?:/.*)?)?")]
+    #[case::ranges("[a-z]/d/**", "[a-z]/d/.*", "[a-z](?:/d(?:/.*)?)?")]
     fn glob_regex_mapping(
         #[case] glob: &str,
         #[case] glob_regex: &str,
