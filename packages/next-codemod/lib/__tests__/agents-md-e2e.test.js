@@ -5,7 +5,10 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { runAgentsMd } = require('../../bin/agents-md')
-const { getNextjsVersion } = require('../../lib/agents-md')
+const {
+  getNextjsVersion,
+  refreshAgentRulesBlock,
+} = require('../../lib/agents-md')
 
 /**
  * TRUE E2E TESTS
@@ -191,6 +194,27 @@ This is my project documentation.
     } finally {
       process.chdir(originalCwd)
     }
+  })
+
+  it('reports malformed managed markers without rewriting the file', () => {
+    const nextDir = path.join(testProjectDir, 'node_modules', 'next')
+    const generatorDir = path.join(nextDir, 'dist', 'server', 'lib')
+    fs.mkdirSync(generatorDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(nextDir, 'package.json'),
+      JSON.stringify({ name: 'next', version: '16.3.0' })
+    )
+    fs.writeFileSync(
+      path.join(generatorDir, 'generate-agent-files.js'),
+      `exports.writeAgentFiles = () => ({ agentsMd: 'malformed', claudeMd: 'skipped' })`
+    )
+
+    const content = '<!-- BEGIN:nextjs-agent-rules -->\n# User rules\n'
+    const filePath = path.join(testProjectDir, 'AGENTS.md')
+    fs.writeFileSync(filePath, content)
+
+    expect(refreshAgentRulesBlock(testProjectDir)).toBe('malformed')
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(content)
   })
 
   it('works when run from a subdirectory', async () => {

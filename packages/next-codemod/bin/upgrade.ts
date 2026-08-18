@@ -478,9 +478,14 @@ export async function runUpgrade(
   }
 
   try {
-    if (refreshAgentRulesBlock(cwd) === 'refreshed') {
+    const agentRulesResult = refreshAgentRulesBlock(cwd)
+    if (agentRulesResult === 'refreshed') {
       console.log(
         `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+      )
+    } else if (agentRulesResult === 'malformed') {
+      console.warn(
+        'Skipped refreshing AGENTS.md / CLAUDE.md because the Next.js agent-rules markers are malformed. Repair or remove the managed marker pair before retrying.'
       )
     }
   } catch {
