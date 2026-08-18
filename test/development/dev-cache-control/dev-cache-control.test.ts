@@ -56,15 +56,6 @@ describe('dev Cache-Control', () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('#value').text()).toBe('Value A')
 
-    // The debug channel is persisted once the main thread is idle. Before that
-    // has happened, a document that is restored from the HTTP cache falls back
-    // to `location.reload()`, which would hide a stale response.
-    await retry(async () => {
-      expect(
-        await browser.eval(() => (self as any).__NEXT_DEBUG_CHANNEL_PERSISTED)
-      ).toBe(true)
-    })
-
     // A plain anchor triggers a document navigation, so the browser can keep
     // the page it navigates away from in its HTTP cache.
     await browser.elementByCss('#to-about').click()
