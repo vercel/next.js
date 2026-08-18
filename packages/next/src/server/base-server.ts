@@ -133,6 +133,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
+import { restoreActionForwardingHost } from './app-render/action-forwarding'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
@@ -1033,6 +1034,17 @@ export default abstract class Server<
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
+
+      // Internal self-fetches used to forward a Server Action or stream its
+      // app-relative redirect replace `host` with the forwarding origin. This
+      // runs after `attachRequestMeta`, because that origin can come from
+      // `initURL`, and before the first consumers of `host`: domain locale
+      // detection below, and later userland `headers()`.
+      restoreActionForwardingHost(req, {
+        // Mirrors the condition `attachRequestMeta` uses to build `initURL`
+        // from this server's own hostname and port.
+        hasConfiguredOrigin: Boolean(this.fetchHostname && this.port),
+      })
 
       let finished = await this.handleRSCRequest(req, res, parsedUrl)
       if (finished) return
