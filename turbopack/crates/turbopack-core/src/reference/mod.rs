@@ -46,6 +46,17 @@ pub trait ModuleReference: ValueToString {
     }
 }
 
+/// A [`ModuleReference`] created by tracing a dynamic filesystem access (e.g.
+/// `fs.readFileSync`, `path.join`) for the purpose of Node File Tracing.
+#[turbo_tasks::value_trait]
+pub trait DynamicTraceReference: ModuleReference {
+    /// The name of the function/call that created this reference (e.g.
+    /// `fs.readFileSync`). Used to name the offending call in tracing
+    /// diagnostics so the suggested fix refers to the actual call rather than an
+    /// example.
+    fn origin_fn_name(&self) -> RcStr;
+}
+
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
 pub struct ModuleReferences(Vec<ResolvedVc<Box<dyn ModuleReference>>>);

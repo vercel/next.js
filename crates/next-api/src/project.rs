@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -45,9 +45,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    canonicalize_to_rcstr, invalidation,
 };
-use turbo_unix_path::{join_path, unix_to_sys};
+use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -83,7 +84,8 @@ use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     version::{
-        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
+        NotFoundVersion, OptionVersionedContent, PartialUpdate, TotalUpdate, Update, Version,
+        VersionState, VersionedContent,
     },
 };
 #[cfg(feature = "process_pool")]
@@ -94,11 +96,13 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
+    aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -291,8 +295,14 @@ impl DebugBuildPathsRouteKeys {
 
     fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
         // Special pages router framework routes
-        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-            return true;
+        if matches!(
+            route_key.as_str(),
+            "/_error" | "/_document" | "/_app" | "/404" | "/500"
+        ) {
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
         }
         self.pages.contains(route_key)
     }
@@ -627,9 +637,7 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             if watch.enable {
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
+                project_fs.start_watching().await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     // this path is just used for display purposes
@@ -694,7 +702,7 @@ impl ProjectContainer {
                 .context("ProjectContainer need to be initialized with initialize()")?;
 
             if let Some(root_path) = root_path {
-                new_options.root_path = root_path;
+                new_options.root_path = canonicalize_to_rcstr(Path::new(&*root_path))?;
             }
             if let Some(project_path) = project_path {
                 new_options.project_path = project_path;
@@ -772,9 +780,7 @@ impl ProjectContainer {
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
                 if watch.enable {
                     // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs
-                        .start_watching_with_invalidation_reason(watch.poll_interval)
-                        .await?;
+                    project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                         // this path is just used for display purposes
@@ -988,6 +994,13 @@ pub struct ProjectDefineEnv {
     nodejs: ResolvedVc<OptionEnvMap>,
 }
 
+async fn import_meta_env_base_url(next_config: ResolvedVc<NextConfig>) -> Result<RcStr> {
+    Ok(match &*next_config.base_path().await? {
+        Some(base_path) => format!("{base_path}/").into(),
+        None => rcstr!("/"),
+    })
+}
+
 #[turbo_tasks::value_impl]
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
@@ -1076,10 +1089,16 @@ impl Project {
             .unwrap()
             .into();
 
-        Ok(DiskFileSystem::new_with_denied_paths(
+        Ok(DiskFileSystem::new_with_options(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path, denied_profiles_path],
+            DiskWatcherConfig {
+                recursive_mode: None,
+                poll_interval: self.watch.poll_interval,
+                // the dev server reports these to the user
+                report_invalidation_reason: true,
+            },
         ))
     }
 
@@ -1092,23 +1111,6 @@ impl Project {
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
         DiskFileSystem::new(rcstr!("output"), *self.root_path)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
-        let root_path = self.root_path.await?;
-        Ok(Vc::cell(
-            format!(
-                "{}{}{}",
-                root_path,
-                std::path::MAIN_SEPARATOR,
-                unix_to_sys(
-                    &join_path(&self.project_path, &self.dist_dir)
-                        .context("expected project_path to be inside of root_path")?
-                )
-            )
-            .into(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -1277,6 +1279,11 @@ impl Project {
                 next_mode.runtime_type(),
             )
             .source_maps(*self.next_config().server_source_maps().await?)
+            // This context is shared by every node-side transform that needs to evaluate JS at
+            // build time (postcss configs, webpack loaders, next/font/google, ...). Each of those
+            // builds its own module graph but they all emit the same `[turbopack]_runtime.js`, so
+            // no single graph can decide which optional runtime features to drop.
+            .shared_runtime_chunk(true)
             .build(),
         );
 
@@ -1296,6 +1303,7 @@ impl Project {
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
             next_mode.is_development(),
+            import_meta_env_base_url(self.next_config).await?,
         ))
     }
 
@@ -1453,7 +1461,10 @@ impl Project {
                 .chain(std::iter::once(self.client_main_modules().owned().await?))
                 .chain(std::iter::once(GraphEntries::new(
                     vec![],
-                    self.additional_traced_modules().owned().await?,
+                    // The superset of what any endpoint traces, so that these modules and their
+                    // references are part of the graph. Which endpoint actually traces them is
+                    // decided by what is passed to `trace_endpoint`.
+                    self.pages_traced_modules().owned().await?,
                 ))),
         );
 
@@ -1571,6 +1582,7 @@ impl Project {
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
             this.server_hmr,
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -1582,6 +1594,7 @@ impl Project {
             this.define_env.edge(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -1602,7 +1615,7 @@ impl Project {
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
-        let chunking_heuristics = self.next_config().chunking_heuristics().await?;
+        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1614,17 +1627,20 @@ impl Project {
                 .owned()
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            per_page_module_graph: self.per_page_module_graph(),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1633,9 +1649,14 @@ impl Project {
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
-            chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
-            chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
-            chunking_request_cost: chunking_heuristics.request_cost,
+            chunking_first_page_load_priority: turbopack_chunking.first_page_load_priority,
+            chunking_priority_boost_percent: turbopack_chunking.priority_boost_percent,
+            chunking_request_cost: turbopack_chunking.request_cost,
+            chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
+            chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
+            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 
@@ -1650,7 +1671,7 @@ impl Project {
                 output_root: self.node_root().owned().await?,
                 output_root_to_root_path: self.node_root_to_root_path().owned().await?,
                 environment: self.client_compile_time_info().environment(),
-                minify: self.next_config().turbo_minify(self.next_mode()),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
@@ -1700,7 +1721,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1718,6 +1739,7 @@ impl Project {
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            per_page_module_graph: self.per_page_module_graph(),
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1741,7 +1763,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -2476,6 +2498,17 @@ impl Project {
         })
     }
 
+    #[turbo_tasks::function]
+    async fn aggregate_hmr_root_path(
+        self: Vc<Self>,
+        target: HmrTarget,
+    ) -> Result<Vc<FileSystemPath>> {
+        match target {
+            HmrTarget::Client => bail!("aggregate HMR is not implemented for the client"),
+            HmrTarget::Server => Ok(self.node_root().await?.join("server/app")?.cell()),
+        }
+    }
+
     /// Get HMR content by chunk_name for the specified target.
     #[turbo_tasks::function]
     async fn hmr_content(
@@ -2555,6 +2588,123 @@ impl Project {
         } else {
             Ok(Update::Missing.cell())
         }
+    }
+
+    /// Aggregate counterpart to [`Self::hmr_version_state`]: one [`VersionState`]
+    /// covering every HMR-eligible chunk under `target`'s root. See
+    /// [`Self::all_hmr_update`].
+    #[turbo_tasks::function(session_dependent)]
+    pub async fn all_hmr_version_state(
+        self: ResolvedVc<Self>,
+        target: HmrTarget,
+    ) -> Result<Vc<VersionState>> {
+        if target == HmrTarget::Client {
+            bail!("all_hmr_version_state is not yet implemented for the client target");
+        }
+
+        #[tracing::instrument(
+            level = "info",
+            name = "get aggregate HMR version",
+            skip_all,
+            fields(target = %target),
+        )]
+        #[turbo_tasks::function(operation, root)]
+        async fn aggregate_hmr_version_operation(
+            this: ResolvedVc<Project>,
+            target: HmrTarget,
+        ) -> Result<Vc<Box<dyn Version>>> {
+            let Some(map) = this.await?.versioned_content_map else {
+                bail!("must be in dev mode to hmr")
+            };
+            let root = this.aggregate_hmr_root_path(target).owned().await?;
+            AggregateHmrVersion::from_map(*map, root).await
+        }
+        let version_op = aggregate_hmr_version_operation(self, target);
+
+        // INVALIDATION: untracked initial read; the subscription drives invalidation.
+        let state = VersionState::new(
+            version_op
+                .read_trait_strongly_consistent()
+                .untracked()
+                .await?,
+        )
+        .await?;
+        Ok(state)
+    }
+
+    /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
+    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
+    /// under `target`'s root.
+    ///
+    /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
+    /// the module deltas for its shared chunks via the merger) or a bare
+    /// `EcmascriptMergedUpdate`; both are folded into one `ChunkListUpdate` that
+    /// the runtime applies exactly as it would a single chunk list.
+    ///
+    /// All-or-nothing restart: any chunk needing `Total`/`Missing` escalates
+    /// the whole batch to `Total` (the runtime can't partially restart). New
+    /// chunks absent from `from` are skipped; the runtime require()s them on
+    /// demand.
+    #[turbo_tasks::function]
+    pub async fn all_hmr_update(
+        self: Vc<Self>,
+        target: HmrTarget,
+        from: Vc<VersionState>,
+    ) -> Result<Vc<Update>> {
+        if target == HmrTarget::Client {
+            bail!("all_hmr_update is not yet implemented for the client target");
+        }
+
+        let Some(map) = self.await?.versioned_content_map else {
+            bail!("must be in dev mode to hmr")
+        };
+        let root = self.aggregate_hmr_root_path(target).owned().await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
+
+        // No chunks to diff yet (e.g. before any endpoints have been written).
+        if chunks_versioned_content.is_empty() {
+            return Ok(Update::None.cell());
+        }
+
+        // Build `to` up front so we can return it on every escape hatch below.
+        let to_aggregate = AggregateHmrVersion::from_chunks(&chunks_versioned_content).await?;
+        let to_ref = Vc::upcast::<Box<dyn Version>>(to_aggregate)
+            .into_trait_ref()
+            .await?;
+
+        let DiffResult {
+            chunk_updates,
+            has_new_chunks,
+        } = diff_chunks_against(&chunks_versioned_content, from).await?;
+
+        // Nothing to apply, but `from` still needs to advance to `to`. Reaching
+        // here means `from` held a version we couldn't diff against (it wasn't an
+        // `AggregateHmrVersion`), so `diff_chunks_against` gave up and returned
+        // nothing. An empty `Partial` moves the subscription's state forward so
+        // the *next* change produces a real diff; returning `Total` instead would
+        // force a needless full re-evaluation.
+        if chunk_updates.is_empty() && !has_new_chunks {
+            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
+        }
+
+        let mut builder = ChunkListUpdateBuilder::default();
+        for (_path, update) in chunk_updates {
+            match &*update {
+                Update::None => {}
+                Update::Missing | Update::Total(_) => {
+                    return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
+                }
+                Update::Partial(PartialUpdate { instruction, .. }) => {
+                    builder.add_instruction(instruction);
+                }
+            }
+        }
+
+        if builder.is_empty() && !has_new_chunks {
+            return Ok(Update::None.cell());
+        }
+
+        Ok(builder.build(to_ref).cell())
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the
@@ -2701,6 +2851,29 @@ impl Project {
                 .map(|m| m.to_resolved())
                 .try_join()
                 .await?,
+        ))
+    }
+
+    /// [`Project::additional_traced_modules`] plus the modules the Pages Router resolves only at
+    /// runtime: the targets of `next/dist/server/require-hook` and the production Pages renderer.
+    /// Other endpoints use [`Project::additional_traced_modules`].
+    #[turbo_tasks::function]
+    pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+
+        Ok(Vc::cell(
+            self.additional_traced_modules()
+                .owned()
+                .await?
+                .into_iter()
+                .chain(hook_modules)
+                .chain(renderer_modules)
+                .collect(),
         ))
     }
 }

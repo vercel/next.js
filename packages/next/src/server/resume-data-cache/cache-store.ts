@@ -3,7 +3,7 @@ import {
   stringToUint8Array,
 } from '../app-render/encryption-utils'
 import type { CachedFetchValue } from '../response-cache/types'
-import { DYNAMIC_EXPIRE } from '../use-cache/constants'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -135,7 +135,8 @@ export async function serializeUseCacheCacheStore(
           }) => {
             if (
               isCacheComponentsEnabled &&
-              (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+              (entry.revalidate === 0 ||
+                entry.expire < MIN_PRERENDERABLE_EXPIRE)
             ) {
               // The entry was omitted from the prerender result, and subsequently
               // does not need to be included in the serialized RDC.

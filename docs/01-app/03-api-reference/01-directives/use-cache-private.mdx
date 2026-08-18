@@ -49,8 +49,6 @@ export default nextConfig
 
 Then add `'use cache: private'` to your function along with a `cacheLife` configuration.
 
-> **Good to know**: This directive is not available in Route Handlers.
-
 ### Basic example
 
 In this example, we demonstrate that you can access cookies within a `'use cache: private'` scope:
@@ -151,7 +149,7 @@ async function getRecommendations(productId) {
 }
 ```
 
-> **Good to know**: The `stale` time must be at least 30 seconds for runtime prefetching to work. See [`cacheLife` client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) for details.
+> **Good to know**: The `stale` time must be at least 30 seconds for per-link prefetching to work, and at least 5 minutes for the content to be included in the route's [App Shell](/docs/app/glossary#app-shell). See [`cacheLife` prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
 
 ## Request APIs allowed in private caches
 

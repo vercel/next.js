@@ -1,6 +1,7 @@
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -11,17 +12,25 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
+const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
+const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
 
-describe.each(
-  [
-    { name: 'default' },
-    isNextStart && {
-      name: 'direct entrypoints',
-      useDirectEntrypointHandler: true,
-    },
-  ].filter(Boolean)
-)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+  let collector: Collector
+
+  function getCollector(): Collector {
+    return collector
+  }
+
+  beforeEach(async () => {
+    collector = await connectCollector({ port: COLLECTOR_PORT })
+  })
+
+  afterEach(async () => {
+    await collector.shutdown()
+  })
+
+  let next = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -47,25 +56,37 @@ describe.each(
             NODE_ENV: 'production',
           },
         }),
+    overrideFiles: useNodeMiddleware
+      ? {
+          'middleware.ts': new FileRef(
+            path.join(__dirname, 'middleware-node.ts')
+          ),
+        }
+      : undefined,
+  })
+  return { next, getCollector }
+}
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
+  const {
+    next: { next, skipped, isNextDev },
+    getCollector,
+  } = setup({
+    useDirectEntrypointHandler,
+    useNodeMiddleware: false,
   })
 
   if (skipped) {
     return
   }
-
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -401,6 +422,81 @@ describe.each(
             ])
           })
 
+          if (env.name === 'root context' && !useDirectEntrypointHandler) {
+            it.each(['/api/app/param/data', '/pages/param/getServerSideProps'])(
+              'should trace route module loading for %s',
+              async (pathname) => {
+                await next.fetch(pathname)
+
+                await retry(async () => {
+                  const spans = getCollector().getSpans()
+                  const rootSpan = spans.find(
+                    (span) =>
+                      span.attributes?.['next.span_type'] ===
+                        'BaseServer.handleRequest' &&
+                      span.attributes?.['http.target'] === pathname
+                  )
+                  const loadSpans = spans.filter(
+                    (span) =>
+                      span.attributes?.['next.span_type'] ===
+                        'LoadComponents.loadRouteModule' &&
+                      span.traceId === rootSpan?.traceId
+                  )
+
+                  expect(rootSpan).toBeDefined()
+                  expect(loadSpans).toEqual([
+                    expect.objectContaining({
+                      runtime: 'nodejs',
+                      name: 'load route module',
+                      traceId: rootSpan?.traceId,
+                      attributes: {
+                        'next.span_category': 'nextjs',
+                        'next.span_name': 'load route module',
+                        'next.span_type': 'LoadComponents.loadRouteModule',
+                      },
+                      status: { code: 0 },
+                    }),
+                  ])
+                })
+              }
+            )
+
+            it('should trace route module preparation', async () => {
+              const pathname = '/api/app/param/data'
+              await next.fetch(pathname)
+
+              await retry(async () => {
+                const spans = getCollector().getSpans()
+                const rootSpan = spans.find(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'BaseServer.handleRequest' &&
+                    span.attributes?.['http.target'] === pathname
+                )
+                const prepareSpans = spans.filter(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'RouteModule.prepare' &&
+                    span.traceId === rootSpan?.traceId
+                )
+
+                expect(rootSpan).toBeDefined()
+                expect(prepareSpans).toEqual([
+                  expect.objectContaining({
+                    runtime: 'nodejs',
+                    name: 'prepare route module',
+                    traceId: rootSpan?.traceId,
+                    attributes: {
+                      'next.span_category': 'nextjs',
+                      'next.span_name': 'prepare route module',
+                      'next.span_type': 'RouteModule.prepare',
+                    },
+                    status: { code: 0 },
+                  }),
+                ])
+              })
+            })
+          }
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 
@@ -623,43 +719,6 @@ describe.each(
               ],
               true
             )
-          })
-
-          itEdge('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ])
           })
 
           it('should handle error in RSC', async () => {
@@ -1474,6 +1533,278 @@ describe.each(
     )
   }
 })
+
+if (isNextStart) {
+  describe('opentelemetry route module preparation with direct entrypoint handler', () => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      startCommand: 'pnpm start-entrypoint',
+      packageJson: {
+        scripts: {
+          'start-entrypoint':
+            'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+        },
+      },
+      serverReadyPattern: /- Local:/,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'production',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace route module preparation', async () => {
+      const connectedCollector = await connectCollector({
+        port: ROUTE_PREPARATION_COLLECTOR_PORT,
+      })
+      collector = connectedCollector
+      await next.start()
+
+      await next.fetch('/app/param/rsc-fetch')
+      await next.fetch('/api/app/param/data')
+
+      await retry(async () => {
+        const prepareSpans = connectedCollector
+          .getSpans()
+          .filter(
+            (span) =>
+              span.attributes?.['next.span_type'] === 'RouteModule.prepare'
+          )
+
+        expect(prepareSpans).toEqual([
+          expect.objectContaining({
+            runtime: 'nodejs',
+            name: 'prepare route module',
+            attributes: {
+              'next.span_category': 'nextjs',
+              'next.span_name': 'prepare route module',
+              'next.span_type': 'RouteModule.prepare',
+            },
+            status: { code: 0 },
+          }),
+        ])
+      })
+    })
+  })
+}
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
+  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({
+      useDirectEntrypointHandler,
+      useNodeMiddleware: runtime === 'nodejs',
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (useDirectEntrypointHandler && runtime === 'edge') {
+      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+      return
+    }
+
+    for (const env of [
+      {
+        name: 'root context',
+        fetchInit: undefined,
+        span: {
+          traceId: '[trace-id]',
+          rootParentId: undefined,
+        },
+      },
+      {
+        name: 'incoming context propagation',
+        fetchInit: {
+          headers: {
+            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+          },
+        },
+        span: {
+          traceId: EXTERNAL.traceId,
+          rootParentId: EXTERNAL.spanId,
+        },
+      },
+    ]) {
+      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+        env.name,
+        () => {
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+            let expected = [
+              {
+                runtime: runtime,
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+              },
+            ]
+            if (runtime === 'nodejs') {
+              // TODO unclear why this is reversed for Node.js runtime
+              expected.reverse()
+            }
+            await expectTrace(getCollector(), expected)
+          })
+        }
+      )
+    }
+  })
+})
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)(
+  'opentelemetry instrumentation startup - $name',
+  ({ useDirectEntrypointHandler }) => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      ...(!useDirectEntrypointHandler
+        ? {
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+            },
+          }
+        : {
+            startCommand: 'pnpm start-entrypoint',
+            packageJson: {
+              scripts: {
+                'start-entrypoint':
+                  'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              },
+            },
+            serverReadyPattern: /- Local:/,
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+              NODE_ENV: 'production',
+            },
+          }),
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace instrumentation startup', async () => {
+      collector = await connectCollector({
+        port: INSTRUMENTATION_STARTUP_COLLECTOR_PORT,
+      })
+      await next.start()
+      await next.fetch('/app/param/rsc-fetch')
+
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        const loadModuleSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.loadModule'
+        )
+        const registerSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.register'
+        )
+
+        expect(
+          spans.filter((span) =>
+            ['Instrumentation.loadModule', 'Instrumentation.register'].includes(
+              span.attributes?.['next.span_type'] as string
+            )
+          )
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              runtime: 'nodejs',
+              name: 'load instrumentation module',
+              attributes: {
+                'next.span_category': 'nextjs',
+                'next.span_name': 'load instrumentation module',
+                'next.span_type': 'Instrumentation.loadModule',
+              },
+              status: { code: 0 },
+            }),
+            expect.objectContaining({
+              runtime: 'nodejs',
+              name: 'register instrumentation',
+              attributes: {
+                'next.span_category': 'nextjs',
+                'next.span_name': 'register instrumentation',
+                'next.span_type': 'Instrumentation.register',
+              },
+              status: { code: 0 },
+            }),
+          ])
+        )
+        expect(loadModuleSpan?.timestamp).toBeLessThanOrEqual(
+          registerSpan!.timestamp!
+        )
+      })
+    })
+  }
+)
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',
   () => {
@@ -1947,7 +2278,17 @@ async function expectTrace(
   )
 
   await retry(async () => {
-    const traces = collector.getSpans()
+    const traces = collector
+      .getSpans()
+      .filter(
+        (span) =>
+          ![
+            'LoadComponents.loadRouteModule',
+            'RouteModule.prepare',
+            'Instrumentation.loadModule',
+            'Instrumentation.register',
+          ].includes(span.attributes?.['next.span_type'] as string)
+      )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({

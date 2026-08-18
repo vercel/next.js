@@ -15,6 +15,11 @@ export default function Page() {
         </Link>
       </li>
       <li>
+        <Link href="/use-cache-expire-zero/nav">
+          /use-cache-expire-zero/nav
+        </Link>
+      </li>
+      <li>
         <Link href="/partial-prefetching/session-data">
           /partial-prefetching/session-data
         </Link>

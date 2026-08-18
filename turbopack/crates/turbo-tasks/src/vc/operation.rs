@@ -2,6 +2,7 @@ use std::{
     fmt::Debug,
     future::Future,
     hash::Hash,
+    marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -13,8 +14,9 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
-    VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskId, TaskInput, UpcastStrict, Vc,
+    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
+    trace::TraceRawVcs, turbo_tasks,
 };
 
 /// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
@@ -91,14 +93,14 @@ impl<T: ?Sized> Unpin for ResolveOperationVcFuture<T> {}
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
 #[derive(Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent, bound = "")]
 #[bincode(bounds = "T: ?Sized")]
-#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
 {
-    pub(crate) node: Vc<T>,
+    task: TaskId,
+
+    _t: PhantomData<T>,
 }
 
 impl<T: ?Sized> OperationVc<T> {
@@ -108,12 +110,15 @@ impl<T: ?Sized> OperationVc<T> {
     #[doc(hidden)]
     #[deprecated = "This is an internal function. Use #[turbo_tasks::function(operation)] instead."]
     pub fn cell_private(node: Vc<T>) -> Self {
-        debug_assert!(
-            node.node.as_task_output().is_some(),
+        let task = node.node.as_task_output().expect(
             "OperationVc::cell_private must be called on the immediate return value of a task \
-             function"
+             function",
         );
-        Self { node }
+
+        Self {
+            task,
+            _t: PhantomData,
+        }
     }
 
     /// Marks this operation's underlying function call as a child of the current task, and returns
@@ -124,13 +129,15 @@ impl<T: ?Sized> OperationVc<T> {
     /// operation is needed as `OperationVc` types can be stored outside of the call graph as part
     /// of [`State`][crate::State]s.
     pub fn connect(self) -> Vc<T> {
-        self.node.node.connect();
-        self.node
+        let tt = turbo_tasks();
+        tt.connect_task(self.task);
+        Self::into_raw(self).into()
     }
 
-    /// Returns the `RawVc` corresponding to this `Vc`.
-    pub fn into_raw(vc: Self) -> RawVc {
-        vc.node.node
+    /// Returns the `RawVc` corresponding to this `OperationVc`.
+    /// inverse of [`RawVc::as_task_output`]
+    fn into_raw(vc: Self) -> RawVc {
+        RawVc::task_output(vc.task)
     }
 
     /// Upcasts the given `OperationVc<T>` to a `OperationVc<Box<dyn K>>`.
@@ -143,7 +150,8 @@ impl<T: ?Sized> OperationVc<T> {
         K: VcValueTrait + ?Sized,
     {
         OperationVc {
-            node: Vc::upcast(vc.node),
+            task: vc.task,
+            _t: PhantomData,
         }
     }
 
@@ -202,7 +210,7 @@ where
     T: ?Sized,
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.node.hash(state);
+        self.task.hash(state);
     }
 }
 
@@ -211,7 +219,7 @@ where
     T: ?Sized,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
+        self.task == other.task
     }
 }
 
@@ -223,7 +231,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OperationVc")
-            .field("node", &self.node.node)
+            .field("task", &self.task)
             .finish()
     }
 }
@@ -235,7 +243,7 @@ where
     T: ?Sized + Send + Sync,
 {
     fn is_transient(&self) -> bool {
-        self.node.is_transient()
+        self.task.is_transient()
     }
 }
 
@@ -246,11 +254,12 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if raw.as_task_output().is_none() {
+        let Some(task) = raw.as_task_output() else {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
-        }
+        };
         Ok(Self {
-            node: Vc::from(raw),
+            task,
+            _t: PhantomData,
         })
     }
 }
@@ -260,7 +269,7 @@ where
     T: ?Sized,
 {
     fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.node.trace_raw_vcs(trace_context);
+        Self::into_raw(*self).trace_raw_vcs(trace_context);
     }
 }
 
@@ -269,15 +278,26 @@ where
     T: ?Sized,
 {
     fn drop_collectibles<Vt: VcValueTrait>(self) {
-        self.node.node.drop_collectibles::<Vt>();
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
     }
 
     fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
-        self.node.node.take_collectibles()
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
+        map.into_iter()
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
+            .collect()
     }
 
     fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
-        self.node.node.peek_collectibles()
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        map.into_iter()
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
+            .collect()
     }
 }
 

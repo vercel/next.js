@@ -9,8 +9,8 @@ use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timest
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
-    id_mapping: FxHashMap<u64, SpanIndex>,
-    queued_children: FxHashMap<u64, Vec<SpanIndex>>,
+    id_mapping: FxHashMap<NextJsSpanId, SpanIndex>,
+    queued_children: FxHashMap<NextJsSpanId, Vec<SpanIndex>>,
 }
 
 impl NextJsFormat {
@@ -46,8 +46,6 @@ impl TraceFormat for NextJsFormat {
                     id,
                     parent_id,
                     tags,
-                    start_time: _,
-                    trace_id: _,
                 } = span;
                 let timestamp = Timestamp::from_micros(timestamp);
                 let duration = Timestamp::from_micros(duration);
@@ -75,7 +73,6 @@ impl TraceFormat for NextJsFormat {
                         .collect(),
                     &mut outdated_spans,
                 );
-                self.id_mapping.insert(id, index);
                 if let Some(parent) = queue_parent {
                     self.queued_children.entry(parent).or_default().push(index);
                 }
@@ -84,6 +81,7 @@ impl TraceFormat for NextJsFormat {
                         store.set_parent(child, index, &mut outdated_spans);
                     }
                 }
+                self.id_mapping.insert(id, index);
                 store.set_total_time(index, timestamp, duration, &mut outdated_spans);
                 store.complete_span(index);
             }
@@ -123,17 +121,24 @@ impl Display for TagValue<'_> {
     }
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+enum NextJsSpanId {
+    Number(u64),
+    String(RcStr),
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NextJsSpan<'a> {
     name: Cow<'a, str>,
     duration: u64,
     timestamp: u64,
-    id: u64,
-    parent_id: Option<u64>,
+    id: NextJsSpanId,
+    parent_id: Option<NextJsSpanId>,
     tags: FxIndexMap<Cow<'a, str>, Option<TagValue<'a>>>,
-    #[allow(dead_code)]
-    start_time: u64,
-    #[allow(dead_code)]
-    trace_id: Cow<'a, str>,
+    // Emitted by Next.js trace and Vercel CLI trace
+    // start_time: u64,
+    // Emitted by Next.js trace
+    // trace_id: Cow<'a, str>,
 }

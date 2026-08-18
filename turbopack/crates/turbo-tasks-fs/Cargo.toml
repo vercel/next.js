@@ -31,7 +31,7 @@ bitflags = "1.3.2"
 bytes = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
-dunce = { workspace = true }
+fs-err = { workspace = true }
 futures = { workspace = true }
 include_dir = { version = "0.7.3", features = ["nightly"] }
 indexmap = { workspace = true }
@@ -44,6 +44,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
+smallvec = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -53,7 +54,11 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+omnipath = "0.1.6"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

@@ -12,7 +12,6 @@ import {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -22,7 +21,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   applyOwnerStack,
-  getSessionDataStage,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
@@ -40,7 +39,7 @@ export function draftMode(): Promise<DraftMode> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         return stagedRendering.delayUntilStage(
-          getSessionDataStage(stagedRendering),
+          RENDER_STAGES_BY_DATA_KIND.sessionData,
           'draftMode',
           new DraftMode(workUnitStore.draftMode)
         )
@@ -69,7 +68,6 @@ export function draftMode(): Promise<DraftMode> {
     // Otherwise, we fall through to providing an empty draft mode.
     // eslint-disable-next-line no-fallthrough
     case 'prerender':
-    case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
       return createOrGetCachedDraftMode(null, workStore)
@@ -242,12 +240,6 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           const exportName = '`draftMode`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          return postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           workUnitStore.revalidate = 0

@@ -1,5 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('optimistic routing - parallel slot catch-all regression', () => {
   const { next, isNextDev } = nextTestSetup({

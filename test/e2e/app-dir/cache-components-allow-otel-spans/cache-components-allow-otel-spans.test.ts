@@ -116,7 +116,7 @@ describe('cache-components OTEL spans', () => {
          {
            "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetchable",
+           "environmentLabel": "Prefetch",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ <anonymous>
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -134,7 +134,7 @@ describe('cache-components OTEL spans', () => {
          {
            "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetchable",
+           "environmentLabel": "Prefetch",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ eval
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -366,6 +366,18 @@ describe('cache-components OTEL spans', () => {
         expect(t8againValue).not.toEqual(t8value)
         expect(t8againValue).not.toEqual(0)
       }
+    })
+    it('should allow creating Spans from a tracer acquired before provider registration', async () => {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/novel/early-span')
+      // Guard the reported regression directly: span ID generation must not be treated as dynamic Math.random() access during prerendering.
+      expect(
+        next.cliOutput
+          .slice(outputIndex)
+          .match(/unstable value.*Math\.random\(\).*prerendering/)
+      ).toBeNull()
+      const result = await browser.elementByCss('#t9 .result')
+      expect(await result.textContent()).toEqual('42')
     })
   }
 })

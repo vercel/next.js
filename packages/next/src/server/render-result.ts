@@ -44,6 +44,13 @@ export type AppPageRenderResultMetadata = {
   postponed?: string
 
   /**
+   * Whether the prerender left any UI pending in a Suspense boundary. This is
+   * reported directly by React's prerender result before Next.js resumes
+   * client-only boundaries.
+   */
+  hasPendingUi?: boolean
+
+  /**
    * The headers to set on the response that were added by the render.
    */
   headers?: OutgoingHttpHeaders

@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('unrecognized server actions', () => {
+  const unrecognizedActionId = '0'.repeat(42)
+
   const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -36,50 +38,78 @@ describe('unrecognized server actions', () => {
       expect(res.status).toBe(404)
     })
 
-    it.each([
+    describe.each([
       {
-        // encodeReply encodes simple args as plaintext.
-        name: 'plaintext',
-        request: {
-          contentType: 'text/plain;charset=UTF-8',
-          body: '{}',
-        },
-      },
-      {
-        // encodeReply encodes complex args as FormData.
-        // this body is empty and wouldn't match how react encodes an action, but it should be rejected
-        // before we even get to parsing the FormData, so it doesn't really matter.
-        name: 'form-data/multipart',
-        request: {
-          body: new FormData(),
-        },
-      },
-    ])(
-      'should 404 when POSTing a server action with an unrecognized id to a nonexistent page: $name',
-      async ({ request: { contentType, body } }) => {
-        const res = await next.fetch('/non-existent-route', {
-          method: 'POST',
-          headers: {
-            'next-action': '123',
-            ...(contentType ? { 'content-type': contentType } : undefined),
-          },
-          // @ts-expect-error: node-fetch types don't seem to like FormData
-          body,
-        })
-
-        expect(res.status).toBe(404)
-
-        const cliOutput = getLogs()
-        expect(cliOutput).not.toContain('TypeError')
-        expect(cliOutput).not.toContain(
-          'Missing `origin` header from a forwarded Server Actions request'
-        )
-        expect(cliOutput).toInclude(outdent`
-          Failed to find Server Action "123". This request might be from an older or newer deployment.
+        idType: 'malformed',
+        actionId: '123',
+        expectedError: outdent`
+          The Server Reference ID did not match the expected format. Received "123".
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
-        `)
-      }
-    )
+        `,
+      },
+      {
+        idType: 'plausible but missing',
+        actionId: unrecognizedActionId,
+        expectedError: outdent`
+          Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
+          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+        `,
+      },
+      {
+        // A well-known property name is excluded from server reference
+        // validation in the module map (so framework reflection probes don't
+        // throw), which means the lookup returns undefined rather than throwing.
+        // We should still surface a diagnosable error instead of a TypeError.
+        idType: 'well-known property name',
+        actionId: 'toString',
+        expectedError: outdent`
+          The Server Reference ID did not match the expected format. Received "toString".
+          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+        `,
+      },
+    ])('with a $idType id', ({ actionId, expectedError }) => {
+      it.each([
+        {
+          // encodeReply encodes simple args as plaintext.
+          name: 'plaintext',
+          request: {
+            contentType: 'text/plain;charset=UTF-8',
+            body: '{}',
+          },
+        },
+        {
+          // encodeReply encodes complex args as FormData.
+          // this body is empty and wouldn't match how react encodes an action, but it should be rejected
+          // before we even get to parsing the FormData, so it doesn't really matter.
+          name: 'form-data/multipart',
+          request: {
+            body: new FormData(),
+          },
+        },
+      ])(
+        'should 404 when POSTing a server action to a nonexistent page: $name',
+        async ({ request: { contentType, body } }) => {
+          const res = await next.fetch('/non-existent-route', {
+            method: 'POST',
+            headers: {
+              'next-action': actionId,
+              ...(contentType ? { 'content-type': contentType } : undefined),
+            },
+            // @ts-expect-error: node-fetch types don't seem to like FormData
+            body,
+          })
+
+          expect(res.status).toBe(404)
+
+          const cliOutput = getLogs()
+          expect(cliOutput).not.toContain('TypeError')
+          expect(cliOutput).not.toContain(
+            'Missing `origin` header from a forwarded Server Actions request'
+          )
+          expect(cliOutput).toInclude(expectedError)
+        }
+      )
+    })
   }
 
   it('should error when POSTing a urlencoded action to a nonexistent page', async () => {
@@ -146,7 +176,7 @@ describe('unrecognized server actions', () => {
           if (!isNextDeploy) {
             await retry(async () =>
               expect(getLogs()).toInclude(outdent`
-              Failed to find Server Action "decafc0ffeebad01". This request might be from an older or newer deployment.
+              Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
               Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
             `)
             )
@@ -182,7 +212,7 @@ describe('unrecognized server actions', () => {
             if (!isNextDeploy) {
               await retry(async () =>
                 expect(getLogs()).toInclude(
-                  `Error: Failed to find Server Action. This request might be from an older or newer deployment`
+                  `Error: Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment`
                 )
               )
             }

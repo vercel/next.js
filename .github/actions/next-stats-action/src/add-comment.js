@@ -1051,10 +1051,42 @@ ${actionInfo.previewBuildsBaseUrl}/commits/${actionInfo.commitId}/next
 // Hidden marker to identify stats comments (invisible in rendered markdown)
 const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
 
+// Warn when one or more bundlers didn't produce stats because their job failed,
+// was cancelled, or timed out. A cancelled job is treated the same as a failed
+// one since neither can produce results; we still post whatever we collected and
+// call out which bundlers are missing so the numbers below aren't misread as
+// complete.
+function generateMissingBundlersWarning(
+  missingBundlers = [],
+  { hasResults = true } = {}
+) {
+  if (missingBundlers.length === 0) return ''
+
+  const names = missingBundlers.map((b) => `**${b}**`)
+  const list =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  const isSingular = names.length === 1
+  const subject = isSingular ? 'its stats job' : 'their stats jobs'
+  const reason = isSingular
+    ? 'it failed, was cancelled, or timed out'
+    : 'they failed, were cancelled, or timed out'
+  const trailer = hasResults
+    ? ' The results below only cover the bundlers that finished.'
+    : ' No stats are available for this commit.'
+
+  return `> [!WARNING]
+> No stats were collected for ${list} because ${subject} did not complete (${reason}).${trailer}
+
+`
+}
+
 module.exports = async function addComment(
   results = [],
   actionInfo,
-  statsConfig
+  statsConfig,
+  { missingBundlers = [] } = {}
 ) {
   // Load historical data
   const history = await loadHistory()
@@ -1065,6 +1097,10 @@ module.exports = async function addComment(
       ? statsConfig.commentReleaseHeading || 'Stats from current release'
       : statsConfig.commentHeading || 'Stats from current PR'
   }\n\n`
+
+  comment += generateMissingBundlersWarning(missingBundlers, {
+    hasResults: results.length > 0,
+  })
 
   const tableHead = `| | Canary | PR | Change |\n|:--|--:|--:|--:|\n`
 

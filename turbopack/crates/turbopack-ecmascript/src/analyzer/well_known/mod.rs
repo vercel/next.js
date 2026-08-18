@@ -8,7 +8,7 @@ use either::Either;
 use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
-use turbopack_core::compile_time_info::CompileTimeInfo;
+use turbopack_core::{compile_time_info::CompileTimeInfo, environment::Rendering};
 use url::Url;
 
 use super::{
@@ -718,6 +718,7 @@ async fn well_known_object_member<'a>(
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(arena.get_or_default(), prop),
         WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::ImportMetaEnv),
             // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
             Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
@@ -733,6 +734,40 @@ async fn well_known_object_member<'a>(
                 ));
             }
         },
+        WellKnownObjectKind::ImportMetaEnv => {
+            let compile_time_info = compile_time_info.await?;
+            let mode = compile_time_info
+                .defines
+                .read_process_env(rcstr!("NODE_ENV"))
+                .owned()
+                .await?
+                .unwrap_or_else(|| rcstr!("development"));
+            let is_prod = mode == "production";
+
+            match prop.as_str() {
+                Some("MODE") => JsValue::from(mode),
+                Some("PROD") => JsValue::from(ConstantValue::from(is_prod)),
+                Some("DEV") => JsValue::from(ConstantValue::from(!is_prod)),
+                Some("BASE_URL") => {
+                    JsValue::from(compile_time_info.import_meta_env_base_url.clone())
+                }
+                Some("SSR") => JsValue::from(ConstantValue::from(matches!(
+                    *compile_time_info.environment.rendering().await?,
+                    Rendering::Server
+                ))),
+                Some(_) => JsValue::Constant(ConstantValue::Undefined),
+                None => {
+                    return Ok((
+                        JsValue::member(
+                            arena.get_or_default(),
+                            JsValue::WellKnownObject(kind),
+                            prop,
+                        ),
+                        Modified::No,
+                    ));
+                }
+            }
+        }
         WellKnownObjectKind::ModuleHot => match prop.as_str() {
             Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
             Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),

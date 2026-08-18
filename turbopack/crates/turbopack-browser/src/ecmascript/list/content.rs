@@ -13,17 +13,17 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    version::{
-        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
+    version::{Update, Version, VersionedContent},
+};
+use turbopack_ecmascript::{
+    chunk_list::{
+        update::update_chunk_list,
+        version::{ChunkListVersion, compute_chunk_list_version},
     },
+    utils::StringifyJs,
 };
-use turbopack_ecmascript::utils::StringifyJs;
 
-use super::{
-    asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
-    update::update_chunk_list,
-    version::EcmascriptDevChunkListVersion,
-};
+use super::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource};
 use crate::chunking_context::{
     CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
@@ -38,7 +38,7 @@ enum CurrentChunkMethodWithData {
 
 /// Contents of an [`EcmascriptDevChunkList`].
 #[turbo_tasks::value]
-pub(super) struct EcmascriptDevChunkListContent {
+pub struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
@@ -102,39 +102,8 @@ impl EcmascriptDevChunkListContent {
 
     /// Computes the version of this content.
     #[turbo_tasks::function]
-    pub async fn version(&self) -> Result<Vc<EcmascriptDevChunkListVersion>> {
-        let mut by_merger = FxIndexMap::<_, Vec<_>>::default();
-        let mut by_path = FxIndexMap::<_, _>::default();
-
-        for (chunk_path, chunk_content) in &self.chunks_contents {
-            if let Some(mergeable) =
-                ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
-            {
-                let merger = mergeable.get_merger().to_resolved().await?;
-                by_merger.entry(merger).or_default().push(*chunk_content);
-            } else {
-                by_path.insert(
-                    chunk_path.clone(),
-                    chunk_content.version().into_trait_ref().await?,
-                );
-            }
-        }
-
-        let by_merger = by_merger
-            .into_iter()
-            .map(|(merger, contents)| (merger, Vc::cell(contents)))
-            .map(async |(merger, contents)| {
-                Ok((
-                    merger,
-                    merger.merge(contents).version().into_trait_ref().await?,
-                ))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect();
-
-        Ok(EcmascriptDevChunkListVersion { by_path, by_merger }.cell())
+    pub async fn version(&self) -> Result<Vc<ChunkListVersion>> {
+        compute_chunk_list_version(&self.chunks_contents).await
     }
 
     #[turbo_tasks::function]
@@ -200,6 +169,7 @@ impl VersionedContent for EcmascriptDevChunkListContent {
         self: ResolvedVc<Self>,
         from_version: ResolvedVc<Box<dyn Version>>,
     ) -> Result<Vc<Update>> {
-        update_chunk_list(self, from_version).await
+        let this = self.await?;
+        update_chunk_list(&this.chunks_contents, self.version(), from_version).await
     }
 }
