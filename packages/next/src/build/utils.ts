@@ -941,14 +941,14 @@ export async function isPageStatic({
       // A page cannot have static parameters if it is not a dynamic page.
       if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
         throw new Error(
-          `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+          `\`getStaticPaths\` can only be used with dynamic pages, not \`${page}\`.` +
             `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
         )
       }
 
       if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
         throw new Error(
-          `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+          `\`getStaticPaths\` is required for dynamic SSG pages and is missing for \`${page}\`.` +
             `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
         )
       }
@@ -1206,7 +1206,7 @@ export function detectConflictingPaths(
     })
 
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
+      'Conflicting paths returned from `getStaticPaths`, paths must be unique per page.\n' +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
