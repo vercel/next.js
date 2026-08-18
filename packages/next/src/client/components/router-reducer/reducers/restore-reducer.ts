@@ -6,17 +6,18 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
-  getCurrentNavigationLock,
+  resetNavigationLockToPending,
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
-} from '../ppr-navigations'
+} from '../../render-tree'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import {
   completeHardNavigation,
   completeTraverseNavigation,
-  convertServerPatchToFullTree,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
@@ -44,7 +45,6 @@ export function restoreReducer(
   const restoredUrl = action.url
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
-  const navigationLock = getCurrentNavigationLock()
 
   const now = Date.now()
   // TODO: Store the dynamic stale time on the top-level state so it's known
@@ -53,9 +53,14 @@ export function restoreReducer(
     separateRefreshUrls: null,
     scrollRef: null,
   }
-  const restoreSeed = convertServerPatchToFullTree(
+  const restoreSeed = createNavigationSeed(
     now,
     treeToRestore,
+    // No transport data (and so no vary params, no partiality, and no
+    // pathname to parse params from) — this converts the base tree alone.
+    null,
+    null,
+    true,
     null,
     renderedSearch,
     UnknownDynamicStaleTime
@@ -70,10 +75,11 @@ export function restoreReducer(
     restoreSeed.metadataVaryPath,
     FreshnessPolicy.HistoryTraversal,
     null,
-    null,
     restoreSeed.dynamicStaleAt,
     false,
     accumulation,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // A history-traversal restore never restricts to the shell.
     false
   )
@@ -94,10 +100,20 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
-    navigationLock,
+    // Instant Navigation Testing API: a traversal is not a capture. Spawn its
+    // dynamic requests ungated (null lock) so they render from cache or fetch
+    // normally rather than being withheld behind the lock.
+    null,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
+  // Instant Navigation Testing API: a traversal resets the lock to a fresh
+  // pending scope — releasing any data withheld by prior forward navigations and
+  // returning the panel to "awaiting" — without ending the testing session.
+  // No-op when the testing API is disabled or no lock is held.
+  resetNavigationLockToPending()
   return completeTraverseNavigation(
     state,
     restoredUrl,

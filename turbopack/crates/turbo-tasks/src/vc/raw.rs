@@ -8,13 +8,12 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
+    ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
+    ValueTypeId,
     backend::TypedCellContent,
     event::EventListener,
     id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
@@ -446,14 +445,6 @@ impl RawVc {
         Ok(local_output)
     }
 
-    pub(crate) fn connect(&self) {
-        let Some(task_id) = self.as_task_output() else {
-            panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
-        };
-        let tt = turbo_tasks();
-        tt.connect_task(task_id);
-    }
-
     pub fn try_get_task_id(&self) -> Option<TaskId> {
         (!self.is_local_output()).then(|| self.read_task_id())
     }
@@ -480,50 +471,6 @@ impl RawVc {
             "resolved_is_type must be called with a RawVc::TaskCell"
         );
         self.read_cell().type_id() == type_id
-    }
-}
-
-/// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
-impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
-            .collect()
-    }
-
-    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        tt.unemit_collectibles(T::get_trait_type_id(), &map);
-        map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
-            .collect()
-    }
-
-    fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        tt.unemit_collectibles(T::get_trait_type_id(), &map);
     }
 }
 

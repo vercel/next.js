@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   TEST_CONCURRENCY: 6
 
@@ -85,7 +85,9 @@ jobs:
   stats:
     name: Stats (${{ matrix.bundler }})
     needs: build
-    timeout-minutes: 25
+    # The webpack benchmark alone takes ~25 minutes, so anything at or below
+    # that cancels the job right as it finishes (seen on canary and PRs alike).
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:

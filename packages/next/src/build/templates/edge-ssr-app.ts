@@ -130,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,
@@ -152,7 +151,6 @@ async function requestHandler(
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -179,7 +177,6 @@ async function requestHandler(
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -187,9 +184,12 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
         exposeTestingApi:
-          pageRouteModule.isDev === true ||
-          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

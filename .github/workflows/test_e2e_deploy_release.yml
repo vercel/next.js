@@ -8,8 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       nextVersion:
-        description: canary or custom tarball URL
-        default: canary
+        description: >-
+          Version of `next` to test against. Anything installable by npm:
+          a dist-tag (canary), an exact version (16.2.4), or a custom https
+          tarball URL. Leave empty to use the `next` version from
+          packages/next/package.json.
         type: string
       vercelCliVersion:
         description: Version of Vercel CLI to use
@@ -17,6 +20,15 @@ on:
         type: string
       overrideProxyAddress:
         description: Override the proxy address to use for the test
+        default: ''
+        type: string
+      forceBuildInHive:
+        description: Hive ID to force the build onto
+        default: ''
+        type: string
+      buildContainerVersion:
+        description: >-
+          Build container image tag. Requires forceBuildInHive.
         default: ''
         type: string
       deployScriptPath:
@@ -42,7 +54,9 @@ env:
   VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
   VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
 
-run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
+# run-name cannot read job outputs, so for release events it shows the tag name,
+# assuming the release tag matches the `next` version checked into packages/next/package.json
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'repo version' }}
 
 jobs:
   setup:
@@ -79,8 +93,22 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT"
       - id: version
-        name: Extract `next` version
-        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+        name: Resolve `next` version
+        env:
+          INPUT_NEXT_VERSION: ${{ inputs.nextVersion }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_NEXT_VERSION" ]; then
+            echo "value=$INPUT_NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log resolved `next` version
+        env:
+          RESOLVED_NEXT_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          echo "Resolved next version: $RESOLVED_NEXT_VERSION"
 
       - name: Install dependencies
         run: pnpm install
@@ -108,6 +136,40 @@ jobs:
           retention-days: 5
           if-no-files-found: error
 
+      # Runs last in setup so the steps above overlap with npm propagation.
+      - name: wait-for-published-next
+        env:
+          # The spec that comes after `next@` when the deploy tests install
+          # it: a dist-tag, an exact version, or a tarball URL.
+          NEXT_VERSION_SPEC: ${{ steps.version.outputs.value }}
+          POLL_TIMEOUT_SECONDS: 900
+          POLL_INTERVAL_SECONDS: 15
+        run: |
+          set -euo pipefail
+
+          if [[ "$NEXT_VERSION_SPEC" == http* ]]; then
+            echo "next@$NEXT_VERSION_SPEC is a tarball URL, skipping npm availability check"
+            exit 0
+          fi
+
+          deadline=$((SECONDS + POLL_TIMEOUT_SECONDS))
+          attempt=1
+          while true; do
+            if resolved="$(pnpm view "next@$NEXT_VERSION_SPEC" version)"; then
+              echo "next@$NEXT_VERSION_SPEC is available on npm (resolved to $resolved, attempt $attempt)"
+              break
+            fi
+
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out after ${POLL_TIMEOUT_SECONDS}s waiting for next@$NEXT_VERSION_SPEC to become available on npm"
+              exit 1
+            fi
+
+            echo "next@$NEXT_VERSION_SPEC is not available on npm yet (attempt $attempt), retrying in ${POLL_INTERVAL_SECONDS}s"
+            sleep "$POLL_INTERVAL_SECONDS"
+            attempt=$((attempt + 1))
+          done
+
   test-deploy-webpack:
     name: Run Deploy Tests (Webpack)
     needs: setup
@@ -124,12 +186,16 @@ jobs:
         NEXT_E2E_TEST_TIMEOUT=240000 \
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
+        NEXT_ENABLE_ADAPTER=0 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
+        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -168,13 +234,17 @@ jobs:
         NEXT_E2E_TEST_TIMEOUT=240000 \
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
+        NEXT_ENABLE_ADAPTER=0 \
         NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
+        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -216,8 +286,11 @@ jobs:
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
+        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -261,16 +334,13 @@ jobs:
 
   upload-adapter-test-results:
     name: Upload adapter test results
-    needs: [test-deploy-adapter]
+    needs: [setup, test-deploy-adapter]
     if: >-
       ${{
         always() &&
         github.event.inputs.deployScriptPath == '' &&
         github.repository_owner == 'vercel' &&
-        !startsWith(
-          github.event.inputs.nextVersion || github.event.release.tag_name || 'canary',
-          'http'
-        )
+        !startsWith(needs.setup.outputs.next-version, 'http')
       }}
     runs-on: ubuntu-latest
     steps:

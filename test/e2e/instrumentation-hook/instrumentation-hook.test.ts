@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 const describeCase = (
@@ -17,6 +17,7 @@ const describeCase = (
     callback(context)
   })
 }
+
 describe('Instrumentation Hook', () => {
   describeCase('with-esm-import', ({ next }) => {
     it('with-esm-import should run the instrumentation hook', async () => {
@@ -103,6 +104,7 @@ describe('Instrumentation Hook', () => {
       const page = await next.render('/instrumentation')
       expect(page).toContain('Hello')
     })
+
     if (isNextDev) {
       // TODO: Implement handling for changing the instrument file.
       it.skip('should reload the server when the instrumentation hook changes', async () => {
@@ -111,14 +113,15 @@ describe('Instrumentation Hook', () => {
           './instrumentation.js',
           `export function register() {console.log('toast')}`
         )
-        await check(() => next.cliOutput, /toast/)
+        await retry(() => expect(next.cliOutput).toContain('toast'))
         await next.renameFile(
           './instrumentation.js',
           './instrumentation.js.bak'
         )
-        await check(
-          () => next.cliOutput,
-          /The instrumentation file has been removed/
+        await retry(() =>
+          expect(next.cliOutput).toContain(
+            'The instrumentation file has been removed'
+          )
         )
         await next.patchFile(
           './instrumentation.js.bak',
@@ -128,8 +131,10 @@ describe('Instrumentation Hook', () => {
           './instrumentation.js.bak',
           './instrumentation.js'
         )
-        await check(() => next.cliOutput, /The instrumentation file was added/)
-        await check(() => next.cliOutput, /bread/)
+        await retry(() => {
+          expect(next.cliOutput).toContain('The instrumentation file was added')
+          expect(next.cliOutput).toContain('bread')
+        })
       })
     }
   })

@@ -142,10 +142,12 @@ const zTurbopackModuleType = z.enum([
   'typescript',
   'css',
   'css-module',
+  'json',
   'wasm',
   'raw',
   'node',
   'bytes',
+  'text',
 ])
 
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
@@ -194,7 +196,6 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
-  appNewScrollHandler: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -222,14 +223,12 @@ export const experimentalSchema = {
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
-  cachedNavigations: z
-    .union([z.boolean(), z.literal('allow-runtime')])
-    .optional(),
+  cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  concurrentRouterQueue: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
-  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([
@@ -240,6 +239,7 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  devMemoryThresholdRestart: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
@@ -252,12 +252,14 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
+  requestInsights: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -268,7 +270,6 @@ export const experimentalSchema = {
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
-  imgOptSkipMetadata: z.boolean().optional().nullable(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -337,7 +338,6 @@ export const experimentalSchema = {
   swcTraceProfiling: z.boolean().optional(),
   // NonNullable<webpack.Configuration['experiments']>['buildHttp']
   urlImports: z.any().optional(),
-  viewTransition: z.boolean().optional(),
   workerThreads: z.boolean().optional(),
   webVitalsAttribution: z
     .array(
@@ -371,42 +371,61 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
-    .union([z.literal(false), z.literal('full')])
+    .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
     .optional(),
-  turbopackMinify: z.boolean().optional(),
+  turbopackMinify: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        server: z.boolean().optional(),
+        client: z.boolean().optional(),
+        edge: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
+  turbopackSeedCacheFromWorktree: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
-  turbopackTreeShaking: z.boolean().optional(),
+  turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
-  turbopackChunkingHeuristics: z
+  turbopackSharedRuntime: z.boolean().optional(),
+  turbopackChunking: z
     .object({
+      clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
-      requestCost: z.number().min(0).max(1_000_000).optional(),
+      requestCost: z.number().min(0).finite().optional(),
+      minChunkSize: z.number().min(0).optional(),
+      maxChunkCountPerGroup: z.number().min(0).optional(),
+      maxMergeChunkSize: z.number().min(0).optional(),
+      minComponentChunkSize: z.number().min(0).optional(),
+      generateComponentChunks: z.boolean().optional(),
     })
     .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
-  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackLocalPostcssConfig: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
+  useTypeScriptCli: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
@@ -435,6 +454,7 @@ export const experimentalSchema = {
         .optional(),
     })
     .optional(),
+  devValidationWorker: z.boolean().optional(),
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
@@ -592,6 +612,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     deploymentId: z.string().optional(),
+    supportsImmutableAssets: z.boolean().optional(),
+    outputHashSalt: z.string().optional(),
     devIndicators: z
       .union([
         z.object({

@@ -1,0 +1,15 @@
+{
+  "name": "nextjs",
+  "description": "Official Claude Code plugin marketplace for Next.js, serving the skills that ship in the vercel/next.js repository.",
+  "owner": {
+    "name": "Vercel",
+    "url": "https://vercel.com"
+  },
+  "plugins": [
+    {
+      "name": "nextjs",
+      "source": "./skills",
+      "description": "Official Next.js skills: adopt and optimize Cache Components, adopt Partial Prefetching, and verify runtime behavior against a running dev server."
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 import { CacheSignal } from '../cache-signal'
-import { isThenable } from '../../../shared/lib/is-thenable'
 
 /**
  * Tracks all in-flight async imports and chunk loads.
@@ -23,11 +22,8 @@ export function trackPendingImport(exportsOrPromise: unknown) {
 
   // requiring an async module returns a promise.
   // if it's sync, there's nothing to track.
-  if (isThenable(exportsOrPromise)) {
-    // A client reference proxy might look like a promise, but we can only call `.then()` on it, not e.g. `.finally()`.
-    // Turn it into a real promise to avoid issues elsewhere.
-    const promise = Promise.resolve(exportsOrPromise)
-    moduleLoadingSignal.trackRead(promise)
+  if (exportsOrPromise instanceof Promise) {
+    moduleLoadingSignal.trackRead(exportsOrPromise)
   }
 }
 

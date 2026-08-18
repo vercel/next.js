@@ -105,6 +105,20 @@ describe('LRUCache', () => {
       expect(cache.currentSize).toBe(8) // 5 + 2 + 1
     })
 
+    it('should pass the cache key to custom size calculation', () => {
+      const cache = new LRUCache<string>(
+        10,
+        (value, key) => value.length + key.length
+      )
+
+      cache.set('long-key', 'ab') // size 10
+      cache.set('b', 'c') // total size 12, should evict long-key
+
+      expect(cache.has('long-key')).toBe(false)
+      expect(cache.has('b')).toBe(true)
+      expect(cache.currentSize).toBe(2)
+    })
+
     it('should prevent adding item larger than max size when lru is empty', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
       const cache = new LRUCache<string>(5, (value) => value.length)

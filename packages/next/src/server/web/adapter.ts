@@ -313,7 +313,10 @@ export async function adapter(
               request.nextUrl,
               implicitTags,
               onUpdateCookies,
-              previewProps
+              previewProps,
+              // Edge route handlers can't use `"use cache"`, so there's no HMR
+              // refresh hash to thread through here.
+              undefined
             )
 
             const workStore = createWorkStore({
@@ -340,7 +343,6 @@ export async function adapter(
                   // bug.
                   useCacheTimeout: 0,
                 },
-                supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,

@@ -91,8 +91,9 @@ describe('app dir - prefetching', () => {
   })
 
   itHeaded('should not suppress prefetches after navigating back', async () => {
-    // Force headed mode, as bfcache is not available in headless mode.
-    const browser = await next.browser('/', { headless: false })
+    // Requires headed mode, as bfcache is not available in headless mode
+    // (`itHeaded` skips this test when the HEADLESS env var is set).
+    const browser = await next.browser('/')
 
     // Trigger a hard navigation.
     await browser.elementById('to-static-page-hard').click()

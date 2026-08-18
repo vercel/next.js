@@ -11,24 +11,21 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
-  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
-  getSessionDataStage,
+  makeRuntimeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -82,7 +79,6 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
           break
@@ -107,16 +103,6 @@ export function headers(): Promise<ReadonlyHeaders> {
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
-        case 'prerender-ppr':
-          // PPR Prerender (no cacheComponents)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without cacheComponents.
-          // TODO consider switching the semantic to throw on property access instead
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
-          )
         case 'prerender-legacy':
           // Legacy Prerender
           // We are in a legacy static generation mode while prerendering
@@ -131,7 +117,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           const { stagedRendering } = workUnitStore
           if (stagedRendering) {
             return stagedRendering.delayUntilStage(
-              getSessionDataStage(stagedRendering),
+              RENDER_STAGES_BY_DATA_KIND.sessionData,
               'headers',
               workUnitStore.headers
             )
@@ -156,9 +142,7 @@ export function headers(): Promise<ReadonlyHeaders> {
               workUnitStore
             )
           } else if (workUnitStore.asyncApiPromises) {
-            return isInEarlyRenderStage(workUnitStore)
-              ? workUnitStore.asyncApiPromises.earlyHeaders
-              : workUnitStore.asyncApiPromises.headers
+            return workUnitStore.asyncApiPromises.headers
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }
@@ -185,10 +169,11 @@ function makeHangingHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>(
+  const promise = makeRuntimeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`headers()`'
+    '`headers()`',
+    prerenderStore
   )
   CachedHeaders.set(prerenderStore, promise)
 
@@ -215,10 +200,10 @@ function makeUntrackedHeadersWithDevWarnings(
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
-    const promise = isInEarlyRenderStage(requestStore)
-      ? requestStore.asyncApiPromises.earlyHeaders
-      : requestStore.asyncApiPromises.headers
-    return instrumentHeadersPromiseWithDevWarnings(promise, route)
+    return instrumentHeadersPromiseWithDevWarnings(
+      requestStore.asyncApiPromises.headers,
+      route
+    )
   }
 
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
@@ -229,7 +214,7 @@ function makeUntrackedHeadersWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingHeaders,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.sessionData
   )
 
   const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)

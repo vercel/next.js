@@ -500,7 +500,7 @@ describe('next.rs api', () => {
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
 
-          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscHmrEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -610,7 +610,7 @@ describe('next.rs api', () => {
           case 'app-page': {
             await route.pages[0].htmlEndpoint.writeToDisk()
             serverSideSubscription =
-              await route.pages[0].rscEndpoint.serverChanged(false)
+              await route.pages[0].rscHmrEndpoint.serverChanged(false)
             break
           }
           default: {

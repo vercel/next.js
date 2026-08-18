@@ -1,7 +1,4 @@
-import {
-  abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
-} from '../../app-render/dynamic-rendering'
+import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
@@ -16,7 +13,8 @@ import {
   ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
-import { encodeCacheTag } from '../../lib/encode-cache-tag'
+import { encodeHeaderSafe } from '../../lib/encode-header-safe'
+import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
   expire?: number
@@ -36,8 +34,10 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
     console.warn(
       '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
     )
+  } else if (typeof profile === 'object') {
+    profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
-  return revalidate([encodeCacheTag(tag)], `revalidateTag ${tag}`, profile)
+  return revalidate([encodeHeaderSafe(tag)], `revalidateTag ${tag}`, profile)
 }
 
 /**
@@ -59,7 +59,7 @@ export function updateTag(tag: string) {
     )
   }
   // updateTag uses immediate expiration (no profile) without deprecation warning
-  return revalidate([encodeCacheTag(tag)], `updateTag ${tag}`, undefined)
+  return revalidate([encodeHeaderSafe(tag)], `updateTag ${tag}`, undefined)
 }
 
 /**
@@ -102,7 +102,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${encodeCacheTag(removeTrailingSlash(originalPath))}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${encodeHeaderSafe(removeTrailingSlash(originalPath))}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -173,12 +173,6 @@ function revalidate(
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -208,6 +202,8 @@ function revalidate(
     store.pendingRevalidatedTags = []
   }
 
+  const revalidatedAt = performance.timeOrigin + performance.now()
+
   for (const tag of tags) {
     const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
       if (item.tag !== tag) return false
@@ -224,7 +220,13 @@ function revalidate(
       store.pendingRevalidatedTags.push({
         tag,
         profile,
+        revalidatedAt,
       })
+    } else {
+      // Revalidating a tag again invalidates everything produced up to now, so
+      // the latest revalidation is the one that decides which entries are
+      // stale.
+      store.pendingRevalidatedTags[existingIndex].revalidatedAt = revalidatedAt
     }
   }
 

@@ -140,10 +140,11 @@ pub async fn compute_style_groups_graph(
     let module_style_types: Vec<StyleType> = module_data.iter().map(|m| m.style_type).collect();
 
     // 3. Run the synchronous chunking pipeline.
-    let mut graph = tracing::trace_span!("create_graph")
+    let (mut graph, module_to_groups) = tracing::trace_span!("create_graph")
         .in_scope(|| algorithm::create_graph(&chunk_groups, modules_in_order.len()));
     tracing::trace_span!("make_acyclic").in_scope(|| algorithm::make_acyclic(&mut graph));
-    let global_order = tracing::trace_span!("linearize").in_scope(|| algorithm::linearize(&graph));
+    let global_order = tracing::trace_span!("linearize")
+        .in_scope(|| algorithm::linearize(&graph, &module_to_groups));
     let chunks = tracing::trace_span!("split_into_chunks").in_scope(|| {
         algorithm::split_into_chunks(
             &global_order,

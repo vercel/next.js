@@ -498,6 +498,36 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
+  it.each([
+    ['html', '/test.html'],
+    ['ppm', '/test.ppm'],
+    ['pgm', '/test.pgm'],
+    ['pam', '/test.pam'],
+    ['pfm', '/test.pfm'],
+    ['csv', '/test.csv'],
+    ['vips', '/test.vips'],
+    ['hdr', '/test.hdr'],
+    ['exr', '/test.exr'],
+    ['fits', '/test.fits'],
+    ['j2c', '/test.j2c'],
+    ['psd', '/test.psd'],
+    ['tga', '/test.tga'],
+    ['cur', '/test.cur'],
+    ['dds', '/test.dds'],
+    ['ktx', '/test.ktx'],
+  ])(
+    'should not allow %s because detectContentType returns null',
+    async (_name, url) => {
+      const query = { w: ctx.w, q: ctx.q, url }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(
+        "The requested resource isn't a valid image."
+      )
+    }
+  )
+
   it('should maintain ico format', async () => {
     const query = { w: ctx.w, q: ctx.q, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }
@@ -832,6 +862,40 @@ export function runTests(ctx: RunTestsCtx) {
       `${contentDispositionType}; filename="test.tiff"`
     )
     // FIXME: await expectWidth(res, ctx.w)
+  })
+
+  it('should resize jpeg', async () => {
+    const query = { url: '/test.jpg', w: ctx.w, q: ctx.q }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.webp"`
+    )
+    await expectWidth(res, ctx.w)
+  })
+
+  it('should resize webp (not animated)', async () => {
+    const query = { url: '/test.webp', w: ctx.w, q: ctx.q }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.webp"`
+    )
+    await expectWidth(res, ctx.w)
   })
 
   it('should resize gif (not animated)', async () => {

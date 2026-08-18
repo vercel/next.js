@@ -1,5 +1,6 @@
 mod cell_data;
 mod counter_map;
+mod eviction;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -50,8 +51,11 @@ use turbo_tasks::{
 };
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::{FunctionId, TaskDirtyCause};
+use turbo_tasks_malloc::TurboMalloc;
 
+use self::eviction::EvictionControl;
 pub use self::{
+    eviction::EvictionMode,
     operation::AnyOperation,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
@@ -78,6 +82,7 @@ use crate::{
     utils::{
         dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
         shard_amount::compute_shard_amount,
+        stopwatch::Stopwatch,
     },
 };
 
@@ -85,16 +90,6 @@ use crate::{
 /// If the number of dependent tasks exceeds this threshold,
 /// the operation will be parallelized.
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
-
-/// Configurable idle timeout for snapshot persistence.
-/// Defaults to 2 seconds if not set or if the value is invalid.
-static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
-    std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .map(Duration::from_millis)
-        .unwrap_or(Duration::from_secs(2))
-});
 
 /// Priority used to re-schedule a task that became stale during execution.
 ///
@@ -147,10 +142,10 @@ pub struct BackendOptions {
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
 
-    /// When enabled, evict all evictable tasks from in-memory storage after every snapshot.
+    /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     /// This is an EXPERIMENTAL FEATURE under development
-    pub evict_after_snapshot: bool,
+    pub eviction_mode: EvictionMode,
 }
 
 impl Default for BackendOptions {
@@ -161,7 +156,7 @@ impl Default for BackendOptions {
             storage_mode: Some(StorageMode::ReadWrite),
             num_workers: None,
             small_preallocation: false,
-            evict_after_snapshot: false,
+            eviction_mode: EvictionMode::Off,
         }
     }
 }
@@ -306,10 +301,6 @@ impl TurboTasksBackend {
         )
     }
 
-    fn should_evict(&self) -> bool {
-        self.options.evict_after_snapshot && self.should_persist()
-    }
-
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
     /// This is exposed for integration tests that need to verify the
@@ -337,6 +328,20 @@ impl TurboTasksBackend {
         };
         let counts = self.storage.evict_after_snapshot(None);
         (had_new_data, counts)
+    }
+
+    /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
+    /// hook to exercise the non-fabricating existence guarantee: this panics (debug builds) if
+    /// `task` exists in neither memory nor persistent storage (rather than fabricating a
+    /// blank).
+    #[doc(hidden)]
+    pub fn assert_task_exists_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let _ = ctx.task(task, TaskDataCategory::All);
     }
 
     fn should_restore(&self) -> bool {
@@ -439,6 +444,40 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
+fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
+    ctx: &mut C,
+    task_id: TaskId,
+    reader_id: Option<TaskId>,
+) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+    let Some(reader_id) = reader_id else {
+        return (ctx.task(task_id, TaskDataCategory::All), None);
+    };
+
+    // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
+    // reader too in that common case. When the task is still mutable, drop the speculative lock
+    // and reacquire both locks together to preserve the invalidation race guarantee.
+    let task = ctx.task(task_id, TaskDataCategory::All);
+    if task.immutable() && !cfg!(feature = "verify_immutable") {
+        (task, None)
+    } else {
+        drop(task);
+
+        // Having a task_pair here is not optimal, but locking the reader separately could lose an
+        // invalidation that races with dependency edge insertion.
+        // TODO(sokra): solve this more performantly for mutable tasks.
+        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+        // The task can become immutable between the speculative task lock and the pair lock.
+        // Recheck under the final lock so callers can rely on a reader guard only being returned
+        // when dependency edges may still be added.
+        if task.immutable() && !cfg!(feature = "verify_immutable") {
+            drop(reader);
+            (task, None)
+        } else {
+            (task, Some(reader))
+        }
+    }
+}
+
 // Operations
 impl TurboTasksBackend {
     fn try_read_task_output(
@@ -451,24 +490,14 @@ impl TurboTasksBackend {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = if self.should_track_dependencies()
-            && !matches!(options.tracking, ReadTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            Some(reader_id)
-        } else {
-            None
-        };
-        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(options.tracking, ReadTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, mut reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -681,7 +710,12 @@ impl TurboTasksBackend {
 
         let reader_description = reader_task
             .as_ref()
-            .map(|r| EventDescription::new(|| r.get_task_desc_fn()));
+            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
+            .or_else(|| {
+                need_reader_task.map(|reader_id| {
+                    EventDescription::new(move || move || format!("{reader_id:?}"))
+                })
+            });
         if let Some(value) = check_in_progress(&task, reader_description.clone(), options.tracking)
         {
             return value;
@@ -695,7 +729,6 @@ impl TurboTasksBackend {
             };
             if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
@@ -789,9 +822,7 @@ impl TurboTasksBackend {
             cell: CellId,
             key: Option<u64>,
         ) {
-            if let Some(mut reader_task) = reader_task
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
-            {
+            if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
                 if let Some(k) = key {
@@ -827,19 +858,14 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, reader_task) = if self.should_track_dependencies()
-            && !matches!(tracking, ReadCellTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(tracking, ReadCellTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
@@ -862,7 +888,7 @@ impl TurboTasksBackend {
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
         ) {
             return Ok(Err(self
-                .listen_to_cell(&mut task, task_id, &reader_task, cell)
+                .listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell)
                 .0));
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
@@ -896,7 +922,8 @@ impl TurboTasksBackend {
         }
 
         // Listen to the cell and potentially schedule the task
-        let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, &reader_task, cell);
+        let (listener, new_listener) =
+            self.listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell);
         drop(reader_task);
         if !new_listener {
             return Ok(Err(listener));
@@ -922,6 +949,7 @@ impl TurboTasksBackend {
         &self,
         task: &mut impl TaskGuard,
         task_id: TaskId,
+        reader: Option<TaskId>,
         reader_task: &Option<impl TaskGuard>,
         cell: CellId,
     ) -> (EventListener, bool) {
@@ -930,6 +958,8 @@ impl TurboTasksBackend {
             move || {
                 if let Some(reader_desc) = reader_desc.as_ref() {
                     format!("try_read_task_cell (in progress) from {}", (reader_desc)())
+                } else if let Some(reader_id) = reader {
+                    format!("try_read_task_cell (in progress) from {reader_id:?}")
                 } else {
                     "try_read_task_cell (in progress, untracked)".to_string()
                 }
@@ -1228,7 +1258,7 @@ impl TurboTasksBackend {
                 None
             };
 
-            SnapshotItem {
+            SnapshotItem::Put {
                 task_id,
                 meta,
                 data,
@@ -1777,7 +1807,9 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id, TaskDataCategory::Data);
+        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
+        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
+        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
@@ -2819,14 +2851,46 @@ impl TurboTasksBackend {
                 TurboTasksBackendJob::Snapshot => {
                     debug_assert!(self.should_persist());
 
+                    /// Configurable idle timeout for snapshot persistence.
+                    /// Defaults to 2 seconds if not set or if the value is invalid.
+                    static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
+                        std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
+                            .ok()
+                            .and_then(|v| v.parse::<u64>().ok())
+                            .map(Duration::from_millis)
+                            .unwrap_or(Duration::from_secs(2))
+                    });
+
+                    /// Minimum accumulated compilation (non-idle) time since the last persisted
+                    /// snapshot before a periodic snapshot is worth its fixed
+                    /// overhead/ Persistence exists to save work on the next run, and
+                    /// accumulated compilation time is a good proxy for how
+                    /// much work a snapshot would save. Snapshots triggered by
+                    /// shutdown or tests bypass this.
+                    /// Defaults to 1s
+                    static MIN_SNAPSHOT_ACTIVE_TIME: LazyLock<Duration> = LazyLock::new(|| {
+                        std::env::var("TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS")
+                            .ok()
+                            .and_then(|v| v.parse::<u64>().ok())
+                            .map(Duration::from_millis)
+                            .unwrap_or(Duration::from_secs(1))
+                    });
+
                     let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
                     // Whether to immediately set an idle timeout if possible.
                     // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
-                    let mut evicted = false;
                     let mut is_first = true;
+                    // Owns the eviction policy (mode + threshold state); decides each
+                    // cycle whether an eviction sweep is worthwhile.
+                    let mut eviction_control = EvictionControl::new(self.options.eviction_mode);
+                    // Accumulated compilation (non-idle) time since the last persisted
+                    // snapshot. Runs while not idle, stops while idle. Used to skip periodic
+                    // snapshots that wouldn't save enough work to justify their fixed
+                    // overhead. Reset after each completed snapshot attempt.
+                    let mut active_time = Stopwatch::new();
                     'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
@@ -2836,6 +2900,12 @@ impl TurboTasksBackend {
                         } else {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
+
+                        // Begin (or continue) timing if we're not idle. Transitions below
+                        // keep this in sync via the idle events.
+                        if !turbo_tasks.is_idle() {
+                            active_time.start();
+                        }
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2854,10 +2924,14 @@ impl TurboTasksBackend {
                                         return;
                                     },
                                     _ = &mut idle_start_listener => {
+                                        // Became idle: stop accumulating active time.
+                                        active_time.stop();
                                         idle_time = Instant::now() + idle_timeout;
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
+                                        // Became active: resume accumulating active time.
+                                        active_time.start();
                                         idle_time = far_future();
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
@@ -2872,6 +2946,25 @@ impl TurboTasksBackend {
                                     },
                                 }
                             }
+                        }
+
+                        // Persistence exists to save work; accumulated compilation time is
+                        // the proxy for how much work a snapshot would save. Skip periodic
+                        // snapshots below the threshold. Shutdown (Stop) and tests must always
+                        // flush, but they don't run through this loop (Stop is handled in
+                        // stop(), Test in snapshot_and_evict_for_testing), so every reason
+                        // reaching here is subject to the threshold.
+                        if active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME {
+                            // Not enough compilation time accumulated — skip the (potentially
+                            // expensive) snapshot. Advance scheduling state as if we had run,
+                            // but keep active_time running so it carries toward the next cycle.
+                            // Clear fresh_idle (as a no-data snapshot would) so we don't re-arm
+                            // the short idle timeout every cycle and spin while idle; a new
+                            // active period (idle_end) re-triggers timing and progress.
+                            fresh_idle = false;
+                            is_first = false;
+                            last_snapshot = Instant::now();
+                            continue 'outer;
                         }
 
                         // Create a root span shared by both the snapshot/persist
@@ -2892,6 +2985,14 @@ impl TurboTasksBackend {
                                 fresh_idle = new_data;
                                 is_first = false;
                                 last_snapshot = snapshot_start;
+                                // A completed snapshot attempt means the accumulated
+                                // compilation time has been accounted for: either it produced
+                                // work we just persisted (new_data), or it produced nothing to
+                                // persist — in which case that time amounted to no savable
+                                // state. Either way, reset so stale time doesn't carry into the
+                                // next cycle. If still timing an active period, reset() keeps it
+                                // running from now so time before this snapshot isn't counted.
+                                active_time.reset();
 
                                 // Polls the idle-end event without blocking. Returns
                                 // `true` and refreshes the listener if idle has ended,
@@ -2912,30 +3013,27 @@ impl TurboTasksBackend {
                                 // Like compaction, this runs after snapshot_and_persist
                                 // as a separate concern.
                                 //
-                                // TODO: improve eviction policy — current approach is a full sweep
-                                // after every snapshot. Better strategies to consider:
-                                //   - Memory pressure signals: only evict when RSS exceeds a
-                                //     threshold rather than unconditionally.
+                                // TODO: improve the eviction policy further. Better
+                                // strategies to consider:
                                 //   - Recency data: track last-access time per task and evict
                                 //     least-recently-used entries first rather than all at once.
                                 //   - Eviction intensity: partial sweeps (evict a fraction of
                                 //     eligible tasks per cycle) to reduce latency spikes.
-                                // Evict when there is new data to persist (the common
-                                // case) or on the very first snapshot after startup
-                                // (data was already on disk from a prior run, so
-                                // new_data may be false but in-memory state can still
-                                // be evicted).
-                                let mut ran_eviction = false;
-                                if self.should_evict() && (new_data || !evicted) {
-                                    if check_idle_ended!() {
-                                        // need to start all the way over so we catch the next
-                                        // signal
-                                        continue 'outer;
-                                    }
-                                    evicted = true;
-                                    ran_eviction = true;
+                                // `eviction_control` owns the mode + threshold decision. On a
+                                // skipped cycle its baseline and `ran_eviction` stay untouched
+                                // so growth accumulates toward the next cycle.
+                                let ran_eviction = if eviction_control.should_evict(new_data) {
+                                    // NOTE: we do not check for idle here, eviction is fast and
+                                    // when enabled we should expect it to reclaim substantial
+                                    // memory so racing with execution is as likely to save time as
+                                    // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
-                                }
+                                    // Sample the post-eviction floor as the new baseline.
+                                    eviction_control.record_eviction();
+                                    true
+                                } else {
+                                    false
+                                };
 
                                 // Compact while idle (up to limit), regardless of
                                 // whether the snapshot had new data.
@@ -2975,15 +3073,14 @@ impl TurboTasksBackend {
                                         }
                                     }
                                 }
-                                if check_idle_ended!() {
-                                    continue 'outer;
-                                }
                                 // After running snapshotting/eviction/compaction we have churned a
                                 // _lot_ of memory if we are still
                                 // idle tell `mimalloc` that now would be a good time to release
                                 // memory back to the OS
-                                if new_data || ran_compaction || ran_eviction {
-                                    turbo_tasks_malloc::TurboMalloc::collect(true);
+                                if !check_idle_ended!()
+                                    && (new_data || ran_compaction || ran_eviction)
+                                {
+                                    TurboMalloc::collect(true);
                                 }
                             }
                         }
