@@ -5,7 +5,6 @@ packages:
   - 'crates/*/js'
   - 'turbopack/crates/*/js'
   - 'turbopack/crates/turbopack-tests/tests/execution'
-  - 'turbopack/packages/*'
 updateNotifier: false
 publicHoistPattern:
   - '*eslint*'
@@ -40,6 +39,8 @@ minimumReleaseAgeExclude:
   - '@mswjs/interceptors@0.42.0'
   - '@next/*'
   - '@turbo/*'
+  - '@types/react@19.2.18'
+  - '@types/react-dom@19.2.4'
   - '@vercel/*'
   - '@workflow/*'
   - babel-plugin-react-compiler

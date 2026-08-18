@@ -16,6 +16,21 @@ spend a few minutes verifying the RED is trustworthy first.
 
 Everything below serves answering that question honestly.
 
+## When the blocked route will not build
+
+With Cache Components, a top-level blocking read can fail the build before the
+test can produce a RED. Add `export const instant = false` to the target route
+as part of the temporary RED scaffold. It lets the known blocker build without
+making the navigation instant. Remove the opt-out with the fix, and include it
+when reverting the fix for the differential.
+
+## Cookie and session reads are not lock probes
+
+Do not manufacture a RED with `cookies()` or a session read alone. The testing
+lock restricts the navigation to its shell; it does not make request cookies
+unavailable. Use the route's real blocking uncached data, and prefer the
+self-validating test variant when deferred content exists.
+
 ## The robustness checklist (all must hold)
 
 1. **Red on baseline**: fails on the unfixed route.
@@ -79,6 +94,8 @@ Link the two runs (or include the toggle diff and results) in the PR description
 sees the differential knows the test measures the property.
 
 ## `instant()` is not a stopwatch
+
+See: [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
 The test does not measure how fast a navigation is. `instant()` gates dynamic data so the content
 of the static shell can be asserted; the signal is presence, not speed. Under the lock, an instant

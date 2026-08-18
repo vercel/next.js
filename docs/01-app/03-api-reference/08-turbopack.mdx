@@ -13,7 +13,7 @@ We built Turbopack to push the performance of Next.js, including:
 
 - **Unified Graph:** Next.js supports multiple output environments (e.g., client and server). Managing multiple compilers and stitching bundles together can be tedious. Turbopack uses a **single, unified graph** for all environments.
 - **Bundling vs Native ESM:** Some tools skip bundling in development and rely on the browser's native ESM. This works well for small apps but can slow down large apps due to excessive network requests. Turbopack **bundles** in dev, but in an optimized way to keep large apps fast.
-- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it.
+- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it. Results persist to disk between runs.
 - **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
 
 ## Supported platforms
@@ -119,10 +119,11 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Performance and Fast Refresh
 
-| Feature                  | Status        | Notes                                                                                    |
-| ------------------------ | ------------- | ---------------------------------------------------------------------------------------- |
-| **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
-| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what's requested by the dev server, speeding up large apps. |
+| Feature                  | Status        | Notes                                                                                                                                                       |
+| ------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                                                                                             |
+| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what's requested by the dev server, speeding up large apps.                                                                    |
+| **FileSystem Cache**     | **Supported** | Persists compiler artifacts to disk between runs. See [`turbopackFileSystemCache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache). |
 
 ### Magic Comments
 
@@ -219,11 +220,10 @@ const setups = import.meta.glob('./dir/*.js', { import: 'setup', eager: true })
 
 ### Query strings
 
-Use the `query` option to append a query string to every import request. This is useful for loading files as raw strings or URLs:
+Use the `query` option to append a query string to every import request:
 
 ```js
 const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
-const urls = import.meta.glob('./dir/*.png', { query: '?url' })
 ```
 
 The `query` option also accepts an object. Keys and values are URL-encoded and joined into a query string:
@@ -233,6 +233,23 @@ const modules = import.meta.glob('./*.ts', {
   query: { bar: 'foo', raw: true },
 })
 // equivalent to: { query: '?bar=foo&raw=true' }
+```
+
+The query is passed through to the module rules, it has no meaning on its own. Unlike Vite, Turbopack has no built-in `?raw` or `?url` handling, so match the query with a [rule](/docs/app/api-reference/config/next-config-js/turbopack#module-types) to decide how those files are loaded:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      // `import.meta.glob('./dir/*.txt', { query: '?raw' })` returns the file contents as strings
+      '*.txt': { condition: { query: '?raw' }, type: 'text' },
+    },
+  },
+}
+
+export default nextConfig
 ```
 
 ### Multiple patterns and negation
@@ -261,6 +278,21 @@ const lazy = import.meta.glob('./dir/*.ts')
 const eager = import.meta.glob('./dir/*.ts', { eager: true })
 ```
 
+Pass the module type to describe what the matched files export:
+
+```ts
+interface Mod {
+  name: string
+  default: () => string
+}
+
+// Record<string, () => Promise<Mod>>
+const lazy = import.meta.glob<Mod>('./dir/*.ts')
+
+// Record<string, Mod>
+const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
+```
+
 ### Options reference
 
 | Option          | Type                                          | Default     | Description                                                                |
@@ -271,7 +303,7 @@ const eager = import.meta.glob('./dir/*.ts', { eager: true })
 | `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
 | `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
 
-> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
+> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query` together with a matching rule instead, as shown in [Query strings](#query-strings). The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
 ## Known gaps with webpack
 
@@ -344,15 +376,6 @@ Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightn
 
 This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
 
-### Build Caching
-
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:
-
-- [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default
-- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is currently opt-in
-
-> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair cold build comparison or enable the turbopack filesystem cache feature to compare warm builds.
-
 ### Webpack plugins
 
 Turbopack does not support webpack plugins. This affects third-party tools that rely on webpack's plugin system for integration. We do support [webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders). If you depend on webpack plugins, you'll need to find Turbopack-compatible alternatives or continue using webpack until equivalent functionality is available.
@@ -402,8 +425,8 @@ Additionally, the following experimental options are available under `experiment
 | Option                                                                                                       | Description                                                                                                                                  | Default (dev) | Default (build)               |
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
 | [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                                                                                  | `true`        | N/A                           |
-| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `false`                       |
-| `turbopackMinify`                                                                                            | Enable minification.                                                                                                                         | `false`       | `true`                        |
+| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `true`<sup>1</sup>            |
+| `turbopackMinify`                                                                                            | Enable minification. Accepts a boolean, or `{ server, client, edge }` to configure each environment separately.                              | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                                                                          | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                                                                           | `true`        | `true`                        |
 | `turbopackModuleFragments`                                                                                   | Currently in active development. This splits modules into fragments and chunks only import the used fragments of the modules.                | `false`       | `false`                       |
@@ -420,10 +443,15 @@ Additionally, the following experimental options are available under `experiment
 | [`turbopackLocalPostcssConfig`](/docs/app/api-reference/config/next-config-js/turbopackLocalPostcssConfig)   | Resolve `postcss.config.js` from the CSS file's directory first, then the project root.                                                      | `false`       | `false`                       |
 | `turbopackWorkerAssetPrefix`                                                                                 | Custom asset prefix for Web Worker URLs (entrypoint + module chunks), overriding `assetPrefix`. Mirrors webpack's `output.workerPublicPath`. | `undefined`   | `undefined`                   |
 
+**Table notes:**
+
+1. Enabled by default. Set the option to `false` when the build environment does not preserve the `.next/cache` directory between builds.
+
+For example, to configure an alias and a custom file extension under the `turbopack` key:
+
 ```js filename="next.config.js"
 module.exports = {
   turbopack: {
-    // Example: adding an alias and custom file extension
     resolveAlias: {
       underscore: 'lodash',
     },

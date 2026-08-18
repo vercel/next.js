@@ -245,7 +245,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/constants.js",
            "/node_modules/next/dist/lib/create-client-router-filter.js",
            "/node_modules/next/dist/lib/default-transpiled-packages.json",
-           "/node_modules/next/dist/lib/detached-promise.js",
            "/node_modules/next/dist/lib/detect-typo.js",
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/error-telemetry-utils.js",
@@ -266,6 +265,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/get-network-host.js",
            "/node_modules/next/dist/lib/get-package-version.js",
            "/node_modules/next/dist/lib/get-project-dir.js",
+           "/node_modules/next/dist/lib/git-worktree.js",
            "/node_modules/next/dist/lib/has-necessary-dependencies.js",
            "/node_modules/next/dist/lib/helpers/get-cache-directory.js",
            "/node_modules/next/dist/lib/helpers/get-npx-command.js",
@@ -300,6 +300,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/metadata/get-metadata-route.js",
            "/node_modules/next/dist/lib/metadata/is-metadata-route.js",
            "/node_modules/next/dist/lib/metadata/metadata-context.js",
+           "/node_modules/next/dist/lib/metadata/metadata-resolution-primitives.js",
            "/node_modules/next/dist/lib/metadata/metadata.js",
            "/node_modules/next/dist/lib/metadata/resolve-metadata.js",
            "/node_modules/next/dist/lib/metadata/resolvers/resolve-basics.js",
@@ -344,6 +345,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/setup-exception-listeners.js",
            "/node_modules/next/dist/lib/static-env.js",
            "/node_modules/next/dist/lib/try-to-parse-path.js",
+           "/node_modules/next/dist/lib/turbopack-cache-seed.js",
            "/node_modules/next/dist/lib/turbopack-warning.js",
            "/node_modules/next/dist/lib/typescript/diagnosticFormatter.js",
            "/node_modules/next/dist/lib/typescript/getTypeScriptConfiguration.js",
@@ -625,6 +627,7 @@ async function readNormalizedNFT(next, name) {
            "./.next/server/server-reference-manifest.js",
            "./.next/server/server-reference-manifest.json",
            "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
+           "/node_modules/@swc/helpers/esm/_interop_require_default.js",
            "/node_modules/next/dist/build/adapter/setup-node-env.external.js",
            "/node_modules/next/dist/client/components/hooks-server-context.js",
            "/node_modules/next/dist/client/components/static-generation-bailout.js",
@@ -704,6 +707,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
+           "/node_modules/next/dist/server/web/spec-extension/adapters/reflect.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
            "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",
@@ -718,6 +722,42 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/react/index.js",
          ]
         `)
+      })
+    })
+
+    describe('with adapters and output:standalone', () => {
+      const { next, skipped } = nextTestSetup({
+        files: __dirname,
+        dependencies: {
+          typescript: '5.9.2',
+        },
+        nextConfig: {
+          output: 'standalone',
+          adapterPath: path.join(__dirname, './my-adapter.mjs'),
+        },
+      })
+
+      if (skipped) {
+        return
+      }
+
+      // Regression test for #96646: with an adapter configured, the whole-app server NFTs were
+      // suppressed while `copyTracedFiles` (which runs for `output: 'standalone'`, adapter or
+      // not) still reads `next-server.js.nft.json` unconditionally — crashing the build with
+      // ENOENT.
+      it('should emit both whole-app server NFTs and complete the build', async () => {
+        const serverTrace = await next.readJSON('.next/next-server.js.nft.json')
+        expect(Array.isArray(serverTrace.files)).toBe(true)
+        expect(serverTrace.files.length).toBeGreaterThan(0)
+
+        const minimalTrace = await next.readJSON(
+          '.next/next-minimal-server.js.nft.json'
+        )
+        expect(Array.isArray(minimalTrace.files)).toBe(true)
+
+        // The adapter still ran (my-adapter.mjs writes build-complete.json).
+        const buildComplete = await next.readJSON('build-complete.json')
+        expect(buildComplete).toBeTruthy()
       })
     })
   }

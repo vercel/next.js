@@ -58,13 +58,14 @@ export interface Binding {
   parse(src: string, options: any): Promise<string>
 
   getTargetTriple(): string | undefined
+  turbopackCacheVersion(nextVersion: string): string | undefined
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
-      transform(transformOptions: any): Promise<any>
-      transformStyleAttr(transformAttrOptions: any): Promise<any>
+      transform(transformOptions: any): any
+      transformStyleAttr(transformAttrOptions: any): any
       featureNamesToMask(names: string[]): number
     }
   }

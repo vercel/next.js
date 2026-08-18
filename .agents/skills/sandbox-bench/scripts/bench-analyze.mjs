@@ -66,6 +66,16 @@ for (const a of meta?.arms ?? [])
 if (rows[0].route === '') {
   // Micro (sandbox-ab) samples: phase holds the payload name.
   analyzeE2eRows(rows, base, cand, ['mean', 'p50', 'p95', 'p99', 'gcMs'])
+} else if (meta?.suite === 'ssr') {
+  analyzeE2eRows(rows, base, cand, [
+    'rps',
+    'mean',
+    'median',
+    'p95',
+    'p99',
+    'gcMs',
+    'heapMb',
+  ])
 } else {
   // No p99 for e2e: the load phases are far too small for it.
   analyzeE2eRows(rows, base, cand, [

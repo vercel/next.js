@@ -14,6 +14,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+const { buildTestReport } = require('./scripts/test-report')
 
 // --- Test profile and result caching via actions cache ---
 // On CI retry attempts, skip tests that already passed on this commit.
@@ -258,48 +259,80 @@ const configuredTestTypes = Object.values(testFilters)
 /** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
+// GitHub drops the whole job summary of a step if it exceeds 1MiB:
+// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary
+const MAX_SUMMARY_BYTES = 1024 * 1024
+const SUMMARY_TRUNCATION_NOTICE =
+  '\n\n... truncated to fit the job summary size limit ...'
+
+// Strip terminal color/control codes before writing output to the job
+// summary. Mirrors `scripts/pr-ci-comment.mjs`.
+const ANSI_RE =
+  // eslint-disable-next-line no-control-regex
+  /(?:\u001B\][\s\S]*?(?:\u0007|\u001B\\|\u009C))|(?:[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~])/g
+
+// The head commit of this CI run. `GITHUB_SHA` is the merge commit for
+// pull requests, but Datadog test runs and the PR test report comment use
+// the PR head commit, so prefer that when available.
+function getHeadSha() {
+  if (process.env.GITHUB_EVENT_PATH) {
+    try {
+      const event = JSON.parse(
+        fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')
+      )
+      const headSha = event.pull_request?.head?.sha
+      if (headSha) {
+        return headSha
+      }
+    } catch (err) {
+      console.log('Failed to read the head SHA from the event payload', err)
+    }
+  }
+  return process.env.GITHUB_SHA ?? null
+}
+
+// Write a job summary using the same printer as the PR test report comment
+// (`scripts/pr-ci-comment.mjs`), so a truncated comment can refer to the job
+// summary for the full report.
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
-    const outputTemplate = `
-${Array.from(errorsPerTests.entries())
-  .map(([test, { output }]) => {
-    return `
-<details>
-<summary>${test}</summary>
+    const sha = getHeadSha()
+    const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? '').split('/')
 
-\`\`\`
-${output}
-\`\`\`
-
-</details>
-`
-  })
-  .join('\n')}`
-
-    // Build table rows with one row per failed test case
-    const tableRows = []
-    for (const [test, { failedCases }] of errorsPerTests.entries()) {
-      const testLink = `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`
-      if (failedCases.length === 0) {
-        tableRows.push(['Unknown', testLink])
-      } else {
-        for (const caseName of failedCases) {
-          tableRows.push([caseName, testLink])
-        }
+    const suites = [...errorsPerTests.keys()].sort().map((test) => {
+      const { output, failedCases } = errorsPerTests.get(test)
+      return {
+        testPath: test,
+        mode: process.env.NEXT_TEST_MODE,
+        isTurbopack: !!process.env.IS_TURBOPACK_TEST,
+        isRspack: !!process.env.NEXT_RSPACK,
+        isExperimental: process.env.__NEXT_CACHE_COMPONENTS === 'true',
+        isPPR: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
+        failedCases,
+        resultMessage: ['```', output.replace(ANSI_RE, ''), '```'].join('\n'),
       }
+    })
+
+    let summary = buildTestReport({
+      owner,
+      repo,
+      sha,
+      suites,
+    })
+
+    if (Buffer.byteLength(summary, 'utf8') > MAX_SUMMARY_BYTES) {
+      const truncated = Buffer.from(summary, 'utf8')
+        .subarray(
+          0,
+          MAX_SUMMARY_BYTES - Buffer.byteLength(SUMMARY_TRUNCATION_NOTICE)
+        )
+        .toString('utf8')
+        // A multi-byte character cut at the boundary decodes to U+FFFD.
+        .replace(/�$/, '')
+      summary = truncated + SUMMARY_TRUNCATION_NOTICE
     }
 
-    await core.summary
-      .addHeading('Tests failures')
-      .addTable([
-        [
-          { data: 'Test Name', header: true },
-          { data: 'Test Path', header: true },
-        ],
-        ...tableRows,
-      ])
-      .addRaw(outputTemplate)
-      .write()
+    await core.summary.addRaw(summary).write()
   }
 }
 
@@ -955,6 +988,9 @@ ${ENDGROUP}`)
 
     if (passed) {
       recordPassed(test.file)
+      // The test may have failed on an earlier attempt; don't report tests
+      // that ultimately passed in the job summary.
+      errorsPerTests.delete(test.file)
     }
 
     if (!passed) {

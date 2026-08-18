@@ -16,6 +16,7 @@ pub mod chunk_list;
 pub mod code_gen;
 pub mod embed_js;
 mod errors;
+pub mod hmr;
 pub mod json_source_transform;
 pub mod magic_identifier;
 pub mod manifest;
@@ -60,7 +61,7 @@ use swc_core::{
     base::SwcComments,
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
-        SourceMapper, Span, SpanSnippetError, SyntaxContext,
+        SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
         source_map::{FileLinesResult, Files, SourceMapLookupError},
         util::take::Take,
@@ -238,6 +239,7 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    pub cjs_scope_hoisting: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -852,7 +854,14 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
+        let exports = compute_ecmascript_module_exports(self, None).await?.exports;
+        if let EcmascriptExports::CommonJs(_) = &*exports.await? {
+            return Ok(EcmascriptExports::CommonJs(
+                self.analyze().await?.cjs_static_exports.clone(),
+            )
+            .cell());
+        }
+        Ok(*exports)
     }
 
     #[turbo_tasks::function]
@@ -1234,6 +1243,41 @@ impl EcmascriptModuleContent {
     }
 }
 
+/// Comments delimiting the early hoisted statements, which [`merge_modules`] moves in front of the
+/// merged module so that a cyclic importer can't re-enter it before they ran.
+const EARLY_HOIST_START: &str = " TURBOPACK EARLY HOIST START";
+const EARLY_HOIST_END: &str = " TURBOPACK EARLY HOIST END";
+
+fn early_hoist_comment(text: &str) -> Comment {
+    Comment {
+        kind: CommentKind::Line,
+        span: DUMMY_SP,
+        text: text.into(),
+    }
+}
+
+/// Finds the statements delimited by [`EARLY_HOIST_START`] and [`EARLY_HOIST_END`], as an inclusive
+/// index range over `body` covering both delimiters. Must run before the spans are rewritten.
+fn early_hoist_range(
+    comments: &SwcComments,
+    body: impl Iterator<Item = Span>,
+) -> Option<(usize, usize)> {
+    let (mut start, mut end) = (None, None);
+    for (i, span) in body.enumerate() {
+        let Some(leading) = comments.get_leading(span.lo) else {
+            continue;
+        };
+        for comment in leading {
+            if comment.text == EARLY_HOIST_START {
+                start = Some(i);
+            } else if comment.text == EARLY_HOIST_END {
+                end = Some(i);
+            }
+        }
+    }
+    Some((start?, end?))
+}
+
 /// Merges multiple Ecmascript modules into a single AST, setting the syntax contexts correctly so
 /// that imports work.
 ///
@@ -1403,18 +1447,32 @@ async fn merge_modules(
         let mut unique_contexts_cache =
             FxHashMap::with_capacity_and_hasher(contents.len() * 5, Default::default());
 
+        let mut merged_prelude = Vec::new();
         let mut prepare_module =
             |module_count: usize,
              current_module_idx: usize,
              (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
              program: &mut Program,
+             merged_prelude: &mut Vec<ModuleItem>,
              lookup_table: &mut Vec<ModulePosition>| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
                     scope_hoisting_syntax_contexts: Some((module_contexts, _)),
+                    comments: CodeGenResultComments::Single { extra_comments, .. },
                     ..
                 } = content
                 {
+                    // The delimiter comments are keyed by the original spans, so this has to happen
+                    // before the visitor below rewrites them.
+                    let early_hoisted = match &*program {
+                        Program::Module(module) => {
+                            early_hoist_range(extra_comments, module.body.iter().map(|i| i.span()))
+                        }
+                        Program::Script(script) => {
+                            early_hoist_range(extra_comments, script.body.iter().map(|s| s.span()))
+                        }
+                    };
+
                     let modules_header_width = module_count.next_power_of_two().trailing_zeros();
                     GLOBALS.set(globals_merged, || {
                         let mut visitor = SetSyntaxContextVisitor {
@@ -1433,6 +1491,21 @@ async fn merge_modules(
                         program.visit_mut_with(&mut visitor);
                         visitor.error
                     })?;
+
+                    // Move the delimited statements out, dropping the two delimiters themselves.
+                    if let Some((start, end)) = early_hoisted {
+                        let mut hoisted: Vec<ModuleItem> = match program {
+                            Program::Module(module) => module.body.drain(start..=end).collect(),
+                            Program::Script(script) => script
+                                .body
+                                .drain(start..=end)
+                                .map(ModuleItem::Stmt)
+                                .collect(),
+                        };
+                        hoisted.pop();
+                        hoisted.remove(0);
+                        merged_prelude.extend(hoisted);
+                    }
 
                     Ok(match program.take() {
                         Program::Module(module) => Either::Left(module.body.into_iter()),
@@ -1464,6 +1537,7 @@ async fn merge_modules(
                     i,
                     &contents[i],
                     &mut programs[i],
+                    &mut merged_prelude,
                     &mut lookup_table,
                 )
                 .map_err(|err| (i, err))
@@ -1494,6 +1568,7 @@ async fn merge_modules(
                                         index,
                                         &contents[index],
                                         &mut programs[index],
+                                        &mut merged_prelude,
                                         &mut lookup_table,
                                     )
                                     .map_err(|err| (index, err))?
@@ -1546,7 +1621,7 @@ async fn merge_modules(
 
         let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
-            body: result,
+            body: merged_prelude.into_iter().chain(result).collect(),
             span: DUMMY_SP,
             shebang: None,
         });
@@ -1843,7 +1918,8 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            let early_hoisted_count =
+                process_content_with_code_gens(&mut program, globals, &mut code_gens);
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -1859,6 +1935,31 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
+                // Delimit the early hoisted statements, which `merge_modules` moves in front of
+                // the merged module this module is part of.
+                if retain_syntax_context.is_some() && early_hoisted_count > 0 {
+                    let end = Span::dummy_with_cmt();
+                    extra_comments.add_leading(end.lo, early_hoist_comment(EARLY_HOIST_END));
+                    let start = Span::dummy_with_cmt();
+                    extra_comments.add_leading(start.lo, early_hoist_comment(EARLY_HOIST_START));
+                    let (end, start) = (
+                        Stmt::Empty(EmptyStmt { span: end }),
+                        Stmt::Empty(EmptyStmt { span: start }),
+                    );
+                    match &mut program {
+                        Program::Module(module) => {
+                            module
+                                .body
+                                .insert(early_hoisted_count, ModuleItem::Stmt(end));
+                            module.body.insert(0, ModuleItem::Stmt(start));
+                        }
+                        Program::Script(script) => {
+                            script.body.insert(early_hoisted_count, end);
+                            script.body.insert(0, start);
+                        }
+                    }
+                }
+
                 if let Some(prepend_ident_comment) = prepend_ident_comment {
                     let span = Span::dummy_with_cmt();
                     extra_comments.add_leading(span.lo, prepend_ident_comment);
@@ -2177,12 +2278,13 @@ async fn emit_content(
     .cell())
 }
 
+/// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     code_gens: &mut Vec<CodeGeneration>,
-) {
+) -> usize {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
@@ -2223,6 +2325,7 @@ fn process_content_with_code_gens(
         }
     });
 
+    let early_hoisted_count = early_hoisted_stmts.len();
     match program {
         Program::Module(ast::Module { body, .. }) => {
             body.splice(
@@ -2253,6 +2356,7 @@ fn process_content_with_code_gens(
             );
         }
     };
+    early_hoisted_count
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts

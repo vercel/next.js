@@ -116,6 +116,21 @@ export const getHandler = ({
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
+        // When the Pages and App Routers coexist, a Pages Router 404 renders
+        // the App Router not-found page. A direct route-module invocation
+        // cannot provide the postponed state needed to resume that App Router
+        // output, so an empty postponed state signals that the renderer must
+        // perform a complete dynamic render instead.
+        //
+        // TODO: Re-enter routing with the App Router not-found output so its
+        // prerender and postponed state can be selected and resumed.
+        if (
+          nextConfig.cacheComponents &&
+          !routerServerContext.isWrappedByNextServer &&
+          typeof getRequestMeta(req, 'postponed') !== 'string'
+        ) {
+          addRequestMeta(req, 'postponed', '')
+        }
         await routerServerContext.render404(req, res, parsedUrl, false)
       } else {
         res.end('This page could not be found')
@@ -672,9 +687,14 @@ export const getHandler = ({
           )
         }
 
-        // In dev, we should not cache pages for any reason.
+        // Documents and data responses must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         // Draft mode should never be cached

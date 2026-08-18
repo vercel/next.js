@@ -155,10 +155,13 @@ export interface RequestMeta {
   isNextDataReq?: true
 
   /**
-   * Postponed state to use for resumption. If present it's assumed that the
-   * request is for a page that has postponed (there are no guarantees that the
-   * page actually has postponed though as it would incur an additional cache
-   * lookup).
+   * Postponed state to use for resumption. When absent, the request is not a
+   * resume request. A non-empty string contains the state to resume, while an
+   * empty string represents a resume request without postponed state and
+   * signals that the renderer should perform a full dynamic render.
+   *
+   * There are no guarantees that the page actually postponed, as verifying
+   * that would incur an additional cache lookup.
    */
   postponed?: string
 
