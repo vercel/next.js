@@ -2859,7 +2859,12 @@ impl Project {
     /// Other endpoints use [`Project::additional_traced_modules`].
     #[turbo_tasks::function]
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+        let asset_context = Vc::upcast(externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            false,
+            None,
+        ));
+        let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()
             .await?;
         let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)

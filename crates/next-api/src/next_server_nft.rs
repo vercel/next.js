@@ -14,6 +14,7 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     module::{Module, Modules},
     module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
@@ -35,12 +36,10 @@ use crate::{nft::traced_modules_for_entries, project::Project};
 /// Used by the server NFTs below and, so that they are part of every endpoint's trace regardless
 /// of how the output is assembled, by [`Project::additional_traced_modules`].
 #[turbo_tasks::function]
-pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
-    let asset_context = Vc::upcast(externals_tracing_module_context(
-        get_tracing_compile_time_info(),
-        false,
-        None,
-    ));
+pub(crate) async fn require_hook_modules(
+    project_path: FileSystemPath,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
         get_next_package(project_path).await?.join("_")?,
@@ -398,7 +397,9 @@ impl ServerNftJsonAsset {
         // The modules the require hook needs are part of every endpoint's trace (see
         // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
         // are traced on their own for `output: 'standalone'`, so they have to be added here too.
-        let hook_modules = require_hook_modules(project_path).owned().await?;
+        let hook_modules = require_hook_modules(project_path, asset_context)
+            .owned()
+            .await?;
 
         Ok(Vc::cell(
             hook_modules
