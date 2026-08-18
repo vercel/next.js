@@ -6,7 +6,7 @@ import { outdent } from 'outdent'
 describe('unrecognized server actions', () => {
   const unrecognizedActionId = '0'.repeat(42)
 
-  const { next, isNextDeploy, isNextDev } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -184,38 +184,20 @@ describe('unrecognized server actions', () => {
         } else {
           // An MPA action, sent without JS.
 
-          // FIXME: When deployed, the request is logged as a 500, but returns a 405.
-          // We also don't seem to display the error page correctly
+          // FIXME: When deployed, the request returns a 405.
           if (!isNextDeploy) {
-            // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
-            // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
-            expect(response.status()).toBe(500)
-            if (isNextDev) {
-              expect(response.headers()['content-type']).toStartWith(
-                'text/html'
-              )
-            } else {
-              const responseText = await response.text()
-              expect(responseText).toBe('Internal Server Error')
-              expect(response.headers()['content-type']).toStartWith(
-                'text/plain'
-              )
-            }
+            // An unrecognized action id means client/server skew or manipulated
+            // input, so an MPA action is answered with a 404 like any other
+            // unrecognized action. This previously surfaced as a 500.
+            expect(response.status()).toBe(404)
+            expect(response.headers()['content-type']).toStartWith('text/plain')
+            expect(await response.text()).toBe('Server action not found.')
 
-            // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
-            if (!isNextDev) {
-              expect(await browser.elementByCss('body').text()).toContain(
-                'Internal Server Error'
+            await retry(async () =>
+              expect(getLogs()).toInclude(
+                'Failed to find Server Action. This request might be from an older or newer deployment'
               )
-            }
-
-            if (!isNextDeploy) {
-              await retry(async () =>
-                expect(getLogs()).toInclude(
-                  `Error: Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment`
-                )
-              )
-            }
+            )
           }
         }
       }
