@@ -24,7 +24,16 @@ import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
 } from '../cli/next-test.js'
-import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
+import {
+  agentFeedbackModels,
+  agentFeedbackOutcomes,
+  agentFeedbackSeverities,
+  agentFeedbackTypes,
+} from '../telemetry/events/agent-feedback'
+import type {
+  NextTelemetryFeedbackOptions,
+  NextTelemetryOptions,
+} from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
@@ -154,6 +163,23 @@ function parseValidInspectAddress(value: string): DebugAddress {
   }
 
   return address
+}
+
+function parseAgentFeedbackInteger(value: string): number {
+  if (value !== '-1' && !/^\d+$/.test(value)) {
+    throw new InvalidArgumentError(
+      `'${value}' is not -1 or a non-negative safe integer.`
+    )
+  }
+
+  const parsedValue = Number(value)
+  if (!Number.isSafeInteger(parsedValue)) {
+    throw new InvalidArgumentError(
+      `'${value}' is not -1 or a non-negative safe integer.`
+    )
+  }
+
+  return parsedValue
 }
 
 const program = new NextRootCommand()
@@ -491,12 +517,12 @@ program
   })
   .usage('[directory] [options]')
 
-program
+const telemetryCommand = program
   .command('telemetry')
   .description(
     `Allows you to enable or disable Next.js' ${bold(
       'completely anonymous'
-    )} telemetry collection.`
+    )} telemetry collection and submit anonymous agent feedback.`
   )
   .addArgument(new Argument('[arg]').choices(['disable', 'enable', 'status']))
   .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
@@ -509,6 +535,72 @@ program
   .action((arg: string, options: NextTelemetryOptions) =>
     import('../cli/next-telemetry.js').then((mod) =>
       mod.nextTelemetry(options, arg)
+    )
+  )
+
+telemetryCommand
+  .command('feedback')
+  .description('Submit structured, anonymous feedback about an agent run.')
+  .addOption(
+    new Option('--feedback-type <type>', 'The category of feedback.')
+      .choices([...agentFeedbackTypes])
+      .makeOptionMandatory()
+  )
+  .addOption(
+    new Option('--outcome <outcome>', 'The outcome of the agent run.')
+      .choices([...agentFeedbackOutcomes])
+      .makeOptionMandatory()
+  )
+  .addOption(
+    new Option('--severity <severity>', 'The severity of the feedback.')
+      .choices([...agentFeedbackSeverities])
+      .makeOptionMandatory()
+  )
+  .addOption(
+    new Option('--model-provider <provider>', 'The model provider.')
+      .choices(Object.keys(agentFeedbackModels))
+      .default('unknown')
+  )
+  .addOption(
+    new Option('--model <model>', 'The model used by the agent.')
+      .choices(Object.values(agentFeedbackModels).flat())
+      .default('unknown')
+  )
+  .addOption(
+    new Option(
+      '--input-tokens <count>',
+      'The number of input tokens, if known.'
+    )
+      .argParser(parseAgentFeedbackInteger)
+      .default(-1)
+  )
+  .addOption(
+    new Option(
+      '--output-tokens <count>',
+      'The number of output tokens, if known.'
+    )
+      .argParser(parseAgentFeedbackInteger)
+      .default(-1)
+  )
+  .addOption(
+    new Option(
+      '--duration-milliseconds <milliseconds>',
+      'The duration of the agent run, if known.'
+    )
+      .argParser(parseAgentFeedbackInteger)
+      .default(-1)
+  )
+  .addOption(
+    new Option(
+      '--tool-call-count <count>',
+      'The number of tool calls, if known.'
+    )
+      .argParser(parseAgentFeedbackInteger)
+      .default(-1)
+  )
+  .action((options: NextTelemetryFeedbackOptions) =>
+    import('../cli/next-telemetry.js').then((mod) =>
+      mod.nextTelemetryFeedback(options)
     )
   )
 
