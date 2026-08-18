@@ -22,6 +22,15 @@ on:
         description: Override the proxy address to use for the test
         default: ''
         type: string
+      forceBuildInHive:
+        description: Hive ID to force the build onto
+        default: ''
+        type: string
+      buildContainerVersion:
+        description: >-
+          Build container image tag. Requires forceBuildInHive.
+        default: ''
+        type: string
       deployScriptPath:
         description: Custom deploy script path (NEXT_TEST_DEPLOY_SCRIPT_PATH)
         default: ''
@@ -147,6 +156,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
@@ -194,6 +205,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
@@ -241,6 +254,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
+        VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
         NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'

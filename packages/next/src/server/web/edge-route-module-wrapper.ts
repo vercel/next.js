@@ -12,7 +12,6 @@ import {
 } from '../lib/incremental-cache'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
-import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getServerUtils } from '../server-utils'
@@ -20,6 +19,7 @@ import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystrin
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { WebNextRequest } from '../../server/base-http/web'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 export interface WrapOptions {
   page: string
@@ -33,7 +33,7 @@ export interface WrapOptions {
  * Note that this class should only be used in the edge runtime.
  */
 export class EdgeRouteModuleWrapper {
-  private readonly matcher: RouteMatcher
+  private readonly pageIsDynamic: boolean
 
   /**
    * The constructor is wrapped with private to ensure that it can only be
@@ -45,8 +45,7 @@ export class EdgeRouteModuleWrapper {
     private readonly routeModule: AppRouteRouteModule,
     private readonly cacheHandlers: Record<string, CacheHandler>
   ) {
-    // TODO: (wyattjoh) possibly allow the module to define it's own matcher
-    this.matcher = new RouteMatcher(routeModule.definition)
+    this.pageIsDynamic = isDynamicRoute(routeModule.definition.pathname)
   }
 
   /**
@@ -86,8 +85,8 @@ export class EdgeRouteModuleWrapper {
     evt: NextFetchEvent
   ): Promise<Response> {
     const utils = getServerUtils({
-      pageIsDynamic: this.matcher.isDynamic,
-      page: this.matcher.definition.pathname,
+      pageIsDynamic: this.pageIsDynamic,
+      page: this.routeModule.definition.pathname,
       basePath: request.nextUrl.basePath,
       // We don't need the `handleRewrite` util, so can just pass an empty object
       rewrites: {},

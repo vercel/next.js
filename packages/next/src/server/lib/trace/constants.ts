@@ -25,6 +25,12 @@ enum BaseServerSpan {
 enum LoadComponentsSpan {
   loadDefaultErrorComponents = 'LoadComponents.loadDefaultErrorComponents',
   loadComponents = 'LoadComponents.loadComponents',
+  loadRouteModule = 'LoadComponents.loadRouteModule',
+}
+
+enum InstrumentationSpan {
+  loadModule = 'Instrumentation.loadModule',
+  register = 'Instrumentation.register',
 }
 
 enum NextServerSpan {
@@ -94,11 +100,6 @@ enum AppRenderSpan {
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
 }
 
-enum DevRouteMatcherManagerSpan {
-  ensureRoute = 'DevRouteMatcherManager.ensureRoute',
-  reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
-}
-
 enum DevBundlerServiceSpan {
   ensurePage = 'DevBundlerService.ensurePage',
 }
@@ -115,6 +116,10 @@ enum AppRouteRouteHandlersSpan {
   runHandler = 'AppRouteRouteHandlers.runHandler',
 }
 
+enum RouteModuleSpan {
+  prepare = 'RouteModule.prepare',
+  loadManifests = 'RouteModule.loadManifests',
+}
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
   generateViewport = 'ResolveMetadata.generateViewport',
@@ -127,16 +132,17 @@ enum MiddlewareSpan {
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
+  | `${InstrumentationSpan}`
   | `${NextServerSpan}`
   | `${StartServerSpan}`
   | `${NextNodeServerSpan}`
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
-  | `${DevRouteMatcherManagerSpan}`
   | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
+  | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
 
@@ -148,9 +154,13 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
+  RouteModuleSpan.prepare,
+  InstrumentationSpan.loadModule,
+  InstrumentationSpan.register,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
   NextNodeServerSpan.createComponentTree,
@@ -171,16 +181,17 @@ export const LogSpanAllowList = new Set([
 export {
   BaseServerSpan,
   LoadComponentsSpan,
+  InstrumentationSpan,
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
-  DevRouteMatcherManagerSpan,
   DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
+  RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
 }

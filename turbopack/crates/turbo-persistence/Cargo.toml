@@ -14,6 +14,7 @@ verbose_log = []
 
 [dependencies]
 anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
 crc32fast = { workspace = true }
