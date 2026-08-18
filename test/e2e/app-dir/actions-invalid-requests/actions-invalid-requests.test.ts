@@ -211,6 +211,37 @@ describe('server actions - invalid requests', () => {
     })
   })
 
+  describe('hostile action id', () => {
+    // An id only has to be 42 characters long to pass validation; its bytes are
+    // never checked. Sent as a multipart field name it can carry anything, so an
+    // unescaped id would put control characters, including terminal escape
+    // sequences, into the log of whatever ingests stdout.
+    it('should escape control characters in the logged action id', async () => {
+      const esc = String.fromCharCode(27)
+      const hostileActionId = '0'.repeat(20) + esc + '0'.repeat(21)
+      expect(hostileActionId).toHaveLength(42)
+
+      const { headers, body } = multipartBody({
+        [`$ACTION_ID_${hostileActionId}`]: '',
+      })
+      const res = await next.fetch('/', { method: 'POST', headers, body })
+
+      expect(res.status).toBe(404)
+
+      if (!isNextDeploy) {
+        await retry(async () =>
+          expect(getLogs()).toContain('Failed to find Server Action')
+        )
+        const logs = getLogs()
+        // The escaped form is what should reach the log. Asserting the raw id is
+        // absent is what makes this fail without the escaping; the log is full
+        // of ANSI colour codes, so a bare search for ESC would prove nothing.
+        expect(logs).toContain(JSON.stringify(hostileActionId))
+        expect(logs).not.toContain(hostileActionId)
+      }
+    })
+  })
+
   describe('regressions', () => {
     // The same form drives both cases: without JS the browser posts it as an
     // MPA action, with JS React submits it as a fetch action.
