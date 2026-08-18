@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
+use std::{borrow::Cow, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -6,17 +6,6 @@ use next_core::{
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{ActionManifestEntry, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
-};
-use swc_core::{
-    atoms::{Atom, atom},
-    common::comments::Comments,
-    ecma::{
-        ast::{
-            Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, ObjectLit, Program,
-            PropOrSpread::Prop,
-        },
-        utils::find_pat_ids,
-    },
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -39,17 +28,11 @@ use turbopack_core::{
     module_graph::{GraphTraversalAction, ModuleGraph, async_module_info::AsyncModulesInfo},
     output::{OutputAsset, OutputAssetsReference},
     reference::ModuleReferences,
-    resolve::ModulePart,
     source::OptionSource,
 };
-use turbopack_ecmascript::{
-    EcmascriptParsable,
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkPlaceable, EcmascriptExports, ecmascript_chunk_item,
-    },
-    module_fragments::part::module::EcmascriptModulePartAsset,
-    parse::ParseResult,
+use turbopack_ecmascript::chunk::{
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
+    EcmascriptChunkPlaceable, EcmascriptExports, ecmascript_chunk_item,
 };
 
 use crate::project::Project;
@@ -478,218 +461,10 @@ async fn module_hash(
     }
 }
 
-/// Server action info for JSON parsing
-#[derive(Clone, Debug, serde::Deserialize)]
-#[serde(untagged)]
-enum ServerActionInfoRaw {
-    /// Old format: just the export name as a string
-    Name(String),
-    /// New format: object with name
-    WithName { name: String },
-}
-
-impl ServerActionInfoRaw {
-    fn into_action_entry(self) -> ActionEntry {
-        match self {
-            ServerActionInfoRaw::Name(name) => ActionEntry { name },
-            ServerActionInfoRaw::WithName { name } => ActionEntry { name },
-        }
-    }
-}
-
 /// Simplified action entry for storage in turbo_tasks values
 #[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
-}
-
-/// Parses the Server Actions comment for all exported action function names.
-///
-/// Action names are stored in a leading BlockComment prefixed by
-/// `__next_internal_action_entry_do_not_use__`.
-pub fn parse_server_actions(
-    program: &Program,
-    comments: &dyn Comments,
-) -> Option<(BTreeMap<String, ActionEntry>, String, String)> {
-    let byte_pos = match program {
-        Program::Module(m) => m.span.lo,
-        Program::Script(s) => s.span.lo,
-    };
-    comments.get_leading(byte_pos).and_then(|comments| {
-        comments.iter().find_map(|c| {
-            c.text
-                .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| {
-                    // Try to parse as tuple format: (actions_map, entry_path, entry_query)
-                    if let Ok((raw, entry_path, entry_query)) = serde_json::from_str::<(
-                        BTreeMap<String, ServerActionInfoRaw>,
-                        String,
-                        String,
-                    )>(actions)
-                    {
-                        let converted: BTreeMap<String, ActionEntry> = raw
-                            .into_iter()
-                            .map(|(k, v)| (k, v.into_action_entry()))
-                            .collect();
-                        return Some((converted, entry_path, entry_query));
-                    }
-                    // Fall back to just actions map (old format without entry path/query)
-                    let raw: BTreeMap<String, ServerActionInfoRaw> =
-                        serde_json::from_str(actions).ok()?;
-                    let converted: BTreeMap<String, ActionEntry> = raw
-                        .into_iter()
-                        .map(|(k, v)| (k, v.into_action_entry()))
-                        .collect();
-                    Some((converted, String::new(), String::new()))
-                })
-        })
-    })
-}
-/// Inspects the comments inside [Module] looking for the magic actions comment.
-/// If found, we return the mapping of every action's hashed id to the name of
-/// the exported action function. If not, we return a None.
-#[turbo_tasks::function]
-async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
-    else {
-        return Ok(Vc::cell(None));
-    };
-
-    let original_asset =
-        if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module) {
-            let module = module.await?;
-            if matches!(module.part, ModulePart::Evaluation | ModulePart::Facade) {
-                return Ok(Vc::cell(None));
-            }
-            ResolvedVc::upcast(module.full_module)
-        } else {
-            ecmascript_asset
-        };
-
-    let original_parsed = original_asset.failsafe_parse().to_resolved().await?;
-
-    let ParseResult::Ok {
-        program: original,
-        comments,
-        ..
-    } = &*original_parsed.await?
-    else {
-        // The file might be parse-able, but this is reported separately.
-        return Ok(Vc::cell(None));
-    };
-
-    let Some((mut actions, entry_path, entry_query)) = parse_server_actions(original, comments)
-    else {
-        return Ok(Vc::cell(None));
-    };
-
-    // If this is a module-fragment, filter the exports
-    if original_asset != ecmascript_asset {
-        let fragment = ecmascript_asset.failsafe_parse().to_resolved().await?;
-        let ParseResult::Ok {
-            program: fragment, ..
-        } = &*fragment.await?
-        else {
-            // The file might be be parse-able, but this is reported separately.
-            return Ok(Vc::cell(None));
-        };
-
-        let all_exports = all_export_names(fragment);
-        actions.retain(|_, entry| all_exports.iter().any(|export| export == &entry.name));
-    }
-
-    let mut actions = FxIndexMap::from_iter(actions.into_iter());
-    actions.sort_keys();
-    Ok(Vc::cell(Some(
-        ActionMap {
-            actions,
-            entry_path,
-            entry_query,
-        }
-        .resolved_cell(),
-    )))
-}
-
-fn all_export_names(program: &Program) -> Vec<Atom> {
-    match program {
-        Program::Module(m) => {
-            let mut exports = Vec::new();
-            for item in m.body.iter() {
-                match item {
-                    ModuleItem::ModuleDecl(
-                        ModuleDecl::ExportDefaultExpr(..) | ModuleDecl::ExportDefaultDecl(..),
-                    ) => {
-                        exports.push(atom!("default"));
-                    }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
-                        Decl::Class(c) => {
-                            exports.push(c.ident.sym.clone());
-                        }
-                        Decl::Fn(f) => {
-                            exports.push(f.ident.sym.clone());
-                        }
-                        Decl::Var(v) => {
-                            let ids: Vec<Id> = find_pat_ids(v);
-                            exports.extend(ids.into_iter().map(|id| id.0));
-                        }
-                        _ => {}
-                    },
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
-                        if is_turbopack_internal_var(&decl.with) {
-                            continue;
-                        }
-
-                        for s in decl.specifiers.iter() {
-                            match s {
-                                ExportSpecifier::Named(named) => {
-                                    exports.push(
-                                        named
-                                            .exported
-                                            .as_ref()
-                                            .unwrap_or(&named.orig)
-                                            .atom()
-                                            .into_owned(),
-                                    );
-                                }
-                                ExportSpecifier::Default(_) => {
-                                    exports.push(atom!("default"));
-                                }
-                                ExportSpecifier::Namespace(e) => {
-                                    exports.push(e.name.atom().into_owned());
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            exports
-        }
-
-        _ => {
-            vec![]
-        }
-    }
-}
-
-fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
-    with.as_deref()
-        .and_then(|v| {
-            v.props.iter().find_map(|p| match p {
-                Prop(prop) => match &**prop {
-                    swc_core::ecma::ast::Prop::KeyValue(key_value_prop) => {
-                        if key_value_prop.key.as_ident()?.sym == "__turbopack_var__" {
-                            Some(key_value_prop.value.as_lit()?.as_bool()?.value)
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                },
-                _ => None,
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Action metadata including name and source path
