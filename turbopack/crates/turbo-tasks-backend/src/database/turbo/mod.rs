@@ -275,6 +275,10 @@ impl StoreKey for WriteBuffer<'_> {
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }
+
+    fn as_slice(&self) -> &[u8] {
+        self
+    }
 }
 
 impl PartialEq for WriteBuffer<'_> {
