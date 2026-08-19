@@ -243,7 +243,6 @@ async function startWatcher(
   )
 
   const serverFields: ServerFields = {}
-
   // Update logging state once based on next.config.js when initializing
   consoleStore.setState({
     logging: nextConfig.logging !== false,
@@ -476,6 +475,10 @@ async function startWatcher(
       const appRoutes: RouteInfo[] = []
       const layoutRoutes: RouteInfo[] = []
       const slots: SlotInfo[] = []
+      const appFiles = new Set<string>()
+      const pageFiles = new Set<string>()
+      const staticMetadataFiles = new Map<string, string>()
+      const nextDataRoutes = new Set<string>()
 
       let envFileChange = false
       let clientRouterFiltersChange = false
@@ -483,11 +486,6 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
-
-      appFiles.clear()
-      pageFiles.clear()
-      staticMetadataFiles.clear()
       devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
@@ -790,7 +788,7 @@ async function startWatcher(
 
           if (useFileSystemPublicRoutes) {
             pageFiles.add(pageName)
-            opts.fsChecker.nextDataRoutes.add(pageName)
+            nextDataRoutes.add(pageName)
           }
 
           const route = normalizePathSep(pageName)
@@ -1120,9 +1118,6 @@ async function startWatcher(
         }),
       ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
 
-      opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
-      opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
-
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1150,8 +1145,6 @@ async function startWatcher(
           opts.nextConfig.experimental.caseSensitiveRoutes
         )
       )
-
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
@@ -1192,7 +1185,7 @@ async function startWatcher(
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+        const dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
             const regex = getNamedRouteRegex(page, {
               prefixRouteKeys: true,
@@ -1209,7 +1202,7 @@ async function startWatcher(
           }
         )
 
-        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
+        const dataRoutes: FilesystemDynamicRoute[] = []
 
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
@@ -1236,8 +1229,64 @@ async function startWatcher(
             }),
           })
         }
-        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
-
+        if (
+          !isInitialScan &&
+          process.env.__NEXT_TEST_MODE &&
+          process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PAUSE_FILE !== undefined
+        ) {
+          const pauseFile = path.isAbsolute(
+            process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PAUSE_FILE
+          )
+            ? process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PAUSE_FILE
+            : path.join(
+                dir,
+                process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PAUSE_FILE
+              )
+          const claimedPauseFile = `${pauseFile}.claimed`
+          try {
+            fs.renameSync(pauseFile, claimedPauseFile)
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+          }
+          if (fs.existsSync(claimedPauseFile)) {
+            console.log('[next-test] dev route publication paused')
+            while (fs.existsSync(claimedPauseFile)) {
+              await new Promise((resume) => setTimeout(resume, 10))
+            }
+          }
+        }
+        if (
+          !isInitialScan &&
+          process.env.__NEXT_TEST_MODE &&
+          process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_FAIL_FILE !== undefined
+        ) {
+          const failFile = path.isAbsolute(
+            process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_FAIL_FILE
+          )
+            ? process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_FAIL_FILE
+            : path.join(
+                dir,
+                process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_FAIL_FILE
+              )
+          try {
+            fs.renameSync(failFile, `${failFile}.claimed`)
+            throw new Error('[next-test] dev route publication failed')
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+          }
+        }
+        opts.fsChecker.publishRouteSnapshot({
+          appFiles,
+          pageFiles,
+          staticMetadataFiles,
+          dynamicRoutes: [...dataRoutes, ...dynamicRoutes],
+          nextDataRoutes,
+          routeDefinitions: {
+            pageFile: pageRouteDefinitions,
+            appFile: appRouteDefinitions,
+          },
+          interceptionRoutes,
+        })
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
         if (!opts.turbo) {
@@ -1364,6 +1413,18 @@ async function startWatcher(
           resolve()
           resolved = true
         }
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PAUSE_FILE !==
+            undefined &&
+          process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PATH !== undefined
+        ) {
+          console.log(
+            isInitialScan
+              ? '[next-test] initial dev route publication completed'
+              : `[next-test] dev route publication completed: route=${appFiles.has(process.env.NEXT_TEST_DEV_ROUTE_PUBLICATION_PATH)}`
+          )
+        }
       } catch (e) {
         if (!resolved) {
           reject(e)
@@ -1396,7 +1457,7 @@ async function startWatcher(
       res.end(
         JSON.stringify({
           pages: prevSortedRoutes.filter(
-            (route) => !opts.fsChecker.appFiles.has(route)
+            (route) => !opts.fsChecker.hasAppFile(route)
           ),
         })
       )

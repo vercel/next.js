@@ -90,6 +90,109 @@ type FilesystemRouteDefinition = RouteDefinition & {
   }
 }
 
+type RouteDefinitionType = 'appFile' | 'pageFile'
+
+export type FilesystemRouteSnapshotInput = {
+  appFiles: Iterable<string>
+  pageFiles: Iterable<string>
+  staticMetadataFiles: Iterable<readonly [string, string]>
+  dynamicRoutes: Iterable<FilesystemDynamicRoute>
+  nextDataRoutes: Iterable<string>
+  routeDefinitions: Record<RouteDefinitionType, ReadonlyArray<RouteDefinition>>
+  interceptionRoutes?: ReadonlyArray<
+    ReturnType<typeof buildCustomRoute<Rewrite>>
+  >
+}
+
+export class FilesystemRouteSnapshot {
+  readonly #appFiles: Set<string>
+  readonly #pageFiles: Set<string>
+  readonly #staticMetadataFiles: Map<string, string>
+  readonly #nextDataRoutes: Set<string>
+  readonly #routeDefinitions: Record<
+    RouteDefinitionType,
+    Map<string, ReadonlyArray<FilesystemRouteDefinition>>
+  >
+  readonly dynamicRoutes: ReadonlyArray<FilesystemDynamicRoute>
+  readonly interceptionRoutes: ReadonlyArray<
+    ReturnType<typeof buildCustomRoute<Rewrite>>
+  >
+
+  constructor(input: FilesystemRouteSnapshotInput) {
+    const groupDefinitions = (type: RouteDefinitionType) => {
+      const grouped = new Map<string, FilesystemRouteDefinition[]>()
+      for (const definition of input.routeDefinitions[type]) {
+        const definitions = grouped.get(definition.pathname)
+        if (definitions) {
+          definitions.push(definition as FilesystemRouteDefinition)
+        } else {
+          grouped.set(definition.pathname, [
+            definition as FilesystemRouteDefinition,
+          ])
+        }
+      }
+      return new Map(
+        [...grouped].map(([pathname, definitions]) => [
+          pathname,
+          Object.freeze(definitions.slice()),
+        ])
+      )
+    }
+
+    this.#appFiles = new Set(input.appFiles)
+    this.#pageFiles = new Set(input.pageFiles)
+    this.#staticMetadataFiles = new Map(input.staticMetadataFiles)
+    this.#nextDataRoutes = new Set(input.nextDataRoutes)
+    this.dynamicRoutes = Object.freeze([...input.dynamicRoutes])
+    this.interceptionRoutes = Object.freeze([
+      ...(input.interceptionRoutes ?? []),
+    ])
+    this.#routeDefinitions = {
+      appFile: groupDefinitions('appFile'),
+      pageFile: groupDefinitions('pageFile'),
+    }
+  }
+
+  hasAppFile(pathname: string) {
+    return this.#appFiles.has(pathname)
+  }
+
+  hasPageFile(pathname: string) {
+    return this.#pageFiles.has(pathname)
+  }
+
+  hasNextDataRoute(pathname: string) {
+    return this.#nextDataRoutes.has(pathname)
+  }
+
+  getStaticMetadataFile(pathname: string) {
+    return this.#staticMetadataFiles.get(pathname)
+  }
+
+  getRouteDefinitions(type: RouteDefinitionType, pathname: string) {
+    return this.#routeDefinitions[type].get(pathname)
+  }
+}
+
+function createFilesystemRouteSnapshotStore(
+  initial: FilesystemRouteSnapshotInput
+) {
+  let current = new FilesystemRouteSnapshot(initial)
+
+  return {
+    get current() {
+      return current
+    },
+    publish(input: FilesystemRouteSnapshotInput) {
+      // Constructing and validating the next generation may throw. Do not
+      // replace the committed generation until the candidate is complete.
+      const next = new FilesystemRouteSnapshot(input)
+      current = next
+      return next
+    },
+  }
+}
+
 const debug = setupDebug('next:router-server:filesystem')
 
 export type FilesystemDynamicRoute = ManifestRoute & {
@@ -238,6 +341,7 @@ export async function setupFsCheck(opts: {
     appFile: new Map<string, FilesystemRouteDefinition[]>(),
     pageFile: new Map<string, FilesystemRouteDefinition[]>(),
   }
+  let routeSnapshotStore!: ReturnType<typeof createFilesystemRouteSnapshotStore>
 
   let middlewareMatcher:
     | ReturnType<typeof getMiddlewareRouteMatcher>
@@ -276,9 +380,10 @@ export async function setupFsCheck(opts: {
   const getRouteDefinition = (
     type: 'appFile' | 'pageFile',
     itemPath: string,
-    locale: string | undefined
+    locale: string | undefined,
+    snapshot: FilesystemRouteSnapshot = routeSnapshotStore.current
   ) => {
-    const definitions = routeDefinitions[type].get(itemPath)
+    const definitions = snapshot.getRouteDefinitions(type, itemPath)
     if (!definitions?.length) return undefined
 
     if (type === 'pageFile') {
@@ -640,6 +745,18 @@ export async function setupFsCheck(opts: {
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
+  routeSnapshotStore = createFilesystemRouteSnapshotStore({
+    appFiles,
+    pageFiles,
+    staticMetadataFiles,
+    dynamicRoutes,
+    nextDataRoutes,
+    routeDefinitions: {
+      appFile: [...routeDefinitions.appFile.values()].flat(),
+      pageFile: [...routeDefinitions.pageFile.values()].flat(),
+    },
+  })
+
   let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
   const normalizers = {
@@ -657,26 +774,18 @@ export async function setupFsCheck(opts: {
     buildId,
     handleLocale,
 
-    appFiles,
-    pageFiles,
-    staticMetadataFiles,
-    dynamicRoutes,
-    nextDataRoutes,
-    setRouteDefinitions(
-      type: 'appFile' | 'pageFile',
-      definitions: ReadonlyArray<RouteDefinition>
-    ) {
-      routeDefinitions[type].clear()
-      for (const definition of definitions) {
-        setRouteDefinition(
-          type,
-          definition.pathname,
-          definition as FilesystemRouteDefinition
-        )
-      }
+    hasAppFile(pathname: string) {
+      return routeSnapshotStore.current.hasAppFile(pathname)
     },
-    getRouteDefinition,
-
+    hasPageFile(pathname: string) {
+      return routeSnapshotStore.current.hasPageFile(pathname)
+    },
+    getRouteSnapshot() {
+      return routeSnapshotStore.current
+    },
+    publishRouteSnapshot(snapshot: FilesystemRouteSnapshotInput) {
+      return routeSnapshotStore.publish(snapshot)
+    },
     exportPathMapRoutes: undefined as
       | undefined
       | ReturnType<typeof buildCustomRoute<Rewrite>>[],
@@ -692,7 +801,8 @@ export async function setupFsCheck(opts: {
 
     async getItem(
       itemPath: string,
-      requestPath?: string
+      requestPath?: string,
+      routeSnapshot: FilesystemRouteSnapshot = routeSnapshotStore.current
     ): Promise<FsOutput | null> {
       const originalItemPath = itemPath
       const itemKey = originalItemPath
@@ -742,7 +852,7 @@ export async function setupFsCheck(opts: {
       }
 
       if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
-        const fsPath = staticMetadataFiles.get(itemPath)
+        const fsPath = routeSnapshot.getStaticMetadataFile(itemPath)
         if (fsPath) {
           return {
             // "nextStaticFolder" sets Cache-Control
@@ -754,13 +864,15 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
+      const itemsToCheck: Array<
+        [ReadonlySet<string> | undefined, FsOutput['type']]
+      > = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
-        [appFiles, 'appFile'],
-        [pageFiles, 'pageFile'],
+        [undefined, 'appFile'],
+        [undefined, 'pageFile'],
       ]
 
       for (let [items, type] of itemsToCheck) {
@@ -769,6 +881,7 @@ export async function setupFsCheck(opts: {
         let curDecodedItemPath = decodedItemPath
 
         const isPageOrAppFile = type === 'pageFile' || type === 'appFile'
+        let isNextDataRoute = false
 
         if (i18n) {
           const localeResult = handleLocale(
@@ -819,7 +932,7 @@ export async function setupFsCheck(opts: {
           curItemPath.startsWith(nextDataPrefix) &&
           curItemPath.endsWith('.json')
         ) {
-          items = nextDataRoutes
+          isNextDataRoute = true
           // remove _next/data/<build-id> prefix
           curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
 
@@ -844,14 +957,23 @@ export async function setupFsCheck(opts: {
         // Only page and app outputs participate in route rendering. Public,
         // static, image, and virtual outputs are served as filesystem assets.
         const route = isPageOrAppFile
-          ? getRouteDefinition(type, curItemPath, locale)
+          ? getRouteDefinition(type, curItemPath, locale, routeSnapshot)
           : undefined
 
-        let matchedItem = items.has(curItemPath)
+        const hasItem = (pathname: string) =>
+          isNextDataRoute
+            ? routeSnapshot.hasNextDataRoute(pathname)
+            : type === 'appFile'
+              ? routeSnapshot.hasAppFile(pathname)
+              : type === 'pageFile'
+                ? routeSnapshot.hasPageFile(pathname)
+                : items!.has(pathname)
+
+        let matchedItem = hasItem(curItemPath)
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curDecodedItemPath)
+          matchedItem = hasItem(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008
@@ -862,7 +984,7 @@ export async function setupFsCheck(opts: {
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
               const encodedCurItemPath = encodeURIPath(curItemPath)
-              matchedItem = items.has(encodedCurItemPath)
+              matchedItem = hasItem(encodedCurItemPath)
             } catch {}
           }
         }
@@ -1017,10 +1139,6 @@ export async function setupFsCheck(opts: {
 
       getItemsLru?.set(flatKeyCopy(itemKey), notFound)
       return null
-    },
-    getDynamicRoutes() {
-      // this should include data routes
-      return this.dynamicRoutes
     },
     getMiddlewareMatchers() {
       return this.middlewareMatcher

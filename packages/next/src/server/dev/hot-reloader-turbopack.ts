@@ -1188,10 +1188,12 @@ export async function createHotReloaderTurbopack(
               if (routeSpecifier != null) {
                 page = routeSpecifier
               } else if (path != null) {
+                const routeSnapshot = opts.fsChecker.getRouteSnapshot()
                 const resolved = resolvePathToRoute(path, {
-                  appFiles: opts.fsChecker.appFiles,
-                  pageFiles: opts.fsChecker.pageFiles,
-                  dynamicRoutes: opts.fsChecker.getDynamicRoutes(),
+                  hasAppFile: (pathname) => routeSnapshot.hasAppFile(pathname),
+                  hasPageFile: (pathname) =>
+                    routeSnapshot.hasPageFile(pathname),
+                  dynamicRoutes: routeSnapshot.dynamicRoutes,
                 })
                 if ('notFound' in resolved) {
                   const err: NodeJS.ErrnoException = new Error(

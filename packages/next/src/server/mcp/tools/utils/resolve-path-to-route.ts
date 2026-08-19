@@ -8,8 +8,8 @@
  * inherited for free.
  */
 export interface RouteMatcherView {
-  appFiles: ReadonlySet<string>
-  pageFiles: ReadonlySet<string>
+  hasAppFile(pathname: string): boolean
+  hasPageFile(pathname: string): boolean
   dynamicRoutes: ReadonlyArray<{
     page: string
     match: (pathname: string) => false | object
@@ -30,7 +30,7 @@ export function resolvePathToRoute(
     pathname = pathname.slice(0, -1)
   }
 
-  if (matchers.appFiles.has(pathname) || matchers.pageFiles.has(pathname)) {
+  if (matchers.hasAppFile(pathname) || matchers.hasPageFile(pathname)) {
     return { routeSpecifier: pathname }
   }
 
