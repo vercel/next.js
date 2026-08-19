@@ -51,7 +51,8 @@ Then, add `use cache` at the function, component, or file level. All functions a
 // Function level
 export async function getData() {
   'use cache'
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 
@@ -91,7 +92,10 @@ async function Component({ userId }: { userId: string }) {
   const getData = async (filter: string) => {
     'use cache'
     // Cache key includes both userId (from closure) and filter (argument)
-    return fetch(`/api/users/${userId}/data?filter=${filter}`)
+    const res = await fetch(
+      `https://api.example.com/users/${userId}/data?filter=${filter}`
+    )
+    return res.json()
   }
 
   return getData('active')
@@ -240,10 +244,10 @@ While `use cache` is designed primarily to include uncached data in the static s
 
 With the default in-memory handler, runtime cache behavior depends on your hosting environment:
 
-| Environment     | Runtime Caching Behavior                                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally.      |
-| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+| Environment     | Runtime Caching Behavior                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally. |
+| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/cacheMaxMemorySize).     |
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
@@ -335,7 +339,8 @@ import { cacheLife } from 'next/cache'
 async function getData() {
   'use cache'
   cacheLife('hours') // Use built-in 'hours' profile
-  return fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  return res.json()
 }
 ```
 
@@ -349,7 +354,8 @@ If you omit `cacheLife`, the `default` profile applies and the lifetime is no lo
 async function getData() {
   'use cache'
   // Implicitly uses the 'default' profile
-  return fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  return res.json()
 }
 ```
 
@@ -365,7 +371,8 @@ import { cacheTag } from 'next/cache'
 async function getProducts() {
   'use cache'
   cacheTag('products')
-  return fetch('/api/products')
+  const res = await fetch('https://api.example.com/products')
+  return res.json()
 }
 ```
 
@@ -392,7 +399,8 @@ You can add `use cache` to any asynchronous function, not only to components and
 export async function getData() {
   'use cache'
 
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
@@ -401,7 +409,8 @@ export async function getData() {
 export async function getData() {
   'use cache'
 
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
@@ -414,7 +423,10 @@ You can use `use cache` at the component level to cache any fetches or computati
 export async function Bookings({ type = 'haircut' }: BookingsProps) {
   'use cache'
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
   return //...
@@ -429,7 +441,10 @@ interface BookingsProps {
 export async function Bookings({ type = 'haircut' }) {
   'use cache'
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
   return //...
@@ -480,7 +495,8 @@ A cached `layout` does not cache the `children` it renders, since slots pass thr
 'use cache'
 
 async function Users() {
-  const users = await fetch('/api/users')
+  const res = await fetch('https://api.example.com/users')
+  const users = await res.json()
   // loop through users
 }
 
@@ -497,7 +513,8 @@ export default async function Page() {
 'use cache'
 
 async function Users() {
-  const users = await fetch('/api/users')
+  const res = await fetch('https://api.example.com/users')
+  const users = await res.json()
   // loop through users
 }
 
@@ -540,7 +557,8 @@ async function CacheComponent({
   children: ReactNode
 }) {
   'use cache'
-  const cachedData = await fetch('/api/cached-data')
+  const res = await fetch('https://api.example.com/cached-data')
+  const cachedData = await res.json()
   return (
     <div>
       {header}
@@ -568,7 +586,8 @@ async function CacheComponent({
   children, // children: another slot for nested composition
 }) {
   'use cache'
-  const cachedData = await fetch('/api/cached-data')
+  const res = await fetch('https://api.example.com/cached-data')
+  const cachedData = await res.json()
   return (
     <div>
       {header}
