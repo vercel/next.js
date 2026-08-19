@@ -39,6 +39,33 @@ describe('app-dir - no server actions', () => {
     }
   )
 
+  // The router sends `RSC: 1` alongside `Next-Action` on every fetch action, so
+  // this is the shape a real client produces. The action handler answers with a
+  // plain-text 404, which the app page then has to serve rather than treat as an
+  // unexpected content type.
+  it.each([
+    { description: 'a malformed id', actionId: 'abc123' },
+    { description: 'a plausible but missing id', actionId: missingActionId },
+  ])(
+    'should 404 rather than throw when triggering an RSC fetch action with $description on an app with no server actions',
+    async ({ actionId }) => {
+      const res = await next.fetch('/', {
+        method: 'POST',
+        headers: {
+          'Next-Action': actionId,
+          RSC: '1',
+        },
+      })
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
+
+      if (!isNextDeploy) {
+        expect(next.cliOutput).not.toContain('Expected RSC response')
+      }
+    }
+  )
+
   it('should error when triggering an MPA action on an app with no server actions', async () => {
     const formData = new FormData()
     formData.append('test', 'value')

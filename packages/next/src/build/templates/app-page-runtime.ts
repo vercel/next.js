@@ -50,6 +50,7 @@ import {
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_ACTION_NOT_FOUND_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
 import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -1897,7 +1898,15 @@ export function createAppPageEntrypoint({
           if (typeof cachedData.rscData === 'undefined') {
             // If the response is not an RSC response, then we can't serve it.
             if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
-              if (nextConfig.cacheComponents) {
+              // An unrecognized action id is answered by the action handler
+              // with a plain-text 404 rather than a flight payload, so a
+              // non-RSC content type here is a deliberate response and not an
+              // unexpected state. Serve it rather than asserting on it.
+              const isActionNotFound = Boolean(
+                res.getHeader(NEXT_ACTION_NOT_FOUND_HEADER)
+              )
+
+              if (nextConfig.cacheComponents || isActionNotFound) {
                 res.statusCode = 404
                 return sendRenderResult({
                   req,
