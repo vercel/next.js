@@ -28,6 +28,7 @@ import {
 } from '../../lib/constants'
 import {
   hasVariantsPrefix,
+  readVariantsPrefixRoute,
   removeVariantsPrefix,
 } from '../../server/variants/prefix'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -671,6 +672,28 @@ export async function handleBuildComplete({
   const variantRoutePages = new Set(
     Object.keys(prerenderManifest.variantCombinationGroups ?? {})
   )
+
+  // The pages whose fallback shell was written once per combination, keyed by
+  // the page rather than by the prefixed path.
+  //
+  // A prefixed entry here is what makes the loop below emit a prerender under
+  // that prefix, so this set names exactly the pages a request may be routed to
+  // under a prefix. Deriving both from this one source is what keeps a routing
+  // rule from naming a path nothing was written to.
+  //
+  // Only a partially prerendered route has such an entry. Without a hole to
+  // resume there is nothing to write per combination, so the route keeps its
+  // one entry at the plain path and partitions it by the combination in the
+  // cache key instead.
+  const variantFallbackPages = new Set<string>()
+
+  for (const pathname in prerenderManifest.dynamicRoutes) {
+    const page = readVariantsPrefixRoute(pathname)
+
+    if (page) {
+      variantFallbackPages.add(page)
+    }
+  }
 
   if (typeof adapterMod.onBuildComplete === 'function') {
     const outputs: AdapterOutputs = {
@@ -2337,25 +2360,31 @@ export async function handleBuildComplete({
       }
 
       // A request that the proxy resolved a combination for arrives under the
-      // prefix of that combination. This rule matches that prefix, captures it,
-      // and keeps it on the destination, so that the request reaches the
-      // prerender written for the combination rather than the one written with
-      // every variant left out.
+      // prefix of that combination. This rule matches that prefix and captures
+      // it, so that the request reaches an output of this page.
       //
       // Only a param the build never named reaches this rule. A param it did
       // name has an output under the prefix already, and the filesystem is
       // checked before a rewrite, so such a request is served from that output
       // and never arrives here.
       //
-      // The prefix has to stay on the destination for that remaining case. The
-      // prerender of a combination is the one that can resolve the param on
-      // demand and keep the result: it holds no shell, because the values of
-      // the combination are baked and only the param is missing. The prerender
-      // that omits the variants holds a shell that stands in for every
-      // combination, so a request sent there is answered from that shell and
-      // resumed each time, and no prerender for the param is ever kept.
+      // Whether the prefix stays on the destination follows what the build
+      // wrote for that remaining case. Where a fallback shell exists per
+      // combination, the prefix stays, and the request reaches the shell of its
+      // own combination: that one holds the values of the combination baked and
+      // only the param missing, so the request resolves the param and the
+      // result answers the requests after it. The shell that omits the variants
+      // stands in for every combination, so a request sent there is answered
+      // from it and resumed each time, and no prerender for the param is ever
+      // kept.
       //
-      // The capture is put into the query as well, because that is what the
+      // Where no shell exists per combination, the prefix comes off, because a
+      // path was written for the page alone. That page's one entry is blocking,
+      // so it keeps what a request renders, and the captured combination
+      // partitions that entry through the cache key rather than through the
+      // path.
+      //
+      // The capture is put into the query either way, because that is what the
       // cache key is built from: a router that keys on capture groups filters
       // them by `allowQuery`, and the prerender output lists this group there.
       //
@@ -2365,14 +2394,15 @@ export async function handleBuildComplete({
         // The prefix sits where the source regex expects it, after `basePath`
         // and before the locale, so that the destination names the path the
         // outputs of this combination were written to.
-        const variantsDestination =
-          path.posix.join(
-            '/',
-            config.basePath,
-            `/${VARIANTS_PATH_PREFIX}/$${NEXT_VARIANTS_QUERY_PARAM}`,
-            shouldLocalize ? '/$nextLocale' : '',
-            pagePath
-          ) + getDestinationQuery(route.routeKeys)
+        const variantsDestination = variantFallbackPages.has(route.page)
+          ? path.posix.join(
+              '/',
+              config.basePath,
+              `/${VARIANTS_PATH_PREFIX}/$${NEXT_VARIANTS_QUERY_PARAM}`,
+              shouldLocalize ? '/$nextLocale' : '',
+              pagePath
+            ) + getDestinationQuery(route.routeKeys)
+          : destination
 
         // The prefixed form of the `.rsc` rule above. A prefetch asks for the
         // payload of the route rather than for the page, and the proxy puts the

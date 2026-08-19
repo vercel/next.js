@@ -36,19 +36,55 @@ function splitBasePath(
 }
 
 /**
- * Whether a pathname carries a variant prefix.
+ * The two things a prefix carries: the combination it names, and the route the
+ * rest of the path belongs to.
+ */
+type VariantsPrefixMatch = {
+  readonly hash: string
+  readonly route: string
+}
+
+/**
+ * Recognizes a variant prefix, or gives null when a pathname carries none.
  *
- * This function matches the segment by its shape, and not against the set of
- * combinations that were prerendered. A combination that nobody enumerated is
- * still valid, and this function must still recognize it.
+ * The prefix is matched here once, and every reader below answers its own
+ * question from the result. Therefore a caller that needs both the combination
+ * and the route matches once as well, and no two readers can disagree about
+ * where the prefix ends.
+ *
+ * The segment is matched by its shape, and not against the set of combinations
+ * that were prerendered. A combination that nobody enumerated is still valid,
+ * and this function must still recognize it.
+ */
+function matchVariantsPrefix(
+  pathname: string,
+  basePath: string | undefined
+): VariantsPrefixMatch | null {
+  const [base, rest] = splitBasePath(pathname, basePath)
+  const match = VARIANTS_PREFIX_PATTERN.exec(rest)
+
+  if (!match) {
+    return null
+  }
+
+  const withoutPrefix = rest.slice(match[0].length)
+
+  return {
+    hash: match[1],
+    // The base path stays on. Only the prefix is transport; a later normalizer
+    // removes the base path, and route matching runs after both.
+    route: withoutPrefix === '' ? base || '/' : `${base}${withoutPrefix}`,
+  }
+}
+
+/**
+ * Whether a pathname carries a variant prefix.
  */
 export function hasVariantsPrefix(
   pathname: string,
   basePath?: string
 ): boolean {
-  const [, rest] = splitBasePath(pathname, basePath)
-
-  return VARIANTS_PREFIX_PATTERN.test(rest)
+  return matchVariantsPrefix(pathname, basePath) !== null
 }
 
 /**
@@ -62,13 +98,27 @@ export function readVariantsPrefixHash(
   pathname: string,
   basePath?: string
 ): string | null {
-  const [, rest] = splitBasePath(pathname, basePath)
-
-  return VARIANTS_PREFIX_PATTERN.exec(rest)?.[1] ?? null
+  return matchVariantsPrefix(pathname, basePath)?.hash ?? null
 }
 
 /**
- * Removes a variant prefix, and gives the route that the path belongs to.
+ * The route a prefixed pathname belongs to, or null when it carries no prefix.
+ *
+ * This answers in one call what testing for the prefix and then removing it
+ * answers in two. A caller that reads a set of paths and wants only the
+ * prefixed ones reads them here.
+ */
+export function readVariantsPrefixRoute(
+  pathname: string,
+  basePath?: string
+): string | null {
+  return matchVariantsPrefix(pathname, basePath)?.route ?? null
+}
+
+/**
+ * Removes a variant prefix, and gives the route that the path belongs to. A
+ * pathname that carries no prefix is already that route, and comes back
+ * unchanged.
  *
  * The prefix is transport. It is not part of the declared path of any route, so
  * it comes off before the request is matched. Later code decides what the
@@ -79,12 +129,7 @@ export function removeVariantsPrefix(
   pathname: string,
   basePath?: string
 ): string {
-  const [base, rest] = splitBasePath(pathname, basePath)
-  const withoutPrefix = rest.replace(VARIANTS_PREFIX_PATTERN, '')
-
-  // The base path stays on. Only the prefix is transport; a later normalizer
-  // removes the base path, and route matching runs after both.
-  return withoutPrefix === '' ? base || '/' : `${base}${withoutPrefix}`
+  return matchVariantsPrefix(pathname, basePath)?.route ?? pathname
 }
 
 export function getVariantOutputPath(
