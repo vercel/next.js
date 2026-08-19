@@ -45,7 +45,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Then, add `use cache` at the function, component, or file level. All functions and components using `use cache` must be async:
+Then, add `use cache` at the function, component, or file level. Cached functions and components must be async:
 
 ```tsx
 // Function level
@@ -137,9 +137,11 @@ export async function getOrderTotals(accountId: string) {
 }
 ```
 
-When `getOrderSummary` runs, `getOrders` looks up its own storage entry first. Until the entry for that `accountId` revalidates, `db.orders.findMany` doesn't run, and the stored rows become part of `getOrderSummary`'s output. Without a directive, `getOrderTotals` has no entry of its own. Its query runs whenever `getOrderSummary`'s body runs, and on every call from an uncached scope.
+In the example above, each `accountId` has its own entry for `getOrderSummary`, holding the serialized `{ orders, totals }` object it returns. Calls to `getOrders` have their own entries, keyed by the same `accountId`. If an earlier call, through the summary or directly, already filled one, `db.orders.findMany` doesn't run and those orders become part of the summary's output. See [nested caching behavior](/docs/app/api-reference/functions/cacheLife#nested-caching-behavior) for how an inner lifetime affects the entry around it.
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/caching#prerendering) and can contribute to its [prefetch](/docs/app/getting-started/caching#prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds, and [nested caching behavior](/docs/app/api-reference/functions/cacheLife#nested-caching-behavior) for how an inner lifetime affects the entry around it.
+Note that `getOrderTotals` is not cached. It is exported so other parts of the application can read fresh totals in an uncached scope. Inside `getOrderSummary`, though, the totals query only runs when that function runs following the `'hours'` lifetime set there.
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/caching#prerendering) and can contribute to its [prefetch](/docs/app/getting-started/caching#prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds.
 
 ## Serialization
 
