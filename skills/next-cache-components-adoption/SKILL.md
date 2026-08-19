@@ -31,7 +31,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 ### notes
 
-- **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first thing you do (in Incremental, before the codemod; in Direct, before fixing routes) — not a thing to do _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
+- **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enable the flag before the first validation build (in Incremental, immediately after the codemod; in Direct, before fixing routes) — not _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
 
 - **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled.
 
@@ -118,7 +118,7 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
+The codemod inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. It does not edit `next.config`. After it completes, set `cacheComponents: true` yourself and confirm it is present in the project's resolved config before building. The TODO comments are the work queue for the loop.
 
 If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
@@ -134,7 +134,7 @@ Because the highest opt-out wins, remove them top-down (root layout first, then 
 
 Confirm the pre-step with `next build`. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). If it reports a sync-IO error, rerun the affected route with `next build --debug-prerender --debug-build-paths="app/path/to/page.tsx"` for a fuller stack trace and faster iteration. If the failure cannot be scoped to a route, rerun the full build with `--debug-prerender` instead. For each reported error:
 
-1. **Sync-IO at module/render time.** Use the route, originating file and line, and `/docs/messages/` link in the build output to locate the error. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches. Unblock the reported call with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
+1. **Sync-IO at module/render time.** Use the route, any originating file and line, and `/docs/messages/` link in the build output to locate the error. If the build prints no source frame, open the reported route in `next dev` and use the overlay to identify the error before searching. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches or infer a `connection()` fix from a generic prerender error. Unblock the reported call with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
 
    ```tsx
    // TODO: Cache Components adoption. Added to unblock the build: remove this connection() to re-trigger the error and review the fix options.
