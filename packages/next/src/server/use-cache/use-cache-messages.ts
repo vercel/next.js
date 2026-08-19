@@ -134,13 +134,13 @@ export function createRevalidateInUnstableCacheError(
 
 export function createCacheTagOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheTag()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
+    `\`cacheTag()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
   )
 }
 
 export function createCacheLifeOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheLife()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
+    `\`cacheLife()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
   )
 }
 
@@ -175,7 +175,7 @@ export function createUseCachePrivateInsidePublicUseCacheError(): Error {
 
 export function createUseCachePrivateInsideUnstableCacheError(): Error {
   return new Error(
-    `\`"use cache: private"\` can't be used inside \`unstable_cache()\` because it can't depend on private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 

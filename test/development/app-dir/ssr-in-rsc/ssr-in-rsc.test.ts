@@ -403,10 +403,10 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-         {
-           "description": "react-dom/server is not supported in React Server Components.",
-           "source": null,
-         }
+          {
+            "description": "react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
         `)
       }
     }
@@ -567,10 +567,10 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-         {
-           "description": "react-dom/server is not supported in React Server Components.",
-           "source": null,
-         }
+          {
+            "description": "react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
         `)
       }
     }
@@ -625,10 +625,10 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-         {
-           "description": "react-dom/server is not supported in React Server Components.",
-           "source": null,
-         }
+          {
+            "description": "react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
         `)
       }
     }

@@ -285,7 +285,7 @@ describe('dynamic-data with dynamic = "error"', () => {
 })
 
 describe('dynamic-data inside cache scope', () => {
-  const { next, isNextDev, isNextDeploy, isTurbopack, skipped } = nextTestSetup(
+  const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
     {
       files: __dirname + '/fixtures/cache-scoped',
       skipStart: true,
@@ -311,7 +311,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1454",
+           "code": "E1474",
            "description": "Route "/cookies": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
@@ -333,7 +333,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1461",
+           "code": "E1481",
            "description": "Route "/connection": \`connection()\` can't be called inside \`unstable_cache()\` because the cached function can run before a request exists. Call it outside the cached function.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
@@ -355,7 +355,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1465",
+           "code": "E1485",
            "description": "Route "/headers": \`headers()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",

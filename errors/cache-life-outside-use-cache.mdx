@@ -4,7 +4,7 @@ title: Cannot call `cacheLife()` outside `"use cache"`
 
 ## Why This Error Occurred
 
-`cacheLife()` sets how long the cache entry produced by a `"use cache"` function stays fresh (its `stale`, `revalidate`, and `expire` times). When it is called outside a `"use cache"` function there is no cache entry whose lifetime it could configure, so the call is not allowed.
+`cacheLife()` sets how long the cache entry produced by a `"use cache"` or `"use cache: private"` function stays fresh (its `stale`, `revalidate`, and `expire` times). When it is called outside a cached function there is no cache entry whose lifetime it could configure, so the call is not allowed.
 
 ```jsx filename="app/page.js" highlight={4}
 import { cacheLife } from 'next/cache'
@@ -17,7 +17,7 @@ export default async function Page() {
 
 ## Possible Ways to Fix It
 
-Move `cacheLife()` inside the `"use cache"` function whose lifetime you want to set.
+Move `cacheLife()` inside the cached function whose lifetime you want to set.
 
 ```jsx filename="app/page.js" highlight={5}
 import { cacheLife } from 'next/cache'
@@ -41,3 +41,4 @@ If you did not intend to cache anything, remove the `cacheLife()` call.
 - [`cacheLife()` function](/docs/app/api-reference/functions/cacheLife)
 - [`cacheTag()` function](/docs/app/api-reference/functions/cacheTag)
 - [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+- [`"use cache: private"` directive](/docs/app/api-reference/directives/use-cache-private)

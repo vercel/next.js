@@ -4,7 +4,7 @@ title: Cannot call `cacheTag()` outside `"use cache"`
 
 ## Why This Error Occurred
 
-`cacheTag()` attaches a tag to the cache entry produced by a `"use cache"` function so that entry can later be revalidated with `revalidateTag()`. When it is called outside a `"use cache"` function there is no cache entry to tag, so the call has no effect and is not allowed.
+`cacheTag()` attaches a tag to the cache entry produced by a `"use cache"` or `"use cache: private"` function so that entry can later be revalidated with `revalidateTag()`. When it is called outside a cached function there is no cache entry to tag, so the call has no effect and is not allowed.
 
 ```jsx filename="app/page.js" highlight={4}
 import { cacheTag } from 'next/cache'
@@ -17,7 +17,7 @@ export default async function Page() {
 
 ## Possible Ways to Fix It
 
-Move `cacheTag()` inside the `"use cache"` function whose entry you want to tag.
+Move `cacheTag()` inside the cached function whose entry you want to tag.
 
 ```jsx filename="app/page.js" highlight={5}
 import { cacheTag } from 'next/cache'
@@ -41,4 +41,5 @@ If you did not intend to cache anything, remove the `cacheTag()` call. To revali
 - [`cacheTag()` function](/docs/app/api-reference/functions/cacheTag)
 - [`cacheLife()` function](/docs/app/api-reference/functions/cacheLife)
 - [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+- [`"use cache: private"` directive](/docs/app/api-reference/directives/use-cache-private)
 - [`revalidateTag()` function](/docs/app/api-reference/functions/revalidateTag)
