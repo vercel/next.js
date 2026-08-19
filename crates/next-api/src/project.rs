@@ -93,7 +93,7 @@ use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
-use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
     aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
@@ -1094,10 +1094,13 @@ impl Project {
             *self.root_path,
             vec![denied_path, denied_profiles_path],
             DiskWatcherConfig {
-                recursive_mode: None,
                 poll_interval: self.watch.poll_interval,
                 // the dev server reports these to the user
                 report_invalidation_reason: true,
+                extended_batch_delay_matcher: Some(ResolvedVc::upcast(
+                    NodeModulesPathMatcher.resolved_cell(),
+                )),
+                ..Default::default()
             },
         ))
     }
