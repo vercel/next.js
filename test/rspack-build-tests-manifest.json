@@ -16103,17 +16103,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/firebase-grpc/test/index.test.ts": {
-    "passed": [
-      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
-    ],
-    "failed": [],
-    "pending": [
-      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/future/test/index.test.ts": {
     "passed": [
       "excludeDefaultMomentLocales production mode should load momentjs"

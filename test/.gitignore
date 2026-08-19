@@ -15,3 +15,4 @@ turbopack-test-junit-report/
 # inside each test's throwaway install directory, so this only catches builds
 # someone runs in place while iterating on a fixture.
 **/native-addon/build/
+**/single-context-addon/build/
