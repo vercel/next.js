@@ -383,7 +383,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
     let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.clone()),
+        ModulePart::Export { name, .. } => Key::Export(name.clone()),
         ModulePart::Exports => Key::Exports,
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
@@ -408,7 +408,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = part
+    if let ModulePart::Export { .. } = part
         && let Some(&v) = entrypoints
             .get(&Key::StarExports)
             .or_else(|| entrypoints.get(&Key::Exports))

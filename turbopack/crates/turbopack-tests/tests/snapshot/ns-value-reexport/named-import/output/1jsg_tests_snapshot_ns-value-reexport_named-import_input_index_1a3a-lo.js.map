@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/locales/en.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/external.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/index.js"],"sourcesContent":["export default 'EN_USED_MARKER'\n","// Mirrors `zod/v4/classic/external.js`.\nimport en from './locales/en.js'\n\nexport * as locales from './locales/index.js'\n\nexport const object = () => 'object'\nexport const string = () => 'string'\nexport const defaultLocale = en\n","// The real-world zod shape: `z` is a namespace that lib.js hands out as a plain\n// value, and the consumer only ever reads static members of it.\nimport { z } from './lib.js'\n\nconsole.log(z.object(), z.string(), z.defaultLocale)\n"],"names":[],"mappings":";;;;;;;;;;uCAAe;;;ACKR,MAAM,SAAS,IAAM;AACrB,MAAM,SAAS,IAAM;AACrB,MAAM,gBAAgB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ACH7B,QAAQ,GAAG,CAAC,4NAAE,MAAM,IAAI,6NAAE,MAAM,IAAI,6NAAE,aAAa"}}]
+}

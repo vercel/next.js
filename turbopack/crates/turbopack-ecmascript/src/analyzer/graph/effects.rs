@@ -162,6 +162,8 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
+        /// A single member read from a named import (`z.member`), used only to narrow the part.
+        member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },

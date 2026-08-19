@@ -1083,6 +1083,9 @@
         export: Some(
             "default",
         ),
+        member: Some(
+            "join",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -1126,6 +1129,7 @@
         export: Some(
             "join",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,

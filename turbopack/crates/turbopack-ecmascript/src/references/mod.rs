@@ -1331,6 +1331,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
+                    member,
                     ast_path,
                     span: _,
                 } => {
@@ -1370,6 +1371,34 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.add_code_gen(EsmBinding::new_keep_this(
                                     named_reference,
                                     Some(export),
+                                    ast_path.to_vec().into(),
+                                ));
+                                continue;
+                            }
+
+                            if let Some(ModulePart::Export {
+                                name: export_name,
+                                member: None,
+                            }) = &original_reference.export_name
+                                && let Some(member) = member
+                            {
+                                // Ask for just the member; only the part narrows.
+                                let narrowed_reference = analysis
+                                    .add_esm_reference_namespace_resolved(
+                                        esm_reference_index,
+                                        member.clone(),
+                                        || {
+                                            original_reference
+                                                .rewrite_for_export(ModulePart::Export {
+                                                    name: export_name.clone(),
+                                                    member: Some(member.clone()),
+                                                })
+                                                .resolved_cell()
+                                        },
+                                    );
+                                analysis.add_code_gen(EsmBinding::new(
+                                    narrowed_reference,
+                                    export,
                                     ast_path.to_vec().into(),
                                 ));
                                 continue;

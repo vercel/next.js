@@ -2409,14 +2409,25 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: Some(prop_str.into()),
+                    member: None,
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
                 });
             } else {
+                // ast_path stays on the ident, so `.exportName` remains in the emitted code.
+                let mut member = None;
+                if export.is_some()
+                    && let Some(access) = member_access_parent(ast_path)
+                    && let Some(prop) = self.eval_context.eval_member_prop(self.arena, &access.prop)
+                    && let Some(prop_str) = prop.as_str()
+                {
+                    member = Some(RcStr::from(prop_str));
+                }
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: export.map(|e| RcStr::from(e.as_str())),
+                    member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
                 })

@@ -247,9 +247,14 @@ impl AssetIdent {
                 ModulePart::Evaluation => {
                     1_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Export(export) => {
+                ModulePart::Export { name, member } => {
                     2_u8.deterministic_hash(&mut hasher);
-                    export.deterministic_hash(&mut hasher);
+                    name.deterministic_hash(&mut hasher);
+                    // Only hashed when present, so plain exports keep their existing idents.
+                    if let Some(member) = member {
+                        9_u8.deterministic_hash(&mut hasher);
+                        member.deterministic_hash(&mut hasher);
+                    }
                 }
                 ModulePart::RenamedExport {
                     original_export,
@@ -259,9 +264,12 @@ impl AssetIdent {
                     original_export.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
-                ModulePart::RenamedNamespace { export } => {
+                ModulePart::RenamedNamespace { export, member } => {
                     4_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
+                    if let Some(member) = member {
+                        member.deterministic_hash(&mut hasher);
+                    }
                 }
                 ModulePart::Internal(id) => {
                     5_u8.deterministic_hash(&mut hasher);
