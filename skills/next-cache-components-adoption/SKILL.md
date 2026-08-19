@@ -132,7 +132,7 @@ The codemod opts every segment out, not only the root, on purpose. Resolution is
 
 Because the highest opt-out wins, remove them top-down (root layout first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
 
-Confirm the pre-step with `next build --debug-prerender`. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). For each sync-IO error it reports:
+Confirm the pre-step with `next build`. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). If it reports a sync-IO error, rerun the affected route with `next build --debug-prerender --debug-build-paths="app/path/to/page.tsx"` for a fuller stack trace and faster iteration. If the failure cannot be scoped to a route, rerun the full build with `--debug-prerender` instead. For each reported error:
 
 1. **Sync-IO at module/render time.** Use the route, originating file and line, and `/docs/messages/` link in the build output to locate the error. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches. Unblock the reported call with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
 
@@ -142,7 +142,7 @@ Confirm the pre-step with `next build --debug-prerender`. The build is the proof
 
    It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the `await connection()` makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
 
-Rerun the diagnostic build until it reports no blockers, then run `next build` without `--debug-prerender` as the final check.
+Rerun the scoped diagnostic build until the route passes, then run `next build` again to find the next blocker. Repeat until the normal build passes.
 
 After the build passes, confirm the root layout got an opt-out (`grep -n "export const instant" <app dir>/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
 
