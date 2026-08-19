@@ -428,6 +428,10 @@ export class TurbopackManifestLoader {
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
       // polyfillFiles should always be the same, so we can overwrite instead of actually merging
       if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
+      // Same reasoning: every App Router page emits the identical runtime asset.
+      if (m.externalBrowserRuntimeFile) {
+        manifest.externalBrowserRuntimeFile = m.externalBrowserRuntimeFile
+      }
       if (m.rootMainFilesTree) {
         Object.assign(manifest.rootMainFilesTree!, m.rootMainFilesTree)
       }
