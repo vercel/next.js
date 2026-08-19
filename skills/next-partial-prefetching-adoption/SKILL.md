@@ -6,7 +6,7 @@ description: >
   Partial Prefetching, flip the `partialPrefetching` flag, opt routes
   in with `export const prefetch = 'partial'`, audit
   `<Link prefetch={true}>` calls, or resolve the
-  link-prefetch-partial and instant-shell-url-data insights.
+  instant-link-prefetch-partial and instant-shell-url-data insights.
 ---
 
 # next-partial-prefetching-adoption
@@ -23,7 +23,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
-- **A browser you can drive.** Install [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) before starting (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). Install it without asking — it's a tool, not a product change — and don't assume it's blocked: verify a real blocker (no network, no npm, read-only filesystem) before falling back, and name it in your report. Link prefetches fire when a link renders and enters the viewport, and shell validation fires on navigation — neither is reachable from `curl` or the build. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
+- **A browser you can drive.** Install [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) before starting, unless it is already available — it ships alongside this skill (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). Install it without asking — it's a tool, not a product change — and don't assume it's blocked: verify a real blocker (no network, no npm, read-only filesystem) before falling back, and name it in your report. Link prefetches fire when a link renders and enters the viewport, and shell validation fires on navigation — neither is reachable from `curl` or the build. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
 
 - **A runnable app.** Verification runs against `next dev` for the insight sweep and a production `next build`/`next start` for prefetching (prefetching is prod-only), so the app has to boot in both. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it starts — with the real environment, or local data you stand up — before step 1. An app that won't run can't be swept or verified.
 
@@ -49,7 +49,7 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` (before enabling)
 
-If `partialPrefetching: true` is already set in `next.config.ts`, the app is adopted — skip to [step 3](#step-3-sweep-for-url-data-insights-after-enabling). Otherwise work the audit with the global flag **off**, adopting each destination with `export const prefetch = 'partial'` — enabling the flag first would mark every route adopted and silence the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. Ask the user how to ship it, in the language of PRs:
+If `partialPrefetching: true` is already set in `next.config.ts`, the app is adopted — skip to [step 3](#step-3-sweep-for-url-data-insights-after-enabling). Otherwise work the audit with the global flag **off**, adopting each destination with `export const prefetch = 'partial'` — enabling the flag first would mark every route adopted and silence the [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. Ask the user how to ship it, in the language of PRs:
 
 - **One branch** — the whole audit in one change, with the flag enabled and the codemod run at the end (step 2).
 - **Route by route** — each adopted destination ships as its own PR. The insight still fires for the destinations you haven't reached, a live worklist, and step 2 comes after the last one.
@@ -60,7 +60,7 @@ Enumerate the prefetch sites across the whole source tree, not only `app/` — t
 
 Then, for each one:
 
-1. **Click each `<Link>` in `next dev`.** The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it. This click is _verification_: it confirms the insight fires before you adopt and clears after. Imperative `router.prefetch()` sites have no equivalent insight, so audit them from source and verify them in production ([step 4](#step-4-verify)). Without a browser, skip the click and adopt from [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) and the audit table below — the destination's structure tells you the row, and type-check gates the edit — then leave the live confirmation for the hand-off.
+1. **Click each `<Link>` in `next dev`.** The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it. This click is _verification_: it confirms the insight fires before you adopt and clears after. Imperative `router.prefetch()` sites have no equivalent insight, so audit them from source and verify them in production ([step 4](#step-4-verify)). Without a browser, skip the click and adopt from [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) and the audit table below — the destination's structure tells you the row, and type-check gates the edit — then leave the live confirmation for the hand-off.
 2. **Adopt the destination.** Add the temporary route config with a link to the migration guide. That clears the insight for every link pointing at it:
 
    ```tsx
