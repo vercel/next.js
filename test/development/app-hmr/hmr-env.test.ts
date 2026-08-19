@@ -30,4 +30,27 @@ describe(`app-dir hmr-env`, () => {
       expect(next.cliOutput).not.toContain('FATAL')
     }
   )
+
+  it('updates server components when an env file is deleted', async () => {
+    const browser = await next.browser('/env/node')
+    expect(await browser.elementByCss('p').text()).toBe('mac')
+
+    const envContent = await next.readFile(envFile)
+    try {
+      await next.deleteFile(envFile)
+      await retry(async () => {
+        expect(
+          await browser.eval(`document.querySelector('p')?.textContent`)
+        ).toBe('')
+      })
+    } finally {
+      await next.patchFile(envFile, envContent)
+    }
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.querySelector('p')?.textContent`)
+      ).toBe('mac')
+    })
+  })
 })

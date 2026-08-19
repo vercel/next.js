@@ -31,6 +31,7 @@ import {
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import { createSerializedAsyncCallback } from './serialized-async-callback'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -118,6 +119,78 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
+
+const WATCH_SCAN_IGNORED_ERROR_CODES = new Set([
+  'EACCES',
+  'EBUSY',
+  'ENOENT',
+  'EPERM',
+])
+
+function isIgnoredWatchScanError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    WATCH_SCAN_IGNORED_ERROR_CODES.has(error.code)
+  )
+}
+
+async function collectInitialWatchFiles(
+  directories: ReadonlyArray<string>,
+  files: ReadonlyArray<string>
+): Promise<{ files: Set<string>; directories: Set<string> }> {
+  const directoryReadConcurrency = 32
+  const resultFiles = new Set<string>()
+  const resultDirectories = new Set<string>()
+  const directoriesToRead = [...directories]
+
+  for (const fileName of files) {
+    try {
+      const stat = await fs.promises.lstat(fileName)
+      if (stat.isFile() || stat.isSymbolicLink()) {
+        resultFiles.add(fileName)
+      }
+    } catch (error) {
+      if (!isIgnoredWatchScanError(error)) throw error
+    }
+  }
+
+  let directoryIndex = 0
+  while (directoryIndex < directoriesToRead.length) {
+    const currentDirectories = directoriesToRead.slice(
+      directoryIndex,
+      directoryIndex + directoryReadConcurrency
+    )
+    directoryIndex += currentDirectories.length
+    const entriesByDirectory = await Promise.all(
+      currentDirectories.map(async (directory) => {
+        try {
+          return await fs.promises.readdir(directory, { withFileTypes: true })
+        } catch (error) {
+          if (!isIgnoredWatchScanError(error)) throw error
+          return []
+        }
+      })
+    )
+
+    for (let index = 0; index < currentDirectories.length; index++) {
+      const directory = currentDirectories[index]
+      resultDirectories.add(directory)
+      for (const entry of entriesByDirectory[index]) {
+        const fileName = path.join(directory, entry.name)
+        if (entry.isDirectory()) {
+          directoriesToRead.push(fileName)
+        } else if (entry.isFile() || entry.isSymbolicLink()) {
+          resultFiles.add(fileName)
+        }
+      }
+    }
+  }
+
+  return { files: resultFiles, directories: resultDirectories }
+}
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -384,20 +457,6 @@ async function startWatcher(
   let hasComputedSortedRoutes = false
 
   await new Promise<void>(async (resolve, reject) => {
-    if (pagesDir) {
-      // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir, (_, files) => {
-        if (files?.length) {
-          return
-        }
-
-        if (!resolved) {
-          resolve()
-          resolved = true
-        }
-      })
-    }
-
     const pages = pagesDir ? [pagesDir] : []
     const app = appDir ? [appDir] : []
     const directories = [...pages, ...app]
@@ -448,20 +507,55 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
     let hadInitialScan = false
+    let updateScanCount = 0
     let previousDuplicatePagePaths: Set<string> = new Set()
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
+    type RouteScan = {
+      knownFiles: ReturnType<Watchpack['getTimeInfoEntries']>
+      changedConfigFiles: ReadonlySet<string>
+    }
+
     let initialWatchTime = performance.now() + performance.timeOrigin
-    wp.on('aggregated', async () => {
+    const processAggregate = async ({
+      knownFiles,
+      changedConfigFiles,
+    }: RouteScan) => {
       const isInitialScan = !hadInitialScan
       hadInitialScan = true
+      let updateScanNumber: number | undefined
+      if (
+        !isInitialScan &&
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_TEST_DEV_ROUTE_SCAN_PAUSE_FILE !== undefined
+      ) {
+        const pauseFile = path.isAbsolute(
+          process.env.NEXT_TEST_DEV_ROUTE_SCAN_PAUSE_FILE
+        )
+          ? process.env.NEXT_TEST_DEV_ROUTE_SCAN_PAUSE_FILE
+          : path.join(dir, process.env.NEXT_TEST_DEV_ROUTE_SCAN_PAUSE_FILE)
+        const claimedPauseFile = `${pauseFile}.claimed`
+        try {
+          fs.renameSync(pauseFile, claimedPauseFile)
+          updateScanNumber = ++updateScanCount
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        if (updateScanNumber !== undefined) {
+          console.log(`[next-test] dev route scan ${updateScanNumber} paused`)
+          while (fs.existsSync(claimedPauseFile)) {
+            await new Promise((resume) => setTimeout(resume, 10))
+          }
+        } else if (updateScanCount > 0) {
+          updateScanNumber = ++updateScanCount
+        }
+      }
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
@@ -541,6 +635,7 @@ async function startWatcher(
         // are handled in the bootstrap phase.
         // Files that existed before we booted should be handled during bootstrapping.
         const fileChanged =
+          changedConfigFiles.has(fileName) ||
           (watchTime === undefined &&
             (nextWatchTime === undefined ||
               nextWatchTime >= initialWatchTime)) ||
@@ -1287,6 +1382,11 @@ async function startWatcher(
           },
           interceptionRoutes,
         })
+        if (updateScanNumber !== undefined) {
+          console.log(
+            `[next-test] dev route scan ${updateScanNumber} published`
+          )
+        }
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
         if (!opts.turbo) {
@@ -1433,9 +1533,199 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
+    }
+    const handleAggregate = createSerializedAsyncCallback(processAggregate)
+    type WatchTimeInfo =
+      ReturnType<Watchpack['getTimeInfoEntries']> extends Map<string, infer T>
+        ? T
+        : never
+    const explicitWatchFiles = new Set(files)
+    const configWatchFiles = new Set([...envFiles, ...tsconfigPaths])
+    const changedConfigFiles = new Set<string>()
+    const invalidatedWatchPaths = new Set<string>()
+    const knownWatchFiles = new Map<string, WatchTimeInfo | null | undefined>()
+    const knownWatchDirectories = new Set<string>()
+    let initialWatchFilesCollected = false
+
+    const deleteKnownWatchSubtree = (invalidatedPath: string) => {
+      const descendantPrefix = `${invalidatedPath}${path.sep}`
+      for (const fileName of knownWatchFiles.keys()) {
+        if (
+          !explicitWatchFiles.has(fileName) &&
+          (fileName === invalidatedPath ||
+            fileName.startsWith(descendantPrefix))
+        ) {
+          knownWatchFiles.delete(fileName)
+        }
+      }
+      for (const directory of knownWatchDirectories) {
+        if (
+          directory === invalidatedPath ||
+          directory.startsWith(descendantPrefix)
+        ) {
+          knownWatchDirectories.delete(directory)
+        }
+      }
+    }
+
+    const mergeWatchFiles = (
+      watchFiles: ReturnType<Watchpack['getTimeInfoEntries']>
+    ) => {
+      for (const [fileName, info] of watchFiles) {
+        if (explicitWatchFiles.has(fileName) || info?.accuracy !== undefined) {
+          knownWatchFiles.set(fileName, info)
+        } else if (info !== null && info !== undefined) {
+          knownWatchDirectories.add(fileName)
+        }
+      }
+
+      for (const fileName of invalidatedWatchPaths) {
+        if (explicitWatchFiles.has(fileName)) continue
+        try {
+          const stat = fs.lstatSync(fileName)
+          if (stat.isFile() || stat.isSymbolicLink()) {
+            if (knownWatchDirectories.has(fileName)) {
+              deleteKnownWatchSubtree(fileName)
+            } else {
+              knownWatchFiles.delete(fileName)
+            }
+            knownWatchFiles.set(fileName, watchFiles.get(fileName))
+          } else if (stat.isDirectory()) {
+            knownWatchFiles.delete(fileName)
+            knownWatchDirectories.add(fileName)
+          } else if (knownWatchDirectories.has(fileName)) {
+            deleteKnownWatchSubtree(fileName)
+          } else {
+            knownWatchFiles.delete(fileName)
+          }
+        } catch (error) {
+          if (!isIgnoredWatchScanError(error)) throw error
+          if (knownWatchDirectories.has(fileName)) {
+            deleteKnownWatchSubtree(fileName)
+          } else {
+            knownWatchFiles.delete(fileName)
+          }
+        }
+      }
+      invalidatedWatchPaths.clear()
+    }
+
+    const captureWatchFiles = () => {
+      mergeWatchFiles(wp.getTimeInfoEntries())
+      return new Map(knownWatchFiles) as ReturnType<
+        Watchpack['getTimeInfoEntries']
+      >
+    }
+
+    const captureRouteScan = (): RouteScan => {
+      const scan = {
+        knownFiles: captureWatchFiles(),
+        changedConfigFiles: new Set(changedConfigFiles),
+      }
+      changedConfigFiles.clear()
+      return scan
+    }
+
+    const recordWatchChange = (fileName: string) => {
+      invalidatedWatchPaths.add(fileName)
+      if (configWatchFiles.has(fileName)) changedConfigFiles.add(fileName)
+    }
+
+    wp.on('change', recordWatchChange)
+    wp.on('remove', recordWatchChange)
+
+    wp.on('aggregated', () => {
+      if (!initialWatchFilesCollected) {
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_PAUSE_FILE !==
+            undefined &&
+          process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_CAPTURE_PATH !==
+            undefined &&
+          wp
+            .getTimeInfoEntries()
+            .has(
+              path.join(
+                dir,
+                process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_CAPTURE_PATH
+              )
+            )
+        ) {
+          console.log('[next-test] dev route change observed during inventory')
+        }
+        return
+      }
+      // Watchpack does not await async event listeners. Capture this event's
+      // view immediately, then process complete scans in aggregation order.
+      const scan = captureRouteScan()
+      const { knownFiles } = scan
+      if (
+        updateScanCount > 0 &&
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_TEST_DEV_ROUTE_SCAN_CAPTURE_PATH !== undefined &&
+        knownFiles.has(
+          path.join(dir, process.env.NEXT_TEST_DEV_ROUTE_SCAN_CAPTURE_PATH)
+        )
+      ) {
+        console.log('[next-test] dev route scan 2 view captured')
+      }
+      void handleAggregate(scan).catch((error) => {
+        if (!resolved) {
+          reject(error)
+          resolved = true
+        } else {
+          Log.warn('Failed to reload dynamic routes:', error)
+        }
+      })
     })
 
     wp.watch({ directories: [dir], startTime: 0 })
+    try {
+      const initialWatchFiles = await collectInitialWatchFiles(
+        directories,
+        files
+      )
+      for (const fileName of initialWatchFiles.files) {
+        knownWatchFiles.set(fileName, undefined)
+      }
+      for (const directory of initialWatchFiles.directories) {
+        knownWatchDirectories.add(directory)
+      }
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_PAUSE_FILE !==
+          undefined
+      ) {
+        const pauseFile = path.isAbsolute(
+          process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_PAUSE_FILE
+        )
+          ? process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_PAUSE_FILE
+          : path.join(
+              dir,
+              process.env.NEXT_TEST_DEV_ROUTE_INITIAL_INVENTORY_PAUSE_FILE
+            )
+        const claimedPauseFile = `${pauseFile}.claimed`
+        try {
+          fs.renameSync(pauseFile, claimedPauseFile)
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        if (fs.existsSync(claimedPauseFile)) {
+          console.log('[next-test] initial dev route inventory paused')
+          while (fs.existsSync(claimedPauseFile)) {
+            await new Promise((resume) => setTimeout(resume, 10))
+          }
+        }
+      }
+      const scan = captureRouteScan()
+      initialWatchFilesCollected = true
+      await handleAggregate(scan)
+    } catch (error) {
+      if (!resolved) {
+        reject(error)
+        resolved = true
+      }
+    }
   })
 
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
