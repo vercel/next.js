@@ -24,7 +24,7 @@ export function formatNextPathnameInfo(info: ExtendedInfo) {
   if (info.buildId) {
     pathname = addPathSuffix(
       addPathPrefix(pathname, `/_next/data/${info.buildId}`),
-      info.pathname === '/' ? 'index.json' : '.json'
+      pathname === '/' ? 'index.json' : '.json'
     )
   }
 
