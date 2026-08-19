@@ -17,11 +17,10 @@ env:
   TURBO_VERSION: 2.9.4
   TEST_CONCURRENCY: 6
 
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
   # Vercel KV Store for test timings
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -75,6 +74,9 @@ jobs:
           retention-days: 1
 
   build:
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
@@ -94,6 +96,9 @@ jobs:
         # Keep in sync with STATS_EXPECTED_BUNDLERS
         bundler: [webpack, turbopack]
     runs-on: ubuntu-latest-16-core-arm-oss
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -113,13 +118,20 @@ jobs:
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
+      # `TURBO_TOKEN` reaches this Docker action through the job environment.
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           bundler: ${{ matrix.bundler }}
         env:
           TURBO_TEAM: ${{ env.TURBO_TEAM }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_CACHE: ${{ env.TURBO_CACHE }}
           PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
 

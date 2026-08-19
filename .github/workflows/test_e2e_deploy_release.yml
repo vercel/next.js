@@ -131,6 +131,9 @@ jobs:
     name: Run Deploy Tests (Webpack)
     needs: setup
     if: ${{ github.event.inputs.deployScriptPath == '' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
@@ -163,6 +166,9 @@ jobs:
   test-deploy-turbopack:
     name: Run Deploy Tests (Turbopack)
     needs: [setup]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
@@ -211,6 +217,9 @@ jobs:
     name: Run Deploy Adapter Tests (Turbopack)
     needs: setup
     if: ${{ github.event.inputs.deployScriptPath == '' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
