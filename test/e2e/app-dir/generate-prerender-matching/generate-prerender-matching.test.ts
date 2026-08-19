@@ -8,6 +8,15 @@ type DynamicRoute = {
   fallbackSourceRoute?: string
 }
 
+type AdapterDynamicRoute = {
+  source?: string
+  has?: Array<{
+    type: string
+    key: string
+    value?: string
+  }>
+}
+
 describe('unstable prerender matching', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
@@ -104,6 +113,55 @@ describe('unstable prerender matching', () => {
       expect(next.cliOutput).toContain('/inferred-empty/[top]/items/[bottom]')
       expect(next.cliOutput).toContain('Emitted dynamic route patterns')
       expect(next.cliOutput).toContain('/[lang]/catalog/[top]/items/[bottom] (')
+    })
+
+    it('uses the existing fallback-false adapter routing contract', async () => {
+      const { routing } = JSON.parse(
+        await next.readFile('build-complete.json')
+      ) as {
+        routing: { dynamicRoutes: AdapterDynamicRoute[] }
+      }
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      ) as {
+        preview: { previewModeId: string }
+      }
+      const sourceRoute = '/[lang]/catalog/[top]/items/[bottom]'
+      const blockingRoute = '/en/catalog/[top]/items/[bottom]'
+      const fallbackRoute = '/en/catalog/t1/items/[bottom]'
+      const routesBySource = new Map(
+        routing.dynamicRoutes.map((route) => [route.source, route])
+      )
+
+      // Legacy dynamicParams=false and Pages Router fallback:false routes use
+      // this preview-only gate so normal misses do not reach the function.
+      const fallbackFalseHas = [
+        {
+          type: 'cookie',
+          key: '__prerender_bypass',
+          value: prerenderManifest.preview.previewModeId,
+        },
+        {
+          type: 'cookie',
+          key: '__next_preview_data',
+        },
+      ]
+      expect(routesBySource.get(sourceRoute)?.has).toEqual(fallbackFalseHas)
+      expect(routesBySource.get(`${sourceRoute}.rsc`)?.has).toEqual(
+        fallbackFalseHas
+      )
+      expect(routesBySource.get(blockingRoute)?.has).toBeUndefined()
+      expect(routesBySource.get(`${blockingRoute}.rsc`)?.has).toBeUndefined()
+      expect(routesBySource.get(fallbackRoute)?.has).toBeUndefined()
+      expect(routesBySource.get(`${fallbackRoute}.rsc`)?.has).toBeUndefined()
+
+      const routeSources = routing.dynamicRoutes.map((route) => route.source)
+      expect(routeSources.indexOf(fallbackRoute)).toBeLessThan(
+        routeSources.indexOf(blockingRoute)
+      )
+      expect(routeSources.indexOf(blockingRoute)).toBeLessThan(
+        routeSources.indexOf(sourceRoute)
+      )
     })
   }
 })
