@@ -32,6 +32,7 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import { createSerializedAsyncCallback } from './serialized-async-callback'
+import { createDevRouteChangeCoordinator } from './dev-route-change-coordinator'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -316,12 +317,34 @@ async function startWatcher(
   )
 
   const serverFields: ServerFields = {}
+  let hotReloader: NextJsHotReloaderInterface
+  let previousTestBundlerRoutePresence: boolean | undefined
+  const routeChangeCoordinator = opts.turbo
+    ? createDevRouteChangeCoordinator(({ added, removed }) => {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+          data: [{ devPagesManifest: true }],
+        })
+        for (const route of added) {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+            data: [route],
+          })
+        }
+        for (const route of removed) {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+            data: [route],
+          })
+        }
+      })
+    : undefined
   // Update logging state once based on next.config.js when initializing
   consoleStore.setState({
     logging: nextConfig.logging !== false,
   })
 
-  const hotReloader: NextJsHotReloaderInterface = opts.turbo
+  hotReloader = opts.turbo
     ? await (async () => {
         const createHotReloaderTurbopack = (
           require('../../dev/hot-reloader-turbopack') as typeof import('../../dev/hot-reloader-turbopack')
@@ -332,7 +355,24 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.serverFastRefresh
+          opts.serverFastRefresh,
+          (routes) => {
+            const routeSet = new Set(routes)
+            const testPath = process.env.NEXT_TEST_DEV_ROUTE_BUNDLER_COMMIT_PATH
+            routeChangeCoordinator!.updateBundler(routeSet)
+            if (process.env.__NEXT_TEST_MODE && testPath !== undefined) {
+              const present = routeSet.has(testPath)
+              if (
+                previousTestBundlerRoutePresence !== undefined &&
+                previousTestBundlerRoutePresence !== present
+              ) {
+                console.log(
+                  `[next-test] dev route bundler committed: route=${present}`
+                )
+              }
+              previousTestBundlerRoutePresence = present
+            }
+          }
         )
       })()
     : await (async () => {
@@ -1387,8 +1427,10 @@ async function startWatcher(
             `[next-test] dev route scan ${updateScanNumber} published`
           )
         }
-        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
-        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
+        routeChangeCoordinator?.updateWatchpack(sortedRoutes)
+
+        // Turbopack route announcements are coordinated above with its
+        // committed entrypoints so neither producer can announce alone.
         if (!opts.turbo) {
           const sortedRoutesChanged =
             prevSortedRoutes.length !== sortedRoutes.length ||
