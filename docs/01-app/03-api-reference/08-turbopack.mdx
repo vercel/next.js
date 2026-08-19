@@ -278,6 +278,21 @@ const lazy = import.meta.glob('./dir/*.ts')
 const eager = import.meta.glob('./dir/*.ts', { eager: true })
 ```
 
+Pass the module type to describe what the matched files export:
+
+```ts
+interface Mod {
+  name: string
+  default: () => string
+}
+
+// Record<string, () => Promise<Mod>>
+const lazy = import.meta.glob<Mod>('./dir/*.ts')
+
+// Record<string, Mod>
+const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
+```
+
 ### Options reference
 
 | Option          | Type                                          | Default     | Description                                                                |
@@ -411,7 +426,7 @@ Additionally, the following experimental options are available under `experiment
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
 | [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                                                                                  | `true`        | N/A                           |
 | [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `true`<sup>1</sup>            |
-| `turbopackMinify`                                                                                            | Enable minification.                                                                                                                         | `false`       | `true`                        |
+| `turbopackMinify`                                                                                            | Enable minification. Accepts a boolean, or `{ server, client, edge }` to configure each environment separately.                              | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                                                                          | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                                                                           | `true`        | `true`                        |
 | `turbopackModuleFragments`                                                                                   | Currently in active development. This splits modules into fragments and chunks only import the used fragments of the modules.                | `false`       | `false`                       |

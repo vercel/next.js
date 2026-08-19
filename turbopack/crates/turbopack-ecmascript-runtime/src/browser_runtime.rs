@@ -105,10 +105,16 @@ pub async fn get_browser_runtime_code(
         code += "(function(){\n";
     }
 
+    // A shared runtime can execute before any async chunk has initialized the chunk queue.
+    // Treat a missing queue as empty, but return when another runtime has already installed its
+    // registry object.
     writedoc!(
         code,
         r#"
-            if (!Array.isArray(globalThis[{}])) {{
+            var chunksToRegister = globalThis[{}];
+            if (chunksToRegister === undefined) {{
+                chunksToRegister = [];
+            }} else if (!Array.isArray(chunksToRegister)) {{
                 return;
             }}
 
@@ -240,7 +246,6 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            var chunksToRegister = globalThis[{chunk_loading_global}];
             globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
         "#,

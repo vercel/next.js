@@ -192,15 +192,17 @@ pub async fn well_known_function_call<'a>(
 fn object_assign<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if args.iter().all(|arg| matches!(arg, JsValue::Object { .. })) {
         if let Some(mut merged_object) = args.into_iter().reduce(|mut acc, cur| {
-            if let JsValue::Object { parts, mutable, .. } = &mut acc
+            if let JsValue::Object {
+                parts, mutability, ..
+            } = &mut acc
                 && let JsValue::Object {
                     parts: next_parts,
-                    mutable: next_mutable,
+                    mutability: next_mutability,
                     ..
                 } = &cur
             {
                 parts.extend(arena, next_parts.iter().map(|p| p.clone_in(arena)));
-                *mutable |= *next_mutable;
+                mutability.merge_with(*next_mutability);
             }
             acc
         }) {
@@ -410,6 +412,8 @@ pub fn import<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a
             JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             }),
         ),
         _ => JsValue::unknown(
@@ -432,6 +436,8 @@ fn require<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
             JsValue::Module(ModuleValue {
                 module: s.into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             })
         } else {
             JsValue::unknown(
@@ -509,6 +515,8 @@ fn require_context_require<'a>(
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
         annotations: None,
+        analyze_for_constants: false,
+        reference: None,
     }))
 }
 

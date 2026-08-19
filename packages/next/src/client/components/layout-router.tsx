@@ -8,7 +8,7 @@ import type {
   Segment,
 } from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import type { ScrollHandlerRef } from './router-reducer/router-reducer-types'
 
 import React, {
   Activity,
@@ -48,7 +48,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
-import { isDeferredRsc } from './router-reducer/ppr-navigations'
+import { isDeferredRsc } from './render-tree'
 
 const enum ScrollTargetState {
   NoClientRects,
@@ -133,8 +133,8 @@ function getHashFragmentDomNode(hashFragment: string) {
     null
   )
 }
-interface ScrollAndMaybeFocusHandlerProps {
-  focusAndScrollRef: FocusAndScrollRef
+interface ScrollHandlerProps {
+  scrollRef: ScrollHandlerRef
   children: React.ReactNode
   cacheNode: CacheNode
 }
@@ -143,22 +143,20 @@ interface ScrollAndMaybeFocusHandlerProps {
  * Uses Fragment refs for scrolling.
  * Does not focus the first host descendant.
  */
-function InnerScrollAndMaybeFocusHandler(
-  props: ScrollAndMaybeFocusHandlerProps
-) {
+function InnerScrollHandler(props: ScrollHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
 
   useLayoutEffect(
     () => {
-      const { focusAndScrollRef, cacheNode } = props
+      const { scrollRef: scrollHandlerRef, cacheNode } = props
 
-      const scrollRef = focusAndScrollRef.forceScroll
-        ? focusAndScrollRef.scrollRef
+      const scrollRef = scrollHandlerRef.forceScroll
+        ? scrollHandlerRef.scrollRef
         : cacheNode.scrollRef
       if (scrollRef === null || !scrollRef.current) return
 
       let instance: FragmentInstance | HTMLElement | null = null
-      const hashFragment = focusAndScrollRef.hashFragment
+      const hashFragment = scrollHandlerRef.hashFragment
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
@@ -166,8 +164,8 @@ function InnerScrollAndMaybeFocusHandler(
           // A missing hash target is still a handled scroll intent. Do not
           // fall back to the route Fragment or leave the intent pending.
           scrollRef.current = false
-          focusAndScrollRef.onlyHashChange = false
-          focusAndScrollRef.hashFragment = null
+          scrollHandlerRef.onlyHashChange = false
+          scrollHandlerRef.hashFragment = null
           return
         }
       } else {
@@ -257,7 +255,7 @@ function InnerScrollAndMaybeFocusHandler(
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
-          onlyHashChange: focusAndScrollRef.onlyHashChange,
+          onlyHashChange: scrollHandlerRef.onlyHashChange,
         }
       )
 
@@ -266,8 +264,8 @@ function InnerScrollAndMaybeFocusHandler(
       }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-      focusAndScrollRef.onlyHashChange = false
-      focusAndScrollRef.hashFragment = null
+      scrollHandlerRef.onlyHashChange = false
+      scrollHandlerRef.hashFragment = null
     },
     // Used to run on every commit. We may be able to be smarter about this
     // but be prepared for lots of manual testing.
@@ -277,7 +275,7 @@ function InnerScrollAndMaybeFocusHandler(
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
 
-function ScrollAndMaybeFocusHandler({
+function ScrollHandler({
   children,
   cacheNode,
 }: {
@@ -290,12 +288,9 @@ function ScrollAndMaybeFocusHandler({
   }
 
   return (
-    <InnerScrollAndMaybeFocusHandler
-      focusAndScrollRef={context.focusAndScrollRef}
-      cacheNode={cacheNode}
-    >
+    <InnerScrollHandler scrollRef={context.scrollRef} cacheNode={cacheNode}>
       {children}
-    </InnerScrollAndMaybeFocusHandler>
+    </InnerScrollHandler>
   )
 }
 
@@ -680,7 +675,7 @@ export default function OuterLayoutRouter({
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
     let templateValue = (
-      <ScrollAndMaybeFocusHandler cacheNode={cacheNode}>
+      <ScrollHandler cacheNode={cacheNode}>
         <ErrorBoundary
           errorComponent={error}
           errorStyles={errorStyles}
@@ -721,7 +716,7 @@ export default function OuterLayoutRouter({
           </LoadingBoundary>
         </ErrorBoundary>
         {segmentViewStateNode}
-      </ScrollAndMaybeFocusHandler>
+      </ScrollHandler>
     )
 
     if (

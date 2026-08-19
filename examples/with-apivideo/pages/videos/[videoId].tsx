@@ -68,7 +68,7 @@ const VideoView: NextPage<IVideoViewProps> = ({
 
         <div className="inputs-container">
           <div>
-            <label>Play button color</label>
+            <label htmlFor="link">Play button color</label>
             <input
               id="link"
               type="text"
@@ -78,7 +78,7 @@ const VideoView: NextPage<IVideoViewProps> = ({
             />
           </div>
           <div>
-            <label>Buttons hover color</label>
+            <label htmlFor="linkHover">Buttons hover color</label>
             <input
               id="linkHover"
               type="text"
@@ -89,13 +89,14 @@ const VideoView: NextPage<IVideoViewProps> = ({
           </div>
           <div>
             <input
+              id="hideControls"
               type="checkbox"
               checked={hideControls}
               onChange={(e) => {
                 setHideControls(e.currentTarget.checked);
               }}
             />
-            <label>Hide controls</label>
+            <label htmlFor="hideControls">Hide controls</label>
           </div>
         </div>
         <ApiVideoPlayer

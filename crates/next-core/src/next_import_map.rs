@@ -578,6 +578,7 @@ pub async fn get_next_client_resolved_map(
     root: FileSystemPath,
     _mode: NextMode,
     expose_testing_api: bool,
+    concurrent_router_queue: bool,
 ) -> Result<Vc<ResolvedMap>> {
     // In the browser bundle, swap every module that has a `.browser` sibling (see
     // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
@@ -613,7 +614,7 @@ pub async fn get_next_client_resolved_map(
     // alias in `create-compiler-aliases.ts`.
     if !expose_testing_api {
         glob_mappings.push((
-            fs_root,
+            fs_root.clone(),
             Glob::new(
                 rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
                 GlobOptions::default(),
@@ -625,6 +626,40 @@ pub async fn get_next_client_resolved_map(
                 rcstr!(
                     "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
                 ),
+            ),
+        ));
+    }
+
+    // When `experimental.concurrentRouterQueue` is enabled, resolve the
+    // router's forked entry-point modules (the navigator interface and the
+    // callServer action door) to the concurrent implementations. Neither the
+    // interface module nor the sequential implementation is bundled at all.
+    // This mirrors the webpack alias in `create-compiler-aliases.ts`.
+    if concurrent_router_queue {
+        glob_mappings.push((
+            fs_root.clone(),
+            Glob::new(
+                rcstr!("**/next/dist/client/components/navigator.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/components/concurrent-router-queue"),
+            ),
+        ));
+        glob_mappings.push((
+            fs_root,
+            Glob::new(
+                rcstr!("**/next/dist/client/app-call-server.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/concurrent-call-server"),
             ),
         ));
     }

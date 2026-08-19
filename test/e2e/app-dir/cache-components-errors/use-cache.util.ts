@@ -21,7 +21,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1479",
+             "code": "E1486",
              "description": "Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -135,7 +135,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1484",
+             "code": "E1491",
              "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -248,7 +248,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1475",
+             "code": "E1482",
              "description": "Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -360,7 +360,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1492",
+             "code": "E1499",
              "description": "Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -723,7 +723,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    ],
                  },
                ],
-               "code": "E1470",
+               "code": "E1477",
                "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
@@ -1123,7 +1123,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    ],
                  },
                ],
-               "code": "E1483",
+               "code": "E1490",
                "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
@@ -1554,7 +1554,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1479",
+               "code": "E1486",
                "description": "Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -1658,7 +1658,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1484",
+               "code": "E1491",
                "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -1759,7 +1759,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1475",
+               "code": "E1482",
                "description": "Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -1863,7 +1863,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1492",
+               "code": "E1499",
                "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",

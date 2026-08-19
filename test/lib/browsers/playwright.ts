@@ -12,7 +12,7 @@ import {
   BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
-import { getBrowserLaunch } from './launch'
+import { getBrowserLaunch, PROXY_HOST_MAP_ENV_KEY } from './launch'
 
 type EventType = 'request' | 'response'
 
@@ -234,13 +234,40 @@ export class Playwright<TCurrent = undefined> {
       headless,
     })
 
+    // A deploy test can redirect the deployment host to a proxy address inside
+    // this process (`NEXT_TEST_PROXY_IN_PROCESS`). The patched `dns.lookup`
+    // reaches only this process, so the browser needs the same mapping through
+    // a launch argument.
+    const [mappedHostname, mappedAddress] =
+      process.env[PROXY_HOST_MAP_ENV_KEY]?.split('=') ?? []
+    const hostRule =
+      mappedHostname && mappedAddress
+        ? `--host-rules=MAP ${mappedHostname} ${mappedAddress}`
+        : undefined
+
+    if (hostRule) {
+      if (browserType.name() !== 'chromium') {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS redirects the browser with a Chromium launch argument, so it does not support BROWSER_NAME=${browserName}. Use the /etc/hosts mode instead.`
+        )
+      }
+
+      launchOptions.args = [...(launchOptions.args ?? []), hostRule]
+    }
+
     // `run-tests.js` launches a browser server that's shared across all test
     // suites. Connect to it if it's available, otherwise (e.g. when running a
     // test directly via the jest CLI) launch a browser owned by this process.
     // The shared server is always headless (`run-tests.js` sets HEADLESS=true
     // for all test suites), so only connect when we're headless too.
+    //
+    // A host mapping forces a browser owned by this process. The shared server
+    // starts before any mapping exists, and `connect` cannot add a launch
+    // argument, so its requests reach the deployment through the production
+    // CDN. The deployment is the same either way, which is why this is easy to
+    // miss: the test passes, and it exercises none of the proxy under test.
     const wsEndpoint = process.env.NEXT_TEST_BROWSER_WS_ENDPOINT
-    if (wsEndpoint && headless) {
+    if (wsEndpoint && headless && !hostRule) {
       return await browserType.connect(wsEndpoint)
     }
     return await browserType.launch(launchOptions)

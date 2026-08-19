@@ -23,7 +23,7 @@ export function registerUseCachePrivateTests(
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1490",
+                 "code": "E1497",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
                  "environmentLabel": "Server",
@@ -40,7 +40,7 @@ export function registerUseCachePrivateTests(
           } else {
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1490",
+               "code": "E1497",
                "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
              Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
                "environmentLabel": "Server",
@@ -155,7 +155,7 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1486",
+             "code": "E1493",
              "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
            Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
              "environmentLabel": "Cache",

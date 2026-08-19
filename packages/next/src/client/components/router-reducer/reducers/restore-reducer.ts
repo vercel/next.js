@@ -10,13 +10,14 @@ import {
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
-} from '../ppr-navigations'
+} from '../../render-tree'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import {
   completeHardNavigation,
   completeTraverseNavigation,
-} from '../../segment-cache/navigation'
-import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+} from '../../app-router-state'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
@@ -52,9 +53,14 @@ export function restoreReducer(
     separateRefreshUrls: null,
     scrollRef: null,
   }
-  const restoreSeed = convertServerPatchToFullTree(
+  const restoreSeed = createNavigationSeed(
     now,
     treeToRestore,
+    // No transport data (and so no vary params, no partiality, and no
+    // pathname to parse params from) — this converts the base tree alone.
+    null,
+    null,
+    true,
     null,
     renderedSearch,
     UnknownDynamicStaleTime
@@ -72,6 +78,8 @@ export function restoreReducer(
     restoreSeed.dynamicStaleAt,
     false,
     accumulation,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // A history-traversal restore never restricts to the shell.
     false
   )
@@ -96,6 +104,8 @@ export function restoreReducer(
     // dynamic requests ungated (null lock) so they render from cache or fetch
     // normally rather than being withheld behind the lock.
     null,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )

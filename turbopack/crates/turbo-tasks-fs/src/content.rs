@@ -206,6 +206,21 @@ pub enum LinkContent {
     NotFound,
 }
 
+#[turbo_tasks::value_impl]
+impl LinkContent {
+    /// Hashes the link itself (its target and type), not the content of whatever the link points
+    /// at. This mirrors [`FileContent::hash`] and is the right content hash for consumers that
+    /// re-create a symlink as a symlink instead of copying the resolved file.
+    #[turbo_tasks::function]
+    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(RcStr::from(deterministic_hash(
+            &salt.await?,
+            self,
+            algorithm,
+        ))))
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, DeterministicHash, PartialOrd, Ord)]
 pub struct File {
