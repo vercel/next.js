@@ -599,10 +599,15 @@ function collectAppClientFiles(
   // app-page. Both bundlers list them in the global `build-manifest.json`
   // under `rootMainFiles`. Turbopack also writes a per-route
   // `build-manifest.json` containing the same files; webpack does not.
-  const globalBm = readJsonFile<{ rootMainFiles?: string[] }>(
-    path.join(distDir, 'build-manifest.json')
-  )
+  const globalBm = readJsonFile<{
+    rootMainFiles?: string[]
+    externalBrowserRuntimeFile?: string
+  }>(path.join(distDir, 'build-manifest.json'))
   for (const chunk of globalBm?.rootMainFiles ?? []) addClientChunk(chunk, sets)
+  // Present only when `experimental.externalBrowserRuntime` is enabled.
+  if (globalBm?.externalBrowserRuntimeFile) {
+    addClientChunk(globalBm.externalBrowserRuntimeFile, sets)
+  }
 }
 
 /**

@@ -153,6 +153,7 @@ import {
 } from './walk-tree-with-flight-router-state'
 import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { getExternalBrowserRuntimeSrc } from './get-external-browser-runtime-src'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -3557,6 +3558,14 @@ async function renderToStream(
         nonce,
       }))
 
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    experimental.externalBrowserRuntime,
+    assetPrefix,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -4145,6 +4154,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4285,6 +4295,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4452,6 +4463,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               },
               { waitForAllReady }
@@ -4548,6 +4560,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
             )
@@ -8511,6 +8524,14 @@ async function prerenderToStream(
         nonce,
       }))
 
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    experimental.externalBrowserRuntime,
+    assetPrefix,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -8913,6 +8934,7 @@ async function prerenderToStream(
             },
             bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
 
@@ -9369,6 +9391,7 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
 
@@ -9576,6 +9599,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
       )
@@ -9877,6 +9901,7 @@ async function prerenderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
                 onError: (clientError: unknown, errorInfo: ErrorInfo) => {
@@ -10121,6 +10146,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScriptContent: errorBootstrapScriptContent,
           bootstrapScripts: [errorBootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },
         { waitForAllReady: true }

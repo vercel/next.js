@@ -188,6 +188,12 @@ export interface RenderOptsPartial {
      * drives instant navigation tests.
      */
     exposeTestingApi: boolean
+
+    /**
+     * Whether React should stream its instruction set as data, applied by the
+     * standalone browser runtime asset, instead of as inline `<script>` tags.
+     */
+    externalBrowserRuntime: boolean
   }
   postponed?: string
 

@@ -32,6 +32,9 @@ pub struct BuildManifest {
     pub client_relative_path: FileSystemPath,
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    /// The standalone browser runtime that applies React's instruction set when
+    /// `experimental.externalBrowserRuntime` is enabled. `None` otherwise.
+    pub external_browser_runtime_file: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
@@ -74,6 +77,7 @@ impl OutputAssetsReference for BuildManifest {
             .flatten()
             .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
+            .chain(self.external_browser_runtime_file)
             .chain(per_page_files)
             .collect();
 
@@ -103,6 +107,8 @@ impl Asset for BuildManifest {
             pub dev_files: Vec<RcStr>,
             pub amp_dev_files: Vec<RcStr>,
             pub polyfill_files: Vec<RcStr>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub external_browser_runtime_file: Option<RcStr>,
             pub low_priority_files: Vec<RcStr>,
             pub root_main_files: Vec<RcStr>,
             pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
@@ -150,6 +156,22 @@ impl Asset for BuildManifest {
             })
             .try_join()
             .await?;
+
+        let external_browser_runtime_file: Option<RcStr> = match self.external_browser_runtime_file
+        {
+            Some(chunk) => {
+                let chunk_path = chunk.path().await?;
+                Some(
+                    client_relative_path
+                        .get_path_to(&chunk_path)
+                        .context(
+                            "failed to resolve client-relative path to external browser runtime",
+                        )?
+                        .into(),
+                )
+            }
+            None => None,
+        };
 
         let root_main_files: Vec<RcStr> = self
             .root_main_files
@@ -203,6 +225,7 @@ impl Asset for BuildManifest {
         let manifest = SerializedBuildManifest {
             pages: FxIndexMap::from_iter(pages),
             polyfill_files,
+            external_browser_runtime_file,
             root_main_files,
             root_main_files_tree: FxIndexMap::from_iter(root_main_files_tree),
             pages_chunk_group_bootstrap_params: self
