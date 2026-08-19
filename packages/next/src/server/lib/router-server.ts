@@ -8,6 +8,7 @@ import '../node-environment'
 import '../require-hook'
 
 import url from 'url'
+import fs from 'fs'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
@@ -401,6 +402,7 @@ export async function initialize(opts: {
     })
 
     const invokedOutputs = new Set<string>()
+    let routeSnapshot: ReturnType<typeof fsChecker.getRouteSnapshot> | undefined
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -521,6 +523,41 @@ export async function initialize(opts: {
         req.url = origUrl
       }
 
+      // The hot reloader may publish a newer route generation while handling
+      // this request. Capture after it has run, then use that generation for
+      // every routing decision below.
+      const requestRouteSnapshot = (routeSnapshot ??=
+        fsChecker.getRouteSnapshot())
+
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_FILE !== undefined &&
+        process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_PATH !== undefined &&
+        req.url === process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_PATH
+      ) {
+        const pauseFile = path.isAbsolute(
+          process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_FILE
+        )
+          ? process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_FILE
+          : path.join(
+              opts.dir,
+              process.env.NEXT_TEST_DEV_ROUTE_REQUEST_PAUSE_FILE
+            )
+        const claimedPauseFile = `${pauseFile}.claimed`
+        let claimed = false
+        try {
+          fs.renameSync(pauseFile, claimedPauseFile)
+          claimed = true
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        if (claimed) {
+          console.log('[next-test] dev route request paused')
+          while (fs.existsSync(claimedPauseFile)) {
+            await new Promise((resume) => setTimeout(resume, 10))
+          }
+        }
+      }
       const {
         finished,
         parsedUrl,
@@ -534,6 +571,7 @@ export async function initialize(opts: {
         isUpgradeReq: false,
         signal: signalFromNodeResponse(res),
         invokedOutputs,
+        routeSnapshot: requestRouteSnapshot,
       })
 
       if (res.closed || res.finished) {
@@ -617,8 +655,8 @@ export async function initialize(opts: {
       if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
           opts.dev &&
-          (fsChecker.hasAppFile(matchedOutput.itemPath) ||
-            fsChecker.hasPageFile(matchedOutput.itemPath))
+          (requestRouteSnapshot.hasAppFile(matchedOutput.itemPath) ||
+            requestRouteSnapshot.hasPageFile(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
           const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
