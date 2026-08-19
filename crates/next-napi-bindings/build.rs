@@ -86,8 +86,17 @@ fn main() -> anyhow::Result<()> {
 
     // Resolve a potential linker issue for unit tests on linux
     // https://github.com/napi-rs/napi-rs/issues/1782
-    #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
-    println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+    //
+    // Note this has to be decided from `CARGO_CFG_*`, not `#[cfg(...)]`: inside a build script,
+    // `#[cfg(...)]` describes the machine *running* the script (the host), not the target being
+    // compiled. Cross-compiling from Linux to wasm would therefore still pass this flag, and
+    // `rust-lld -flavor wasm` rejects it with `unknown argument:
+    // -Wl,--warn-unresolved-symbols`.
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+        && env::var("CARGO_CFG_TARGET_FAMILY").as_deref() != Ok("wasm")
+    {
+        println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+    }
 
     Ok(())
 }
