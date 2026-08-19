@@ -923,6 +923,24 @@ export const metadata = {
 <link rel="bookmarks" href="https://nextjs.org/13" />
 ```
 
+### `pagination`
+
+Describes the previous and next pages in a paginated sequence.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  pagination: {
+    previous: 'https://nextjs.org/blog?page=1',
+    next: 'https://nextjs.org/blog?page=3',
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<link rel="prev" href="https://nextjs.org/blog?page=1" />
+<link rel="next" href="https://nextjs.org/blog?page=3" />
+```
+
 ### `category`
 
 ```jsx filename="layout.js | page.js"
