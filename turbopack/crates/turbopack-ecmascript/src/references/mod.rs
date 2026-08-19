@@ -845,6 +845,7 @@ async fn analyze_ecmascript_module_internal(
         let effects = take(&mut var_graph.effects);
         // How each `require("…")` call's result is used, keyed by call position.
         let require_binding_usage = take(&mut var_graph.require_usage);
+        let require_reexports = take(&mut var_graph.require_reexports);
         // The module's static CommonJS exports, if any, for scope hoisting.
         analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
@@ -1108,6 +1109,7 @@ async fn analyze_ecmascript_module_internal(
                         .get(&span.lo)
                         .cloned()
                         .unwrap_or(ExportUsage::All);
+                    let call_reexport = require_reexports.contains(&span.lo);
 
                     handle_call(
                         &ast_path,
@@ -1121,6 +1123,7 @@ async fn analyze_ecmascript_module_internal(
                         new,
                         eval_context.imports.get_attributes(span),
                         call_usage,
+                        call_reexport,
                     )
                     .await?;
                 }
@@ -1222,6 +1225,7 @@ async fn analyze_ecmascript_module_internal(
                         // A member call (`obj.method(...)`) result isn't narrowed
                         // for require export usage.
                         ExportUsage::All,
+                        false,
                     )
                     .await?;
                 }
@@ -1585,6 +1589,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     new: bool,
     attributes: &ImportAttributes,
     call_usage: ExportUsage,
+    call_reexport: bool,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1659,6 +1664,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         tracing_only,
                         attributes,
                         call_usage.clone(),
+                        call_reexport,
                     )
                     .await?;
                 }
@@ -1684,6 +1690,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 tracing_only,
                 attributes,
                 call_usage,
+                call_reexport,
             )
             .await?;
         }
@@ -1871,6 +1878,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     tracing_only: bool,
     attributes: &ImportAttributes,
     call_usage: ExportUsage,
+    call_reexport: bool,
 ) -> Result<()>
 where
     'a: 'l,
@@ -2181,6 +2189,7 @@ where
                         attributes.chunking_type,
                         resolve_override,
                         call_usage.clone(),
+                        call_reexport,
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
@@ -2235,6 +2244,7 @@ where
                         attributes.chunking_type,
                         None,
                         call_usage.clone(),
+                        call_reexport,
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
