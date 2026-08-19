@@ -743,7 +743,8 @@ export async function setupFsCheck(opts: {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
           return {
-            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            // "nextStaticFolder" sets Cache-Control
+            // "no-cache, must-revalidate" on dev.
             type: 'nextStaticFolder',
             fsPath,
             itemPath: fsPath,

@@ -54,7 +54,8 @@ import { cacheLife } from 'next/cache'
 export async function getCachedData() {
   'use cache'
   cacheLife('blog')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
@@ -65,7 +66,8 @@ import { cacheLife } from 'next/cache'
 export async function getCachedData() {
   'use cache'
   cacheLife('blog')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```

@@ -234,6 +234,25 @@ impl<'a> TurboWriteBatch<'a> {
             .put(key_space as u32, key.into_static(), value.into())
     }
 
+    /// Writes a delete (tombstone) for `key` into the write batch.
+    ///
+    /// Use [`Self::delete_value`] to remove a single mapping from a MultiValue KeySpace
+    pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
+        self.batch.delete(key_space as u32, key.into_static())
+    }
+
+    /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
+    /// intact. Only valid for `MultiValue` families (`TaskCache`).
+    pub fn delete_value(
+        &self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
+        self.batch
+            .delete_value(key_space as u32, key.into_static(), value.into())
+    }
+
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///

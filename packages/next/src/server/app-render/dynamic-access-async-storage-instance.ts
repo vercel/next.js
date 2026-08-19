@@ -1,5 +1,5 @@
-import { createAsyncLocalStorage } from './async-local-storage'
+import { getOrCreateGlobalAsyncLocalStorage } from './async-local-storage'
 import type { DynamicAccessStorage } from './dynamic-access-async-storage.external'
 
 export const dynamicAccessAsyncStorageInstance: DynamicAccessStorage =
-  createAsyncLocalStorage()
+  getOrCreateGlobalAsyncLocalStorage('dynamic-access-async-storage')
