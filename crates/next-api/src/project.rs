@@ -1643,6 +1643,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            inline_chunk_group_bootstrap: self.next_config().turbo_inline_chunk_group_bootstrap(),
             per_page_module_graph: self.per_page_module_graph(),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
