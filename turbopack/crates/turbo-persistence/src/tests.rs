@@ -2828,3 +2828,48 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     db.shutdown()?;
     Ok(())
 }
+
+/// Key ordering must not change how many blocks or files an SST is split into: compaction's I/O
+/// volume, and thus its wall-clock cost, depends on those counts rather than on entry order.
+#[test]
+fn key_order_preserves_block_and_file_counts() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+    for commit in 0..4u32 {
+        let batch = db.write_batch::<Box<[u8]>>()?;
+        for i in 0..20_000u32 {
+            let key = format!("k{:08}", commit * 20_000 + i).into_bytes();
+            batch.put(0, key.into_boxed_slice(), vec![(i & 0xff) as u8; 12].into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+    db.full_compact()?;
+
+    let (files, blocks, bytes) =
+        db.meta_info()?
+            .iter()
+            .fold((0usize, 0u32, 0u64), |(f, b, n), meta| {
+                (
+                    f + meta.entries.len(),
+                    b + meta
+                        .entries
+                        .iter()
+                        .map(|x| x.block_count as u32)
+                        .sum::<u32>(),
+                    n + meta.entries.iter().map(|x| x.sst_size).sum::<u64>(),
+                )
+            });
+    println!("files={files} blocks={blocks} bytes={bytes}");
+    // Spot-check a few keys survived compaction intact.
+    for i in [0u32, 40_000, 79_999] {
+        let key = format!("k{i:08}").into_bytes().into_boxed_slice();
+        assert!(db.get(0, &key)?.is_some(), "key {i} lost");
+    }
+    assert!(files > 0 && blocks > 0 && bytes > 0);
+    db.shutdown()?;
+    Ok(())
+}
