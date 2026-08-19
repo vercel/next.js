@@ -70,7 +70,12 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
+    #[serde(skip_serializing_if = "is_cross_origin_none")]
     pub cross_origin: CrossOrigin,
+}
+
+fn is_cross_origin_none(cross_origin: &CrossOrigin) -> bool {
+    matches!(cross_origin, CrossOrigin::None)
 }
 
 #[derive(Serialize, Default, Debug, Clone)]

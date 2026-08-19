@@ -36,7 +36,7 @@ use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, uti
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
@@ -216,6 +216,8 @@ pub fn generate_js_source_map<'a>(
     );
 
     if original_source_maps.is_empty() {
+        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+        // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
         StructuredSourceMap::from_swc_map(new_mappings)
     } else if fast_path_single_original_source_map {
@@ -250,7 +252,14 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_URL_PROTOCOL}///{s}")
+                // format! here is suboptimal and allocates over and over again.
+                // On a random test next test project this one spot accounted for
+                // 10% of allocations, hence the more verbose approach.
+                let mut out = String::with_capacity(SOURCE_URL_PROTOCOL_STR.len() + 3 + s.len());
+                out.push_str(SOURCE_URL_PROTOCOL_STR);
+                out.push_str("///");
+                out.push_str(s);
+                out
             }
             _ => f.to_string(),
         }

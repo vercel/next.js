@@ -4,6 +4,7 @@ use std::{
     future::Future,
     hash::{BuildHasher, BuildHasherDefault},
     mem::take,
+    ops::Deref,
     panic::AssertUnwindSafe,
     pin::Pin,
     process::abort,
@@ -465,7 +466,7 @@ enum ScheduledTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
         local_task_id: LocalTaskId,
-        global_task_state: Arc<RwLock<CurrentTaskState>>,
+        global_task_state: CurrentTaskStateHandle,
         span: Span,
     },
 }
@@ -576,12 +577,48 @@ impl CurrentTaskState {
     }
 }
 
+/// A shareable current-task state handle with the immutable task ID cached
+/// outside the lock. The rest of the state is mutated by global and local
+/// tasks, but the task ID is fixed for the lifetime of an execution.
+#[derive(Clone)]
+struct CurrentTaskStateHandle {
+    inner: Arc<CurrentTaskStateInner>,
+}
+
+struct CurrentTaskStateInner {
+    current_task_id: Option<TaskId>,
+    state: RwLock<CurrentTaskState>,
+}
+
+impl CurrentTaskStateHandle {
+    fn new(state: CurrentTaskState) -> Self {
+        Self {
+            inner: Arc::new(CurrentTaskStateInner {
+                current_task_id: state.task_id,
+                state: RwLock::new(state),
+            }),
+        }
+    }
+
+    fn current_task_id(&self) -> Option<TaskId> {
+        self.inner.current_task_id
+    }
+}
+
+impl Deref for CurrentTaskStateHandle {
+    type Target = RwLock<CurrentTaskState>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner.state
+    }
+}
+
 // TODO implement our own thread pool and make these thread locals instead
 task_local! {
     /// The current TurboTasks instance
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
-    static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
+    static CURRENT_TASK_STATE: CurrentTaskStateHandle;
 
     /// Temporarily suppresses the eventual consistency check in top-level tasks.
     /// This is used by strongly consistent reads to allow them to succeed in top-level tasks.
@@ -698,11 +735,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_foreground_job();
         // it's okay for execution ids to overflow and wrap, they're just used for an assert
         let execution_id = self.execution_id_factory.wrapping_get();
-        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new_temporary(
+        let current_task_state = CurrentTaskStateHandle::new(CurrentTaskState::new_temporary(
             execution_id,
             TaskPriority::initial(),
             true, // in_top_level_task
-        )));
+        ));
 
         let result = TURBO_TASKS
             .scope(
@@ -856,7 +893,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.local_tasks.create(task_type);
                 (
-                    Arc::clone(gts),
+                    gts.clone(),
                     gts_write.execution_id,
                     gts_write.priority,
                     local_task_id,
@@ -1185,12 +1222,13 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         // it's okay for execution ids to overflow and wrap, they're just used
                         // for an assert
                         let execution_id = this.execution_id_factory.wrapping_get();
-                        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                            task_id,
-                            execution_id,
-                            priority,
-                            false, // in_top_level_task
-                        )));
+                        let current_task_state =
+                            CurrentTaskStateHandle::new(CurrentTaskState::new(
+                                task_id,
+                                execution_id,
+                                priority,
+                                false, // in_top_level_task
+                            ));
                         let single_execution_future = async {
                             if this.stopped.load(Ordering::Acquire) {
                                 this.backend.task_execution_canceled(task_id, &*this);
@@ -1629,7 +1667,7 @@ async fn wait_for_local_tasks() {
 }
 
 pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(id) => id,
         Err(_) => panic!(
             "{from} can only be used in the context of a turbo_tasks task execution or \
@@ -1639,7 +1677,7 @@ pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
 }
 
 pub(crate) fn current_task(from: &str) -> TaskId {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(Some(id)) => id,
         Ok(None) | Err(_) => {
             panic!("{from} can only be used in the context of a turbo_tasks task execution")

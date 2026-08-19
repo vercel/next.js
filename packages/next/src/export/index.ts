@@ -8,6 +8,7 @@ import type {
 import {
   createStaticWorker,
   type PrerenderManifest,
+  type PreviewPropsManifest,
   type StaticWorker,
 } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -43,6 +44,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -260,6 +262,11 @@ async function exportAppImpl(
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
 
+  let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
+  try {
+    previewProps = require(join(distDir, 'server', PREVIEW_PROPS_MANIFEST))
+  } catch {}
+
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
@@ -476,7 +483,7 @@ async function exportAppImpl(
 
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
-    previewProps: prerenderManifest?.preview,
+    previewProps,
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
@@ -505,7 +512,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -522,6 +528,8 @@ async function exportAppImpl(
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      disableResumeDataCacheCompression:
+        nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
@@ -856,6 +864,14 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
+      }
+
       if (typeof result.hasStaticRsc !== 'undefined') {
         info.hasStaticRsc = result.hasStaticRsc
       }
@@ -881,7 +897,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }

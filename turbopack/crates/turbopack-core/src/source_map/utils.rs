@@ -231,7 +231,9 @@ fn uri_encode_path(path: &str) -> String {
 }
 
 /// Applies the standard `turbopack:///[fs]/` source-URL transform to a structured map,
-/// sharing every other field (notably `sourcesContent`) with the input.
+/// sharing every other field (notably `sourcesContent`) with the input. `transform` is given
+/// the source string as found in the map (i.e. a URI) with the `turbopack:///[fs]/` prefix
+/// stripped.
 async fn transform_relative_files<F>(
     map: &StructuredSourceMap,
     context_path: &FileSystemPath,
@@ -257,6 +259,7 @@ where
 }
 
 /// Turns `turbopack:///[project]` references in the map's sources into absolute `file://` uris.
+/// This is useful for debugging environments.
 pub async fn absolute_fileify_source_map(
     map: &StructuredSourceMap,
     context_path: FileSystemPath,
@@ -277,6 +280,7 @@ pub async fn absolute_fileify_source_map(
 }
 
 /// Turns `turbopack:///[project]` references in the map's sources into `./`-relative uris.
+/// This is useful in server environments and especially build environments.
 pub async fn relative_fileify_source_map(
     map: &StructuredSourceMap,
     context_path: FileSystemPath,
@@ -288,6 +292,12 @@ pub async fn relative_fileify_source_map(
         .collect::<Vec<_>>()
         .join("/");
     transform_relative_files(map, &context_path, |_context_fs, src_rest| {
+        // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
+        // since the spec on sourceRoot is broken.
+
+        // TODO(bgw): this shouldn't be necessary to uri encode since the strings we get out of the
+        // source map should already be uri encoded, however in the case of the turbopack scheme in
+        // particular we are inconsistent so be defensive here.
         let src_rest = uri_encode_path(src_rest);
         if relative_path_to_output_root.is_empty() {
             Ok(src_rest.to_string())

@@ -301,21 +301,19 @@ function linkClicked(
       }
     }
 
-    const { dispatchNavigateAction } =
+    const { navigate } =
       // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
       // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../components/app-router-instance') as typeof import('../components/app-router-instance')
+      require('../components/navigator') as typeof import('../components/navigator')
 
-    React.startTransition(() => {
-      dispatchNavigateAction(
-        href,
-        replace ? 'replace' : 'push',
-        scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
-        linkInstanceRef.current,
-        transitionTypes,
-        prefetchIntent
-      )
-    })
+    navigate(
+      href,
+      replace ? 'replace' : 'push',
+      scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
+      linkInstanceRef.current,
+      transitionTypes,
+      prefetchIntent
+    )
   }
 }
 

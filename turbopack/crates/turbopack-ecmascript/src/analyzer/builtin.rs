@@ -135,7 +135,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
             &mut JsValue::Array {
                 ref mut items,
                 mutable,
-                ..
+                total_nodes: _,
             } => {
                 fn items_to_alternatives<'a>(
                     arena: &'a Bump,
@@ -205,8 +205,8 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
             // matching property access on an object like `{a: 1, b: 2}.a`
             &mut JsValue::Object {
                 ref mut parts,
-                mutable,
-                ..
+                mutability,
+                total_nodes: _,
             } => {
                 fn parts_to_alternatives<'a>(
                     arena: &'a Bump,
@@ -301,7 +301,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                                                     false,
                                                 );
                                             }
-                                            if mutable {
+                                            if mutability.is_mutable() {
                                                 value.add_unknown_mutations(arena, true);
                                             }
                                             return Modified::Yes;
@@ -317,7 +317,11 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                             }
                         }
                         if potential_values.is_empty() {
-                            *value = JsValue::Constant(ConstantValue::Undefined);
+                            if mutability.is_missing_unknown() {
+                                *value = JsValue::unknown_empty(false, rcstr!("missing object property"));
+                            } else {
+                                *value = JsValue::Constant(ConstantValue::Undefined);
+                            }
                         } else {
                             *value = potential_values_to_alternatives(
                                 arena,
@@ -327,7 +331,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                                 true,
                             );
                         }
-                        if mutable {
+                        if mutability.is_mutable() {
                             value.add_unknown_mutations(arena, true);
                         }
                         Modified::Yes
@@ -509,7 +513,11 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
             Modified::Yes
         }
         // match object literals
-        JsValue::Object { parts, mutable, .. }
+        JsValue::Object {
+            parts,
+            mutability,
+            total_nodes: _,
+        }
             // If the object contains any spread, we might be able to flatten that
             if parts
                 .iter()
@@ -519,12 +527,12 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                 for part in old_parts {
                     if let ObjectPart::Spread(JsValue::Object {
                         parts: inner_parts,
-                        mutable: inner_mutable,
+                        mutability: inner_mutability,
                         ..
                     }) = part
                     {
                         parts.extend(arena, inner_parts);
-                        *mutable |= inner_mutable;
+                        mutability.merge_with(inner_mutability);
                     } else {
                         parts.push(arena, part);
                     }
