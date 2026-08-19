@@ -237,12 +237,20 @@ mod tests {
     #[case::alternatives_empty1("react{,-dom}", "react")]
     #[case::alternatives_empty2("react{,-dom}", "react-dom")]
     #[case::alternatives_chars("[abc]", "b")]
+    #[case::character_range("[a-z].js", "b.js")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(RcStr::from(glob), GlobOptions::default()).unwrap();
 
         println!("{glob:?} {path}");
 
         assert!(glob.matches(path));
+    }
+
+    #[test]
+    fn glob_rejects_invalid_character_range() {
+        let error = Glob::parse(rcstr!("[z-a]"), GlobOptions::default()).unwrap_err();
+
+        assert!(format!("{error:#}").contains("invalid character range"));
     }
 
     #[rstest]

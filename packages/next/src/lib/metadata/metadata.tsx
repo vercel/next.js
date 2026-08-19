@@ -5,18 +5,16 @@ import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { SearchParams } from '../../server/request/search-params'
 import {
   type MetadataErrorType,
+  type SelectedMetadata,
+  createSelectedMetadata,
   resolveMetadata,
   resolveViewport,
 } from './resolve-metadata'
-import type {
-  ResolvedMetadata,
-  ResolvedViewport,
-} from './types/metadata-interface'
+import type { ResolvedViewport } from './types/metadata-interface'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
-import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
 import {
   MetadataBoundary,
@@ -64,12 +62,6 @@ export function createMetadataComponents({
       interpolatedParams,
       errorType
     ).catch((viewportErr) => {
-      // When Legacy PPR is enabled viewport can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(viewportErr)) {
-        throw viewportErr
-      }
       if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
         return getNotFoundViewport(
           tree,
@@ -102,12 +94,6 @@ export function createMetadataComponents({
       metadataContext,
       errorType
     ).catch((metadataErr) => {
-      // When Legacy PPR is enabled metadata can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(metadataErr)) {
-        throw metadataErr
-      }
       if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         return getNotFoundMetadata(
           tree,
@@ -262,7 +248,7 @@ async function renderMetadata(
     interpolatedParams,
     metadataContext
   )
-  return <>{createMetadataElements(resolvedMetadata)}</>
+  return <>{createMetadataElements(createSelectedMetadata(resolvedMetadata))}</>
 }
 
 async function renderViewport(
@@ -357,14 +343,14 @@ function createViewportElements(
 // ---------------------------------------------------------------------------
 
 function createMetadataElements(
-  metadata: ResolvedMetadata
+  metadata: SelectedMetadata
 ): React.ReactElement[] {
   const tags: React.ReactElement[] = []
   let i = 0
 
   // --- Title ---
-  if (metadata.title !== null && metadata.title.absolute) {
-    tags.push(<title key={i++}>{metadata.title.absolute}</title>)
+  if (metadata.title) {
+    tags.push(<title key={i++}>{metadata.title}</title>)
   }
 
   // --- Basic meta tags ---
@@ -748,10 +734,8 @@ function createMetadataElements(
         <meta key={i++} property="og:determiner" content={og.determiner} />
       )
     }
-    if (og.title?.absolute) {
-      tags.push(
-        <meta key={i++} property="og:title" content={og.title.absolute} />
-      )
+    if (og.title) {
+      tags.push(<meta key={i++} property="og:title" content={og.title} />)
     }
     if (og.description) {
       tags.push(
@@ -1459,10 +1443,8 @@ function createMetadataElements(
         <meta key={i++} name="twitter:creator:id" content={tw.creatorId} />
       )
     }
-    if (tw.title?.absolute) {
-      tags.push(
-        <meta key={i++} name="twitter:title" content={tw.title.absolute} />
-      )
+    if (tw.title) {
+      tags.push(<meta key={i++} name="twitter:title" content={tw.title} />)
     }
     if (tw.description) {
       tags.push(

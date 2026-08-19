@@ -3,7 +3,10 @@
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1u1i0a1.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis["TURBOPACK"])) {
+var chunksToRegister = globalThis["TURBOPACK"];
+if (chunksToRegister === undefined) {
+    chunksToRegister = [];
+} else if (!Array.isArray(chunksToRegister)) {
     return;
 }
 
@@ -2472,7 +2475,6 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-var chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 var chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
