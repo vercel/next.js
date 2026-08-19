@@ -93,7 +93,7 @@ use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
-use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
     aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
@@ -102,7 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    next_server_nft::require_hook_modules,
+    next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -295,8 +295,14 @@ impl DebugBuildPathsRouteKeys {
 
     fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
         // Special pages router framework routes
-        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-            return true;
+        if matches!(
+            route_key.as_str(),
+            "/_error" | "/_document" | "/_app" | "/404" | "/500"
+        ) {
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
         }
         self.pages.contains(route_key)
     }
@@ -1088,10 +1094,13 @@ impl Project {
             *self.root_path,
             vec![denied_path, denied_profiles_path],
             DiskWatcherConfig {
-                recursive_mode: None,
                 poll_interval: self.watch.poll_interval,
                 // the dev server reports these to the user
                 report_invalidation_reason: true,
+                extended_batch_delay_matcher: Some(ResolvedVc::upcast(
+                    NodeModulesPathMatcher.resolved_cell(),
+                )),
+                ..Default::default()
             },
         ))
     }
@@ -2611,7 +2620,7 @@ impl Project {
                 bail!("must be in dev mode to hmr")
             };
             let root = this.aggregate_hmr_root_path(target).owned().await?;
-            AggregateHmrVersion::from_map(*map, &root).await
+            AggregateHmrVersion::from_map(*map, root).await
         }
         let version_op = aggregate_hmr_version_operation(self, target);
 
@@ -2653,7 +2662,7 @@ impl Project {
             bail!("must be in dev mode to hmr")
         };
         let root = self.aggregate_hmr_root_path(target).owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
         if chunks_versioned_content.is_empty() {
@@ -2848,13 +2857,15 @@ impl Project {
         ))
     }
 
-    /// [`Project::additional_traced_modules`] plus the modules
-    /// `next/dist/server/require-hook` resolves at runtime. Only the Pages Router needs the
-    /// latter, so this is the traced module list for pages endpoints, while other endpoints use
-    /// [`Project::additional_traced_modules`].
+    /// [`Project::additional_traced_modules`] plus the modules the Pages Router resolves only at
+    /// runtime: the targets of `next/dist/server/require-hook` and the production Pages renderer.
+    /// Other endpoints use [`Project::additional_traced_modules`].
     #[turbo_tasks::function]
     pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
             .owned()
             .await?;
 
@@ -2864,6 +2875,7 @@ impl Project {
                 .await?
                 .into_iter()
                 .chain(hook_modules)
+                .chain(renderer_modules)
                 .collect(),
         ))
     }

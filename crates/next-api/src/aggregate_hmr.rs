@@ -3,7 +3,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent;
@@ -12,10 +15,14 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBui
 
 use crate::versioned_content_map::VersionedContentMap;
 
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct HmrChunkWithContent {
     pub path: RcStr,
     pub content: ResolvedVc<Box<dyn VersionedContent>>,
 }
+
+#[turbo_tasks::value(transparent, serialization = "skip")]
+pub struct HmrChunksWithContent(Vec<HmrChunkWithContent>);
 
 /// Whether `content` is a chunk list, i.e. an entry point of the chunk graph that
 /// an HMR subscription can be anchored on.
@@ -66,7 +73,7 @@ impl Version for AggregateHmrVersion {
 impl AggregateHmrVersion {
     pub async fn from_map(
         map: Vc<VersionedContentMap>,
-        root: &FileSystemPath,
+        root: FileSystemPath,
     ) -> Result<Vc<Box<dyn Version>>> {
         // An empty `versions` map behaves the same as `NotFoundVersion` would in
         // `diff_chunks_against`, so no special case is needed here.

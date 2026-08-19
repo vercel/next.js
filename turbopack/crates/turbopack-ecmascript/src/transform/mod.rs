@@ -8,7 +8,10 @@ use swc_core::{
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
-        ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
+        ast::{
+            ArrowExpr, BlockStmtOrExpr, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
+            Stmt,
+        },
         preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
@@ -19,6 +22,7 @@ use swc_core::{
             typescript::{Config, typescript},
         },
         utils::IsDirective,
+        visit::{Visit, VisitWith},
     },
     quote,
 };
@@ -447,6 +451,89 @@ impl Issue for ReactCompilerIssue {
     }
 }
 
+// Keep this in sync with React Compiler's annotation-mode opt-ins. Next.js does not configure
+// `dynamic_gating`, so only the standard `use memo` and legacy `use forget` directives enable a
+// function.
+fn has_react_compiler_opt_in_directive(statements: &[Stmt]) -> bool {
+    for statement in statements {
+        if !statement.directive_continue() {
+            break;
+        }
+
+        let Stmt::Expr(expression) = statement else {
+            continue;
+        };
+        let Expr::Lit(Lit::Str(value)) = &*expression.expr else {
+            continue;
+        };
+        if value
+            .value
+            .as_str()
+            .is_some_and(|value| matches!(value, "use memo" | "use forget"))
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+#[derive(Default)]
+struct ReactCompilerAnnotationFinder {
+    found: bool,
+}
+
+impl Visit for ReactCompilerAnnotationFinder {
+    fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
+        if self.found {
+            return;
+        }
+        if let BlockStmtOrExpr::BlockStmt(body) = &*node.body
+            && has_react_compiler_opt_in_directive(&body.stmts)
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, node: &Function) {
+        if self.found {
+            return;
+        }
+        if node
+            .body
+            .as_ref()
+            .is_some_and(|body| has_react_compiler_opt_in_directive(&body.stmts))
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+}
+
+fn has_react_compiler_annotation(program: &Program) -> bool {
+    let mut finder = ReactCompilerAnnotationFinder::default();
+    finder.visit_program(program);
+    finder.found
+}
+
+fn should_run_rust_react_compiler(
+    program: &Program,
+    compilation_mode: ReactCompilerCompilationMode,
+) -> bool {
+    match compilation_mode {
+        ReactCompilerCompilationMode::Infer => {
+            swc_ecma_react_compiler::fast_check::is_required(program)
+        }
+        ReactCompilerCompilationMode::Annotation => has_react_compiler_annotation(program),
+        ReactCompilerCompilationMode::All => true,
+    }
+}
+
 async fn apply_rust_react_compiler(
     program: &mut Program,
     ctx: &TransformContext<'_>,
@@ -457,6 +544,13 @@ async fn apply_rust_react_compiler(
     let Program::Module(_) = program else {
         return Ok(helpers);
     };
+
+    // Avoid invoking the compiler when the selected mode cannot change this module. These checks
+    // run on the SWC AST we already parsed, before converting it to the compiler AST. `All` mode
+    // remains unconditional because every function is eligible.
+    if !should_run_rust_react_compiler(program, compilation_mode) {
+        return Ok(helpers);
+    }
 
     let single_threaded_comments =
         crate::swc_comments::swc_comments_to_single_threaded(ctx.comments);
@@ -580,6 +674,129 @@ pub fn remove_directives(program: &mut Program) {
                 })
                 .count();
             script.body.drain(0..directive_count);
+        }
+    }
+}
+
+#[cfg(test)]
+mod react_compiler_tests {
+    use swc_core::{
+        common::{DUMMY_SP, FileName, GLOBALS, SourceMap},
+        ecma::{
+            ast::{EsVersion, Module},
+            parser::{Syntax, TsSyntax, parse_file_as_program},
+        },
+    };
+
+    use super::*;
+
+    fn parse_program(source: &str) -> Program {
+        GLOBALS.set(&Default::default(), || {
+            let cm = SourceMap::default();
+            let fm = cm.new_source_file(
+                FileName::Custom("test.tsx".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let program = parse_file_as_program(
+                &fm,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                EsVersion::EsNext,
+                None,
+                &mut errors,
+            )
+            .expect("test fixture should parse");
+            assert!(errors.is_empty(), "test fixture should not recover errors");
+            program
+        })
+    }
+
+    #[test]
+    fn compilation_modes_use_their_respective_fast_checks() {
+        let program = Program::Module(Module {
+            span: DUMMY_SP,
+            body: Vec::new(),
+            shebang: None,
+        });
+
+        for mode in [
+            ReactCompilerCompilationMode::Infer,
+            ReactCompilerCompilationMode::Annotation,
+        ] {
+            assert!(!should_run_rust_react_compiler(&program, mode));
+        }
+        assert!(should_run_rust_react_compiler(
+            &program,
+            ReactCompilerCompilationMode::All,
+        ));
+    }
+
+    #[test]
+    fn infer_mode_uses_upstream_conservative_fast_check() {
+        for source in [
+            "const Button = React.forwardRef((props, ref) => <button ref={ref} />);",
+            "function useCounter() { return React.useState(0); }",
+            "function helper() { 'use memo'; return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
+
+        for source in [
+            "export const answer = 42;",
+            "const user = getUser();",
+            "function helper() { log(); 'use memo'; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
+    }
+
+    #[test]
+    fn annotation_mode_only_runs_for_function_opt_in_directives() {
+        for source in [
+            "function helper() { 'use memo'; return 1; }",
+            "const helper = () => { 'use forget'; return 1; };",
+            "function outer() { function inner() { 'use memo'; return 1; } }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+
+        for source in [
+            "function Component() { return <div />; }",
+            "function useCounter() { return useState(0); }",
+            "function helper() { log(); 'use memo'; }",
+            "'use memo'; export const answer = 42;",
+            "function helper() { 'use memo if(featureFlag)'; return 1; }",
+            "function helper() { 'use no memo'; return 1; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+    }
+
+    #[test]
+    fn all_mode_remains_unconditional() {
+        for source in [
+            "export const answer = 42;",
+            "function helper() { return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::All,
+            ));
         }
     }
 }

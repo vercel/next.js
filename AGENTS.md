@@ -234,6 +234,28 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
+Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
+
+## Prefer a Throwaway Worktree
+
+Prefer a throwaway git worktree over changing the user's checkout. Switching their branch, or leaving a failed rebase behind, interrupts whatever they had open. It is also the right call for anything untrusted, such as a contributor's branch, because their files and any half-finished state stay outside the working copy.
+
+```bash
+git worktree add /tmp/scratch-work <branch>   # or --detach <commit>
+# ... work in /tmp/scratch-work ...
+git worktree remove --force /tmp/scratch-work
+```
+
+Always remove the worktree when finished, and prefer removing it in a cleanup path that also runs on failure.
+
+A fresh worktree has no `node_modules`, so `pnpm` and `npx` do not work in it. Symlinking the root one is enough for `prettier`, `eslint`, and `tsc`:
+
+```bash
+ln -s /path/to/main/checkout/node_modules /tmp/scratch-work/node_modules
+```
+
+That symlink does not bring in per-package `node_modules` or a built `packages/next/dist`, so `tsc --noEmit` reports `TS2307: Cannot find module` for things like `fast-glob`, `dotenv`, and `@playwright/test`. Those are artifacts of the worktree, not regressions. Confirm by checking whether the same path resolves in the main checkout, and do not "fix" them. Errors in the files actually being edited are still real, so read the paths rather than the count.
+
 ## PR Status (CI Failures and Reviews)
 
 When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
@@ -290,6 +312,29 @@ Fork PRs are external contributions created by pushing commits to any fork repos
 
 You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
 While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
+
+### Adopting a Fork PR
+
+Fork PRs run without repository secrets, so deploy tests never run on them. To run those tests, a maintainer adopts the PR: the contributor's commits are re-pushed to a branch in `vercel/next.js` and a replacement PR is opened from there.
+
+```bash
+pnpm pr-adopt <pr-number>            # adopt
+pnpm pr-adopt <pr-number> --dry-run  # report without pushing
+```
+
+The script resolves the `vercel/next.js` remote itself, checks out the PR, pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line. The adopted PR inherits the original's base branch; it is never retargeted at `canary`.
+
+Contributor commits usually arrive unsigned, and protected branches require verified signatures, so the branch is re-signed before pushing. Each `Author` is preserved and the tree is checked to be byte-identical afterwards. Note that `%G?` reports whether a signature _verifies_, not whether one exists, so it reads `N` for every commit when SSH signing has no `gpg.ssh.allowedSignersFile`; signature detection reads the raw commit headers instead.
+
+Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in the base branch.
+
+**Adoption grants the contributor's code access to repository secrets**, because CI trusts branches inside `vercel/next.js`. Anything in the diff that runs during install, build, or test can exfiltrate them. The script requires an interactive confirmation that names the author, shows the exact head SHA, and lists every touched file; never bypass it, and never adopt a PR whose full diff has not been read. The file list is deliberately unranked, since a payload can sit in any fixture or source file and calling some paths risky would imply the rest are safe.
+
+Adoption is pinned to the head SHA shown at review time. If the contributor pushes between the review and the fetch, the SHAs disagree and the run aborts without pushing, so the code that reaches CI is always the code that was vouched for.
+
+Two things run untrusted code on the maintainer's own machine, and both are defended against. `.husky/*` hook scripts are tracked, so a PR can add `.husky/post-checkout` or edit `.husky/pre-commit`; checking the branch out, re-signing it (`rebase --exec` runs `git commit`, which fires `pre-commit`) and pushing it would each execute contributor code. Every subprocess therefore runs with `core.hooksPath` pointed at an empty directory, injected through `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` so that it reaches the git processes `gh` and `git rebase --exec` spawn. The checkout itself happens in a throwaway worktree under the system temp directory, which is removed on success and on failure, so contributor files and any half-finished rebase never touch the maintainer's checkout. That checkout is never switched, and may be dirty.
+
+The description is the contributor's, and it is reproduced exactly: never rewritten, summarized, translated, or tidied up. What it happens to contain makes no difference, so do not read it looking for a reason to change it, and do not treat copying it as writing a description for a fork PR.
 
 ## GitHub Issues, Comments, and Discussions
 

@@ -68,6 +68,8 @@ import {
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
+import { getTracer } from '../lib/trace/tracer'
+import { RouteModuleSpan } from '../lib/trace/constants'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -592,7 +594,22 @@ export abstract class RouteModule<
     return { nextConfig, deploymentId }
   }
 
-  public async prepare(
+  public prepare(
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | null,
+    options: {
+      srcPage: string
+      multiZoneDraftMode?: boolean
+    }
+  ) {
+    return getTracer().trace(
+      RouteModuleSpan.prepare,
+      { spanName: 'prepare route module' },
+      () => this.prepareImpl(req, res, options)
+    )
+  }
+
+  private async prepareImpl(
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
     {
@@ -677,7 +694,11 @@ export abstract class RouteModule<
       // before the userland route handler runs.
       await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
+    const manifests = getTracer().trace(
+      RouteModuleSpan.loadManifests,
+      { spanName: 'load route manifests' },
+      () => this.loadManifests(srcPage, absoluteProjectDir)
+    )
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest

@@ -65,6 +65,39 @@ pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result
     ))
 }
 
+/// The Pages renderer selected dynamically by `pages/module.compiled` in Turbopack production
+/// builds. A Pages API endpoint can load the compiled module through a vendored context when an
+/// external dependency imports `next/head`, but neither dynamic edge is visible in its module
+/// graph. Include the renderer as an explicit Pages trace entry so that its runtime closure is
+/// available when the endpoint initializes.
+#[turbo_tasks::function]
+pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
+    let asset_context = Vc::upcast(externals_tracing_module_context(
+        get_tracing_compile_time_info(),
+        false,
+    ));
+    let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
+        asset_context,
+        get_next_package(project_path).await?.join("_")?,
+    ));
+
+    Ok(Vc::cell(
+        cjs_resolve(
+            next_resolve_origin,
+            Request::parse_string(
+                "next/dist/compiled/next-server/pages-turbo.runtime.prod.js".into(),
+            ),
+            CommonJsReferenceSubType::Undefined,
+            None,
+            ResolveErrorMode::Error,
+        )
+        .await?
+        .primary_modules()
+        .await?
+        .to_vec(),
+    ))
+}
+
 #[turbo_tasks::task_input]
 #[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
 enum ServerNftType {
@@ -74,18 +107,24 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    if *project.next_config().is_using_adapter().await? {
+    let is_standalone = *project.next_config().is_standalone().await?;
+
+    if *project.next_config().is_using_adapter().await? && !is_standalone {
         // When using an adapter, `next-server.js.nft.json` / `next-minimal-server.js.nft.json` are
         // not needed: they exist for `output: 'standalone'` (see `copyTracedFiles`), while an
         // adapter assembles the deployment from the per-endpoint NFTs in build-complete.ts. What
         // those two files trace on top of the endpoints - the `styled-jsx` modules the require hook
         // needs at runtime - is part of every endpoint's trace via
         // `Project::additional_traced_modules`, so nothing is lost here.
+        //
+        // The exception is `output: 'standalone'` configured alongside an adapter:
+        // `copyTracedFiles` reads `next-server.js.nft.json` unconditionally whenever standalone
+        // output is requested (adapter or not), so suppressing the pair crashes the build
+        // (see #96646).
         return Ok(Vc::cell(vec![]));
     }
 
     let has_next_support = *project.ci_has_next_support().await?;
-    let is_standalone = *project.next_config().is_standalone().await?;
 
     let minimal = ResolvedVc::upcast(
         ServerNftJsonAsset::new(project, ServerNftType::Minimal)
@@ -198,8 +237,7 @@ impl Asset for ServerNftJsonAsset {
                     .get_relative_path_to(&module_path)
                     .context("failed to compute relative path for server NFT JSON")?,
                 module_path
-                    .read()
-                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                     .await?,
             ));
 
@@ -219,8 +257,7 @@ impl Asset for ServerNftJsonAsset {
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        file.read()
-                            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                        file.hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                             .await?,
                     ))
                 }

@@ -4018,11 +4018,47 @@
     function is(x, y) {
       return (x === y && (0 !== x || 1 / x === 1 / y)) || (x !== x && y !== y);
     }
-    function createFatalRecoverableError(recoverable) {
-      return Error(
-        "The server render could not complete because client rendering was requested outside a Suspense boundary. See this error's cause for additional details.",
-        { cause: recoverable }
+    function createRecoverableError(recoverable) {
+      recoverable = recoverable._reason;
+      if ("function" === typeof recoverable)
+        try {
+          var initializedReason = recoverable();
+        } catch ($jscomp$unused$catch) {
+          initializedReason =
+            "The reason for browser-only rendering could not be determined because its initializer threw.";
+        }
+      else initializedReason = recoverable;
+      initializedReason = Error(
+        "Browser-only rendering was requested by `browser()`.",
+        void 0 === recoverable ? void 0 : { cause: initializedReason }
       );
+      Object.defineProperty(initializedReason, REACT_RECOVERABLE_TYPE, {
+        value: !0
+      });
+      return initializedReason;
+    }
+    function isRecoverableError(error) {
+      return "object" !== typeof error || null === error
+        ? !1
+        : !0 === error[REACT_RECOVERABLE_TYPE];
+    }
+    function cloneRecoverableErrorAsFatal(recoverableError) {
+      var fatalRecoverableError = Error(
+        "The server render could not complete because client rendering was requested outside a Suspense boundary. See this error's cause for additional details.",
+        hasOwnProperty.call(recoverableError, "cause")
+          ? { cause: recoverableError.cause }
+          : void 0
+      );
+      recoverableError = recoverableError.stack;
+      if (void 0 !== recoverableError) {
+        var frameStart = recoverableError.indexOf("\n");
+        fatalRecoverableError.stack =
+          fatalRecoverableError.name +
+          ": " +
+          fatalRecoverableError.message +
+          (-1 === frameStart ? "" : recoverableError.slice(frameStart));
+      } else fatalRecoverableError.stack = void 0;
+      return fatalRecoverableError;
     }
     function resolveCurrentlyRenderingComponent() {
       if (null === currentlyRenderingComponent)
@@ -4662,6 +4698,7 @@
       rootFormatContext,
       progressiveChunkSize,
       onError,
+      onBrowserBailout,
       onAllReady,
       onShellReady,
       onShellError,
@@ -4690,6 +4727,8 @@
       this.partialBoundaries = [];
       this.postponedState = this.trackedPostpones = null;
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
+      this.onBrowserBailout =
+        void 0 === onBrowserBailout ? noop : onBrowserBailout;
       this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
       this.onShellError = void 0 === onShellError ? noop : onShellError;
@@ -4704,6 +4743,7 @@
       rootFormatContext,
       progressiveChunkSize,
       onError,
+      onBrowserBailout,
       onAllReady,
       onShellReady,
       onShellError,
@@ -4717,6 +4757,7 @@
         rootFormatContext,
         progressiveChunkSize,
         onError,
+        onBrowserBailout,
         onAllReady,
         onShellReady,
         onShellError,
@@ -4762,6 +4803,7 @@
       rootFormatContext,
       progressiveChunkSize,
       onError,
+      onBrowserBailout,
       onAllReady,
       onShellReady,
       onShellError,
@@ -4774,6 +4816,7 @@
         rootFormatContext,
         progressiveChunkSize,
         onError,
+        onBrowserBailout,
         onAllReady,
         onShellReady,
         onShellError,
@@ -4792,6 +4835,7 @@
       postponedState,
       renderState,
       onError,
+      onBrowserBailout,
       onAllReady,
       onShellReady,
       onShellError,
@@ -4804,6 +4848,7 @@
         postponedState.rootFormatContext,
         postponedState.progressiveChunkSize,
         onError,
+        onBrowserBailout,
         onAllReady,
         onShellReady,
         onShellError,
@@ -4876,6 +4921,7 @@
       postponedState,
       renderState,
       onError,
+      onBrowserBailout,
       onAllReady,
       onShellReady,
       onShellError,
@@ -4886,6 +4932,7 @@
         postponedState,
         renderState,
         onError,
+        onBrowserBailout,
         onAllReady,
         onShellReady,
         onShellError,
@@ -5297,7 +5344,7 @@
       wasAborted
     ) {
       boundary.errorDigest = digest;
-      error === RecoverableException
+      isRecoverableError(error)
         ? (boundary.errorMessage = wasAborted
             ? "Switched to client rendering because the server render was aborted with a request to render on the client."
             : "Switched to client rendering because a component requested it.")
@@ -5316,8 +5363,14 @@
       boundary.errorComponentStack = thrownInfo.componentStack;
     }
     function logRecoverableError(request, error, errorInfo, debugTask) {
-      if (error === RecoverableException)
-        return (suspendedRecoverableError = null), REACT_RECOVERABLE_DIGEST;
+      if (isRecoverableError(error))
+        return (
+          (request = request.onBrowserBailout),
+          debugTask
+            ? debugTask.run(request.bind(null, error, errorInfo))
+            : request(error, errorInfo),
+          REACT_RECOVERABLE_DIGEST
+        );
       request = request.onError;
       error = debugTask
         ? debugTask.run(request.bind(null, error, errorInfo))
@@ -5339,7 +5392,8 @@
         : (shellComplete || errorInfo(error), onFatalError(error));
       null !== request.destination
         ? ((request.status = CLOSED), request.destination.destroy(error))
-        : ((request.status = 12), (request.fatalError = error));
+        : ((request.status = 12),
+          request.aborted || (request.fatalError = error));
     }
     function finishSuspenseListRow(request, row) {
       unblockSuspenseListRow(request, row.next, row.hoistables);
@@ -7693,18 +7747,15 @@
           segment = task.blockedSegment;
         if (null === segment || segment.status === ABORTED) {
           var errorInfo = getThrownInfo(task.componentStack),
-            isRecoverableAbort =
-              "object" === typeof error &&
-              null !== error &&
-              error.$$typeof === REACT_RECOVERABLE_TYPE;
+            isRecoverableReason = isRecoverableError(error);
           if (null === boundary) {
             boundary = task.replay;
             if (null === boundary) {
-              isRecoverableAbort ||
+              isRecoverableReason ||
               null === request.trackedPostpones ||
               null === segment
-                ? isRecoverableAbort
-                  ? ((boundary = createFatalRecoverableError(error)),
+                ? isRecoverableReason
+                  ? ((boundary = cloneRecoverableErrorAsFatal(error)),
                     logRecoverableError(
                       request,
                       boundary,
@@ -7739,22 +7790,18 @@
               (boundary.pendingTasks--,
               0 === boundary.pendingTasks &&
                 0 < boundary.nodes.length &&
-                (isRecoverableAbort
-                  ? ((segment = REACT_RECOVERABLE_DIGEST),
-                    (isRecoverableAbort = RecoverableException))
-                  : ((segment = logRecoverableError(
-                      request,
-                      error,
-                      errorInfo,
-                      null
-                    )),
-                    (isRecoverableAbort = error)),
+                ((segment = logRecoverableError(
+                  request,
+                  error,
+                  errorInfo,
+                  null
+                )),
                 abortRemainingReplayNodes(
                   request,
                   null,
                   boundary.nodes,
                   boundary.slots,
-                  isRecoverableAbort,
+                  error,
                   segment,
                   errorInfo,
                   !0
@@ -7765,7 +7812,7 @@
             var _trackedPostpones = request.trackedPostpones;
             if (boundary.status !== CLIENT_RENDERED) {
               if (
-                !isRecoverableAbort &&
+                !isRecoverableReason &&
                 null !== _trackedPostpones &&
                 null !== segment
               )
@@ -7786,21 +7833,13 @@
                   finishedTask(request, boundary, task.row, segment)
                 );
               boundary.status = CLIENT_RENDERED;
-              segment = isRecoverableAbort
-                ? REACT_RECOVERABLE_DIGEST
-                : logRecoverableError(
-                    request,
-                    error,
-                    errorInfo,
-                    task.debugTask
-                  );
-              encodeErrorForBoundary(
-                boundary,
-                segment,
-                isRecoverableAbort ? RecoverableException : error,
+              segment = logRecoverableError(
+                request,
+                error,
                 errorInfo,
-                !0
+                task.debugTask
               );
+              encodeErrorForBoundary(boundary, segment, error, errorInfo, !0);
               untrackBoundary(request, boundary);
               boundary.parentFlushed &&
                 request.clientRenderedBoundaries.push(boundary);
@@ -8270,23 +8309,18 @@
                       finishSuspenseListRow(request, row);
                     request.allPendingTasks--;
                     if (null === boundary$jscomp$0)
-                      if (x$jscomp$0 === RecoverableException) {
-                        if (null === suspendedRecoverableError)
-                          throw Error(
-                            "Expected a suspended recoverable. This is a bug in React. Please file an issue."
-                          );
-                        task$jscomp$0 = suspendedRecoverableError;
-                        suspendedRecoverableError = null;
-                        var useError = task$jscomp$0;
+                      if (isRecoverableError(x$jscomp$0)) {
+                        var fatalRecoverableError =
+                          cloneRecoverableErrorAsFatal(x$jscomp$0);
                         logRecoverableError(
                           request,
-                          useError,
+                          fatalRecoverableError,
                           errorInfo$jscomp$1,
                           debugTask
                         );
                         fatalError(
                           request,
-                          useError,
+                          fatalRecoverableError,
                           errorInfo$jscomp$1,
                           debugTask
                         );
@@ -9136,15 +9170,19 @@
     }
     function startFlowing(request, destination) {
       if (12 === request.status)
-        (request.status = CLOSED), destination.destroy(request.fatalError);
+        (request.status = CLOSED),
+          (request = request.fatalError),
+          isRecoverableError(request) &&
+            (request = cloneRecoverableErrorAsFatal(request)),
+          destination.destroy(request);
       else if (request.status !== CLOSED && null === request.destination) {
         request.destination = destination;
         try {
           flushCompletedQueues(request, destination);
-        } catch (error) {
+        } catch (error$4) {
           (destination = {}),
-            logRecoverableError(request, error, destination, null),
-            fatalError(request, error, destination, null);
+            logRecoverableError(request, error$4, destination, null),
+            fatalError(request, error$4, destination, null);
         }
       }
     }
@@ -9159,25 +9197,31 @@
         }
         null !== request.destination &&
           flushCompletedQueues(request, request.destination);
-      } catch (error$4) {
+      } catch (error$5) {
         (abortableTasks = {}),
-          logRecoverableError(request, error$4, abortableTasks, null),
-          fatalError(request, error$4, abortableTasks, null);
+          logRecoverableError(request, error$5, abortableTasks, null),
+          fatalError(request, error$5, abortableTasks, null);
       }
     }
     function abort(request, reason) {
       if (
         !(request.aborted || (11 !== request.status && 10 !== request.status))
       ) {
+        var isRecoverableReason =
+          "object" === typeof reason &&
+          null !== reason &&
+          reason.$$typeof === REACT_RECOVERABLE_TYPE;
         request.aborted = !0;
-        request.fatalError =
-          void 0 === reason
+        reason = isRecoverableReason
+          ? createRecoverableError(reason)
+          : void 0 === reason
             ? Error("The render was aborted by the server without a reason.")
             : "object" === typeof reason &&
                 null !== reason &&
                 "function" === typeof reason.then
               ? Error("The render was aborted by the server with a promise.")
               : reason;
+        request.fatalError = reason;
         var abortableTasks = request.abortableTasks;
         abortableTasks.forEach(function (task) {
           return abortTaskDEV(task, request);
@@ -9249,11 +9293,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-11eddecd-20260805" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-eb8feb71-20260814" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-11eddecd-20260805\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-eb8feb71-20260814\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9289,6 +9333,7 @@
         createRootFormatContext(options ? options.namespaceURI : void 0),
         options ? options.progressiveChunkSize : void 0,
         options ? options.onError : void 0,
+        options ? options.onBrowserBailout : void 0,
         options ? options.onAllReady : void 0,
         options ? options.onShellReady : void 0,
         options ? options.onShellError : void 0,
@@ -9326,6 +9371,7 @@
           void 0
         ),
         options ? options.onError : void 0,
+        options ? options.onBrowserBailout : void 0,
         options ? options.onAllReady : void 0,
         options ? options.onShellReady : void 0,
         options ? options.onShellError : void 0,
@@ -10729,10 +10775,6 @@
       actionStateMatchingIndex = -1,
       thenableIndexCounter = 0,
       thenableState = null,
-      RecoverableException = Error(
-        "Recoverable Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render so a downstream renderer can recover it. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior."
-      ),
-      suspendedRecoverableError = null,
       renderPhaseUpdates = null,
       numberOfReRenders = 0,
       isInHookUserCodeInDev = !1,
@@ -10744,11 +10786,7 @@
             if ("function" === typeof usable.then)
               return unwrapThenable(usable);
             if (usable.$$typeof === REACT_RECOVERABLE_TYPE)
-              throw (
-                ((suspendedRecoverableError =
-                  createFatalRecoverableError(usable)),
-                RecoverableException)
-              );
+              throw createRecoverableError(usable);
             if (usable.$$typeof === REACT_CONTEXT_TYPE)
               return readContext(usable);
           }
@@ -10954,6 +10992,7 @@
             createRootFormatContext(options ? options.namespaceURI : void 0),
             options ? options.progressiveChunkSize : void 0,
             options ? options.onError : void 0,
+            options ? options.onBrowserBailout : void 0,
             function () {
               var writable,
                 stream = new ReadableStream(
@@ -11022,6 +11061,7 @@
             createRootFormatContext(options ? options.namespaceURI : void 0),
             options ? options.progressiveChunkSize : void 0,
             options ? options.onError : void 0,
+            options ? options.onBrowserBailout : void 0,
             function () {
               var readable = new stream.Readable({
                   read: function () {
@@ -11127,6 +11167,7 @@
             createRootFormatContext(options ? options.namespaceURI : void 0),
             options ? options.progressiveChunkSize : void 0,
             options ? options.onError : void 0,
+            options ? options.onBrowserBailout : void 0,
             onAllReady,
             function () {
               var writable,
@@ -11193,6 +11234,7 @@
               void 0
             ),
             options ? options.onError : void 0,
+            options ? options.onBrowserBailout : void 0,
             onAllReady,
             function () {
               var writable,
@@ -11252,6 +11294,7 @@
             void 0
           ),
           options ? options.onError : void 0,
+          options ? options.onBrowserBailout : void 0,
           function () {
             var writable,
               stream = new ReadableStream(
@@ -11312,6 +11355,7 @@
             void 0
           ),
           options ? options.onError : void 0,
+          options ? options.onBrowserBailout : void 0,
           function () {
             var readable = new stream.Readable({
                 read: function () {
@@ -11378,5 +11422,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-11eddecd-20260805";
+    exports.version = "19.3.0-canary-eb8feb71-20260814";
   })();
