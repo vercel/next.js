@@ -131,6 +131,8 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { getAgentIndexMiddleware } from '../mcp/get-agent-index-middleware'
+import { isAgentModeConfigured } from '../lib/agent-mode'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
 import {
   getRequestInsightsSnapshot,
@@ -1287,6 +1289,29 @@ export async function createHotReloaderTurbopack(
                 issues: formatCompilationIssues(rawIssues),
               }
             },
+          }),
+        ]
+      : []),
+    ...(nextConfig.experimental.mcpServer && isAgentModeConfigured(nextConfig)
+      ? [
+          getAgentIndexMiddleware({
+            projectPath,
+            nextConfig,
+            bundler: 'turbopack',
+            tools: [
+              'get_project_metadata',
+              'get_errors',
+              'get_page_metadata',
+              'get_logs',
+              'get_server_action_by_id',
+              'get_routes',
+              'get_request_insights',
+              'get_compilation_issues',
+              'compile_route',
+            ],
+            getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            getActiveConnectionCount: () =>
+              clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
           }),
         ]
       : []),

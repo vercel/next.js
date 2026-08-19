@@ -57,6 +57,8 @@ import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
+import { interceptCliRequestInAgentMode } from './router-utils/agent-mode-request-gate'
+import { isAgentModeEnabled } from './agent-mode'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -280,6 +282,8 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
+  const agentModeEnabled = opts.dev && (await isAgentModeEnabled(config))
+
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
 
@@ -289,6 +293,10 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
+      if (agentModeEnabled && interceptCliRequestInAgentMode(req, res)) {
+        return
+      }
+
       if (config.experimental.requestInsights) {
         process.env.__NEXT_REQUEST_INSIGHTS = 'true'
       }
@@ -1085,6 +1093,7 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    agentModeEnabled,
     devMemoryThresholdRestart,
   }
 }

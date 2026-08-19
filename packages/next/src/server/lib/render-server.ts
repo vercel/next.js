@@ -26,6 +26,8 @@ export type ServerInitResult = {
   partialPrefetching?: boolean | 'unstable_eager'
   // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
   agentRules?: boolean
+  // Whether experimental agent mode is active (flag set + agent detected)
+  agentModeEnabled?: boolean
   // Whether the development server memory threshold restart is enabled
   devMemoryThresholdRestart: boolean
 }

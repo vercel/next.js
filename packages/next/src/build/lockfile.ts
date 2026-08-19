@@ -162,6 +162,8 @@ export class Lockfile {
    * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    * @param projectDir - Optional project directory for enhanced error messages
    * @param relativeDistDir - Optional relative dist directory path (e.g., '.next/dev')
+   * @param agentModeEnabled - Whether experimental agent mode is active, which
+   *   reframes the collision message around reusing the running server
    */
   static async acquireWithRetriesOrExit(
     path: string,
@@ -169,7 +171,8 @@ export class Lockfile {
     unlockOnExit: boolean = true,
     content?: string,
     projectDir?: string,
-    relativeDistDir?: string
+    relativeDistDir?: string,
+    agentModeEnabled?: boolean
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
@@ -202,17 +205,35 @@ export class Lockfile {
             )
           }
           console.error()
-          console.error(
-            `You can access the existing server at ${cyan(serverInfo.appUrl)},`
-          )
           // Use platform-appropriate kill command
           const killCommand =
             process.platform === 'win32'
               ? `taskkill /PID ${serverInfo.pid} /F`
               : `kill ${serverInfo.pid}`
-          console.error(
-            `or run ${cyan(killCommand)} to stop it and start a new one.`
-          )
+          if (agentModeEnabled) {
+            // Agent mode: lead with reusing the running server. Agents adopt
+            // whatever this message names, so name the structured tooling
+            // rather than teaching the kill-and-restart workaround.
+            console.error(
+              `You usually don't need a second dev server — reuse the running one:`
+            )
+            console.error(
+              `- JSON index of the running server: GET ${cyan(`${serverInfo.appUrl}/_next/agent`)}`
+            )
+            console.error(
+              `- MCP endpoint (get_errors, compile_route, get_routes, …): ${cyan(`${serverInfo.appUrl}/_next/mcp`)}`
+            )
+            console.error(
+              `If you really need a fresh server, stop the old one first: ${cyan(killCommand)}.`
+            )
+          } else {
+            console.error(
+              `You can access the existing server at ${cyan(serverInfo.appUrl)},`
+            )
+            console.error(
+              `or run ${cyan(killCommand)} to stop it and start a new one.`
+            )
+          }
         } else {
           // Fallback when we can't read server info from the lockfile
           Log.error(

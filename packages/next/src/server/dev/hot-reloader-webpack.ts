@@ -109,6 +109,8 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { getAgentIndexMiddleware } from '../mcp/get-agent-index-middleware'
+import { isAgentModeConfigured } from '../lib/agent-mode'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
@@ -1700,6 +1702,28 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
               // compile_route is Turbopack-only; intentionally omitted here.
+            }),
+          ]
+        : []),
+      ...(this.config.experimental.mcpServer &&
+      isAgentModeConfigured(this.config)
+        ? [
+            getAgentIndexMiddleware({
+              projectPath: this.dir,
+              nextConfig: this.config,
+              bundler: 'webpack',
+              tools: [
+                'get_project_metadata',
+                'get_errors',
+                'get_page_metadata',
+                'get_logs',
+                'get_server_action_by_id',
+                'get_routes',
+                'get_request_insights',
+              ],
+              getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+              getActiveConnectionCount: () =>
+                this.webpackHotMiddleware?.getClientCount() ?? 0,
             }),
           ]
         : [])

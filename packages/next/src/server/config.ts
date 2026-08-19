@@ -1600,6 +1600,14 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
+  if (
+    typeof result.experimental.agentMode === 'undefined' &&
+    (process.env.__NEXT_EXPERIMENTAL_AGENT_MODE === 'true' ||
+      process.env.__NEXT_EXPERIMENTAL_AGENT_MODE === 'force')
+  ) {
+    result.experimental.agentMode = true
+  }
+
   if (result.cacheComponents) {
     // TODO: Kept for backwards compatibility with legacy builders.
     result.experimental.cacheComponents = true

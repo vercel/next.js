@@ -508,6 +508,12 @@ export async function startServer(
             partialPrefetching: initResult.partialPrefetching,
           })
 
+          if (initResult.agentModeEnabled) {
+            Log.info(
+              `Agent mode: JSON index at ${appUrl}/_next/agent · MCP endpoint at ${appUrl}/_next/mcp`
+            )
+          }
+
           // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
           // is detected but the managed agent-rules block is missing.
           // Gated on `agentRules` in next.config (default true).
