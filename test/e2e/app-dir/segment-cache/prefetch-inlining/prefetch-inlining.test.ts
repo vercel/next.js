@@ -636,13 +636,13 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     // Reveal a default (auto) link to the route. The route is a Partial
     // Prefetching route (the page is partial), so every segment the
     // prefetch walks is held to the runtime-completeness contract — and the
     // route's static-attempt hint is unset because the page reads cookies,
-    // so the walked layout deopts directly to the batched runtime prefetch,
+    // so the walked layout deopts directly to the batched runtime shell,
     // which serves its whole subtree. The inlined layout content arrives in
     // that runtime response. (No static bundle request fires: the Shell
     // phase already runtime-cached every entry in the bundle chain, and a
@@ -659,9 +659,8 @@ describe('prefetch inlining', () => {
       { includes: 'Static layout content', kind: 'runtime' }
     )
 
-    // Reveal a prefetch={true} link to the same route. Everything is
-    // already runtime-cached at the per-link tier by the prefetch above, so
-    // opting in has nothing left to fetch.
+    // Reveal a prefetch={true} link to the same route. The shell is complete,
+    // so a runtime prefetch will not give us any more data and should be skipped.
     await act(async () => {
       await browser
         .elementByCss(
@@ -709,7 +708,7 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     await act(
       async () => {
@@ -810,7 +809,7 @@ describe('prefetch inlining', () => {
         page = p
       },
     })
-    const act = createRouterAct(page!)
+    const act = createRouterAct(page!, { includeAppShellRequests: true })
 
     await act(
       async () => {
