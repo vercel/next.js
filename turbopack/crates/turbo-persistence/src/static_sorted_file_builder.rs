@@ -149,7 +149,20 @@ impl KeyBlockFormat {
 #[derive(Clone, Copy)]
 struct KeyBlockFlushInfo {
     max_key_len: usize,
+    min_key_len: usize,
     format: KeyBlockFormat,
+}
+
+impl KeyBlockFlushInfo {
+    /// The shared key length when every entry in the block has the same one, else `None`.
+    ///
+    /// A block of equal-length keys can be sorted by reading each key as a big-endian integer,
+    /// whose ordering matches the keys' lexicographic ordering. That turns each comparison from a
+    /// `memcmp` call into a register compare. The equal-length precondition is what makes it
+    /// sound: for keys of differing lengths, integer order and lexicographic order disagree.
+    fn uniform_key_len(&self) -> Option<usize> {
+        (self.min_key_len == self.max_key_len).then_some(self.max_key_len)
+    }
 }
 
 /// Tracks the accumulated state of the current incomplete key block.
@@ -164,6 +177,12 @@ struct KeyBlockAccumulator {
     entry_count: usize,
     /// Maximum key length among accumulated entries (determines whether hashes are stored).
     max_key_len: usize,
+    /// Minimum key length among accumulated entries. Together with `max_key_len` this identifies a
+    /// block whose keys all have the same length, which lets
+    /// [`KeyBlockFlushInfo::uniform_key_len`] pick a specialized sort. Tracked separately from
+    /// [`KeyBlockFormat`], which additionally requires a uniform *value* size and so misses
+    /// the common variable-value case.
+    min_key_len: usize,
     /// Hash of the most recently added entry (used to avoid splitting entries with equal hashes
     /// across blocks).
     last_hash: u64,
@@ -177,6 +196,7 @@ impl KeyBlockAccumulator {
             size: 0,
             entry_count: 0,
             max_key_len: 0,
+            min_key_len: usize::MAX,
             last_hash: 0,
             format: KeyBlockFormat::Unknown,
         }
@@ -186,6 +206,7 @@ impl KeyBlockAccumulator {
     fn add(&mut self, key_len: usize, key_hash: u64, value_type: EntryType) {
         self.size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
         self.max_key_len = self.max_key_len.max(key_len);
+        self.min_key_len = self.min_key_len.min(key_len);
         self.entry_count += 1;
         self.last_hash = key_hash;
         self.format.update(key_len, value_type);
@@ -195,6 +216,7 @@ impl KeyBlockAccumulator {
     fn flush_info(&self) -> KeyBlockFlushInfo {
         KeyBlockFlushInfo {
             max_key_len: self.max_key_len,
+            min_key_len: self.min_key_len,
             format: self.format,
         }
     }
@@ -218,6 +240,7 @@ impl KeyBlockAccumulator {
         self.size = 0;
         self.entry_count = 0;
         self.max_key_len = 0;
+        self.min_key_len = usize::MAX;
         self.format = KeyBlockFormat::Unknown;
         // last_hash is intentionally not reset -- it is overwritten on the next add() call.
     }
@@ -234,6 +257,22 @@ fn choose_layout(max_key_len: usize) -> KeyBlockLayout {
     } else {
         KeyBlockLayout::KeyOnly
     }
+}
+
+/// Reads a 4-byte key as a big-endian `u32`, whose ordering matches the key's byte ordering.
+///
+/// Only valid for keys that are exactly 4 bytes; see [`KeyBlockFlushInfo::uniform_key_len`].
+#[inline]
+fn be_key_u32(key: &[u8]) -> u32 {
+    u32::from_be_bytes(key.try_into().expect("4-byte key"))
+}
+
+/// Reads an 8-byte key as a big-endian `u64`, whose ordering matches the key's byte ordering.
+///
+/// Only valid for keys that are exactly 8 bytes; see [`KeyBlockFlushInfo::uniform_key_len`].
+#[inline]
+fn be_key_u64(key: &[u8]) -> u64 {
+    u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
 /// Trait for entries from that SST files can be created
@@ -902,31 +941,6 @@ impl<E: Entry> StreamingSstWriter<E> {
         Ok(())
     }
 
-    /// Reorders `pending_keys[start..end]` into key order.
-    ///
-    /// Only used for no-hash blocks, whose on-disk order is key order rather than the incoming
-    /// `(hash, key)` order.
-    ///
-    /// This permutes only the *contents* of one block. Which block a key lands in is still decided
-    /// by hash, so the index block and every hash-range invariant are unaffected. The one ordering
-    /// dependency is the block's boundary hash, which [`Self::flush_key_block`] reads *before*
-    /// calling this.
-    fn sort_block_by_key(&mut self, start: usize, end: usize) {
-        // Sort the block's entries where they sit. The range may be anywhere in the deque —
-        // `advance_boundary_to` flushes a prefix while entries are still queued behind it — so this
-        // must not drain and reinsert, which would shift the untouched tail.
-        //
-        // `make_contiguous` is a memmove of at most the queue's length and leaves the deque
-        // contiguous, so the following flushes in a batch find it already contiguous and pay
-        // nothing. Entries are only ever appended at the back and drained from the front, so the
-        // deque never becomes badly fragmented.
-        let entries = &mut self.pending_keys.make_contiguous()[start..end];
-        // Stable, so equal keys keep their incoming relative order — that carries the
-        // key-value-tombstone-first / key-tombstone-last ranking readers depend on in MultiValue
-        // families. Keys are contiguous, so comparisons read them in place with no scratch buffer.
-        entries.sort_by(|a, b| a.entry.key_bytes().cmp(b.entry.key_bytes()));
-    }
-
     /// Flushes a single key block from `pending_keys[start..end]`.
     ///
     /// Blocks that store a hash per entry are written in the incoming `(hash, key)` order. Blocks
@@ -940,11 +954,6 @@ impl<E: Entry> StreamingSstWriter<E> {
         // Read the boundary hash before reordering, which would move a different entry to `start`.
         // The index block must keep routing by the block's lowest hash.
         let first_hash = self.pending_keys[start].entry.key_hash();
-
-        if layout == KeyBlockLayout::KeyOnly {
-            self.sort_block_by_key(start, end);
-        }
-
         // Split the borrow of `self` so the block builders can hold `&mut key_buffer` while the
         // loops read `pending_keys`.
         let Self {
@@ -953,7 +962,24 @@ impl<E: Entry> StreamingSstWriter<E> {
             ..
         } = self;
         key_buffer.clear();
-        let entries = pending_keys.range(start..end);
+        let build_key_order = |start: usize, end: usize| -> Vec<&PendingEntry<E>> {
+            let mut key_order: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
+
+            // All three arms are stable sorts, so equal keys keep their incoming relative order —
+            // that carries the key-value-tombstone-first / key-tombstone-last ranking readers
+            // depend on in MultiValue families.
+            //
+            // When every key is the same length, comparing them as big-endian integers gives the
+            // same ordering as comparing the bytes, but compares a scalar in a register instead of
+            // calling `memcmp`. Byte comparison is the fallback for mixed lengths, where the two
+            // orderings would disagree.
+            match info.uniform_key_len() {
+                Some(4) => key_order.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
+                Some(8) => key_order.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                _ => key_order.sort_by_key(|&e| e.entry.key_bytes()),
+            }
+            key_order
+        };
 
         if let KeyBlockFormat::Fixed {
             key_len: key_size,
@@ -969,15 +995,26 @@ impl<E: Entry> StreamingSstWriter<E> {
                 val_size,
                 value_type,
             );
-            for pending in entries {
-                builder.put(&pending.entry, &pending.value_ref, layout);
+            if layout == KeyBlockLayout::KeyOnly {
+                for pending in build_key_order(start, end) {
+                    builder.put(&pending.entry, &pending.value_ref);
+                }
+            } else {
+                for pending in pending_keys.range(start..end) {
+                    builder.put_with_hash(&pending.entry, &pending.value_ref);
+                }
             }
             builder.finish();
         } else {
             let mut builder = KeyBlockBuilder::new(key_buffer, entry_count as u32, layout);
-
-            for pending in entries {
-                builder.put(&pending.entry, &pending.value_ref, layout);
+            if layout == KeyBlockLayout::KeyOnly {
+                for pending in build_key_order(start, end) {
+                    builder.put(&pending.entry, &pending.value_ref);
+                }
+            } else {
+                for pending in pending_keys.range(start..end) {
+                    builder.put_with_hash(&pending.entry, &pending.value_ref);
+                }
             }
 
             builder.finish();
@@ -1207,18 +1244,22 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
     }
 
-    /// Writes a single entry (header + hash + key + value data) to the block.
-    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef, layout: KeyBlockLayout) {
+    /// Writes a single entry (header +  key + value data) to the block.
+    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
         self.write_entry_header(value_ref.entry_type());
-        if layout == KeyBlockLayout::HashThenKey {
-            self.buffer
-                .extend_from_slice(&entry.key_hash().to_be_bytes());
-        }
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
     }
-
+    /// Writes a single entry (header + hash + key + value data) to the block.
+    fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        self.write_entry_header(value_ref.entry_type());
+        self.buffer
+            .extend_from_slice(&entry.key_hash().to_be_bytes());
+        entry.write_key_to(self.buffer);
+        value_ref.write_value_to(self.buffer);
+        self.current_entry += 1;
+    }
     /// Returns the key block buffer.
     fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
@@ -1279,12 +1320,8 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         }
     }
 
-    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
-    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef, layout: KeyBlockLayout) {
-        if layout == KeyBlockLayout::HashThenKey {
-            self.buffer
-                .extend_from_slice(&entry.key_hash().to_be_bytes());
-        }
+    /// Writes a single entry (key + optional type byte + value data) to the block.
+    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
         entry.write_key_to(self.buffer);
         if self.per_entry_type {
             self.buffer.push(value_ref.entry_type().0);
@@ -1292,6 +1329,16 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         value_ref.write_value_to(self.buffer);
     }
 
+    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
+    fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        self.buffer
+            .extend_from_slice(&entry.key_hash().to_be_bytes());
+        entry.write_key_to(self.buffer);
+        if self.per_entry_type {
+            self.buffer.push(value_ref.entry_type().0);
+        }
+        value_ref.write_value_to(self.buffer);
+    }
     fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
     }
@@ -2101,6 +2148,75 @@ mod tests {
         // Corrupt a byte in the first block's data (after the 8-byte header)
         corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    /// Big-endian integer order must equal byte order for equal-length keys, since
+    /// [`build_key_order`][StreamingSstWriter::flush_key_block] swaps one for the other. Includes
+    /// bytes above 0x7f, where a signed misreading would invert the comparison.
+    #[test]
+    fn be_key_order_matches_byte_order() {
+        let keys4: Vec<[u8; 4]> = vec![
+            [0, 0, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 1, 0],
+            [0x7f, 0xff, 0xff, 0xff],
+            [0x80, 0, 0, 0],
+            [0xff, 0xfe, 0, 0],
+            [0xff, 0xff, 0xff, 0xff],
+        ];
+        for a in &keys4 {
+            for b in &keys4 {
+                assert_eq!(
+                    be_key_u32(a).cmp(&be_key_u32(b)),
+                    a[..].cmp(&b[..]),
+                    "u32 order disagrees with byte order for {a:?} vs {b:?}"
+                );
+            }
+        }
+        let keys8: Vec<[u8; 8]> = vec![
+            [0; 8],
+            [0, 0, 0, 0, 0, 0, 0, 1],
+            [0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+            [0x80, 0, 0, 0, 0, 0, 0, 0],
+            [0xff; 8],
+        ];
+        for a in &keys8 {
+            for b in &keys8 {
+                assert_eq!(
+                    be_key_u64(a).cmp(&be_key_u64(b)),
+                    a[..].cmp(&b[..]),
+                    "u64 order disagrees with byte order for {a:?} vs {b:?}"
+                );
+            }
+        }
+    }
+
+    /// `uniform_key_len` must only report a length when the block's keys really are all that long,
+    /// since the specialized sorts are unsound otherwise.
+    #[test]
+    fn uniform_key_len_requires_equal_lengths() {
+        let mut acc = KeyBlockAccumulator::new();
+        assert_eq!(acc.flush_info().uniform_key_len(), None, "empty block");
+
+        let ty = EntryType(KEY_BLOCK_ENTRY_TYPE_INLINE_MIN);
+        acc.add(8, 1, ty);
+        acc.add(8, 2, ty);
+        assert_eq!(acc.flush_info().uniform_key_len(), Some(8));
+
+        acc.add(4, 3, ty);
+        assert_eq!(
+            acc.flush_info().uniform_key_len(),
+            None,
+            "mixed lengths must not report a uniform length"
+        );
+
+        acc.reset();
+        acc.add(4, 4, ty);
+        assert_eq!(
+            acc.flush_info().uniform_key_len(),
+            Some(4),
+            "reset clears min"
+        );
     }
 
     // -----------------------------------------------------------------------
