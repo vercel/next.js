@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Deploy Release Test'
+  short_description: 'Validate and trigger deploy release tests'
+  default_prompt: 'Use $deploy-release-test to validate the latest PR commit package and trigger the deploy release workflow.'
