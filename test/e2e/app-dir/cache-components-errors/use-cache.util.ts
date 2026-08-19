@@ -724,7 +724,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  },
                ],
                "code": "E1477",
-               "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+               "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -753,7 +753,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
@@ -783,7 +783,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
@@ -814,7 +814,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                 "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                  Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                      at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
                    18 |   let result: number | undefined
@@ -844,7 +844,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                 "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                  Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                      at a (<next-dist-dir>) {
                    [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
@@ -1124,7 +1124,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  },
                ],
                "code": "E1490",
-               "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+               "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1153,7 +1153,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
@@ -1183,7 +1183,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
@@ -1214,7 +1214,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                 "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                  Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                      at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
                    18 |   let result: number | undefined
@@ -1244,7 +1244,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                 "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                  Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                      at a (<next-dist-dir>) {
                    [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.

@@ -153,7 +153,7 @@ export function createNestedCacheZeroRevalidateError(
   cause: Error | undefined
 ): Error {
   return new Error(
-    `A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
     { cause }
   )
 }
@@ -162,7 +162,7 @@ export function createNestedCacheShortExpireError(
   cause: Error | undefined
 ): Error {
   return new Error(
-    `A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
     { cause }
   )
 }
