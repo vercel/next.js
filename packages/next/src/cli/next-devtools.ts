@@ -55,7 +55,7 @@ export async function nextDevtools(
     name: toolName,
     arguments: args,
   })
-  printToolResult(toolName, response, options)
+  await printToolResult(toolName, response, options, client)
 }
 
 async function printServerOverview(
@@ -101,20 +101,22 @@ async function printServerOverview(
   }
 }
 
-function printToolResult(
+async function printToolResult(
   toolName: string,
   response: any,
-  options: NextDevtoolsOptions
-): void {
+  options: NextDevtoolsOptions,
+  client: McpHttpClient
+): Promise<void> {
   if (options.json) {
     console.log(JSON.stringify(response, null, 2))
     return
   }
   if (response?.error) {
-    printAndExit(
-      `MCP error from ${toolName}: ${response.error.message ?? JSON.stringify(response.error)}`,
-      1
+    console.error(
+      `MCP error from ${toolName}: ${response.error.message ?? JSON.stringify(response.error)}`
     )
+    await printToolUsageHint(toolName, client)
+    process.exit(1)
   }
   const result = response?.result
   const content: { type: string; text?: string }[] = result?.content ?? []
@@ -130,7 +132,51 @@ function printToolResult(
     }
   }
   if (result?.isError) {
+    // Tool-level errors are usually bad arguments; print the tool's schema
+    // so the retry doesn't have to guess.
+    await printToolUsageHint(toolName, client)
     process.exitCode = 1
+  }
+}
+
+/**
+ * After a failed call, show the tool's expected arguments (from its MCP
+ * inputSchema) — or, for an unknown tool name, the list of valid names.
+ */
+async function printToolUsageHint(
+  toolName: string,
+  client: McpHttpClient
+): Promise<void> {
+  try {
+    const response = await client.request('tools/list', {})
+    const tools: { name: string; description?: string; inputSchema?: any }[] =
+      response?.result?.tools ?? []
+    const tool = tools.find((t) => t.name === toolName)
+    if (!tool) {
+      console.error(
+        `\nUnknown tool '${toolName}'. Available tools: ${tools.map((t) => t.name).join(', ')}`
+      )
+      return
+    }
+    const props = tool.inputSchema?.properties ?? {}
+    const names = Object.keys(props)
+    if (names.length === 0) {
+      console.error(`\n'${toolName}' takes no arguments.`)
+      return
+    }
+    const required: string[] = tool.inputSchema?.required ?? []
+    console.error(`\nArguments for '${toolName}' (pass as key=value):`)
+    for (const name of names) {
+      const prop = props[name] ?? {}
+      const flag = required.includes(name) ? 'required' : 'optional'
+      const desc =
+        typeof prop.description === 'string'
+          ? ` — ${prop.description.split(/(?<=\.)\s/)[0]}`
+          : ''
+      console.error(`  ${name} (${prop.type ?? 'any'}, ${flag})${desc}`)
+    }
+  } catch {
+    // The hint is best-effort; the original error is already printed.
   }
 }
 

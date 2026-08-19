@@ -53,7 +53,10 @@ export function registerGetErrorsTool(
                 type: 'text',
                 text: JSON.stringify({
                   error:
-                    'No browser sessions connected. Please open your application in a browser to retrieve error state.',
+                    'No browser sessions connected, so runtime (in-browser) errors are not observable. ' +
+                    'Build and compile errors do not need a browser: use get_compilation_issues, ' +
+                    'or compile_route to compile a specific route. To observe runtime errors, ' +
+                    'open the app in a browser and call get_errors again.',
                 }),
               },
             ],
