@@ -1179,6 +1179,9 @@ pub struct ExperimentalConfig {
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
     blocking_ssr: Option<bool>,
+    /// Streams React's instruction set as data plus a standalone browser runtime
+    /// asset instead of inline `<script>` tags.
+    external_browser_runtime: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -2203,6 +2206,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_external_browser_runtime(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.external_browser_runtime.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -2270,12 +2278,14 @@ impl NextConfig {
         let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
         let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
         let hydration_change_event = self.experimental.hydration_change_event.unwrap_or(false);
+        let external_browser_runtime = self.experimental.external_browser_runtime.unwrap_or(false);
         Vc::cell(
             blocking_ssr
                 || taint
                 || transition_indicator
                 || gesture_transition
-                || hydration_change_event,
+                || hydration_change_event
+                || external_browser_runtime,
         )
     }
 
