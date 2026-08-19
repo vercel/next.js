@@ -420,10 +420,9 @@ pub async fn compute_module_batches(
         // All collected modules are boundary modules too
         pre_batches.boundary_modules.extend(
             collected_modules
-                .collected_references
                 .values()
                 .flatten()
-                .map(|(_, m)| *m),
+                .flat_map(|(_, ms)| ms.iter().map(|(_, m)| *m)),
         );
 
         // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
@@ -458,8 +457,12 @@ pub async fn compute_module_batches(
             }
         }
         // ...and all collected modules
-        for (_, entry) in collected_modules.collected_references.values().flatten() {
-            pre_batches.ensure_pre_batch_for_module(*entry, &module_chunk_groups, &mut queue)?;
+        for entry in collected_modules
+            .values()
+            .flatten()
+            .flat_map(|(_, ms)| ms.iter().map(|(_, m)| *m))
+        {
+            pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
         }
 
         let mut initial_pre_batch_items = 0;
@@ -958,16 +961,35 @@ pub async fn compute_module_batches(
         }
 
         // Add collected reference edges (conditional on page entry)
-        for ((entry_modules, collecting_module), refs) in &collected_modules.collected_references {
-            let source_node = *module_to_node
-                .get(collecting_module)
-                .context("could not find single module entry index")?;
-            for (ref_data, target_module) in refs {
-                if let Some(batch) = pre_batches.entries.get(target_module).copied() {
+        for (collecting_module, refs) in &collected_modules {
+            for (entry_modules, refs) in refs {
+                let source_node = *module_to_node
+                    .get(collecting_module)
+                    .context("could not find single module entry index")?;
+                for (ref_data, target_module) in refs {
+                    if let Some(batch) = pre_batches.entries.get(target_module).copied() {
+                        for entry_module in entry_modules {
+                            graph.add_edge(
+                                source_node,
+                                batch_indices[batch],
+                                ModuleBatchesGraphEdge {
+                                    ty: ref_data.chunking_type.clone(),
+                                    module: Some(*target_module),
+                                    active_for_page_entry: Some(*entry_module),
+                                },
+                            );
+                        }
+                        continue;
+                    }
+                    let idx = pre_batches
+                        .single_module_entries
+                        .get_index_of(target_module)
+                        .context("could not find single module entry index")?;
+                    let idx = single_module_indices[idx];
                     for entry_module in entry_modules {
                         graph.add_edge(
                             source_node,
-                            batch_indices[batch],
+                            idx,
                             ModuleBatchesGraphEdge {
                                 ty: ref_data.chunking_type.clone(),
                                 module: Some(*target_module),
@@ -975,23 +997,6 @@ pub async fn compute_module_batches(
                             },
                         );
                     }
-                    continue;
-                }
-                let idx = pre_batches
-                    .single_module_entries
-                    .get_index_of(target_module)
-                    .context("could not find single module entry index")?;
-                let idx = single_module_indices[idx];
-                for entry_module in entry_modules {
-                    graph.add_edge(
-                        source_node,
-                        idx,
-                        ModuleBatchesGraphEdge {
-                            ty: ref_data.chunking_type.clone(),
-                            module: Some(*target_module),
-                            active_for_page_entry: Some(*entry_module),
-                        },
-                    );
                 }
             }
         }

@@ -268,22 +268,21 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
             .into_iter()
             .collect::<FxHashSet<_>>();
 
-        let collected_modules = module_graph.collected_modules().await?;
+        let collected_modules = module_graph.collected_modules();
         let items = collected_modules
-            .collected_references
+            .get(&ResolvedVc::upcast(self.module))
+            .await?;
+        let items = items
             .iter()
-            .filter_map(|((entry_modules, collecting_module), references)| {
-                if *collecting_module == ResolvedVc::upcast(self.module)
-                    && entry_modules.iter().any(|m| entries.contains(m))
-                {
+            .flat_map(|v| v.iter())
+            .filter_map(|(entry_modules, references)| {
+                if entry_modules.iter().any(|m| entries.contains(m)) {
                     Some(references.iter())
                 } else {
                     None
                 }
             })
-            .flatten();
-
-        let items = items
+            .flatten()
             .map(async |(data, module)| {
                 Ok((
                     chunk_item_id_strategy.get_id_from_module(**module).await?,

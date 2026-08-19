@@ -14,22 +14,22 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 #[allow(clippy::type_complexity)]
-pub struct CollectedModules {
-    /// Additional references that need to be added to the graph due to collecting modules. They
-    /// are conditional based on the current page being chunked.
-    ///
-    /// (ChunkGroup::Entry Modules, Collecting Module) -> Vec<(Reference, Collected Module)>
+/// Additional references that need to be added to the graph due to collecting modules. They
+/// are conditional based on the current page being chunked.
+///
+/// (Collecting Module) -> Vec<(ChunkGroup::Entry Modules, Vec<(Reference, Collected Module)>)>
+pub struct CollectedModules(
     #[bincode(with = "turbo_bincode::indexmap")]
-    pub collected_references: FxIndexMap<
-        (
+    FxIndexMap<
+        ResolvedVc<Box<dyn Module>>,
+        Vec<(
             Vec<ResolvedVc<Box<dyn Module>>>,
-            ResolvedVc<Box<dyn Module>>,
-        ),
-        Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
+            Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
+        )>,
     >,
-}
+);
 
 // The goal is:
 // 1. Find all ChunkingType::Emitted references
@@ -232,11 +232,8 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     // Module, Collecting Module) pair they are contained in.
     #[allow(clippy::type_complexity)]
     let mut collected_references: FxIndexMap<
-        (
-            Vec<ResolvedVc<Box<dyn Module>>>,
-            ResolvedVc<Box<dyn Module>>,
-        ),
-        Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
+        ResolvedVc<Box<dyn Module>>,
+        FxIndexMap<u32, Vec<(RefData, ResolvedVc<Box<dyn Module>>)>>,
     > = FxIndexMap::default();
 
     for (ref_data, emitted_module) in emitted_references {
@@ -261,11 +258,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                 for entry in collecting_membership.iter() {
                     if *emit_to_all_entries || emitted_membership.contains(entry) {
                         collected_references
-                            .entry((
-                                // TODO don't clone
-                                entry_groups[entry as usize].clone(),
-                                ResolvedVc::upcast(*collecting_module),
-                            ))
+                            .entry(ResolvedVc::upcast(*collecting_module))
+                            .or_default()
+                            .entry(entry)
                             .or_default()
                             .push((
                                 RefData {
@@ -282,8 +277,18 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         }
     }
 
-    Ok(CollectedModules {
-        collected_references,
-    }
+    Ok(CollectedModules(
+        collected_references
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k,
+                    v.into_iter()
+                        .map(|(k, v)| (entry_groups[k as usize].clone(), v))
+                        .collect(),
+                )
+            })
+            .collect(),
+    )
     .cell())
 }
