@@ -1,16 +1,28 @@
 import { nextTestSetup } from 'e2e-utils'
 import { load } from 'cheerio'
 
+const deploymentHost =
+  process.env.NEXT_TEST_DEPLOYMENT_HOST ||
+  (process.env.VERCEL === '1' ? process.env.VERCEL_URL : undefined)
+
 describe('i18n-app-pages-domain-routing', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // Adapter-generated routing metadata is covered separately. This suite
-    // verifies the built-in router and cannot run in deploy mode until the
-    // adapter-specific follow-up is applied.
-    skipDeployment: true,
+    // This layer includes the adapter routing fix, so exercise the shared
+    // regression fixture in deployment mode as well.
+    skipDeployment: false,
   })
 
-  function fetchFromDomain(pathname: string, host = 'nl.example.local') {
+  function fetchFromDomain(
+    pathname: string,
+    host = deploymentHost || 'nl.example.local'
+  ) {
+    if (isNextDeploy) {
+      // The deployed URL already uses the hostname configured through
+      // NEXT_TEST_DEPLOYMENT_HOST or the provider's deployment environment.
+      return next.fetch(pathname)
+    }
+
     return next.fetch(pathname, {
       headers: { host },
     })

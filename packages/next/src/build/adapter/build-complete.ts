@@ -1240,7 +1240,7 @@ export async function handleBuildComplete({
           config.i18n?.locales || []
         ).pathname
         const parentOutput =
-          pageOutputMap[normalizedSrcRoute] || appOutputMap[normalizedSrcRoute]
+          appOutputMap[srcRoute] || pageOutputMap[normalizedSrcRoute]
 
         if (!parentOutput && !allowMissing) {
           console.error({
@@ -2089,6 +2089,7 @@ export async function handleBuildComplete({
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    const appPathnames = new Set(appPageKeys?.map(normalizeAppPath) ?? [])
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
@@ -2127,7 +2128,9 @@ export async function handleBuildComplete({
         route.page
       )
 
-      const shouldLocalize = Boolean(config.i18n && !isAPIRoute(route.page))
+      const shouldLocalize = Boolean(
+        config.i18n && !isAPIRoute(route.page) && !appPathnames.has(route.page)
+      )
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
