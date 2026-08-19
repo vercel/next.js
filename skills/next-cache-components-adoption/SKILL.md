@@ -31,7 +31,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 ### notes
 
-- **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enable the flag before the first validation build (in Incremental, immediately after the codemod; in Direct, before fixing routes) — not _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
+- **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first thing you do (in Incremental, before the codemod; in Direct, before fixing routes) — not a thing to do _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
 
 - **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled.
 
@@ -106,7 +106,7 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 ### incremental
 
-Before invoking the codemod, fix the class of blocker it can't handle automatically.
+Before invoking the codemod, fix the blocker that does not require build feedback.
 
 1. **Incompatible segment configs.** Grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory and translate per the `requires` note above. The codemod does not touch them; leaving them in place fails the build after the codemod.
 
@@ -118,7 +118,7 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-The codemod inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. It does not edit `next.config`. After it completes, set `cacheComponents: true` yourself and confirm it is present in the project's resolved config before building. The TODO comments are the work queue for the loop.
+Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
 
 If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
@@ -132,9 +132,9 @@ The codemod opts every segment out, not only the root, on purpose. Resolution is
 
 Because the highest opt-out wins, remove them top-down (root layout first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
 
-Next, run `next build` to surface blockers the codemod could not handle. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). If the normal build reports a sync-IO error without locating the call, rerun the affected route with `next build --debug-prerender --debug-build-paths="app/path/to/page.tsx"` for a fuller stack trace and faster iteration. If the failure cannot be scoped to a route, rerun the full build with `--debug-prerender` instead. For each reported error:
+Next, run `next build` to surface blockers the codemod could not handle. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). If the normal build reports a sync-IO error without locating the call, rerun that route with `next build --debug-prerender --debug-build-paths="app/path/to/page.tsx"`. For each sync-IO error it reports:
 
-1. **Sync-IO at module/render time.** Use the route, any originating file and line, and `/docs/messages/` link in the build output to locate the error. If the build prints no source frame, open the reported route in `next dev` and use the overlay to identify the error before searching. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches or infer a `connection()` fix from a generic prerender error. An unreported match may be inside a cache boundary, a Client Component, or code that prerendering never reaches. Unblock the reported call with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
+1. **Sync-IO at module/render time.** Use the route, originating file and line, and `/docs/messages/` link in the build output to locate the error. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches. Unblock the reported call with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
 
    ```tsx
    // TODO: Cache Components adoption. Added to unblock the build: remove this connection() to re-trigger the error and review the fix options.
@@ -142,7 +142,7 @@ Next, run `next build` to surface blockers the codemod could not handle. The bui
 
    It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the `await connection()` makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
 
-Rerun the scoped diagnostic build until the route passes, then run `next build` again to find the next blocker. Repeat until the normal build passes.
+After each fix, rerun the scoped build when available, then run `next build` again to find the next blocker. Repeat until the normal build passes.
 
 After the build passes, confirm the root layout got an opt-out (`grep -n "export const instant" <app dir>/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
 
