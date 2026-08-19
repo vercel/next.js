@@ -185,7 +185,7 @@ async function getRouteTreeFromHistory(
 }
 
 describe('prefetch inlining', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -532,6 +532,40 @@ describe('prefetch inlining', () => {
       'Dynamic page: hello'
     )
   })
+
+  if (isNextStart) {
+    it('partially generated dynamic route: build hints use the most specific shell', async () => {
+      const hints = await next.readJSON('.next/server/prefetch-hints.json')
+
+      expect(hints['/test-dynamic-partial/[top]/[bottom]'])
+        .toMatchInlineSnapshot(`
+     {
+       "hints": 64,
+       "slots": {
+         "children": {
+           "hints": 96,
+           "slots": {
+             "children": {
+               "hints": 32,
+               "slots": {
+                 "children": {
+                   "hints": 64,
+                   "slots": {
+                     "children": {
+                       "hints": 160,
+                       "slots": null,
+                     },
+                   },
+                 },
+               },
+             },
+           },
+         },
+       },
+     }
+    `)
+    })
+  }
 
   // TODO: Add a test for stale hints (InliningHintsStale). The stale hints
   // mechanism expires the route cache entry so the next prefetch re-fetches

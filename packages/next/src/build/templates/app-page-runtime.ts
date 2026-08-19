@@ -50,7 +50,6 @@ import {
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
 import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -1623,21 +1622,14 @@ export function createAppPageEntrypoint({
           )
         }
 
-        // Dev responses use `no-cache` so the browser can restore them from the
-        // HTTP cache on back/forward instead of reloading. HMR refresh responses
-        // opt out into `no-store` because a superseded refresh's fetch is aborted
-        // mid-write: under `no-cache` the response is stored, so the abort leaves
-        // the cache entry shared with the superseding refresh (same URL)
-        // half-written; Chromium then discards it and reissues the superseding
-        // refresh on a second connection as a duplicate request. `no-store` keeps
-        // that entry from being created.
+        // Documents and RSC payloads must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-              ? 'no-store'
-              : 'no-cache, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         if (!cacheEntry) {
