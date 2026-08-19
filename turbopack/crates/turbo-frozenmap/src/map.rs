@@ -861,7 +861,7 @@ mod tests {
 
         assert_eq!(json, r#"{"a":1,"b":2}"#);
         assert_eq!(
-            serde_json::from_str::<FrozenMap<&str, i32>>(&json).unwrap(),
+            serde_json::from_str::<FrozenMap<&str, i32>>(r#"{"b":2, "a":1}"#).unwrap(),
             map
         );
     }

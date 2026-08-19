@@ -76,9 +76,11 @@ where
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                 let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
                 while let Some(item) = seq.next_element()? {
-                    items.push(item);
+                    items.push((item, ()));
                 }
-                Ok(items.into_iter().collect())
+                Ok(FrozenSet {
+                    map: FrozenMap::from(items),
+                })
             }
         }
 
@@ -401,7 +403,10 @@ mod tests {
         let json = serde_json::to_string(&set).unwrap();
 
         assert_eq!(json, "[1,2]");
-        assert_eq!(serde_json::from_str::<FrozenSet<i32>>(&json).unwrap(), set);
+        assert_eq!(
+            serde_json::from_str::<FrozenSet<i32>>("[2, 1]").unwrap(),
+            set
+        );
     }
 
     #[test]
