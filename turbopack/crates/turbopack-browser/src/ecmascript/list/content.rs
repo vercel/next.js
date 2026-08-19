@@ -40,6 +40,7 @@ enum CurrentChunkMethodWithData {
 #[turbo_tasks::value]
 pub struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
+    browser_global_ident: RcStr,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
@@ -75,8 +76,14 @@ impl EcmascriptDevChunkListContent {
             .chunk_loading_global()
             .await?)
             .clone();
+        let browser_global_ident = (*chunk_list_ref
+            .chunking_context
+            .browser_global_ident()
+            .await?)
+            .clone();
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
+            browser_global_ident,
             chunks_contents: chunk_list_ref
                 .chunks
                 .await?
@@ -134,13 +141,14 @@ impl EcmascriptDevChunkListContent {
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
+                ({browser_global_ident}[{chunk_lists_global}] || ({browser_global_ident}[{chunk_lists_global}] = [])).push({{
                     script: {script_or_path},
                     chunks: {chunks},
                     source: {source}
                 }});
             "#,
             chunk_lists_global = StringifyJs(&chunk_lists_global),
+            browser_global_ident = this.browser_global_ident,
             chunks = StringifyJs(&chunks),
             source = StringifyJs(&this.source),
         )?;
