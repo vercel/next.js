@@ -1119,8 +1119,9 @@ pub(crate) fn read_key_blocks_for_test(
 
     let mut result = Vec::with_capacity(num_entries);
     for pos in 0..num_entries {
-        // Entry 0 is the bare `first_child` u16; later entries are (hash, block) pairs whose
-        // block index sits 8 bytes in.
+        // The body is `[first_child: u16] [hash: u64, block: u16]*`. Entry 0 is the bare
+        // `first_child`; for later entries, `pos * INDEX_BLOCK_ENTRY_SIZE` lands on the block index
+        // because the leading `first_child` offsets the stride by exactly the u64 hash it precedes.
         let block_index = if pos == 0 {
             be::read_u16(body)
         } else {
