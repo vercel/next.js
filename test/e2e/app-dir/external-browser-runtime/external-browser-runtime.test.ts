@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('external-browser-runtime', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -12,14 +12,26 @@ describe('external-browser-runtime', () => {
     // `data-rci` is the "complete boundary" instruction React emits once the
     // Suspense boundary resolves. Its presence is the direct evidence that Fizz
     // switched from its SCRIPT streaming format to the DATA format.
-    //
-    // Asserting on a React-internal attribute is more coupling than we would
-    // like. It is the only signal available today. Once the Flight payload and
-    // `bootstrapScriptContent` also stop being inlined, replace this with the
-    // assertion that actually matters: that the document contains no inline
-    // `<script>` at all.
     expect(html).toContain('<template data-rci=""')
   })
+
+  if (!isNextDev) {
+    // The point of the whole feature: with React's instructions, the Flight
+    // payload, and the chunk-group bootstrap all carried as data, a production
+    // document has no inline script left, so a Content-Security-Policy no longer
+    // needs `unsafe-inline`.
+    //
+    // Development is excluded on purpose. It still inlines the request id that
+    // the dev overlay and HMR socket read, and the dev server is not the target
+    // for CSP hardening.
+    it('emits no inline scripts', async () => {
+      const html = await next.render('/')
+
+      const inlineScripts =
+        html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/g) ?? []
+      expect(inlineScripts).toEqual([])
+    })
+  }
 
   it('carries the Flight payload as data instead of inline scripts', async () => {
     const html = await next.render('/')
