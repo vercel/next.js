@@ -181,8 +181,3 @@ Close the session with the same session and restore context:
 `agent-browser --session "$SESSION" --restore close`. `close` saves
 that session's cookies and storage so the next loop's `--restore` open
 keeps the user logged in. Leave `next dev` up for the next loop.
-
----
-
-`next-dev-loop-<topic>` siblings (e.g. `next-dev-loop-rsc`, `next-dev-loop-debug`)
-assume this preflight already ran; they pick up at the loop.
