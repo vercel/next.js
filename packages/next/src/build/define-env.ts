@@ -173,6 +173,8 @@ export function getDefineEnv({
       config.experimental.turbopackSharedRuntime
     ),
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXTERNAL_BROWSER_RUNTIME':
+      config.experimental.externalBrowserRuntime === true,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
     ),
