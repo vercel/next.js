@@ -1,5 +1,5 @@
 # build using
-# cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/swc_plugin_env_check.wasm ../
+# RUSTFLAGS= cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/swc_plugin_env_check.wasm ../
 
 [package]
 name = "swc-plugin-env-check"
