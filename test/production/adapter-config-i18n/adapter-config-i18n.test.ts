@@ -35,6 +35,51 @@ describe('adapter config with i18n routes', () => {
     )
   })
 
+  it('keeps dynamic App routes in the literal namespace', async () => {
+    const { outputs, routing }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const appPageOutput = outputs.appPages.find(
+      (output) => output.pathname === '/[lang]'
+    )
+    const appRouteOutput = outputs.appRoutes.find(
+      (output) => output.pathname === '/[lang]/endpoint'
+    )
+    const appPageRoute = routing.dynamicRoutes.find(
+      (route) => route.source === '/[lang]'
+    )
+    const appRoute = routing.dynamicRoutes.find(
+      (route) => route.source === '/[lang]/endpoint'
+    )
+
+    expect(appPageOutput).toBeDefined()
+    expect(appRouteOutput).toBeDefined()
+
+    expect(appPageRoute).toBeDefined()
+    expect(appPageRoute?.sourceRegex).not.toContain('nextLocale')
+    expect(appPageRoute?.destination).toBe('/[lang]?nxtPlang=$nxtPlang')
+
+    expect(appRoute).toBeDefined()
+    expect(appRoute?.sourceRegex).not.toContain('nextLocale')
+    expect(appRoute?.destination).toBe('/[lang]/endpoint?nxtPlang=$nxtPlang')
+  })
+
+  it('links prerenders with locale-like App segments to their App output', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const appPageOutput = outputs.appPages.find(
+      (output) => output.pathname === '/fr/static'
+    )
+    const prerenderOutput = outputs.prerenders.find(
+      (output) => output.pathname === '/fr/static'
+    )
+
+    expect(appPageOutput).toBeDefined()
+    expect(prerenderOutput).toBeDefined()
+    expect(prerenderOutput?.parentOutputId).toBe(appPageOutput?.id)
+  })
+
   it('does not emit outputs multiple times for a given pathname', async () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
