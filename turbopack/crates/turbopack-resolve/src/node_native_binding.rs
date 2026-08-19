@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{borrow::Cow, sync::LazyLock};
 
 use anyhow::{Result, bail};
 use regex::Regex;
@@ -29,6 +29,9 @@ struct NodePreGypConfigJson {
 struct NodePreGypConfig {
     module_name: String,
     module_path: String,
+    // Optional in node-pre-gyp: only set for N-API builds, where it drives the
+    // {napi_build_version} substitution in module_path/remote_path.
+    #[serde(default)]
     napi_versions: Vec<u32>,
 }
 
@@ -115,11 +118,21 @@ async fn resolve_node_pre_gyp_files(
         let node_pre_gyp_config: NodePreGypConfigJson =
             parse_json_rope_with_source_context(config_file.content())?;
         let mut sources: FxIndexMap<RcStr, Vc<Box<dyn Source>>> = FxIndexMap::default();
-        for version in node_pre_gyp_config.binary.napi_versions.iter() {
-            let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
-                node_pre_gyp_config.binary.module_path.as_str(),
-                version.to_string(),
-            );
+        let module_path = node_pre_gyp_config.binary.module_path.as_str();
+        // Without napi_versions there is no {napi_build_version} to substitute;
+        // the module_path is used as-is (e.g. duckdb).
+        let native_binding_paths: Vec<Cow<'_, str>> =
+            if node_pre_gyp_config.binary.napi_versions.is_empty() {
+                vec![Cow::Borrowed(module_path)]
+            } else {
+                node_pre_gyp_config
+                    .binary
+                    .napi_versions
+                    .iter()
+                    .map(|version| NAPI_VERSION_TEMPLATE.replace(module_path, version.to_string()))
+                    .collect()
+            };
+        for native_binding_path in native_binding_paths {
             let platform = compile_target.platform;
             let native_binding_path =
                 PLATFORM_TEMPLATE.replace(&native_binding_path, platform.as_str());
@@ -458,4 +471,28 @@ async fn resolve_node_bindings_files(
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NodePreGypConfigJson;
+
+    #[test]
+    fn parses_node_pre_gyp_config_without_napi_versions() {
+        // napi_versions is optional in node-pre-gyp; duckdb's package.json omits it.
+        let config: NodePreGypConfigJson = serde_json::from_str(
+            r#"{"binary":{"module_name":"duckdb","module_path":"./lib/binding/","host":"https://npm.duckdb.org/duckdb"}}"#,
+        )
+        .unwrap();
+        assert!(config.binary.napi_versions.is_empty());
+    }
+
+    #[test]
+    fn parses_node_pre_gyp_config_with_napi_versions() {
+        let config: NodePreGypConfigJson = serde_json::from_str(
+            r#"{"binary":{"module_name":"onnxruntime_binding","module_path":"./bin/napi-v{napi_build_version}/{platform}/{arch}","napi_versions":[3]}}"#,
+        )
+        .unwrap();
+        assert_eq!(config.binary.napi_versions, vec![3]);
+    }
 }
