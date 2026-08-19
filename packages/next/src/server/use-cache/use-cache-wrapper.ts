@@ -1412,8 +1412,13 @@ async function generateCacheEntryImpl(
       )
 
       clearTimeout(timer)
+      const didTimeout = timeoutAbortController.signal.aborted
+      if (dynamicAccessAbortSignal) {
+        // Release React's listener from the composite signal.
+        timeoutAbortController.abort()
+      }
 
-      if (timeoutAbortController.signal.aborted) {
+      if (didTimeout) {
         // When the timeout is reached we always error the stream. Even for
         // fallback shell prerenders we don't want to return a hanging promise,
         // which would allow the function to become a dynamic hole. Because that
