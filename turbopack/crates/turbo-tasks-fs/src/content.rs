@@ -224,6 +224,38 @@ pub enum LinkContent {
     Invalid,
 }
 
+#[turbo_tasks::value_impl]
+impl LinkContent {
+    /// Hashes the link itself (its target and type), not the content of whatever the link points
+    /// at. This mirrors [`FileContent::hash`] and is the right content hash for consumers that
+    /// re-create a symlink as a symlink instead of copying the resolved file.
+    #[turbo_tasks::function]
+    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
+        #[derive(DeterministicHash)]
+        enum SimplifiedLinkContent<'a> {
+            Absolute(&'a RcStr),
+            Relative(&'a RcStr),
+            NotFound,
+            Invalid, // the actual error message doesn't matter for this API
+        }
+        let simplified = match self {
+            LinkContent::Link { target } => match target {
+                LinkTarget::Absolute { resolved } => {
+                    SimplifiedLinkContent::Absolute(&resolved.path)
+                }
+                LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(&raw),
+            },
+            LinkContent::NotFound => SimplifiedLinkContent::NotFound,
+            LinkContent::Invalid => SimplifiedLinkContent::Invalid,
+        };
+        Ok(Vc::cell(RcStr::from(deterministic_hash(
+            &salt.await?,
+            simplified,
+            algorithm,
+        ))))
+    }
+}
+
 /// The target of a symbolic link to create, used by [`WriteLinkContent`].
 ///
 /// Unlike [`LinkTarget`] this carries only the raw path: the write side never needs the target
@@ -261,21 +293,6 @@ pub enum WriteLinkTargetType {
 pub struct WriteLinkContent {
     pub target: WriteLinkTarget,
     pub target_type: WriteLinkTargetType,
-}
-
-#[turbo_tasks::value_impl]
-impl LinkContent {
-    /// Hashes the link itself (its target and type), not the content of whatever the link points
-    /// at. This mirrors [`FileContent::hash`] and is the right content hash for consumers that
-    /// re-create a symlink as a symlink instead of copying the resolved file.
-    #[turbo_tasks::function]
-    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
-            &salt.await?,
-            self,
-            algorithm,
-        ))))
-    }
 }
 
 #[turbo_tasks::value(shared)]
