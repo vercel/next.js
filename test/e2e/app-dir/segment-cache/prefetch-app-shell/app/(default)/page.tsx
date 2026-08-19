@@ -108,26 +108,6 @@ export default function Page() {
         </li>
       </ul>
 
-      <h2>Eager posts</h2>
-      <ul>
-        <li>
-          <LinkAccordion href="/eager/1">Eager 1 (default)</LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager/2">Eager 2 (default)</LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager-instant/1">
-            Eager-instant 1 (instant + unstable_eager)
-          </LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager-instant/2">
-            Eager-instant 2 (instant + unstable_eager)
-          </LinkAccordion>
-        </li>
-      </ul>
-
       <h2>Complete shell</h2>
       <ul>
         <li>
