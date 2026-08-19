@@ -1293,7 +1293,7 @@ export default async function build(
             `Agent mode: a dev server for this project is already running at ${devServerInfo.appUrl}.`
           )
           Log.warn(
-            `If this build is only meant to validate that the app compiles, the running dev server can check routes without a full production build: MCP tool compile_route at ${devServerInfo.appUrl}/_next/mcp (JSON index: ${devServerInfo.appUrl}/_next/agent).`
+            `If this build is only meant to validate that the app compiles, the running dev server can check routes without a full production build: \`npx next devtools compile_route path=/\` (or \`npx next devtools get_errors\`; JSON index: ${devServerInfo.appUrl}/_next/agent).`
           )
         }
       }

@@ -54,8 +54,9 @@ export function interceptCliRequestInAgentMode(
           'Raw CLI fetches of rendered routes are intercepted: a status code or rendered HTML ' +
           'is a poor way to check whether the app actually works.',
         instead: {
+          cli: `npx next devtools get_errors — current build/runtime errors as JSON. Run npx next devtools (no args) to see all tools (compile_route, get_routes, get_logs, ...).`,
           index: `GET ${appUrl}/_next/agent — JSON index of this dev server (project, MCP endpoint, tools)`,
-          mcp: `${appUrl}/_next/mcp — MCP endpoint with structured tools: get_errors (build + runtime errors), compile_route (compile a route without an HTTP request), get_routes, get_logs, get_page_metadata`,
+          mcp: `${appUrl}/_next/mcp — the same tools as an MCP endpoint, for MCP-capable clients`,
         },
         escapeHatch: `Repeat the request with the header '${AGENT_MODE_BYPASS_HEADER}: raw' to fetch the route anyway, e.g. curl -H '${AGENT_MODE_BYPASS_HEADER}: raw' ${appUrl}${pathname}`,
       },

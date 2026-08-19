@@ -47,14 +47,16 @@ export function getAgentIndexMiddleware(options: {
           // Runtime errors are collected from connected browsers; 0 means
           // only build/compile state is observable until a page is open.
           activeBrowserConnections: options.getActiveConnectionCount(),
+          cli: 'npx next devtools <tool> [key=value ...] — call any of the tools below from the shell (cwd-based discovery; use --url to target this server explicitly)',
           mcp: {
             url: `${appUrl}/_next/mcp`,
             transport: 'streamable-http',
             tools: options.tools,
           },
           hints: [
-            'Several dev servers running? GET /_next/agent on each port returns its `project` path.',
-            `Register the MCP endpoint with your client to use the tools, e.g. \`claude mcp add --transport http next-dev ${appUrl}/_next/mcp\`.`,
+            'The fastest way to use the tools is the CLI: `npx next devtools` lists them, `npx next devtools get_errors` prints current build/runtime errors as JSON.',
+            'Several dev servers running? GET /_next/agent on each port returns its `project` path, or run `npx next devtools --url http://localhost:<port>`.',
+            `MCP-capable clients can register the endpoint instead, e.g. \`claude mcp add --transport http next-dev ${appUrl}/_next/mcp\`.`,
             "Raw curl/wget fetches of rendered routes are intercepted in agent mode; send header 'x-nextjs-agent: raw' to fetch anyway.",
           ],
         },

@@ -1,0 +1,51 @@
+---
+title: agentMode
+description: Adapt the Next.js dev workflow for AI coding agents.
+version: experimental
+---
+
+`experimental.agentMode` adapts the development workflow for AI coding agents. It only activates when **both** are true:
+
+- The flag is enabled (in `next.config`, or via the `__NEXT_EXPERIMENTAL_AGENT_MODE=true` environment variable)
+- An AI coding agent is detected driving the process (the same detection used for `AGENTS.md` generation)
+
+For manual testing and evals, `__NEXT_EXPERIMENTAL_AGENT_MODE=force` additionally bypasses agent detection.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentMode: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    agentMode: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## What it changes
+
+When active, the dev workflow adapts the surfaces agents interact with:
+
+- **`next dev` detaches**: instead of blocking the agent's shell, the server starts detached and prints a report with the URL, PID, log location, and how to query it. Use `next dev --foreground` to stay attached.
+- **`next devtools` CLI**: `npx next devtools` lists the running dev server's MCP tools; `npx next devtools <tool> [key=value ...]` calls one from the shell (for example `npx next devtools get_errors` or `npx next devtools compile_route path=/blog`). The server is discovered from the current directory's dev lockfile; pass `--url http://localhost:<port>` to target a specific server.
+- **`GET /_next/agent`**: a machine-readable JSON index of the dev server — project path, PID, bundler, and the MCP endpoint with its tool names. Useful for mapping ports to projects when several dev servers run at once.
+- **CLI HTTP clients are intercepted**: `curl`/`wget` requests for rendered routes return a `403` JSON response pointing at the structured tooling, since a status code or rendered HTML is a poor verification signal. Send the header `x-nextjs-agent: raw` to fetch the raw response. Paths under `/_next` and `/__nextjs` are never intercepted.
+- **Collision and validation messages**: a second `next dev` for the same project explains how to reuse the running server, and `next build` warns when a running dev server could validate compilation per-route instead of a full production build.
+
+## Good to know
+
+- Everything is inert by default: with the flag off, or with no agent detected, behavior is unchanged.
+- `agentMode` is independent of the top-level `agentRules` option (`AGENTS.md` generation) and requires the [MCP server](/docs/app/guides/mcp) (enabled by default) for the tools surface.
+- MCP-capable clients can use the endpoint directly at `/_next/mcp`, or via the [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) package.

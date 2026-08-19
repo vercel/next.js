@@ -218,10 +218,13 @@ export class Lockfile {
               `You usually don't need a second dev server — reuse the running one:`
             )
             console.error(
+              `- Query it from the CLI: ${cyan('npx next devtools get_errors')} (run ${cyan('npx next devtools')} to list all tools)`
+            )
+            console.error(
               `- JSON index of the running server: GET ${cyan(`${serverInfo.appUrl}/_next/agent`)}`
             )
             console.error(
-              `- MCP endpoint (get_errors, compile_route, get_routes, …): ${cyan(`${serverInfo.appUrl}/_next/mcp`)}`
+              `- MCP endpoint (same tools): ${cyan(`${serverInfo.appUrl}/_next/mcp`)}`
             )
             console.error(
               `If you really need a fresh server, stop the old one first: ${cyan(killCommand)}.`
