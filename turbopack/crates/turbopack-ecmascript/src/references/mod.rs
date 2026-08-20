@@ -3219,7 +3219,7 @@ where
                     handler.span_warn_with_code(
                         span,
                         &format!(
-                            "Unsupported property \"{key}\" for __turbopack_emit___({args}) \
+                            "Unsupported property \"{key}\" for __turbopack_emit__({args}) \
                              call{hints}",
                         ),
                         DiagnosticId::Error(
@@ -3341,30 +3341,38 @@ where
         WellKnownFunctionKind::TurbopackCollect => {
             let args = linked_args().await?;
             if let [JsValue::Object { parts: options, .. }] = &args[..] {
-                let mut namespace = None;
-
-                for part in options {
-                    if let ObjectPart::KeyValue(JsValue::Constant(JsConstantValue::Str(key)), value) =
-                        part
-                        && key.as_str() == "namespace"
-                    {
-                        namespace = Some(value)
-                    }
-                }
-
-                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                let invalid_args = |key: &str| {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
                         span,
                         &format!(
-                            "Unsupported \"namespace\" for __turbopack_collect__({args}) \
+                            "Unsupported property \"{key}\" for __turbopack_collect__({args}) \
                              call{hints}",
                         ),
                         DiagnosticId::Error(
                             errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
                         ),
                     );
-                    return Ok(());
+                    Ok(())
+                };
+
+                let mut namespace = None;
+
+                for part in options {
+                    if let ObjectPart::KeyValue(
+                        JsValue::Constant(JsConstantValue::Str(key)),
+                        value,
+                    ) = part
+                    {
+                        match key.as_str() {
+                            "namespace" => namespace = Some(value),
+                            v => return invalid_args(v),
+                        }
+                    }
+                }
+
+                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                    return invalid_args("namespace");
                 };
 
                 analysis.add_reference_code_gen(
@@ -3376,7 +3384,7 @@ where
             let (args, hints) = explain_args(args);
             handler.span_warn_with_code(
                 span,
-                &format!("Unsupported arguments for __turbopack_collect___({args}) call{hints}",),
+                &format!("Unsupported arguments for __turbopack_collect__({args}) call{hints}",),
                 DiagnosticId::Error(
                     errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
                 ),
