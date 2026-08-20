@@ -799,6 +799,12 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Give Client Components only imported through async imports their own chunk group, instead
+   * of bundling them with the rest of the page's chunks (that are loaded eagerly).
+   */
+  turbopackSeparateAsyncClientReferences?: boolean
+
+  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * true on canary releases and false on stable releases. Only applies to production builds; has

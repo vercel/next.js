@@ -395,6 +395,7 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackSeparateAsyncClientReferences: z.boolean().optional(),
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
