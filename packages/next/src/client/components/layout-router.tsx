@@ -27,6 +27,7 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { SuspenseTrackerProvider } from '../../shared/lib/lazy-dynamic/loadable'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
@@ -500,7 +501,9 @@ function LoadingBoundary({
           </>
         }
       >
-        {children}
+        <SuspenseTrackerProvider>
+          {children}
+        </SuspenseTrackerProvider>
       </Suspense>
     )
   }
