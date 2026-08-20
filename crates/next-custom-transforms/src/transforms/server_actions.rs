@@ -78,6 +78,12 @@ struct ServerReferenceExport {
     needs_cache_runtime_wrapper: bool,
 }
 
+#[derive(Clone, Debug)]
+struct ServerReferenceDependency {
+    export_name: ModuleExportName,
+    reference_id: Atom,
+}
+
 /// Export info for serialization
 #[derive(Clone, Debug, serde::Serialize)]
 struct ServerReferenceExportInfo {
@@ -166,6 +172,7 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         file_directive: None,
         current_export_name: None,
+        current_server_action_export: None,
         fn_decl_ident: None,
         in_callee: false,
         has_action: false,
@@ -190,6 +197,7 @@ pub fn server_actions<C: Comments>(
         hoisted_extra_items: Default::default(),
         reference_ids_by_export_name: Default::default(),
         server_reference_exports: Default::default(),
+        server_reference_dependencies: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
@@ -235,6 +243,7 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     file_directive: Option<Directive>,
     current_export_name: Option<ModuleExportName>,
+    current_server_action_export: Option<ModuleExportName>,
     fn_decl_ident: Option<Ident>,
     in_callee: bool,
     has_action: bool,
@@ -263,6 +272,9 @@ struct ServerActions<C: Comments> {
 
     /// A list of server references for originally exported server functions only.
     server_reference_exports: Vec<ServerReferenceExport>,
+
+    /// Inline actions that are created by a public action in the client graph.
+    server_reference_dependencies: FxIndexMap<ModuleExportName, Vec<ServerReferenceDependency>>,
 
     private_ctxt: SyntaxContext,
     unresolved_ctxt: SyntaxContext,
@@ -1071,6 +1083,48 @@ impl<C: Comments> ServerActions<C> {
         }
     }
 
+    /// Mirrors the generated ID of an inline action in the client graph.
+    ///
+    /// The implementation is still emitted only in the server graph. Keeping
+    /// the ID here makes an inline action returned by a client-imported action
+    /// reachable through the route's Server Action manifest.
+    fn track_client_inline_server_action(&mut self, params: &[Param], has_bound_args: bool) {
+        let Some(owner_export) = self.current_server_action_export.clone() else {
+            return;
+        };
+
+        let action_ident = Ident::new(self.gen_action_ident(), DUMMY_SP, self.private_ctxt);
+
+        let mut reference_params = params.to_vec();
+        if has_bound_args {
+            reference_params.insert(
+                0,
+                Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: Pat::Ident(
+                        Ident::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP, self.private_ctxt)
+                            .into(),
+                    ),
+                },
+            );
+        }
+
+        let reference_id = self.generate_server_reference_id(
+            &ModuleExportName::Ident(action_ident.clone()),
+            false,
+            Some(&reference_params),
+        );
+
+        self.server_reference_dependencies
+            .entry(owner_export)
+            .or_default()
+            .push(ServerReferenceDependency {
+                export_name: ModuleExportName::Ident(action_ident),
+                reference_id,
+            });
+    }
+
     /// Registers a cache export for the client layer (for 'use cache' directive).
     fn register_cache_export_on_client(
         &mut self,
@@ -1222,6 +1276,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_module = replace(&mut self.in_module_level, false);
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_server_action_export = self.current_server_action_export.clone();
+            if !self.config.is_react_server_layer
+                && matches!(self.file_directive, Some(Directive::UseServer))
+                && matches!(&directive, Some(Directive::UseServer))
+                && self.current_export_name.is_some()
+            {
+                self.current_server_action_export = self.current_export_name.clone();
+            }
+
             let old_current_export_name = self.current_export_name.take();
             let old_fn_decl_ident = self.fn_decl_ident.take();
             f.visit_mut_children_with(self);
@@ -1229,6 +1292,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
             self.fn_decl_ident = old_fn_decl_ident;
+            self.current_server_action_export = old_server_action_export;
         }
 
         let mut child_names = take(&mut self.names);
@@ -1259,6 +1323,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // If this function is invalid, or any prior errors have been emitted, skip further
             // processing.
             if HANDLER.with(|handler| handler.has_errors()) {
+                return;
+            }
+
+            if !self.config.is_react_server_layer
+                && matches!(directive, Directive::UseServer)
+                && self.current_export_name.is_none()
+            {
+                retain_names_from_declared_idents(
+                    &mut child_names,
+                    &self.declared_idents[..declared_idents_until],
+                );
+                self.track_client_inline_server_action(&f.params, !child_names.is_empty());
                 return;
             }
 
@@ -1435,6 +1511,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_module = replace(&mut self.in_module_level, false);
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_server_action_export = self.current_server_action_export.clone();
+            if !self.config.is_react_server_layer
+                && matches!(self.file_directive, Some(Directive::UseServer))
+                && matches!(&directive, Some(Directive::UseServer))
+                && self.current_export_name.is_some()
+            {
+                self.current_server_action_export = self.current_export_name.clone();
+            }
+
             let old_current_export_name = self.current_export_name.take();
             {
                 for n in &mut a.params {
@@ -1445,6 +1530,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
+            self.current_server_action_export = old_server_action_export;
         }
 
         let mut child_names = take(&mut self.names);
@@ -1472,6 +1558,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // If this function is invalid, or any prior errors have been emitted, skip further
             // processing.
             if HANDLER.with(|handler| handler.has_errors()) {
+                return;
+            }
+
+            if !self.config.is_react_server_layer
+                && matches!(directive, Directive::UseServer)
+                && self.current_export_name.is_none()
+            {
+                retain_names_from_declared_idents(
+                    &mut child_names,
+                    &self.declared_idents[..declared_idents_until],
+                );
+                let params: Vec<Param> = a
+                    .params
+                    .iter()
+                    .map(|param| Param::from(param.clone()))
+                    .collect();
+                self.track_client_inline_server_action(&params, !child_names.is_empty());
                 return;
             }
 
@@ -2688,7 +2791,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if self.has_action || self.has_cache {
             // Build a map of reference_id -> export info
-            let export_infos_ordered_by_reference_id = self
+            let mut export_infos_ordered_by_reference_id = self
                 .reference_ids_by_export_name
                 .iter()
                 .map(|(export_name, reference_id)| {
@@ -2696,6 +2799,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     (reference_id, ServerReferenceExportInfo { name: name_atom })
                 })
                 .collect::<BTreeMap<_, _>>();
+
+            for dependency in self.server_reference_dependencies.values().flatten() {
+                export_infos_ordered_by_reference_id.insert(
+                    &dependency.reference_id,
+                    ServerReferenceExportInfo {
+                        name: dependency.export_name.atom().into_owned(),
+                    },
+                );
+            }
 
             if self.config.is_react_server_layer {
                 // Prepend a special comment to the top of the file.
@@ -2766,6 +2878,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                             let name_atom = export_name.atom().into_owned();
                             let export_info = ServerReferenceExportInfo { name: name_atom };
+                            let mut action_entries = BTreeMap::from([(&ref_id, export_info)]);
+
+                            if let Some(dependencies) =
+                                self.server_reference_dependencies.get(&export_name)
+                            {
+                                for dependency in dependencies {
+                                    action_entries.insert(
+                                        &dependency.reference_id,
+                                        ServerReferenceExportInfo {
+                                            name: dependency.export_name.atom().into_owned(),
+                                        },
+                                    );
+                                }
+                            }
 
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
@@ -2786,8 +2912,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_references_comment(
-                                                    &std::iter::once((&ref_id, export_info))
-                                                        .collect(),
+                                                    &action_entries,
                                                     Some((
                                                         &self.file_name,
                                                         self.file_query.as_ref().map_or("", |v| v),
