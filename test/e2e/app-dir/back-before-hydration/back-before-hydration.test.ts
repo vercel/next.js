@@ -55,6 +55,17 @@ describe('back navigation before hydration after reload', () => {
     })
   }
 
+  // The layout renders the router's pathname and search params once the
+  // router is attached (see app/router-url.tsx), so waiting for a value here
+  // also waits for hydration.
+  function readRouterUrl(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ): Promise<string> {
+    return browser.eval(
+      'document.getElementById("router-url")?.textContent ?? ""'
+    )
+  }
+
   // Waits until the document is parsed. The stalled scripts are async, so
   // they do not hold this up. Acting on history only after this point makes
   // the tested window "inline scripts have run, external scripts have not"
@@ -134,6 +145,9 @@ describe('back navigation before hydration after reload', () => {
     // page (or otherwise bring URL and content back in sync).
     await waitForPage(browser, '#home')
     expect(new URL(await browser.url()).pathname).toBe(homePath)
+    await retry(async () => {
+      expect(await readRouterUrl(browser)).toBe(homePath)
+    })
 
     // History traversal must still work after recovery.
     await browser.forward()
@@ -159,6 +173,9 @@ describe('back navigation before hydration after reload', () => {
 
     await waitForPage(browser, '#page-1')
     expect(new URL(await browser.url()).search).toBe('?page=1')
+    await retry(async () => {
+      expect(await readRouterUrl(browser)).toBe(`${searchPath}?page=1`)
+    })
 
     await browser.forward()
     await waitForPage(browser, '#page-2')
@@ -182,6 +199,7 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(new URL(await browser.url()).search).toBe('?tp=1')
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
       })
 
       // The router still navigates.
@@ -200,6 +218,7 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(new URL(await browser.url()).hash).toBe('#section')
+        expect(await readRouterUrl(browser)).toBe(postPath)
       })
 
       // Hash traversals keep behaving like same-page jumps.
@@ -207,11 +226,13 @@ describe('back navigation before hydration after reload', () => {
       await retry(async () => {
         expect(new URL(await browser.url()).hash).toBe('')
         expect(await browser.elementByCss('h1').text()).toBe('Post')
+        expect(await readRouterUrl(browser)).toBe(postPath)
       })
       await browser.forward()
       await retry(async () => {
         expect(new URL(await browser.url()).hash).toBe('#section')
         expect(await browser.elementByCss('h1').text()).toBe('Post')
+        expect(await readRouterUrl(browser)).toBe(postPath)
       })
     })
 
@@ -230,6 +251,7 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(new URL(await browser.url()).hash).toBe('#section')
+        expect(await readRouterUrl(browser)).toBe(postPath)
       })
 
       // Traversing over the hash entry and the pushState entry still works.
@@ -254,6 +276,7 @@ describe('back navigation before hydration after reload', () => {
       await retry(async () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
+        expect(await readRouterUrl(browser)).toBe(postPath)
       })
 
       await browser.elementById('to-home').click()
@@ -282,6 +305,8 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(new URL(await browser.url()).search).toBe('?tp=1')
         expect(await browser.elementByCss('h1').text()).toBe('Post')
+        // TODO: The router never learns about the third-party entry.
+        expect(await readRouterUrl(browser)).toBe(homePath)
       })
 
       await browser.elementById('to-home').click()
@@ -306,6 +331,7 @@ describe('back navigation before hydration after reload', () => {
       await retry(async () => {
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
       })
     })
   })
