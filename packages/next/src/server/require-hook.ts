@@ -25,7 +25,24 @@ try {
     'styled-jsx/style': resolve('styled-jsx/style'),
     'styled-jsx/style.js': resolve('styled-jsx/style'),
   })
-} catch (_) {}
+} catch (cause) {
+  // These aliases make every `styled-jsx` request resolve to Next.js' own copy, which the Pages
+  // Router depends on: the renderer creates the styled-jsx style registry and hands it to user
+  // code through a React context owned by that module instance. Without the aliases, user code
+  // with its own copy of styled-jsx gets a second instance, `JSXStyle` finds no registry and
+  // silently renders nothing during SSR - the `jsx-*` class names are still emitted, but the CSS
+  // only arrives after hydration, i.e. a flash of unstyled content and no error anywhere. Failing
+  // loudly here is better than that.
+  throw new Error(
+    "Next.js could not resolve its own copy of 'styled-jsx'. It is a dependency of 'next', so " +
+      "this usually means the installation is incomplete or 'node_modules' is out of date - " +
+      "reinstalling dependencies normally fixes it. If your setup can't resolve nested " +
+      "dependencies (for example a custom bundling or vendoring step), add 'styled-jsx' to your " +
+      'app dependencies so it resolves to a single copy.\n' +
+      'See more info here: https://nextjs.org/docs/messages/styled-jsx-not-resolvable',
+    { cause }
+  )
+}
 
 const toResolveMap = (map: Record<string, string>): [string, string][] => {
   const resolveMap: [string, string][] = []

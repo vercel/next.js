@@ -1,0 +1,49 @@
+---
+title: '`styled-jsx` is not resolvable'
+---
+
+## Why This Error Occurred
+
+Next.js could not resolve its own copy of `styled-jsx`.
+
+`styled-jsx` is a dependency of `next`, and Next.js resolves it eagerly at startup to make sure that
+your code and the Pages Router renderer use the _same_ `styled-jsx` instance: the renderer creates
+the style registry and passes it to your components through a React context that belongs to that
+specific module instance.
+
+If two different copies end up being loaded, `<style jsx>` silently renders nothing on the server.
+The generated `jsx-*` class names are still there, but the CSS is only inserted after hydration - so
+the page briefly renders unstyled, without any error being reported. Next.js therefore fails here
+instead of continuing in that state.
+
+The most common causes are an incomplete or outdated installation (`node_modules` does not contain
+`next`'s own dependencies), or a setup that copies/bundles `next` without its nested dependencies.
+
+## Possible Ways to Fix It
+
+Reinstall your dependencies so that `next`'s own dependencies are present:
+
+```bash filename="Terminal"
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+If your setup cannot resolve nested dependencies - for example a custom bundling, vendoring or
+deployment step that only keeps top-level packages - add `styled-jsx` to your app's dependencies so
+that it resolves to a single copy:
+
+```bash filename="Terminal"
+npm install styled-jsx
+```
+
+Make sure only one copy ends up installed. `npm ls styled-jsx` (or the equivalent for your package
+manager) should not list multiple different versions.
+
+## Useful Links
+
+- [styled-jsx](https://github.com/vercel/styled-jsx)
