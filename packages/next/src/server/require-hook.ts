@@ -25,7 +25,22 @@ try {
     'styled-jsx/style': resolve('styled-jsx/style'),
     'styled-jsx/style.js': resolve('styled-jsx/style'),
   })
-} catch (_) {}
+} catch (cause) {
+  // Not being able to register these aliases is not fatal - an app that doesn't
+  // use styled-jsx doesn't care - but it silently breaks styled-jsx SSR when the
+  // app has its own copy of styled-jsx: user code and the Pages Router renderer
+  // then load two different styled-jsx instances, the style registry never
+  // receives anything and every style is missing from the server-rendered HTML
+  // (the `jsx-*` class names still render, so it only shows as a flash of
+  // unstyled content). Make that diagnosable instead of swallowing the error.
+  console.warn(
+    'Warning: Next.js could not resolve its own copy of `styled-jsx`, so ' +
+      '`styled-jsx` was not deduplicated. If this app uses styled-jsx in the ' +
+      'Pages Router, its styles will be missing from the server-rendered HTML ' +
+      'and only applied after hydration.' +
+      `\nReason: ${(cause as Error)?.message ?? cause}`
+  )
+}
 
 const toResolveMap = (map: Record<string, string>): [string, string][] => {
   const resolveMap: [string, string][] = []
