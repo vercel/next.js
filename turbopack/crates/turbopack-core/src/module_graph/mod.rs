@@ -1951,14 +1951,17 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     let _span = span.entered();
                     span = tracing::info_span!("per-entry reference");
                 }
-                ChunkingType::Emitted { merge_tag, .. } => {
+                ChunkingType::Emitted {
+                    namespace: merge_tag,
+                    ..
+                } => {
                     let _span = span.entered();
                     span = tracing::info_span!("emitted reference", merge_tag = debug(&merge_tag));
                 }
-                ChunkingType::Collected { merge_tag, .. } => {
+                ChunkingType::Collected { namespace, .. } => {
                     let _span = span.entered();
                     span =
-                        tracing::info_span!("collected reference", merge_tag = debug(&merge_tag));
+                        tracing::info_span!("collected reference", namespace = debug(&namespace));
                 }
                 ChunkingType::Isolated { _ty: ty, merge_tag } => {
                     let _span = span.entered();

@@ -222,14 +222,14 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             .context("Module entry membership not found")?;
 
         let ChunkingType::Emitted {
-            merge_tag,
+            namespace,
             emit_to_all_entries,
         } = &ref_data.chunking_type
         else {
             bail!("unreachable: expected emitted reference");
         };
 
-        for collecting_module in collecting_modules.get(merge_tag).into_iter().flatten() {
+        for collecting_module in collecting_modules.get(namespace).into_iter().flatten() {
             let collecting_membership = module_entry_membership
                 .get(&ResolvedVc::upcast(*collecting_module))
                 .context("Module entry membership not found")?;
@@ -245,7 +245,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                             .push((
                                 RefData {
                                     chunking_type: ChunkingType::Collected {
-                                        merge_tag: merge_tag.clone(),
+                                        namespace: namespace.clone(),
                                     },
                                     ..ref_data.clone()
                                 },

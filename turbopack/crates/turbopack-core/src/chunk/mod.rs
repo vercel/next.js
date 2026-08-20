@@ -367,13 +367,13 @@ pub enum ChunkingType {
     },
     /// Declare an emitted module (corresponds to __turboack_emit__).
     Emitted {
-        merge_tag: RcStr,
+        namespace: RcStr,
         /// false = emit to current entry, true = emit to all entries
         emit_to_all_entries: bool,
     },
     /// During the build process, edges with ChunkingType::Emitted are collected and reattached to
     /// the collecting module. These should not be used manually in a reference.
-    Collected { merge_tag: RcStr },
+    Collected { namespace: RcStr },
     /// Chunk this reference once per entry, like async loaders.
     PerEntry,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
@@ -419,16 +419,16 @@ impl Display for ChunkingType {
                 write!(f, "Isolated")
             }
             ChunkingType::Emitted {
-                merge_tag,
+                namespace,
                 emit_to_all_entries,
             } => {
                 write!(
                     f,
-                    "Emitted(merge_tag: {merge_tag}, emit_to_all_entries: {emit_to_all_entries})"
+                    "Emitted(namespace: {namespace}, emit_to_all_entries: {emit_to_all_entries})"
                 )
             }
-            ChunkingType::Collected { merge_tag } => {
-                write!(f, "Collected(merge_tag: {merge_tag})")
+            ChunkingType::Collected { namespace } => {
+                write!(f, "Collected(namespace: {namespace})")
             }
             ChunkingType::Shared {
                 inherit_async,
@@ -498,14 +498,14 @@ impl ChunkingType {
                 merge_tag: merge_tag.clone(),
             },
             ChunkingType::Emitted {
-                merge_tag,
+                namespace,
                 emit_to_all_entries,
             } => ChunkingType::Emitted {
-                merge_tag: merge_tag.clone(),
+                namespace: namespace.clone(),
                 emit_to_all_entries: *emit_to_all_entries,
             },
-            ChunkingType::Collected { merge_tag } => ChunkingType::Collected {
-                merge_tag: merge_tag.clone(),
+            ChunkingType::Collected { namespace } => ChunkingType::Collected {
+                namespace: namespace.clone(),
             },
             ChunkingType::Shared {
                 inherit_async: _,

@@ -669,7 +669,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             return Ok(GraphTraversalAction::Skip);
                         }
                         ChunkingType::Emitted {
-                            merge_tag: _,
+                            namespace: _,
                             emit_to_all_entries: _,
                         } => {
                             // TODO ideally this would get the chunk group bitset of the parent

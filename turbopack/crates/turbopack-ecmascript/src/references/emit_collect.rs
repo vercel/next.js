@@ -116,7 +116,7 @@ impl ModuleReference for EmitReference {
 
     fn chunking_type(&self) -> Option<ChunkingType> {
         Some(ChunkingType::Emitted {
-            merge_tag: self.namespace.clone(),
+            namespace: self.namespace.clone(),
             emit_to_all_entries: self.emit_to_all_entries,
         })
     }
