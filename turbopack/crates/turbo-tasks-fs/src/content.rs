@@ -247,7 +247,7 @@ impl LinkContent {
                 LinkTarget::Absolute { resolved } => {
                     SimplifiedLinkContent::Absolute(&resolved.path)
                 }
-                LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(&raw),
+                LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(raw),
             },
             LinkContent::NotFound => SimplifiedLinkContent::NotFound,
             LinkContent::Invalid { reason: _ } => SimplifiedLinkContent::Invalid,

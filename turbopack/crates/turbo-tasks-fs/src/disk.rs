@@ -7,7 +7,7 @@ use std::{
     future::Future,
     io::{self, ErrorKind, Write as _},
     mem::take,
-    path::{Component, MAIN_SEPARATOR, Path, PathBuf},
+    path::{Component, MAIN_SEPARATOR, Path, PathBuf, Prefix},
     sync::{Arc, LazyLock, Weak},
 };
 
@@ -910,7 +910,7 @@ impl FileSystem for DiskFileSystem {
         inner.register_read_invalidator(&full_link_path).await?;
 
         let _lock = inner.lock_path(full_link_path.clone()).await;
-        let target_sys_path = match retry_blocking(|| std::fs::read_link(&**full_link_path))
+        let mut target_sys_path = match retry_blocking(|| std::fs::read_link(&**full_link_path))
             .instrument(tracing::info_span!("read symlink", name = ?full_link_path))
             .concurrency_limited(&inner.read_semaphore)
             .await
@@ -926,6 +926,14 @@ impl FileSystem for DiskFileSystem {
                 .cell());
             }
         };
+
+        if cfg!(windows) && target_sys_path.has_root() && !target_sys_path.is_absolute() {
+            // On windows, `\foo` has a root but no drive and is not absolute. Just convert it to
+            // absolute and treat it like it's absolute.
+            let mut absolute_target = inner.root_path().to_path_buf();
+            absolute_target.push(target_sys_path);
+            target_sys_path = absolute_target;
+        }
 
         let target = if target_sys_path.is_absolute() {
             // First try a cheap, purely lexical conversion of the raw target. `relative_to` is
@@ -958,20 +966,36 @@ impl FileSystem for DiskFileSystem {
                 resolved: target_fs_path,
             }
         } else {
-            // A Windows target can be partially qualified: `\foo` has a root but no drive and
-            // `C:foo` has a drive but no root, so neither is `is_absolute()`, yet neither is
-            // relative to the link's directory either. Joining one onto that directory would
-            // silently produce a plausible but wrong in-root path.
-            if target_sys_path.has_root()
-                || matches!(
-                    target_sys_path.components().next(),
-                    Some(Component::Prefix(_))
-                )
+            if cfg!(windows)
+                && let Some(Component::Prefix(target_prefix)) = target_sys_path.components().next()
             {
-                return Ok(LinkContent::Invalid {
-                    reason: rcstr!("the symlink target is not a fully qualified or relative path"),
+                // Edge case: Windows supports relative file paths with a prefixed disk, e.g.
+                // `C:foo`. These only make sense when the drive letter matches the
+                // DiskFileSystem root. If it matches, we can safely strip it.
+                let Prefix::Disk(target_drive) = target_prefix.kind() else {
+                    unreachable!(
+                        "path is relative, but contains a prefix that should form an absolute path"
+                    );
+                };
+                let root_drive = match inner.root_path().components().next() {
+                    Some(Component::Prefix(root_prefix)) => match root_prefix.kind() {
+                        Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => Some(drive),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if root_drive
+                    .is_none_or(|root_drive| !target_drive.eq_ignore_ascii_case(&root_drive))
+                {
+                    return Ok(LinkContent::Invalid {
+                        reason: rcstr!(
+                            "the symlink target uses a different drive than the filesystem root"
+                        ),
+                    }
+                    .cell());
                 }
-                .cell());
+
+                target_sys_path = target_sys_path.components().skip(1).collect();
             }
 
             // The raw value read from the link, converted to a unix-style format. A relative
@@ -1881,7 +1905,7 @@ mod tests {
                 assert!(
                     matches!(
                         &result.path_result,
-                        Err(RealPathResultError::Invalid(reason))
+                        Err(RealPathResultError::Invalid { reason })
                             if reason == "a symlink target does not exist"
                     ),
                     "realpath must report the missing target as an invalid chain: {:?}",
@@ -1901,7 +1925,7 @@ mod tests {
                 assert!(
                     matches!(
                         &result.path_result,
-                        Err(RealPathResultError::Invalid(reason))
+                        Err(RealPathResultError::Invalid { reason })
                             if reason == "a symlink target does not exist"
                     ),
                     "realpath must report a missing target later in a chain as invalid: {:?}",
