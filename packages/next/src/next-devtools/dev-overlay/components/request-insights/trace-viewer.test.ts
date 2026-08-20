@@ -291,6 +291,28 @@ describe('request insights trace viewer', () => {
     )
   })
 
+  it('uses a generic code-loading label without changing the OTel span', () => {
+    const loadComponentsSpan = {
+      name: 'LoadComponents.loadComponents',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'next.span_type': 'LoadComponents.loadComponents',
+      },
+    }
+    const request = createRequest({ spans: [loadComponentsSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('load code')
+    expect(loadComponentsSpan).toEqual(
+      expect.objectContaining({
+        name: 'LoadComponents.loadComponents',
+        attributes: expect.objectContaining({
+          'next.span_type': 'LoadComponents.loadComponents',
+        }),
+      })
+    )
+  })
+
   it('distinguishes same-origin and external fetches in the trace', () => {
     const request = createRequest({
       fetches: [
@@ -556,7 +578,7 @@ describe('request insights trace viewer', () => {
       { label: 'GET', depth: 0 },
       { label: 'compile route', depth: 1 },
       { label: 'render', depth: 1 },
-      { label: 'load components', depth: 2 },
+      { label: 'load code', depth: 2 },
       { label: 'load route module', depth: 3 },
       { label: 'prepare route module', depth: 2 },
       { label: 'load app route module', depth: 2 },
@@ -574,7 +596,7 @@ describe('request insights trace viewer', () => {
       'compile route',
       'render',
       'resolve page components',
-      'load components',
+      'load code',
       'load route module',
       'render to response with components',
       'prepare route module',
