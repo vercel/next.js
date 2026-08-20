@@ -401,6 +401,7 @@ export async function initialize(opts: {
     })
 
     const invokedOutputs = new Set<string>()
+    let routeSnapshot: ReturnType<typeof fsChecker.getRouteSnapshot> | undefined
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -521,6 +522,12 @@ export async function initialize(opts: {
         req.url = origUrl
       }
 
+      // The hot reloader may publish a newer route generation while handling
+      // this request. Capture after it has run, then use that generation for
+      // every routing decision below.
+      const requestRouteSnapshot = (routeSnapshot ??=
+        fsChecker.getRouteSnapshot())
+
       const {
         finished,
         parsedUrl,
@@ -534,6 +541,7 @@ export async function initialize(opts: {
         isUpgradeReq: false,
         signal: signalFromNodeResponse(res),
         invokedOutputs,
+        routeSnapshot: requestRouteSnapshot,
       })
 
       if (res.closed || res.finished) {
@@ -617,8 +625,8 @@ export async function initialize(opts: {
       if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
           opts.dev &&
-          (fsChecker.hasAppFile(matchedOutput.itemPath) ||
-            fsChecker.hasPageFile(matchedOutput.itemPath))
+          (requestRouteSnapshot.hasAppFile(matchedOutput.itemPath) ||
+            requestRouteSnapshot.hasPageFile(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
           const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
