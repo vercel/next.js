@@ -71,12 +71,12 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/test-independent-head/a">
+          <LinkAccordion href="/test-independent-head/a" prefetch={true}>
             Independent head A
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/test-independent-head/b">
+          <LinkAccordion href="/test-independent-head/b" prefetch={true}>
             Independent head B
           </LinkAccordion>
         </li>
