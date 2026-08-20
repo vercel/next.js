@@ -1170,6 +1170,11 @@ fn hash_order_for_block<'l>(
     }
     // Sort by hash only; ties keep their relative (i.e. key) order, which is exactly the
     // `(hash, key)` order the entries would have had if stored hash-first.
+    //
+    // Stability is load-bearing and `sort_unstable_by_key` would be wrong here. The block is stored
+    // in *key* order, so two entries that share a hash are generally not adjacent — a colliding
+    // pair can sit either side of unrelated keys. Only a stable sort keeps them in key order
+    // once the hash tie brings them together.
     order.sort_by_key(|&(hash, _)| hash);
     Ok(order)
 }

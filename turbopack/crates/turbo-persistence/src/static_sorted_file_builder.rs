@@ -59,7 +59,7 @@ const BLOCK_INDEX_CAPACITY_BUFFER: usize = 16;
 ///
 /// Note that key blocks large enough to store a hash per entry are ordered by `(hash, key)`, which
 /// puts uncorrelated hash bytes between neighbouring keys and limits what compression can exploit.
-/// No-hash blocks are ordered by key (see [`StreamingSstWriter::sort_block_by_key`]), so their
+/// No-hash blocks are ordered by key (see [`StreamingSstWriter::flush_key_block`]), so their
 /// neighbours do share prefixes — but those are exactly the blocks whose keys are short enough
 /// (≤32 bytes) to often fall under this threshold anyway.
 const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
@@ -284,7 +284,7 @@ pub trait Entry {
     /// Returns the key's bytes.
     ///
     /// Keys are contiguous (see [`StoreKey`][crate::StoreKey]), so this hands them out directly.
-    /// [`StreamingSstWriter::sort_block_by_key`] relies on that to compare keys in place instead of
+    /// [`StreamingSstWriter::flush_key_block`] relies on that to compare keys in place instead of
     /// serializing each one first.
     fn key_bytes(&self) -> &[u8];
     /// Writes the key to a buffer
@@ -945,7 +945,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     ///
     /// Blocks that store a hash per entry are written in the incoming `(hash, key)` order. Blocks
     /// that omit the hash are reordered by key first, so that lookups can binary search by key
-    /// without recomputing each probed entry's hash. See [`Self::sort_block_by_key`].
+    /// without recomputing each probed entry's hash. See [`Self::flush_key_block`].
     fn flush_key_block(&mut self, start: usize, end: usize, info: KeyBlockFlushInfo) -> Result<()> {
         let entry_count = end - start;
         let layout = choose_layout(info.max_key_len);
@@ -1516,7 +1516,11 @@ mod tests {
 
     /// Sort entries by hash (required by SST writer).
     fn sort_entries(entries: &mut [TestEntry]) {
-        entries.sort_by_key(|e| e.hash);
+        // `StreamingSstWriter::add` requires `(key-hash, key)` order, not hash order alone. Sorting
+        // by hash only would leave key ties in arbitrary order, which a `KeyOnly` block would then
+        // silently repair by re-sorting while a `HashThenKey` block would write unsearchable — so a
+        // hash-only fixture cannot tell a correct writer from a lucky one.
+        entries.sort_by(|a, b| a.hash.cmp(&b.hash).then_with(|| a.key.cmp(&b.key)));
     }
 
     /// Open an SST file for lookup given a path and metadata.
@@ -2269,6 +2273,74 @@ mod tests {
                 matches!(result, SstLookupResult::NotFound),
                 "expected miss for {:?}",
                 std::str::from_utf8(&key)
+            );
+        }
+        Ok(())
+    }
+
+    /// A `KeyOnly` block must preserve the order of entries that share a key.
+    ///
+    /// [`Self::flush_key_block`] reorders these blocks with a *stable* sort specifically so that a
+    /// key group keeps its incoming ranking — key-value tombstones first, key tombstones last (see
+    /// [`crate::collector_entry::CollectorEntryValue::sort_rank`]). The other no-hash tests use
+    /// distinct keys with one inline value each, so none of them would notice if that stability
+    /// were lost.
+    #[test]
+    fn no_hash_blocks_preserve_key_group_order() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+
+        // Several short keys, each carrying a group of entries in a deliberate order. Interleave
+        // the groups with unrelated keys so a group is not trivially contiguous on disk.
+        let mut entries = Vec::new();
+        for i in 0..200u32 {
+            let key = format!("g{i:04}").into_bytes();
+            // Ranking a reader depends on: tombstone-first, then values, then key-tombstone-last.
+            entries.push(TestEntry::inline(&key, b"\x01"));
+            entries.push(TestEntry::inline(&key, b"\x02"));
+            entries.push(TestEntry::deleted(&key));
+            entries.push(TestEntry::inline(format!("z{i:04}").as_bytes(), b"v"));
+        }
+        // Order groups the way the writer requires, keeping each group's internal order intact.
+        let mut indexed: Vec<(usize, TestEntry)> = entries.into_iter().enumerate().collect();
+        indexed.sort_by(|(ia, a), (ib, b)| {
+            a.hash
+                .cmp(&b.hash)
+                .then_with(|| a.key.cmp(&b.key))
+                .then_with(|| ia.cmp(ib))
+        });
+        let entries: Vec<TestEntry> = indexed.into_iter().map(|(_, e)| e).collect();
+
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+
+        // On disk, every group must still read back in the order it was written.
+        let mut checked = 0;
+        for block in read_key_blocks_for_test(dir.path(), 1, meta.block_count)? {
+            let mut prev: Option<&Vec<u8>> = None;
+            for key in &block.keys {
+                if let Some(p) = prev {
+                    assert!(p <= key, "block {} not in key order", block.block_index);
+                }
+                prev = Some(key);
+            }
+            checked += block.keys.len();
+        }
+        assert_eq!(
+            checked,
+            entries.len(),
+            "every entry must be written exactly once"
+        );
+
+        // And the values must still resolve, including for the grouped keys.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let (kc, vc) = (make_cache(), make_cache());
+        for i in [0u32, 99, 199] {
+            let key = format!("z{i:04}").into_bytes();
+            assert!(
+                !matches!(
+                    sst.lookup::<_, true>(hash_key(&key), &key, &kc, &vc)?,
+                    SstLookupResult::NotFound
+                ),
+                "interleaved key z{i:04} must be findable"
             );
         }
         Ok(())

@@ -2863,13 +2863,22 @@ fn key_order_preserves_block_and_file_counts() -> Result<()> {
                     n + meta.entries.iter().map(|x| x.sst_size).sum::<u64>(),
                 )
             });
-    println!("files={files} blocks={blocks} bytes={bytes}");
-    // Spot-check a few keys survived compaction intact.
+    // Pinned against a run of this same fixture on the pre-key-order code, so a change that
+    // altered block packing (and with it compaction's I/O volume) fails here rather than showing up
+    // only as an unexplained benchmark regression. Bytes are allowed a small tolerance because LZ4
+    // output is not bit-stable across versions; counts are exact.
     for i in [0u32, 40_000, 79_999] {
         let key = format!("k{i:08}").into_bytes().into_boxed_slice();
         assert!(db.get(0, &key)?.is_some(), "key {i} lost");
     }
-    assert!(files > 0 && blocks > 0 && bytes > 0);
+    assert_eq!(files, 1, "file count changed (was 1)");
+    assert_eq!(blocks, 261, "block count changed (was 261)");
+    const EXPECTED_BYTES: u64 = 1_656_884;
+    let tolerance = EXPECTED_BYTES / 20;
+    assert!(
+        bytes.abs_diff(EXPECTED_BYTES) <= tolerance,
+        "on-disk size {bytes} deviates from {EXPECTED_BYTES} by more than 5%"
+    );
     db.shutdown()?;
     Ok(())
 }
