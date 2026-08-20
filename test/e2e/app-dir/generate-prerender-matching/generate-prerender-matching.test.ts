@@ -17,12 +17,12 @@ type AdapterDynamicRoute = {
   }>
 }
 
-describe('unstable prerender matching', () => {
+describe('experimental parameter matching', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
-  it('merges a layout matcher into one page and lets another page override it', async () => {
+  it('merges layout configuration and lets a page override it', async () => {
     const inherited = await next.fetch('/en/catalog/t1/items/b2')
     expect(inherited.status).toBe(200)
     expect(await inherited.text()).toContain('en/t1/b2')
@@ -53,7 +53,7 @@ describe('unstable prerender matching', () => {
     expect((await next.fetch('/not-found-only/t2/items/b2')).status).toBe(404)
   })
 
-  it('preserves inferred fallback and blocking behavior without a matcher', async () => {
+  it('preserves inferred fallback and blocking behavior without configuration', async () => {
     const full = await next.fetch('/inferred-full/t2/items/b2')
     expect(full.status).toBe(200)
     expect(await full.text()).toContain('t2/b2')
@@ -64,7 +64,7 @@ describe('unstable prerender matching', () => {
   })
 
   if (isNextStart) {
-    it('emits one matcher entry for each effective prefix behavior', async () => {
+    it('emits one route matcher for each effective prefix behavior', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       ) as {
@@ -98,8 +98,8 @@ describe('unstable prerender matching', () => {
       )
     })
 
-    it('prints the effective matcher and deployment-pattern digest', () => {
-      expect(next.cliOutput).toContain('Experimental prerender matchers')
+    it('prints the effective matching and deployment-pattern digest', () => {
+      expect(next.cliOutput).toContain('Experimental parameter matching')
       expect(next.cliOutput).toContain(
         'not-found  /[lang]/catalog/[top]/items/[bottom]'
       )
@@ -166,7 +166,7 @@ describe('unstable prerender matching', () => {
   }
 })
 
-describe('unstable prerender matcher ordering validation', () => {
+describe('experimental parameter matching ordering validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'invalid-order'),
     skipStart: true,
@@ -196,7 +196,7 @@ describe('unstable prerender matcher ordering validation', () => {
   })
 })
 
-describe('unstable prerender matcher dynamic validation', () => {
+describe('experimental parameter matching dynamic validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dynamic-prerender'),
     skipStart: true,
@@ -226,7 +226,7 @@ describe('unstable prerender matcher dynamic validation', () => {
   })
 })
 
-describe('unstable prerender matcher type validation', () => {
+describe('experimental parameter matching type validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'type-invalid-param-below'),
     skipStart: true,
@@ -242,7 +242,7 @@ describe('unstable prerender matcher type validation', () => {
     await next.build().catch(() => {})
   })
 
-  it('constrains matcher keys to params visible to the exporting module', () => {
+  it('constrains matching keys to params visible to the exporting module', () => {
     expect(next.cliOutput).toContain('Failed to type check.')
     expect(next.cliOutput).toMatch(
       /Type '"category"' does not satisfy the constraint 'never'/
@@ -250,7 +250,7 @@ describe('unstable prerender matcher type validation', () => {
   })
 })
 
-describe('unstable prerender matcher feature flag', () => {
+describe('experimental parameter matching feature flag', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'flag-disabled'),
     skipStart: true,
@@ -274,13 +274,13 @@ describe('unstable prerender matcher feature flag', () => {
   it('requires the experimental config flag', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain(
-        'experimental `prerenderMatching` flag is not enabled'
+        'experimental `paramMatching` flag is not enabled'
       )
     })
   })
 })
 
-describe('unstable prerender matcher cache components requirement', () => {
+describe('experimental parameter matching cache components requirement', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     it.skip('not applicable when Cache Components is forced on', () => {})
     return
@@ -309,13 +309,13 @@ describe('unstable prerender matcher cache components requirement', () => {
   it('requires Cache Components', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain(
-        'cannot use an unstable prerender matcher without enabling `cacheComponents`'
+        'cannot use experimental parameter matching without enabling `cacheComponents`'
       )
     })
   })
 })
 
-describe('unstable prerender matcher static export validation', () => {
+describe('experimental parameter matching static export validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'export-open-param'),
     skipStart: true,
@@ -338,7 +338,7 @@ describe('unstable prerender matcher static export validation', () => {
   })
 })
 
-describe('unstable prerender matcher fallback validation', () => {
+describe('experimental parameter matching fallback validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'empty-fallback'),
     skipStart: true,
@@ -361,7 +361,7 @@ describe('unstable prerender matcher fallback validation', () => {
   })
 })
 
-describe('unstable prerender matcher fallback boundary validation', () => {
+describe('experimental parameter matching fallback boundary validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'missing-fallback-seed'),
     skipStart: true,
@@ -394,7 +394,7 @@ describe('unstable prerender matcher fallback boundary validation', () => {
   })
 })
 
-describe('unstable prerender matcher development shell validation', () => {
+describe('experimental parameter matching development shell validation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dev-shell-validation'),
     skipStart: true,

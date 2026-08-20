@@ -1,4 +1,4 @@
-export const unstable_matcher = {
+export const experimental_paramMatching = {
   top: 'dynamic',
   bottom: 'dynamic',
 }

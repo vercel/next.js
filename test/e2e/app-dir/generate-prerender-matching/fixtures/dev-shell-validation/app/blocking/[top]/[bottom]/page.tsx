@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export const unstable_matcher = {
+export const experimental_paramMatching = {
   top: 'blocking',
   bottom: 'fallback',
 } as const

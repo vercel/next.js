@@ -762,9 +762,7 @@ export default class DevServer extends Server {
           config: {
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
-            prerenderMatching: Boolean(
-              this.nextConfig.experimental.prerenderMatching
-            ),
+            paramMatching: Boolean(this.nextConfig.experimental.paramMatching),
           },
           httpAgentOptions,
           locales,

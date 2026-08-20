@@ -1,4 +1,4 @@
-export const unstable_matcher = {
+export const experimental_paramMatching = {
   top: 'blocking',
   bottom: 'fallback',
 }

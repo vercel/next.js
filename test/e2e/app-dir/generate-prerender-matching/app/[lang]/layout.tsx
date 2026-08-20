@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export const unstable_matcher = {
+export const experimental_paramMatching = {
   lang: 'not-found',
 } as const
 

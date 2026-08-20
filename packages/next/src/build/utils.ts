@@ -623,7 +623,7 @@ export function printPrerenderMatchers(
 
   if (sourceRoutes.size === 0) return
 
-  print(underline('Experimental prerender matchers'))
+  print(underline('Experimental parameter matching'))
   print('More-specific rows override broader rows for the same request.')
   print()
 
@@ -788,7 +788,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   cacheComponents,
-  experimentalPrerenderMatching,
+  experimentalParamMatching,
   authInterrupts,
   useCacheTimeout,
   staticPageGenerationTimeout,
@@ -808,7 +808,7 @@ export async function isPageStatic({
   page: string
   distDir: string
   cacheComponents: boolean
-  experimentalPrerenderMatching: boolean
+  experimentalParamMatching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   staticPageGenerationTimeout: number
@@ -995,7 +995,7 @@ export async function isPageStatic({
               page,
               route,
               cacheComponents,
-              experimentalPrerenderMatching,
+              experimentalParamMatching,
               authInterrupts,
               useCacheTimeout,
               staticPageGenerationTimeout,

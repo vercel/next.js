@@ -490,7 +490,7 @@ export interface ExperimentalConfig {
    * Enables per-parameter prerender matching directives in App Router layouts
    * and pages.
    */
-  prerenderMatching?: boolean
+  paramMatching?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -2238,7 +2238,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    prerenderMatching: false,
+    paramMatching: false,
     coldCacheBadge: false,
     devValidationWorker: true,
     useSkewCookie: false,

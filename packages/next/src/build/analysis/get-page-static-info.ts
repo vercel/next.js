@@ -48,7 +48,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_matcher|unstable_generateMatcher|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|experimental_paramMatching|experimental_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -198,8 +198,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
-    'unstable_matcher',
-    'unstable_generateMatcher',
+    'experimental_paramMatching',
+    'experimental_generateParamMatching',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -257,8 +257,8 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
-        if (id === 'unstable_matcher') prerenderMatcher = true
-        if (id === 'unstable_generateMatcher') {
+        if (id === 'experimental_paramMatching') prerenderMatcher = true
+        if (id === 'experimental_generateParamMatching') {
           generatePrerenderMatcher = true
         }
         generateStaticParams = id === 'generateStaticParams'
@@ -274,8 +274,8 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
-          if (id === 'unstable_matcher') prerenderMatcher = true
-          if (id === 'unstable_generateMatcher') {
+          if (id === 'experimental_paramMatching') prerenderMatcher = true
+          if (id === 'experimental_generateParamMatching') {
             generatePrerenderMatcher = true
           }
           generateStaticParams = id === 'generateStaticParams'
@@ -302,12 +302,12 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
-            if (!prerenderMatcher && value === 'unstable_matcher') {
+            if (!prerenderMatcher && value === 'experimental_paramMatching') {
               prerenderMatcher = true
             }
             if (
               !generatePrerenderMatcher &&
-              value === 'unstable_generateMatcher'
+              value === 'experimental_generateParamMatching'
             ) {
               generatePrerenderMatcher = true
             }
@@ -714,33 +714,33 @@ export async function getAppPageStaticInfo({
 
   const hasPrerenderMatcher = prerenderMatcher || generatePrerenderMatcher
 
-  if (hasPrerenderMatcher && !nextConfig.experimental?.prerenderMatching) {
+  if (hasPrerenderMatcher && !nextConfig.experimental?.paramMatching) {
     throw new Error(
-      `Page "${page}" exports an unstable prerender matcher, but the experimental \`prerenderMatching\` flag is not enabled in next.config.`
+      `Page "${page}" exports experimental parameter matching, but the experimental \`paramMatching\` flag is not enabled in next.config.`
     )
   }
 
   if (prerenderMatcher && generatePrerenderMatcher) {
     throw new Error(
-      `Page "${page}" cannot export both \`unstable_matcher\` and \`unstable_generateMatcher\`.`
+      `Page "${page}" cannot export both \`experimental_paramMatching\` and \`experimental_generateParamMatching\`.`
     )
   }
 
   if (hasPrerenderMatcher && /\/route\.[^/]+$/.test(pageFilePath)) {
     throw new Error(
-      `Route "${page}" cannot export an unstable prerender matcher. It is only supported in layouts and pages.`
+      `Route "${page}" cannot export experimental parameter matching. It is only supported in layouts and pages.`
     )
   }
 
   if (isEdgeRuntime(config.runtime) && hasPrerenderMatcher) {
     throw new Error(
-      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and an unstable prerender matcher.`
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and experimental parameter matching.`
     )
   }
 
   if (directives?.has('client') && hasPrerenderMatcher) {
     throw new Error(
-      `Page "${page}" cannot use both "use client" and an unstable prerender matcher export.`
+      `Page "${page}" cannot use both "use client" and an experimental parameter matching export.`
     )
   }
 

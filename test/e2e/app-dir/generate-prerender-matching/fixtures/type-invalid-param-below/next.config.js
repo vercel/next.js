@@ -1,4 +1,4 @@
 module.exports = {
   cacheComponents: true,
-  experimental: { prerenderMatching: true },
+  experimental: { paramMatching: true },
 }

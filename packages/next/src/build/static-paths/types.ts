@@ -89,7 +89,7 @@ export type StaticPathsResult = {
   /** Logical request matchers, independent of the artifacts rendered for them. */
   prerenderRouteMatchers?: PrerenderRouteMatcher[]
 
-  /** Whether fallback modes came from an explicit prerender matcher. */
+  /** Whether fallback modes came from explicit parameter matching. */
   hasPrerenderMatcher?: true
 
   /**

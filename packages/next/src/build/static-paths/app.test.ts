@@ -743,7 +743,7 @@ describe('compilePrerenderMatcher', () => {
         ],
         pathnameParams
       )
-    ).rejects.toThrow('conflicting parallel prerender matcher modes')
+    ).rejects.toThrow('conflicting parallel parameter matching modes')
   })
 
   it('allows parallel siblings to agree on a mode', async () => {

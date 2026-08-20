@@ -37,8 +37,8 @@ function validateMatcherExport(
 ): PrerenderMatcher {
   const exportName =
     segment.prerenderMatcher?.kind === 'generated'
-      ? 'unstable_generateMatcher'
-      : 'unstable_matcher'
+      ? 'experimental_generateParamMatching'
+      : 'experimental_paramMatching'
 
   if (!isPlainObject(value)) {
     throw new Error(
@@ -94,7 +94,7 @@ export async function compilePrerenderMatcher(
 
   if (segments.some((segment) => segment.config?.dynamicParams !== undefined)) {
     throw new Error(
-      `Route "${page}" cannot combine \`dynamicParams\` with \`unstable_matcher\` or \`unstable_generateMatcher\`.`
+      `Route "${page}" cannot combine \`dynamicParams\` with \`experimental_paramMatching\` or \`experimental_generateParamMatching\`.`
     )
   }
 
@@ -136,7 +136,7 @@ export async function compilePrerenderMatcher(
         )
         .join(', ')
       throw new Error(
-        `Route "${page}" has conflicting parallel prerender matcher modes for parameter "${paramName}": ${definitions}.`
+        `Route "${page}" has conflicting parallel parameter matching modes for parameter "${paramName}": ${definitions}.`
       )
     }
     policy[paramName] = mode
@@ -151,7 +151,7 @@ export async function compilePrerenderMatcher(
     const currentPhase = PRERENDER_PARAM_MODES.indexOf(mode)
     if (currentPhase < previousPhase) {
       throw new Error(
-        `Invalid prerender matcher for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters to follow not-found, blocking, fallback, then dynamic order.`
+        `Invalid parameter matching for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters to follow not-found, blocking, fallback, then dynamic order.`
       )
     }
     previousPhase = currentPhase
@@ -205,7 +205,7 @@ export function validatePrerenderMatcherParams(
     }
     if (output === 'export' && mode !== 'not-found') {
       throw new Error(
-        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using an unstable prerender matcher with "output: export".`
+        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using experimental parameter matching with "output: export".`
       )
     }
   }

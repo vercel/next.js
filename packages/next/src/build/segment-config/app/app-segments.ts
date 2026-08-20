@@ -94,13 +94,13 @@ function attach(
     }
   }
 
-  const hasStaticMatcher = 'unstable_matcher' in userland
-  const hasGeneratedMatcher = 'unstable_generateMatcher' in userland
+  const hasStaticMatcher = 'experimental_paramMatching' in userland
+  const hasGeneratedMatcher = 'experimental_generateParamMatching' in userland
 
   if (hasStaticMatcher || hasGeneratedMatcher) {
     if (hasStaticMatcher && hasGeneratedMatcher) {
       throw new Error(
-        `Route "${route}" cannot export both \`unstable_matcher\` and \`unstable_generateMatcher\`.`
+        `Route "${route}" cannot export both \`experimental_paramMatching\` and \`experimental_generateParamMatching\`.`
       )
     }
 
@@ -108,18 +108,19 @@ function attach(
       segment.prerenderMatcher = {
         ...matcherScope,
         kind: 'static',
-        value: userland.unstable_matcher,
+        value: userland.experimental_paramMatching,
       }
     } else {
-      if (typeof userland.unstable_generateMatcher !== 'function') {
+      if (typeof userland.experimental_generateParamMatching !== 'function') {
         throw new Error(
-          `Route "${route}" must export \`unstable_generateMatcher\` as a function.`
+          `Route "${route}" must export \`experimental_generateParamMatching\` as a function.`
         )
       }
       segment.prerenderMatcher = {
         ...matcherScope,
         kind: 'generated',
-        generate: userland.unstable_generateMatcher as GeneratePrerenderMatcher,
+        generate:
+          userland.experimental_generateParamMatching as GeneratePrerenderMatcher,
       }
     }
   }

@@ -1,4 +1,4 @@
-export const unstable_matcher = { lang: 'not-found' }
+export const experimental_paramMatching = { lang: 'not-found' }
 
 export function generateStaticParams() {
   return [{ lang: 'en' }]

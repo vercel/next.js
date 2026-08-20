@@ -430,10 +430,10 @@ declare module 'next/form' {
 }
 
 const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
-type PrerenderMatcherFor<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
-type PrerenderMatcherExports<Route extends keyof ParamMap> =
-  | { unstable_matcher?: PrerenderMatcherFor<Route>; unstable_generateMatcher?: never }
-  | { unstable_matcher?: never; unstable_generateMatcher?: () => Promise<PrerenderMatcherFor<Route>> | PrerenderMatcherFor<Route> }
+type ParamMatchingFor<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
+type ParamMatchingExports<Route extends keyof ParamMap> =
+  | { experimental_paramMatching?: ParamMatchingFor<Route>; experimental_generateParamMatching?: never }
+  | { experimental_paramMatching?: never; experimental_generateParamMatching?: () => Promise<ParamMatchingFor<Route>> | ParamMatchingFor<Route> }
 
 `
 
@@ -443,13 +443,13 @@ function getPrerenderMatcherKeyValidation(
 ): string {
   return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
     ? `
-  type __PrerenderMatcherValue =
-    typeof handler extends { unstable_matcher: infer Matcher } ? Matcher :
-    typeof handler extends { unstable_generateMatcher: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
-  type __InvalidPrerenderMatcherKeys = Exclude<keyof __PrerenderMatcherValue, keyof ParamMap[${JSON.stringify(route)}]>
-  type __AssertNoInvalidPrerenderMatcherKeys<Invalid extends never> = Invalid
-  const __prerenderMatcherKeyCheck: __AssertNoInvalidPrerenderMatcherKeys<__InvalidPrerenderMatcherKeys> | undefined = undefined
-  void __prerenderMatcherKeyCheck`
+  type __ParamMatchingValue =
+    typeof handler extends { experimental_paramMatching: infer Matcher } ? Matcher :
+    typeof handler extends { experimental_generateParamMatching: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+  type __InvalidParamMatchingKeys = Exclude<keyof __ParamMatchingValue, keyof ParamMap[${JSON.stringify(route)}]>
+  type __AssertNoInvalidParamMatchingKeys<Invalid extends never> = Invalid
+  const __paramMatchingKeyCheck: __AssertNoInvalidParamMatchingKeys<__InvalidParamMatchingKeys> | undefined = undefined
+  void __paramMatchingKeyCheck`
     : ''
 }
 
@@ -564,7 +564,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-} & PrerenderMatcherExports<Route>
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -604,7 +604,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-} & PrerenderMatcherExports<Route>
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -808,7 +808,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-} & PrerenderMatcherExports<Route>
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -848,7 +848,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-} & PrerenderMatcherExports<Route>
+} & ParamMatchingExports<Route>
 
 `
   }

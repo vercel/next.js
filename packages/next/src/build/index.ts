@@ -2281,8 +2281,8 @@ export default async function build(
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
-              experimentalPrerenderMatching: Boolean(
-                config.experimental.prerenderMatching
+              experimentalParamMatching: Boolean(
+                config.experimental.paramMatching
               ),
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
@@ -2515,8 +2515,8 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
-                            experimentalPrerenderMatching: Boolean(
-                              config.experimental.prerenderMatching
+                            experimentalParamMatching: Boolean(
+                              config.experimental.paramMatching
                             ),
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
@@ -4621,7 +4621,7 @@ export default async function build(
         })
       )
 
-      if (config.experimental.prerenderMatching) {
+      if (config.experimental.paramMatching) {
         printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
       }
 

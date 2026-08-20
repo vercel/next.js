@@ -1,4 +1,4 @@
-export const unstable_matcher = {
+export const experimental_paramMatching = {
   lang: 'fallback',
   top: 'not-found',
 }

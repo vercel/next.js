@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export async function unstable_generateMatcher() {
+export async function experimental_generateParamMatching() {
   return {
     top: 'blocking',
     bottom: 'fallback',

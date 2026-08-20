@@ -874,7 +874,7 @@ export async function buildAppStaticPaths({
   route,
   distDir,
   cacheComponents,
-  experimentalPrerenderMatching,
+  experimentalParamMatching,
   authInterrupts,
   useCacheTimeout,
   staticPageGenerationTimeout,
@@ -897,7 +897,7 @@ export async function buildAppStaticPaths({
   page: string
   route: NormalizedAppRoute
   cacheComponents: boolean
-  experimentalPrerenderMatching: boolean
+  experimentalParamMatching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   staticPageGenerationTimeout: number
@@ -952,14 +952,14 @@ export async function buildAppStaticPaths({
   const hasPrerenderMatcherExport = segments.some(
     (segment) => segment.prerenderMatcher !== undefined
   )
-  if (hasPrerenderMatcherExport && !experimentalPrerenderMatching) {
+  if (hasPrerenderMatcherExport && !experimentalParamMatching) {
     throw new Error(
-      `Route "${page}" exports an unstable prerender matcher, but the experimental \`prerenderMatching\` flag is not enabled in next.config.`
+      `Route "${page}" exports experimental parameter matching, but the experimental \`paramMatching\` flag is not enabled in next.config.`
     )
   }
   if (hasPrerenderMatcherExport && !cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use an unstable prerender matcher without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use experimental parameter matching without enabling \`cacheComponents\`.`
     )
   }
 
