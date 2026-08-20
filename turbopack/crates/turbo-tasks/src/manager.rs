@@ -11,7 +11,7 @@ use std::{
     process::abort,
     sync::{
         Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
@@ -172,6 +172,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// Records that a read waited for a task that a worker was already executing, so it did not try
     /// to claim it. Diagnostics only, see [`TurboTasks::inline_execution_stats`].
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -511,8 +512,12 @@ impl Claimable for ScheduledTask {
     }
 }
 
+#[cfg(feature = "inline_execution_stats")]
+use std::sync::atomic::AtomicU64;
+
 /// Counters describing how reads and inline execution interacted, see
 /// [`TurboTasks::inline_execution_stats`]. Diagnostics only.
+#[cfg(feature = "inline_execution_stats")]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct InlineExecutionStats {
     /// Tasks that were put into the scheduler queue.
@@ -529,8 +534,11 @@ pub struct InlineExecutionStats {
     pub waited_in_progress: u64,
 }
 
-/// The counters behind [`InlineExecutionStats`]. Relaxed atomics on paths that already take a task
-/// lock or the queue lock, so the cost is noise compared to the work around them.
+/// The counters behind [`InlineExecutionStats`].
+///
+/// Only compiled with the `inline_execution_stats` feature: the counters sit on the read-miss path,
+/// and a build that doesn't want the numbers shouldn't pay for them.
+#[cfg(feature = "inline_execution_stats")]
 #[derive(Default)]
 struct InlineExecutionCounters {
     claim_attempted: AtomicU64,
@@ -540,13 +548,24 @@ struct InlineExecutionCounters {
     waited_in_progress: AtomicU64,
 }
 
+#[cfg(feature = "inline_execution_stats")]
 impl InlineExecutionCounters {
     fn bump(counter: &AtomicU64) {
         counter.fetch_add(1, Ordering::Relaxed);
     }
 }
 
+/// Bumps one of the [`InlineExecutionCounters`], or does nothing without the
+/// `inline_execution_stats` feature.
+macro_rules! bump_inline_counter {
+    ($counters:expr, $counter:ident) => {
+        #[cfg(feature = "inline_execution_stats")]
+        InlineExecutionCounters::bump(&$counters.$counter);
+    };
+}
+
 /// Whether a dump of [`InlineExecutionStats`] was requested via `TURBO_ENGINE_INLINE_STATS=1`.
+#[cfg(feature = "inline_execution_stats")]
 pub(crate) fn inline_stats_requested() -> bool {
     static REQUESTED: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
         std::env::var("TURBO_ENGINE_INLINE_STATS").is_ok_and(|value| value != "0")
@@ -638,6 +657,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     /// Diagnostics for reads and inline execution, see [`TurboTasks::inline_execution_stats`].
+    #[cfg(feature = "inline_execution_stats")]
     inline_counters: InlineExecutionCounters,
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
@@ -803,6 +823,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            #[cfg(feature = "inline_execution_stats")]
             inline_counters: InlineExecutionCounters::default(),
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
@@ -1080,26 +1101,28 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// complete on the first poll, it is spawned to be completed as usual.
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
         let this = self.pin();
-        InlineExecutionCounters::bump(&self.inline_counters.claim_attempted);
+        bump_inline_counter!(self.inline_counters, claim_attempted);
         // An execution that doesn't complete inline is handed over to the runtime, so there has to
         // be one. Reads from outside a runtime keep waiting for a worker, as they always did.
         if tokio::runtime::Handle::try_current().is_ok()
             && let Some(future) = self.priority_runner.claim(&this, &key)
         {
-            return if poll_once_or_spawn(future) {
+            let completed = poll_once_or_spawn(future);
+            #[cfg(feature = "inline_execution_stats")]
+            if completed {
                 InlineExecutionCounters::bump(&self.inline_counters.claim_completed_inline);
-                true
             } else {
                 InlineExecutionCounters::bump(&self.inline_counters.claim_yielded);
-                false
-            };
+            }
+            return completed;
         }
-        InlineExecutionCounters::bump(&self.inline_counters.claim_failed);
+        bump_inline_counter!(self.inline_counters, claim_failed);
         false
     }
 
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
-        InlineExecutionCounters::bump(&self.inline_counters.waited_in_progress);
+        bump_inline_counter!(self.inline_counters, waited_in_progress);
     }
 
     fn begin_foreground_job(&self) {
@@ -1160,6 +1183,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     /// Counters describing how reads and inline execution interacted. Diagnostics only; a dump of
     /// these can be requested with `TURBO_ENGINE_INLINE_STATS=1`.
+    #[cfg(feature = "inline_execution_stats")]
     #[doc(hidden)]
     pub fn inline_execution_stats(&self) -> InlineExecutionStats {
         let counters = &self.inline_counters;
@@ -1299,6 +1323,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        #[cfg(feature = "inline_execution_stats")]
         if inline_stats_requested() {
             // Requested with `TURBO_ENGINE_INLINE_STATS=1`; printed rather than traced so it shows
             // up without a tracing subscriber configured.
@@ -1754,6 +1779,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.try_execute_scheduled_task_inline(key)
     }
 
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
         self.note_waited_for_in_progress_task()
     }
@@ -2176,6 +2202,7 @@ pub(crate) async fn read_task_output(
             }
             ReadOutcome::InProgress(listener) => {
                 // A worker is on it — there is nothing to take over, so don't touch the queue.
+                #[cfg(feature = "inline_execution_stats")]
                 this.note_waited_for_in_progress_task();
                 listener.await
             }

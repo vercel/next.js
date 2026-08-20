@@ -94,6 +94,7 @@ struct Queue<P, T: Claimable> {
     /// Slot index of the claimable item for each key.
     claimable: FxHashMap<T::Key, usize>,
     /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
+    #[cfg(feature = "inline_execution_stats")]
     pushes: u64,
 }
 
@@ -104,6 +105,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
             slots: Vec::new(),
             free_slots: Vec::new(),
             claimable: FxHashMap::default(),
+            #[cfg(feature = "inline_execution_stats")]
             pushes: 0,
         }
     }
@@ -115,7 +117,10 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
     }
 
     fn push(&mut self, priority: P, task: T) {
-        self.pushes += 1;
+        #[cfg(feature = "inline_execution_stats")]
+        {
+            self.pushes += 1;
+        }
         let key = task.claim_key();
         let heap_priority = priority.clone();
         let slot = if let Some(slot) = self.free_slots.pop() {
@@ -226,6 +231,7 @@ impl<
     /// How many tasks were ever put into the queue, as opposed to being executed without ever being
     /// queued. Diagnostics only — it lets a test assert that a task never took the detour through
     /// the queue.
+    #[cfg(feature = "inline_execution_stats")]
     pub fn total_queued(&self) -> u64 {
         self.queue.lock().pushes
     }
@@ -672,6 +678,7 @@ mod tests {
 
     /// Every push into the queue is counted, so a test can assert that a task was executed without
     /// ever being queued.
+    #[cfg(feature = "inline_execution_stats")]
     #[test]
     fn test_total_queued_counts_pushes() {
         let (runner, executed) = queueing_runner::<u32>();

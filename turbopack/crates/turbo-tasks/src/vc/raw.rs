@@ -599,6 +599,7 @@ impl Future for ResolveRawVcFuture {
                                 // A worker is on it; nothing to take over. Loop back so
                                 // `poll_listener` registers the waker on this listener — returning
                                 // `Pending` here would sleep through the event.
+                                #[cfg(feature = "inline_execution_stats")]
                                 tt.note_waited_for_in_progress_task();
                                 this.listener = Some(listener);
                                 continue 'outer;
@@ -787,6 +788,7 @@ impl Future for ReadRawVcFuture {
                             // A worker is already filling the cell; nothing to take over. Loop back
                             // so `poll_listener` registers the waker on this listener — returning
                             // `Pending` here would sleep through the event.
+                            #[cfg(feature = "inline_execution_stats")]
                             tt.note_waited_for_in_progress_task();
                             *listener = Some(l);
                             continue;
