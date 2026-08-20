@@ -70,22 +70,27 @@ impl Asset for FileSource {
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target } => {
-                    debug_assert!(
-                        !matches!(
-                            *target.file_system_path().get_type().await?,
-                            FileSystemEntryType::Directory
-                        ),
-                        "FileSource cannot represent a symlink to a directory"
-                    );
                     let write_target = match target {
                         LinkTarget::Absolute { resolved } => {
                             WriteLinkTarget::Absolute(resolved.path.clone())
                         }
                         LinkTarget::Relative { raw, .. } => WriteLinkTarget::Relative(raw.clone()),
                     };
+                    let target_fs_path = target.file_system_path();
+                    let write_target_type = match *target_fs_path.get_type().await? {
+                        FileSystemEntryType::Directory => {
+                            WriteLinkTargetType::DirectoryOrJunctionPoint
+                        }
+                        FileSystemEntryType::Symlink
+                            if *target_fs_path.is_junction_point().await? =>
+                        {
+                            WriteLinkTargetType::DirectoryOrJunctionPoint
+                        }
+                        _ => WriteLinkTargetType::FileNonPortable,
+                    };
                     Ok(AssetContent::Redirect(WriteLinkContent {
                         target: write_target,
-                        target_type: WriteLinkTargetType::FileNonPortable,
+                        target_type: write_target_type,
                     })
                     .cell())
                 }
