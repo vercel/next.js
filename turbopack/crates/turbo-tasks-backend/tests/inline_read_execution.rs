@@ -174,7 +174,7 @@ async fn test_read_outcome_counters() {
     );
     assert_eq!(
         after.claim_attempted - before.claim_attempted,
-        (after.claim_completed_inline - before.claim_completed_inline)
+        (after.claim_completed - before.claim_completed)
             + (after.claim_yielded - before.claim_yielded)
             + (after.claim_failed - before.claim_failed),
         "every claim attempt has exactly one outcome"

@@ -88,6 +88,10 @@ struct Queue<P, T: Claimable> {
     /// The queued items with their priority. A slot is `Some` while the item is queued, `None` if
     /// it was claimed. The slot itself is only recycled once its (tombstone) heap entry has
     /// been popped, so a slot index is never reused while it is still referenced by the heap.
+    ///
+    /// The priority is stored here as well as in the heap entry because [`Queue::claim`] finds an
+    /// item by key and never touches the heap, so unlike [`Queue::pop`] it has no heap entry to
+    /// read it from — and [`Executor::execute`] needs the priority.
     slots: Vec<Option<(P, T)>>,
     /// Recycled indices into `slots`.
     free_slots: Vec<usize>,

@@ -171,8 +171,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool;
 
     /// Records that a read waited for a task that a worker was already executing, so it did not try
-    /// to claim it. Diagnostics only, see [`TurboTasks::inline_execution_stats`].
-    #[cfg(feature = "inline_execution_stats")]
+    /// to claim it. Diagnostics only, see `TurboTasks::inline_execution_stats`.
+    ///
+    /// Without the `inline_execution_stats` feature this is an empty function. It stays on the
+    /// trait unconditionally because the path that calls it is about to park on an
+    /// [`EventListener`] anyway, so one no-op call is noise next to that.
     fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -525,7 +528,7 @@ pub struct InlineExecutionStats {
     /// Reads that tried to take a queued task out of the queue.
     pub claim_attempted: u64,
     /// Claims that succeeded and whose execution finished on the reading thread.
-    pub claim_completed_inline: u64,
+    pub claim_completed: u64,
     /// Claims that succeeded but whose execution yielded, so it was handed to the runtime.
     pub claim_yielded: u64,
     /// Claims that found nothing to take, because a worker had already picked the task up.
@@ -536,32 +539,58 @@ pub struct InlineExecutionStats {
 
 /// The counters behind [`InlineExecutionStats`].
 ///
-/// Only compiled with the `inline_execution_stats` feature: the counters sit on the read-miss path,
-/// and a build that doesn't want the numbers shouldn't pay for them.
-#[cfg(feature = "inline_execution_stats")]
+/// Without the `inline_execution_stats` feature this is zero-sized and every method is an empty
+/// `#[inline]` no-op, so the counting compiles away: the counters sit on the read-miss path, and a
+/// build that doesn't want the numbers shouldn't pay for them.
 #[derive(Default)]
 struct InlineExecutionCounters {
+    #[cfg(feature = "inline_execution_stats")]
     claim_attempted: AtomicU64,
-    claim_completed_inline: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_completed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
     claim_yielded: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
     claim_failed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
     waited_in_progress: AtomicU64,
 }
 
-#[cfg(feature = "inline_execution_stats")]
 impl InlineExecutionCounters {
-    fn bump(counter: &AtomicU64) {
-        counter.fetch_add(1, Ordering::Relaxed);
-    }
-}
-
-/// Bumps one of the [`InlineExecutionCounters`], or does nothing without the
-/// `inline_execution_stats` feature.
-macro_rules! bump_inline_counter {
-    ($counters:expr, $counter:ident) => {
+    /// A read found its task queued and tried to take it over.
+    #[inline]
+    fn claim_attempted(&self) {
         #[cfg(feature = "inline_execution_stats")]
-        InlineExecutionCounters::bump(&$counters.$counter);
-    };
+        self.claim_attempted.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded and the execution finished on the reading thread.
+    #[inline]
+    fn claim_completed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_completed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded but the execution yielded, so it was handed to the runtime.
+    #[inline]
+    fn claim_yielded(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_yielded.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim found nothing to take, because a worker had already picked the task up.
+    #[inline]
+    fn claim_failed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_failed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A read waited without attempting a claim, because the task was already being executed.
+    #[inline]
+    fn waited_in_progress(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.waited_in_progress.fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 /// Whether a dump of [`InlineExecutionStats`] was requested via `TURBO_ENGINE_INLINE_STATS=1`.
@@ -610,17 +639,25 @@ impl Drop for InlineExecutionDepthGuard {
 /// Polls `future` once on the current thread. When it doesn't complete, it is spawned so it is
 /// driven to completion as usual. Returns whether it completed.
 ///
-/// The waker used for the inline poll never wakes anything, which is fine: a spawned task is always
-/// polled at least once, and that poll registers the real waker.
+/// The outcome is also recorded on the span of the task that was executed, see
+/// [`InlineExecutionSpanSlot`].
 fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
     let _depth_guard = InlineExecutionDepthGuard::enter();
-    let mut future = Box::pin(future);
+    let span_slot = InlineExecutionSpanSlot::default();
+    let mut future = Box::pin(INLINE_EXECUTION_SPAN.scope(span_slot.clone(), future));
+    // A waker that never wakes anything is fine here: if this poll doesn't complete the future we
+    // spawn it, and a spawned task is always polled at least once, which is the poll that registers
+    // the real waker.
     match future
         .as_mut()
         .poll(&mut Context::from_waker(Waker::noop()))
     {
-        Poll::Ready(()) => true,
+        Poll::Ready(()) => {
+            span_slot.record("complete");
+            true
+        }
         Poll::Pending => {
+            span_slot.record("partial");
             tokio::task::spawn(future);
             false
         }
@@ -656,8 +693,8 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
-    /// Diagnostics for reads and inline execution, see [`TurboTasks::inline_execution_stats`].
-    #[cfg(feature = "inline_execution_stats")]
+    /// Diagnostics for reads and inline execution, see `TurboTasks::inline_execution_stats`.
+    /// Zero-sized without the `inline_execution_stats` feature.
     inline_counters: InlineExecutionCounters,
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
@@ -805,6 +842,41 @@ task_local! {
     /// This is NOT shared across local tasks (unlike CURRENT_TASK_STATE), so it's safe
     /// to set/unset without race conditions.
     pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
+
+    /// Set only while a reader polls a task it claimed, so that the outcome of that poll can be
+    /// recorded on the *task's* span rather than the reader's, see [`InlineExecutionSpanSlot`].
+    static INLINE_EXECUTION_SPAN: InlineExecutionSpanSlot;
+}
+
+/// Lets a reader that executes a claimed task inline record the outcome on the span of the task it
+/// executed.
+///
+/// The reader only sees the outer execution future, whose instrumented span has already been exited
+/// by the time its `poll` returns — `Span::current()` there is the reader's own span. So the
+/// executor puts the span it is about to instrument the task body with in here, and the reader
+/// records the outcome on it afterwards.
+///
+/// Only present while a claimed task is being polled inline: a task started by a worker doesn't
+/// have this task-local set, and leaves the field unset.
+#[derive(Clone, Default)]
+struct InlineExecutionSpanSlot(Arc<Mutex<Option<Span>>>);
+
+impl InlineExecutionSpanSlot {
+    /// Called by the executor with the span it instruments the task body with.
+    fn set(span: &Span) {
+        let _ = INLINE_EXECUTION_SPAN.try_with(|slot| {
+            *slot.0.lock().unwrap() = Some(span.clone());
+        });
+    }
+
+    /// Records the outcome of the inline poll on the executed task's span, if the executor got far
+    /// enough to register one (it doesn't when the task was already claimed by someone else and the
+    /// execution turns into a no-op).
+    fn record(&self, outcome: &'static str) {
+        if let Some(span) = self.0.lock().unwrap().as_ref() {
+            span.record("inline_execution", outcome);
+        }
+    }
 }
 
 impl<B: Backend + 'static> TurboTasks<B> {
@@ -823,7 +895,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
-            #[cfg(feature = "inline_execution_stats")]
             inline_counters: InlineExecutionCounters::default(),
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
@@ -1101,28 +1172,29 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// complete on the first poll, it is spawned to be completed as usual.
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
         let this = self.pin();
-        bump_inline_counter!(self.inline_counters, claim_attempted);
-        // An execution that doesn't complete inline is handed over to the runtime, so there has to
-        // be one. Reads from outside a runtime keep waiting for a worker, as they always did.
+        self.inline_counters.claim_attempted();
+        // The runtime check has to happen *before* claiming, not inside `poll_once_or_spawn`:
+        // claiming removes the task from the queue, so if the execution then yields we must be able
+        // to hand it to the runtime — `tokio::task::spawn` would panic, and the task is already
+        // dequeued and cannot be put back. Reads from outside a runtime keep waiting for a worker,
+        // as they always did.
         if tokio::runtime::Handle::try_current().is_ok()
             && let Some(future) = self.priority_runner.claim(&this, &key)
         {
             let completed = poll_once_or_spawn(future);
-            #[cfg(feature = "inline_execution_stats")]
             if completed {
-                InlineExecutionCounters::bump(&self.inline_counters.claim_completed_inline);
+                self.inline_counters.claim_completed();
             } else {
-                InlineExecutionCounters::bump(&self.inline_counters.claim_yielded);
+                self.inline_counters.claim_yielded();
             }
             return completed;
         }
-        bump_inline_counter!(self.inline_counters, claim_failed);
+        self.inline_counters.claim_failed();
         false
     }
 
-    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
-        bump_inline_counter!(self.inline_counters, waited_in_progress);
+        self.inline_counters.waited_in_progress();
     }
 
     fn begin_foreground_job(&self) {
@@ -1190,7 +1262,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         InlineExecutionStats {
             queued: self.priority_runner.total_queued(),
             claim_attempted: counters.claim_attempted.load(Ordering::Relaxed),
-            claim_completed_inline: counters.claim_completed_inline.load(Ordering::Relaxed),
+            claim_completed: counters.claim_completed.load(Ordering::Relaxed),
             claim_yielded: counters.claim_yielded.load(Ordering::Relaxed),
             claim_failed: counters.claim_failed.load(Ordering::Relaxed),
             waited_in_progress: counters.waited_in_progress.load(Ordering::Relaxed),
@@ -1474,6 +1546,10 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)?;
 
+                            // When a reader claimed this task and is polling it inline, let it
+                            // record the outcome on this span rather than its own.
+                            InlineExecutionSpanSlot::set(&span);
+
                             async {
                                 let result = CaptureFuture::new(future).await;
 
@@ -1543,6 +1619,9 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             trait_method.resolve_span(priority)
                         }
                     };
+                    // See the cached-task arm: lets a reader that claimed this local task record
+                    // the outcome of its inline poll on this span.
+                    InlineExecutionSpanSlot::set(&span);
                     abort_on_panic(
                         async move {
                             let result = match ty.task_type {
@@ -1779,7 +1858,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.try_execute_scheduled_task_inline(key)
     }
 
-    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
         self.note_waited_for_in_progress_task()
     }
@@ -2202,7 +2280,6 @@ pub(crate) async fn read_task_output(
             }
             ReadOutcome::InProgress(listener) => {
                 // A worker is on it — there is nothing to take over, so don't touch the queue.
-                #[cfg(feature = "inline_execution_stats")]
                 this.note_waited_for_in_progress_task();
                 listener.await
             }
@@ -2619,5 +2696,44 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
+    }
+
+    /// The span slot must be per inline execution: a task executed inline while itself being
+    /// executed inline has to record its outcome on its own span, not on its reader's.
+    #[tokio::test]
+    async fn test_nested_inline_executions_use_separate_span_slots() {
+        /// Identifies the slot of the innermost inline execution, or `None` outside one.
+        fn current_slot() -> Option<usize> {
+            INLINE_EXECUTION_SPAN
+                .try_with(|slot| Arc::as_ptr(&slot.0) as usize)
+                .ok()
+        }
+
+        assert_eq!(current_slot(), None, "no slot outside an inline execution");
+
+        let outer_slot = Arc::new(Mutex::new(None));
+        let outer_slot_in_task = outer_slot.clone();
+        assert!(poll_once_or_spawn(async move {
+            let outer = current_slot().expect("an inline execution has a slot");
+            *outer_slot_in_task.lock().unwrap() = Some(outer);
+
+            // A nested inline execution gets its own slot...
+            assert!(poll_once_or_spawn(async move {
+                let inner = current_slot().expect("the nested execution has a slot");
+                assert_ne!(inner, outer, "the nested execution must not share the slot");
+            }));
+
+            // ...and the outer one is back afterwards.
+            assert_eq!(current_slot(), Some(outer));
+        }));
+        assert!(outer_slot.lock().unwrap().is_some(), "the outer body ran");
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    /// A worker-executed task has no slot, so registering its span is a no-op rather than a panic —
+    /// that is what leaves `inline_execution` unset for it.
+    #[test]
+    fn test_registering_a_span_outside_an_inline_execution_does_nothing() {
+        InlineExecutionSpanSlot::set(&Span::none());
     }
 }

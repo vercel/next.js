@@ -10144,6 +10144,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-persistence",

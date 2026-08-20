@@ -1997,7 +1997,12 @@ impl TurboTasksBackend {
                 )
             }
             TaskType::Transient(task_type) => {
-                let span = tracing::trace_span!("turbo_tasks::root_task");
+                // `inline_execution` is recorded when a read executed this task on its own thread,
+                // see `NativeFunction::span`.
+                let span = tracing::trace_span!(
+                    "turbo_tasks::root_task",
+                    inline_execution = tracing::field::Empty
+                );
                 let future = match &*task_type {
                     TransientTask::Root(f) => f(),
                     TransientTask::Once(future_mutex) => take(&mut *future_mutex.lock())?,
