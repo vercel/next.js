@@ -100,7 +100,20 @@ interface ImportMetaGlobOptions {
   caseSensitive?: boolean
 }
 
+interface ImportMetaEnv {
+  readonly DEV: boolean
+  readonly PROD: boolean
+  readonly MODE: string
+  readonly BASE_URL: string
+  readonly SSR: boolean
+}
+
 interface ImportMeta {
+  /**
+   * Built-in environment metadata when using Turbopack.
+   */
+  readonly env: ImportMetaEnv
+
   /**
    * The HMR API for ESM modules when using Turbopack.
    * Equivalent to `module.hot` in CommonJS modules.
@@ -117,19 +130,22 @@ interface ImportMeta {
    *
    * // Eager — values are module objects
    * const modules = import.meta.glob('./dir/*.js', { eager: true })
+   *
+   * // The module type can be provided
+   * const modules = import.meta.glob<{ name: string }>('./dir/*.js')
    */
-  glob(
+  glob<M = unknown>(
     pattern: string | string[],
     options: ImportMetaGlobOptions & { eager: true }
-  ): Record<string, unknown>
-  glob(
+  ): Record<string, M>
+  glob<M = unknown>(
     pattern: string | string[],
     options?: ImportMetaGlobOptions & { eager?: false | undefined }
-  ): Record<string, () => Promise<unknown>>
-  glob(
+  ): Record<string, () => Promise<M>>
+  glob<M = unknown>(
     pattern: string | string[],
     options?: ImportMetaGlobOptions
-  ): Record<string, unknown> | Record<string, () => Promise<unknown>>
+  ): Record<string, M> | Record<string, () => Promise<M>>
 }
 
 interface Window {

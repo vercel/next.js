@@ -43,11 +43,6 @@ import type {
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
 
-export enum HmrTarget {
-  Client = 'client',
-  Server = 'server',
-}
-
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
   default?(): Promise<typeof import('./generated-wasm')>
@@ -762,37 +757,27 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+    serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
       return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
+        binding.projectServerHmrEvents(this._nativeProject, callback)
       )
     }
 
-    /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
-     */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
+    clientHmrEvents(
+      chunkName: string
+    ): AsyncIterableIterator<TurbopackResult<Update>> {
+      return subscribe(true, async (callback) =>
+        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
+      )
+    }
+
+    /** Subscribe to client output chunk paths that can receive HMR updates. */
+    clientHmrChunkNamesSubscribe() {
       return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
+          binding.projectClientHmrChunkNamesSubscribe(
             this._nativeProject,
-            target,
             callback
           )
       )
@@ -1027,21 +1012,23 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
-    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // Serialize `experimental.turbopackChunking` route patterns: convert each RegExp to
     // {source, flags} since RegExp objects are not JSON-serializable.
-    const chunkingHeuristics =
-      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
-    if (chunkingHeuristics) {
+    const chunkingConfig =
+      nextConfigSerializable.experimental?.turbopackChunking
+    if (chunkingConfig) {
       const regexComponents = (regex: RegExp) => ({
         source: regex.source,
         flags: regex.flags,
       })
       nextConfigSerializable.experimental = {
         ...nextConfigSerializable.experimental,
-        turbopackChunkingHeuristics: {
-          ...chunkingHeuristics,
-          priorityRoutes:
-            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        turbopackChunking: {
+          ...chunkingConfig,
+          clusters: chunkingConfig.clusters?.map((cluster: RegExp[]) =>
+            cluster.map(regexComponents)
+          ),
+          priorityRoutes: chunkingConfig.priorityRoutes?.map(regexComponents),
         },
       }
     }
@@ -1406,6 +1393,9 @@ async function loadWasm(importPath = '') {
     getTargetTriple() {
       return undefined
     },
+    turbopackCacheVersion() {
+      return undefined
+    },
     turbo: {
       createProject(
         _options: ProjectOptions,
@@ -1665,6 +1655,7 @@ function loadNative(importPath?: string): Binding {
       },
 
       getTargetTriple: bindings.getTargetTriple,
+      turbopackCacheVersion: bindings.turbopackCacheVersion,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
@@ -1823,6 +1814,10 @@ export function getBinaryMetadata() {
   return {
     target: loadedBindings?.getTargetTriple?.(),
   }
+}
+
+export function getTurbopackCacheVersion(): string | undefined {
+  return loadedBindings?.turbopackCacheVersion?.(nextVersion)
 }
 
 /**

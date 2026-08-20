@@ -1,7 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import { retry } from 'next-test-utils'
+import {
+  retry,
+  toggleDevToolsIndicatorPopover,
+  waitForNoRedbox,
+} from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
@@ -12,6 +16,8 @@ type RequestInsight = {
   status: 'ok'
   spans: Array<{
     name?: string
+    spanId?: string
+    parentSpanId?: string
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -45,6 +51,49 @@ describe('request insights', () => {
       })),
     }
   }
+
+  async function openRequestInsightsPanel(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    await toggleDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-request-insights]').click()
+    await browser.waitForElementByCss('.request-insights-list-toolbar')
+    // The panel selector menu stays mounted for its exit animation and its
+    // click-outside handler would close the freshly opened panel. Wait for
+    // it to fully unmount before interacting with the panel.
+    await retry(async () => {
+      const selectorMenuGone = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return !root?.querySelector('#nextjs-dev-tools-menu')
+      })
+      expect(selectorMenuGone).toBe(true)
+    })
+  }
+
+  async function patchRequestInsightsConfig(patch: {
+    showInternal?: boolean
+    verbose?: boolean
+  }) {
+    const response = await next.fetch('/__nextjs_devtools_config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestInsights: patch }),
+    })
+    expect(response.status).toBe(204)
+  }
+
+  let shouldResetRequestInsightsConfig = false
+  afterEach(async () => {
+    if (!shouldResetRequestInsightsConfig) {
+      return
+    }
+
+    await patchRequestInsightsConfig({
+      showInternal: false,
+      verbose: false,
+    })
+    shouldResetRequestInsightsConfig = false
+  })
 
   async function runWithResponse(body: unknown, args: string[] = []) {
     const requestedPaths: string[] = []
@@ -121,6 +170,32 @@ describe('request insights', () => {
     })
   })
 
+  it('does not attribute Request Insights bookkeeping to the app', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/safe-clock')
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('safe clock')
+    })
+    await waitForNoRedbox(browser)
+    expect(next.cliOutput.slice(outputIndex)).not.toContain(
+      'Route "/safe-clock": Next.js encountered the unstable value `Date.now()` while prerendering.'
+    )
+  })
+
+  it('still reports genuine app wall-clock access with app source attribution', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.browser('/app-date-now')
+
+    await retry(() => {
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain(
+        'Route "/app-date-now": Next.js encountered the unstable value `Date.now()` while prerendering.'
+      )
+      expect(output).toMatch(/at Page \(app\/app-date-now\/page\.tsx:\d+:\d+\)/)
+    })
+  })
+
   it('records Instant Insights separately from its originating request', async () => {
     await next.render('/instant-insights')
 
@@ -150,19 +225,254 @@ describe('request insights', () => {
         })
       )
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
-      expect(
-        instantInsights?.spans.some(
-          (span) =>
-            span.attributes?.['next.span_type'] ===
-              'AppRender.instantInsights' && span.name === 'Instant Insights'
+      const rootSpans = instantInsights?.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'AppRender.instantInsights' &&
+          span.name === 'Instant Insights'
+      )
+      expect(rootSpans?.length).toBeGreaterThan(0)
+      for (const rootSpan of rootSpans ?? []) {
+        expect(rootSpan.parentSpanId).toBeUndefined()
+      }
+
+      const pipelineSpanTypes = [
+        'AppRender.instantInsights.prepareValidation',
+        'AppRender.instantInsights.runValidation',
+      ]
+      const pipelineSpans = instantInsights?.spans.filter((span) =>
+        pipelineSpanTypes.includes(
+          span.attributes?.['next.span_type'] as string
         )
-      ).toBe(true)
+      )
+      expect(
+        pipelineSpans?.map((span) => span.attributes?.['next.span_type'])
+      ).toEqual(
+        expect.arrayContaining([
+          'AppRender.instantInsights.prepareValidation',
+          'AppRender.instantInsights.runValidation',
+        ])
+      )
+      for (const span of pipelineSpans ?? []) {
+        expect(
+          rootSpans?.some((rootSpan) => rootSpan.spanId === span.parentSpanId)
+        ).toBe(true)
+      }
       expect(
         request?.spans.some(
           (span) =>
-            span.attributes?.['next.span_type'] === 'AppRender.instantInsights'
+            span.attributes?.['next.span_type'] ===
+              'AppRender.instantInsights' ||
+            pipelineSpanTypes.includes(
+              span.attributes?.['next.span_type'] as string
+            )
         )
       ).toBe(false)
+    })
+  })
+
+  it('persists verbose trace settings', async () => {
+    const browser = await next.browser('/instant-insights')
+    shouldResetRequestInsightsConfig = true
+
+    function getSettingsMenuState(): Promise<{
+      open: boolean
+      checked: string | null
+    }> {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const item = Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).find((candidate) => candidate.textContent?.includes('Verbose traces'))
+        return {
+          open: !!root?.querySelector('.request-insights-settings-menu'),
+          checked:
+            item
+              ?.querySelector('.request-insights-settings-checkbox')
+              ?.getAttribute('data-checked') ?? null,
+        }
+      })
+    }
+
+    function getSpanRowCount(): Promise<number> {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.querySelectorAll('.request-insights-span-row').length ?? 0
+      })
+    }
+
+    await openRequestInsightsPanel(browser)
+    await retry(async () => {
+      const selectedRegularRequest = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find(
+          (candidate) => !candidate.textContent?.includes('Instant Insights')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selectedRegularRequest).toBe(true)
+    })
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: null,
+      })
+    })
+
+    let defaultSpanRowCount = 0
+    await retry(async () => {
+      defaultSpanRowCount = await getSpanRowCount()
+      expect(defaultSpanRowCount).toBeGreaterThan(0)
+    })
+
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Verbose traces")'
+      )
+      .click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: 'true',
+      })
+      expect(await getSpanRowCount()).toBeGreaterThan(defaultSpanRowCount)
+    })
+
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.verbose).toBe(true)
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await retry(async () => {
+      expect((await getSettingsMenuState()).open).toBe(false)
+    })
+
+    await browser.refresh()
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: 'true',
+      })
+    })
+  })
+
+  it('hides internal activity behind the settings menu', async () => {
+    const browser = await next.browser('/instant-insights')
+    shouldResetRequestInsightsConfig = true
+
+    function getSettingsMenuItems(): Promise<
+      Array<{ label: string | undefined; checked: string | null }>
+    > {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).map((item) => ({
+          label: item.textContent?.trim(),
+          checked:
+            item
+              .querySelector('.request-insights-settings-checkbox')
+              ?.getAttribute('data-checked') ?? null,
+        }))
+      })
+    }
+
+    await openRequestInsightsPanel(browser)
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const rows = Array.from(
+          root?.querySelectorAll('.request-insights-row') ?? []
+        )
+        return {
+          rowCount: rows.length,
+          hasInstantInsightsRow: rows.some((row) =>
+            row.textContent?.includes('Instant Insights')
+          ),
+        }
+      })
+
+      expect(state.rowCount).toBeGreaterThan(0)
+      expect(state.hasInstantInsightsRow).toBe(false)
+    })
+
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await retry(async () => {
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: null },
+        { label: 'Verbose traces', checked: null },
+      ])
+    })
+
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Internal activity")'
+      )
+      .click()
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Verbose traces")'
+      )
+      .click()
+
+    await retry(async () => {
+      const nestedRows = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-row[data-nested="true"]') ??
+            []
+        ).map((row) => ({
+          internal: row.getAttribute('data-internal'),
+          hasArrow: !!row.querySelector('.request-insights-nested-arrow'),
+          label: row.textContent ?? '',
+        }))
+      })
+
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: 'true' },
+        { label: 'Verbose traces', checked: 'true' },
+      ])
+      expect(nestedRows.length).toBeGreaterThan(0)
+      for (const row of nestedRows) {
+        expect(row.internal).toBe('true')
+        expect(row.hasArrow).toBe(true)
+        expect(row.label).toContain('Instant Insights')
+      }
+    })
+
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights).toEqual({
+        showInternal: true,
+        verbose: true,
+      })
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.refresh()
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: 'true' },
+        { label: 'Verbose traces', checked: 'true' },
+      ])
     })
   })
 

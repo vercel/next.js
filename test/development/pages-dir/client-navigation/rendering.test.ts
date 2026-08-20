@@ -124,7 +124,7 @@ describe('Client Navigation rendering', () => {
     test('getInitialProps circular structure', async () => {
       const browser = await next.browser('/circular-json-error')
 
-      if (isReact18 && isTurbopack) {
+      if (isReact18) {
         await expect(browser).toDisplayRedbox(`
          {
            "code": "E490",

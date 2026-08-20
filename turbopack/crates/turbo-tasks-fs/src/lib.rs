@@ -60,6 +60,7 @@ pub use crate::{
     path::{FileSystemPath, FileSystemPathOption, RealPathResult, RealPathResultError, rebase},
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
+    watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
     windows::to_verbatim_with_case_folded_disk,
 };
 

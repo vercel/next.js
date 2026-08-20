@@ -6,7 +6,7 @@ export default function Page() {
     <main>
       <h1>Home</h1>
 
-      <h2>Dynamic posts (allow-runtime)</h2>
+      <h2>Dynamic posts (partial)</h2>
       <p>
         These posts read request-time data (cookies). Their App Shell is the
         part of the page that doesn&apos;t depend on the URL params, so it can
@@ -54,7 +54,7 @@ export default function Page() {
         </li>
       </ul>
 
-      <h2>Short-stale posts (allow-runtime)</h2>
+      <h2>Short-stale posts (partial)</h2>
       <p>
         These posts render cached content with a stale time below the App Shell
         threshold (5 minutes). The short-lived content is excluded from the App
@@ -108,22 +108,11 @@ export default function Page() {
         </li>
       </ul>
 
-      <h2>Eager posts</h2>
+      <h2>Complete shell</h2>
       <ul>
         <li>
-          <LinkAccordion href="/eager/1">Eager 1 (default)</LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager/2">Eager 2 (default)</LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager-instant/1">
-            Eager-instant 1 (instant + unstable_eager)
-          </LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/eager-instant/2">
-            Eager-instant 2 (instant + unstable_eager)
+          <LinkAccordion href="/runtime-shell-complete">
+            Complete runtime shell
           </LinkAccordion>
         </li>
       </ul>

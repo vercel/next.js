@@ -204,28 +204,13 @@ impl CjsRequireAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
-        // This `require()` is in `unused_references`: its result is unused and
-        // the target is side-effect free. Replace the call with a placeholder
-        // at the expression level.
-        if reference.cjs_tree_shaking
-            && chunking_context
-                .unused_references()
-                .contains_key(&ResolvedVc::upcast(self.reference))
-                .await?
-        {
-            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-                // `const {a,b} = 0;` is a clever way to assign undefined to all the variables
-                *expr = quote!("0" as Expr);
-            });
-            return Ok(CodeGeneration::visitors(vec![visitor]));
-        }
-
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
         let mut visitors = Vec::new();
@@ -366,6 +351,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
         let mut visitors = Vec::new();
@@ -454,6 +440,8 @@ impl From<CjsRequireCacheAccess> for CodeGen {
 )]
 pub struct CjsExportsDropCodeGen {
     drops: Vec<DroppableCjsExportAssignment>,
+    /// Writes to a discarded exports object, dropped whatever the export usage is.
+    dead_writes: Vec<DroppableCjsExportAssignment>,
     /// Whether the module sets `__esModule`. Without it, a default import binds
     /// the whole `module.exports`, so nothing may be dropped.
     has_es_module: bool,
@@ -473,9 +461,14 @@ pub enum DroppableCjsExportAssignment {
 }
 
 impl CjsExportsDropCodeGen {
-    pub fn new(drops: Vec<DroppableCjsExportAssignment>, has_es_module: bool) -> Self {
+    pub fn new(
+        drops: Vec<DroppableCjsExportAssignment>,
+        dead_writes: Vec<DroppableCjsExportAssignment>,
+        has_es_module: bool,
+    ) -> Self {
         CjsExportsDropCodeGen {
             drops,
+            dead_writes,
             has_es_module,
         }
     }
@@ -492,20 +485,24 @@ impl CjsExportsDropCodeGen {
         let export_usage_info = export_usage_info.export_usage.await?;
 
         // Without `__esModule`, a default import binds the whole `module.exports`,
-        // so a used `default` makes every named export reachable — drop nothing.
-        if !self.has_es_module && export_usage_info.is_export_used(&rcstr!("default")) {
-            return Ok(CodeGeneration::empty());
-        }
+        // so a used `default` makes every named export reachable — drop none of these.
+        let drops = if !self.has_es_module && export_usage_info.is_export_used(&rcstr!("default")) {
+            &[]
+        } else {
+            &self.drops[..]
+        };
 
         // Replace each unused `exports.NAME = <value>` with `<value>`, preserving
         // side effects (the minifier drops a pure value). Rewriting the assignment
         // rather than its statement keeps chained writes like
         // `exports.a = exports.b = 1` sound.
         let mut visitors = Vec::new();
-        for drop in &self.drops {
+        for (drop, dead) in (self.dead_writes.iter().map(|drop| (drop, true)))
+            .chain(drops.iter().map(|drop| (drop, false)))
+        {
             match drop {
                 DroppableCjsExportAssignment::Write { name, path } => {
-                    if export_usage_info.is_export_used(name) {
+                    if !dead && export_usage_info.is_export_used(name) {
                         continue;
                     }
                     visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
@@ -530,7 +527,7 @@ impl CjsExportsDropCodeGen {
                 DroppableCjsExportAssignment::ObjectLiteral { names, path } => {
                     let unused = names
                         .iter()
-                        .filter(|name| !export_usage_info.is_export_used(name))
+                        .filter(|name| dead || !export_usage_info.is_export_used(name))
                         .cloned()
                         .collect::<Vec<_>>();
                     if unused.is_empty() {

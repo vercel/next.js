@@ -215,13 +215,13 @@ function bundlerFindSourceMapURL(scriptNameOrSourceURL: string): string | null {
 const invalidSourceMap = Symbol('invalid-source-map')
 const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
   512 * 1024 * 1024,
-  (url) =>
-    url === invalidSourceMap
-      ? // Ideally we'd account for key length. So we just guestimate a small source map
-        // so that we don't create a huge cache with empty source maps.
+  (url, sourceURL) =>
+    sourceURL.length +
+    (url === invalidSourceMap
+      ? // Guestimate a small source map so invalid entries don't fill the cache.
         8 * 1024
       : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
-        url.length
+        url.length)
 )
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string

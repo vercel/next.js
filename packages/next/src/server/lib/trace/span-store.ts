@@ -48,7 +48,7 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
   }
 
   const spanRecord: SpanStoreRecord = {
-    timestamp: Date.now(),
+    timestamp: getCurrentTimestamp(),
     ...record,
   }
 
@@ -86,4 +86,8 @@ export function isRequestInsightsEnabled(): boolean {
 
 function isEnabledEnvValue(value: string | undefined): boolean {
   return value === '1' || value === 'true' || (value as unknown) === true
+}
+
+function getCurrentTimestamp(): number {
+  return performance.timeOrigin + performance.now()
 }

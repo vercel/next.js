@@ -226,8 +226,8 @@ describe('instant validation - parallel slot configs', () => {
       it('allows unsuspended runtime content in children when runtime config is on slot page', async () => {
         // Shell validation uses the runtime shell selected by the @slot branch,
         // so the unsuspended cookies() call in children is allowed here. If this
-        // test validates a non-shell prefetch again, @slot's allow-runtime must
-        // not apply to the sibling children branch, and its cookies() call
+        // test validates a non-shell prefetch again, @slot's prefetch config
+        // must not apply to the sibling children branch, and its cookies() call
         // should be reported as an instant validation violation.
         if (isNextDev) {
           const browser = await navigateTo(

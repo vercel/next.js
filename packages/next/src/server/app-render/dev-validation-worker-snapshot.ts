@@ -55,8 +55,7 @@ export async function buildDevValidationSnapshot(
     accumulatedChunks: inputs.accumulatedChunks,
     debugChunks: await getDebugChunksOnce(inputs.debugChannelClient),
     startTime: inputs.startTime,
-    staticStageEndTime: inputs.staticStageEndTime,
-    runtimeStageEndTime: inputs.runtimeStageEndTime,
+    stageEndTimes: inputs.stageEndTimes,
   })
 
   return {
@@ -76,6 +75,7 @@ export async function buildDevValidationSnapshot(
       isDraftMode: requestStore.draftMode.isEnabled,
       isHmrRefresh: requestStore.isHmrRefresh ?? false,
       hmrRefreshHash: requestStore.hmrRefreshHash,
+      requestStartTime: ctx.workStore.requestStartTime,
     },
     interpolatedParams: ctx.interpolatedParams,
     requestFallbackRouteParams: ctx.fallbackRouteParams,

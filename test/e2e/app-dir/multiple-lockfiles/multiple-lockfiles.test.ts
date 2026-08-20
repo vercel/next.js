@@ -8,10 +8,15 @@ describe('multiple-lockfiles', () => {
       app: new FileRef(join(__dirname, 'app')),
       // Write a package-lock.json file to the parent directory to simulate
       // multiple lockfiles.
+      '../package.json': JSON.stringify({
+        name: 'parent-workspace',
+        version: '1.0.0',
+      }),
       '../package-lock.json': JSON.stringify({
         name: 'parent-workspace',
         version: '1.0.0',
         lockfileVersion: 3,
+        packages: { '': { name: 'parent-workspace', version: '1.0.0' } },
       }),
     },
     // So that ../package-lock.json doesn't leave the isolated testDir

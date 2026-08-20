@@ -8,6 +8,7 @@ import type {
 } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -81,6 +82,17 @@ const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
  * @internal
  */
 export function makeDynamicHangingPromise<T>(
+  signal: AbortSignal,
+  route: string,
+  expression: string
+): Promise<T> {
+  return makeHangingPromiseWithError(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+}
+
+export function makeUntrackedHangingPromise<T>(
   signal: AbortSignal,
   route: string,
   expression: string
@@ -263,7 +275,6 @@ function trackRuntimeDataAccessedImpl(
       break
     }
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'validation-client':
@@ -278,6 +289,10 @@ function trackRuntimeDataAccessedImpl(
     default:
       workUnitStore satisfies never
   }
+}
+
+export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+  workUnitStore.hasIncompatibleShellContent = true
 }
 
 export function makeClientHookHangingPromise<T>(
@@ -361,6 +376,40 @@ export function makeDevtoolsIOAwarePromise<T>(
   })
 }
 
+/** Invokes `onUse` whenever `then()/catch()/finally()` are called on the promise. */
+export function trackPromiseUsed<T>(promise: Promise<T>, onUse: () => void) {
+  const methodCache: Record<string, (...args: any[]) => any> = {}
+  return new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        let patchedMethod = methodCache[prop]
+        if (patchedMethod !== undefined) {
+          return patchedMethod
+        }
+
+        const originalMethod = ReflectAdapter.get(target, prop, receiver)
+        patchedMethod = {
+          [prop]: (...args: unknown[]) => {
+            try {
+              onUse()
+            } catch (err) {
+              // We don't want to break the method even if our tracking errored.
+              console.error(err)
+            }
+
+            return originalMethod.apply(target, args)
+          },
+        }[prop]
+
+        methodCache[prop] = patchedMethod
+        return patchedMethod
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+}
+
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
   staticLinkData: RenderStage.Static as const,
@@ -391,7 +440,6 @@ export function applyOwnerStack(error: Error): Error {
       case 'unstable-cache':
       case 'request':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'prerender-runtime':
       case 'prerender-client':

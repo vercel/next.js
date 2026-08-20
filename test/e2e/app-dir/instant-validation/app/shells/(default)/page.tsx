@@ -24,6 +24,9 @@ export default async function Page() {
           <DebugLinks href="/shells/valid-static-with-gsp/123" />
         </li>
         <li>
+          <DebugLinks href="/shells/valid-use-cache-instant-false" />
+        </li>
+        <li>
           <DebugLinks href="/shells/invalid-runtime-params/123" />
         </li>
         <li>

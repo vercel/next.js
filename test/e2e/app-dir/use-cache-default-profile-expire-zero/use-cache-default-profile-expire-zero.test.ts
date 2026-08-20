@@ -8,9 +8,26 @@ describe('use-cache-default-profile-expire-zero', () => {
     files: __dirname,
   })
 
+  // Reads the rendered cache value over HTTP instead of through the browser. A
+  // dev page reload costs seconds on a CI runner, almost all of it downloading
+  // and evaluating the dev bundle, which keeps a retried read from fitting in
+  // its budget. The value is server-rendered, so a plain request observes the
+  // same cache state for a fraction of the cost.
+  async function readCachedValue(pathname: string): Promise<string> {
+    const $ = await next.render$(pathname)
+    const value = $('#value')
+
+    // Without this the caller asserting that the value changed would accept the
+    // empty string that a missing element yields.
+    if (value.length === 0) {
+      throw new Error(`Found no cached value in the HTML of ${pathname}.`)
+    }
+
+    return value.text()
+  }
+
   it('treats a short default cacheLife profile as a dynamic hole, not a nested-cache error', async () => {
-    const browser = await next.browser('/')
-    const initialValue = await browser.elementById('value').text()
+    const initialValue = await readCachedValue('/')
     expect(initialValue).toMatch(isoDateRegExp)
 
     // The short `expire` comes from the app's configured default profile, and
@@ -22,11 +39,10 @@ describe('use-cache-default-profile-expire-zero', () => {
     )
 
     // An `expire: 0` cache is a dynamic hole. In production it regenerates on
-    // every request; in dev it is served warm across reloads and re-warmed in
-    // the background. Either way, reloads converge to a fresh value.
+    // every request; in dev it is served warm across reads and re-warmed in the
+    // background. Either way, reads converge to a fresh value.
     await retry(async () => {
-      await browser.refresh()
-      const value = await browser.elementById('value').text()
+      const value = await readCachedValue('/')
       expect(value).toMatch(isoDateRegExp)
       expect(value).not.toEqual(initialValue)
     })
@@ -38,8 +54,7 @@ describe('use-cache-default-profile-expire-zero', () => {
     // default profile is itself dynamic, the outer cache is omitted from
     // prerenders by default, so there is no silent degradation to warn about
     // and the nested cache renders as a dynamic hole instead.
-    const browser = await next.browser('/nested')
-    expect(await browser.elementById('value').text()).toMatch(isoDateRegExp)
+    expect(await readCachedValue('/nested')).toMatch(isoDateRegExp)
 
     expect(next.cliOutput).not.toContain(
       'nested-use-cache-no-explicit-cachelife'

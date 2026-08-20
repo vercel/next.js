@@ -3,6 +3,7 @@ import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
 import type {
   FallbackRouteParam,
+  PrerenderRouteMatcher,
   PrerenderedRoute,
   StaticPathsResult,
 } from './types'
@@ -901,7 +902,6 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       staticPageGenerationTimeout,
-      supportsDynamicResponse: true,
       cacheComponents,
       // generateStaticParams evaluation doesn't render pages, so instant
       // validation never runs here. The level value is irrelevant.
@@ -1176,5 +1176,28 @@ export async function buildAppStaticPaths({
     assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
-  return { fallbackMode, prerenderedRoutes }
+  const prerenderRouteMatchersByPathname = new Map<
+    string,
+    PrerenderRouteMatcher
+  >()
+  if (prerenderedRoutes && isRoutePPREnabled) {
+    for (const prerenderCandidate of prerenderedRoutes) {
+      if (!prerenderCandidate.fallbackRouteParams?.length) continue
+      prerenderRouteMatchersByPathname.set(prerenderCandidate.pathname, {
+        pathname: prerenderCandidate.pathname,
+        fallbackRouteParams: prerenderCandidate.fallbackRouteParams,
+        fallbackMode: prerenderCandidate.fallbackMode,
+        fallbackRootParams: prerenderCandidate.fallbackRootParams,
+        remainingPrerenderableParams:
+          prerenderCandidate.remainingPrerenderableParams,
+      })
+    }
+  }
+
+  const prerenderRouteMatchers =
+    prerenderRouteMatchersByPathname.size > 0
+      ? [...prerenderRouteMatchersByPathname.values()]
+      : undefined
+
+  return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
 }

@@ -150,15 +150,23 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
 In `next dev` the stack frame resolves to your source, in both the dev overlay and the terminal. A production build minifies server code, so when the build error alone isn't enough, [`next build --debug-prerender`](/docs/app/guides/building#debugging-build-errors) turns on server source maps and continues past the first failure.
 
-The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) shows the full observe-fix-iterate loop an agent runs on these errors, from reading the insight to asserting on the result with an `instant()` test.
+The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
 
-## Step 4: Hand multi-step workflows to skills
+## Step 4: Hand multi-step workflows to Skills
 
-Framework knowledge comes from the bundled docs, not from skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://www.skills.sh/vercel/next.js) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) at each step.
+Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. Next.js Skills package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) along the way.
+
+You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
+
+The Skills serve three different workflow types:
+
+- **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
+- **Interactive workflows** make broader changes with user checkpoints, such as adopting Cache Components or Partial Prefetching across an app.
+- **Unattended loops** work toward a verifiable goal and stop only for genuine decisions.
 
 ### `next-dev-loop`
 
-The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill verifies a change actually works at runtime against a running dev server, combining the [MCP server](/docs/app/guides/mcp)'s view with the browser's.
+The [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) runtime foundation verifies changes against a running dev server using the [MCP server](/docs/app/guides/mcp) and browser.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-dev-loop
@@ -167,12 +175,18 @@ npx skills add vercel/next.js --skill next-dev-loop
 Then give the agent this prompt:
 
 ```prompt
-After every edit, verify the page still works at runtime using the next-dev-loop skill.
+After every edit, verify the page still works at runtime using the next-dev-loop Skill.
 ```
 
 ### `next-cache-components-adoption`
 
-The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill turns on [Cache Components](/docs/app/getting-started/caching) and walks the app to a passing build, resolving each blocking route the flag surfaces.
+The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill migrates an app to [Cache Components](/docs/app/getting-started/caching):
+
+1. Turns the flag on and finds the routes that can't prerender.
+2. Fixes them one feature at a time, checking in with you before moving on.
+3. Confirms a feature against `next dev` and `next build` before leaving it.
+
+You choose whether the work lands as a series of PRs or stays on one branch.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
@@ -181,26 +195,38 @@ npx skills add vercel/next.js --skill next-cache-components-adoption
 Then give the agent this prompt:
 
 ```prompt
-Adopt Cache Components in this project using the next-cache-components-adoption skill.
+Adopt Cache Components in this project using the next-cache-components-adoption Skill.
 ```
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill drives a route to instant navigation with a failing `@next/playwright` `instant()` test worked to green, then shipped as a regression guard.
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
+
+1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
+2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
+3. Commits the passing test with the refactoring, so it catches future regressions.
+
+It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching).
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-Then give the agent this prompt:
+Then give the agent a prompt like:
 
 ```prompt
-Make the navigation from the dashboard to settings instant using the next-cache-components-optimizer skill.
+Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
 ```
 
 ### `next-partial-prefetching-adoption`
 
-The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and works through the insights it surfaces until every link reuses a shared App Shell.
+The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
+
+1. Audits the existing `<Link prefetch={true}>` calls with you.
+2. Turns the flag on and resolves the insights it surfaces.
+3. Marks the routes whose URL data might be worth prefetching later.
+
+It needs [Cache Components](/docs/app/getting-started/caching) already adopted.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption
@@ -209,5 +235,5 @@ npx skills add vercel/next.js --skill next-partial-prefetching-adoption
 Then give the agent this prompt:
 
 ```prompt
-Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption skill.
+Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
 ```
