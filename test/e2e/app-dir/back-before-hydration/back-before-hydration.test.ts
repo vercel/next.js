@@ -55,10 +55,18 @@ describe('back navigation before hydration after reload', () => {
     })
   }
 
+  // Waits until the document is parsed. The stalled scripts are async, so
+  // they do not hold this up. Acting on history only after this point makes
+  // the tested window "inline scripts have run, external scripts have not"
+  // rather than wherever the parser happened to be.
+  async function waitForDocumentParsing(page: Playwright.Page) {
+    await page.waitForFunction(() => document.readyState !== 'loading')
+  }
+
   // Navigates client-side (creating a same-document sibling entry), then
-  // reloads with scripts stalled, returning as soon as the new document
-  // commits. `window.__stayed` is set on the committed document so tests can
-  // assert that hydration did not cause a full reload.
+  // reloads with scripts stalled, returning once the new document is parsed.
+  // `window.__stayed` is set on that document so tests can assert that
+  // hydration did not cause a full reload.
   //
   // NOTE: while scripts are stalled, only the raw Playwright `page` may be
   // used — most `browser.*` helpers wait for the `load` event, which the
@@ -80,15 +88,15 @@ describe('back navigation before hydration after reload', () => {
 
     const releaseScripts = await stallScripts(page)
     await browser.refresh({ waitUntil: 'commit' })
+    await waitForDocumentParsing(page)
     await page.evaluate('window.__stayed = true')
 
     return { browser, page, releaseScripts }
   }
 
   // Loads a path directly with scripts stalled from the start, so the
-  // initial document is parsed but not hydrated until released. Waits for
-  // `readySelector` since document events are blocked by the stalled scripts.
-  async function loadStalled(startPath: string, readySelector: string) {
+  // initial document is parsed but not hydrated until released.
+  async function loadStalled(startPath: string) {
     let page: Playwright.Page
     let releaseScripts: () => void
     const browser = await next.browser(startPath, {
@@ -99,7 +107,7 @@ describe('back navigation before hydration after reload', () => {
         releaseScripts = await stallScripts(p)
       },
     })
-    await page.waitForSelector(readySelector)
+    await waitForDocumentParsing(page)
     await page.evaluate('window.__stayed = true')
     return { browser, page, releaseScripts }
   }
@@ -162,10 +170,7 @@ describe('back navigation before hydration after reload', () => {
   // its first history write, and in particular never cause a full reload.
   describe('other history changes before hydration', () => {
     it('adopts a third-party pushState', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        postPath,
-        '#post'
-      )
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
 
       // e.g. analytics/consent tooling running before the framework.
       await page.evaluate(
@@ -185,10 +190,7 @@ describe('back navigation before hydration after reload', () => {
     })
 
     it('keeps an in-page anchor jump on a fresh load', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        postPath,
-        '#post'
-      )
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
 
       await page.click('#hash-link')
       expect(new URL(page.url()).hash).toBe('#section')
@@ -238,10 +240,7 @@ describe('back navigation before hydration after reload', () => {
     })
 
     it('handles a pushState followed by back', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        postPath,
-        '#post'
-      )
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
 
       await page.evaluate(
         `window.history.pushState({ thirdParty: true }, '', '${postPath}?tp=1')`
@@ -290,10 +289,7 @@ describe('back navigation before hydration after reload', () => {
     })
 
     it('handles a traversal onto a third-party entry', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        postPath,
-        '#post'
-      )
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
 
       await page.evaluate(
         `window.history.pushState({ a: 1 }, '', '${postPath}?tp=1')`
