@@ -1,15 +1,14 @@
 /**
  * Resolves a URL path (e.g. "/blog/hello-world") to its matching Next.js route
- * specifier (e.g. "/blog/[slug]") using the dev router's own live route table.
+ * specifier (e.g. "/blog/[slug]") using the dev router's route table.
  *
- * The `matchers` argument is a thin view of `fsChecker` from the router-server
- * process — the same data structure `resolve-routes.ts` iterates on every
- * incoming HTTP request — so first-match ordering and live route updates are
- * inherited for free.
+ * The `matchers` argument can be a snapshot of the dev router's route table,
+ * so exact and dynamic matching use one route generation while preserving the
+ * router's first-match ordering.
  */
 export interface RouteMatcherView {
-  appFiles: ReadonlySet<string>
-  pageFiles: ReadonlySet<string>
+  hasAppFile(pathname: string): boolean
+  hasPageFile(pathname: string): boolean
   dynamicRoutes: ReadonlyArray<{
     page: string
     match: (pathname: string) => false | object
@@ -30,7 +29,7 @@ export function resolvePathToRoute(
     pathname = pathname.slice(0, -1)
   }
 
-  if (matchers.appFiles.has(pathname) || matchers.pageFiles.has(pathname)) {
+  if (matchers.hasAppFile(pathname) || matchers.hasPageFile(pathname)) {
     return { routeSpecifier: pathname }
   }
 

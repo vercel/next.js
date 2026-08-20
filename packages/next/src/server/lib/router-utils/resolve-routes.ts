@@ -1,4 +1,4 @@
-import type { FsOutput } from './filesystem'
+import type { FilesystemRouteSnapshot, FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigRuntime } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
@@ -81,7 +81,7 @@ export function getResolveRoutes(
     Partial<Redirect>
 
   let routes: Route[] | null = null
-  const calculateRoutes = () => {
+  const calculateRoutes = (routeSnapshot: FilesystemRouteSnapshot) => {
     return [
       // _next/data with middleware handling
       { match: () => ({}), name: 'middleware_next_data' },
@@ -93,6 +93,7 @@ export function getResolveRoutes(
       { match: () => ({}), name: 'middleware' },
 
       ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
+      ...(opts.minimalMode ? [] : routeSnapshot.interceptionRoutes),
 
       // check middleware (using matchers)
       { match: () => ({}), name: 'before_files_end' },
@@ -120,12 +121,14 @@ export function getResolveRoutes(
     res,
     isUpgradeReq,
     invokedOutputs,
+    routeSnapshot: requestRouteSnapshot,
   }: {
     req: IncomingMessage
     res: ServerResponse
     isUpgradeReq: boolean
     signal: AbortSignal
     invokedOutputs?: Set<string>
+    routeSnapshot?: FilesystemRouteSnapshot
   }): Promise<{
     finished: boolean
     statusCode?: number
@@ -139,6 +142,7 @@ export function getResolveRoutes(
     let matchedOutput: FsOutput | null = null
     let parsedUrl = parseUrl(req.url || '') as NextUrlWithParsedQuery
     let didRewrite = false
+    const routeSnapshot = requestRouteSnapshot ?? fsChecker.getRouteSnapshot()
 
     const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
@@ -147,7 +151,7 @@ export function getResolveRoutes(
     // once in production. We don't need to recompute these every time unless the routes
     // are changing like in development, and the performance can be costly.
     if (!routes || opts.dev) {
-      routes = calculateRoutes()
+      routes = calculateRoutes(routeSnapshot)
     }
 
     // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -286,7 +290,11 @@ export function getResolveRoutes(
         return
       }
       if (!invokedOutputs?.has(pathname)) {
-        const output = await fsChecker.getItem(pathname)
+        const output = await fsChecker.getItem(
+          pathname,
+          undefined,
+          routeSnapshot
+        )
 
         if (output) {
           if (
@@ -298,7 +306,7 @@ export function getResolveRoutes(
           }
         }
       }
-      const dynamicRoutes = fsChecker.getDynamicRoutes()
+      const dynamicRoutes = routeSnapshot.dynamicRoutes
       let curPathname = parsedUrl.pathname
 
       if (config.basePath) {
@@ -323,7 +331,8 @@ export function getResolveRoutes(
         if (params) {
           const pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || ''),
-            curPathname || undefined
+            curPathname || undefined,
+            routeSnapshot
           )
 
           // i18n locales aren't matched for app dir
@@ -502,7 +511,11 @@ export function getResolveRoutes(
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(pathname)
+          const output = await fsChecker.getItem(
+            pathname,
+            undefined,
+            routeSnapshot
+          )
 
           if (
             output &&

@@ -617,8 +617,8 @@ export async function initialize(opts: {
       if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
           opts.dev &&
-          (fsChecker.appFiles.has(matchedOutput.itemPath) ||
-            fsChecker.pageFiles.has(matchedOutput.itemPath))
+          (fsChecker.hasAppFile(matchedOutput.itemPath) ||
+            fsChecker.hasPageFile(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
           const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`

@@ -466,6 +466,10 @@ async function startWatcher(
       const appRoutes: RouteInfo[] = []
       const layoutRoutes: RouteInfo[] = []
       const slots: SlotInfo[] = []
+      const appFiles = new Set<string>()
+      const pageFiles = new Set<string>()
+      const staticMetadataFiles = new Map<string, string>()
+      const nextDataRoutes = new Set<string>()
 
       let envFileChange = false
       let clientRouterFiltersChange = false
@@ -473,11 +477,6 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
-
-      appFiles.clear()
-      pageFiles.clear()
-      staticMetadataFiles.clear()
       devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
@@ -780,7 +779,7 @@ async function startWatcher(
 
           if (useFileSystemPublicRoutes) {
             pageFiles.add(pageName)
-            opts.fsChecker.nextDataRoutes.add(pageName)
+            nextDataRoutes.add(pageName)
           }
 
           const route = normalizePathSep(pageName)
@@ -1110,9 +1109,6 @@ async function startWatcher(
         }),
       ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
 
-      opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
-      opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
-
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1140,8 +1136,6 @@ async function startWatcher(
           opts.nextConfig.experimental.caseSensitiveRoutes
         )
       )
-
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
@@ -1182,7 +1176,7 @@ async function startWatcher(
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+        const dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
             const regex = getNamedRouteRegex(page, {
               prefixRouteKeys: true,
@@ -1199,7 +1193,7 @@ async function startWatcher(
           }
         )
 
-        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
+        const dataRoutes: FilesystemDynamicRoute[] = []
 
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
@@ -1226,7 +1220,18 @@ async function startWatcher(
             }),
           })
         }
-        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
+        opts.fsChecker.publishRouteSnapshot({
+          appFiles,
+          pageFiles,
+          staticMetadataFiles,
+          dynamicRoutes: [...dataRoutes, ...dynamicRoutes],
+          nextDataRoutes,
+          routeDefinitions: {
+            pageFile: pageRouteDefinitions,
+            appFile: appRouteDefinitions,
+          },
+          interceptionRoutes,
+        })
 
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
@@ -1400,7 +1405,7 @@ async function startWatcher(
       res.end(
         JSON.stringify({
           pages: prevSortedRoutes.filter(
-            (route) => !opts.fsChecker.appFiles.has(route)
+            (route) => !opts.fsChecker.hasAppFile(route)
           ),
         })
       )

@@ -1179,19 +1179,15 @@ export async function createHotReloaderTurbopack(
             getTurbopackProject: () => project,
             compileRoute: async ({ routeSpecifier, path }) => {
               // Resolve the caller's input to a concrete route specifier. The
-              // path-mode branch reuses the dev router's own live route table
-              // (opts.fsChecker) — the same one resolve-routes.ts consults on
-              // every incoming HTTP request — so first-match ordering and live
-              // route updates are inherited for free.
+              // path-mode branch uses a single snapshot of the dev router's
+              // route table, preserving its first-match ordering while route
+              // discovery continues in the background.
               let page: string
               if (routeSpecifier != null) {
                 page = routeSpecifier
               } else if (path != null) {
-                const resolved = resolvePathToRoute(path, {
-                  appFiles: opts.fsChecker.appFiles,
-                  pageFiles: opts.fsChecker.pageFiles,
-                  dynamicRoutes: opts.fsChecker.getDynamicRoutes(),
-                })
+                const routeSnapshot = opts.fsChecker.getRouteSnapshot()
+                const resolved = resolvePathToRoute(path, routeSnapshot)
                 if ('notFound' in resolved) {
                   const err: NodeJS.ErrnoException = new Error(
                     `no route matched for path "${resolved.pathname}"`
