@@ -2,18 +2,35 @@
 name: deploy-release-test
 description: >
   Validate a commit-specific Next.js preview package and manually trigger the
-  test_e2e_deploy_release.yml GitHub Actions workflow from a pull request's
-  internal vercel/next.js branch. Use when asked to run deploy tests, deployment
-  tests, the deploy release E2E workflow, or a Vercel deployment test for a PR.
-  Covers resolving the latest branch SHA, waiting for vercel-packages, preserving
-  default workflow inputs, dispatching the workflow, and verifying the run.
+  entire Next.js deployment test suite through the test_e2e_deploy_release.yml
+  GitHub Actions workflow. Use only when asked to run the full deploy test suite
+  or this workflow specifically from an internal vercel/next.js PR branch. Do
+  not use for focused deployment-test sanity checks; run the relevant tests
+  locally with pnpm test-deploy instead. Covers resolving the latest branch SHA,
+  waiting for vercel-packages, preserving default workflow inputs, dispatching
+  the workflow, and verifying the run.
 ---
 
 # Deploy Release Test
 
-Use this skill when manually running the deployment test for a Next.js pull
-request. Treat package validation as a hard gate: never dispatch the workflow
-until the exact commit's redirected tarball responds successfully.
+Use this skill only when manually running the entire Next.js deployment test
+suite for a pull request. Treat package validation as a hard gate: never
+dispatch the workflow until the exact commit's redirected tarball responds
+successfully.
+
+## Scope
+
+Do not use this workflow to sanity-check one deployment test or a focused group
+of tests. Follow
+[Running Deploy Tests Locally](../../../contributing/core/testing.md#running-deploy-tests-locally)
+instead:
+
+```bash
+NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/<commit-sha>/next pnpm test-deploy <path-to-test>
+```
+
+If a request to "run deploy tests" does not explicitly call for the entire
+suite, prefer the focused local workflow and scope it to the affected tests.
 
 ## Inputs
 
