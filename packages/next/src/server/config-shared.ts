@@ -487,6 +487,12 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
+   * Enables per-parameter prerender matching directives in App Router layouts
+   * and pages.
+   */
+  paramMatching?: boolean
+
+  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
@@ -2253,6 +2259,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
+    paramMatching: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: false,
     devValidationWorker: true,

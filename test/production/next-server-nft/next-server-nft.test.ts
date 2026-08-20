@@ -153,6 +153,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/build/static-paths/app.js",
            "/node_modules/next/dist/build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree.js",
            "/node_modules/next/dist/build/static-paths/pages.js",
+           "/node_modules/next/dist/build/static-paths/prerender-matcher.js",
            "/node_modules/next/dist/build/static-paths/utils.js",
            "/node_modules/next/dist/build/swc/helpers.js",
            "/node_modules/next/dist/build/swc/index.js",
