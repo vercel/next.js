@@ -48,8 +48,9 @@ function Loadable(options: LoadableOptions) {
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    // If it's non-SSR or provided a loading component, wrap it in a suspense boundary
-    const hasSuspenseBoundary = !opts.ssr || !!opts.loading
+    // If provided a loading component, wrap it in a suspense boundary.
+    // Otherwise let a parent suspense boundary handle the fallback.
+    const hasSuspenseBoundary = !!opts.loading
     const Wrap = hasSuspenseBoundary ? Suspense : Fragment
     const wrapProps = hasSuspenseBoundary ? { fallback: fallbackElement } : {}
     const children = opts.ssr ? (
