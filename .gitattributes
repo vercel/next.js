@@ -10,3 +10,7 @@ build/** linguist-generated=false
 
 # Custom merge driver for auto-generated errors.json
 packages/next/errors.json merge=errors-json
+
+# Patch files are unified diffs: a context line for a blank line is a single space, so whitespace
+# checks flag them and "fixing" the whitespace would corrupt the patch.
+*.patch -whitespace

@@ -1,0 +1,33 @@
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index 3a0a6d6..31ab6cb 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -806,11 +806,15 @@ impl Options {
+ 
+         #[cfg(feature = "plugin")]
+         let plugin_transforms: Box<dyn Pass> = {
++            // Only the embedded (non-wasm32) runtime consumes the metadata context; the wasm32
++            // path below skips plugin transforms entirely.
++            #[cfg(not(target_arch = "wasm32"))]
+             let transform_filename = match base {
+                 FileName::Real(path) => path.as_os_str().to_str().map(String::from),
+                 FileName::Custom(filename) => Some(filename.to_owned()),
+                 _ => None,
+             };
++            #[cfg(not(target_arch = "wasm32"))]
+             let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
+                 transform_filename,
+                 self.env_name.to_owned(),
+diff --git a/src/plugin.rs b/src/plugin.rs
+index a3bed74..b95b671 100644
+--- a/src/plugin.rs
++++ b/src/plugin.rs
+@@ -195,7 +195,7 @@ impl RustPlugins {
+     #[cfg_attr(debug_assertions, tracing::instrument(level = "info", skip_all))]
+     fn apply_inner(&mut self, n: Program) -> Result<Program, anyhow::Error> {
+         // [TODO]: unimplemented
+-        n
++        Ok(n)
+     }
+ }
+ 
