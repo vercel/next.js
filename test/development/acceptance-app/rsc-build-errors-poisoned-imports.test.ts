@@ -94,12 +94,13 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
     )
   })
 
-  // The third element defers the poisoned import until after the page has
-  // hydrated. A broken `proxy.js` is compiled while the dev server is starting
-  // up and forces a full reload, which can clear the overlay before
-  // `waitForRedbox` starts observing it. The other two entries surface the
-  // error reliably from the initial compile, and only surface it reliably that
-  // way, so they keep the poisoned import in the initial files.
+  // Proxy runs in the Node.js server compiler, which is also invalidated when
+  // the app route is added on demand. If the initial proxy error reaches the
+  // browser before that follow-up build, the HMR client sees an update after a
+  // runtime error and reloads, clearing the overlay. Defer the proxy error
+  // until after hydration so it is reported as an HMR build error instead.
+  // Middleware uses the edge compiler and instrumentation is compiled earlier,
+  // so they keep the poisoned import in the initial files.
   test.each([
     ['middleware.js', 'export function middleware() {}', false],
     ['proxy.js', 'export function proxy() {}', true],
