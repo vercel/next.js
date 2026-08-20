@@ -20,6 +20,9 @@ type AdapterDynamicRoute = {
 describe('experimental parameter matching', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
+    env: {
+      NEXT_PRIVATE_DEBUG_PARAM_MATCHING: '1',
+    },
   })
 
   it('merges layout configuration and lets a page override it', async () => {
@@ -155,6 +158,29 @@ describe('experimental parameter matching', () => {
       ).toBeNull()
     })
 
+    it('prints the effective matching and deployment-pattern digest', () => {
+      expect(next.cliOutput).toContain('Experimental parameter matching')
+      expect(next.cliOutput).toContain(
+        'not-found  /[lang]/catalog/[top]/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain(
+        'blocking   /en/catalog/[top]/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain(
+        'fallback   /en/catalog/t1/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain('prerender  /en/catalog/t1/items/b1')
+      expect(next.cliOutput).toContain('/inferred-empty/[top]/items/[bottom]')
+      expect(next.cliOutput).toContain(
+        'blocking   /inferred-hole-blocking/[top]/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain(
+        'fallback   /inferred-hole-blocking/t1/items/[bottom]'
+      )
+      expect(next.cliOutput).toContain('Emitted dynamic route patterns')
+      expect(next.cliOutput).toContain('/[lang]/catalog/[top]/items/[bottom] (')
+    })
+
     it('uses the existing fallback-false adapter routing contract', async () => {
       const { routing } = JSON.parse(
         await next.readFile('build-complete.json')
@@ -252,6 +278,11 @@ describe('experimental parameter matching complex route shapes', () => {
   })
 
   if (isNextStart) {
+    it('does not print parameter matching diagnostics by default', () => {
+      expect(next.cliOutput).not.toContain('Experimental parameter matching')
+      expect(next.cliOutput).not.toContain('Emitted dynamic route patterns')
+    })
+
     it('emits root-gated matchers for catch-all and parallel routes', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
