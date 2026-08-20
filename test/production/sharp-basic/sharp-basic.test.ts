@@ -6,11 +6,6 @@ describe('sharp support with hasNextSupport', () => {
     dependencies: {
       sharp: 'latest',
     },
-    packageJson: {
-      pnpm: {
-        onlyBuiltDependencies: ['sqlite3'],
-      },
-    },
     env: {
       NOW_BUILDER: '1',
     },
