@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -324,6 +324,42 @@ pub fn validate_output_filename(filename: &str) -> Result<()> {
     Ok(())
 }
 
+fn shared_package_name(shared: &ModuleFederationShared) -> Option<RcStr> {
+    shared.package_name.clone().or_else(|| {
+        let request = shared.request.as_str();
+        if request.starts_with('@') {
+            request
+                .split_once('/')
+                .map(|(scope, name)| format!("{scope}/{name}").into())
+        } else {
+            request.split('/').next().map(Into::into)
+        }
+    })
+}
+
+async fn shared_provider_version(
+    project_path: &FileSystemPath,
+    shared: &ModuleFederationShared,
+) -> Result<RcStr> {
+    if let Some(version) = &shared.version {
+        return Ok(version.clone());
+    }
+    let Some(package_name) = shared_package_name(shared) else {
+        return Ok(rcstr!("0"));
+    };
+    let package_json_path = project_path
+        .join("node_modules")?
+        .join(package_name.as_str())?
+        .join("package.json")?;
+    if let FileContent::Content(file) = &*package_json_path.read().await? {
+        let package_json: JsonValue = serde_json::from_reader(file.read())?;
+        if let Some(version) = package_json.get("version").and_then(JsonValue::as_str) {
+            return Ok(version.into());
+        }
+    }
+    Ok(rcstr!("0"))
+}
+
 /// Creates the virtual entry module for a webpack-compatible global container.
 pub async fn module_federation_container_source(
     project_path: FileSystemPath,
@@ -356,7 +392,7 @@ pub async fn module_federation_container_source(
         let Some(import) = &shared.import else {
             continue;
         };
-        let version = shared.version.as_deref().unwrap_or("0");
+        let version = shared_provider_version(&project_path, shared).await?;
         registrations.push(format!(
             r#"
   const versions_{index} = shareScope[{key}] ||= Object.create(null);
@@ -367,7 +403,7 @@ pub async fn module_federation_container_source(
   }};"#,
             index = registrations.len(),
             key = serde_json::to_string(&shared.share_key)?,
-            version = serde_json::to_string(version)?,
+            version = serde_json::to_string(&version)?,
             import = serde_json::to_string(import)?,
             name = serde_json::to_string(name)?,
             eager = shared.eager,
@@ -524,7 +560,7 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
             let Some(import) = &shared.import else {
                 continue;
             };
-            let version = shared.version.as_deref().unwrap_or("0");
+            let version = shared_provider_version(&this.project_path, shared).await?;
             registrations.push(format!(
                 r#"
     const versions_{index} = scope[{key}] ||= Object.create(null);
@@ -535,7 +571,7 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
     }};"#,
                 index = registrations.len(),
                 key = serde_json::to_string(&shared.share_key)?,
-                version = serde_json::to_string(version)?,
+                version = serde_json::to_string(&version)?,
                 import = serde_json::to_string(import)?,
                 host_name = serde_json::to_string(&this.host_name)?,
                 eager = shared.eager,
@@ -557,7 +593,8 @@ for (const [globalName, url] of candidates) {{
     const scopes = globalThis.__turbopack_module_federation_share_scopes__ ||= Object.create(null);
     const scope = scopes[{share_scope}] ||= Object.create(null);
     {registrations}
-    const initScope = [];
+    const initScopes = globalThis.__turbopack_module_federation_init_scopes__ ||= Object.create(null);
+    const initScope = initScopes[{share_scope}] ||= [];
     await container.init(scope, initScope);
     const factory = await container.get({exposed_request_json}, initScope);
     if (typeof factory !== "function") {{
@@ -635,42 +672,8 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
         let effective_key: RcStr = format!("{}{suffix}", this.shared.share_key).into();
         let effective_fallback: RcStr = format!("{}{suffix}", this.fallback_request).into();
 
-        if this.shared.eager && this.shared.import.is_some() {
-            // An eager consumer must not introduce a `await`/async module boundary. Webpack
-            // consults the share scope synchronously here; Turbopack currently binds the local
-            // module directly, which is correct whenever the host provides the shared module
-            // itself (the common `eager: true` case) but does not yet adopt a provider offered by
-            // a container that initialised earlier.
-            let code = format!(
-                "export * from {};",
-                serde_json::to_string(&effective_fallback)?
-            );
-            let mut virtual_name = request.replace('/', "_");
-            virtual_name.insert_str(0, ".turbopack-module-federation-shared-");
-            virtual_name.push_str(".js");
-            let source = VirtualSource::new(
-                this.project_path.join(&virtual_name)?,
-                AssetContent::file(FileContent::Content(code.into()).cell()),
-            )
-            .to_resolved()
-            .await?;
-            return Ok(ImportMapResult::Result(
-                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
-            )
-            .cell());
-        }
-
         let inferred_required_version = if this.shared.required_version.is_none() {
-            let package_name = this.shared.package_name.clone().or_else(|| {
-                let request = this.shared.request.as_str();
-                if request.starts_with('@') {
-                    request
-                        .split_once('/')
-                        .map(|(scope, name)| format!("{scope}/{name}").into())
-                } else {
-                    request.split('/').next().map(Into::into)
-                }
-            });
+            let package_name = shared_package_name(&this.shared);
             if let Some(package_name) = package_name {
                 let package_json_path = this.project_path.join("package.json")?;
                 if let FileContent::Content(file) = &*package_json_path.read().await? {
@@ -710,8 +713,8 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
         let (fallback_import, fallback) = if this.shared.eager {
             if this.shared.import.is_some() {
                 (
-                    format!("import * as localFallback from {fallback_request_json};"),
-                    "sharedModule = localFallback;".to_string(),
+                    String::new(),
+                    format!("sharedModule = require({fallback_request_json});"),
                 )
             } else {
                 (
@@ -758,6 +761,10 @@ const scope = scopes[{scope}] ||= Object.create(null);
 const versions = scope[{key}] || Object.create(null);
 const requiredVersion = {required_version};
 
+// Range evaluation compatible with the subset of npm semver ranges webpack's Module Federation
+// supports: comparators, caret/tilde, partial and `x` ranges, `||` unions and hyphen ranges,
+// including prerelease ordering. This is an independent implementation, not a copy of webpack's
+// build-time encoded-range runtime.
 function parseVersion(version) {{
   const [mainAndPre] = version.replace(/^v/, "").split("+");
   const [main, pre = ""] = mainAndPre.split("-");

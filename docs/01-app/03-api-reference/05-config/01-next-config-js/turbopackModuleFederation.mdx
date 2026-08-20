@@ -1,0 +1,207 @@
+---
+title: turbopackModuleFederation
+description: Configure Module Federation for Turbopack.
+---
+
+The experimental `turbopackModuleFederation` option configures [Module Federation](https://webpack.js.org/concepts/module-federation/) as a first-class Turbopack feature.
+
+> **Good to know**:
+>
+> - This option is experimental and only applies when using Turbopack.
+> - Federated imports and exposed modules are currently supported in client components. They are not supported in Server Components, Route Handlers, or the Edge runtime.
+> - Turbopack currently supports webpack's `script` remote type and global containers. Other remote and library types are not supported.
+> - Changes to a remote or exposed module are available after reloading the browser. Changes to the federation configuration require restarting the development server.
+
+## Consuming a remote
+
+Configure each remote using webpack's `globalName@url` syntax:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'storefront',
+      remotes: {
+        catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'storefront',
+      remotes: {
+        catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+Import the exposed module from a client component:
+
+```tsx filename="app/product.tsx" switcher
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export function Product() {
+  const [name, setName] = useState('Loading')
+
+  useEffect(() => {
+    import('catalog/product').then((module) => setName(module.name))
+  }, [])
+
+  return <p>{name}</p>
+}
+```
+
+```jsx filename="app/product.js" switcher
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export function Product() {
+  const [name, setName] = useState('Loading')
+
+  useEffect(() => {
+    import('catalog/product').then((module) => setName(module.name))
+  }, [])
+
+  return <p>{name}</p>
+}
+```
+
+A remote can be an existing webpack application created with `ModuleFederationPlugin`, or another Next.js application using this option. Remote entries may load additional chunks; Turbopack resolves those chunk URLs relative to the remote entry, including when the producer is hosted on another origin.
+
+You can provide an ordered list of remote entry URLs. Turbopack tries each entry in order and reports the combined failures if none loads:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackModuleFederation: {
+      remotes: {
+        catalog: [
+          'catalog@https://primary.example.com/remoteEntry.js',
+          'catalog@https://fallback.example.com/remoteEntry.js',
+        ],
+      },
+    },
+  },
+}
+```
+
+## Exposing modules
+
+Set a container `name`, a `filename`, and the modules to expose. The remote entry is served from `/_next/static/chunks/<filename>`.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'catalog',
+      filename: 'catalogRemote.js',
+      exposes: {
+        './product': './app/product.tsx',
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'catalog',
+      filename: 'catalogRemote.js',
+      exposes: {
+        './product': './app/product.js',
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+The filename defaults to `<name>.js`. It must be a relative path and cannot contain `..`, a query string, or a URL. Exposed modules are loaded lazily from separate chunks.
+
+## Sharing modules
+
+The `shared` option uses webpack-compatible share keys and configuration:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'storefront',
+      remotes: {
+        catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
+      },
+      shared: {
+        react: {
+          singleton: true,
+          requiredVersion: '^19.0.0',
+        },
+      },
+    },
+  },
+}
+```
+
+Shared entries support `eager`, `import`, `packageName`, `requiredVersion`, `shareKey`, `shareScope`, `singleton`, `strictVersion`, and `version`.
+
+When `requiredVersion` is omitted, Next.js looks for the package in the project's `optionalDependencies`, `dependencies`, `peerDependencies`, and `devDependencies`, in that order. Set `requiredVersion: false` to disable the range constraint. Set `import: false` to require another container to provide the module.
+
+A key ending in `/` shares package subpaths. For example, `'design-system/'` also matches `design-system/button`.
+
+> **Sharing limitations**:
+>
+> - Version ranges support comparators, caret and tilde ranges, partial and `x` ranges, `||` unions, hyphen ranges, and prerelease ordering. Uncommon range syntax may differ from webpack.
+> - Shared namespace bindings are copied when crossing from webpack to Turbopack. Later mutations to an exported binding are not observed as a live binding.
+
+## Migrating from webpack
+
+Move the options passed to webpack's `ModuleFederationPlugin` into `experimental.turbopackModuleFederation`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'storefront',
+      remotes: {
+        catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
+      },
+      shared: {
+        react: { singleton: true },
+      },
+    },
+  },
+}
+```
+
+The `library` and `runtime` plugin options are not supported. Turbopack emits a global container and manages its runtime directly.
+
+## Runtime behavior and limitations
+
+- Federation is client-only. Importing a remote from a Server Component, Route Handler, or Edge runtime returns a runtime error explaining that the import must move to browser client code.
+- In development, changes to a separately built remote become visible after rebuilding the remote and reloading the browser. Cross-bundler HMR is not propagated.
+- Changes to `experimental.turbopackModuleFederation` require restarting the Next.js development server.
+- Only webpack's `script` remote transport and global containers are supported. ESM, CommonJS, promise, AMD, UMD, and SystemJS remote transports are rejected.
