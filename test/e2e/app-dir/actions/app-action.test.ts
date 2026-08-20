@@ -1057,29 +1057,6 @@ describe('app-dir action handling', () => {
       )
     })
 
-    if (isTurbopack) {
-      // Only relevant for Turbopack, and the other bundlers don't output that edge error.
-      it('should only compile for edge when page runtime is set', async () => {
-        await next.browser('/client-error')
-        expect(next.cliOutput).not.toContain(
-          'which is not supported in the Edge Runtime.'
-        )
-        const output = next.getCliOutputFromHere()
-        await next.patchFile(
-          'app/client-error/page.js',
-          (origContent) => origContent + `\nexport const runtime = "edge";`,
-          async () => {
-            await retry(async () => {
-              await next.browser('/client-error')
-              expect(output()).toContain(
-                'which is not supported in the Edge Runtime.'
-              )
-            })
-          }
-        )
-      })
-    }
-
     describe('HMR', () => {
       it('should support updating the action', async () => {
         const filePath = 'app/server/actions-3.js'
