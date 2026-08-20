@@ -33,6 +33,11 @@ export const NEXT_RSC_UNION_QUERY = '_rsc' as const
 
 export const NEXT_ROUTER_STALE_TIME_HEADER = 'x-nextjs-stale-time' as const
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
+/**
+ * This is a response-only header intended for downstream infrastructure, not
+ * for the client. It contains no sensitive information and is safe to expose
+ * if a fronting CDN does not strip it.
+ */
 export const NEXT_PRELUDE_METADATA_HEADER = 'x-next-prelude-metadata' as const
 export const NEXT_REWRITTEN_PATH_HEADER = 'x-nextjs-rewritten-path' as const
 export const NEXT_REWRITTEN_QUERY_HEADER = 'x-nextjs-rewritten-query' as const
