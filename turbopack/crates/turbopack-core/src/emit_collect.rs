@@ -9,10 +9,10 @@ use crate::{
     reference::ModuleReference,
 };
 
-/// A module that can collect other modules during the collect phase.
+/// A module that can collect other emitted modules during the collect phase.
 #[turbo_tasks::value_trait]
 pub trait CollectingModule: Module {
-    /// The namespace that this module is interesed in
+    /// The namespace that this module is interested in
     #[turbo_tasks::function]
     fn namespace(self: Vc<Self>) -> Vc<RcStr>;
 
