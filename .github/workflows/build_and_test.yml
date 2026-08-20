@@ -60,6 +60,9 @@ jobs:
 
   build-native:
     name: build-native
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -70,6 +73,9 @@ jobs:
 
   build-native-windows:
     name: build-native-windows
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -83,6 +89,9 @@ jobs:
 
   build-next:
     name: build-next
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -92,6 +101,9 @@ jobs:
   lint:
     name: lint
     needs: ['build-next']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -124,6 +136,9 @@ jobs:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm types-and-precompiled
@@ -135,6 +150,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -150,6 +168,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
     secrets: inherit
 
@@ -158,6 +179,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -172,6 +196,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -208,6 +235,9 @@ jobs:
           - '--scenario=heavy-npm-deps-dev --page=homepage'
           - '--scenario=heavy-npm-deps-build --page=homepage'
           - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -222,6 +252,9 @@ jobs:
     name: test devlow package
     needs: ['optimize-ci', 'changes']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -244,6 +277,9 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -274,6 +310,9 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -307,6 +346,9 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -329,6 +371,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -351,6 +396,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -380,6 +428,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -413,6 +464,9 @@ jobs:
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -440,6 +494,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -466,6 +523,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -494,6 +554,9 @@ jobs:
     if: false
     # if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -514,6 +577,9 @@ jobs:
       matrix:
         node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
@@ -532,6 +598,9 @@ jobs:
       matrix:
         node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
@@ -554,6 +623,9 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -579,6 +651,9 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -635,6 +710,9 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -660,6 +738,9 @@ jobs:
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -686,6 +767,9 @@ jobs:
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -714,6 +798,9 @@ jobs:
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -743,6 +830,9 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -781,6 +871,9 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -799,6 +892,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -827,6 +923,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -849,6 +948,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -872,6 +974,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -893,6 +998,9 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -916,6 +1024,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -940,6 +1051,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
