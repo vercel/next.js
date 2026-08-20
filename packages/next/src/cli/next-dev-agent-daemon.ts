@@ -3,7 +3,11 @@ import path from 'path'
 import { spawn } from 'child_process'
 import * as Log from '../build/output/log'
 import { bold, cyan } from '../lib/picocolors'
-import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
+import {
+  readLockfileContent,
+  parseDevServerInfo,
+  type DevServerInfo,
+} from '../build/lockfile'
 
 /**
  * Agent mode: `next dev` in the foreground blocks an agent's shell, so agents
@@ -13,6 +17,10 @@ import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
  * query it — the report lands exactly where the agent is already looking
  * (this command's stdout, or the log file it redirected to).
  *
+ * The same detached-start is exposed explicitly as
+ * `next experimental-agent-dev start`, and its tool calls auto-start a server
+ * via `spawnDetachedDevServer` when none is running.
+ *
  * Opt out per-invocation with `next dev --foreground`. Never active under the
  * test harness (`__NEXT_TEST_MODE`), and the detached child runs with
  * `--foreground` plus `NEXT_PRIVATE_AGENT_DAEMON=1` so it cannot recurse.
@@ -21,7 +29,7 @@ import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
 const READY_TIMEOUT_MS = 60_000
 const READY_POLL_MS = 250
 
-function isPidAlive(pid: number): boolean {
+export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
@@ -30,46 +38,38 @@ function isPidAlive(pid: number): boolean {
   }
 }
 
+export function readDevServerInfo(
+  lockfilePath: string
+): DevServerInfo | undefined {
+  const content = readLockfileContent(lockfilePath)
+  return content ? parseDevServerInfo(content) : undefined
+}
+
+export class DetachedDevServerError extends Error {
+  logPath: string
+  constructor(message: string, logPath: string) {
+    super(message)
+    this.logPath = logPath
+  }
+}
+
 /**
- * Starts `next dev --foreground` detached and reports how to reach it.
- * Never returns: exits 0 once the server's lockfile appears, non-zero when
- * the child dies first or the lockfile never shows up.
+ * Spawns `next dev --foreground [devArgs]` detached, waits for the server's
+ * lockfile to prove it is up, and resolves with the running server's info.
+ * Rejects with `DetachedDevServerError` when the child exits first or the
+ * lockfile never appears.
  *
  * @param dir - project directory
  * @param distDir - phase-resolved relative distDir (e.g. `.next/dev`)
+ * @param devArgs - CLI args for the child `next dev` (defaults to this
+ *   process's own argv, for the `next dev` interception path)
  */
-export async function daemonizeDevServerForAgent(
+export function spawnDetachedDevServer(
   dir: string,
-  distDir: string
-): Promise<never> {
+  distDir: string,
+  devArgs?: string[]
+): Promise<DevServerInfo> {
   const lockfilePath = path.join(dir, distDir, 'lock')
-
-  // A live server for this project? Reuse-first, like the lockfile collision
-  // message — without spawning a child just to watch it lose the lock race.
-  const existingInfo = (() => {
-    const content = readLockfileContent(lockfilePath)
-    return content ? parseDevServerInfo(content) : undefined
-  })()
-  if (existingInfo && isPidAlive(existingInfo.pid)) {
-    Log.warn(
-      `A dev server for this project is already running at ${cyan(existingInfo.appUrl)} (PID ${existingInfo.pid}).`
-    )
-    console.log()
-    console.log(`Reuse it instead of starting another:`)
-    console.log(
-      `- ${cyan('npx next devtools')}              server info + available tools`
-    )
-    console.log(
-      `- ${cyan('npx next devtools get_errors')}   current build/runtime errors (JSON)`
-    )
-    console.log(`- JSON index: ${cyan(`${existingInfo.appUrl}/_next/agent`)}`)
-    console.log()
-    console.log(
-      `To really start a fresh server, stop the old one first: ${cyan(`kill ${existingInfo.pid}`)}`
-    )
-    process.exit(1)
-  }
-
   const logDir = path.join(dir, distDir, 'logs')
   fs.mkdirSync(logDir, { recursive: true })
   const logPath = path.join(logDir, 'agent-daemon.log')
@@ -82,7 +82,7 @@ export async function daemonizeDevServerForAgent(
       ...process.execArgv,
       process.argv[1],
       'dev',
-      ...devArgsFromArgv(),
+      ...(devArgs ?? devArgsFromArgv()),
       '--foreground',
     ],
     {
@@ -99,66 +99,143 @@ export async function daemonizeDevServerForAgent(
   })
   child.unref()
 
-  const relativeLogPath = path.relative(dir, logPath)
-
-  await new Promise<void>((resolve) => {
+  return new Promise<DevServerInfo>((resolve, reject) => {
     const startedPolling = Date.now()
     const timer = setInterval(() => {
       if (childExit) {
         clearInterval(timer)
-        Log.error(
-          `next dev exited (code ${childExit.code}) before becoming ready. Last output from ${relativeLogPath}:`
-        )
+        let tail = ''
         try {
-          const tail = fs
+          tail = fs
             .readFileSync(logPath, 'utf-8')
             .split('\n')
             .slice(-15)
             .join('\n')
-          console.error(tail)
         } catch {}
-        process.exit(childExit.code === 0 ? 1 : (childExit.code ?? 1))
+        reject(
+          new DetachedDevServerError(
+            `next dev exited (code ${childExit.code}) before becoming ready.` +
+              (tail ? `\nLast output:\n${tail}` : ''),
+            logPath
+          )
+        )
+        return
       }
 
-      const content = readLockfileContent(lockfilePath)
-      const info = content ? parseDevServerInfo(content) : undefined
+      const info = readDevServerInfo(lockfilePath)
       // Only accept a lockfile written by this launch, not a stale leftover.
       if (info && info.startedAt >= launchedAt - 2_000) {
         clearInterval(timer)
-        console.log()
-        console.log(bold(`Agent session detected — next dev started detached.`))
-        console.log()
-        console.log(`- Local:    ${cyan(info.appUrl)}`)
-        console.log(`- Project:  ${dir}`)
-        console.log(`- PID:      ${info.pid}`)
-        console.log(`- Log:      ${relativeLogPath}`)
-        console.log()
-        console.log(`Query it without fetching pages:`)
-        console.log(
-          `- ${cyan('npx next devtools')}              server info + available tools`
-        )
-        console.log(
-          `- ${cyan('npx next devtools get_errors')}   current build/runtime errors (JSON)`
-        )
-        console.log(`- JSON index: ${cyan(`${info.appUrl}/_next/agent`)}`)
-        console.log()
-        console.log(
-          `Stop: ${cyan(`kill ${info.pid}`)} · Run attached instead: ${cyan('next dev --foreground')}`
-        )
-        resolve()
-        process.exit(0)
+        resolve(info)
+        return
       }
 
       if (Date.now() - startedPolling > READY_TIMEOUT_MS) {
         clearInterval(timer)
-        Log.error(
-          `Timed out waiting for the dev server to become ready. It may still be starting; check ${relativeLogPath}.`
+        reject(
+          new DetachedDevServerError(
+            `Timed out waiting for the dev server to become ready. It may still be starting; check ${logPath}.`,
+            logPath
+          )
         )
-        process.exit(1)
       }
     }, READY_POLL_MS)
   })
-  throw new Error('unreachable')
+}
+
+/**
+ * Prints the reuse-first block for an already-running server.
+ */
+export function printReuseRunningServer(info: DevServerInfo): void {
+  Log.warn(
+    `A dev server for this project is already running at ${cyan(info.appUrl)} (PID ${info.pid}).`
+  )
+  console.log()
+  console.log(`Reuse it instead of starting another:`)
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev')}              server info + available tools`
+  )
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev get_errors')}   current build/runtime errors (JSON)`
+  )
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev log')}          recent server output`
+  )
+  console.log(`- JSON index: ${cyan(`${info.appUrl}/_next/agent`)}`)
+  console.log()
+  console.log(
+    `To really start a fresh server, stop this one first: ${cyan('npx next experimental-agent-dev stop')}`
+  )
+}
+
+/**
+ * Prints the post-start report for a freshly detached server.
+ */
+export function printDetachedReport(
+  info: DevServerInfo,
+  dir: string,
+  distDir: string
+): void {
+  const relativeLogPath = path.join(distDir, 'logs', 'agent-daemon.log')
+  console.log()
+  console.log(
+    bold(
+      `Agent session detected — dev server started in the background (= next experimental-agent-dev start).`
+    )
+  )
+  console.log()
+  console.log(`- Local:    ${cyan(info.appUrl)}`)
+  console.log(`- Project:  ${dir}`)
+  console.log(`- PID:      ${info.pid}`)
+  console.log(`- Log:      ${relativeLogPath}`)
+  console.log()
+  console.log(`Query it without fetching pages:`)
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev')}              server info + available tools`
+  )
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev get_errors')}   current build/runtime errors (JSON)`
+  )
+  console.log(
+    `- ${cyan('npx next experimental-agent-dev log')}          recent server output`
+  )
+  console.log(`- JSON index: ${cyan(`${info.appUrl}/_next/agent`)}`)
+  console.log()
+  console.log(
+    `Stop: ${cyan('npx next experimental-agent-dev stop')} · Attached mode: ${cyan('next dev --foreground')} · Explore: ${cyan('npx next experimental-agent-dev --help')}`
+  )
+}
+
+/**
+ * The `next dev` interception path: reuse a running server or start one
+ * detached, print the report, and exit. Never returns.
+ */
+export async function daemonizeDevServerForAgent(
+  dir: string,
+  distDir: string,
+  devArgs?: string[]
+): Promise<never> {
+  const lockfilePath = path.join(dir, distDir, 'lock')
+
+  // A live server for this project? Reuse-first, like the lockfile collision
+  // message — without spawning a child just to watch it lose the lock race.
+  const existingInfo = readDevServerInfo(lockfilePath)
+  if (existingInfo && isPidAlive(existingInfo.pid)) {
+    printReuseRunningServer(existingInfo)
+    process.exit(1)
+  }
+
+  try {
+    const info = await spawnDetachedDevServer(dir, distDir, devArgs)
+    printDetachedReport(info, dir, distDir)
+    process.exit(0)
+  } catch (error) {
+    if (error instanceof DetachedDevServerError) {
+      Log.error(error.message)
+      process.exit(1)
+    }
+    throw error
+  }
 }
 
 /**

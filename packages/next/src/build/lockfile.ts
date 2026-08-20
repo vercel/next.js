@@ -218,7 +218,7 @@ export class Lockfile {
               `You usually don't need a second dev server — reuse the running one:`
             )
             console.error(
-              `- Query it from the CLI: ${cyan('npx next devtools get_errors')} (run ${cyan('npx next devtools')} to list all tools)`
+              `- Query it from the CLI: ${cyan('npx next experimental-agent-dev get_errors')} (run ${cyan('npx next experimental-agent-dev')} to list all tools)`
             )
             console.error(
               `- JSON index of the running server: GET ${cyan(`${serverInfo.appUrl}/_next/agent`)}`

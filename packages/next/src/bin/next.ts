@@ -34,7 +34,7 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
-import type { NextDevtoolsOptions } from '../cli/next-devtools.js'
+import type { NextAgentDevOptions } from '../cli/next-agent-dev.js'
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -644,13 +644,13 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('devtools')
+  .command('experimental-agent-dev')
   .description(
-    'Query a running Next.js dev server from the CLI: list and call its MCP tools (get_errors, get_routes, compile_route, ...).'
+    'AI-agent interface to the Next.js dev server: manage it (start, stop, status, log) and call its tools (get_errors, get_routes, compile_route, ...) from the shell.'
   )
   .argument(
-    '[tool]',
-    'MCP tool name (e.g. get_errors). Omit to show server info and the available tools.'
+    '[command]',
+    'start | stop | status | log — or an MCP tool name (e.g. get_errors). Omit to show server info and available tools.'
   )
   .argument(
     '[toolArgs...]',
@@ -665,18 +665,45 @@ program
     'Tool arguments as a JSON object. Takes precedence over key=value pairs.'
   )
   .option('--json', 'Print raw MCP responses as JSON.')
+  .addOption(
+    new Option(
+      '--port <port>',
+      'start: port for the new dev server.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '-n, --lines <count>',
+      'log: number of trailing lines to print (default 50).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .option('-f, --follow', 'log: keep streaming new output.')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  npx next experimental-agent-dev                        Server info + available tools
+  npx next experimental-agent-dev start                  Start the dev server, detached
+  npx next experimental-agent-dev status                 Is a server running for this project?
+  npx next experimental-agent-dev log -n 100             Recent dev server output
+  npx next experimental-agent-dev get_errors             Current build/runtime errors (JSON)
+  npx next experimental-agent-dev compile_route path=/   Compile one route, report issues
+  npx next experimental-agent-dev stop                   Stop the running server
+
+Tool calls auto-start a dev server for this project when none is running.`
+  )
   .action(
     (
-      tool: string | undefined,
+      command: string | undefined,
       toolArgs: string[],
-      options: NextDevtoolsOptions
+      options: NextAgentDevOptions
     ) => {
-      return import('../cli/next-devtools.js').then((mod) =>
-        mod.nextDevtools(tool, toolArgs, options)
+      return import('../cli/next-agent-dev.js').then((mod) =>
+        mod.nextAgentDev(command, toolArgs, options)
       )
     }
   )
-  .usage('[tool] [toolArgs...] [options]')
+  .usage('[command] [toolArgs...] [options]')
 
 const internal = program
   .command('internal')
