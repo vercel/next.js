@@ -2690,6 +2690,15 @@ impl NextConfig {
         }))
     }
 
+    /// The inlined chunk-group bootstrap is an inline `<script>`, which a
+    /// Content-Security-Policy without `unsafe-inline` rejects. When
+    /// `experimental.externalBrowserRuntime` is enabled the evaluate chunk is emitted as a
+    /// regular asset instead, at the cost of one extra request per route.
+    #[turbo_tasks::function]
+    pub fn turbo_inline_chunk_group_bootstrap(&self) -> Vc<bool> {
+        Vc::cell(!self.experimental.external_browser_runtime.unwrap_or(false))
+    }
+
     #[turbo_tasks::function]
     pub async fn turbo_nested_async_chunking(
         &self,
