@@ -1,5 +1,4 @@
 use std::{
-    path::PathBuf,
     sync::{
         Arc,
         mpsc::{Receiver, RecvTimeoutError},
@@ -11,7 +10,10 @@ use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::message_queue::{CompilationEvent, Severity};
 
-use crate::{DiskWatcherConfig, watcher::fs_api::DiskFileSystemWatcherApi};
+use crate::{
+    DiskWatcherConfig,
+    watcher::{BatchedInvalidations, fs_api::DiskFileSystemWatcherApi},
+};
 
 /// Decides how long a batch of watcher events stays open, and emits a repeated
 /// [`FilesystemSettlingEvent`] for as long as it does.
@@ -26,8 +28,6 @@ struct PendingBatch {
     started: Instant,
     /// The batch is flushed once this passes without any further events.
     deadline: Instant,
-    /// The most recently changed path in the batch, for diagnostics.
-    last_modified_path: Option<PathBuf>,
     /// When to emit the next [`FilesystemSettlingEvent`].
     settling_event_next_at: Instant,
     /// Grows exponentially (up to [`BatchSchedule::settling_event_max_delay`]) so that a writer
@@ -45,19 +45,17 @@ impl BatchSchedule {
     }
 
     /// Keeps the batch open for at least `delay` from now, opening a new batch if there isn't one.
-    pub fn extend(&mut self, delay: Duration, last_modified_path: Option<PathBuf>) {
+    pub fn extend(&mut self, delay: Duration) {
         let now = Instant::now();
         let deadline = now.checked_add(delay).unwrap_or_else(far_future);
         match &mut self.pending {
             Some(pending) => {
                 pending.deadline = pending.deadline.max(deadline);
-                pending.last_modified_path = last_modified_path;
             }
             None => {
                 self.pending = Some(PendingBatch {
                     started: now,
                     deadline,
-                    last_modified_path,
                     settling_event_next_at: now
                         .checked_add(self.settling_event_initial_delay)
                         .unwrap_or_else(far_future),
@@ -76,6 +74,7 @@ impl BatchSchedule {
         &mut self,
         rx: &Receiver<notify::Result<notify::Event>>,
         fs: &FsApi,
+        batch: &BatchedInvalidations,
     ) -> Result<notify::Result<notify::Event>, RecvTimeoutError> {
         let max_event_delay = self.settling_event_max_delay;
         loop {
@@ -86,7 +85,7 @@ impl BatchSchedule {
 
             let now = Instant::now();
             if now >= pending.settling_event_next_at {
-                pending.emit_settling_event(fs, now, max_event_delay);
+                pending.emit_settling_event(fs, batch, now, max_event_delay);
             }
 
             let timeout = pending
@@ -120,6 +119,7 @@ impl PendingBatch {
     fn emit_settling_event<FsApi: DiskFileSystemWatcherApi>(
         &mut self,
         fs: &FsApi,
+        batch: &BatchedInvalidations,
         now: Instant,
         max_event_delay: Duration,
     ) {
@@ -127,9 +127,8 @@ impl PendingBatch {
         if let Some(turbo_tasks) = fs.turbo_tasks() {
             turbo_tasks.send_compilation_event(Arc::new(FilesystemSettlingEvent {
                 elapsed_secs: (now - self.started).as_secs_f64(),
-                last_modified_path: self
-                    .last_modified_path
-                    .as_ref()
+                last_modified_path: batch
+                    .last_updated_path()
                     .map(|path| RcStr::from(format!("{path:?}"))),
             }));
         }
