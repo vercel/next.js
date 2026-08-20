@@ -5,9 +5,9 @@ use std::{
     ops::ControlFlow,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
-        Arc,
+        Arc, OnceLock, SyncView,
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        mpmc::{self, Receiver, Sender},
+        mpmc,
     },
     time::Duration,
 };
@@ -98,9 +98,9 @@ where
     let merge_ref: &(dyn Fn(R, R) -> R + Send + Sync + '_) = &merge;
 
     let (sender, receiver) = mpmc::channel();
-    let inner = ScopeInner {
+    let mut inner = ScopeInner {
         remaining_tasks: AtomicUsize::new(0),
-        panic: Mutex::new(None),
+        panic: OnceLock::new(),
         work_queue: receiver,
         work_queue_sender: RwLock::new(Some(sender)),
         aborted: AtomicBool::new(false),
@@ -129,8 +129,8 @@ where
     // time this returns.
     drop(joiner);
 
-    if let Some(err) = inner.panic.lock().take() {
-        panic::resume_unwind(err);
+    if let Some(err) = inner.panic.take() {
+        panic::resume_unwind(err.into_inner());
     }
 
     inner.results.lock().take().unwrap_or_else(init)
@@ -169,11 +169,11 @@ struct ScopeInner<'run, T: Send + 'static, R> {
     /// [`enqueue`] for the increment-before-push ordering that makes zero reliable.
     remaining_tasks: AtomicUsize,
     /// First panic raised while processing an item; propagated to the caller after the join.
-    panic: Mutex<Option<Box<dyn Any + Send + 'static>>>,
+    panic: OnceLock<SyncView<Box<dyn Any + Send + 'static>>>,
     /// Receiving end of the work queue, shared by every drainer.
-    work_queue: Receiver<T>,
+    work_queue: mpmc::Receiver<T>,
     /// Sending end of the queue, modeled so we can `take` and thus close the queue
-    work_queue_sender: RwLock<Option<Sender<T>>>,
+    work_queue_sender: RwLock<Option<mpmc::Sender<T>>>,
     aborted: AtomicBool,
     /// Spawn budget, mutated under the workers slot, atomic so it can be read outside of it.
     available_slots: AtomicUsize,
@@ -215,10 +215,7 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
     /// Keeps the first panic seen; later ones are dropped.
     fn record_panic(&self, err: Box<dyn Any + Send + 'static>) {
         self.abort();
-        let mut slot = self.panic.lock();
-        if slot.is_none() {
-            *slot = Some(err);
-        }
+        let _ = self.panic.set(SyncView::new(err));
     }
 
     /// Drain loop, run by both the workers and the calling thread until the scope terminates.
@@ -394,14 +391,11 @@ impl WorkerSlots {
         }
     }
 
-    /// `None` when the budget is full: `zeroes()` only yields bits within the set's capacity, so a
-    /// saturated table yields nothing.
     fn free_slot(&self) -> Option<usize> {
         self.occupied.zeroes().next()
     }
 
     /// Record a newly spawned worker in `slot`, which must have come from [`Self::free_slot`].
-
     fn occupy(&mut self, slot: usize, handle: AbortHandle, available_slots: &AtomicUsize) {
         debug_assert!(
             !self.occupied.contains(slot),
@@ -437,9 +431,9 @@ struct WorkerGuard<'a> {
 
 impl Drop for WorkerGuard<'_> {
     fn drop(&mut self) {
-        let mut slots = self.slots.lock();
-        slots.release(self.slot, self.available_slots);
-        if slots.is_idle() {
+        let mut slots_guard = self.slots.lock();
+        slots_guard.release(self.slot, self.available_slots);
+        if slots_guard.is_idle() {
             // Still holding the lock: the predicate the joiner waits on is read under this same
             // lock, so it cannot go true between its check and its `wait`.
             self.workers_idle.notify_all();

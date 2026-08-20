@@ -6,6 +6,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(ptr_metadata)]
+#![feature(exclusive_wrapper)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
