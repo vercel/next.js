@@ -34,6 +34,7 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import type { NextAgentFeedbackOptions } from '../cli/next-agent-feedback.js'
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -637,6 +638,16 @@ program
     )
   })
   .usage('[directory] [options]')
+
+program
+  .command('agent-feedback', { hidden: true })
+  .description('Open a prepared Next.js agent feedback report for review.')
+  .requiredOption('--feedback <text>', 'The de-identified feedback to review.')
+  .action((options: NextAgentFeedbackOptions) => {
+    return import('../cli/next-agent-feedback.js').then((mod) =>
+      mod.nextAgentFeedback(options)
+    )
+  })
 
 const internal = program
   .command('internal')
