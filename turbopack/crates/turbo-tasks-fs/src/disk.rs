@@ -23,7 +23,7 @@ use tokio::{
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
     ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, parallel,
@@ -900,7 +900,10 @@ impl FileSystem for DiskFileSystem {
         let this = self.await?;
         let inner = &this.inner;
         if inner.is_path_denied(&fs_path) {
-            return Ok(LinkContent::Invalid.cell());
+            return Ok(LinkContent::Invalid {
+                reason: rcstr!("access to the symlink path is denied"),
+            }
+            .cell());
         }
         let full_link_path = Arc::new(this.to_sys_path_raw(&fs_path));
 
@@ -916,8 +919,12 @@ impl FileSystem for DiskFileSystem {
             Err(err) if err.kind() == ErrorKind::NotFound => {
                 return Ok(LinkContent::NotFound.cell());
             }
-            // The path doesn't exist or isn't a symbolic link.
-            Err(_) => return Ok(LinkContent::Invalid.cell()),
+            Err(err) => {
+                return Ok(LinkContent::Invalid {
+                    reason: RcStr::from(err.to_string()),
+                }
+                .cell());
+            }
         };
 
         let target = if target_sys_path.is_absolute() {
@@ -938,7 +945,13 @@ impl FileSystem for DiskFileSystem {
             let Some(target_fs_path) = target_fs_path else {
                 // The target leaves the filesystem root (or is a dangling link whose parent
                 // directory couldn't be canonicalized).
-                return Ok(LinkContent::Invalid.cell());
+                return Ok(LinkContent::Invalid {
+                    reason: rcstr!(
+                        "the symlink target leaves the filesystem root or its parent directory \
+                         could not be resolved"
+                    ),
+                }
+                .cell());
             };
             // Rewrite from the sys root to the DiskFileSystem root.
             LinkTarget::Absolute {
@@ -955,14 +968,22 @@ impl FileSystem for DiskFileSystem {
                     Some(Component::Prefix(_))
                 )
             {
-                return Ok(LinkContent::Invalid.cell());
+                return Ok(LinkContent::Invalid {
+                    reason: rcstr!("the symlink target is not a fully qualified or relative path"),
+                }
+                .cell());
             }
 
             // The raw value read from the link, converted to a unix-style format. A relative
             // target is resolved against the directory *containing* the link, not the link itself.
-            let target_str = target_sys_path.to_str().with_context(|| {
-                format!("symlink target {target_sys_path:?} is not valid unicode")
-            })?;
+            let Some(target_str) = target_sys_path.to_str() else {
+                return Ok(LinkContent::Invalid {
+                    reason: RcStr::from(format!(
+                        "the symlink target {target_sys_path:?} is not valid unicode"
+                    )),
+                }
+                .cell());
+            };
             let raw = RcStr::from(sys_to_unix(target_str));
 
             // Require the target to stay within the filesystem root at every step, not just at
@@ -971,7 +992,10 @@ impl FileSystem for DiskFileSystem {
             // root-relative `FileSystemPath` doesn't carry. Rejecting it here is what lets
             // `LinkTarget` carry a resolved path at all.
             let Some(resolved) = fs_path.parent().try_join(&raw) else {
-                return Ok(LinkContent::Invalid.cell());
+                return Ok(LinkContent::Invalid {
+                    reason: rcstr!("the symlink target leaves the filesystem root"),
+                }
+                .cell());
             };
             LinkTarget::Relative { raw, resolved }
         };
@@ -1841,10 +1865,34 @@ mod tests {
             // `realpath` follows the link, so it must report the missing target rather than
             // succeeding with a path that doesn't exist.
             let result = link_path.realpath_with_links().await?;
-            assert_eq!(
-                result.path_result,
-                Err(RealPathResultError::NotFound),
-                "realpath must not succeed with a nonexistent path"
+            assert!(
+                matches!(
+                    &result.path_result,
+                    Err(RealPathResultError::Invalid(reason))
+                        if reason == "a symlink target does not exist"
+                ),
+                "realpath must report the missing target as an invalid chain: {:?}",
+                result.path_result
+            );
+            let error = result.path_result.as_ref().unwrap_err();
+            let message = error.as_error_message(&link_path, &result).await?;
+            assert!(
+                message.contains("could not be resolved: a symlink target does not exist"),
+                "unexpected error message: {message}"
+            );
+
+            // The same missing target after another link is still an invalid chain, never a
+            // missing initial link.
+            let chain_path = root_path.join("sub/link-chain")?;
+            let result = chain_path.realpath_with_links().await?;
+            assert!(
+                matches!(
+                    &result.path_result,
+                    Err(RealPathResultError::Invalid(reason))
+                        if reason == "a symlink target does not exist"
+                ),
+                "realpath must report a missing target later in a chain as invalid: {:?}",
+                result.path_result
             );
 
             // Resolving a path that simply doesn't exist is not an error, though: there is no
@@ -1865,6 +1913,7 @@ mod tests {
             let path = scratch.path().to_owned();
             create_dir_all(path.join("sub")).unwrap();
             symlink("missing.txt", path.join("sub/link-dangling")).unwrap();
+            symlink("link-dangling", path.join("sub/link-chain")).unwrap();
 
             let root = canonicalize_to_rcstr(&path).unwrap();
 
@@ -1904,12 +1953,20 @@ mod tests {
             // and back down into it. Resolving this would need the names of the root's own
             // ancestors, which a root-relative path doesn't carry.
             let reentrant = fs.read_link(root_path.join("sub/link-reentrant")?).await?;
-            assert_eq!(*reentrant, LinkContent::Invalid);
+            assert!(matches!(
+                &*reentrant,
+                LinkContent::Invalid { reason }
+                    if reason == "the symlink target leaves the filesystem root"
+            ));
 
             // sub/link-sideways -> ../../sibling/root.txt, which steps above the root and down
             // into a sibling, so it genuinely ends outside.
             let sideways = fs.read_link(root_path.join("sub/link-sideways")?).await?;
-            assert_eq!(*sideways, LinkContent::Invalid);
+            assert!(matches!(
+                &*sideways,
+                LinkContent::Invalid{reason}
+                    if reason == "the symlink target leaves the filesystem root"
+            ));
 
             // `\` is a legal filename character on unix, so a raw target may contain one. It must
             // not be treated as a separator, and must not trip `join_path`'s debug assertion.
@@ -2107,7 +2164,11 @@ mod tests {
 
                 // link-outside -> <scratch>/outside.txt  (outside of the fs root)
                 let outside = fs.read_link(root_path.join("link-outside")?).await?;
-                assert_eq!(*outside, LinkContent::Invalid);
+                assert!(matches!(
+                    &*outside,
+                    LinkContent::Invalid { reason}
+                        if reason.contains("leaves the filesystem root")
+                ));
 
                 Ok(())
             }

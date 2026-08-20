@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
@@ -38,7 +38,10 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::Invalid.cell()
+        LinkContent::Invalid {
+            reason: rcstr!("the filesystem does not support symbolic links"),
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

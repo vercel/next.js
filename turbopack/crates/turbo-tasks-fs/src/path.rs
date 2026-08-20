@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
 use indexmap::IndexSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
     turbobail, turbofmt,
@@ -511,10 +511,12 @@ pub struct RealPathResult {
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
-    /// See: [LinkContent::NotFound].
+    /// The first symlink that resolution attempted to read no longer exists.
     NotFound,
-    /// See: [LinkContent::Invalid].
-    Invalid,
+    /// Resolution failed after finding a symlink, or the symlink was invalid to begin with.
+    Invalid {
+        reason: RcStr,
+    },
 }
 
 impl RealPathResultError {
@@ -538,13 +540,14 @@ impl RealPathResultError {
                 );
                 turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
             }
-            RealPathResultError::Invalid => {
-                turbofmt!("Symlink {orig} is invalid, its target leaves the filesystem root")
-                    .await?
+            RealPathResultError::Invalid { reason } => {
+                turbofmt!("Symlink {orig} could not be resolved: {reason}").await?
             }
             RealPathResultError::NotFound => {
-                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
-                    .await?
+                turbofmt!(
+                    "Symlink {orig} could not be read because the symlink itself no longer exists"
+                )
+                .await?
             }
         })
     }
@@ -643,7 +646,16 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 }
             }
             Err(parent_error) => {
-                error = parent_error;
+                error = match parent_error {
+                    RealPathResultError::NotFound if !symlinks.is_empty() => {
+                        RealPathResultError::Invalid {
+                            reason: rcstr!(
+                                "a symlink encountered while resolving the path no longer exists"
+                            ),
+                        }
+                    }
+                    error => error,
+                };
                 break;
             }
         }
@@ -657,8 +669,12 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             //
             // Only report this for a link we actually followed: resolving a path that simply
             // doesn't exist is not an error, it just resolves to itself.
-            if followed_link && matches!(entry_type, FileSystemEntryType::NotFound) {
-                error = RealPathResultError::NotFound;
+            if (followed_link || !symlinks.is_empty())
+                && matches!(entry_type, FileSystemEntryType::NotFound)
+            {
+                error = RealPathResultError::Invalid {
+                    reason: rcstr!("a symlink target does not exist"),
+                };
                 break;
             }
             return Ok(RealPathResult {
@@ -677,11 +693,21 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 followed_link = true;
             }
             LinkContent::NotFound => {
-                error = RealPathResultError::NotFound;
+                error = if symlinks.is_empty() {
+                    RealPathResultError::NotFound
+                } else {
+                    RealPathResultError::Invalid {
+                        reason: rcstr!(
+                            "a symlink encountered while resolving the path no longer exists"
+                        ),
+                    }
+                };
                 break;
             }
-            LinkContent::Invalid => {
-                error = RealPathResultError::Invalid;
+            LinkContent::Invalid { reason } => {
+                error = RealPathResultError::Invalid {
+                    reason: reason.clone(),
+                };
                 break;
             }
         }

@@ -1,5 +1,6 @@
 //! [`NullFileSystem`], a filesystem where every path is empty/not-found.
 
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
@@ -21,7 +22,10 @@ impl FileSystem for NullFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _fs_path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::Invalid.cell()
+        LinkContent::Invalid {
+            reason: rcstr!("the filesystem does not support symbolic links"),
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

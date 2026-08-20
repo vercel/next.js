@@ -214,14 +214,18 @@ impl LinkTarget {
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     Link { target: LinkTarget },
-    /// There is no file at this path.
-    NotFound,
-    /// There is no usable symbolic link at this path or some other error occurred.
+    /// The link itself does not exist at the path given to [`FileSystemPath::read_link`].
     ///
-    /// A relative target that steps out of the root and back into it is `Invalid`, since resolving
-    /// it would need the names of the root's own ancestors, which a root-relative path doesn't
-    /// carry.
-    Invalid,
+    /// This says nothing about whether the link's target exists: a dangling link is still
+    /// returned as [`LinkContent::Link`].
+    NotFound,
+    /// The link could not be read.
+    ///
+    /// This includes all I/O errors other than `NotFound`, denied paths, and targets that leave the
+    /// filesystem root. A relative target that steps out of the root and back into it is also
+    /// invalid, since resolving it would need the names of the root's own ancestors, which a
+    /// root-relative path doesn't carry.
+    Invalid { reason: RcStr },
 }
 
 #[turbo_tasks::value_impl]
@@ -246,7 +250,7 @@ impl LinkContent {
                 LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(&raw),
             },
             LinkContent::NotFound => SimplifiedLinkContent::NotFound,
-            LinkContent::Invalid => SimplifiedLinkContent::Invalid,
+            LinkContent::Invalid { reason: _ } => SimplifiedLinkContent::Invalid,
         };
         Ok(Vc::cell(RcStr::from(deterministic_hash(
             &salt.await?,
