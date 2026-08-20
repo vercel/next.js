@@ -1474,5 +1474,6 @@
   "1473": "Invariant: image cache entry \"%s\" is empty",
   "1474": "Invariant: cannot write an empty buffer to the image cache",
   "1475": "Invariant: no direct app page entry found for %s",
-  "1476": "Not implemented: this behavior is not yet supported when `experimental.concurrentRouterQueue` is enabled."
+  "1476": "Not implemented: this behavior is not yet supported when `experimental.concurrentRouterQueue` is enabled.",
+  "1477": "Next.js could not resolve its own copy of 'styled-jsx'. It is a dependency of 'next', so this usually means the installation is incomplete or 'node_modules' is out of date - reinstalling dependencies normally fixes it. If your setup can't resolve nested dependencies (for example a custom bundling or vendoring step), add 'styled-jsx' to your app dependencies so it resolves to a single copy.\nSee more info here: https://nextjs.org/docs/messages/styled-jsx-not-resolvable"
 }
