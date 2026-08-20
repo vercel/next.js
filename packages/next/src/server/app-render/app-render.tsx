@@ -74,7 +74,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
-  NEXT_MISSING_METADATA_HEADER,
+  NEXT_PRELUDE_METADATA_HEADER,
   NEXT_URL,
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -9416,7 +9416,7 @@ async function prerenderToStream(
 
       if (dynamicValidation.hasDynamicMetadata) {
         metadata.headers ??= {}
-        metadata.headers[NEXT_MISSING_METADATA_HEADER] = '1'
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
       }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
