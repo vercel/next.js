@@ -216,11 +216,9 @@ const ClientOnlyComponent = dynamic(() => import('./component'), {
 
 This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
-
 The App Router uses React Canary releases, which include the new [`browser`](https://react.dev/reference/react-dom/browser) API. Call `browser` inside `use` in a Client Component that needs browser APIs:
 
-```tsx filename="app/browser-only-editor.tsx"
+```jsx filename="app/browser-only-editor.jsx"
 'use client'
 
 import { use } from 'react'
@@ -234,7 +232,7 @@ export default function BrowserOnlyEditor() {
 
 Then wrap it in a Suspense boundary:
 
-```tsx filename="app/page.tsx"
+```jsx filename="app/page.jsx"
 import { Suspense } from 'react'
 import BrowserOnlyEditor from './browser-only-editor'
 
@@ -248,6 +246,8 @@ export default function Page() {
 ```
 
 During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The component then renders normally in the browser.
+
+See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
 
 ### Shallow routing on the client
 
