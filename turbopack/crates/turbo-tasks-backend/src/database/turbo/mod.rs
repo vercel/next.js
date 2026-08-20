@@ -34,6 +34,7 @@ const MB: u64 = 1024 * 1024;
 pub fn db_config() -> DbConfig<FAMILIES> {
     DbConfig {
         family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+        ..DbConfig::new()
     }
 }
 
@@ -94,18 +95,26 @@ impl TurboKeyValueDatabase {
         self.db.is_empty()
     }
 
-    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes<'static>>> {
         self.db.get(key_space as usize, &key)
     }
 
-    pub fn batch_get(&self, key_space: KeySpace, keys: &[&[u8]]) -> Result<Vec<Option<ArcBytes>>> {
+    pub fn batch_get(
+        &self,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<ArcBytes<'static>>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
     /// Looks up a key and returns all matching values.
     ///
     /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
-    pub fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
+    pub fn get_multiple(
+        &self,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[ArcBytes<'static>; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 
@@ -216,7 +225,7 @@ pub struct TurboWriteBatch<'a> {
 }
 
 impl<'a> TurboWriteBatch<'a> {
-    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes<'static>>> {
         self.db.get(key_space as usize, &key)
     }
 

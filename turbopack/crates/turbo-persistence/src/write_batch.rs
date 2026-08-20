@@ -89,7 +89,7 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
     /// Meta file builders for each family.
-    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta<'static>)>>; FAMILIES],
+    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta)>>; FAMILIES],
     /// The list of new SST files that have been created.
     new_sst_files: Mutex<Vec<NewFile>>,
 }
@@ -540,6 +540,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     sequence_number: seq,
                     block_count: meta.block_count,
                 },
+                true,
             )?;
             let cache2 = BlockCache::with(
                 10,

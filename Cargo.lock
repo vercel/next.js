@@ -10020,6 +10020,7 @@ dependencies = [
  "quick_cache",
  "rand 0.10.1",
  "rayon",
+ "rstest",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
