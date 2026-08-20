@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -213,8 +211,7 @@ pub struct PartialUpdate {
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.
-    #[turbo_tasks(trace_ignore)]
-    pub instruction: Arc<serde_json::Value>,
+    pub instruction: crate::update_instruction::UpdateInstruction,
 }
 
 /// [`Version`] implementation that hashes a file at a given path and returns
