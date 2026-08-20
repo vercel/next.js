@@ -300,6 +300,59 @@ export interface TurbopackOptions {
   chunkLoadingGlobal?: string
 }
 
+export type TurbopackModuleFederationRemoteConfig =
+  | string
+  | string[]
+  | {
+      external: string | string[]
+      shareScope?: string
+    }
+
+export type TurbopackModuleFederationExposeConfig =
+  | string
+  | string[]
+  | {
+      import: string | string[]
+      name?: string
+    }
+
+export type TurbopackModuleFederationSharedConfig =
+  | string
+  | {
+      eager?: boolean
+      import?: string | false
+      packageName?: string
+      requiredVersion?: string | false
+      shareKey?: string
+      shareScope?: string
+      singleton?: boolean
+      strictVersion?: boolean
+      version?: string | false
+    }
+
+export interface TurbopackModuleFederationOptions {
+  /** Name of this container. Required when exposing modules. */
+  name?: string
+  /** Remote entry filename, relative to Next.js' static chunks directory. */
+  filename?: string
+  /** Webpack-compatible remote container definitions. */
+  remotes?:
+    | Record<string, TurbopackModuleFederationRemoteConfig>
+    | Array<string | Record<string, TurbopackModuleFederationRemoteConfig>>
+  /** Modules exposed by this container. */
+  exposes?:
+    | Record<string, TurbopackModuleFederationExposeConfig>
+    | Array<string | Record<string, TurbopackModuleFederationExposeConfig>>
+  /** Modules provided to and consumed from share scopes. */
+  shared?:
+    | Record<string, TurbopackModuleFederationSharedConfig>
+    | Array<string | Record<string, TurbopackModuleFederationSharedConfig>>
+  /** Default share scope. */
+  shareScope?: string
+  /** Remote transport. Only `script` is currently supported. */
+  remoteType?: 'script'
+}
+
 export interface WebpackConfigContext {
   /** Next.js root directory */
   dir: string
@@ -805,6 +858,13 @@ export interface ExperimentalConfig {
    * no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
+
+  /**
+   * Enables webpack-compatible Module Federation for Turbopack client bundles.
+   *
+   * @experimental
+   */
+  turbopackModuleFederation?: TurbopackModuleFederationOptions
 
   /**
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when

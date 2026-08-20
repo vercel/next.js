@@ -12,6 +12,7 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
     to_sys_path,
 };
+use turbopack::module_federation::{ModuleFederationConfig, apply_module_federation_import_map};
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -52,6 +53,19 @@ use crate::{
     util::NextRuntime,
 };
 
+async fn insert_module_federation_aliases(
+    import_map: &mut ImportMap,
+    project_path: &FileSystemPath,
+    next_config: Vc<NextConfig>,
+) -> Result<()> {
+    if let Some(config) = &*next_config.turbopack_module_federation_json().await? {
+        let config = ModuleFederationConfig::from_json(config)
+            .context("Invalid experimental.turbopackModuleFederation configuration")?;
+        apply_module_federation_import_map(import_map, project_path.clone(), &config);
+    }
+    Ok(())
+}
+
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
@@ -84,6 +98,8 @@ pub async fn get_next_client_import_map(
         ["browser"],
     )
     .await?;
+
+    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
 
     match &ty {
         ClientContextType::Pages { .. } => {
@@ -306,6 +322,8 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
+    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
+
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
 
@@ -453,6 +471,8 @@ pub async fn get_next_edge_import_map(
         [],
     )
     .await?;
+
+    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
 
     match &ty {
         ServerContextType::Pages { .. }

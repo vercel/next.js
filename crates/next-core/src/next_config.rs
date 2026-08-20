@@ -1333,6 +1333,9 @@ pub struct ExperimentalConfig {
 
     turbopack_chunking: Option<TurbopackChunkingConfig>,
 
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    turbopack_module_federation: Option<serde_json::Value>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -2172,6 +2175,20 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn css_chunking(&self) -> Result<Vc<StyleGroupsAlgorithm>> {
         Ok(resolve_css_chunking_algorithm(self.experimental.css_chunking.as_ref())?.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_module_federation_json(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.experimental
+                .turbopack_module_federation
+                .as_ref()
+                .map(|value| {
+                    serde_json::to_string(value)
+                        .expect("serializing JSON cannot fail")
+                        .into()
+                }),
+        )
     }
 
     #[turbo_tasks::function]

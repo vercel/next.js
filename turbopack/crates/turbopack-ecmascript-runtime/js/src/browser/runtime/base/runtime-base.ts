@@ -32,6 +32,7 @@ declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
+  o: (url: string) => Promise<void>
 }
 
 const browserContextPrototype =
@@ -283,6 +284,31 @@ function loadChunkByUrl(
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
+
+const externalScriptCache = new Map<string, Promise<void>>()
+function loadScriptByUrl(url: string): Promise<void> {
+  let promise = externalScriptCache.get(url)
+  if (promise !== undefined) return promise
+
+  promise = new Promise<void>((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      reject(new Error(`Cannot load external script ${url} without a document`))
+      return
+    }
+    const script = document.createElement('script')
+    if (CROSS_ORIGIN != null) script.crossOrigin = CROSS_ORIGIN
+    script.src = url
+    script.onload = () => resolve()
+    script.onerror = () => {
+      script.remove()
+      reject(new Error(`Failed to load external script ${url}`))
+    }
+    document.head.appendChild(script)
+  })
+  externalScriptCache.set(url, promise)
+  return promise
+}
+browserContextPrototype.o = loadScriptByUrl
 
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(
