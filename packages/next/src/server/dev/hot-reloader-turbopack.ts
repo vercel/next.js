@@ -1724,50 +1724,37 @@ export async function createHotReloaderTurbopack(
     },
     async start() {},
     async getCompilationErrors(page) {
-      const appEntryKey = getEntryKey('app', 'server', page)
-      const pagesEntryKey = getEntryKey('pages', 'server', page)
+      // Turbopack compiles each entrypoint separately, so an issue recorded for
+      // one entry says nothing about another one. Only report the issues of the
+      // page being rendered, plus the project-wide (top level) issues — never
+      // the issues of unrelated pages, otherwise a single broken route makes
+      // every other route fail as well.
+      const issues = [...currentTopLevelIssues.values()]
 
-      const topLevelIssues = currentTopLevelIssues.values()
-
-      const thisEntryIssues =
-        currentEntryIssues.get(appEntryKey) ??
-        currentEntryIssues.get(pagesEntryKey)
-
-      if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
-        // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()]
-          .map((issue) => {
-            const formattedIssue = formatIssue(issue)
-            if (issue.severity === 'warning') {
-              printNonFatalIssue(issue)
-              return null
-            } else if (isWellKnownError(issue)) {
-              Log.error(formattedIssue)
-            }
-
-            return new Error(formattedIssue)
-          })
-          .filter((error) => error !== null)
-      }
-
-      // Otherwise, return all errors across pages
-      const errors = []
-      for (const issue of topLevelIssues) {
-        if (issue.severity !== 'warning') {
-          errors.push(new Error(formatIssue(issue)))
-        }
-      }
-      for (const entryIssues of currentEntryIssues.values()) {
-        for (const issue of entryIssues.values()) {
-          if (issue.severity !== 'warning') {
-            const message = formatIssue(issue)
-            errors.push(new Error(message))
-          } else {
-            printNonFatalIssue(issue)
+      for (const type of ['app', 'pages'] as const) {
+        for (const side of ['server', 'client'] as const) {
+          const entryIssues = currentEntryIssues.get(
+            getEntryKey(type, side, page)
+          )
+          if (entryIssues !== undefined) {
+            issues.push(...entryIssues.values())
           }
         }
       }
-      return errors
+
+      return issues
+        .map((issue) => {
+          const formattedIssue = formatIssue(issue)
+          if (issue.severity === 'warning') {
+            printNonFatalIssue(issue)
+            return null
+          } else if (isWellKnownError(issue)) {
+            Log.error(formattedIssue)
+          }
+
+          return new Error(formattedIssue)
+        })
+        .filter((error) => error !== null)
     },
     async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
