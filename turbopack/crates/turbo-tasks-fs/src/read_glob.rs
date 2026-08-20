@@ -1,7 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use futures::try_join;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
@@ -21,7 +21,7 @@ pub struct ReadGlobResult {
 /// on the order.
 #[turbo_tasks::function(fs)]
 pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal("", directory, glob).await
+    read_glob_internal("", directory, glob, rcstr!("")).await
 }
 
 #[turbo_tasks::function(fs)]
@@ -29,8 +29,11 @@ async fn read_glob_inner(
     prefix: RcStr,
     directory: FileSystemPath,
     glob: Vc<Glob>,
+    /// Real filesystem paths already entered on this walk (newline-separated).
+    /// Used to skip multi-hop symlink cycles (e.g. pnpm nested workspace links).
+    visited_real_dirs: RcStr,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal(&prefix, directory, glob).await
+    read_glob_internal(&prefix, directory, glob, visited_real_dirs).await
 }
 
 // The `prefix` represents the relative directory path where symlinks are not resolve.
@@ -38,7 +41,15 @@ async fn read_glob_internal(
     prefix: &str,
     directory: FileSystemPath,
     glob: Vc<Glob>,
+    visited_real_dirs: RcStr,
 ) -> Result<Vc<ReadGlobResult>> {
+    // Skip if we already walked this real directory (multi-hop symlink cycles).
+    let real_dir = directory_real_key(&directory).await?;
+    if visited_contains(&visited_real_dirs, &real_dir) {
+        return Ok(ReadGlobResult::cell(ReadGlobResult::default()));
+    }
+    let next_visited = visited_push(&visited_real_dirs, &real_dir);
+
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.await?;
@@ -53,11 +64,12 @@ async fn read_glob_internal(
     let handle_dir = async |result: &mut ReadGlobResult,
                             entry_path: RcStr,
                             segment: &RcStr,
-                            path: &FileSystemPath| {
+                            path: &FileSystemPath,
+                            visited: RcStr| {
         if glob_value.can_match_in_directory(&entry_path) {
             result.inner.insert(
                 segment.clone(),
-                read_glob_inner(entry_path, path.clone(), glob)
+                read_glob_inner(entry_path, path.clone(), glob, visited)
                     .to_resolved()
                     .await?,
             );
@@ -82,18 +94,34 @@ async fn read_glob_internal(
                         // Add the directory to `results` if it is a whole match of the glob
                         handle_file(&mut result, &entry_path, segment, entry);
                         // Recursively handle the directory
-                        handle_dir(&mut result, entry_path, segment, path).await?;
+                        handle_dir(
+                            &mut result,
+                            entry_path,
+                            segment,
+                            path,
+                            next_visited.clone(),
+                        )
+                        .await?;
                     }
                     DirectoryEntry::Symlink(path) => {
                         if let LinkContent::Link { link_type, .. } = &*path.read_link().await? {
                             if link_type.contains(LinkType::DIRECTORY) {
-                                // Ensure that there are no infinite link loops, but don't resolve
-                                resolve_symlink_safely(entry.clone()).await?;
+                                // Detect single-hop ancestor loops; skip instead of failing the walk
+                                if resolve_symlink_safely(entry.clone()).await?.is_none() {
+                                    continue;
+                                }
 
                                 // Add the directory to `results` if it is a whole match of the glob
                                 handle_file(&mut result, &entry_path, segment, entry);
                                 // Recursively handle the directory
-                                handle_dir(&mut result, entry_path, segment, path).await?;
+                                handle_dir(
+                                    &mut result,
+                                    entry_path,
+                                    segment,
+                                    path,
+                                    next_visited.clone(),
+                                )
+                                .await?;
                             } else {
                                 handle_file(&mut result, &entry_path, segment, entry);
                             }
@@ -108,8 +136,37 @@ async fn read_glob_internal(
     Ok(ReadGlobResult::cell(result))
 }
 
+fn visited_contains(visited: &str, real_dir: &str) -> bool {
+    if visited.is_empty() || real_dir.is_empty() {
+        return false;
+    }
+    visited.split('\n').any(|p| p == real_dir)
+}
+
+fn visited_push(visited: &str, real_dir: &str) -> RcStr {
+    if real_dir.is_empty() {
+        return visited.into();
+    }
+    if visited.is_empty() {
+        real_dir.into()
+    } else {
+        format!("{visited}\n{real_dir}").into()
+    }
+}
+
+async fn directory_real_key(directory: &FileSystemPath) -> Result<RcStr> {
+    match directory.realpath().await {
+        Ok(real) => Ok(real.path.clone()),
+        // Fall back to the logical path if realpath fails (broken links, etc.).
+        Err(_) => Ok(directory.path.clone()),
+    }
+}
+
 /// Resolve a symlink checking for recursion.
-async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry> {
+///
+/// Returns `Ok(None)` when a cycle is detected so callers can skip the entry
+/// instead of failing the entire glob walk (needed for NFT / outputFileTracingIncludes).
+async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<Option<DirectoryEntry>> {
     let resolved_entry = entry.clone().resolve_symlink().await?;
     if resolved_entry != entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
         // We followed a symlink to a directory
@@ -117,15 +174,17 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // exhaust RAM or go into an infinite loop with the GC we need to check for a
         // recursive symlink, we need to check for recursion.
 
-        // Recursion can only occur if the symlink is a directory and points to an
-        // ancestor of the current path, which can be detected via a simple prefix
-        // match.
+        // Single-hop recursion: symlink points at an ancestor of its own path.
         let source_path = entry.path().unwrap();
         if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
+            return Ok(None);
         }
     }
-    Ok(resolved_entry)
+    // Also treat realpath cycle / too-many-links as skippable for glob walks.
+    if matches!(&resolved_entry, DirectoryEntry::Error(_)) {
+        return Ok(None);
+    }
+    Ok(Some(resolved_entry))
 }
 
 /// Traverses all directories that match the given `glob`.
@@ -139,7 +198,7 @@ pub async fn track_glob(
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
-    track_glob_internal("", directory, glob, include_dot_files).await
+    track_glob_internal("", directory, glob, include_dot_files, rcstr!("")).await
 }
 
 #[turbo_tasks::function(fs)]
@@ -148,8 +207,16 @@ async fn track_glob_inner(
     directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
+    visited_real_dirs: RcStr,
 ) -> Result<Vc<Completion>> {
-    track_glob_internal(&prefix, directory, glob, include_dot_files).await
+    track_glob_internal(
+        &prefix,
+        directory,
+        glob,
+        include_dot_files,
+        visited_real_dirs,
+    )
+    .await
 }
 
 async fn track_glob_internal(
@@ -157,7 +224,14 @@ async fn track_glob_internal(
     directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
+    visited_real_dirs: RcStr,
 ) -> Result<Vc<Completion>> {
+    let real_dir = directory_real_key(&directory).await?;
+    if visited_contains(&visited_real_dirs, &real_dir) {
+        return Ok(Completion::new());
+    }
+    let next_visited = visited_push(&visited_real_dirs, &real_dir);
+
     let dir = directory.read_dir().await?;
     let glob_value = glob.await?;
     let fs = directory.fs().to_resolved().await?;
@@ -179,27 +253,31 @@ async fn track_glob_internal(
                 };
 
                 match resolve_symlink_safely(entry.clone()).await? {
-                    DirectoryEntry::Directory(path) => {
+                    None => {
+                        // Symlink cycle — skip rather than fail the whole walk.
+                    }
+                    Some(DirectoryEntry::Directory(path)) => {
                         if glob_value.can_match_in_directory(&entry_path) {
                             completions.push(track_glob_inner(
                                 entry_path,
                                 path.clone(),
                                 glob,
                                 include_dot_files,
+                                next_visited.clone(),
                             ));
                         }
                     }
-                    DirectoryEntry::File(path) => {
+                    Some(DirectoryEntry::File(path)) => {
                         if glob_value.matches(&entry_path) {
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => turbobail!(
+                    Some(DirectoryEntry::Symlink(symlink_path)) => turbobail!(
                         "resolve_symlink_safely() should have resolved all symlinks or returned \
                          an error, but found unresolved symlink at path: '{entry_path}'. Found \
                          path: '{symlink_path}'. Please report this as a bug.",
                     ),
-                    DirectoryEntry::Other(path) => {
+                    Some(DirectoryEntry::Other(path)) => {
                         if glob_value.matches(&entry_path) {
                             types.push(path.get_type())
                         }
@@ -208,7 +286,7 @@ async fn track_glob_internal(
                     // fine to ignore since the mere act of attempting to resolve it has triggered
                     // the ncecessary dependencies.  If this file is actually a dependency we should
                     // get an error in the actual webpack loader when it reads it.
-                    DirectoryEntry::Error(_) => {}
+                    Some(DirectoryEntry::Error(_)) => {}
                 }
             }
         }
@@ -227,7 +305,7 @@ pub mod tests {
 
     use std::{
         collections::HashMap,
-        fs::{File, create_dir},
+        fs::{File, create_dir, create_dir_all},
         io::prelude::*,
     };
 
@@ -628,26 +706,13 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let err = track_glob_operation(path.clone(), rcstr!("**"))
+            // Cycles must be skipped (not fail the walk) so NFT include globs can complete.
+            track_glob_operation(path.clone(), rcstr!("**"))
                 .read_strongly_consistent()
-                .await
-                .expect_err("Should have detected an infinite loop");
-
-            assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
-                format!("{}", err.root_cause())
-            );
-
-            // Same when calling track glob
-            let err = track_glob_operation(path, rcstr!("**"))
+                .await?;
+            track_glob_operation(path, rcstr!("**"))
                 .read_strongly_consistent()
-                .await
-                .expect_err("Should have detected an infinite loop");
-
-            assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
-                format!("{}", err.root_cause())
-            );
+                .await?;
 
             anyhow::Ok(())
         })
@@ -742,27 +807,83 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let err = read_glob_operation(path.clone(), rcstr!("**"))
+            // Single-hop self loops are skipped instead of failing the walk.
+            read_glob_operation(path.clone(), rcstr!("**"))
                 .read_strongly_consistent()
-                .await
-                .expect_err("Should have detected an infinite loop");
-
-            assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
-                format!("{}", err.root_cause())
-            );
-
-            // Same when calling track glob
-            let err = track_glob_operation(path, rcstr!("**"))
+                .await?;
+            track_glob_operation(path, rcstr!("**"))
                 .read_strongly_consistent()
-                .await
-                .expect_err("Should have detected an infinite loop");
+                .await?;
 
-            assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
-                format!("{}", err.root_cause())
-            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
+    /// Reproduces https://github.com/vercel/next.js/issues/97550:
+    /// multi-hop symlink cycles (pnpm nested workspace package depending on its
+    /// physical ancestor) must be skipped by the include-glob walk.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn read_glob_multi_hop_symlink_cycle() {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            // umbrella/
+            //   shared/          (package)
+            //   leagues/         (package)
+            // app/node_modules/shared -> ../packages/umbrella/shared
+            // packages/umbrella/shared/node_modules/umbrella -> ../..
+            // packages/umbrella/leagues/node_modules/shared -> ../../shared
+            //
+            // Walk enters via app/node_modules/shared so neither single symlink
+            // target is an ancestor of its own virtual path — multi-hop cycle.
+            let path = scratch.path();
+            create_dir_all(path.join("app/node_modules")).unwrap();
+            create_dir_all(path.join("packages/umbrella/shared/node_modules")).unwrap();
+            create_dir_all(path.join("packages/umbrella/leagues/node_modules")).unwrap();
+
+            File::create_new(path.join("packages/umbrella/shared/index.js"))
+                .unwrap()
+                .write_all(b"shared")
+                .unwrap();
+            File::create_new(path.join("packages/umbrella/leagues/index.js"))
+                .unwrap()
+                .write_all(b"leagues")
+                .unwrap();
+            File::create_new(path.join("included-asset.txt"))
+                .unwrap()
+                .write_all(b"asset")
+                .unwrap();
+
+            symlink(
+                path.join("packages/umbrella/shared"),
+                path.join("app/node_modules/shared"),
+            )
+            .unwrap();
+            symlink(
+                path.join("packages/umbrella"),
+                path.join("packages/umbrella/shared/node_modules/umbrella"),
+            )
+            .unwrap();
+            symlink(
+                path.join("packages/umbrella/shared"),
+                path.join("packages/umbrella/leagues/node_modules/shared"),
+            )
+            .unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            // Must complete without ELOOP / infinite recursion.
+            read_glob_operation(path.clone(), rcstr!("**"))
+                .read_strongly_consistent()
+                .await?;
+            track_glob_operation(path, rcstr!("**"))
+                .read_strongly_consistent()
+                .await?;
             anyhow::Ok(())
         })
         .await
