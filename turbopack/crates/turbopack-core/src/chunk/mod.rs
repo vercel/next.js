@@ -622,7 +622,7 @@ impl AsyncModuleInfo {
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,
-    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub module: Option<ResolvedVc<Box<dyn Module>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
