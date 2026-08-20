@@ -602,7 +602,7 @@ export async function getTopProducts() {
 }
 ```
 
-Non-function exports pass through unchanged, which is how a `page` or `layout` file keeps its `metadata`, `viewport`, and [route segment config](/docs/app/api-reference/file-conventions/route-segment-config). Framework exports are covered like any other, so [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must be async in such a file.
+Framework function exports are covered like any other, so [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must be async in such a file.
 
 > **Good to know**:
 >
