@@ -194,19 +194,22 @@ export async function processPrelude(
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean
 ): AnyStream {
   return createInlinedDataReadableStream(
     source as ReadableStream<Uint8Array>,
     nonce,
-    formState
+    formState,
+    externalBrowserRuntime
   )
 }
 
 export function createNodeInlinedDataStream(
   _source: AnyStream,
   _nonce: string | undefined,
-  _formState: unknown | null
+  _formState: unknown | null,
+  _externalBrowserRuntime: boolean
 ): AnyStream {
   throw new Error('not implemented')
 }

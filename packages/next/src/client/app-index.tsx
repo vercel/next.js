@@ -155,14 +155,89 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   initialServerDataWriter = ctr
 }
 
+let stopFlightTemplateCollector: (() => void) | null = null
+
 // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
 const DOMContentLoaded = function () {
+  // Must run before the writer is closed, otherwise a payload the observer has
+  // not delivered yet would be dropped.
+  if (stopFlightTemplateCollector !== null) {
+    stopFlightTemplateCollector()
+    stopFlightTemplateCollector = null
+  }
   if (initialServerDataWriter && !initialServerDataFlushed) {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
   }
   initialServerDataLoaded = true
+}
+
+// Kept in sync with `FLIGHT_DATA_ATTRIBUTE` in
+// packages/next/src/server/app-render/use-flight-response.tsx
+const FLIGHT_TEMPLATE_SELECTOR = 'template[data-next-flight]'
+
+/**
+ * With `experimental.externalBrowserRuntime` the server writes each Flight
+ * payload as an inert `<template>` instead of an inline `<script>`, so that a
+ * Content-Security-Policy does not need `unsafe-inline`. Nothing executes those
+ * templates, so we collect them here: once for whatever the parser has already
+ * produced, then continuously as the rest of the document streams in.
+ *
+ * This deliberately lives in the client bundle rather than in the shared browser
+ * runtime asset. This module is the only consumer of the payload queue and it
+ * closes the stream on `DOMContentLoaded`, which `async` scripts do not block —
+ * collecting from a separate async script would race that close and drop data.
+ *
+ * Returns a function that performs a final sweep and stops observing.
+ */
+function createFlightTemplateCollector(): () => void {
+  const handled = new WeakSet<Element>()
+
+  function handle(element: Element) {
+    if (handled.has(element)) {
+      return
+    }
+    handled.add(element)
+
+    const payload = element.getAttribute('data-next-flight')
+    if (payload === null) {
+      return
+    }
+    nextServerDataCallback(JSON.parse(payload) as FlightSegment)
+  }
+
+  // `querySelectorAll` yields document order, which is the order the server
+  // wrote the payloads in. The bootstrap payload is written first, so it is
+  // always handled before any data payload.
+  function collect(root: ParentNode) {
+    root.querySelectorAll(FLIGHT_TEMPLATE_SELECTOR).forEach(handle)
+  }
+
+  collect(document)
+
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      record.addedNodes.forEach((node) => {
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return
+        }
+        const element = node as Element
+        if (element.matches(FLIGHT_TEMPLATE_SELECTOR)) {
+          handle(element)
+        } else {
+          // The parser can append a subtree that contains the template.
+          collect(element)
+        }
+      })
+    }
+  })
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+
+  return function stop() {
+    collect(document)
+    observer.disconnect()
+  }
 }
 
 // It's possible that the DOM is already loaded.
@@ -182,6 +257,10 @@ nextServerDataLoadingGlobal.length = 0
 
 // Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
+
+if (process.env.__NEXT_EXTERNAL_BROWSER_RUNTIME) {
+  stopFlightTemplateCollector = createFlightTemplateCollector()
+}
 
 let readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {

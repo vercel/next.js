@@ -33,10 +33,10 @@ import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
 import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import {
-  htmlEscapeAttributeString,
-  htmlEscapeJsonString,
-} from '../../shared/lib/htmlescape'
-import { createInlinedDataReadableStream } from './use-flight-response'
+  createFlightMarkup,
+  createInlinedDataReadableStream,
+  type FlightMarkup,
+} from './use-flight-response'
 import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
@@ -924,51 +924,41 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean
 ): AnyStream {
   const webSource = nodeReadableToWebReadableStream(source)
-  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
+  const webResult = createInlinedDataReadableStream(
+    webSource,
+    nonce,
+    formState,
+    externalBrowserRuntime
+  )
   return webToReadable(webResult)
 }
 
 export function createNodeInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean
 ): AnyStream {
-  const startScriptTag = nonce
-    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
-    : '<script>'
+  const markup = createFlightMarkup(nonce, externalBrowserRuntime)
 
   const dataStream = webToReadable(source)
   const pt = new PassThrough()
 
-  // Write initial bootstrap instructions
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
-  pt.push(Buffer.from(`${startScriptTag}${scriptContents}</script>`))
+  pt.push(Buffer.from(markup.initial(formState)))
 
-  // Pull from the flight data stream and wrap each chunk in a <script> tag
-  pullFlightData(dataStream, pt, startScriptTag)
+  pullFlightData(dataStream, pt, markup)
 
   return pt
 }
 
-const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
-const INLINE_FLIGHT_PAYLOAD_DATA = 1
-const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
-const INLINE_FLIGHT_PAYLOAD_BINARY = 3
-
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
-  startScriptTag: string
+  markup: FlightMarkup
 ): Promise<void> {
   function waitForReadableOrEnd(): Promise<void> {
     if (dataStream.readableLength > 0 || dataStream.readableEnded) {
@@ -998,25 +988,9 @@ async function pullFlightData(
     while (true) {
       const chunk: Buffer | null = dataStream.read()
       if (chunk !== null) {
-        let htmlInlinedData: string
-        if (isUtf8(chunk)) {
-          const decodedString = chunk.toString('utf-8')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
-          )
-        } else {
-          const base64 = Buffer.from(
-            chunk.buffer,
-            chunk.byteOffset,
-            chunk.byteLength
-          ).toString('base64')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
-          )
-        }
         output.push(
           Buffer.from(
-            `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
+            markup.data(isUtf8(chunk) ? chunk.toString('utf-8') : chunk)
           )
         )
         continue

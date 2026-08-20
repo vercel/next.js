@@ -164,11 +164,10 @@ export function getFlightStream<T>(
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean
 ): ReadableStream<Uint8Array> {
-  const startScriptTag = nonce
-    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
-    : '<script>'
+  const markup = createFlightMarkup(nonce, externalBrowserRuntime)
 
   const flightReader = flightStream.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
@@ -177,7 +176,7 @@ export function createInlinedDataReadableStream(
     type: 'bytes',
     start(controller) {
       try {
-        writeInitialInstructions(controller, startScriptTag, formState)
+        writeInitialInstructions(controller, markup, formState)
       } catch (error) {
         // during encoding or enqueueing forward the error downstream
         controller.error(error)
@@ -193,14 +192,10 @@ export function createInlinedDataReadableStream(
 
             // The chunk cannot be decoded as valid UTF-8 string as it might
             // have arbitrary binary data.
-            writeFlightDataInstruction(
-              controller,
-              startScriptTag,
-              decodedString
-            )
+            writeFlightDataInstruction(controller, markup, decodedString)
           } catch {
             // The chunk cannot be decoded as valid UTF-8 string.
-            writeFlightDataInstruction(controller, startScriptTag, value)
+            writeFlightDataInstruction(controller, markup, value)
           }
         }
 
@@ -220,54 +215,106 @@ export function createInlinedDataReadableStream(
 
 function writeInitialInstructions(
   controller: ReadableStreamDefaultController,
-  scriptStart: string,
+  markup: FlightMarkup,
   formState: unknown | null
 ) {
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
-
-  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
+  controller.enqueue(encoder.encode(markup.initial(formState)))
 }
 
 function writeFlightDataInstruction(
   controller: ReadableStreamDefaultController,
-  scriptStart: string,
+  markup: FlightMarkup,
   chunk: string | Uint8Array
 ) {
-  let htmlInlinedData: string
+  controller.enqueue(encoder.encode(markup.data(chunk)))
+}
 
-  if (typeof chunk === 'string') {
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
-    )
-  } else {
-    // The chunk cannot be embedded as a UTF-8 string in the script tag.
-    // Instead let's inline it in base64.
-    // Credits to Devon Govett (devongovett) for the technique.
-    // https://github.com/devongovett/rsc-html-stream
-    const base64 =
-      typeof Buffer !== 'undefined'
-        ? Buffer.from(
-            chunk.buffer,
-            chunk.byteOffset,
-            chunk.byteLength
-          ).toString('base64')
-        : btoa(String.fromCodePoint(...chunk))
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
-    )
+/**
+ * The attribute that carries one Flight payload when
+ * `experimental.externalBrowserRuntime` is enabled. Kept in sync with the
+ * collector in `packages/next/src/client/app-index.tsx`.
+ */
+export const FLIGHT_DATA_ATTRIBUTE = 'data-next-flight'
+
+export type FlightMarkup = {
+  initial: (formState: unknown | null) => string
+  data: (chunk: string | Uint8Array) => string
+}
+
+function encodeBinaryChunk(chunk: Uint8Array): string {
+  // The chunk cannot be embedded as a UTF-8 string, so inline it as base64.
+  // Credits to Devon Govett (devongovett) for the technique.
+  // https://github.com/devongovett/rsc-html-stream
+  return typeof Buffer !== 'undefined'
+    ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength).toString(
+        'base64'
+      )
+    : btoa(String.fromCodePoint(...chunk))
+}
+
+/**
+ * Builds the HTML that carries the Flight payload to the browser.
+ *
+ * By default each payload is an inline `<script>` that pushes onto
+ * `self.__next_f`, which requires a CSP to allow `unsafe-inline` (or a nonce).
+ * With `experimental.externalBrowserRuntime` each payload is instead an inert
+ * `<template>` carrying the same JSON in an attribute, collected by
+ * `app-index.tsx` and pushed onto the same queue. The payload shape is identical
+ * in both modes, so the client-side consumer is unchanged.
+ */
+export function createFlightMarkup(
+  nonce: string | undefined,
+  externalBrowserRuntime: boolean
+): FlightMarkup {
+  const startScriptTag = nonce
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
+    : '<script>'
+
+  if (externalBrowserRuntime) {
+    const template = (payload: unknown[]): string =>
+      `<template ${FLIGHT_DATA_ATTRIBUTE}="${htmlEscapeAttributeString(
+        JSON.stringify(payload)
+      )}"></template>`
+
+    return {
+      initial(formState) {
+        let html = template([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        if (formState != null) {
+          html += template([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+        }
+        return html
+      },
+      data(chunk) {
+        return typeof chunk === 'string'
+          ? template([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+          : template([INLINE_FLIGHT_PAYLOAD_BINARY, encodeBinaryChunk(chunk)])
+      },
+    }
   }
 
-  controller.enqueue(
-    encoder.encode(
-      `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
-    )
-  )
+  return {
+    initial(formState) {
+      let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+      )})`
+
+      if (formState != null) {
+        scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+        )})`
+      }
+
+      return `${startScriptTag}${scriptContents}</script>`
+    },
+    data(chunk) {
+      const htmlInlinedData = htmlEscapeJsonString(
+        JSON.stringify(
+          typeof chunk === 'string'
+            ? [INLINE_FLIGHT_PAYLOAD_DATA, chunk]
+            : [INLINE_FLIGHT_PAYLOAD_BINARY, encodeBinaryChunk(chunk)]
+        )
+      )
+      return `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
+    },
+  }
 }
