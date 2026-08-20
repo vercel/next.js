@@ -13,7 +13,10 @@ import {
 } from './prerender-matcher'
 import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { AppSegment } from '../segment-config/app/app-segments'
+import type {
+  AppSegment,
+  PrerenderMatcher,
+} from '../segment-config/app/app-segments'
 
 function pathnameSegments(
   ...segments: Array<string | [string, boolean]>
@@ -634,7 +637,9 @@ const createMatcherSegment = ({
   visibleParamNames: string[]
   treePath: string[]
   matcher?: Record<string, string>
-  generate?: () => unknown | Promise<unknown>
+  generate?: (
+    parentMatch: Promise<PrerenderMatcher>
+  ) => unknown | Promise<unknown>
   filePath?: string
 }): AppSegment => ({
   name: '',
@@ -689,6 +694,93 @@ describe('compilePrerenderMatcher', () => {
       top: 'fallback',
       bottom: 'dynamic',
     })
+  })
+
+  it('starts generated descendants before their parent matcher resolves', async () => {
+    let resolveParent: (() => void) | undefined
+    const parentGate = new Promise<void>((resolve) => {
+      resolveParent = resolve
+    })
+    let childStarted = false
+    let childParentMatch: Promise<PrerenderMatcher> | undefined
+
+    const compiledMatcher = compilePrerenderMatcher(
+      '/[lang]/catalog/[top]/items/[bottom]',
+      [
+        createMatcherSegment({
+          visibleParamNames: ['lang'],
+          treePath: ['children'],
+          generate: async () => {
+            await parentGate
+            return { lang: 'not-found' }
+          },
+        }),
+        createMatcherSegment({
+          visibleParamNames: ['lang', 'top'],
+          treePath: ['children', 'children'],
+          generate: (parentMatch) => {
+            childStarted = true
+            childParentMatch = parentMatch
+            return { top: 'blocking' }
+          },
+        }),
+      ],
+      pathnameParams
+    )
+
+    expect(childStarted).toBe(true)
+    resolveParent!()
+    await expect(compiledMatcher).resolves.toEqual({
+      lang: 'not-found',
+      top: 'blocking',
+    })
+    await expect(childParentMatch).resolves.toEqual({ lang: 'not-found' })
+  })
+
+  it('isolates parent matcher mutations between parallel branches', async () => {
+    let signalMutation: (() => void) | undefined
+    const mutation = new Promise<void>((resolve) => {
+      signalMutation = resolve
+    })
+    let firstParentMatch: PrerenderMatcher | undefined
+    let secondParentMatch: PrerenderMatcher | undefined
+
+    const matcher = await compilePrerenderMatcher(
+      '/[lang]/catalog/[top]/items/[bottom]',
+      [
+        createMatcherSegment({
+          visibleParamNames: ['lang'],
+          treePath: ['children'],
+          matcher: { lang: 'not-found' },
+        }),
+        createMatcherSegment({
+          visibleParamNames: ['lang', 'top'],
+          treePath: ['children', '@slot1'],
+          generate: async (parentMatch) => {
+            firstParentMatch = await parentMatch
+            firstParentMatch.lang = 'fallback'
+            signalMutation!()
+            return { top: 'blocking' }
+          },
+          filePath: 'app/@slot1/page.tsx',
+        }),
+        createMatcherSegment({
+          visibleParamNames: ['lang', 'top'],
+          treePath: ['children', '@slot2'],
+          generate: async (parentMatch) => {
+            await mutation
+            secondParentMatch = await parentMatch
+            return { top: 'blocking' }
+          },
+          filePath: 'app/@slot2/page.tsx',
+        }),
+      ],
+      pathnameParams
+    )
+
+    expect(firstParentMatch).not.toBe(secondParentMatch)
+    expect(secondParentMatch).toEqual({ lang: 'not-found' })
+    expect(matcher).toEqual({ lang: 'not-found', top: 'blocking' })
   })
 
   it('rejects params defined below the exporting layout', async () => {

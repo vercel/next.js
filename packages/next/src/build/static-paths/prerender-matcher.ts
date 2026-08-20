@@ -77,6 +77,12 @@ type MatcherCandidate = {
   readonly treePath: readonly string[]
 }
 
+type MatcherExecution = {
+  readonly treePath: readonly string[]
+  readonly fragment: Promise<PrerenderMatcher>
+  readonly accumulated: Promise<PrerenderMatcher>
+}
+
 export async function compilePrerenderMatcher(
   page: string,
   segments: readonly Readonly<AppSegment>[],
@@ -102,16 +108,67 @@ export async function compilePrerenderMatcher(
     pathnameSegments.map(({ paramName }) => paramName)
   )
   const candidates = new Map<string, MatcherCandidate[]>()
+  const executions: MatcherExecution[] = []
+  const rootMatch = Promise.resolve<PrerenderMatcher>({})
 
   for (const segment of matcherSegments) {
     const matcherExport = segment.prerenderMatcher!
-    const value =
-      matcherExport.kind === 'static'
-        ? matcherExport.value
-        : await matcherExport.generate()
-    const matcher = validateMatcherExport(page, segment, value, routeParamNames)
 
-    for (const [paramName, mode] of Object.entries(matcher)) {
+    let parentMatch = rootMatch
+    for (let index = executions.length - 1; index >= 0; index--) {
+      const parentExecution = executions[index]
+      if (isTreePathPrefix(parentExecution.treePath, matcherExport.treePath)) {
+        parentMatch = parentExecution.accumulated
+        break
+      }
+    }
+
+    let value: Promise<unknown>
+    if (matcherExport.kind === 'static') {
+      value = Promise.resolve(matcherExport.value)
+    } else {
+      const clonedParentMatch = parentMatch.then((matcher) => ({ ...matcher }))
+      // A generated matcher does not have to await its parent. Observe a parent
+      // failure here so an independent descendant does not leave a rejected
+      // promise unhandled while the route compilation reports that failure.
+      void clonedParentMatch.catch(() => {})
+      try {
+        value = Promise.resolve(matcherExport.generate(clonedParentMatch))
+      } catch (error) {
+        value = Promise.reject(error)
+      }
+    }
+
+    const fragment = value.then((resolvedValue) =>
+      validateMatcherExport(page, segment, resolvedValue, routeParamNames)
+    )
+    const accumulated = Promise.all([parentMatch, fragment]).then(
+      ([resolvedParentMatch, resolvedFragment]) => ({
+        ...resolvedParentMatch,
+        ...resolvedFragment,
+      })
+    )
+
+    executions.push({
+      treePath: matcherExport.treePath,
+      fragment,
+      accumulated,
+    })
+  }
+
+  const fragments = await Promise.all(
+    executions.map(async ({ fragment, accumulated }) => {
+      const [resolvedFragment] = await Promise.all([fragment, accumulated])
+      return resolvedFragment
+    })
+  )
+
+  for (let index = 0; index < executions.length; index++) {
+    const segment = matcherSegments[index]
+    const matcherExport = segment.prerenderMatcher!
+    const fragment = fragments[index]
+
+    for (const [paramName, mode] of Object.entries(fragment)) {
       const next = (candidates.get(paramName) ?? []).filter(
         (candidate) =>
           !isTreePathPrefix(candidate.treePath, matcherExport.treePath)

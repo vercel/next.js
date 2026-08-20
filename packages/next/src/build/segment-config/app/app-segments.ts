@@ -32,7 +32,9 @@ export type PrerenderParamMode = (typeof PRERENDER_PARAM_MODES)[number]
 
 export type PrerenderMatcher = Record<string, PrerenderParamMode>
 
-type GeneratePrerenderMatcher = () => unknown | Promise<unknown>
+type GeneratePrerenderMatcher = (
+  parentMatch: Promise<PrerenderMatcher>
+) => unknown | Promise<unknown>
 
 export type PrerenderMatcherExport = {
   readonly visibleParamNames: readonly string[]

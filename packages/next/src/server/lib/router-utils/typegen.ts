@@ -430,10 +430,10 @@ declare module 'next/form' {
 }
 
 const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type PrerenderParamMode = 'not-found' | 'blocking' | 'fallback' | 'dynamic'
-type ParamMatchingFor<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
+type ParamMatchFragment<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], PrerenderParamMode>>
 type ParamMatchingExports<Route extends keyof ParamMap> =
-  | { experimental_paramMatching?: ParamMatchingFor<Route>; experimental_generateParamMatching?: never }
-  | { experimental_paramMatching?: never; experimental_generateParamMatching?: () => Promise<ParamMatchingFor<Route>> | ParamMatchingFor<Route> }
+  | { experimental_paramMatching?: ParamMatchFragment<Route>; experimental_generateParamMatching?: never }
+  | { experimental_paramMatching?: never; experimental_generateParamMatching?: (parentMatch: Promise<ParamMatchFragment<Route>>) => Promise<ParamMatchFragment<Route>> | ParamMatchFragment<Route> }
 
 `
 
