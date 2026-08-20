@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
@@ -234,24 +236,28 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                 .get(&ResolvedVc::upcast(*collecting_module))
                 .context("Module entry membership not found")?;
 
-            if *emit_to_all_entries || !collecting_membership.is_disjoint(emitted_membership) {
-                for entry in collecting_membership.iter() {
-                    if *emit_to_all_entries || emitted_membership.contains(entry) {
-                        collected_references
-                            .entry(ResolvedVc::upcast(*collecting_module))
-                            .or_default()
-                            .entry(entry)
-                            .or_default()
-                            .push((
-                                RefData {
-                                    chunking_type: ChunkingType::Collected {
-                                        namespace: namespace.clone(),
-                                    },
-                                    ..ref_data.clone()
-                                },
-                                emitted_module,
-                            ));
-                    }
+            let matching_chunk_groups = if *emit_to_all_entries {
+                // Add to all entry groups the collecting module is in.
+                Cow::Borrowed(&**collecting_membership)
+            } else {
+                // Add to all entry groups the collecting module is in that also contain the emitted
+                // module.
+                Cow::Owned((**collecting_membership).clone() & (&**emitted_membership))
+            };
+            if !matching_chunk_groups.is_empty() {
+                let refs = collected_references
+                    .entry(ResolvedVc::upcast(*collecting_module))
+                    .or_default();
+                for entry in matching_chunk_groups.iter() {
+                    refs.entry(entry).or_default().push((
+                        RefData {
+                            chunking_type: ChunkingType::Collected {
+                                namespace: namespace.clone(),
+                            },
+                            ..ref_data.clone()
+                        },
+                        emitted_module,
+                    ));
                 }
             }
         }
