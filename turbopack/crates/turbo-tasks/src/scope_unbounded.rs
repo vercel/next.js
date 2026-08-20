@@ -104,6 +104,7 @@ where
         work_queue: receiver,
         work_queue_sender: RwLock::new(Some(sender)),
         aborted: AtomicBool::new(false),
+        available_slots: AtomicUsize::new(max_workers),
         workers: Mutex::new(WorkerSlots::new(max_workers)),
         handle: handle.clone(),
         span: span.clone(),
@@ -174,6 +175,8 @@ struct ScopeInner<'run, T: Send + 'static, R> {
     /// Sending end of the queue, modeled so we can `take` and thus close the queue
     work_queue_sender: RwLock<Option<Sender<T>>>,
     aborted: AtomicBool,
+    /// Spawn budget, mutated under the workers slot, atomic so it can be read outside of it.
+    available_slots: AtomicUsize,
     workers: Mutex<WorkerSlots>,
     /// Triggered when the last worker in `workers` is cleared.
     workers_idle: Condvar,
@@ -308,7 +311,10 @@ fn spawn_worker_if_needed<T: Send + 'static, R: Send>(
     inner: &ScopeInner<'_, T, R>,
     num_enqueued_tasks: usize,
 ) {
-    if num_enqueued_tasks <= 1 || inner.aborted.load(Ordering::Acquire) {
+    if num_enqueued_tasks <= 1
+        || inner.available_slots.load(Ordering::Relaxed) == 0
+        || inner.aborted.load(Ordering::Acquire)
+    {
         return;
     }
 
@@ -338,7 +344,7 @@ fn spawn_worker_if_needed<T: Send + 'static, R: Send>(
             erased.drain(true);
         })
         .abort_handle();
-    slots.occupy(slot, handle);
+    slots.occupy(slot, handle, &inner.available_slots);
 }
 
 /// The drain loop with the accumulator type erased.
@@ -363,6 +369,7 @@ impl<T: Send + 'static, R> Drainable for ScopeInner<'_, T, R> {
         WorkerGuard {
             slots: &self.workers,
             workers_idle: &self.workers_idle,
+            available_slots: &self.available_slots,
             slot,
         }
     }
@@ -394,18 +401,21 @@ impl WorkerSlots {
     }
 
     /// Record a newly spawned worker in `slot`, which must have come from [`Self::free_slot`].
-    fn occupy(&mut self, slot: usize, handle: AbortHandle) {
+
+    fn occupy(&mut self, slot: usize, handle: AbortHandle, available_slots: &AtomicUsize) {
         debug_assert!(
             !self.occupied.contains(slot),
             "slot {slot} already occupied"
         );
+        available_slots.fetch_sub(1, Ordering::Relaxed);
         self.occupied.insert(slot);
         let previous = self.handles[slot].replace(handle);
         debug_assert!(previous.is_none(), "slot {slot} held a live handle");
     }
 
     /// Dropping the handle here keeps the finished task's allocation from outliving the worker.
-    fn release(&mut self, slot: usize) {
+    fn release(&mut self, slot: usize, available_slots: &AtomicUsize) {
+        available_slots.fetch_add(1, Ordering::Relaxed);
         self.occupied.remove(slot);
         self.handles[slot] = None;
     }
@@ -421,13 +431,14 @@ impl WorkerSlots {
 struct WorkerGuard<'a> {
     slots: &'a Mutex<WorkerSlots>,
     workers_idle: &'a Condvar,
+    available_slots: &'a AtomicUsize,
     slot: usize,
 }
 
 impl Drop for WorkerGuard<'_> {
     fn drop(&mut self) {
         let mut slots = self.slots.lock();
-        slots.release(self.slot);
+        slots.release(self.slot, self.available_slots);
         if slots.is_idle() {
             // Still holding the lock: the predicate the joiner waits on is read under this same
             // lock, so it cannot go true between its check and its `wait`.
