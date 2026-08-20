@@ -5,10 +5,11 @@
 //! Reading a task that is scheduled but not started yet must execute that task *inline* on the
 //! reading thread, so the read can complete without ever returning `Poll::Pending`.
 //!
-//! All tests run on a single tokio worker on purpose: with `worker_threads = 1` the
+//! Most tests run on a single tokio worker on purpose: with `worker_threads = 1` the
 //! `PriorityRunner`'s target worker count is 1, so a task scheduled from inside another task's
 //! execution is always queued (never immediately spawned). That makes "the task is still in the
-//! priority runner when it is read" deterministic.
+//! priority runner when it is read" deterministic. The tests that are about contention
+//! (`test_read_of_running_task_is_not_executed_again`, `test_read_outcome_counters`) use more.
 
 use std::{
     future::{Future, IntoFuture},
@@ -18,7 +19,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ReadRef, ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -137,6 +138,166 @@ async fn read_local_task_inline(nonce: u32) -> Result<Vc<()>> {
     };
     assert_eq!(result?.value, 42);
 
+    Ok(Vc::cell(()))
+}
+
+/// Reports how reads and inline execution interacted, and checks the invariants of the counters.
+///
+/// Deliberately does *not* assert a particular mix: what a read finds depends on how loaded the
+/// scheduler is. On a small, idle instance like this one, `connect_child` schedules each fresh task
+/// eagerly and the worker it spawns wins the race against the reader, so claims mostly fail; in a
+/// saturated build the tasks stay queued and the reader takes them over instead. Both are correct,
+/// and the printed histogram is the point of this test.
+///
+/// In particular `waited_in_progress` cannot be asserted here: a worker pops a task from the queue
+/// *before* `try_start_task_execution` flips the state to `InProgress`, so a read that lands in
+/// that window still sees `Scheduled` and attempts a claim that cannot succeed. Whether a read sees
+/// `Scheduled` or `InProgress` is therefore a matter of timing by design — it is a hint, and acting
+/// on a stale one only costs a failed claim.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_read_outcome_counters() {
+    let tt = create_test_turbo_tasks("test_read_outcome_counters", true);
+
+    let before = tt.inline_execution_stats();
+    turbo_tasks::run_once(tt.clone(), async move {
+        read_many_leaves(1, 21).read_strongly_consistent().await?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+    let after = tt.inline_execution_stats();
+
+    println!("stats before: {before:#?}\nstats after: {after:#?}");
+    assert!(
+        after.claim_attempted > before.claim_attempted,
+        "reads that find a task queued must try to take it over"
+    );
+    assert_eq!(
+        after.claim_attempted - before.claim_attempted,
+        (after.claim_completed_inline - before.claim_completed_inline)
+            + (after.claim_yielded - before.claim_yielded)
+            + (after.claim_failed - before.claim_failed),
+        "every claim attempt has exactly one outcome"
+    );
+}
+
+/// A task that is invalidated *while it is being executed* is stale and gets scheduled again, so a
+/// read can go around the retry more than once. It has to terminate, and it must not grow the
+/// native stack per retry (which is why the retry is a loop and not recursion).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_stale_during_execution_terminates() {
+    let result = tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        run_once(&REGISTRATION, || async {
+            let input = ReadRef::resolved_cell(ReadRef::new_owned(ChangingInput {
+                state: State::new(0),
+            }));
+            let output = self_invalidating(input);
+            // The task bumps the state it depends on the first few times it runs, invalidating
+            // itself, so this read has to survive several rescheduled executions.
+            assert!(output.read_strongly_consistent().await?.value >= 3);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    })
+    .await;
+    assert!(
+        result.is_ok(),
+        "a task that keeps invalidating itself must still settle"
+    );
+}
+
+#[turbo_tasks::value]
+struct ChangingInput {
+    state: State<u32>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn self_invalidating(input: ResolvedVc<ChangingInput>) -> Result<Vc<Value>> {
+    let value = *input.await?.state.get();
+    if value < 3 {
+        // Invalidate ourselves: the execution that is running right now becomes stale and is
+        // scheduled again.
+        input.await?.state.set(value + 1);
+    }
+    Ok(Value { value: value + 1 }.cell())
+}
+
+/// Restoring from a persistent cache in a fresh instance — what an incremental build does — must
+/// recompute what it cannot reuse, produce the right values, and not panic.
+///
+/// Worth keeping even though it looks mundane: reads behave differently here than in a cold build
+/// (tasks come back dirty and are recomputed rather than found in the queue), and every other test
+/// in this file — like every cold build — never exercises that.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_restore_from_persistent_cache_recomputes_and_does_not_panic() {
+    let name = "test_restore_from_persistent_cache_recomputes";
+
+    // First instance: compute the tasks and flush them to the persistent cache.
+    let first = create_test_turbo_tasks(name, true);
+    turbo_tasks::run_once(first.clone(), async move {
+        read_session_leaves(21).read_strongly_consistent().await?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+    first.stop_and_wait().await;
+
+    // Second instance on the same cache: the session-dependent results cannot be reused, so they
+    // have to be recomputed.
+    let second = create_test_turbo_tasks(name, false);
+    let before = second.inline_execution_stats();
+    turbo_tasks::run_once(second.clone(), async move {
+        read_session_leaves(21).read_strongly_consistent().await?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+    let after = second.inline_execution_stats();
+    second.stop_and_wait().await;
+
+    println!("stats before: {before:#?}\nstats after: {after:#?}");
+    assert!(
+        after.queued > before.queued,
+        "the session-dependent tasks must be recomputed after the restore"
+    );
+}
+
+/// Builds a `TurboTasks` on a per-name persistence directory. `initial` wipes that directory first;
+/// passing `false` reuses what a previous instance flushed, which is how an incremental build
+/// starts up.
+fn create_test_turbo_tasks(
+    name: &str,
+    initial: bool,
+) -> std::sync::Arc<turbo_tasks::TurboTasks<turbo_tasks_backend::TurboTasksBackend>> {
+    let inner = include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/test_config.trs"
+    ));
+    (inner)(name, initial)
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn read_session_leaves(leaves: u32) -> Result<Vc<()>> {
+    for i in 0..leaves {
+        assert_eq!(session_leaf(i).await?.value, i + 1);
+    }
+    Ok(Vc::cell(()))
+}
+
+/// Session-dependent, so its result is not reused across `TurboTasks` instances: a second instance
+/// restoring from the same persistent cache has to recompute it, and the read is what schedules it.
+#[turbo_tasks::function(session_dependent)]
+async fn session_leaf(index: u32) -> Result<Vc<Value>> {
+    Ok(Value { value: index + 1 }.cell())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn read_many_leaves(nonce: u32, leaves: u32) -> Result<Vc<()>> {
+    for i in 0..leaves {
+        // Every leaf is a distinct, never-computed task.
+        assert_eq!(leaf(nonce * 1000 + i).await?.value, 42);
+    }
     Ok(Vc::cell(()))
 }
 

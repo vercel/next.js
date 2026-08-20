@@ -128,10 +128,6 @@ pub trait ExecuteContext<'e>: Sized {
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
-    /// Like [`ExecuteContext::schedule_task`], but for a task that the current read is about to
-    /// wait for: it is queued for the reader, which executes it inline instead of waiting for a
-    /// worker to pick it up (see `TurboTasks::schedule_for_reader`).
-    fn schedule_task_for_reader(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
@@ -1117,11 +1113,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = schedule_priority(&task, parent_priority);
         self.turbo_tasks.schedule(task.id(), priority);
-    }
-
-    fn schedule_task_for_reader(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
-        let priority = schedule_priority(&task, parent_priority);
-        self.turbo_tasks.schedule_for_reader(task.id(), priority);
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {

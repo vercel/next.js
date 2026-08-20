@@ -93,6 +93,8 @@ struct Queue<P, T: Claimable> {
     free_slots: Vec<usize>,
     /// Slot index of the claimable item for each key.
     claimable: FxHashMap<T::Key, usize>,
+    /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
+    pushes: u64,
 }
 
 impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
@@ -102,6 +104,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
             slots: Vec::new(),
             free_slots: Vec::new(),
             claimable: FxHashMap::default(),
+            pushes: 0,
         }
     }
 
@@ -112,6 +115,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
     }
 
     fn push(&mut self, priority: P, task: T) {
+        self.pushes += 1;
         let key = task.claim_key();
         let heap_priority = priority.clone();
         let slot = if let Some(slot) = self.free_slots.pop() {
@@ -219,16 +223,23 @@ impl<
         }
     }
 
+    /// How many tasks were ever put into the queue, as opposed to being executed without ever being
+    /// queued. Diagnostics only — it lets a test assert that a task never took the detour through
+    /// the queue.
+    pub fn total_queued(&self) -> u64 {
+        self.queue.lock().pushes
+    }
+
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
         let mut queue = self.queue.lock();
-        if !queue.is_empty() && self.active_workers.load(Ordering::Relaxed) > 0 {
-            // If there is already work in the queue and a worker that will pick it up, we don't
-            // have any free capacity so we can just push the task to the queue.
+        if !queue.is_empty() {
+            // If there is already work in the queue, we don't have any
+            // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
             //
-            // The queue can be non-empty without any worker: tasks queued for a claimer (see
-            // `schedule_without_worker`) have no worker of their own. In that case we must not
-            // assume that anyone is going to drain the queue.
+            // A worker only stops when it finds the queue empty, so a non-empty queue always has a
+            // worker that will drain it. [`claim`](Self::claim) does take work out of the queue
+            // without being a worker, but that only ever makes the queue shorter.
             queue.push(priority, task);
             return;
         }
@@ -248,43 +259,6 @@ impl<
             // Undo the added active worker since we didn't spawn a new worker.
             self.decrease_active_workers(execute_context);
         }
-    }
-
-    /// Queues a task without spawning a worker for it, even when there would be free capacity.
-    ///
-    /// This is for a caller that is going to [`claim`](Self::claim) the task itself: spawning a
-    /// worker would only race the caller for it. The caller must either claim the task or call
-    /// [`ensure_worker`](Self::ensure_worker), otherwise the task can stay in the queue with no
-    /// worker to pick it up.
-    pub fn schedule_without_worker(&self, task: T, priority: P) {
-        self.queue.lock().push(priority, task);
-    }
-
-    /// Makes sure that queued work is picked up by a worker, if there is free capacity.
-    pub fn ensure_worker(self: &Arc<Self>, execute_context: &Arc<C>) {
-        // Reserve one worker slot while holding the queue lock. This makes concurrent callers agree
-        // that only one of them owns the available capacity and the queued item it will execute.
-        let popped = {
-            let mut queue = self.queue.lock();
-            let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
-            if active_workers >= self.target_workers {
-                // No capacity. A running worker will reuse itself for the queued work when it
-                // finishes its current future.
-                self.active_workers.fetch_sub(1, Ordering::Relaxed);
-                return;
-            }
-            match queue.pop() {
-                Some(popped) => popped,
-                None => {
-                    // The queue only contained tombstones (or another path emptied it).
-                    self.active_workers.fetch_sub(1, Ordering::Relaxed);
-                    return;
-                }
-            }
-        };
-        let (priority, task) = popped;
-        let future = self.executor.execute(execute_context, task, priority);
-        WorkerFuture::spawn(future, execute_context.clone(), self.clone());
     }
 
     /// Takes the queued task with the given key out of the queue and returns its execution future,
@@ -696,77 +670,20 @@ mod tests {
         }
     }
 
-    /// A task queued for a claimer has no worker of its own, so it must not make later scheduled
-    /// tasks believe that a worker is going to pick them up.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_schedule_after_schedule_without_worker_spawns_a_worker() {
-        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, RecordingExecutor>> =
-            Arc::new(PriorityRunner::with_target_workers(RecordingExecutor, 1));
-        let executed = Arc::new(Mutex::new(Vec::new()));
-
-        // Queued for a claimer that never claims it.
-        runner.schedule_without_worker(1, 1);
-        // A regular schedule while the queue is non-empty but no worker exists.
-        runner.schedule(&executed, 2, 2);
-
-        for _ in 0..100 {
-            if executed.lock().len() == 2 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
+    /// Every push into the queue is counted, so a test can assert that a task was executed without
+    /// ever being queued.
+    #[test]
+    fn test_total_queued_counts_pushes() {
+        let (runner, executed) = queueing_runner::<u32>();
+        assert_eq!(runner.total_queued(), 0);
+        for task in 0..3 {
+            runner.schedule(&executed, task, task);
         }
-        let mut all = executed.lock().clone();
-        all.sort_unstable();
-        assert_eq!(all, vec![1, 2], "both tasks have to be executed");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_ensure_worker_picks_up_a_task_queued_without_a_worker() {
-        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, RecordingExecutor>> =
-            Arc::new(PriorityRunner::with_target_workers(RecordingExecutor, 1));
-        let executed = Arc::new(Mutex::new(Vec::new()));
-
-        runner.schedule_without_worker(7, 7);
-        assert!(executed.lock().is_empty(), "nothing runs it yet");
-
-        runner.ensure_worker(&executed);
-        for _ in 0..100 {
-            if !executed.lock().is_empty() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        assert_eq!(*executed.lock(), vec![7]);
-    }
-
-    #[tokio::test]
-    async fn test_repeated_ensure_worker_respects_target_workers() {
-        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, RecordingExecutor>> =
-            Arc::new(PriorityRunner::with_target_workers(RecordingExecutor, 1));
-        let executed = Arc::new(Mutex::new(Vec::new()));
-        for task in 0..8 {
-            runner.schedule_without_worker(task, task);
-        }
-
-        // The current-thread runtime cannot poll spawned workers until this test yields. Every
-        // ensure call therefore observes the reservation made by the first call.
-        for _ in 0..8 {
-            runner.ensure_worker(&executed);
-        }
-        assert_eq!(
-            runner.active_workers.load(Ordering::Relaxed),
-            1,
-            "ensure calls must reserve at most target_workers slots"
-        );
-
-        // Once the runtime can poll it, that one worker reuses itself to drain all queued work.
-        for _ in 0..100 {
-            if executed.lock().len() == 8 {
-                break;
-            }
-            tokio::task::yield_now().await;
-        }
-        assert_eq!(executed.lock().len(), 8);
+        assert_eq!(runner.total_queued(), 3);
+        // Claiming and draining do not change how many pushes happened.
+        assert!(runner.claim(&executed, &1).is_some());
+        drain(&runner, &executed);
+        assert_eq!(runner.total_queued(), 3);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

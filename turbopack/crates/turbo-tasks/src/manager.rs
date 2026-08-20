@@ -11,7 +11,7 @@ use std::{
     process::abort,
     sync::{
         Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
@@ -31,8 +31,8 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
-    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
+    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -132,14 +132,14 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>>;
+    ) -> Result<ReadOutcome<RawVc>>;
 
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
+    ) -> Result<ReadOutcome<TypedCellContent>>;
 
     /// Reads a [`RawVc::LocalOutput`]. If the task has completed, returns the [`RawVc`] the local
     /// task points to.
@@ -170,10 +170,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     /// Used by the read paths; see `TurboTasks::try_execute_scheduled_task_inline` for the details.
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool;
 
-    /// Makes sure that scheduled tasks are picked up by a worker. Only needed after a task was
-    /// scheduled on behalf of a read that ends up not executing it (see
-    /// `TurboTasks::schedule_for_reader`).
-    fn ensure_scheduled_tasks_are_running(&self);
+    /// Records that a read waited for a task that a worker was already executing, so it did not try
+    /// to claim it. Diagnostics only, see [`TurboTasks::inline_execution_stats`].
+    fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
@@ -512,6 +511,49 @@ impl Claimable for ScheduledTask {
     }
 }
 
+/// Counters describing how reads and inline execution interacted, see
+/// [`TurboTasks::inline_execution_stats`]. Diagnostics only.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InlineExecutionStats {
+    /// Tasks that were put into the scheduler queue.
+    pub queued: u64,
+    /// Reads that tried to take a queued task out of the queue.
+    pub claim_attempted: u64,
+    /// Claims that succeeded and whose execution finished on the reading thread.
+    pub claim_completed_inline: u64,
+    /// Claims that succeeded but whose execution yielded, so it was handed to the runtime.
+    pub claim_yielded: u64,
+    /// Claims that found nothing to take, because a worker had already picked the task up.
+    pub claim_failed: u64,
+    /// Reads that waited without attempting a claim, because the task was already being executed.
+    pub waited_in_progress: u64,
+}
+
+/// The counters behind [`InlineExecutionStats`]. Relaxed atomics on paths that already take a task
+/// lock or the queue lock, so the cost is noise compared to the work around them.
+#[derive(Default)]
+struct InlineExecutionCounters {
+    claim_attempted: AtomicU64,
+    claim_completed_inline: AtomicU64,
+    claim_yielded: AtomicU64,
+    claim_failed: AtomicU64,
+    waited_in_progress: AtomicU64,
+}
+
+impl InlineExecutionCounters {
+    fn bump(counter: &AtomicU64) {
+        counter.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Whether a dump of [`InlineExecutionStats`] was requested via `TURBO_ENGINE_INLINE_STATS=1`.
+pub(crate) fn inline_stats_requested() -> bool {
+    static REQUESTED: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_ENGINE_INLINE_STATS").is_ok_and(|value| value != "0")
+    });
+    *REQUESTED
+}
+
 /// Maximum number of task executions that may be nested inline on a single thread.
 ///
 /// Executing a task inline (see [`execute_read_target_inline`]) runs its body on the stack of the
@@ -566,9 +608,12 @@ fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool
     }
 }
 
-/// Called by a read that got an [`EventListener`] instead of a value: executes the task inline when
-/// it is scheduled but not started yet, so that the read can go on without waiting for a worker.
-/// Returns whether the read should be retried because the task's execution completed.
+/// Called by a read that found its task merely *scheduled*: executes it on the reading thread, so
+/// the read can go on without waiting for a worker. Returns whether the read should be retried
+/// because the task's execution completed.
+///
+/// Reads never get here for a task a worker is already executing ([`ReadOutcome::InProgress`]), so
+/// the scheduler's queue lock is not touched in that case.
 ///
 /// This is the only place where reads pay for inline execution: a read that finds its value does no
 /// extra work at all, which is why this is kept out of the caller's hot path.
@@ -578,9 +623,7 @@ pub(crate) fn execute_read_target_inline(
     key: ScheduleKey,
 ) -> bool {
     if !inline_execution_allowed() {
-        // Nested too deeply. The task may have been queued for this reader (see
-        // `TurboTasks::schedule_for_reader`), so it still needs a worker.
-        turbo_tasks.ensure_scheduled_tasks_are_running();
+        // Nested too deeply; a worker will pick the task up, as it always did.
         return false;
     }
     turbo_tasks.try_execute_scheduled_task_inline(key)
@@ -594,6 +637,8 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
+    /// Diagnostics for reads and inline execution, see [`TurboTasks::inline_execution_stats`].
+    inline_counters: InlineExecutionCounters,
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
@@ -758,6 +803,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            inline_counters: InlineExecutionCounters::default(),
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
             aggregated_update: Default::default(),
@@ -993,26 +1039,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.priority_runner.schedule(&self.pin(), task, priority);
     }
 
-    /// Schedules a task that a read is about to wait for: it is queued *without* spawning a worker,
-    /// so that the reader can take it out of the queue and execute it inline (see
-    /// [`TurboTasks::try_execute_scheduled_task_inline`]) instead of racing a worker for it.
-    ///
-    /// The caller must be a read that attempts the inline execution right afterwards; that attempt
-    /// is what makes sure a worker picks the task up when the reader doesn't execute it itself.
-    #[track_caller]
-    pub fn schedule_for_reader(&self, task_id: TaskId, priority: TaskPriority) {
-        self.begin_foreground_job();
-        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-
-        self.priority_runner.schedule_without_worker(
-            ScheduledTask::Task {
-                task_id,
-                span: Span::current(),
-            },
-            priority,
-        );
-    }
-
     fn schedule_local_task(
         &self,
         ty: LocalTaskSpec,
@@ -1054,18 +1080,26 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// complete on the first poll, it is spawned to be completed as usual.
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
         let this = self.pin();
+        InlineExecutionCounters::bump(&self.inline_counters.claim_attempted);
         // An execution that doesn't complete inline is handed over to the runtime, so there has to
         // be one. Reads from outside a runtime keep waiting for a worker, as they always did.
         if tokio::runtime::Handle::try_current().is_ok()
             && let Some(future) = self.priority_runner.claim(&this, &key)
         {
-            return poll_once_or_spawn(future);
+            return if poll_once_or_spawn(future) {
+                InlineExecutionCounters::bump(&self.inline_counters.claim_completed_inline);
+                true
+            } else {
+                InlineExecutionCounters::bump(&self.inline_counters.claim_yielded);
+                false
+            };
         }
-        // The task might have been queued for this reader without a worker (see
-        // [`TurboTasks::schedule_for_reader`]); since we are not executing it, make sure that a
-        // worker picks it up.
-        self.priority_runner.ensure_worker(&this);
+        InlineExecutionCounters::bump(&self.inline_counters.claim_failed);
         false
+    }
+
+    fn note_waited_for_in_progress_task(&self) {
+        InlineExecutionCounters::bump(&self.inline_counters.waited_in_progress);
     }
 
     fn begin_foreground_job(&self) {
@@ -1122,6 +1156,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
     pub fn get_in_progress_count(&self) -> usize {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
+    }
+
+    /// Counters describing how reads and inline execution interacted. Diagnostics only; a dump of
+    /// these can be requested with `TURBO_ENGINE_INLINE_STATS=1`.
+    #[doc(hidden)]
+    pub fn inline_execution_stats(&self) -> InlineExecutionStats {
+        let counters = &self.inline_counters;
+        InlineExecutionStats {
+            queued: self.priority_runner.total_queued(),
+            claim_attempted: counters.claim_attempted.load(Ordering::Relaxed),
+            claim_completed_inline: counters.claim_completed_inline.load(Ordering::Relaxed),
+            claim_yielded: counters.claim_yielded.load(Ordering::Relaxed),
+            claim_failed: counters.claim_failed.load(Ordering::Relaxed),
+            waited_in_progress: counters.waited_in_progress.load(Ordering::Relaxed),
+        }
     }
 
     /// Waits for the given task to finish executing. This works by performing an untracked read,
@@ -1250,6 +1299,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        if inline_stats_requested() {
+            // Requested with `TURBO_ENGINE_INLINE_STATS=1`; printed rather than traced so it shows
+            // up without a tracing subscriber configured.
+            eprintln!(
+                "turbo-tasks inline execution stats: {:#?}",
+                self.inline_execution_stats()
+            );
+        }
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
@@ -1626,7 +1683,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         if options.consistency == ReadConsistency::Eventual {
             debug_assert_not_in_top_level_task("read_task_output");
         }
@@ -1644,7 +1701,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
@@ -1697,8 +1754,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.try_execute_scheduled_task_inline(key)
     }
 
-    fn ensure_scheduled_tasks_are_running(&self) {
-        self.priority_runner.ensure_worker(&self.pin());
+    fn note_waited_for_in_progress_task(&self) {
+        self.note_waited_for_in_progress_task()
     }
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
@@ -2109,13 +2166,17 @@ pub(crate) async fn read_task_output(
 ) -> Result<RawVc> {
     loop {
         match this.try_read_task_output(id, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => {
-                // The task is not done yet. If it is only scheduled, execute it right here instead
-                // of waiting for a worker to pick it up.
+            ReadOutcome::Value(result) => return Ok(result),
+            ReadOutcome::Scheduled(listener) => {
+                // Nobody has started it yet, so take it over instead of waiting for a worker.
                 if execute_read_target_inline(this, ScheduleKey::Task(id)) {
                     continue;
                 }
+                listener.await
+            }
+            ReadOutcome::InProgress(listener) => {
+                // A worker is on it — there is nothing to take over, so don't touch the queue.
+                this.note_waited_for_in_progress_task();
                 listener.await
             }
         }
