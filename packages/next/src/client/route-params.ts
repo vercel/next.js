@@ -225,8 +225,13 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      const length = pathname.endsWith('/index.txt')
+        ? process.env.__NEXT_TRAILING_SLASH
+          ? 9
+          : 10
+        : 4
+      // Slice off `index.txt`, `/index.txt`, or `.txt` from the end of the
+      // pathname, preserving the trailing slash when configured.
       urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
