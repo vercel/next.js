@@ -676,15 +676,7 @@ impl DiskWatcher {
                     Ok(Err(notify::Error { kind, paths })) => {
                         println!("watch error ({paths:?}): {kind:?} ");
 
-                        let flags = InvalidationFlags::PATH_AND_CHILDREN
-                            | InvalidationFlags::PATH_AND_CHILDREN_DIR;
-                        if paths.is_empty() {
-                            batch.mark(Box::from(fs.root_path()), flags);
-                        } else {
-                            for path in paths {
-                                batch.mark(path.into_boxed_path(), flags);
-                            }
-                        }
+                        batch.add_error(paths, fs.root_path());
                         schedule.extend(config.batch_delay);
                     }
                     Err(RecvTimeoutError::Timeout) => {
@@ -963,6 +955,18 @@ impl BatchedInvalidations {
             true
         } else {
             false
+        }
+    }
+
+    /// Updates the batch to invalidate paths associated with a watcher error.
+    fn add_error(&mut self, paths: Vec<PathBuf>, root_path: &Path) {
+        let flags = InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR;
+        if paths.is_empty() {
+            self.last_updated_index = Some(self.mark(Box::from(root_path), flags));
+        } else {
+            for path in paths {
+                self.last_updated_index = Some(self.mark(path.into_boxed_path(), flags));
+            }
         }
     }
 
