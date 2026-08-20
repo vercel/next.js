@@ -143,31 +143,15 @@ struct TaskStorageSchema {
     aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
 
     /// Number of **persistent** parent tasks that list this task in their `children` set.
-    /// Absent = 0. Maintained incrementally at the two `children`-edge mutation sites (via the
-    /// durable `AdjustParentCount` aggregation-update job): incremented in `connect_children`,
-    /// decremented in `CleanupOldEdges`. When it reaches 0 (and no transient parent references the
-    /// task, and it is not a root/pinned/in-progress), the task is unreachable from persistent
-    /// roots and is therefore a candidate for garbage collection.
-    ///
-    /// A count can only drop to 0 while the parent is in memory (a parent re-executed and dropped
-    /// the child), so collectibility is detectable at that moment with no DB scan.
-    // Stored inline (not lazy): `parent_count` is near-universal and mutated on every child-edge
-    // change, so a lazy-Vec scan per access is wasteful.
     #[field(storage = "direct", category = "meta", inline, default)]
     parent_count: u32,
 
-    /// Number of **transient** in-session references to this task that are not persistent parent
-    /// edges (this session only; never persisted). Two sources bump it:
+    /// Number of **transient** in-session references to this task. Two sources bump it:
     /// - a **transient parent** connecting this task as a child (transient parents are never
     ///   persisted, so their edge can't count toward the durable `parent_count`), and
     /// - a **detached handle** that holds this task's `OperationVc` outside the tracked graph
     ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
     ///   root.
-    ///
-    /// A persistent task with `parent_count == 0` but `transient_ref_count > 0` is kept alive
-    /// in-session (uncollectible) — it is still referenced, just not by a persistent parent. On
-    /// restart these references are re-established (transient parents re-execute; detached handles
-    /// are re-created), so the count is never persisted.
     #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
 
@@ -592,13 +576,6 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
-        // A task with a live transient reference (`transient_ref_count`: a `prevent_gc` pin, a
-        // detached handle, or a transient parent) is NOT forced fully resident — it falls through
-        // to the normal Meta/Data evictability below. That is safe because `drop_partial`
-        // retains non-default *transient* fields, so `transient_ref_count` survives as
-        // residue and the map entry is kept (`DropPartialOutcome::HasResidue`): the count
-        // can never be lost to eviction and make a still-referenced task look unreferenced.
-
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()

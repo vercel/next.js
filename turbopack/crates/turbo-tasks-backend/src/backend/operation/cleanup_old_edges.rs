@@ -96,9 +96,7 @@ impl CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                // Gate on the `remove_children` return so each edge's child-side
-                                // count is adjusted exactly once, even if a resumed CleanupOldEdges
-                                // re-removes the same edges (already-gone edges return false).
+
                                 let mut removed_persistent_children =
                                     SmallVec::<[TaskId; 4]>::new();
                                 for child_id in children.iter() {
@@ -106,9 +104,7 @@ impl CleanupOldEdgesOperation {
                                         removed_persistent_children.push(*child_id);
                                     }
                                 }
-                                // Each removed persistent child loses a parent. Queued rather than
-                                // applied inline because the job takes the child guards, avoiding a
-                                // second guard while `task` is held.
+                                // Each removed persistent child loses a parent.
                                 if !removed_persistent_children.is_empty() {
                                     let job = if task_id.is_transient() {
                                         AggregationUpdateJob::AdjustTransientRefCount {

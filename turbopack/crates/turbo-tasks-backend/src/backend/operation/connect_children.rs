@@ -60,17 +60,11 @@ pub fn connect_children(
 
         // Single pass over the newly-connected children, two things per child under one guard:
         //
-        // 1. Bump the child-side parent reference count for **persistent** children (transient
-        //    children are never collected, so they take no count).
-        //
-        //    CRITICAL: the `+1` is applied **directly**, not via a queued `AdjustParentCount` job,
-        //    and MUST land before `queue.execute` below (the first `operation_suspend_point` this
-        //    function reaches) so that thew new child and the +1 are atomically observable to GC.
+        // 1. Bump the child-side parent reference count. it is important to do this before any
+        //    suspend points persistence/GC cannot run
         //
         // 2. Make any child that has not produced output yet dirty, so it gets scheduled and
-        //    computes. Runs only on the successful connect (not the stale/cancel early-returns in
-        //    `task_execution_completed_connect`), which undo the children's temporarily-increased
-        //    active count rather than keeping them.
+        //    computes.
         let parent_is_transient = parent_task_id.is_transient();
         ctx.for_each_task_all(
             new_follower_ids.iter().copied(),
