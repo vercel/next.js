@@ -59,7 +59,10 @@ turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
 
-[dev-dependencies]
+# Only used by the benchmarks, which don't run on wasm. Gated by target so that
+# `cargo test -p turbo-tasks --lib --target wasm32-wasip1-threads` can build: criterion pulls in
+# rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 
 [[bench]]
