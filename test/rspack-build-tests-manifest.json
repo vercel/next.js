@@ -8031,7 +8031,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
-    "passed": ["turbopack-reports should render page importing sqlite3"],
+    "passed": [
+      "turbopack-reports should render page importing a package that loads a native binding"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

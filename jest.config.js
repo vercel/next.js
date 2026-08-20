@@ -33,6 +33,8 @@ const customJestConfig = {
     '<rootDir>/e2e/app-dir/self-importing-package/internal-pkg',
     '<rootDir>/e2e/app-dir/self-importing-package-monorepo/internal-pkg',
     '<rootDir>/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg',
+    '<rootDir>/e2e/app-dir/turbopack-reports/bindings',
+    '<rootDir>/e2e/app-dir/turbopack-reports/native-addon',
     '<rootDir>/e2e/transpile-packages-typescript-foreign/pkg',
     '<rootDir>/production/standalone-mode/tracing-side-effects-false/foo',
     '<rootDir>/production/standalone-mode/tracing-static-files/foo',
