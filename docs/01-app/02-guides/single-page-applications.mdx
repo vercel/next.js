@@ -218,6 +218,37 @@ This can be useful for third-party libraries that rely on browser APIs like `win
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
 
+The App Router uses React Canary releases, which include the new [`browser`](https://react.dev/reference/react-dom/browser) API. Call `browser` inside `use` in a Client Component that needs browser APIs:
+
+```tsx filename="app/browser-only-editor.tsx"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export default function BrowserOnlyEditor() {
+  use(browser('The editor requires browser APIs.'))
+  return <Editor />
+}
+```
+
+Then wrap it in a Suspense boundary:
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import BrowserOnlyEditor from './browser-only-editor'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading editor...</p>}>
+      <BrowserOnlyEditor />
+    </Suspense>
+  )
+}
+```
+
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The component then renders normally in the browser.
+
 ### Shallow routing on the client
 
 If you are migrating from a strict SPA like [Create React App](/docs/app/guides/migrating/from-create-react-app) or [Vite](/docs/app/guides/migrating/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
