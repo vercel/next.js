@@ -667,8 +667,8 @@ impl DiskWatcher {
                             delay = delay.max(config.extended_batch_delay_duration);
                         }
 
-                        if batch.add_event(event) {
-                            schedule.extend(delay);
+                        if let Some(last_modified_path) = batch.add_event(event) {
+                            schedule.extend(delay, Some(last_modified_path.into()));
                         }
                     }
                     // Error raised by notify watcher itself
@@ -677,6 +677,7 @@ impl DiskWatcher {
 
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
+                        let last_modified_path = paths.last().cloned();
                         if paths.is_empty() {
                             batch.mark(Box::from(fs.root_path()), flags);
                         } else {
@@ -684,7 +685,7 @@ impl DiskWatcher {
                                 batch.mark(path.into_boxed_path(), flags);
                             }
                         }
-                        schedule.extend(config.batch_delay);
+                        schedule.extend(config.batch_delay, last_modified_path);
                     }
                     Err(RecvTimeoutError::Timeout) => {
                         // the batch is complete: break out to invalidate the collected paths.
@@ -863,28 +864,30 @@ impl BatchedInvalidations {
     /// Updates the batch to contain updated paths from the given event. Does not perform any
     /// invalidations.
     ///
-    /// Returns `true` if the event contained relevant events, or `false` if it was filtered out.
+    /// Returns the event's final path if it contained relevant events, or [`None`] if it was
+    /// filtered out.
     #[must_use]
-    fn add_event(&mut self, event: notify::Event) -> bool {
+    fn add_event(&mut self, event: notify::Event) -> Option<Box<Path>> {
         let paths: Vec<PathBuf> = event.paths;
-        if paths.is_empty() {
-            return false;
-        }
+        let last_path = |paths: &[PathBuf]| paths.last().map(|path| Box::from(path.as_path()));
         match event.kind {
             EventKind::Modify(ModifyKind::Data(_)) => {
+                let last_modified_path = last_path(&paths);
                 for path in paths {
                     self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
                 }
-                true
+                last_modified_path
             }
             // Some backends (fsevents, polling) can report metadata events for file content changes
             EventKind::Modify(ModifyKind::Metadata(kind)) if self.is_content_change(kind) => {
+                let last_modified_path = last_path(&paths);
                 for path in paths {
                     self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
                 }
-                true
+                last_modified_path
             }
             EventKind::Create(_) => {
+                let last_modified_path = last_path(&paths);
                 for path in paths {
                     self.mark_parent_dir(&path);
                     self.mark_new_path(&path);
@@ -894,9 +897,10 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
-                true
+                last_modified_path
             }
             EventKind::Remove(_) => {
+                let last_modified_path = last_path(&paths);
                 for path in paths {
                     self.mark_parent_dir(&path);
                     self.mark(
@@ -905,10 +909,11 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
-                true
+                last_modified_path
             }
             // A single event emitted with both the `From` and `To` paths.
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
+                let last_modified_path = last_path(&paths);
                 let [source, destination] = <[PathBuf; 2]>::try_from(paths)
                     .expect("RenameMode::Both event must contain exactly two paths");
                 self.mark_parent_dir(&source);
@@ -922,12 +927,13 @@ impl BatchedInvalidations {
                     destination.into_boxed_path(),
                     InvalidationFlags::PATH_AND_CHILDREN,
                 );
-                true
+                last_modified_path
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
             // but we also check other RenameModes to cover cases where notify couldn't match the
             // two rename events.
             EventKind::Any | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
+                let last_modified_path = last_path(&paths);
                 for path in paths {
                     self.mark_parent_dir(&path);
                     self.mark(
@@ -936,13 +942,13 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
-                true
+                last_modified_path
             }
             EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
             | EventKind::Access(_)
             | EventKind::Other => {
                 // ignored
-                false
+                None
             }
         }
     }
