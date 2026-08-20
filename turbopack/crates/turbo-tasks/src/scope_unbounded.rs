@@ -1,19 +1,11 @@
-//! Unbounded scoped parallelism: a running job may discover more work.
-//!
-//! The total number of items isn't known up front, so termination is driven by an
-//! outstanding-item counter reaching zero rather than by a count supplied by the caller.
-//!
-//! `run` is the per-item body, invoked once per item and concurrently across every drainer — not a
-//! single closure handed a scope object, as in [`std::thread::scope`] and
-//! [`scope_bounded`](crate::scope_bounded::scope_bounded). Hence the seed set arriving as an
-//! `initial` iterator, and [`ControlFlow::Break`] rather than local control flow for early
-//! termination: aborting has to reach the *shared* queue, not just return from one invocation.
+//! Unbounded scoped parallelism: enables running jobs that can discover and enqueue more work
 
 use std::{
     any::Any,
     ops::ControlFlow,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
+        Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
         mpmc::{self, Receiver, Sender},
     },
@@ -22,36 +14,21 @@ use std::{
 
 use fixedbitset::FixedBitSet;
 use parking_lot::{Condvar, Mutex, RwLock};
-use tokio::{
-    runtime::Handle,
-    task::{AbortHandle, block_in_place},
-};
+use tokio::{runtime::Handle, task::AbortHandle};
 use tracing::{Span, info_span};
 
-use crate::{manager::try_turbo_tasks, turbo_tasks_scope};
+use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 
 /// How long a scope worker waits on an empty queue before exiting.
 ///
-/// The wait is `mpmc::recv_timeout`, which parks the OS thread — so the runtime thread is held for
-/// the whole timeout and handed back only when the task ends. No tokio timer is involved.
-///
-/// Short, because holding a thread on a queue that has run dry is the cost, and a respawn is cheap
-/// (a scope worker is a tokio task on an existing pool, not a thread). Not zero, because exiting on
-/// the first empty read makes a worker churn — exit, then be re-armed by the next `enqueue` — every
-/// time it briefly outruns the producer; a saturated queue turns that into thousands of respawns.
+/// Optimizes respawning which triggers overhead managing WorkerSlots and the accumulator variables
+/// pausing for a short time is worthwhile to avoid that.
 const WORKER_IDLE_TIMEOUT: Duration = Duration::from_micros(100);
 
 /// Runs `run` over `initial` and everything it transitively spawns, returning once every item has
 /// been processed. No results are collected; jobs communicate through state captured in `run`. Use
 /// [`scope_unbounded_with`] to accumulate a value instead.
-///
-/// `run` is shared across the calling thread and up to `runtime threads - 1` worker tasks, and may
-/// run concurrently. Those workers are a pure optimization: the calling thread drains the whole
-/// (growing) queue itself, and the join cancels any worker the scheduler never polled rather than
-/// waiting for it — so this does not deadlock on a thread-limited or fully-occupied runtime, even
-/// one where every other thread is blocked on a lock the caller holds. Prefer calling from
-/// `spawn_blocking` when other work shares the task.
-///
+//////
 /// Items must be `'static` (they sit in a queue drained by other threads); the `run` closure may
 /// borrow `'env` data.
 ///
@@ -60,13 +37,6 @@ const WORKER_IDLE_TIMEOUT: Duration = Duration::from_micros(100);
 /// Both [`ControlFlow::Break`] and a panic abandon all queued-but-unstarted items, so the scope
 /// returns as soon as the currently-running jobs finish. Jobs already in flight on other threads
 /// are **not** interrupted in either case.
-///
-/// Use `Break` when the remaining work is discardable (it can be recomputed on a later run) and
-/// finishing it is not worth the latency.
-///
-/// A panic aborts for the same reason it is re-raised: the caller never observes what the remaining
-/// items would have produced, so running them only delays propagation. The first panic from any
-/// `run` is re-raised after the join.
 pub fn scope_unbounded<'env, T, F>(initial: impl IntoIterator<Item = T>, run: F)
 where
     T: Send + 'static,
@@ -87,14 +57,10 @@ where
 /// be associative and commutative — drainers finish in a nondeterministic order, so the grouping
 /// and ordering of the folds are not specified.
 ///
-/// This exists so `run` can accumulate **without shared state**: each drainer writes only to its
-/// own stack and pays one lock acquisition on the way out. In profiles of the GC collect pass,
-/// per-item shared atomics were several percent of total time.
+/// This exists so `run` can efficiently accumulate with minimal locking overhead managed by the
+/// scope.
 ///
-/// `init` is called once per drainer that receives at least one item — never for an idle worker —
-/// but *how many* drainers that is depends on scheduling, not on the work. So `init()` must return
-/// an identity for `merge`, or the result varies run to run. (`0` for a sum, an empty collection
-/// for a concat, `Default::default()` for a struct of counters.)
+/// `init` is called potentially many times for each thread context.
 ///
 /// Returns `init()` when no item is ever processed (e.g. an empty `initial`).
 ///
@@ -121,24 +87,13 @@ where
     Merge: Fn(R, R) -> R + Send + Sync + 'env,
 {
     let handle = Handle::current();
-    // One worker per runtime thread beyond the calling thread; 0 on a current-thread runtime.
+    // One worker per runtime thread beyond the calling thread
     let max_workers = handle.metrics().num_workers().saturating_sub(1);
-    let turbo_tasks = try_turbo_tasks();
     let span = Span::current();
-
-    // Re-establish the turbo-tasks context per item, since drainers are not the calling thread.
-    let wrapped_run = move |spawner: &Scope<'_, T, R>, item: T, acc: &mut R| {
-        if let Some(turbo_tasks) = turbo_tasks.clone() {
-            turbo_tasks_scope(turbo_tasks, || run(spawner, item, acc))
-        } else {
-            run(spawner, item, acc)
-        }
-    };
 
     // `ScopeInner` is parameterized over the borrow lifetime, so these go in as ordinary
     // references. The one erasure to `'static` is at the tokio hand-off in
     // `spawn_worker_if_needed`.
-    let run: RunFn<'_, T, R> = &wrapped_run;
     let init_ref: &(dyn Fn() -> R + Send + Sync + '_) = &init;
     let merge_ref: &(dyn Fn(R, R) -> R + Send + Sync + '_) = &merge;
 
@@ -153,24 +108,17 @@ where
         handle: handle.clone(),
         span: span.clone(),
         workers_idle: Condvar::new(),
-        run,
+        turbo_tasks: try_turbo_tasks(),
+        run: &run,
         results: Mutex::new(None),
         init: init_ref,
         merge: merge_ref,
     };
 
-    // Arm the join guard before anything can spawn, so a worker can never outlive the join. This is
-    // what makes the `'env` -> `'static` erasure sound, on the panic path too.
+    // Arm the join guard before anything can spawn, so a worker can never outlive the join.
     let joiner = Joiner { inner: &inner };
 
-    // Count the seeding loop itself as one outstanding item, so an interleaving where every
-    // dispatched seed finishes before the iterator yields the next one cannot drive
-    // `remaining_tasks` to zero and close the queue with seeds still to come.
-    //
-    // Discharged by `Joiner::drop`, which is why the guard is armed *above* this increment: a panic
-    // out of the iterator's `next()` then unwinds through a live guard, which discharges the count
-    // and closes the queue. Reversed, that unwind would strand the placeholder and park the
-    // joiner's own `recv` forever.
+    // Increment remaining tasks to ensure the scope cannot exit before all tasks are enqueued
     inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
     for item in initial {
         enqueue(&inner, item);
@@ -184,8 +132,6 @@ where
         panic::resume_unwind(err);
     }
 
-    // When no drainer accumulated (an empty `initial`, or every item discarded by an abort) the
-    // slot is empty and the result is a single `init()` — the identity of the fold.
     inner.results.lock().take().unwrap_or_else(init)
 }
 
@@ -250,7 +196,9 @@ struct ScopeInner<'run, T: Send + 'static, R> {
     handle: Handle,
     /// Span workers enter, so their work stays attached to the caller's trace.
     span: Span,
-    /// The per-item closure, with turbo-tasks context re-established.
+    /// The caller's turbo-tasks context, re-established around each drain loop.
+    turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
+    /// The per-item closure.
     run: RunFn<'run, T, R>,
     /// Accumulated results, folded together as each drainer finishes. `None` until the first
     /// drainer merges. Drainers merge on the panic path too, but `scope_unbounded_with` re-raises
@@ -282,12 +230,7 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
         self.close();
     }
 
-    /// Records that one item finished; the last one closes the queue, which is how drainers learn
-    /// to exit.
-    fn on_item_finished(&self, panic: Option<Box<dyn Any + Send + 'static>>) {
-        if let Some(err) = panic {
-            self.record_panic(err);
-        }
+    fn on_item_finished(&self) {
         if self.remaining_tasks.fetch_sub(1, Ordering::Release) == 1 {
             self.close();
         }
@@ -295,6 +238,7 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
 
     /// Keeps the first panic seen; later ones are dropped.
     fn record_panic(&self, err: Box<dyn Any + Send + 'static>) {
+        self.abort();
         let mut slot = self.panic.lock();
         if slot.is_none() {
             *slot = Some(err);
@@ -316,6 +260,13 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
     ///   finished. It holds no slot and is the correctness anchor: *someone* must drain the queue
     ///   to completion, and only it is guaranteed to be running.
     fn drain(&self, is_worker: bool) {
+        match self.turbo_tasks.clone() {
+            Some(turbo_tasks) => turbo_tasks_scope(turbo_tasks, || self.drain_loop(is_worker)),
+            None => self.drain_loop(is_worker),
+        }
+    }
+
+    fn drain_loop(&self, is_worker: bool) {
         let mut acc: Option<R> = None;
         while let Some(item) = if is_worker {
             self.work_queue.recv_timeout(WORKER_IDLE_TIMEOUT).ok()
@@ -324,7 +275,7 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
         } {
             // Post-abort: discard without running, so the wind-down can't re-grow the queue.
             if self.aborted.load(Ordering::Acquire) {
-                self.on_item_finished(None);
+                self.on_item_finished();
                 continue;
             }
             let spawner = Scope { inner: self };
@@ -339,29 +290,20 @@ impl<T: Send + 'static, R> ScopeInner<'_, T, R> {
             // Latch the abort *before* the decrement. This item may be the last outstanding one,
             // and `on_item_finished` then closes the queue and releases the joiner — after which
             // no drainer is left to observe the flag.
-            let panic = match result {
-                Ok(ControlFlow::Continue(())) => None,
+            match result {
+                Ok(ControlFlow::Continue(())) => {}
                 Ok(ControlFlow::Break(())) => {
                     self.abort();
-                    None
                 }
                 // A panic aborts too; see `scope_unbounded`.
                 Err(panic) => {
-                    self.abort();
-                    Some(panic)
+                    self.record_panic(panic);
                 }
             };
-            self.on_item_finished(panic);
+            self.on_item_finished();
         }
 
-        // Fold this drainer's accumulator into the shared results slot. This is the last access a
-        // worker makes to the caller's frame; its `WorkerGuard` then releases its slot, and that
-        // release is what publishes this merge to the joiner.
-        //
-        // `merge` is caught because an escaping panic has nowhere good to go: on a worker it would
-        // be swallowed at the task boundary, silently dropping these results, and on the calling
-        // thread `drain` runs from `Joiner::drop`, where unwinding during an unwind aborts the
-        // process.
+        // Fold this drainer's accumulator into the shared results slot
         if let Some(acc) = acc {
             let merged = catch_unwind(AssertUnwindSafe(|| {
                 let mut results = self.results.lock();
@@ -385,9 +327,6 @@ fn enqueue<T: Send + 'static, R: Send>(inner: &ScopeInner<'_, T, R>, item: T) {
         return;
     }
     let num_tasks = inner.remaining_tasks.fetch_add(1, Ordering::Relaxed) + 1;
-    // Take the send lock before testing the sender: `close` takes it under the *write* side of the
-    // same lock, so either we get a live sender and our item is buffered, or the sender is already
-    // gone. Either way the item cannot be counted and then stranded with nobody to drain it.
     let sent = {
         let sender = inner.work_queue_sender.read();
         match sender.as_ref() {
@@ -397,32 +336,13 @@ fn enqueue<T: Send + 'static, R: Send>(inner: &ScopeInner<'_, T, R>, item: T) {
         }
     };
     if !sent {
-        // This may be the 1 -> 0 edge that closes the scope.
-        inner.on_item_finished(None);
+        inner.on_item_finished(); // since the item won't execute decrement now
         return;
     }
     spawn_worker_if_needed(inner, num_tasks);
 }
 
 /// Re-arm one worker if the scope is running below its budget.
-///
-/// Called from [`enqueue`] after an item lands, which is the only moment new parallelism can become
-/// useful. Spawns at most one per call, so a burst of `n` spawns re-arms up to `n` workers without
-/// any one caller paying for the whole ramp.
-///
-/// `num_enqueued_tasks` is the outstanding count *including* the item just pushed. The calling
-/// thread always drains, so a lone outstanding item is already covered and needs no worker — which
-/// keeps a strictly serial cascade (each job spawning one successor) from arming the pool at all.
-///
-/// That is deliberately the only suppression. Capping live workers by the outstanding count as well
-/// measured *worse*: `remaining_tasks` counts items in flight rather than items waiting, so in a
-/// saturated queue the cap never binds, while suppressing the spawn at exactly the moment the queue
-/// runs dry costs a worker that would otherwise have persisted. Churn is bounded by
-/// [`WORKER_IDLE_TIMEOUT`] instead.
-///
-/// A worker that is timing out keeps its slot until its [`WorkerGuard`] drops, so an `enqueue` in
-/// that window reads the budget as full and declines to replace it. That costs throughput on a rare
-/// interleaving but never hangs, for the same reason a full budget doesn't.
 fn spawn_worker_if_needed<T: Send + 'static, R: Send>(
     inner: &ScopeInner<'_, T, R>,
     num_enqueued_tasks: usize,
@@ -442,9 +362,6 @@ fn spawn_worker_if_needed<T: Send + 'static, R: Send>(
         >(erased)
     };
 
-    // Claiming the slot and publishing the handle under one lock acquisition makes them atomic
-    // against a concurrent `enqueue` racing for the last slot and against `Joiner::drop` reading
-    // the table, so no task can exist with no slot claimed.
     let mut slots = inner.workers.lock();
     let Some(slot) = slots.free_slot() else {
         // Budget full. Declining is correct: the item is queued and a live drainer will reach it,
@@ -452,10 +369,7 @@ fn spawn_worker_if_needed<T: Send + 'static, R: Send>(
         return;
     };
     let span = inner.span.clone();
-    // Built here, on the spawning thread, and *moved into* the future — never constructed in the
-    // body. A task tokio claims but never polls drops its future without running the body, so a
-    // guard built in the body would never exist for it: the slot stays occupied and `Joiner::drop`
-    // waits on it forever.
+    // capture before the spawn and move into it
     let guard = erased.claim_worker_slot(slot);
     let handle = inner
         .handle
@@ -499,25 +413,6 @@ impl<T: Send + 'static, R> Drainable for ScopeInner<'_, T, R> {
 ///
 /// This is both the spawn budget and the join set, because a slot is occupied from *before* its
 /// task exists until *after* that task's last access to the caller's frame:
-///
-/// - Occupied by [`spawn_worker_if_needed`] under the table lock and before `Handle::spawn`, so a
-///   slot exists before its task can possibly be polled. Claiming it on entry to
-///   [`ScopeInner::drain`] instead would leave a window — between tokio claiming the task and that
-///   claim becoming visible — where the task is neither cancellable (`drain` is synchronous, so
-///   `abort` has no await point to act on) nor counted, and a joiner reading the table there frees
-///   the frame out from under it.
-/// - Released by [`WorkerGuard::drop`], strictly after every access the worker makes to
-///   `run`/`init`/`merge`, on the cancellation and unwind paths too.
-///
-/// So the occupancy interval strictly contains the frame-access interval with no gap at either end,
-/// and [`Self::is_idle`] means *no task can still touch the frame*.
-///
-/// The calling thread needs no slot: [`Joiner::drop`] runs its own `drain(false)` to completion
-/// before it ever waits, so its frame accesses are all in the past by then.
-///
-/// A `Mutex` rather than a `JoinSet` because respawn happens from [`enqueue`], which holds `&self`,
-/// while `JoinSet::spawn_on` needs `&mut self`. The lock is taken once per worker spawn or exit —
-/// bounded by re-arms, not by items — so it is off the hot path, unlike the sender lock.
 struct WorkerSlots {
     /// `Some` for a spawned worker, `None` for a free slot or one whose handle has been aborted
     /// and dropped. Length is the cap and never changes, so a slot index stays valid for the
@@ -567,11 +462,6 @@ impl WorkerSlots {
 }
 
 /// Releases a worker's slot and wakes [`Joiner::drop`] when it is the last one.
-///
-/// A guard rather than a statement at the end of [`ScopeInner::drain`] because the slot must be
-/// released even when `drain` never runs: `Joiner::drop` aborts every live handle, and a task tokio
-/// has not yet polled is dropped without its body executing. The spawned future owns the guard, so
-/// cancelled and completed workers need not be told apart.
 struct WorkerGuard<'a> {
     slots: &'a Mutex<WorkerSlots>,
     workers_idle: &'a Condvar,
@@ -591,9 +481,6 @@ impl Drop for WorkerGuard<'_> {
 }
 
 /// Drains the queue and joins the workers, on the return path and on an unwind alike.
-///
-/// Everything after the drain is about lifetimes, not work: `run`/`init`/`merge` point into the
-/// caller's frame, so no worker may dereference them after the scope returns.
 struct Joiner<'a, 'run, T: Send + 'static, R> {
     inner: &'a ScopeInner<'run, T, R>,
 }
@@ -601,48 +488,33 @@ struct Joiner<'a, 'run, T: Send + 'static, R> {
 impl<T: Send + 'static, R> Drop for Joiner<'_, '_, T, R> {
     fn drop(&mut self) {
         // Discharge the placeholder item that covered the seeding loop.
-        self.inner.on_item_finished(None);
+        self.inner.on_item_finished();
         // Returns only once the queue is closed, so no new work can arrive after this.
         self.inner.drain(false);
-
-        // No new worker can appear from here on: the queue is closed, and
-        // `spawn_worker_if_needed` is reached only after a successful send. So the tasks that can
-        // still touch this frame are exactly those `occupied` records now, and that set only
-        // shrinks.
+        // The queue is now closed so no workers can spawn. Capture all the handles.
+        // There should be no contention on this slot
         let _span = info_span!("blocking: waiting for scope to end").entered();
         let handles: Vec<_> = {
             let mut slots = self.inner.workers.lock();
-            // Take the handles but leave `occupied` alone: it is the join predicate, and only a
-            // `WorkerGuard` may clear a bit. The table keeps its length, so a guard's
-            // `handles[slot] = None` stays in bounds.
             slots.handles.iter_mut().filter_map(Option::take).collect()
         };
 
-        // Aborting is what keeps the wait short: a task tokio has not yet polled never runs its
-        // body, and dropping its future releases the slot. One already being polled cannot be
-        // preempted (`drain` is synchronous, so there is no await point), but it needs no help —
-        // the closed queue makes its `recv` fail and it finishes on the thread it already holds.
-        // So the join never waits for the scheduler to *start* a worker, which is what would
-        // deadlock a runtime with no thread to spare.
-        //
-        // Outcomes are deliberately not inspected: cancelled and completed workers both release
-        // through the same guard. Abort *outside* the lock, though — aborting a task the scheduler
-        // has not yet claimed can drop its future inline on this thread, running
-        // `WorkerGuard::drop`, which takes `workers`.
+        // Abort all workers, that way workers we have spawned but have never run get dropped and
+        // release their slots.  Otherwise a contended runtime could delay shutdown of the scope.
         for handle in handles {
             handle.abort();
         }
 
+        // Wait for the aborts to land. Every worker still holding a slot is already off the
+        // scheduler's critical path: it is inside `drain`, so it either returns from its `recv` on
+        // the closed queue or is already past it, contending only for `results` and `workers` on
+        // the way out. A task tokio claimed but never polled had its future dropped by the `abort`
+        // above, inline on this thread. So this waits on locks and OS wakeups, never on a tokio
+        // poll — parking this thread cannot starve the work it is waiting for, so there is nothing
+        // for `block_in_place` to buy.
         let mut slots = self.inner.workers.lock();
-        // `block_in_place` hands our runtime thread back while parked so the runtime keeps making
-        // progress. It panics on a current-thread runtime, which the `is_idle` guard rules out: a
-        // zero-length slot table — what `max_workers` yields there — is always already idle.
-        if !slots.is_idle() {
-            block_in_place(|| {
-                while !slots.is_idle() {
-                    self.inner.workers_idle.wait(&mut slots);
-                }
-            });
+        while !slots.is_idle() {
+            self.inner.workers_idle.wait(&mut slots);
         }
     }
 }
@@ -995,15 +867,15 @@ mod tests {
         assert_eq!(total, 20);
     }
 
-    /// The join must not reach `block_in_place` when there are no workers to await.
+    /// A scope driven **directly** on a `current_thread` runtime — not via `spawn_blocking` — must
+    /// still complete.
     ///
-    /// Called **directly** on a `current_thread` runtime rather than through `spawn_blocking`:
-    /// `block_in_place` panics outside a multi-thread runtime, so if `Joiner::drop` ever stopped
-    /// gating on an idle slot table this test panics rather than merely being slow. The other
-    /// `current_thread` tests wrap the call in `spawn_blocking`, where `block_in_place` is allowed,
-    /// so they cannot catch that regression.
+    /// There is no worker to await here (`max_workers` is 0), so the join must not depend on the
+    /// runtime being able to run anything: this thread *is* the runtime, and it is inside
+    /// `Joiner::drop`. Any future join step that needs a poll, or that requires a multi-thread
+    /// runtime the way `block_in_place` does, hangs or panics here rather than merely being slow.
     #[tokio::test(flavor = "current_thread")]
-    async fn test_unbounded_current_thread_never_blocks_in_place() {
+    async fn test_unbounded_current_thread_direct_call_completes() {
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
         scope_unbounded(0..8usize, move |spawner, item| {
@@ -1321,6 +1193,78 @@ mod tests {
             ),
             Ok(total) => assert_eq!(total, 256, "single-drainer run must still count every item"),
         }
+    }
+
+    /// Every drainer must observe the caller's turbo-tasks context, including worker tasks — which
+    /// start with an empty `task_local!` slot, since `spawn_blocking` does not inherit one.
+    ///
+    /// Asserted through `try_turbo_tasks()` rather than a stub `TurboTasksApi`, so it pins the
+    /// property that matters (the context reaches `run` on every drainer) without a large stub. It
+    /// only distinguishes present-vs-absent, so it catches the wrap being dropped or applied to the
+    /// wrong drainer — not a wrong instance being installed.
+    ///
+    /// With no context set by the caller, `run` must see none: the scope must not invent one.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_unbounded_absent_context_stays_absent() {
+        const ITEMS: usize = 512;
+        let with_context = tokio::task::spawn_blocking(|| {
+            scope_unbounded_with(
+                0..ITEMS,
+                || 0usize,
+                |_spawner, _item, acc: &mut usize| {
+                    if try_turbo_tasks().is_some() {
+                        *acc += 1;
+                    }
+                    ControlFlow::Continue(())
+                },
+                |a, b| a + b,
+            )
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            with_context, 0,
+            "no caller context was set, so no drainer should see one"
+        );
+    }
+
+    /// The join must not depend on tokio scheduling, even when every runtime thread is contended
+    /// and workers are still mid-drain.
+    ///
+    /// This is the configuration `block_in_place` in the join would have been for. It is not
+    /// needed: a worker still holding a slot is inside `drain` on a thread it already owns, and an
+    /// unpolled task's future is dropped inline by `abort`. Several scopes run at once on a
+    /// two-thread runtime, each still spawning work as its joiner starts waiting. A hang here means
+    /// the join has become scheduler-dependent again.
+    #[test]
+    fn test_unbounded_join_under_thread_starvation() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_time()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let mut scopes = Vec::new();
+            for _ in 0..8 {
+                scopes.push(tokio::task::spawn_blocking(|| {
+                    let processed = Arc::new(AtomicUsize::new(0));
+                    let counted = processed.clone();
+                    scope_unbounded(0..200usize, move |spawner, item| {
+                        counted.fetch_add(1, Ordering::SeqCst);
+                        // Keep the queue growing so workers are still draining at join time.
+                        if item < 200 {
+                            spawner.spawn(1000 + item);
+                        }
+                        thread::yield_now();
+                        ControlFlow::Continue(())
+                    });
+                    processed.load(Ordering::SeqCst)
+                }));
+            }
+            for scope in scopes {
+                assert_eq!(scope.await.unwrap(), 400, "every scope must drain fully");
+            }
+        });
     }
 
     /// A panic in `init` must propagate rather than hang the scope.
