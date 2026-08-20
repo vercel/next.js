@@ -56,12 +56,6 @@ const BLOCK_INDEX_CAPACITY_BUFFER: usize = 16;
 ///
 /// For small keys (below this threshold), compression is unlikely to find enough to work with and
 /// only wastes CPU time, so we skip the attempt entirely.
-///
-/// Note that key blocks large enough to store a hash per entry are ordered by `(hash, key)`, which
-/// puts uncorrelated hash bytes between neighbouring keys and limits what compression can exploit.
-/// No-hash blocks are ordered by key (see [`StreamingSstWriter::flush_key_block`]), so their
-/// neighbours do share prefixes — but those are exactly the blocks whose keys are short enough
-/// (≤32 bytes) to often fall under this threshold anyway.
 const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
 
 /// Maximum key length that can use fixed-size key block layout.
@@ -155,11 +149,6 @@ struct KeyBlockFlushInfo {
 
 impl KeyBlockFlushInfo {
     /// The shared key length when every entry in the block has the same one, else `None`.
-    ///
-    /// A block of equal-length keys can be sorted by reading each key as a big-endian integer,
-    /// whose ordering matches the keys' lexicographic ordering. That turns each comparison from a
-    /// `memcmp` call into a register compare. The equal-length precondition is what makes it
-    /// sound: for keys of differing lengths, integer order and lexicographic order disagree.
     fn uniform_key_len(&self) -> Option<usize> {
         (self.min_key_len == self.max_key_len).then_some(self.max_key_len)
     }
@@ -1377,8 +1366,7 @@ mod tests {
         key::hash_key,
         lookup_entry::LookupValue,
         static_sorted_file::{
-            BlockCache, RawKeyBlock, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
-            read_key_blocks_for_test,
+            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
         },
     };
 

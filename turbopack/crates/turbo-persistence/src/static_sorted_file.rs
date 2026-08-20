@@ -1055,87 +1055,8 @@ struct GetKeyEntryResult<'l> {
     val: &'l [u8],
 }
 
-/// One key block as physically stored, produced by [`read_key_blocks_for_test`].
-#[cfg(test)]
-pub(crate) struct RawKeyBlock {
-    pub block_index: u16,
-    /// One of the `BLOCK_TYPE_*_KEY_*` constants.
-    pub block_type: u8,
-    /// The block's keys in the order they appear on disk.
-    pub keys: Vec<Vec<u8>>,
-}
-
-/// Reads every key block of an SST file, with each block's keys in the order they are physically
-/// stored.
-///
-/// Test-only: lets tests assert on the on-disk entry order, which the public lookup and iteration
-/// APIs both deliberately hide (lookup binary searches it, iteration re-sorts it).
-#[cfg(test)]
-pub(crate) fn read_key_blocks_for_test(
-    db_path: &Path,
-    sequence_number: u32,
-    block_count: u16,
-) -> Result<Vec<RawKeyBlock>> {
-    let meta = StaticSortedFileMetaData {
-        sequence_number,
-        block_count,
-    };
-    let file = File::open(db_path.join(format!("{sequence_number:08}.sst")))?;
-    let mmap = Rc::new(unsafe { Mmap::map(file.file()) }?);
-
-    // The index block is last and names every key block; other blocks are value blocks, which
-    // have no parseable structure of their own.
-    let index: RcBytes = read_block_generic(&mmap, &meta, block_count - 1)?;
-    ensure!(
-        be::read_u8(&index) == BLOCK_TYPE_INDEX,
-        "expected index block"
-    );
-    let body = &index[1..];
-    let num_entries =
-        (body.len() + INDEX_BLOCK_ENTRY_SIZE - size_of::<u16>()) / INDEX_BLOCK_ENTRY_SIZE;
-
-    let mut result = Vec::with_capacity(num_entries);
-    for pos in 0..num_entries {
-        // The body is `[first_child: u16] [hash: u64, block: u16]*`. Entry 0 is the bare
-        // `first_child`; for later entries, `pos * INDEX_BLOCK_ENTRY_SIZE` lands on the block index
-        // because the leading `first_child` offsets the stride by exactly the u64 hash it precedes.
-        let block_index = if pos == 0 {
-            be::read_u16(body)
-        } else {
-            be::read_u16(&body[pos * INDEX_BLOCK_ENTRY_SIZE..])
-        };
-        let kb = StaticSortedFileIter::parse_key_block(&mmap, &meta, block_index)?;
-        let entry_count = kb.entry_count as usize;
-        let mut keys = Vec::with_capacity(entry_count);
-        for i in 0..entry_count {
-            let entry = kb
-                .kind
-                .entry(&kb.entries, kb.entry_count, i, kb.layout.hash_len())?;
-            keys.push(entry.key.to_vec());
-        }
-        let block_type = {
-            let block: RcBytes = read_block_generic(&mmap, &meta, block_index)?;
-            be::read_u8(&block)
-        };
-        result.push(RawKeyBlock {
-            block_index,
-            block_type,
-            keys,
-        });
-    }
-    Ok(result)
-}
-
 /// Computes `(key hash, entry index)` for every entry of a no-hash key block, in `(hash, key)`
 /// order.
-///
-/// No-hash blocks are stored in key order, but iteration must yield `(hash, key)` order. The hash
-/// is computed once per entry and returned alongside the index so the caller can reuse it — the
-/// iterator has to report each entry's hash anyway, and recomputing it there would double the
-/// hashing this path does.
-///
-/// The stored key order breaks ties between equal keys and the sort preserves it, so MultiValue key
-/// groups keep their tombstone-first / key-tombstone-last ranking.
 fn hash_order_for_block<'l>(
     entry_count: u32,
     get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'l>>,
@@ -1180,10 +1101,6 @@ fn compare_hash_key<K: QueryKey>(
 }
 
 /// Checks whether a query key names the same entry, used to walk a key group outward from a hit.
-///
-/// Unlike [`compare_hash_key`] this only needs equality, so the hash is a cheap pre-filter rather
-/// than an ordering: comparing it first skips the key comparison for most non-matches. A
-/// [`KeyBlockLayout::KeyOnly`] block has no hash to filter on and compares keys directly.
 fn entry_matches_key<K: QueryKey>(
     layout: KeyBlockLayout,
     entry_hash: &[u8],
@@ -1194,11 +1111,10 @@ fn entry_matches_key<K: QueryKey>(
     match layout {
         KeyBlockLayout::KeyOnly => {
             debug_assert!(entry_hash.is_empty(), "KeyOnly entries carry no hash");
-            query_key.cmp(entry_key) == Ordering::Equal
+            query_key.eq(entry_key)
         }
         KeyBlockLayout::HashThenKey => {
-            full_hash.to_be_bytes()[..] == *entry_hash
-                && query_key.cmp(entry_key) == Ordering::Equal
+            full_hash.to_be_bytes()[..] == *entry_hash && query_key.eq(entry_key)
         }
     }
 }

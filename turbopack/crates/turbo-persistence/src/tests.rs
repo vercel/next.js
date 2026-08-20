@@ -106,11 +106,6 @@ impl ParallelScheduler for RayonParallelScheduler {
     }
 }
 
-/// Builds the `(u8, [u8; 4])`-shaped key some tests use, as an owned contiguous key.
-///
-/// [`StoreKey`] is only implemented for contiguous keys, since the one production implementor
-/// (`WriteBuffer` in turbo-tasks-backend) wraps an owned buffer. Tests that want a composite key
-/// therefore concatenate it themselves rather than relying on a tuple impl.
 fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
     let mut key = Vec::with_capacity(1 + suffix.len());
     key.push(prefix);
