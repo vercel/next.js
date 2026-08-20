@@ -142,18 +142,26 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
+const externalScriptCache = new Map<string, Promise<void>>()
 function loadScriptByUrl(url: string): Promise<void> {
+  let promise = externalScriptCache.get(url)
+  if (promise !== undefined) return promise
+
   const loader = (
     globalThis as typeof globalThis & {
       __turbopack_test_load_script__?: (url: string) => Promise<void>
     }
   ).__turbopack_test_load_script__
-  if (loader !== undefined) return loader(url)
-  return Promise.reject(
-    new Error(
-      `External script loading is only supported in browser runtimes: ${url}`
-    )
-  )
+  promise =
+    loader !== undefined
+      ? loader(url)
+      : Promise.reject(
+          new Error(
+            `External script loading is only supported in browser client code. Module Federation remote imports cannot run on the server: ${url}`
+          )
+        )
+  externalScriptCache.set(url, promise)
+  return promise
 }
 contextPrototype.o = loadScriptByUrl
 

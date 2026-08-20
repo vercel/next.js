@@ -57,11 +57,14 @@ describe('turbopack module federation with a webpack remote', () => {
     skipDeployment: true,
   })
   let remoteServer: Server
+  let remoteDir: string
+  let remoteOutput: string
 
   beforeAll(async () => {
     const remotePort = await findPort()
-    const remoteOutput = join(next.testDir, 'remote-dist')
-    await buildRemote(join(next.testDir, 'remote'), remoteOutput)
+    remoteDir = join(next.testDir, 'remote')
+    remoteOutput = join(next.testDir, 'remote-dist')
+    await buildRemote(remoteDir, remoteOutput)
     remoteServer = await startStaticServer(remoteOutput, undefined, remotePort)
     process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/remoteEntry.js`
     await next.start()
@@ -106,6 +109,53 @@ describe('turbopack module federation with a webpack remote', () => {
       )
       expect(await browser.elementByCss('#eager-value').text()).toBe(
         'eager local sharing'
+      )
+    })
+  })
+
+  it('loads a rebuilt remote after a browser reload', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Turbopack host sharing'
+      )
+    })
+
+    await next.patchFile(
+      'remote/message.js',
+      `import { value } from 'shared-value'
+import { value as remoteShared } from 'remote-shared'
+
+export const message = \`updated from \${value}\`
+export { remoteShared }
+`
+    )
+    await buildRemote(remoteDir, remoteOutput)
+    await browser.refresh()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'updated from Turbopack host sharing'
+      )
+    })
+  })
+
+  it('rejects a federated import from server code', async () => {
+    const response = await next.fetch('/server-import')
+    expect(response.status).toBe(500)
+    await retry(() => {
+      expect(next.cliOutput).toContain(
+        'Module Federation remote imports cannot run on the server'
+      )
+    })
+  })
+
+  it('rejects a federated import from the Edge runtime', async () => {
+    const response = await next.fetch('/edge-import')
+    expect(response.status).toBe(500)
+    await retry(() => {
+      expect(next.cliOutput).toContain(
+        'Module Federation remote imports must run in browser client code'
       )
     })
   })
