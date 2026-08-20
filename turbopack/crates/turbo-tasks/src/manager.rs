@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
@@ -12,6 +13,7 @@ use std::{
         Arc, Mutex, RwLock, Weak,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
+    task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
 
@@ -43,7 +45,7 @@ use crate::{
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
-    priority_runner::{Executor, PriorityRunner},
+    priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
@@ -160,6 +162,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
+
+    /// Executes a task that is scheduled but not started yet inline on the current thread, so that
+    /// a read doesn't have to wait for a worker to pick the task up. Returns whether the task's
+    /// execution completed.
+    ///
+    /// Used by the read paths; see `TurboTasks::try_execute_scheduled_task_inline` for the details.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool;
+
+    /// Makes sure that scheduled tasks are picked up by a worker. Only needed after a task was
+    /// scheduled on behalf of a read that ends up not executing it (see
+    /// `TurboTasks::schedule_for_reader`).
+    fn ensure_scheduled_tasks_are_running(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
@@ -465,10 +479,111 @@ enum ScheduledTask {
     LocalTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
+        execution_id: ExecutionId,
         local_task_id: LocalTaskId,
         global_task_state: CurrentTaskStateHandle,
         span: Span,
     },
+}
+
+/// Identifies a scheduled task, so that a read which is about to wait for it can take it out of the
+/// scheduler queue and execute it inline instead (see `PriorityRunner::claim` and
+/// `execute_read_target_inline`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ScheduleKey {
+    /// A cached (non-local) task.
+    Task(TaskId),
+    /// A local task, which is only known within the execution that created it.
+    LocalTask(ExecutionId, LocalTaskId),
+}
+
+impl Claimable for ScheduledTask {
+    type Key = ScheduleKey;
+
+    fn claim_key(&self) -> Option<ScheduleKey> {
+        Some(match self {
+            ScheduledTask::Task { task_id, .. } => ScheduleKey::Task(*task_id),
+            ScheduledTask::LocalTask {
+                execution_id,
+                local_task_id,
+                ..
+            } => ScheduleKey::LocalTask(*execution_id, *local_task_id),
+        })
+    }
+}
+
+/// Maximum number of task executions that may be nested inline on a single thread.
+///
+/// Executing a task inline (see [`execute_read_target_inline`]) runs its body on the stack of the
+/// task that reads it, and that task might itself have been executed inline. Every level adds a
+/// task body to the stack, so the nesting is capped: at the cap, reads park and wait for a worker
+/// as they always did.
+const MAX_INLINE_EXECUTION_DEPTH: usize = 16;
+
+thread_local! {
+    /// How many task executions are currently nested inline on this thread.
+    static INLINE_EXECUTION_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Whether the current thread may execute another task inline, see [`MAX_INLINE_EXECUTION_DEPTH`].
+fn inline_execution_allowed() -> bool {
+    INLINE_EXECUTION_DEPTH.get() < MAX_INLINE_EXECUTION_DEPTH
+}
+
+/// Counts one level of inline task execution on this thread, see [`MAX_INLINE_EXECUTION_DEPTH`].
+struct InlineExecutionDepthGuard;
+
+impl InlineExecutionDepthGuard {
+    fn enter() -> Self {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() + 1);
+        Self
+    }
+}
+
+impl Drop for InlineExecutionDepthGuard {
+    fn drop(&mut self) {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() - 1);
+    }
+}
+
+/// Polls `future` once on the current thread. When it doesn't complete, it is spawned so it is
+/// driven to completion as usual. Returns whether it completed.
+///
+/// The waker used for the inline poll never wakes anything, which is fine: a spawned task is always
+/// polled at least once, and that poll registers the real waker.
+fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
+    let _depth_guard = InlineExecutionDepthGuard::enter();
+    let mut future = Box::pin(future);
+    match future
+        .as_mut()
+        .poll(&mut Context::from_waker(Waker::noop()))
+    {
+        Poll::Ready(()) => true,
+        Poll::Pending => {
+            tokio::task::spawn(future);
+            false
+        }
+    }
+}
+
+/// Called by a read that got an [`EventListener`] instead of a value: executes the task inline when
+/// it is scheduled but not started yet, so that the read can go on without waiting for a worker.
+/// Returns whether the read should be retried because the task's execution completed.
+///
+/// This is the only place where reads pay for inline execution: a read that finds its value does no
+/// extra work at all, which is why this is kept out of the caller's hot path.
+#[inline(never)]
+pub(crate) fn execute_read_target_inline(
+    turbo_tasks: &dyn TurboTasksApi,
+    key: ScheduleKey,
+) -> bool {
+    if !inline_execution_allowed() {
+        // Nested too deeply. The task may have been queued for this reader (see
+        // `TurboTasks::schedule_for_reader`), so it still needs a worker.
+        turbo_tasks.ensure_scheduled_tasks_are_running();
+        return false;
+    }
+    turbo_tasks.try_execute_scheduled_task_inline(key)
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -871,8 +986,25 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
-        self.priority_runner.schedule(
-            &self.pin(),
+        let task = ScheduledTask::Task {
+            task_id,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
+    }
+
+    /// Schedules a task that a read is about to wait for: it is queued *without* spawning a worker,
+    /// so that the reader can take it out of the queue and execute it inline (see
+    /// [`TurboTasks::try_execute_scheduled_task_inline`]) instead of racing a worker for it.
+    ///
+    /// The caller must be a read that attempts the inline execution right afterwards; that attempt
+    /// is what makes sure a worker picks the task up when the reader doesn't execute it itself.
+    #[track_caller]
+    pub fn schedule_for_reader(&self, task_id: TaskId, priority: TaskPriority) {
+        self.begin_foreground_job();
+        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
+
+        self.priority_runner.schedule_without_worker(
             ScheduledTask::Task {
                 task_id,
                 span: Span::current(),
@@ -900,19 +1032,40 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 )
             });
 
-        self.priority_runner.schedule(
-            &self.pin(),
-            ScheduledTask::LocalTask {
-                ty,
-                persistence,
-                local_task_id,
-                global_task_state,
-                span: Span::current(),
-            },
-            priority,
-        );
+        let task = ScheduledTask::LocalTask {
+            ty,
+            persistence,
+            execution_id,
+            local_task_id,
+            global_task_state,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
 
         RawVc::local_output(execution_id, local_task_id, persistence)
+    }
+
+    /// Takes the task's execution out of the scheduler queue and polls it on the current thread, so
+    /// that a read of a task that is scheduled but not started yet doesn't have to wait for a
+    /// worker. Returns whether the execution completed.
+    ///
+    /// When the task is not in the queue (a worker already picked it up, it was never scheduled, or
+    /// it is already done) nothing is executed and `false` is returned. When the execution doesn't
+    /// complete on the first poll, it is spawned to be completed as usual.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        let this = self.pin();
+        // An execution that doesn't complete inline is handed over to the runtime, so there has to
+        // be one. Reads from outside a runtime keep waiting for a worker, as they always did.
+        if tokio::runtime::Handle::try_current().is_ok()
+            && let Some(future) = self.priority_runner.claim(&this, &key)
+        {
+            return poll_once_or_spawn(future);
+        }
+        // The task might have been queued for this reader without a worker (see
+        // [`TurboTasks::schedule_for_reader`]); since we are not executing it, make sure that a
+        // worker picks it up.
+        self.priority_runner.ensure_worker(&this);
+        false
     }
 
     fn begin_foreground_job(&self) {
@@ -1291,6 +1444,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
             ScheduledTask::LocalTask {
                 ty,
                 persistence,
+                execution_id: _,
                 local_task_id,
                 global_task_state,
                 span,
@@ -1537,6 +1691,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             current_task_if_available("reading collectibles"),
             self,
         )
+    }
+
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        self.try_execute_scheduled_task_inline(key)
+    }
+
+    fn ensure_scheduled_tasks_are_running(&self) {
+        self.priority_runner.ensure_worker(&self.pin());
     }
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
@@ -1948,7 +2110,14 @@ pub(crate) async fn read_task_output(
     loop {
         match this.try_read_task_output(id, options)? {
             Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
+            Err(listener) => {
+                // The task is not done yet. If it is only scheduled, execute it right here instead
+                // of waiting for a worker to pick it up.
+                if execute_read_target_inline(this, ScheduleKey::Task(id)) {
+                    continue;
+                }
+                listener.await
+            }
         }
     }
 }
@@ -2284,7 +2453,83 @@ pub(crate) async fn read_local_output(
     loop {
         match this.try_read_local_output(execution_id, local_task_id)? {
             Ok(raw_vc) => return Ok(raw_vc),
-            Err(event_listener) => event_listener.await,
+            Err(event_listener) => {
+                // The local task is not done yet. If it is only scheduled, execute it right here
+                // instead of waiting for a worker to pick it up.
+                if execute_read_target_inline(
+                    this,
+                    ScheduleKey::LocalTask(execution_id, local_task_id),
+                ) {
+                    continue;
+                }
+                event_listener.await
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inline_execution_depth_guard_restores_depth() {
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+        {
+            let _outer = InlineExecutionDepthGuard::enter();
+            {
+                let _inner = InlineExecutionDepthGuard::enter();
+                assert_eq!(INLINE_EXECUTION_DEPTH.get(), 2);
+            }
+            assert_eq!(INLINE_EXECUTION_DEPTH.get(), 1);
+        }
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[test]
+    fn test_inline_depth_cap() {
+        assert!(inline_execution_allowed(), "nothing is nested yet");
+        let mut guards = (0..MAX_INLINE_EXECUTION_DEPTH)
+            .map(|_| InlineExecutionDepthGuard::enter())
+            .collect::<Vec<_>>();
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), MAX_INLINE_EXECUTION_DEPTH);
+        assert!(
+            !inline_execution_allowed(),
+            "at the nesting cap reads wait for a worker instead of executing inline"
+        );
+
+        // One level below the cap inline execution is allowed again.
+        guards.pop();
+        assert!(inline_execution_allowed());
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_completed_execution() {
+        assert!(
+            poll_once_or_spawn(async {}),
+            "a future that completes on the first poll is executed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_pending_execution() {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let done = Arc::new(AtomicBool::new(false));
+        let done_in_task = done.clone();
+        assert!(
+            !poll_once_or_spawn(async move {
+                // Yields on the first poll, so it cannot be executed inline.
+                tokio::task::yield_now().await;
+                done_in_task.store(true, Ordering::SeqCst);
+                let _ = tx.send(());
+            }),
+            "a future that yields is not completed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+
+        // ...but it was spawned, so it still runs to completion.
+        rx.await.unwrap();
+        assert!(done.load(Ordering::SeqCst));
     }
 }

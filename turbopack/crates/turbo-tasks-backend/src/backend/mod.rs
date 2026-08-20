@@ -799,7 +799,9 @@ impl TurboTasksBackend {
         // done: true } it must have Output and would early return.
         let old = task.set_in_progress(in_progress_state);
         debug_assert!(old.is_none(), "InProgress already exists");
-        ctx.schedule_task(task, TaskPriority::Recomputation);
+        // The reader is going to wait for this task, so it gets a chance to execute it inline
+        // instead of handing it to a worker.
+        ctx.schedule_task_for_reader(task, TaskPriority::Recomputation);
 
         Ok(Err(listener))
     }
@@ -940,7 +942,9 @@ impl TurboTasksBackend {
             TaskExecutionReason::CellNotAvailable,
             EventDescription::new(|| task.get_task_desc_fn()),
         );
-        ctx.schedule_task(task, TaskPriority::Recomputation);
+        // The reader is going to wait for this task, so it gets a chance to execute it inline
+        // instead of handing it to a worker.
+        ctx.schedule_task_for_reader(task, TaskPriority::Recomputation);
 
         Ok(Err(listener))
     }
