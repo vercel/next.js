@@ -1371,8 +1371,12 @@ impl FileSystem for DiskFileSystem {
                                 })?;
                                 has_old_content = false;
                             }
-                            #[cfg(not(windows))]
+                            // `std::os::unix` does not exist on wasi; the equivalent lives in
+                            // `std::os::wasi::fs` and takes the same (target, link) argument order.
+                            #[cfg(all(not(windows), not(target_os = "wasi")))]
                             let io_result = std::os::unix::fs::symlink(&target, &**full_path);
+                            #[cfg(target_os = "wasi")]
+                            let io_result = std::os::wasi::fs::symlink_path(&target, &**full_path);
                             #[cfg(windows)]
                             let io_result = if is_directory {
                                 std::os::windows::fs::junction_point(&target, &**full_path)
