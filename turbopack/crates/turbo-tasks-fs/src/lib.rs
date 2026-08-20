@@ -63,7 +63,6 @@ pub use crate::{
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
-    windows::to_verbatim_with_case_folded_disk,
 };
 
 #[turbo_tasks::value_trait]
