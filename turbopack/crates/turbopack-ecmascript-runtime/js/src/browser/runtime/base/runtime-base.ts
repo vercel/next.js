@@ -38,10 +38,22 @@ interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
 const browserContextPrototype =
   Context.prototype as TurbopackBrowserBaseContext<unknown>
 
+const MODULE_FEDERATION_CHUNK_BASE_PREFIX = '__turbopack_module_federation__:'
 const RUNTIME_CHUNK_BASE_PATH =
   typeof TURBOPACK_CHUNK_BASE_PATH === 'string'
     ? TURBOPACK_CHUNK_BASE_PATH
-    : CHUNK_BASE_PATH
+    : CHUNK_BASE_PATH.startsWith(MODULE_FEDERATION_CHUNK_BASE_PREFIX) &&
+        typeof document !== 'undefined' &&
+        document.currentScript?.src
+      ? new URL(
+          '../'.repeat(
+            Number(
+              CHUNK_BASE_PATH.slice(MODULE_FEDERATION_CHUNK_BASE_PREFIX.length)
+            )
+          ),
+          document.currentScript.src
+        ).href
+      : CHUNK_BASE_PATH
 
 // Provided by build or dev base
 declare function instantiateModule(
