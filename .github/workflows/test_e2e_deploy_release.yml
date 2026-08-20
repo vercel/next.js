@@ -93,6 +93,9 @@ jobs:
   test-deploy:
     name: Run Deploy Tests
     needs: setup
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:

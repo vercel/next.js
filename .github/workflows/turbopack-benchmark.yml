@@ -22,17 +22,26 @@ env:
   CARGO_INCREMENTAL: 0
   # For faster CI
   RUST_LOG: 'off'
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
   benchmark-tiny:
     name: Benchmark Rust Crates (tiny)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Rust toolchain
@@ -45,8 +54,6 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build app build benchmarks
         run: cargo codspeed build -p next-api
@@ -60,7 +67,17 @@ jobs:
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
     runs-on: ubuntu-latest-16-core-oss
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Rust toolchain
@@ -73,8 +90,6 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -96,7 +111,17 @@ jobs:
     name: Benchmark Rust Crates (large)
     if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest-16-core-oss
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Rust toolchain
@@ -109,8 +134,6 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build the benchmark target(s)
         run: cargo codspeed build -p turbopack -p turbopack-bench
