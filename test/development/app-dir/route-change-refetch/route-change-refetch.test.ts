@@ -91,16 +91,6 @@ describe('route-change-refetch - App Router', () => {
 
     try {
       await addPageAndWaitUntilServable('/zz-added')
-      // If the tab reacts to the announcement before the server can serve
-      // the page, it gets the 404 again and stays there — a pre-existing
-      // bug that's being fixed separately. Editing the page makes the
-      // server announce again, now that the page can be served.
-      // TODO: Remove these edits (in the tests below too) once that bug is
-      // fixed; these tests then cover it directly.
-      await next.patchFile(
-        'app/zz-added/page.tsx',
-        `export default function Page() { return <p id="added" data-rev="2">/zz-added</p> }`
-      )
       await retry(async () => {
         expect(await browser.elementById('added').text()).toBe('/zz-added')
       }, 15_000)
@@ -187,15 +177,6 @@ describe('route-change-refetch - App Router', () => {
       await retry(async () => {
         expect((await next.fetch('/docs/abc')).status).toBe(200)
       }, 15_000)
-      await next.patchFile(
-        'app/docs/[slug]/page.tsx',
-        `export default async function Page(props: {
-          params: Promise<{ slug: string }>
-        }) {
-          const { slug } = await props.params
-          return <p id="added" data-rev="2">{slug}</p>
-        }`
-      )
       await retry(async () => {
         expect(await browser.elementById('added').text()).toBe('abc')
       }, 15_000)
@@ -223,10 +204,6 @@ describe('route-change-refetch - App Router', () => {
       await retry(async () => {
         expect((await next.fetch('/grouped')).status).toBe(200)
       }, 15_000)
-      await next.patchFile(
-        'app/(group)/grouped/page.tsx',
-        `export default function Page() { return <p id="added" data-rev="2">grouped</p> }`
-      )
       await retry(async () => {
         expect(await browser.elementById('added').text()).toBe('grouped')
       }, 15_000)
@@ -256,10 +233,6 @@ describe('route-change-refetch - App Router', () => {
           'id="static"'
         )
       }, 15_000)
-      await next.patchFile(
-        'app/posts/123/page.tsx',
-        `export default function Page() { return <p id="static" data-rev="2">static 123</p> }`
-      )
       await retry(async () => {
         expect(await browser.elementById('static').text()).toBe('static 123')
       }, 15_000)

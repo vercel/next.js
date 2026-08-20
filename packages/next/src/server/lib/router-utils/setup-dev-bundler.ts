@@ -1238,47 +1238,47 @@ async function startWatcher(
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
-        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
-        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
-        if (!opts.turbo) {
-          const sortedRoutesChanged =
-            prevSortedRoutes.length !== sortedRoutes.length ||
-            prevSortedRoutes.some((route, idx) => route !== sortedRoutes[idx])
+        // Announced from here, right after the route tables were updated, so
+        // that a client reacting to the announcement can be served. With
+        // Turbopack the compiler may not have seen the file yet; ensurePage
+        // waits for it.
+        const sortedRoutesChanged =
+          prevSortedRoutes.length !== sortedRoutes.length ||
+          prevSortedRoutes.some((route, idx) => route !== sortedRoutes[idx])
 
-          // The first aggregation has nothing to compare against, so every
-          // route would look added to a client that is already connected.
-          if (hasComputedSortedRoutes && sortedRoutesChanged) {
-            const addedRoutes = sortedRoutes.filter(
-              (route) => !prevSortedRoutes.includes(route)
-            )
-            const removedRoutes = prevSortedRoutes.filter(
-              (route) => !sortedRoutes.includes(route)
-            )
+        // The first aggregation has nothing to compare against, so every
+        // route would look added to a client that is already connected.
+        if (hasComputedSortedRoutes && sortedRoutesChanged) {
+          const addedRoutes = sortedRoutes.filter(
+            (route) => !prevSortedRoutes.includes(route)
+          )
+          const removedRoutes = prevSortedRoutes.filter(
+            (route) => !sortedRoutes.includes(route)
+          )
 
-            // emit the change so clients fetch the update
+          // emit the change so clients fetch the update
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+            data: [
+              {
+                devPagesManifest: true,
+              },
+            ],
+          })
+
+          addedRoutes.forEach((route) => {
             hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-              data: [
-                {
-                  devPagesManifest: true,
-                },
-              ],
+              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+              data: [route],
             })
+          })
 
-            addedRoutes.forEach((route) => {
-              hotReloader.send({
-                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-                data: [route],
-              })
+          removedRoutes.forEach((route) => {
+            hotReloader.send({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+              data: [route],
             })
-
-            removedRoutes.forEach((route) => {
-              hotReloader.send({
-                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-                data: [route],
-              })
-            })
-          }
+          })
         }
         prevSortedRoutes = sortedRoutes
         hasComputedSortedRoutes = true

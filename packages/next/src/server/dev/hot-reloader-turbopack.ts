@@ -1,5 +1,5 @@
 import type { Socket } from 'net'
-import { mkdir, writeFile } from 'fs/promises'
+import { access, mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute, sep } from 'path'
@@ -161,6 +161,15 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+
+/**
+ * How long `ensurePage` waits for a route whose file exists on disk to show
+ * up in Turbopack's entrypoints. The expected wake-up is the next entrypoints
+ * update; the deadline only bounds states where no update ever arrives (a
+ * broken file watcher, a route key Turbopack never reports), in which case
+ * the request fails as not found like it would have without waiting.
+ */
+const ENSURE_PAGE_ENTRYPOINTS_WAIT_MS = 10_000
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -560,6 +569,23 @@ export async function createHotReloaderTurbopack(
   let currentEntriesHandling = new Promise(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
+  // Unlike `currentEntriesHandling`, which is resolved while no entrypoints
+  // update is in flight, this promise is always pending. Awaiting it observes
+  // the completion of the next entrypoints update, including updates that
+  // haven't started yet.
+  let nextEntrypointsUpdateResolve!: () => void
+  let nextEntrypointsUpdate = new Promise<void>(
+    (resolve) => (nextEntrypointsUpdateResolve = resolve)
+  )
+  function finishEntrypointsUpdate() {
+    currentEntriesHandlingResolve!()
+    currentEntriesHandlingResolve = undefined
+    const resolve = nextEntrypointsUpdateResolve
+    nextEntrypointsUpdate = new Promise<void>(
+      (r) => (nextEntrypointsUpdateResolve = r)
+    )
+    resolve()
+  }
 
   const assetMapper = new AssetMapper()
 
@@ -797,10 +823,6 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
-  // Undefined until the first entrypoints emission. That one has nothing to
-  // compare against, so every route it lists would look added.
-  let previousRouteKeys: Set<string> | undefined
-
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
   // request/render activity that changed no files. This allows us to prevent
@@ -1046,20 +1068,9 @@ export async function createHotReloaderTurbopack(
       if (!('routes' in entrypoints)) {
         printBuildErrors(entrypoints, true)
 
-        currentEntriesHandlingResolve!()
-        currentEntriesHandlingResolve = undefined
+        finishEntrypointsUpdate()
         continue
       }
-
-      const routes = entrypoints.routes
-      const prevRouteKeys = previousRouteKeys
-      const addedRoutes = prevRouteKeys
-        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
-        : []
-      const removedRoutes = prevRouteKeys
-        ? [...prevRouteKeys].filter((route) => !routes.has(route))
-        : []
-      previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
         entrypoints: entrypoints as any,
@@ -1097,34 +1108,7 @@ export async function createHotReloaderTurbopack(
         },
       })
 
-      if (addedRoutes.length > 0 || removedRoutes.length > 0) {
-        // When the list of routes changes a new manifest should be fetched for Pages Router.
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-          data: [
-            {
-              devPagesManifest: true,
-            },
-          ],
-        })
-      }
-
-      for (const route of addedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-          data: [route],
-        })
-      }
-
-      for (const route of removedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-          data: [route],
-        })
-      }
-
-      currentEntriesHandlingResolve!()
-      currentEntriesHandlingResolve = undefined
+      finishEntrypointsUpdate()
     }
   }
 
@@ -1904,9 +1888,15 @@ export async function createHotReloaderTurbopack(
               )
             : page
 
-          const route = isInsideAppDir
-            ? currentEntrypoints.app.get(normalizedAppPage)
-            : currentEntrypoints.page.get(page)
+          const findRoute = () =>
+            isInsideAppDir
+              ? currentEntrypoints.app.get(normalizedAppPage)
+              : currentEntrypoints.page.get(page)
+
+          // Captured before the lookup so that an update finishing between
+          // the lookup and the wait below cannot be missed.
+          let pendingEntrypointsUpdate = nextEntrypointsUpdate
+          let route = findRoute()
 
           if (!route) {
             // TODO: why is this entry missing in turbopack?
@@ -1916,7 +1906,36 @@ export async function createHotReloaderTurbopack(
             if (page === '/src/proxy') return
             if (page === '/instrumentation') return
             if (page === '/src/instrumentation') return
+          }
 
+          // The route table that matched this request is built from a
+          // separate file watcher, which can see a new file before Turbopack's
+          // watcher does. While the file exists, wait for Turbopack to report
+          // the route rather than failing the request.
+          const deadline = Date.now() + ENSURE_PAGE_ENTRYPOINTS_WAIT_MS
+          while (!route) {
+            try {
+              await access(routeDef.filename)
+            } catch {
+              break
+            }
+            const timeLeft = deadline - Date.now()
+            if (timeLeft <= 0) break
+            const pending = pendingEntrypointsUpdate
+            const updated = await new Promise<boolean>((resolve) => {
+              const timer = setTimeout(() => resolve(false), timeLeft)
+              timer.unref()
+              pending.then(() => {
+                clearTimeout(timer)
+                resolve(true)
+              })
+            })
+            if (!updated) break
+            pendingEntrypointsUpdate = nextEntrypointsUpdate
+            route = findRoute()
+          }
+
+          if (!route) {
             throw new PageNotFoundError(`route not found ${page}`)
           }
 
