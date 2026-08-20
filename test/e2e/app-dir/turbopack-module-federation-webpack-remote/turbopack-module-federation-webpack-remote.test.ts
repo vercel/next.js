@@ -30,6 +30,10 @@ async function buildRemote(context: string, outputPath: string) {
                 singleton: true,
                 requiredVersion: '^1.0.0',
               },
+              'remote-shared': {
+                singleton: true,
+                version: '2.1.0',
+              },
             },
           }),
         ],
@@ -75,6 +79,18 @@ describe('turbopack module federation with a webpack remote', () => {
     await retry(async () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#shared-message').text()).toBe(
+        'webpack remote sharing'
+      )
+      expect(await browser.elementByCss('#remote-shared-message').text()).toBe(
+        'webpack remote sharing'
+      )
+      expect(await browser.elementByCss('#strict-error').text()).toContain(
+        'No satisfying shared module for remote-shared'
+      )
+      expect(await browser.elementByCss('#fallback-message').text()).toBe(
+        'local fallback sharing'
       )
     })
   })
