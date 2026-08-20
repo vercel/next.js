@@ -182,6 +182,35 @@ describe('back navigation before hydration after reload', () => {
     expect(new URL(await browser.url()).search).toBe('?page=2')
   })
 
+  // The control case: a reload with no history change must hydrate the
+  // server HTML in place, and the recovery above must not kick in.
+  it('hydrates in place on an ordinary reload', async () => {
+    const { browser, page, releaseScripts } = await clickThenReloadStalled(
+      homePath,
+      'to-post',
+      '#post'
+    )
+
+    // Tag the server-rendered heading so we can tell hydration from a
+    // client-side re-render of the page.
+    await page.evaluate('document.getElementById("post").__server = true')
+    releaseScripts()
+
+    await retry(async () => {
+      expect(await readRouterUrl(browser)).toBe(postPath)
+    })
+    expect(await browser.eval('window.__stayed')).toBe(true)
+    expect(await browser.eval('document.getElementById("post").__server')).toBe(
+      true
+    )
+
+    await browser.elementById('to-home').click()
+    await waitForPage(browser, '#home')
+    await browser.back()
+    await waitForPage(browser, '#post')
+    expect(await browser.eval('window.__stayed')).toBe(true)
+  })
+
   // History changes before hydration that are NOT missed traversals must
   // not trigger any recovery: the router should adopt the current entry on
   // its first history write, and in particular never cause a full reload.
