@@ -3,8 +3,20 @@
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
 use self::raw_types::*;
+// On 32-bit targets the tagged value is a `u64`, which means `new_ptr` has to cast the pointer
+// to an integer. That is not permitted in a `const` context, and `rcstr!` expands to a
+// `const`, so every `rcstr!` with a non-inline string would fail to compile with
+// `error[E0080]: unable to turn pointer into integer`.
+//
+// wasm is 32-bit but has no use for the wider tag space, so give it the same pointer-based
+// representation 64-bit targets use. `MAX_INLINE_LEN` drops from 7 to 3 there, so slightly
+// more strings take the static path, but `rcstr!` keeps working and behaves identically on
+// every target.
+//
+// Native 32-bit targets still select the `u64` representation and still cannot use `rcstr!`;
+// fixing that needs the same treatment (or a representation that avoids the cast entirely).
 #[cfg(not(any(
-    target_pointer_width = "32",
+    all(target_pointer_width = "32", not(target_family = "wasm")),
     target_pointer_width = "16",
     feature = "atom_size_64",
     feature = "atom_size_128"
@@ -19,7 +31,7 @@ mod raw_types {
 
 #[cfg(all(
     any(
-        target_pointer_width = "32",
+        all(target_pointer_width = "32", not(target_family = "wasm")),
         target_pointer_width = "16",
         feature = "atom_size_64"
     ),
@@ -31,7 +43,7 @@ mod raw_types {
 }
 
 #[cfg(not(any(
-    target_pointer_width = "32",
+    all(target_pointer_width = "32", not(target_family = "wasm")),
     target_pointer_width = "16",
     feature = "atom_size_64",
     feature = "atom_size_128"
@@ -53,7 +65,7 @@ impl TaggedValue {
     #[inline(always)]
     pub const fn new_ptr<T>(value: NonNull<T>) -> Self {
         #[cfg(any(
-            target_pointer_width = "32",
+            all(target_pointer_width = "32", not(target_family = "wasm")),
             target_pointer_width = "16",
             feature = "atom_size_64",
             feature = "atom_size_128"
@@ -66,7 +78,7 @@ impl TaggedValue {
         }
 
         #[cfg(not(any(
-            target_pointer_width = "32",
+            all(target_pointer_width = "32", not(target_family = "wasm")),
             target_pointer_width = "16",
             feature = "atom_size_64",
             feature = "atom_size_128"
@@ -90,7 +102,7 @@ impl TaggedValue {
     #[inline(always)]
     pub fn get_ptr(&self) -> *const c_void {
         #[cfg(any(
-            target_pointer_width = "32",
+            all(target_pointer_width = "32", not(target_family = "wasm")),
             target_pointer_width = "16",
             feature = "atom_size_64",
             feature = "atom_size_128"
@@ -101,7 +113,7 @@ impl TaggedValue {
             (self.value.get() as usize & !(TAG_MASK as usize)) as _
         }
         #[cfg(not(any(
-            target_pointer_width = "32",
+            all(target_pointer_width = "32", not(target_family = "wasm")),
             target_pointer_width = "16",
             feature = "atom_size_64",
             feature = "atom_size_128"
