@@ -173,12 +173,6 @@ impl<T: QueryKey> QueryKey for &'_ T {
 }
 
 /// A trait for keys that can be stored in the database. They need to allow hashing and comparison.
-///
-/// A stored key must be **contiguous**: [`Self::as_slice`] hands out its bytes directly, which lets
-/// the SST writer sort a block by key without re-serializing each key on every comparison.
-/// Composite keys therefore have to be concatenated by the caller before being stored. That is no
-/// burden in practice — the production implementor wraps an owned buffer — and querying is
-/// unaffected, since [`QueryKey`] still supports non-contiguous keys such as tuples.
 pub trait StoreKey: KeyBase + Ord {
     /// The key's bytes.
     fn as_slice(&self) -> &[u8];

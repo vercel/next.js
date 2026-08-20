@@ -41,14 +41,6 @@ pub const BLOCK_TYPE_FIXED_KEY_WITH_HASH: u8 = 3;
 pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
 
 /// Whether a key block stores a hash per entry, and therefore what order its entries are in.
-///
-/// These two facts are one decision, not two: a block that stores the hash is sorted by
-/// `(hash, key)` because comparing the stored hash first is free, while a block that omits it is
-/// sorted by key alone so that a lookup never has to recompute a hash to compare. Bundling them in
-/// one enum keeps every site from re-deriving the order from an incidental proxy such as
-/// `hash_len == 0`, and lets the writer and the readers agree by construction — the writer picks a
-/// variant, [`Self::block_type`] turns it into the byte on disk, and [`Self::from_block_type`]
-/// turns that byte back into the same variant.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum KeyBlockLayout {
     /// 8-byte hash stored ahead of each key; entries sorted by `(hash, key)`.
@@ -839,9 +831,6 @@ enum CurrentKeyBlockKind {
 
 impl CurrentKeyBlockKind {
     /// Decodes entry `index`, dispatching on the block's entry layout.
-    ///
-    /// The single place iteration decodes an entry, shared by the `(hash, key)`-order planning in
-    /// [`StaticSortedFileIter::parse_key_block`] and by [`StaticSortedFileIter::next_internal`].
     fn entry<'l>(
         &self,
         entries: &'l [u8],
@@ -871,15 +860,8 @@ struct CurrentKeyBlock {
     entry_count: u32,
     /// Current position within the key block.
     index: u32,
-    /// Iteration plan for a [`KeyBlockLayout::KeyOnly`] block: `(key hash, entry index)` per
-    /// entry, sorted into `(hash, key)` order. Empty for [`KeyBlockLayout::HashThenKey`]
-    /// blocks, which are already in that order and read their hash straight from the entry.
-    ///
-    /// `KeyOnly` blocks are stored in *key* order so lookups can binary search without hashing,
-    /// but [`Iterator::next`] must yield `(hash, key)` order because
-    /// [`crate::merge_iter::MergeIter`] merges on that during compaction. Reordering needs
-    /// each entry's hash, which the block does not store — and the iterator has to report that
-    /// hash anyway, so it is computed once here and kept rather than recomputed per entry.
+    /// Iteration plan for a [`KeyBlockLayout::KeyOnly`] block
+    /// hash to key index sequence
     hash_order: Vec<(u64, u32)>,
 }
 
@@ -988,9 +970,7 @@ impl StaticSortedFileIter {
             (CurrentKeyBlockKind::Variable { offsets }, entries)
         };
 
-        // A `KeyOnly` block is stored in key order, so plan the `(hash, key)`-ordered traversal
-        // now. This is the block's one decode pass: it also yields the hashes
-        // `next_internal` reports.
+        // Compute the hash order if needed
         let hash_order = match layout {
             KeyBlockLayout::HashThenKey => Vec::new(),
             KeyBlockLayout::KeyOnly => hash_order_for_block(entry_count, |i| {
@@ -1013,9 +993,6 @@ impl StaticSortedFileIter {
         loop {
             let kb = &mut self.current_key_block;
             if kb.index < kb.entry_count {
-                // A `KeyOnly` block is stored in key order, so `hash_order` supplies both the entry
-                // to visit at this position and the hash computed when the order was planned. A
-                // `HashThenKey` block is already in order and carries its hash inline.
                 let (precomputed_hash, index) = match kb.layout {
                     KeyBlockLayout::HashThenKey => (None, kb.index as usize),
                     KeyBlockLayout::KeyOnly => {

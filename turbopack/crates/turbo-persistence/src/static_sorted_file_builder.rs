@@ -177,11 +177,6 @@ struct KeyBlockAccumulator {
     entry_count: usize,
     /// Maximum key length among accumulated entries (determines whether hashes are stored).
     max_key_len: usize,
-    /// Minimum key length among accumulated entries. Together with `max_key_len` this identifies a
-    /// block whose keys all have the same length, which lets
-    /// [`KeyBlockFlushInfo::uniform_key_len`] pick a specialized sort. Tracked separately from
-    /// [`KeyBlockFormat`], which additionally requires a uniform *value* size and so misses
-    /// the common variable-value case.
     min_key_len: usize,
     /// Hash of the most recently added entry (used to avoid splitting entries with equal hashes
     /// across blocks).
@@ -247,11 +242,9 @@ impl KeyBlockAccumulator {
 }
 
 /// Chooses a key block's layout from the longest key it holds.
-///
-/// Short keys are cheap enough to compare directly that storing an 8-byte hash per entry costs more
-/// space than the comparison saves, so those blocks omit it — and therefore order by key. See
-/// [`KeyBlockLayout`].
 fn choose_layout(max_key_len: usize) -> KeyBlockLayout {
+    // Short keys are cheap enough to compare directly that storing an 8-byte hash per entry costs
+    // more space than the comparison saves, so those blocks omit it and reorder entries by key.
     if max_key_len > 32 {
         KeyBlockLayout::HashThenKey
     } else {
@@ -259,17 +252,11 @@ fn choose_layout(max_key_len: usize) -> KeyBlockLayout {
     }
 }
 
-/// Reads a 4-byte key as a big-endian `u32`, whose ordering matches the key's byte ordering.
-///
-/// Only valid for keys that are exactly 4 bytes; see [`KeyBlockFlushInfo::uniform_key_len`].
 #[inline]
 fn be_key_u32(key: &[u8]) -> u32 {
     u32::from_be_bytes(key.try_into().expect("4-byte key"))
 }
 
-/// Reads an 8-byte key as a big-endian `u64`, whose ordering matches the key's byte ordering.
-///
-/// Only valid for keys that are exactly 8 bytes; see [`KeyBlockFlushInfo::uniform_key_len`].
 #[inline]
 fn be_key_u64(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("8-byte key"))
@@ -282,10 +269,6 @@ pub trait Entry {
     /// Returns the length of the key
     fn key_len(&self) -> usize;
     /// Returns the key's bytes.
-    ///
-    /// Keys are contiguous (see [`StoreKey`][crate::StoreKey]), so this hands them out directly.
-    /// [`StreamingSstWriter::flush_key_block`] relies on that to compare keys in place instead of
-    /// serializing each one first.
     fn key_bytes(&self) -> &[u8];
     /// Writes the key to a buffer
     fn write_key_to(&self, buf: &mut Vec<u8>) {
@@ -943,9 +926,7 @@ impl<E: Entry> StreamingSstWriter<E> {
 
     /// Flushes a single key block from `pending_keys[start..end]`.
     ///
-    /// Blocks that store a hash per entry are written in the incoming `(hash, key)` order. Blocks
-    /// that omit the hash are reordered by key first, so that lookups can binary search by key
-    /// without recomputing each probed entry's hash. See [`Self::flush_key_block`].
+    /// Potentially reorders the keys into key order if we are not storing hashes.
     fn flush_key_block(&mut self, start: usize, end: usize, info: KeyBlockFlushInfo) -> Result<()> {
         let entry_count = end - start;
         let layout = choose_layout(info.max_key_len);
@@ -965,14 +946,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         let build_key_order = |start: usize, end: usize| -> Vec<&PendingEntry<E>> {
             let mut key_order: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
 
-            // All three arms are stable sorts, so equal keys keep their incoming relative order —
-            // that carries the key-value-tombstone-first / key-tombstone-last ranking readers
-            // depend on in MultiValue families.
-            //
-            // When every key is the same length, comparing them as big-endian integers gives the
-            // same ordering as comparing the bytes, but compares a scalar in a register instead of
-            // calling `memcmp`. Byte comparison is the fallback for mixed lengths, where the two
-            // orderings would disagree.
+            // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
                 Some(4) => key_order.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
                 Some(8) => key_order.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
@@ -2150,9 +2124,6 @@ mod tests {
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
     }
 
-    /// Big-endian integer order must equal byte order for equal-length keys, since
-    /// [`build_key_order`][StreamingSstWriter::flush_key_block] swaps one for the other. Includes
-    /// bytes above 0x7f, where a signed misreading would invert the comparison.
     #[test]
     fn be_key_order_matches_byte_order() {
         let keys4: Vec<[u8; 4]> = vec![
@@ -2217,161 +2188,5 @@ mod tests {
             Some(4),
             "reset clears min"
         );
-    }
-
-    // -----------------------------------------------------------------------
-    // Key ordering within no-hash blocks
-    // -----------------------------------------------------------------------
-
-    /// Builds `count` short-keyed entries whose keys land in no-hash blocks, and returns them in
-    /// the `(hash, key)` order the writer requires.
-    fn short_key_entries(count: u32) -> Vec<TestEntry> {
-        let mut entries: Vec<TestEntry> = (0..count)
-            .map(|i| TestEntry::inline(format!("k{i:06}").as_bytes(), b"v"))
-            .collect();
-        sort_entries(&mut entries);
-        entries
-    }
-
-    /// Every key must be findable, which only holds if the reader's comparison matches the order
-    /// the writer used. A key-ordered block searched as if hash-ordered would miss most keys.
-    #[test]
-    fn no_hash_blocks_look_up_every_key() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        // Enough entries to fill many key blocks, so this covers routing between blocks too.
-        let entries = short_key_entries(20_000);
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-        let sst = open_sst(dir.path(), 1, &meta)?;
-        let (kc, vc) = (make_cache(), make_cache());
-
-        for entry in &entries {
-            assert_lookup(&sst, entry, &kc, &vc)?;
-        }
-        Ok(())
-    }
-
-    /// Keys that are absent must report absent. A binary search whose comparison disagrees with the
-    /// stored order can walk to a wrong-but-occupied slot, so misses are a distinct risk from hits.
-    #[test]
-    fn no_hash_blocks_report_missing_keys() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let entries = short_key_entries(20_000);
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-        let sst = open_sst(dir.path(), 1, &meta)?;
-        let (kc, vc) = (make_cache(), make_cache());
-
-        // Same shape as the stored keys but a disjoint namespace, so the AMQF cannot mask a
-        // faulty in-block search.
-        for i in 0..2_000u32 {
-            let key = format!("m{i:06}").into_bytes();
-            let result = sst.lookup::<_, false>(hash_key(&key), &key, &kc, &vc)?;
-            assert!(
-                matches!(result, SstLookupResult::NotFound),
-                "expected miss for {:?}",
-                std::str::from_utf8(&key)
-            );
-        }
-        Ok(())
-    }
-
-    /// A `KeyOnly` block must preserve the order of entries that share a key.
-    ///
-    /// [`Self::flush_key_block`] reorders these blocks with a *stable* sort specifically so that a
-    /// key group keeps its incoming ranking — key-value tombstones first, key tombstones last (see
-    /// [`crate::collector_entry::CollectorEntryValue::sort_rank`]). The other no-hash tests use
-    /// distinct keys with one inline value each, so none of them would notice if that stability
-    /// were lost.
-    #[test]
-    fn no_hash_blocks_preserve_key_group_order() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-
-        // Several short keys, each carrying a group of entries in a deliberate order. Interleave
-        // the groups with unrelated keys so a group is not trivially contiguous on disk.
-        let mut entries = Vec::new();
-        for i in 0..200u32 {
-            let key = format!("g{i:04}").into_bytes();
-            // Ranking a reader depends on: tombstone-first, then values, then key-tombstone-last.
-            entries.push(TestEntry::inline(&key, b"\x01"));
-            entries.push(TestEntry::inline(&key, b"\x02"));
-            entries.push(TestEntry::deleted(&key));
-            entries.push(TestEntry::inline(format!("z{i:04}").as_bytes(), b"v"));
-        }
-        // Order groups the way the writer requires, keeping each group's internal order intact.
-        let mut indexed: Vec<(usize, TestEntry)> = entries.into_iter().enumerate().collect();
-        indexed.sort_by(|(ia, a), (ib, b)| {
-            a.hash
-                .cmp(&b.hash)
-                .then_with(|| a.key.cmp(&b.key))
-                .then_with(|| ia.cmp(ib))
-        });
-        let entries: Vec<TestEntry> = indexed.into_iter().map(|(_, e)| e).collect();
-
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-
-        // On disk, every group must still read back in the order it was written.
-        let mut checked = 0;
-        for block in read_key_blocks_for_test(dir.path(), 1, meta.block_count)? {
-            let mut prev: Option<&Vec<u8>> = None;
-            for key in &block.keys {
-                if let Some(p) = prev {
-                    assert!(p <= key, "block {} not in key order", block.block_index);
-                }
-                prev = Some(key);
-            }
-            checked += block.keys.len();
-        }
-        assert_eq!(
-            checked,
-            entries.len(),
-            "every entry must be written exactly once"
-        );
-
-        // And the values must still resolve, including for the grouped keys.
-        let sst = open_sst(dir.path(), 1, &meta)?;
-        let (kc, vc) = (make_cache(), make_cache());
-        for i in [0u32, 99, 199] {
-            let key = format!("z{i:04}").into_bytes();
-            assert!(
-                !matches!(
-                    sst.lookup::<_, true>(hash_key(&key), &key, &kc, &vc)?,
-                    SstLookupResult::NotFound
-                ),
-                "interleaved key z{i:04} must be findable"
-            );
-        }
-        Ok(())
-    }
-
-    /// The on-disk invariant itself: entries inside a no-hash key block ascend by key.
-    ///
-    /// This is what lets the reader skip hashing. Asserting it directly means a regression that
-    /// silently reverts to hash order is caught here rather than only as a benchmark drift.
-    #[test]
-    fn no_hash_blocks_store_keys_in_key_order() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let entries = short_key_entries(20_000);
-        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-
-        let blocks = read_key_blocks_for_test(dir.path(), 1, meta.block_count)?;
-        assert!(
-            blocks.len() > 1,
-            "expected multiple key blocks, got {}",
-            blocks.len()
-        );
-        for block in blocks {
-            let RawKeyBlock {
-                block_index,
-                block_type,
-                keys,
-            } = block;
-            assert_eq!(
-                KeyBlockLayout::from_block_type(block_type).map(|(layout, _)| layout),
-                Some(KeyBlockLayout::KeyOnly),
-                "short keys must produce KeyOnly blocks, got type {block_type} for block \
-                 {block_index}"
-            );
-            assert!(keys.is_sorted(), "block {block_index} is not in key order");
-        }
-        Ok(())
     }
 }

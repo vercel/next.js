@@ -171,38 +171,11 @@ the inline range.
 
 ##### Entry ordering
 
-Keys are assigned to files and to blocks **by hash**: a file records the `min_hash`/`max_hash` of
-its contents, the index block routes a lookup to a key block by hash, and compaction reasons purely
-about hash ranges. That is what makes write-time sharding cheap — a writer can decide where a key
-belongs from its hash alone, without knowing any other key.
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a single key block, however, the order is chosen per block type:
 
-Within a single key block, however, the order is chosen per block type:
+- **With hash (types 1 and 3):** sorted by `(key hash, key)`.
+- **No hash (types 2 and 4):** sorted by **key** alone.
 
-- **With hash (types 1 and 3):** sorted by `(key hash, key)`. The hash is on disk, so comparing it
-  first is free and the key only breaks ties.
-- **No hash (types 2 and 4):** sorted by **key** alone. Since the hash is not stored, a
-  `(hash, key)` ordering would force the reader to recompute a key's hash at every binary-search
-  probe — roughly ten xxh3 hashes per lookup. Ordering by key lets the search compare key bytes
-  directly and hash nothing.
-
-Whether a block stores a hash and what order it is in are one decision, not two, so in code they are
-one value: `KeyBlockLayout` (`HashThenKey` / `KeyOnly`). The writer picks a variant and encodes it
-via `block_type()`; every reader decodes it back via `from_block_type()` and branches on the variant
-rather than re-deriving the order from an incidental proxy such as `hash_len == 0`.
-
-This is sound because a block is a contiguous slice of the hash-ordered stream, and the writer never
-splits a run of equal hashes across blocks. Permuting entries *inside* a block therefore cannot
-change which block a hash routes to, so every hash-range invariant above still holds.
-
-The cost is borne by `StaticSortedFileIter`, which must yield `(hash, key)` order because compaction
-merges on it. For a no-hash block the iterator hashes each key up front and sorts the resulting
-`(hash, index)` pairs, so iterating a block costs one `u32`-keyed sort plus a small allocation.
-Note that it does *not* add hashing: the iterator has always had to hash every key of a no-hash
-block in order to populate `LookupEntry::hash`, so the hashes the sort needs are ones it was
-computing anyway and are reused rather than recomputed.
-
-Within a key group (equal keys, `MultiValue` families) the relative order is preserved in both
-cases, so key-value tombstones still sort first and key tombstones last.
 
 ##### Key-value tombstones
 
@@ -247,9 +220,6 @@ mixed marker because it is not itself a valid entry type.
 
 Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
 
-Entry ordering follows the same rule as the variable-size blocks: type 3 is sorted by
-`(key hash, key)`, type 4 by key. See [Entry ordering](#entry-ordering).
-
 #### Value Block
 
 - no header, all bytes are data referenced by other blocks
@@ -274,7 +244,7 @@ Reading start from the current sequence number and goes downwards.
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
-    - Index Block: find key range that contains the key by binary search **on the hash**
+    - Index Block: find key range that contains the key by binary search using the **hash** of the key
       - found -> set block, continue
       - not found -> break
     - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
