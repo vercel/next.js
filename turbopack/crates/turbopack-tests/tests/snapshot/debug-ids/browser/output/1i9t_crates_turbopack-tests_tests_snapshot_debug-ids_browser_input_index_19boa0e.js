@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="64c9678c-f7a9-2121-4902-35dfa89f5d34")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="dbd8ebb8-84f9-b7ae-d333-c37441575012")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -388,9 +388,12 @@ contextPrototype.r = commonJsRequire;
  */ function parseRequest(request) {
     // Per the URI spec fragments can contain `?` characters, so we should trim it off first
     // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
-    const hashIndex = request.indexOf('#');
-    if (hashIndex !== -1) {
-        request = request.substring(0, hashIndex);
+    // A leading `#` identifies a package import specifier rather than a fragment.
+    if (!request.startsWith('#')) {
+        const hashIndex = request.indexOf('#');
+        if (hashIndex !== -1) {
+            request = request.substring(0, hashIndex);
+        }
     }
     const queryIndex = request.indexOf('?');
     if (queryIndex !== -1) {
@@ -2484,5 +2487,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=64c9678c-f7a9-2121-4902-35dfa89f5d34
+//# debugId=dbd8ebb8-84f9-b7ae-d333-c37441575012
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

@@ -3302,10 +3302,9 @@ async fn resolve_package_internal_with_imports_field(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
 ) -> Result<Vc<ResolveResult>> {
-    let Pattern::Constant(specifier) = pattern else {
-        bail!("PackageInternal requests can only be Constant strings");
-    };
-    if specifier == "#" || specifier.ends_with('/') {
+    if let Pattern::Constant(specifier) = pattern
+        && (specifier == "#" || specifier.ends_with('/'))
+    {
         ResolvingIssue {
             severity: resolve_error_severity(resolve_options).await?,
             file_path: file_path.clone(),
@@ -3331,7 +3330,7 @@ async fn resolve_package_internal_with_imports_field(
         package_json_path.clone(),
         resolve_options,
         imports,
-        Pattern::Constant(specifier.clone()),
+        pattern.clone(),
         conditions,
         unspecified_conditions,
         RcStr::default(),
