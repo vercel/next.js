@@ -402,7 +402,10 @@ async fn chunk_group_content_operation(
                     }
                     ChunkingType::PerEntry => {
                         // TODO currently not implemented
-                        GraphTraversalAction::Exclude
+                        bail!(
+                            "ChunkingType::PerEntry is currently only supported for \
+                             CollectingModule"
+                        );
                     }
                     ChunkingType::Emitted { .. } => {
                         // Already handled during module graph construction

@@ -10,7 +10,7 @@ use crate::{
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph, RefData,
-        chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper},
+        chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper, TraversalPriority},
     },
 };
 
@@ -90,29 +90,6 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         module_depth
     };
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct TraversalPriority {
-        depth: usize,
-        bitmap_len: u64,
-    }
-    impl PartialOrd for TraversalPriority {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-    impl Ord for TraversalPriority {
-        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            // BinaryHeap prioritizes high values
-
-            // Smaller depth has higher priority
-            let depth_order = self.depth.cmp(&other.depth).reverse();
-            // Smaller bitmap length has higher priority
-            let bitmap_len_order = self.bitmap_len.cmp(&other.bitmap_len).reverse();
-
-            depth_order.then(bitmap_len_order)
-        }
-    }
-
     // - Discover all collecting module
     // - Discover all emitted references
     // - Set module_entry_membership
@@ -128,7 +105,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     *e,
                     TraversalPriority {
                         depth: *module_depth.get(e).context("Module depth not found")?,
-                        bitmap_len: 0,
+                        chunk_group_len: 0,
                     },
                 ))
             })
@@ -184,7 +161,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                 depth: *module_depth
                     .get(&successor)
                     .context("Module depth not found")?,
-                bitmap_len: module_entry_membership
+                chunk_group_len: module_entry_membership
                     .get(&successor)
                     .context("Module entry membership not found")?
                     .len(),
@@ -230,6 +207,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
     // Now we have all necessary information. List out all collected references for each (Entry
     // Module, Collecting Module) pair they are contained in.
+
+    // Same type as `struct CollectedModules`:
+    // (Collecting Module) -> Vec<(entry_groups index, Vec<(Reference, Collected Module)>)>
     #[allow(clippy::type_complexity)]
     let mut collected_references: FxIndexMap<
         ResolvedVc<Box<dyn Module>>,

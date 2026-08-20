@@ -519,12 +519,17 @@ impl ChunkingType {
     }
 }
 
+/// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
 #[turbo_tasks::value(cell = "new")]
 pub struct ChunkGroupContentInner {
+    /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
+    /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    /// The modules that were imported with ChunkingType::Async
     #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    /// All modules that implement CollectingModule
     #[bincode(with = "turbo_bincode::indexset")]
     pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
