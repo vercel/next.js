@@ -34,12 +34,16 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
-import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import {
+  BLOCKING_ROUTE_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_LINK_EXPLANATION,
+} from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
@@ -113,6 +117,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'unrendered-segment') {
     return `Instant`
   }
+  if (errorDetails.type === 'link-prefetch-partial') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -132,6 +139,7 @@ type ErrorDetails =
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
   | UnrenderedSegmentErrorDetails
+  | LinkPrefetchPartialErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -146,7 +154,7 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
   inNavigation: boolean
 }
 
@@ -157,12 +165,12 @@ type ClientHookErrorDetails = {
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type SyncIOErrorDetails = {
@@ -179,6 +187,11 @@ type UnrenderedSegmentErrorDetails = {
   type: 'unrendered-segment'
   route: string
   files: string[]
+}
+
+type LinkPrefetchPartialErrorDetails = {
+  type: 'link-prefetch-partial'
+  pathname: string
 }
 
 const noErrorDetails: ErrorDetails = {
@@ -210,6 +223,11 @@ export function useErrorDetails(
     const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
     if (unrenderedSegmentDetails) {
       return unrenderedSegmentDetails
+    }
+
+    const linkPrefetchPartialDetails = getLinkPrefetchPartialErrorDetails(error)
+    if (linkPrefetchPartialDetails) {
+      return linkPrefetchPartialDetails
     }
 
     return noErrorDetails
@@ -248,6 +266,24 @@ function getHydrationErrorDetails(
   }
 }
 
+// Detect `connection()` as the trigger by sniffing the highlighted line of the code frame.
+export function deriveCauseFromCodeFrame(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  codeFrame: string | null | undefined
+): 'connection' | undefined {
+  if (variant !== 'dynamic') return undefined
+  if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
+    return undefined
+  if (!codeFrame) return undefined
+  for (const line of stripAnsi(codeFrame).split('\n')) {
+    if (/^\s*>/.test(line) && /\bconnection\s*\(/.test(line)) {
+      return 'connection'
+    }
+  }
+  return undefined
+}
+
 function InstantRuntimeError({
   error,
   variant,
@@ -279,6 +315,10 @@ function InstantRuntimeError({
     return frames[idx] ?? null
   }, [frames])
 
+  const derivedCause =
+    cause ??
+    deriveCauseFromCodeFrame(kind, variant, firstFrame?.originalCodeFrame)
+
   return (
     <>
       {firstFrame && (
@@ -291,7 +331,7 @@ function InstantRuntimeError({
         variant={variant}
         kind={kind}
         explanation={explanation}
-        cause={cause}
+        cause={derivedCause}
         showExplanation={showExplanation}
         generateErrorInfo={generateErrorInfo}
       />
@@ -312,12 +352,23 @@ function InstantRuntimeError({
   )
 }
 
-export function isRuntimeVariant(message: string): boolean {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
-  return (
+export function getGuidanceVariant(message: string): GuidanceVariant {
+  // Discriminates between `createLinkBodyErrorInNavigation`,
+  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
+  // in-navigation variants).
+  if (
+    message.includes('encountered URL data') &&
+    !message.includes('encountered uncached data')
+  ) {
+    return 'link'
+  }
+  if (
     message.includes('encountered runtime data') &&
     !message.includes('encountered uncached data')
-  )
+  ) {
+    return 'runtime'
+  }
+  return 'dynamic'
 }
 
 const SYNC_IO_APIS = [
@@ -390,12 +441,13 @@ export function getBlockingRouteErrorDetails(
   }
 
   const isBlockingPageLoadError =
-    message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#')
+    message.includes('/blocking-prerender-runtime') ||
+    message.includes('/blocking-prerender-dynamic') ||
+    message.includes('/instant-shell-url-data')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
       inNavigation,
     }
   }
@@ -406,7 +458,7 @@ export function getBlockingRouteErrorDetails(
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -416,7 +468,7 @@ export function getBlockingRouteErrorDetails(
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -471,9 +523,26 @@ export function getUnrenderedSegmentErrorDetails(
   }
 }
 
+export function getLinkPrefetchPartialErrorDetails(
+  error: Error
+): LinkPrefetchPartialErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  const match =
+    /^Next\.js encountered dynamic data during prefetching for "([^"]+)"\./.exec(
+      message
+    )
+  if (!match) return null
+  return {
+    type: 'link-prefetch-partial',
+    pathname: match[1],
+  }
+}
+
 export function isInstantNavigationError(error: Error): boolean {
   // Unrendered-segment errors are always instant-only
   if (getUnrenderedSegmentErrorDetails(error)) return true
+  if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
   return details?.type === 'blocking-route' && details.inNavigation
 }
@@ -796,22 +865,26 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered runtime data during a navigation.'
-                : 'Next.js encountered runtime data during prerendering.'
-              : errorDetails.inNavigation
-                ? 'Next.js encountered uncached data during a navigation.'
-                : 'Next.js encountered uncached data during prerendering.'
+            errorDetails.variant === 'link'
+              ? 'Next.js encountered URL data outside of Suspense.'
+              : errorDetails.variant === 'runtime'
+                ? errorDetails.inNavigation
+                  ? 'Next.js encountered runtime data during a navigation.'
+                  : 'Next.js encountered runtime data during prerendering.'
+                : errorDetails.inNavigation
+                  ? 'Next.js encountered uncached data during a navigation.'
+                  : 'Next.js encountered uncached data during prerendering.'
           }
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
               variant={errorDetails.variant}
               explanation={
-                errorDetails.inNavigation
-                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
-                  : undefined
+                errorDetails.variant === 'link'
+                  ? BLOCKING_ROUTE_LINK_EXPLANATION
+                  : errorDetails.inNavigation
+                    ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                    : undefined
               }
             />
           }
@@ -890,7 +963,11 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered URL data in <code>generateMetadata()</code>.
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateMetadata()</code>.
@@ -942,7 +1019,11 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered URL data in <code>generateViewport()</code>.
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateViewport()</code>.
@@ -1115,6 +1196,43 @@ export function Errors({
           />
         </ErrorOverlayLayout>
       )
+    case 'link-prefetch-partial':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js encountered dynamic data during prefetching."
+          headerChildren={
+            <InstantHeaderExplanation kind="link-prefetch-partial" />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="link-prefetch-partial"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
       break
@@ -1204,21 +1322,24 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     position: relative;
+  }
+  .nextjs__container_errors__error_title__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
-  }
-  @media (max-width: 767px) {
-    .nextjs__container_errors__error_title {
-      flex-direction: column-reverse;
-    }
   }
   .external-link, .external-link:hover {
     color:inherit;

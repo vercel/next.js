@@ -60,7 +60,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
@@ -87,6 +87,7 @@ use crate::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
+    service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
 
@@ -220,6 +221,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -235,6 +237,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -250,6 +254,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -265,6 +270,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -592,6 +599,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -607,6 +615,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -878,7 +888,7 @@ impl AppProject {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
             let next_mode_ref = next_mode.await?;
-            let should_trace = next_mode_ref.is_production();
+            let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
@@ -886,7 +896,10 @@ impl AppProject {
             let span = tracing::info_span!("module graph for endpoint", modules = Empty);
             let span_clone = span.clone();
             async move {
-                let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
+                let rsc_entry_chunk_group = ChunkGroupEntry::Entry {
+                    modules: vec![rsc_entry],
+                    heuristics: EntryHeuristics::default(),
+                };
 
                 let mut graphs = vec![];
                 let mut visited_modules = VisitedModules::empty();
@@ -909,7 +922,10 @@ impl AppProject {
                     // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         GraphEntries::from_chunk_groups(vec![
-                            ChunkGroupEntry::Entry(client_shared_entries),
+                            ChunkGroupEntry::Entry {
+                                modules: client_shared_entries,
+                                heuristics: EntryHeuristics::default(),
+                            },
                             ChunkGroupEntry::SharedMultiple(
                                 server_utils
                                     .iter()
@@ -1045,10 +1061,10 @@ pub fn app_entry_point_to_route(
                         }
                         .resolved_cell(),
                     ),
-                    rsc_endpoint: ResolvedVc::upcast(
+                    rsc_hmr_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
-                                ty: AppPageEndpointType::Rsc,
+                                ty: AppPageEndpointType::RscHmr,
                                 loader_tree,
                             },
                             app_project,
@@ -1093,7 +1109,7 @@ pub fn app_entry_point_to_route(
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
-    Rsc,
+    RscHmr,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -1287,40 +1303,42 @@ impl AppEndpoint {
                 .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                 .await?;
 
-        let is_production = project.next_mode().await?.is_production();
-
         let client_references =
             ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    is_production,
-                    is_production,
+                    /* include_traced */ *project.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ project.next_mode().await?.is_production(),
                 )
                 .to_resolved()
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks) = if is_app_page {
-            let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                AssetIdent::from_path(project.project_path().owned().await?)
-                    .with_modifier(rcstr!("client-shared-chunks"))
-                    .into_vc(),
-                this.app_project.client_runtime_entries(),
-                *module_graphs.full,
-                *client_chunking_context,
-            );
+        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
+            if is_app_page {
+                let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                    AssetIdent::from_path(project.project_path().owned().await?)
+                        .with_modifier(rcstr!("client-shared-chunks"))
+                        .into_vc(),
+                    this.app_project.client_runtime_entries(),
+                    *module_graphs.full,
+                    *client_chunking_context,
+                );
 
-            client_assets.extend(client_shared_chunk_group.all_assets().await?);
+                client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-            let client_shared_chunk_group = client_shared_chunk_group.await?;
-            (
-                client_shared_chunk_group.availability_info,
-                client_shared_chunk_group.assets.owned().await?,
-            )
-        } else {
-            (AvailabilityInfo::root(), vec![])
-        };
+                let client_shared_chunk_group = client_shared_chunk_group.await?;
+                (
+                    client_shared_chunk_group.availability_info,
+                    client_shared_chunk_group.assets.owned().await?,
+                    client_shared_chunk_group
+                        .chunk_group_bootstrap_params
+                        .clone(),
+                )
+            } else {
+                (AvailabilityInfo::root(), vec![], None)
+            };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1345,12 +1363,45 @@ impl AppEndpoint {
         {
             client_assets.extend(assets.all_assets().await?.iter().copied());
         }
+        let mut ssr_client_reference_chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = vec![];
         for &assets in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
             // TODO(alexkirsz) In which manifest does this go?
-            server_assets.extend(assets.all_assets().await?.iter().copied());
+            let all = assets.all_assets().await?;
+            server_assets.extend(all.iter().copied());
+            ssr_client_reference_chunks.extend(all.iter().copied());
+        }
+
+        // In development, register a server-side HMR chunk list that owns all
+        // client-component SSR chunks. This is a bit of a hack to provide a single subscription
+        // point for these chunks, which aren't normally reachable from the rest of the server-side
+        // chunk lists.
+        //
+        // TODO: This anchor can go away once edges to chunk references are represented explicitly
+        // in the chunk graph (rsc chunk -> ssr chunk), which would make the SSR chunks reachable
+        // from the RSC chunk lists directly.
+        if is_app_page
+            && runtime == NextRuntime::NodeJs
+            && project
+                .client_compile_time_info()
+                .await?
+                .hot_module_replacement_enabled
+        {
+            let ssr_hmr_chunk_list_path = server_path.join(&format!(
+                "app{original_name}/client-components-ssr.js",
+                original_name = app_entry.original_name
+            ))?;
+            let ssr_hmr_chunks = project
+                .server_chunking_context(process_client_assets)
+                .server_hmr_chunk_list(
+                    ssr_hmr_chunk_list_path,
+                    Vc::cell(ssr_client_reference_chunks),
+                )
+                .to_resolved()
+                .await?;
+            server_assets.insert(ssr_hmr_chunks);
         }
 
         // In development, register a page-specific HMR chunk list that owns all client
@@ -1412,6 +1463,15 @@ impl AppEndpoint {
             None
         };
 
+        // Compile any service workers registered via `navigator.serviceWorker.register(new
+        // URL(...), { scope })` reachable from this endpoint.
+        client_assets.extend(
+            service_worker_output_assets(project, *module_graphs.base)
+                .await?
+                .iter()
+                .copied(),
+        );
+
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
 
@@ -1423,6 +1483,12 @@ impl AppEndpoint {
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
+            let chunk_loading_global = (*project
+                .next_config()
+                .turbopack_chunk_loading_global()
+                .await?)
+                .clone()
+                .unwrap_or_else(|| rcstr!("TURBOPACK"));
             let build_manifest = BuildManifest {
                 output_path: node_root.join(&format!(
                     "server/app{manifest_path_prefix}/build-manifest.json",
@@ -1432,6 +1498,14 @@ impl AppEndpoint {
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
                 root_main_files_per_page,
+                pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
+                    .map(|params| {
+                        let mut m = FxIndexMap::default();
+                        m.insert(app_entry.original_name.clone(), params);
+                        m
+                    })
+                    .unwrap_or_default(),
+                chunk_loading_global,
             };
             server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
@@ -1461,7 +1535,7 @@ impl AppEndpoint {
 
         let server_action_manifest = create_server_actions_manifest(
             actions,
-            project.project_path().owned().await?,
+            project,
             node_root.clone(),
             app_entry.original_name.clone(),
             runtime,
@@ -1470,9 +1544,7 @@ impl AppEndpoint {
                 NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
             },
             *module_graphs.full,
-            this.app_project
-                .project()
-                .runtime_chunking_context(process_client_assets, runtime),
+            project.runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
         if emit_rsc_manifests {
@@ -1749,12 +1821,11 @@ impl AppEndpoint {
                     None
                 };
 
-                if this
+                if *this
                     .app_project
                     .project()
-                    .next_mode()
+                    .should_write_nft_manifests()
                     .await?
-                    .is_production()
                 {
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
@@ -1975,11 +2046,22 @@ impl AppEndpoint {
             )
             .await?;
 
+        // The server actions loader is a separate graph entry that is not reachable from
+        // rsc_entry, but it is chunked into the endpoint output, so its modules (e.g. externals
+        // imported by actions) must be traced as well.
+        let mut entry_modules = vec![rsc_entry];
+        entry_modules.extend(
+            self.additional_entries(*module_graphs.base)
+                .await?
+                .all_modules(),
+        );
+
         Ok(trace_endpoint(
             this.app_project.project(),
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
-            *rsc_entry,
+            Vc::cell(entry_modules),
+            this.app_project.project().additional_traced_modules(),
         ))
     }
 }
@@ -2028,10 +2110,10 @@ impl Endpoint for AppEndpoint {
                 tracing::info_span!("app endpoint HTML", name = page_name)
             }
             AppEndpointType::Page {
-                ty: AppPageEndpointType::Rsc,
+                ty: AppPageEndpointType::RscHmr,
                 ..
             } => {
-                tracing::info_span!("app endpoint RSC", name = page_name)
+                tracing::info_span!("app endpoint RSC HMR", name = page_name)
             }
             AppEndpointType::Route { .. } => {
                 tracing::info_span!("app endpoint route", name = page_name)
@@ -2128,17 +2210,32 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        // The route's chunking heuristics from `experimental.turbopackChunking`. They are
+        // attached to the route's entry chunk group.
+        let heuristics = this
+            .app_project
+            .project()
+            .next_config()
+            .turbopack_chunking()
+            .await?
+            .entry_heuristics_for(&app_entry.pathname);
         Ok(GraphEntries::from_chunk_groups(vec![
-            ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
-            ChunkGroupEntry::Entry(
-                this.app_project
+            ChunkGroupEntry::Entry {
+                modules: vec![app_entry.rsc_entry],
+                heuristics,
+            },
+            ChunkGroupEntry::Entry {
+                modules: this
+                    .app_project
                     .client_runtime_entries()
                     .await?
                     .iter()
                     .copied()
                     .map(ResolvedVc::upcast)
                     .collect(),
-            ),
+                heuristics: EntryHeuristics::high_priority(),
+            },
         ])
         .cell())
     }

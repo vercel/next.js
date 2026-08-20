@@ -50,7 +50,12 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
   )
 }
 
-export async function anySegmentHasRuntimePrefetchEnabled(
+/**
+ * Matches the `prefetch` config that enables Partial Prefetching for the
+ * segment: 'partial'. A route with Partial Prefetching enabled also
+ * runtime-caches its navigations, so this gates the runtime prefetch spawn.
+ */
+export async function anySegmentHasPartialPrefetchingEnabled(
   tree: LoaderTree
 ): Promise<boolean> {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
@@ -59,16 +64,16 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const prefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  if (prefetchConfig === 'allow-runtime') {
+  if (prefetchConfig === 'partial') {
     return true
   }
 
   const { parallelRoutes } = parseLoaderTree(tree)
   for (const parallelRouteKey in parallelRoutes) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
-    const hasChildRuntimePrefetch =
-      await anySegmentHasRuntimePrefetchEnabled(parallelRoute)
-    if (hasChildRuntimePrefetch) {
+    const hasChildPartialPrefetching =
+      await anySegmentHasPartialPrefetchingEnabled(parallelRoute)
+    if (hasChildPartialPrefetching) {
       return true
     }
   }

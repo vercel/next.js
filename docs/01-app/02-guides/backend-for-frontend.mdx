@@ -897,7 +897,7 @@ For these, use community libraries like [`swr`](https://swr.vercel.app/) or [`re
 
 ### Server Actions
 
-Server Actions let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
+[Server Actions](/docs/app/guides/server-actions) let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
 
 Server Actions are queued. Using them for data fetching introduces sequential execution.
 

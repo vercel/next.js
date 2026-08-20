@@ -25,7 +25,7 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -39,6 +39,7 @@ use crate::{
     },
 };
 
+type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;
 type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
@@ -83,7 +84,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 4>,
+    output_dependent: AutoSet<TaskId, 6>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -92,7 +93,7 @@ struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    upper: CounterMap<TaskId, u32, 2>,
+    upper: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
@@ -327,6 +328,7 @@ struct TaskStorageSchema {
         category = "data",
         shrink_on_completion,
         custom_drop_partial,
+        custom_mutators,
         as_type = "AutoMap<CellId, SharedReference, 1>"
     )]
     cell_data: CellData,
@@ -547,24 +549,20 @@ impl TaskStorage {
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
-        let key_evictability = if flags.new_task() {
-            KeyEvictability::Unevictable
-        } else {
-            match &self.persistent_task_type {
-                None => KeyEvictability::Unevictable,
-                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
-                // references it. It must have been already evicted on a prior cycle.
-                Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
-                Some(_) => KeyEvictability::Evictable,
-            }
-        };
         // === Absolute blockers ===
         if flags.new_task() {
             return (
-                key_evictability,
+                KeyEvictability::Unevictable,
                 ValueEvictability::Unevictable(UnevictableReason::Modified),
             );
         }
+        let key_evictability = match &self.persistent_task_type {
+            None => KeyEvictability::Unevictable,
+            // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
+            // references it. It must have been already evicted on a prior cycle.
+            Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
+            Some(_) => KeyEvictability::Evictable,
+        };
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
@@ -1278,10 +1276,7 @@ mod tests {
             .insert(TaskId::new(200).unwrap());
         original.cell_dependencies_mut().insert(CellRef {
             task: TaskId::new(1).unwrap(),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
-            },
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
         });
 
         // Set lazy data transient field (should NOT be serialized)
@@ -1423,10 +1418,7 @@ mod tests {
         // Lazy filter_transient data field.
         storage.cell_dependencies_mut().insert(CellRef {
             task: persistent_task(10),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
-            },
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
         });
 
         // Mark as restored so the task is eligible for dropping.
@@ -1616,17 +1608,11 @@ mod tests {
         }
 
         fn keepable_cell(index: u32) -> CellId {
-            CellId {
-                type_id: Keepable::get_value_type_id(),
-                index,
-            }
+            CellId::new(Keepable::get_value_type_id(), index)
         }
 
         fn keep_me_cell(index: u32) -> CellId {
-            CellId {
-                type_id: KeepMe::get_value_type_id(),
-                index,
-            }
+            CellId::new(KeepMe::get_value_type_id(), index)
         }
 
         #[test]
@@ -1736,10 +1722,10 @@ mod tests {
             128,
             "TaskStorage size changed! Run print_schema_sizes and update this test."
         );
-        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
+        // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
-            48,
+            40,
             "LazyField size changed! Run print_schema_sizes and update this test."
         );
     }

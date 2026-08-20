@@ -130,7 +130,7 @@ pub enum JsValue<'a> {
     Object {
         total_nodes: u32,
         parts: BumpVec<'a, ObjectPart<'a>>,
-        mutable: bool,
+        mutability: ObjectMutability,
     },
     /// A list of alternative values
     Alternatives {
@@ -199,6 +199,10 @@ pub enum JsValue<'a> {
     ///
     /// `(total_node_count, operand)`
     TypeOf(u32, BumpBox<'a, JsValue<'a>>),
+
+    /// A `in` expression `left in right`
+    /// `(total_node_count, left, right)`
+    In(u32, BumpBox<'a, JsValue<'a>>, BumpBox<'a, JsValue<'a>>),
 
     // PLACEHOLDERS
     // ----------------------------
@@ -573,7 +577,7 @@ impl<'a> JsValue<'a> {
                 let mut js_value = JsValue::Object {
                     total_nodes: m.len() as u32,
                     parts,
-                    mutable: false,
+                    mutability: ObjectMutability::Frozen,
                 };
                 js_value.update_total_nodes();
                 return Ok(js_value);
@@ -687,7 +691,8 @@ impl JsValue<'_> {
             | JsValue::MemberCall(..)
             | JsValue::Iterated(..)
             | JsValue::Awaited(..)
-            | JsValue::TypeOf(..) => JsValueMetaKind::Operation,
+            | JsValue::TypeOf(..)
+            | JsValue::In(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
             | JsValue::FreeVar(..)
@@ -790,6 +795,14 @@ impl<'a> JsValue<'a> {
         )
     }
 
+    pub fn r#in(arena: &'a Bump, a: JsValue<'a>, b: JsValue<'a>) -> Self {
+        Self::In(
+            1 + a.total_nodes() + b.total_nodes(),
+            BumpBox::new_in(a, arena),
+            BumpBox::new_in(b, arena),
+        )
+    }
+
     pub fn logical_not(arena: &'a Bump, inner: JsValue<'a>) -> Self {
         Self::Not(1 + inner.total_nodes(), BumpBox::new_in(inner, arena))
     }
@@ -846,11 +859,14 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: true,
+            mutability: ObjectMutability::Mutable,
         }
     }
 
-    pub fn frozen_object(list: BumpVec<'a, ObjectPart<'a>>) -> Self {
+    pub fn object_with_mutability(
+        list: BumpVec<'a, ObjectPart<'a>>,
+        mutability: ObjectMutability,
+    ) -> Self {
         Self::Object {
             total_nodes: 1 + list
                 .iter()
@@ -860,7 +876,7 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: false,
+            mutability,
         }
     }
 
@@ -1050,7 +1066,8 @@ impl JsValue<'_> {
             | JsValue::Iterated(c, ..)
             | JsValue::Promise(c, ..)
             | JsValue::Awaited(c, ..)
-            | JsValue::TypeOf(c, ..) => *c,
+            | JsValue::TypeOf(c, ..)
+            | JsValue::In(c, ..) => *c,
         }
     }
 
@@ -1101,7 +1118,7 @@ impl JsValue<'_> {
             JsValue::Object {
                 total_nodes: c,
                 parts,
-                mutable: _,
+                mutability: _,
             } => {
                 *c = 1 + parts
                     .iter()
@@ -1136,6 +1153,9 @@ impl JsValue<'_> {
 
             JsValue::TypeOf(c, operand) => {
                 *c = 1 + operand.total_nodes();
+            }
+            JsValue::In(c, l, r) => {
+                *c = 1 + l.total_nodes() + r.total_nodes();
             }
         }
     }
@@ -1302,11 +1322,11 @@ impl<'a> JsValue<'a> {
             JsValue::Object {
                 total_nodes,
                 parts,
-                mutable,
+                mutability,
             } => JsValue::Object {
                 total_nodes: *total_nodes,
                 parts: BumpVec::from_iter_in(arena, parts.iter().map(|p| p.clone_in(arena))),
-                mutable: *mutable,
+                mutability: *mutability,
             },
             JsValue::Alternatives {
                 total_nodes,
@@ -1372,6 +1392,11 @@ impl<'a> JsValue<'a> {
                 JsValue::Iterated(*c, BumpBox::new_in(v.clone_in(arena), arena))
             }
             JsValue::TypeOf(c, v) => JsValue::TypeOf(*c, BumpBox::new_in(v.clone_in(arena), arena)),
+            JsValue::In(c, l, r) => JsValue::In(
+                *c,
+                BumpBox::new_in(l.clone_in(arena), arena),
+                BumpBox::new_in(r.clone_in(arena), arena),
+            ),
             JsValue::Variable(id) => JsValue::Variable(id.clone()),
             JsValue::Argument(i, idx) => JsValue::Argument(*i, *idx),
             JsValue::FreeVar(a) => JsValue::FreeVar(a.clone()),

@@ -3,42 +3,54 @@ title: Next.js encountered URL data in a Client Component outside of Suspense
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
 During [prerendering](/docs/app/glossary#prerendering), a Client Component called a navigation hook ([`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useParams`](/docs/app/api-reference/functions/use-params), [`useSearchParams`](/docs/app/api-reference/functions/use-search-params#prerendering), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js prerenders as much of a route as possible before a request arrives. These hooks read URL data that is not available during prerendering, so the component needs a fallback to include in the [static shell](/docs/app/glossary#static-shell).
 
-`useSearchParams` triggers this error on any prerendered route because search params come from the request URL. The other four hooks trigger it when the route has dynamic params not covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+The `useSearchParams` hook triggers this error on any prerendered route because search params come from the request URL. The other four hooks trigger it when the route has dynamic params and is rendered per-request.
 
 Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For unstable values like [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in Client Components, see [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
-
 ## Ways to fix this
 
-<FixOption
-  group="stream"
-  href="#wrap-in-or-move-into-suspense"
-  title="Wrap in or move into Suspense"
->
-  Wrap the component that calls the hook in a Suspense boundary so Next.js can
-  prerender a fallback while the runtime value loads.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#for-known-params-prerender"
-  title="For known params, prerender"
->
-  Tell Next.js the full set of valid params ahead of time. Each one becomes a
-  prerendered route. Does not help useSearchParams.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt the segment out of instant-navigation validation. The route renders on
-  every request.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <SidebarNav />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Wrap in or move into Suspense
 
@@ -180,7 +192,7 @@ The sibling renders nothing visible, so an empty fallback is correct. There is n
 
 ### Trade-off
 
-The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't shift surrounding content.
+The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't cause a layout shift. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -190,36 +202,6 @@ The user sees the fallback on the first paint of the suspended region, then it s
 - A nav rendered in a layout suspends on any page below it that reads URL data the layout's static shell doesn't know. Push the hook read down to the smallest leaf that needs the value so the rest of the nav stays prerendered.
 - The static shell does not include the active state. The fallback paints first, then the indicator hydrates and the active style appears. For active-link patterns where the flash is visible, add an [inline script that runs before paint](/docs/app/guides/preventing-flash-before-hydration) to set the active attribute from `location.pathname` so the correct link is styled on the first paint.
 - [`usePathname`](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) reads the source path on the server when the request was rewritten in `next.config` or middleware, while the browser sees the rewritten path. The active state on a rewritten route resolves to the wrong link on the server and corrects itself on hydration. If your app uses rewrites, defer the read until after mount as the [docs recommend](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
-
-## For known params, prerender
-
-Choose this fix when you know the valid param values at build time. Adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) tells Next.js to prerender each one. On those prerendered routes, [`useParams`](/docs/app/api-reference/functions/use-params) resolves to a build-time constant, and the [`Suspense` boundary around `usePathname` is optional](/docs/app/api-reference/functions/use-pathname). This fix does not apply to [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), since search params come from the request URL's query string and are not part of the segment params.
-
-### Patterns
-
-#### Export generateStaticParams
-
-Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) from the page or layout that defines the dynamic segment. Return an array of param objects whose keys match the segment's `[param]` names.
-
-```jsx filename="app/blog/[slug]/page.js"
-export function generateStaticParams() {
-  return [{ slug: 'hello-world' }, { slug: 'release-notes' }]
-}
-```
-
-Learn more: [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
-
-### Trade-off
-
-The list of params is decided at build time. See [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for rebuild and cache-invalidation patterns when the list changes.
-
-### Gotchas
-
-- [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) is never affected by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). Search params come from the request URL's query string. If a route reads `useSearchParams`, you still need a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read or [Allow blocking route](#allow-blocking-route) on the segment.
-- A request for a param value not in the returned list falls through to runtime rendering. The same client hook will suspend on that request unless the segment is wrapped in `<Suspense>` or marked with [Allow blocking route](#allow-blocking-route).
-- The generated paths must cover every dynamic segment in the route. If any segment is missing, the route falls back to runtime rendering for that param.
-- [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) runs at build time, so it cannot depend on per-request values.
-- The [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) config isn't available in this model. If you're migrating an existing page, use [`<Suspense>`](https://react.dev/reference/react/Suspense), [`notFound()`](/docs/app/api-reference/functions/not-found), or [Allow blocking route](#allow-blocking-route) instead.
 
 ## Allow blocking route
 
@@ -260,7 +242,7 @@ Use either pattern when:
 - The route needs request-time data high in the tree to decide what to render, so there is no meaningful [static shell](/docs/app/glossary#static-shell) worth showing first.
 - You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
 
-For a client-hook error this is rarely the right answer. The hook reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route prerendered. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) or [For known params, prerender](#for-known-params-prerender) when either is feasible.
+For a client-hook error this is rarely the right answer. The hook reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route prerendered. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
 
 ### Trade-off
 
@@ -269,7 +251,13 @@ Navigations to this route are not instant. The user waits for the full server re
 ### Gotchas
 
 - Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
+
+## Verifying the fix
+
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -280,9 +268,20 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Useful links
+## Related Insights
 
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration)
-- [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

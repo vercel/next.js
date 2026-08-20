@@ -1,11 +1,10 @@
-import type { DebugInfo } from '../../../../shared/types'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 import {
   ErrorOverlayPagination,
   type ErrorOverlayTabBarRenderer,
 } from '../error-overlay-pagination/error-overlay-pagination'
-import { ErrorOverlayToolbar } from '../error-overlay-toolbar/error-overlay-toolbar'
+import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
 type ErrorOverlayNavProps = {
@@ -17,9 +16,6 @@ type ErrorOverlayNavProps = {
   onPrevious?: () => void
   onNext?: () => void
   versionInfo?: VersionInfo
-  error: ReadyRuntimeError['error']
-  debugInfo?: DebugInfo
-  generateErrorInfo: () => Promise<string>
   renderTabBar?: ErrorOverlayTabBarRenderer
 }
 
@@ -32,9 +28,6 @@ export function ErrorOverlayNav({
   onPrevious,
   onNext,
   versionInfo,
-  error,
-  debugInfo,
-  generateErrorInfo,
   renderTabBar,
 }: ErrorOverlayNavProps) {
   const bundlerName = (process.env.__NEXT_BUNDLER || 'Turbopack') as
@@ -56,15 +49,14 @@ export function ErrorOverlayNav({
           renderTabBar={renderTabBar}
         />
       </NavItem>
-      <NavItem side="right">
-        <ErrorOverlayToolbar
-          error={error}
-          debugInfo={debugInfo}
-          generateErrorInfo={generateErrorInfo}
-          versionInfo={versionInfo}
-          bundlerName={bundlerName}
-        />
-      </NavItem>
+      {versionInfo && (
+        <NavItem side="right">
+          <VersionStalenessInfo
+            versionInfo={versionInfo}
+            bundlerName={bundlerName}
+          />
+        </NavItem>
+      )}
     </div>
   )
 }

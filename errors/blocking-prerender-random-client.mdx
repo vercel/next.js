@@ -3,31 +3,53 @@ title: Next.js encountered the unstable value Math.random() in a Client Componen
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
 A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
 
 The Server Component case is handled at [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
-
 ## Ways to fix this
 
-<FixOption
-  group="stream"
-  href="#wrap-in-or-move-into-suspense"
-  title="Wrap in or move into Suspense"
->
-  Wrap the component in a Suspense boundary so the shell ships instantly and the
-  random value streams in.
-</FixOption>
-
-<FixOption
-  group="defer"
-  href="#move-into-effect-or-event-handler"
-  title="Move into effect or event handler"
->
-  Defer the random read until after hydration so SSR and the browser agree on
-  the initial render.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <RandomId />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="defer"
+    title="Move into effect or event handler"
+    href="#move-into-effect-or-event-handler"
+    snippets={[
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(Math.random())' },
+      { text: '}} />' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Wrap in or move into Suspense
 
@@ -63,11 +85,11 @@ export function Avatar() {
 }
 ```
 
-Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
+Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout to minimize visual jump.
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -167,20 +189,64 @@ The user sees the placeholder briefly before the real value. For interactions th
 - If the value needs to be hydration-stable (the SSR HTML and the hydrated render must match exactly), use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
-## Don't want this validation?
+## Other options
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+### Suspend with `use(io())`
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+```jsx filename="app/components/random-banner.js"
+'use client'
+import { use } from 'react'
+import { io } from 'next/cache'
 
-## Useful links
+export function RandomBanner() {
+  use(io())
+  return <span>Banner #{Math.floor(Math.random() * 100)}</span>
+}
+```
 
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
+Wrap the component in `<Suspense>` so the surrounding shell stays prerendered.
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { RandomBanner } from './components/random-banner'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <RandomBanner />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [`io`](/docs/app/api-reference/functions/io).
+
+## Verifying the fix
+
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
+## Why `instant = false` doesn't clear this error
+
+This error fires from the prerender, not from instant-navigation validation. `Math.random()` returns a different value on every render, so the prerender can't bake it into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [`useEffect`](https://react.dev/reference/react/useEffect)
-- [Streaming with Suspense](/docs/app/guides/streaming)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

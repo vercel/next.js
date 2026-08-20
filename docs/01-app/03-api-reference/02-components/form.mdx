@@ -401,6 +401,6 @@ export default async function PostPage({ params }) {
 }
 ```
 
-See the [Server Actions](/docs/app/getting-started/mutating-data) docs for more examples.
+See [Mutating data](/docs/app/getting-started/mutating-data) for more examples.
 
 </AppOnly>

@@ -1,9 +1,9 @@
-import { cookies } from 'next/headers'
+import { connection } from 'next/server'
 
 const instant = true
 export { instant }
 
 export default async function Page() {
-  await cookies()
+  await connection()
   return <p>named export</p>
 }

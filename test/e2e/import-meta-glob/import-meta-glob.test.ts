@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // import.meta.glob is a Turbopack-only feature; skip under webpack
-const testFn = process.env.IS_WEBPACK_TEST ? describe.skip : describe
+const testFn =
+  process.env.IS_WEBPACK_TEST || process.env.NEXT_RSPACK
+    ? describe.skip
+    : describe
 
 testFn('import-meta-glob', () => {
   const { next, skipped } = nextTestSetup({

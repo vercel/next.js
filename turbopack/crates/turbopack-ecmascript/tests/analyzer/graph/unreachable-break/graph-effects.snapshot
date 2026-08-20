@@ -61,6 +61,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -226,6 +232,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            8,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -356,6 +368,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            9,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -535,6 +553,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            3,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -665,6 +689,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -844,6 +874,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            5,
+                        ),
+                    ),
                 },
             ),
             Constant(

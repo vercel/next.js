@@ -9,9 +9,10 @@ import {
 import {
   completeHardNavigation,
   navigateToKnownRoute,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { refreshReducer } from './refresh-reducer'
-import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import { getCurrentNavigationLock } from '../../render-tree'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -40,6 +41,11 @@ export function serverPatchReducer(
   }
   // There have been no new navigations since the mismatched one. Refresh,
   // using the tree we just received from the server.
+  //
+  // The freshness policy comes from the action: a genuine tree mismatch
+  // re-fetches the dynamic data (`RefreshAll`), whereas a redirect that only
+  // changed the canonical URL reuses the data already in the tree
+  // (`HistoryTraversal`), since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
   const scrollBehavior = ScrollBehavior.Default
@@ -55,15 +61,19 @@ export function serverPatchReducer(
     currentRenderedSearch,
     state.cache,
     state.tree,
-    FreshnessPolicy.RefreshAll,
+    action.freshnessPolicy,
     retryNextUrl,
     scrollBehavior,
     navigateType,
     navigationLock,
+    // A server-patch retry navigation is bound to the shared map.
+    segmentCacheMap,
     null,
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
     // marked as having a dynamic rewrite when the mismatch was detected.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable, canary, beta, or release candidate?
+        description: stable, canary, beta, preview, or release candidate?
         required: true
         type: choice
         options:
@@ -14,6 +14,7 @@ on:
           - stable
           - release-candidate
           - beta
+          - preview
 
       semverType:
         description: semver type?
@@ -31,7 +32,7 @@ on:
 name: Trigger Release
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
@@ -41,15 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
     steps:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
           package-manager-cache: false
 
@@ -96,7 +94,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
+        if: ${{ github.event.inputs.releaseType != 'stable' && inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

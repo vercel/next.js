@@ -160,7 +160,10 @@ export class ReplayableNodeStream {
         'Node.js Readable cannot be teed in the edge runtime'
       )
     } else {
-      if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      if (
+        process.env.__NEXT_BUNDLER === 'Webpack' ||
+        process.env.__NEXT_BUNDLER === 'Rspack'
+      ) {
         ReadableCtor = (
           __non_webpack_require__('node:stream') as typeof import('node:stream')
         ).Readable

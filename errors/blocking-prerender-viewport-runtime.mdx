@@ -3,31 +3,52 @@ title: Next.js encountered runtime data in generateViewport()
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
 During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read a per-request value ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](/docs/app/guides/instant-navigation).
 
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) in `generateViewport()` have different fixes. See [Next.js encountered uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic). The metadata equivalent is handled at [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime). For errors in the page body rather than viewport, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
-
 ## Ways to fix this
 
-<FixOption
-  group="static"
-  href="#use-static-viewport"
-  title="Use static viewport"
->
-  Replace the dynamic function with a static export so the viewport is known at
-  build time.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt this segment out of instant navigation. The route renders on every request
-  and every navigation blocks.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Use static viewport
 
@@ -111,9 +132,15 @@ Navigations to this route are not instant. The user waits for the full server re
 ### Gotchas
 
 - Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
 - If the dynamic viewport is the only reason the route blocks, consider whether a static default covers most users. A static `themeColor` with a client-side correction after hydration may give a better experience than blocking the entire navigation.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) opts the route out of validation but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+
+## Verifying the fix
+
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -124,8 +151,20 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Useful links
+## Related Insights
 
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
 - [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

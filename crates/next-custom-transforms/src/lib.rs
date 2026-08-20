@@ -39,7 +39,6 @@ use rustc_hash::FxHasher;
 
 pub mod chain_transforms;
 mod linter;
-pub mod react_compiler;
 pub mod transforms;
 
 type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;

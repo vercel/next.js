@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
@@ -21,22 +22,28 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{loader::WebpackLoaderItem, resolve::ImportUsage};
+use turbopack_core::{
+    loader::WebpackLoaderItem,
+    resolve::{ExportUsage, ImportUsage},
+};
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{
-        Bump, ConstantValue, ObjectPart,
+        Bump, ConstantString, ConstantValue, ObjectPart,
+        cjs_ast::is_global,
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    module_fragments::{PartId, find_turbopack_part_id_in_asserts},
     references::{
+        cross_module_constants::is_import_name_eligible_for_exports,
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
-    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
+    utils::{extract_name_from_member_prop, extract_names_from_object_pat, unparen},
 };
 
 #[turbo_tasks::value]
@@ -46,6 +53,7 @@ pub struct ImportAnnotations {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     map: BTreeMap<Wtf8Atom, Wtf8Atom>,
+
     /// Parsed turbopack loader configuration from import attributes.
     /// e.g. `import "file" with { turbopackLoader: "raw-loader" }`
     #[turbo_tasks(trace_ignore)]
@@ -54,6 +62,8 @@ pub struct ImportAnnotations {
     turbopack_rename_as: Option<RcStr>,
     turbopack_module_type: Option<RcStr>,
     chunking_type: Option<SpecifiedChunkingType>,
+
+    turbopack_constants: Option<bool>,
 }
 
 /// Enables a specified transition for the annotated import
@@ -74,7 +84,7 @@ impl ImportAnnotations {
         let mut turbopack_rename_as: Option<RcStr> = None;
         let mut turbopack_module_type: Option<RcStr> = None;
         let mut chunking_type: Option<SpecifiedChunkingType> = None;
-
+        let mut turbopack_constants: Option<bool> = None;
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
                 continue;
@@ -123,6 +133,11 @@ impl ImportAnnotations {
                         );
                     }
                 }
+                "turbopackConstants" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_constants = Some(s.value.to_string_lossy() == "true");
+                    }
+                }
                 _ => {
                     // For all other keys, only accept string values (per spec)
                     if let Some(Lit::Str(str)) = kv.value.as_lit() {
@@ -147,6 +162,7 @@ impl ImportAnnotations {
             || turbopack_rename_as.is_some()
             || turbopack_module_type.is_some()
             || chunking_type.is_some()
+            || turbopack_constants.is_some()
         {
             Some(ImportAnnotations {
                 map,
@@ -154,6 +170,7 @@ impl ImportAnnotations {
                 turbopack_rename_as,
                 turbopack_module_type,
                 chunking_type,
+                turbopack_constants,
             })
         } else {
             None
@@ -192,6 +209,7 @@ impl ImportAnnotations {
                 turbopack_rename_as: None,
                 turbopack_module_type: None,
                 chunking_type: None,
+                turbopack_constants: None,
             })
         } else {
             None
@@ -232,6 +250,11 @@ impl ImportAnnotations {
     /// Returns true if a turbopack loader is configured
     pub fn has_turbopack_loader(&self) -> bool {
         self.turbopack_loader.is_some()
+    }
+
+    /// Returns true if there is a turbopackConstants attribute
+    pub fn turbopack_constants(&self) -> Option<bool> {
+        self.turbopack_constants
     }
 
     pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
@@ -284,6 +307,8 @@ pub(crate) struct ProgramDeclUsage {
     pub(crate) decl_usages: FxHashMap<Id, DeclUsage>,
     // import -> immediate usage (top level decl)
     pub(crate) import_usages: FxHashMap<usize, DeclUsage>,
+    // import reference -> names it is directly re-exported as (`export { x } from '...'`)
+    pub(crate) named_reexports: FxHashMap<usize, AutoSet<RcStr>>,
     // export name -> top level decl
     pub(crate) exports: FxHashMap<RcStr, Id>,
 }
@@ -332,6 +357,24 @@ impl ProgramDeclUsage {
                 );
             }
         }
+        // Fold re-exports (`export { x } from "foo"`) into `import_usage` for tree-shaking.
+        for (reference, names) in &self.named_reexports {
+            let usage = match import_usage.get(reference) {
+                Some(ImportUsage::TopLevel) => continue,
+                // Used locally and re-exported, e.g.
+                // `import {foo} from 'm'; export function w(){foo()} export {foo} from 'm'`
+                // → union: Exports({"w"}) ∪ {"foo"}.
+                Some(ImportUsage::Exports(existing)) => ImportUsage::Exports(
+                    existing
+                        .iter()
+                        .cloned()
+                        .chain(names.iter().cloned())
+                        .collect(),
+                ),
+                None => ImportUsage::Exports(names.iter().cloned().collect()),
+            };
+            import_usage.insert(*reference, usage);
+        }
         import_usage
     }
 }
@@ -355,9 +398,6 @@ pub enum Export {
 }
 
 /// The storage for all kinds of imports.
-///
-/// Note that when it's initialized by calling `analyze`, it only contains ESM
-/// import/exports.
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
@@ -367,7 +407,7 @@ pub(crate) struct ImportMap {
     namespace_imports: FxIndexMap<Id, usize>,
 
     /// Map from exported name to the export
-    exports: BTreeMap<RcStr, Export>,
+    pub(crate) exports: BTreeMap<RcStr, Export>,
 
     /// List of namespace re-exports
     reexport_namespaces: Vec<usize>,
@@ -408,7 +448,20 @@ pub(crate) struct ImportMap {
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
     /// Map from exported name to local binding id (includes the syntax context).
-    pub(crate) exports_ids: FxHashMap<RcStr, Id>,
+    pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
+
+    /// CommonJS imports: stores the "resolved" imports (eg. `const { a } = require("m")`)
+    /// and the generic whole-module imports (eg. `const x = require("m")`).
+    cjs_imports: CjsImports,
+}
+
+#[derive(Default, Debug)]
+pub(crate) struct CjsImports {
+    /// `require("m").foo` or `const { a } = require("m")`
+    pub(crate) resolved: FxHashMap<BytePos, ExportUsage>,
+
+    /// `const x = require("m")`
+    pub(crate) bindings: FxHashMap<Id, BytePos>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -524,30 +577,56 @@ impl ImportMap {
         }
     }
 
-    pub fn get_import<'a>(&self, arena: &'a Bump, id: &Id) -> Option<JsValue<'a>> {
-        if let Some((i, i_sym)) = self.imports.get(id) {
-            let r = &self.references[*i];
-            return Some(JsValue::member(
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        !self.is_esm(specified_type)
+    }
+
+    pub fn get_import_for_idx<'a>(
+        &self,
+        arena: &'a Bump,
+        esm_reference_idx: usize,
+        export: Option<ConstantString>,
+    ) -> JsValue<'a> {
+        let r = &self.references[esm_reference_idx];
+        if let Some(export) = export {
+            JsValue::member(
                 arena,
                 JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
+                    reference: Some((esm_reference_idx as u32).into()),
+                    analyze_for_constants: is_import_name_eligible_for_exports(export.as_str()),
                 }),
-                i_sym.clone().into(),
-            ));
-        }
-        if let Some(i) = self.namespace_imports.get(id) {
-            let r = &self.references[*i];
-            return Some(JsValue::Module(ModuleValue {
+                JsValue::Constant(ConstantValue::Str(export)),
+            )
+        } else {
+            JsValue::Module(ModuleValue {
                 module: r.module_path.clone(),
                 annotations: r.annotations.clone(),
-            }));
+                reference: Some((esm_reference_idx as u32).into()),
+                analyze_for_constants: false,
+            })
+        }
+    }
+
+    pub fn get_import<'a>(&self, arena: &'a Bump, id: &Id) -> Option<JsValue<'a>> {
+        if let Some((i, i_sym)) = self.imports.get(id) {
+            return Some(self.get_import_for_idx(arena, *i, Some(i_sym.clone().into())));
+        }
+        if let Some(i) = self.namespace_imports.get(id) {
+            return Some(self.get_import_for_idx(arena, *i, None));
         }
         None
     }
 
     pub fn get_attributes(&self, span: Span) -> &ImportAttributes {
         self.attributes.get(&span.lo).unwrap_or_default()
+    }
+
+    pub fn get_annotations(&self, idx: usize) -> Option<&Arc<ImportAnnotations>> {
+        self.references
+            .get_index(idx)
+            .and_then(|r| r.annotations.as_ref())
     }
 
     pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<&Atom>)> {
@@ -591,9 +670,15 @@ impl ImportMap {
                                 Liveness::Mutable
                             } else {
                                 eval_context.imports.get_export_ident_liveness(
-                                    self.exports_ids.get(name).cloned().with_context(|| {
-                                        format!("Exported binding {name} not found in exports_ids")
-                                    })?,
+                                    self.exports_ids
+                                        .get(name)
+                                        .cloned()
+                                        .with_context(|| {
+                                            format!(
+                                                "Exported binding {name} not found in exports_ids"
+                                            )
+                                        })?
+                                        .0,
                                     eval_context.unresolved_mark,
                                 )
                             },
@@ -775,6 +860,10 @@ impl ImportMap {
 
         self.full_star_imports.contains(&r.module_path)
     }
+
+    pub(crate) fn cjs_imports(&self) -> &CjsImports {
+        &self.cjs_imports
+    }
 }
 
 mod analyzer_state {
@@ -881,6 +970,39 @@ impl Analyzer<'_> {
             }
         }
     }
+
+    /// Records how a `const … = require("…")` declarator consumes the call.
+    fn record_require_usage_var(&mut self, n: &VarDeclarator) {
+        let Some(init) = &n.init else {
+            return;
+        };
+        let Some(call) = as_require_call(init, self.unresolved_mark) else {
+            return;
+        };
+        match &n.name {
+            Pat::Ident(binding) => {
+                self.data
+                    .cjs_imports
+                    .bindings
+                    .insert(binding.id.to_id(), call.span.lo);
+            }
+            Pat::Object(_) => {
+                let usage = match extract_names_from_object_pat(&n.name) {
+                    // `const {} = require(...)`: no members read → evaluation only.
+                    Some(names) if names.is_empty() => ExportUsage::Evaluation,
+                    Some(names) => ExportUsage::PartialNamespaceObject(names),
+                    None => ExportUsage::All,
+                };
+                self.data.cjs_imports.resolved.insert(call.span.lo, usage);
+            }
+            _ => {
+                self.data
+                    .cjs_imports
+                    .resolved
+                    .insert(call.span.lo, ExportUsage::All);
+            }
+        }
+    }
 }
 
 impl Visit for Analyzer<'_> {
@@ -930,26 +1052,37 @@ impl Visit for Analyzer<'_> {
                     annotations.clone(),
                 );
 
-                match spec {
+                let name = match spec {
                     ExportSpecifier::Namespace(n) => {
-                        self.data.exports.insert(
-                            RcStr::from(n.name.atom().as_str()),
-                            Export::ImportedNamespace(i),
-                        );
+                        let name = RcStr::from(n.name.atom().as_str());
+                        self.data
+                            .exports
+                            .insert(name.clone(), Export::ImportedNamespace(i));
+                        name
                     }
                     ExportSpecifier::Default(d) => {
+                        let name = RcStr::from(d.exported.sym.as_str());
                         self.data.exports.insert(
-                            RcStr::from(d.exported.sym.as_str()),
+                            name.clone(),
                             Export::ImportedBinding(i, rcstr!("default"), false),
                         );
+                        name
                     }
                     ExportSpecifier::Named(n) => {
+                        let name =
+                            RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str());
                         self.data.exports.insert(
-                            RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str()),
+                            name.clone(),
                             Export::ImportedBinding(i, RcStr::from(n.orig.atom().as_str()), false),
                         );
+                        name
                     }
-                }
+                };
+                self.program_decl_usage
+                    .named_reexports
+                    .entry(i)
+                    .or_default()
+                    .insert(name);
             }
         } else {
             for spec in export.specifiers.iter() {
@@ -1023,7 +1156,9 @@ impl Visit for Analyzer<'_> {
                 self.data
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                self.data.exports_ids.insert(name.clone(), n.ident.to_id());
+                self.data
+                    .exports_ids
+                    .insert(name.clone(), (n.ident.to_id(), n.ident.span));
                 self.program_decl_usage
                     .exports
                     .insert(name, n.ident.to_id());
@@ -1033,7 +1168,9 @@ impl Visit for Analyzer<'_> {
                 self.data
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                self.data.exports_ids.insert(name.clone(), n.ident.to_id());
+                self.data
+                    .exports_ids
+                    .insert(name.clone(), (n.ident.to_id(), n.ident.span));
                 self.program_decl_usage
                     .exports
                     .insert(name, n.ident.to_id());
@@ -1045,7 +1182,9 @@ impl Visit for Analyzer<'_> {
                     self.data
                         .exports
                         .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                    self.data.exports_ids.insert(name.clone(), id.clone());
+                    self.data
+                        .exports_ids
+                        .insert(name.clone(), (id.clone(), n.span));
                     self.program_decl_usage.exports.insert(name, id);
                 }
             }
@@ -1092,7 +1231,9 @@ impl Visit for Analyzer<'_> {
             rcstr!("default"),
             Export::LocalBinding(RcStr::from(id.0.as_str()), false),
         );
-        self.data.exports_ids.insert(rcstr!("default"), id.clone());
+        self.data
+            .exports_ids
+            .insert(rcstr!("default"), (id.clone(), n.span));
         self.program_decl_usage
             .exports
             .insert(rcstr!("default"), id);
@@ -1111,9 +1252,17 @@ impl Visit for Analyzer<'_> {
             rcstr!("default"),
             Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
-        self.data
-            .exports_ids
-            .insert(rcstr!("default"), default_id.clone());
+        self.data.exports_ids.insert(
+            rcstr!("default"),
+            (
+                (
+                    // `EsmModuleItem::code_generation` inserts this variable.
+                    MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
+                    SyntaxContext::empty(),
+                ),
+                n.span,
+            ),
+        );
 
         self.register_assignment_scope(default_id);
         n.visit_children_with(self);
@@ -1128,7 +1277,7 @@ impl Visit for Analyzer<'_> {
         let exported = RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str());
         self.data
             .exports_ids
-            .insert(exported.clone(), local.to_id());
+            .insert(exported.clone(), (local.to_id(), n.span));
         self.program_decl_usage
             .exports
             .insert(exported, local.to_id());
@@ -1140,7 +1289,7 @@ impl Visit for Analyzer<'_> {
 
         self.data
             .exports_ids
-            .insert(rcstr!("default"), n.exported.to_id());
+            .insert(rcstr!("default"), (n.exported.to_id(), n.exported.span));
         n.visit_children_with(self);
     }
 
@@ -1237,9 +1386,23 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
+        // `require("…").foo` — the accessed member is the used export.
+        if let Some(call) = as_require_call(&node.obj, self.unresolved_mark) {
+            let usage = match extract_name_from_member_prop(&node.prop) {
+                Some(names) => ExportUsage::PartialNamespaceObject(names),
+                None => ExportUsage::All,
+            };
+            self.data.cjs_imports.resolved.insert(call.span.lo, usage);
+        }
+
         if matches!(
             &node.prop,
-            MemberProp::Ident(..) | MemberProp::PrivateName(..)
+            MemberProp::Ident(..)
+                | MemberProp::PrivateName(..)
+                | MemberProp::Computed(ComputedPropName {
+                    expr: box Expr::Lit(Lit::Str(_)),
+                    ..
+                })
         ) && let Expr::Ident(ident) = &*node.obj
         {
             // Intentionally skipping over visit_expr(node.obj) here so that it doesn't get added to
@@ -1351,6 +1514,22 @@ impl Visit for Analyzer<'_> {
                 }
             }
             Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {}
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_var_declarator(&mut self, node: &VarDeclarator) {
+        self.record_require_usage_var(node);
+        node.visit_children_with(self);
+    }
+
+    fn visit_expr_stmt(&mut self, node: &ExprStmt) {
+        // A bare `require("…")` statement discards its result → evaluation only.
+        if let Some(call) = as_require_call(&node.expr, self.unresolved_mark) {
+            self.data
+                .cjs_imports
+                .resolved
+                .insert(call.span.lo, ExportUsage::Evaluation);
         }
         node.visit_children_with(self);
     }
@@ -1476,9 +1655,32 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
     }
 }
 
+/// If `expr` is a `require("<string literal>")` call, returns it.
+fn as_require_call(expr: &Expr, unresolved_mark: Mark) -> Option<&CallExpr> {
+    let Expr::Call(call) = unparen(expr) else {
+        return None;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+        return None;
+    };
+    let Expr::Ident(f) = &**callee else {
+        return None;
+    };
+    if !is_global(f, "require", unresolved_mark) {
+        return None;
+    }
+    let [arg] = &call.args[..] else {
+        return None;
+    };
+    if arg.spread.is_some() || !matches!(unparen(&arg.expr), Expr::Lit(Lit::Str(_))) {
+        return None;
+    }
+    Some(call)
+}
+
 #[cfg(test)]
 mod tests {
-    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
+    use swc_core::{atoms::Atom, common::DUMMY_SP};
 
     use super::*;
 

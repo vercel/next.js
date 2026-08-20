@@ -8,15 +8,40 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 pub type TaskTypeHash = [u8; 8];
 
-/// A single item yielded by the snapshot iterator during persistence.
-pub struct SnapshotItem {
-    pub task_id: TaskId,
-    /// Serialized task meta data, if modified
-    pub meta: Option<TurboBincodeBuffer>,
-    /// Serialized task data, if modified
-    pub data: Option<TurboBincodeBuffer>,
-    /// Task type for new tasks that need to be added to the task cache
-    pub task_type_hash: Option<TaskTypeHash>,
+/// A single item yielded by the snapshot iterator during persistence: either a put (persist a
+/// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
+/// GC-collected task's on-disk copy). Both ride the one iterator `save_snapshot` consumes, so
+/// tombstones are applied in the same commit and batch as the puts.
+pub enum SnapshotItem {
+    Put {
+        task_id: TaskId,
+        /// Serialized task meta data, if modified
+        meta: Option<TurboBincodeBuffer>,
+        /// Serialized task data, if modified
+        data: Option<TurboBincodeBuffer>,
+        /// Task type for new tasks that need to be added to the task cache
+        task_type_hash: Option<TaskTypeHash>,
+    },
+    // Constructed by the GC pass that emits `Delete` for soft-deleted tasks, which lands in a
+    // later PR in the stack.
+    #[allow(dead_code)]
+    Delete {
+        task_id: TaskId,
+        /// The deleted task's `TaskCache` key. Always present: only persistent tasks are
+        /// collected, and those always have a task type.
+        task_type_hash: TaskTypeHash,
+    },
+}
+
+impl SnapshotItem {
+    /// The task this item persists or tombstones. (Currently only used by tests, which assert on
+    /// the id of items yielded by the snapshot iterator.)
+    #[cfg(test)]
+    pub fn task_id(&self) -> TaskId {
+        match self {
+            SnapshotItem::Put { task_id, .. } | SnapshotItem::Delete { task_id, .. } => *task_id,
+        }
+    }
 }
 
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
@@ -59,6 +84,10 @@ pub struct SnapshotMeta {
     pub data_items: usize,
     pub meta_items: usize,
     pub task_cache_items: usize,
+    /// Physical on-disk bytes written by the commit.
+    pub bytes_written: u64,
+    /// Physical on-disk bytes of files removed by the commit.
+    pub bytes_deleted: u64,
     pub max_next_task_id: u32,
 }
 
@@ -69,7 +98,28 @@ impl SnapshotMeta {
             data_items: self.data_items + rhs.data_items,
             meta_items: self.meta_items + rhs.meta_items,
             task_cache_items: self.task_cache_items + rhs.task_cache_items,
+            bytes_written: self.bytes_written + rhs.bytes_written,
+            bytes_deleted: self.bytes_deleted + rhs.bytes_deleted,
             max_next_task_id: max(self.max_next_task_id, rhs.max_next_task_id),
         }
+    }
+}
+
+impl std::fmt::Display for SnapshotMeta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let SnapshotMeta {
+            data_items,
+            meta_items,
+            task_cache_items,
+            bytes_written,
+            bytes_deleted,
+            max_next_task_id,
+        } = self;
+        write!(
+            f,
+            "data_items={data_items} meta_items={meta_items} task_cache_items={task_cache_items} \
+             bytes_written={bytes_written} bytes_deleted={bytes_deleted} \
+             next_task_id={max_next_task_id}"
+        )
     }
 }

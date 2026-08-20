@@ -4,7 +4,7 @@ use anyhow::{Ok, Result};
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::try_with_handler,
-    common::{GLOBALS, Mark, SourceMap, SyntaxContext, comments::Comments, sync::Lrc},
+    common::{GLOBALS, Mark, SourceMap, Spanned, SyntaxContext, comments::Comments, sync::Lrc},
     ecma::{ast::*, atoms::atom},
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -13,7 +13,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
-        WellKnownObjectKind, is_unresolved,
+        WellKnownObjectKind, is_unresolved, is_unresolved_id,
     },
     references::constant_value::parse_single_expr_lit,
     utils::unparen,
@@ -57,6 +57,10 @@ impl EvalContext {
 
     pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
         self.imports.is_esm(specified_type)
+    }
+
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        self.imports.is_cjs(specified_type)
     }
 
     pub(super) fn eval_prop_name<'a>(&self, arena: &'a Bump, prop: &PropName) -> JsValue<'a> {
@@ -122,19 +126,18 @@ impl EvalContext {
         }
     }
 
-    pub(super) fn eval_ident<'a>(&self, arena: &'a Bump, i: &Ident) -> JsValue<'a> {
-        let id = i.to_id();
+    pub fn eval_id<'a>(&self, arena: &'a Bump, id: Id) -> JsValue<'a> {
         if let Some(imported) = self.imports.get_import(arena, &id) {
             return imported;
         }
-        if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
+        if is_unresolved_id(&id, self.unresolved_mark) || self.force_free_values.contains(&id) {
             // These are special globals that we shouldn't consider to be free variables and we can
             // model their values mostly useful for truthy/falsy checks.
-            match i.sym.as_str() {
+            match id.0.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
                 "NaN" => JsValue::Constant(ConstantValue::Num(f64::NAN.into())),
                 "Infinity" => JsValue::Constant(ConstantValue::Num(f64::INFINITY.into())),
-                _ => JsValue::FreeVar(i.sym.clone()),
+                _ => JsValue::FreeVar(id.0.clone()),
             }
         } else {
             JsValue::Variable(id)
@@ -142,6 +145,23 @@ impl EvalContext {
     }
 
     pub fn eval<'a>(&self, arena: &'a Bump, e: &Expr) -> JsValue<'a> {
+        let value = self.eval_inner(arena, e);
+        // A `turbopackIgnore` comment on this expression opts it out of static
+        // analysis. Downgrade it to an unknown so the opt-out lives on the value
+        // itself and bubbles up to any consumer (e.g. an enclosing
+        // `fs.readFileSync(...)`, or through a variable). A dynamic (unknown) path
+        // isn't rooted at the project directory, so tracing skips it instead of
+        // pulling in the whole project. The attribute is keyed to the annotated
+        // call's callee position, so only that exact expression matches — nested
+        // subexpressions are unaffected.
+        if self.imports.get_attributes(e.span()).ignore {
+            JsValue::unknown(value, true, rcstr!("turbopackIgnore"))
+        } else {
+            value
+        }
+    }
+
+    fn eval_inner<'a>(&self, arena: &'a Bump, e: &Expr) -> JsValue<'a> {
         debug_assert!(
             GLOBALS.is_set(),
             "Eval requires globals from its parsed result"
@@ -149,8 +169,7 @@ impl EvalContext {
         match e {
             Expr::Paren(e) => self.eval(arena, &e.expr),
             Expr::Lit(e) => JsValue::Constant(e.clone().into()),
-            Expr::Ident(i) => self.eval_ident(arena, i),
-
+            Expr::Ident(i) => self.eval_id(arena, i.to_id()),
             Expr::Unary(UnaryExpr {
                 op: op!("void"),
                 // Only treat literals as constant undefined, allowing arbitrary values inside here
@@ -260,6 +279,13 @@ impl EvalContext {
                 right,
                 ..
             }) => JsValue::strict_not_equal(arena, self.eval(arena, left), self.eval(arena, right)),
+
+            Expr::Bin(BinExpr {
+                op: op!("in"),
+                left,
+                right,
+                ..
+            }) => JsValue::r#in(arena, self.eval(arena, left), self.eval(arena, right)),
 
             &Expr::Cond(CondExpr {
                 box ref cons,

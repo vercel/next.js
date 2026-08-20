@@ -3,49 +3,73 @@ title: Next.js encountered the unstable value Date.now() while prerendering
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
-
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so the timestamp is recomputed each time
-  the user visits.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-timestamp"
-  title="Cache the timestamp"
->
-  Capture one timestamp per cache window and reuse it. The route stays
-  prerendered.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the timestamp on
-  every visit.
-</FixOption>
-
-<FixOption
-  group="measure"
-  href="#for-telemetry-use-a-timing-api"
-  title="For telemetry, use a timing API"
->
-  When the timestamp is only used for measuring durations, switch to
-  performance.now().
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const t = Date.now()' },
+      { text: 'return <Banner time={t} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the timestamp"
+    href="#cache-the-timestamp"
+    snippets={[
+      { text: 'function Timestamp() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <time>{Date.now()}</time>' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const t = Date.now()' },
+    ]}
+  />
+  <FixCard
+    group="measure"
+    title="For telemetry, use a timing API"
+    href="#for-telemetry-use-a-timing-api"
+    snippets={[
+      { text: 'const start = performance.now()', highlight: true },
+      { text: 'doWork()' },
+      { text: 'const ms = performance.now() - start' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 
@@ -83,11 +107,24 @@ export async function UpdatedAt() {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+#### Alternative: `await io()`
+
+Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
+
+```jsx filename="app/dashboard/updated-at.js"
+import { io } from 'next/cache'
+
+export async function UpdatedAt() {
+  await io()
+  return <small>Updated at {new Date().toLocaleString()}</small>
+}
+```
+
+Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints.
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes a layout shift when the content arrives. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -185,7 +222,7 @@ Every visitor in the cache window sees the same timestamp. That's fine for "as o
 
 ### Short-lived caches
 
-[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender. The segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
@@ -266,21 +303,30 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 - Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
 - For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
 
-## Don't want this validation?
+## Verifying the fix
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+## Why `instant = false` doesn't clear this error
 
-## Useful links
+This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
-- [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto)
-- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

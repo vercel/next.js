@@ -3,9 +3,13 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when tags or graphite base branches are pushed
+    # Don't run when graphite base branches are pushed
     branches-ignore:
       - 'graphite-base/**'
+    # Run on release tags so publishing is driven by the tag push rather than
+    # the release-commit branch push (see the deploy-target step).
+    tags:
+      - 'v*'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
@@ -13,22 +17,23 @@ on:
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
-  # but allow concurrent runs on push if they potentially use different source code
-  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  # but allow concurrent runs on push if they potentially use different source code.
+  # The push group includes github.ref so that the branch push and tag push of
+  # the same release commit (same sha) don't share a group -- otherwise the
+  # skipped branch run could cancel the production tag run.
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-{1}-{2}', github.workflow, github.ref, github.sha) }}
   cancel-in-progress: true
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
-  NODE_LTS_VERSION: 20
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
@@ -55,7 +60,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - name: Setup corepack
@@ -73,26 +78,37 @@ jobs:
 
           if [[ "$RELEASE_VERSION" == v* ]];
           then
-            echo "value=production" >> $GITHUB_OUTPUT
-            if [[ "$RELEASE_VERSION" == *-canary.* ]];
+            if [[ "$GIT_REF" != refs/tags/* ]];
             then
-              RELEASE_ENVIRONMENT="release-canary"
-            elif [[ "$RELEASE_VERSION" == *-beta.* ]];
-            then
-              RELEASE_ENVIRONMENT="release-beta"
-            elif [[ "$RELEASE_VERSION" == *-rc.* ]];
-            then
-              RELEASE_ENVIRONMENT="release-release-candidate"
-            elif [[ "$RELEASE_VERSION" != *-* ]];
-            then
-              RELEASE_ENVIRONMENT="release-stable"
+              # The release commit reached a branch (e.g. its push to canary).
+              # Publishing is driven by the tag push for that same commit, so
+              # skip here to avoid a duplicate production build on the same sha.
+              echo "value=skipped" >> $GITHUB_OUTPUT
+            else
+              echo "value=production" >> $GITHUB_OUTPUT
+              if [[ "$RELEASE_VERSION" == *-canary.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-canary"
+              elif [[ "$RELEASE_VERSION" == *-beta.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-beta"
+              elif [[ "$RELEASE_VERSION" == *-rc.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-release-candidate"
+              elif [[ "$RELEASE_VERSION" == *-preview.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-preview"
+              elif [[ "$RELEASE_VERSION" != *-* ]];
+              then
+                RELEASE_ENVIRONMENT="release-stable"
+              fi
+              if [[ -z "$RELEASE_ENVIRONMENT" ]];
+              then
+                echo "::error::Missing release environment for $RELEASE_VERSION"
+                exit 1
+              fi
+              echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
             fi
-            if [[ -z "$RELEASE_ENVIRONMENT" ]];
-            then
-              echo "::error::Missing release environment for $RELEASE_VERSION"
-              exit 1
-            fi
-            echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
           elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
@@ -107,8 +123,10 @@ jobs:
           fi
         env:
           GIT_REF: ${{ github.ref }}
-      - name: Print deploy target
-        run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+      - name: Print deploy plan
+        run: |
+          echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+          echo "Release environment is '${{ steps.deploy-target.outputs.release_environment }}'"
 
   build:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
@@ -117,25 +135,32 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+          persist-credentials: false
+
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
           corepack enable
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 25
-          persist-credentials: false
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
@@ -231,6 +256,9 @@ jobs:
     env:
       # Disable all build caches for production/staging/force-preview deploys
       NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
       # Enable long paths on Windows to avoid MAX_PATH (260 char) errors
       # with deeply nested node_modules/.pnpm paths
@@ -247,11 +275,18 @@ jobs:
           fetch-depth: 100
           persist-credentials: false
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         if: ${{ !matrix.docker }}
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
 
@@ -464,15 +499,25 @@ jobs:
 
     runs-on: ubuntu-latest-16-core-oss
 
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - run: corepack enable
@@ -516,17 +561,6 @@ jobs:
       - build-wasm
       - build-native
     steps:
-      - name: Setup node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-          package-manager-cache: false
-      - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
-
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -542,6 +576,17 @@ jobs:
           restore-keys: |
             build-and-deploy-${{ github.sha }}-${{ github.run_number }}
             build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -631,10 +676,54 @@ jobs:
           repositories: next.js
           permission-contents: write
 
-      - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE: ${{ vars.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE }}
+
+      - name: Upload pnpm publish summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-publish-summary
+          path: pnpm-publish-summary.json
+          if-no-files-found: ignore
+
+  reportPublishFailure:
+    name: report publish failure to slack
+    needs:
+      - deploy-target
+      - publishRelease
+    # Only alert for runs that would publish (production == v* tag push) where
+    # the publish did not succeed. In a production run publishRelease's own `if`
+    # is true, so it is only 'skipped' when a build dependency failed and
+    # 'failure' when it ran and failed -- both are caught by `!= 'success'`.
+    # `always()` is required so a skipped/failed publishRelease doesn't skip this
+    # job too (same pattern as the buildPassed job below).
+    if: >-
+      ${{
+        always() &&
+        needs.deploy-target.outputs.value == 'production' &&
+        needs.publishRelease.result != 'success'
+      }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_PUBLISH_SLACK_WEBHOOK_URL }}
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
+        with:
+          # The url is intentionally missing the protocol,
+          # allowing it to be transformed into an actual link in the Slack workflow
+          # (through slightly hacky means).
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.ref_name) }},
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']

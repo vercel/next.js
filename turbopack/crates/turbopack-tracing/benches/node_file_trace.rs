@@ -4,7 +4,9 @@ use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, OperationVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, OperationVc, TurboTasks, Vc, mark_top_level_task,
+    read_strongly_consistent_and_apply_effects, take_effects,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
@@ -85,6 +87,11 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         let input: RcStr = bench_input.input.clone().into();
         async move {
             tt.run_once(async move {
+                // This benchmark performs eventually-consistent Vc reads at the top level, which
+                // is fine for a throughput benchmark but trips the top-level-task assertion under
+                // debug-assertions otherwise. Unmark the top-level task for the reads, then re-mark
+                // it before `Effects::apply`, which *requires* a top-level task.
+                unmark_top_level_task_may_leak_eventually_consistent_state();
                 let input_fs = DiskFileSystem::new(rcstr!("tests"), Vc::cell(tests_root.clone()));
                 let input = input_fs.root().await?.join(&input)?;
 
@@ -131,13 +138,17 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     .to_resolved()
                     .await?;
 
+                // `read_strongly_consistent_and_apply_effects` applies effects, which *requires* a
+                // top-level task. Restore the mark we cleared above for the eventually-consistent
+                // reads.
+                mark_top_level_task();
                 read_strongly_consistent_and_apply_effects(
                     extract_effects_operation(emit_assets_into_dir_operation(assets, output_dir)),
                     |e| e,
                 )
                 .await?;
 
-                Ok(())
+                anyhow::Ok(())
             })
             .await
             .unwrap();

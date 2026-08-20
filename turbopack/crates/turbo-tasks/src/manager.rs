@@ -4,6 +4,7 @@ use std::{
     future::Future,
     hash::{BuildHasher, BuildHasherDefault},
     mem::take,
+    ops::Deref,
     panic::AssertUnwindSafe,
     pin::Pin,
     process::abort,
@@ -465,7 +466,7 @@ enum ScheduledTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
         local_task_id: LocalTaskId,
-        global_task_state: Arc<RwLock<CurrentTaskState>>,
+        global_task_state: CurrentTaskStateHandle,
         span: Span,
     },
 }
@@ -576,12 +577,48 @@ impl CurrentTaskState {
     }
 }
 
+/// A shareable current-task state handle with the immutable task ID cached
+/// outside the lock. The rest of the state is mutated by global and local
+/// tasks, but the task ID is fixed for the lifetime of an execution.
+#[derive(Clone)]
+struct CurrentTaskStateHandle {
+    inner: Arc<CurrentTaskStateInner>,
+}
+
+struct CurrentTaskStateInner {
+    current_task_id: Option<TaskId>,
+    state: RwLock<CurrentTaskState>,
+}
+
+impl CurrentTaskStateHandle {
+    fn new(state: CurrentTaskState) -> Self {
+        Self {
+            inner: Arc::new(CurrentTaskStateInner {
+                current_task_id: state.task_id,
+                state: RwLock::new(state),
+            }),
+        }
+    }
+
+    fn current_task_id(&self) -> Option<TaskId> {
+        self.inner.current_task_id
+    }
+}
+
+impl Deref for CurrentTaskStateHandle {
+    type Target = RwLock<CurrentTaskState>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner.state
+    }
+}
+
 // TODO implement our own thread pool and make these thread locals instead
 task_local! {
     /// The current TurboTasks instance
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
-    static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
+    static CURRENT_TASK_STATE: CurrentTaskStateHandle;
 
     /// Temporarily suppresses the eventual consistency check in top-level tasks.
     /// This is used by strongly consistent reads to allow them to succeed in top-level tasks.
@@ -698,11 +735,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_foreground_job();
         // it's okay for execution ids to overflow and wrap, they're just used for an assert
         let execution_id = self.execution_id_factory.wrapping_get();
-        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new_temporary(
+        let current_task_state = CurrentTaskStateHandle::new(CurrentTaskState::new_temporary(
             execution_id,
             TaskPriority::initial(),
             true, // in_top_level_task
-        )));
+        ));
 
         let result = TURBO_TASKS
             .scope(
@@ -747,7 +784,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
-        RawVc::TaskOutput(self.backend.get_or_create_task(
+        RawVc::task_output(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
@@ -789,8 +826,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
-            match registry::get_value_type(type_id).get_trait_method(trait_method) {
+        if let Some((_, cell_id)) = this.as_task_cell() {
+            match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
                         let (resolved, mut arg) = (filter)(arg);
@@ -856,7 +893,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.local_tasks.create(task_type);
                 (
-                    Arc::clone(gts),
+                    gts.clone(),
                     gts_write.execution_id,
                     gts_write.priority,
                     local_task_id,
@@ -875,7 +912,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             priority,
         );
 
-        RawVc::LocalOutput(execution_id, local_task_id, persistence)
+        RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
     fn begin_foreground_job(&self) {
@@ -1185,12 +1222,13 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         // it's okay for execution ids to overflow and wrap, they're just used
                         // for an assert
                         let execution_id = this.execution_id_factory.wrapping_get();
-                        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                            task_id,
-                            execution_id,
-                            priority,
-                            false, // in_top_level_task
-                        )));
+                        let current_task_state =
+                            CurrentTaskStateHandle::new(CurrentTaskState::new(
+                                task_id,
+                                execution_id,
+                                priority,
+                                false, // in_top_level_task
+                            ));
                         let single_execution_future = async {
                             if this.stopped.load(Ordering::Acquire) {
                                 this.backend.task_execution_canceled(task_id, &*this);
@@ -1629,7 +1667,7 @@ async fn wait_for_local_tasks() {
 }
 
 pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(id) => id,
         Err(_) => panic!(
             "{from} can only be used in the context of a turbo_tasks task execution or \
@@ -1639,7 +1677,7 @@ pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
 }
 
 pub(crate) fn current_task(from: &str) -> TaskId {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(Some(id)) => id,
         Ok(None) | Err(_) => {
             panic!("{from} can only be used in the context of a turbo_tasks task execution")
@@ -1982,12 +2020,13 @@ impl CurrentCellRef {
     ///
     /// ```
     /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// #[derive(Clone)]
     /// struct Wrapper(Vec<u32>);
     ///
     /// impl PartialEq for Wrapper {
-    ///     fn eq(&self, other: Wrapper) {
+    ///     fn eq(&self, other: &Wrapper) -> bool {
     ///         // Example: order doesn't matter for equality
-    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         let (mut this, mut other) = (self.0.clone(), other.0.clone());
     ///         this.sort_unstable();
     ///         other.sort_unstable();
     ///         this == other
@@ -2061,7 +2100,8 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = hash_xxh3_hash128(&new_value);
+            let content_hash = hash_xxh3_hash128(&new_value).to_le_bytes();
+
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2085,7 +2125,8 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash =
+                hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference)).to_le_bytes();
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }
@@ -2202,7 +2243,7 @@ impl CurrentCellRef {
 
 impl From<CurrentCellRef> for RawVc {
     fn from(cell: CurrentCellRef) -> Self {
-        RawVc::TaskCell(cell.current_task, cell.index)
+        RawVc::task_cell(cell.current_task, cell.index)
     }
 }
 
@@ -2222,10 +2263,15 @@ pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
         let map = ts.cell_counters.as_mut().unwrap();
         let current_index = map.entry(ty).or_default();
         let index = *current_index;
+        assert!(
+            index <= CellId::MAX_CELL_INDEX,
+            "task allocated more than {} cells of a single type",
+            CellId::MAX_CELL_INDEX as u64 + 1,
+        );
         *current_index += 1;
         CurrentCellRef {
             current_task,
-            index: CellId { type_id: ty, index },
+            index: CellId::new(ty, index),
         }
     })
 }

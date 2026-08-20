@@ -20,7 +20,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -156,10 +156,7 @@ impl MiddlewareEndpoint {
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
         let has_i18n = i18n.is_some();
-        let has_i18n_locales = i18n
-            .as_ref()
-            .map(|i18n| i18n.locales.len() > 1)
-            .unwrap_or(false);
+        let has_i18n_locales = i18n.is_some();
         let base_path = next_config.base_path().await?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
@@ -228,7 +225,7 @@ impl MiddlewareEndpoint {
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
                     NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
@@ -342,12 +339,13 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
         let this = self.await?;
-        let userland_module = self.entry_module();
+        let userland_module = self.entry_module().to_resolved().await?;
         Ok(trace_endpoint(
             *this.project,
             None,
-            this.project.module_graph(userland_module),
-            userland_module,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
         ))
     }
 }
@@ -407,9 +405,11 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                self.entry_module().to_resolved().await?,
-            ])])
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![self.entry_module().to_resolved().await?],
+                // Middleware runs on (potentially) all routes, so treat it as high priority.
+                heuristics: EntryHeuristics::high_priority(),
+            }])
             .cell(),
         )
     }

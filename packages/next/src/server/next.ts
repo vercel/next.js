@@ -623,11 +623,16 @@ function createServer(
       (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
     const selectWebpack =
       options && (options.webpack || process.env.IS_WEBPACK_TEST)
-    if (selectTurbopack && selectWebpack) {
+    // Rspack is selected through env/config side effects instead of a custom
+    // server option, so don't fall back to the default Turbopack auto mode.
+    const selectRspack = !!process.env.NEXT_RSPACK
+    if (selectTurbopack && selectWebpack && selectRspack) {
       throw new Error('Pass either `webpack` or `turbopack`, not both.')
     }
-    if (selectTurbopack || !selectWebpack) {
-      process.env.TURBOPACK ??= selectTurbopack ? '1' : 'auto'
+    if (selectTurbopack) {
+      process.env.TURBOPACK ??= '1'
+    } else if (!selectWebpack && !selectRspack) {
+      process.env.TURBOPACK ??= 'auto'
     }
   } else {
     if (options && (options.webpack || options.turbo || options.turbopack)) {

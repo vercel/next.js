@@ -16,7 +16,7 @@ use std::{
 };
 
 use allocator_api2::alloc::Allocator;
-use bumpalo::Bump;
+use bumpalo::{Bump, boxed::Box as BumpBox};
 
 /// A minimal growable vector for the list children of a `JsValue` that grow or are rebuilt after
 /// construction (e.g. `Array.items`, `Object.parts`, `Alternatives.values`, `Add` operands, and the
@@ -43,6 +43,19 @@ unsafe impl<T: Sync> Sync for BumpVec<'_, T> {}
 impl<T> Default for BumpVec<'_, T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<'a, T> From<BumpBox<'a, [T]>> for BumpVec<'a, T> {
+    fn from(boxed: BumpBox<'a, [T]>) -> Self {
+        let len = boxed.len();
+        let ptr = BumpBox::into_raw(boxed) as *mut T;
+        Self {
+            ptr: NonNull::new(ptr).unwrap_or(NonNull::dangling()),
+            cap: len,
+            len,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -84,6 +97,15 @@ impl<'a, T> BumpVec<'a, T> {
             Self::with_capacity_in(bump, iter.size_hint().1.unwrap_or(iter.size_hint().0));
         vec.extend(bump, iter);
         vec
+    }
+
+    /// Freeze into an arena-allocated boxed slice, handing the existing allocation to the box.
+    pub fn into_boxed_slice(self) -> BumpBox<'a, [T]> {
+        let me = ManuallyDrop::new(self);
+        let slice = ptr::slice_from_raw_parts_mut(me.ptr.as_ptr(), me.len);
+        // SAFETY: `ptr`/`len` describe an initialized arena slice we exclusively own, exactly the
+        // representation `BumpBox<[T]>` expects.
+        unsafe { BumpBox::from_raw(slice) }
     }
 
     /// Reallocate the buffer to `new_cap` elements (`new_cap >= len`), moving the live prefix into
@@ -300,6 +322,17 @@ impl<T> Iterator for IntoIter<'_, T> {
     }
 }
 
+impl<T> DoubleEndedIterator for IntoIter<'_, T> {
+    fn next_back(&mut self) -> Option<T> {
+        if self.idx == self.len {
+            return None;
+        }
+        self.len -= 1;
+        // SAFETY: index `len` (post-decrement) lies in the initialized `[idx, len)` range.
+        Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
+    }
+}
+
 impl<T> ExactSizeIterator for IntoIter<'_, T> {}
 
 impl<T> Drop for IntoIter<'_, T> {
@@ -500,6 +533,39 @@ mod tests {
 
         let collected: Vec<i32> = v.into_iter().collect();
         assert_eq!(collected, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn into_iter_double_ended() {
+        let bump = Bump::new();
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4]);
+        let reversed: Vec<i32> = v.into_iter().rev().collect();
+        assert_eq!(reversed, vec![4, 3, 2, 1]);
+
+        // Front and back cursors meet without overlap.
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3]);
+        let mut it = v.into_iter();
+        assert_eq!(it.next(), Some(1));
+        assert_eq!(it.next_back(), Some(3));
+        assert_eq!(it.next(), Some(2));
+        assert_eq!(it.next_back(), None);
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn double_ended_drops_remainder_once() {
+        let bump = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+        let mut v = BumpVec::new();
+        for _ in 0..5 {
+            v.push(&bump, DropCounter(counter.clone()));
+        }
+        let mut it = v.into_iter();
+        drop(it.next()); // front
+        drop(it.next_back()); // back
+        assert_eq!(counter.get(), 2);
+        drop(it); // remaining three drop exactly once
+        assert_eq!(counter.get(), 5);
     }
 
     #[test]

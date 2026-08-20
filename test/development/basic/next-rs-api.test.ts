@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
 import type {
   Issue,
   MemoryEvictionMode,
@@ -500,7 +500,7 @@ describe('next.rs api', () => {
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
 
-          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscHmrEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -610,7 +610,7 @@ describe('next.rs api', () => {
           case 'app-page': {
             await route.pages[0].htmlEndpoint.writeToDisk()
             serverSideSubscription =
-              await route.pages[0].rscEndpoint.serverChanged(false)
+              await route.pages[0].rscHmrEndpoint.serverChanged(false)
             break
           }
           default: {
@@ -618,15 +618,13 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project
-          .hmrChunkNamesSubscribe(HmrTarget.Client)
-          .next()
+        const result = await project.clientHmrChunkNamesSubscribe().next()
         expect(result.done).toBe(false)
         const chunkNames = result.value.chunkNames
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
         const subscriptions = chunkNames.map((chunkName) =>
-          project.hmrEvents(chunkName, HmrTarget.Client)
+          project.clientHmrEvents(chunkName)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -740,12 +738,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
+    const result = await project.clientHmrChunkNamesSubscribe().next()
     expect(result.done).toBe(false)
     const chunkNames = result.value.chunkNames
 
     const subscriptions = chunkNames.map((chunkName) =>
-      project.hmrEvents(chunkName, HmrTarget.Client)
+      project.clientHmrEvents(chunkName)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

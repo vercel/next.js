@@ -38,6 +38,22 @@ const SKIP_ROUTES = new Set([
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 ])
+const PAGES_SUPPORT_ROUTES = new Set([
+  '/_app',
+  '/_document',
+  '/_error',
+  '/404',
+  '/500',
+])
+const PAGES_FRAMEWORK_ROUTES = new Set(['/_app', '/_document', '/_error'])
+
+function isRenderablePagesRoute(page: string): boolean {
+  return (
+    !PAGES_FRAMEWORK_ROUTES.has(page) &&
+    page !== '/api' &&
+    !page.startsWith('/api/')
+  )
+}
 
 function removeSuffix(value: string, suffix: string): string {
   return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value
@@ -439,7 +455,23 @@ export async function discoverRoutes(
   ): string[] => {
     if (debugPaths.length > 0) {
       const debugPathsSet = new Set(debugPaths)
-      return paths.filter((p) => debugPathsSet.has(p))
+      const filteredPaths = paths.filter((p) => debugPathsSet.has(p))
+      const hasPagesRoute = filteredPaths.some((p) =>
+        isRenderablePagesRoute(getPageFromPath(p, pageExtensions))
+      )
+
+      if (!hasPagesRoute) {
+        return filteredPaths
+      }
+
+      const filteredPathsSet = new Set(filteredPaths)
+      for (const path of paths) {
+        if (PAGES_SUPPORT_ROUTES.has(getPageFromPath(path, pageExtensions))) {
+          filteredPathsSet.add(path)
+        }
+      }
+
+      return paths.filter((p) => filteredPathsSet.has(p))
     }
     // Empty array means build none
     return []

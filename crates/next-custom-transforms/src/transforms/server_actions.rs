@@ -1908,15 +1908,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let mut has_export_needing_wrapper = false;
 
                                 for decl in &var.decls {
-                                    if let Pat::Ident(_) = &decl.name
+                                    if in_action_file
+                                        && let Pat::Ident(_) = &decl.name
                                         && let Some(init) = &decl.init
                                     {
-                                        // Disallow exporting literals. Admittedly, this is
-                                        // pretty arbitrary. We don't disallow exporting object
-                                        // and array literals, as that would be too restrictive,
-                                        // especially for page and layout files with
-                                        // 'use cache', that may want to export metadata or
-                                        // viewport objects.
+                                        // In a "use server" file every export becomes a server
+                                        // reference, and a runtime check asserts that each one is a
+                                        // function. Reject exported literals at build time instead.
+                                        // Object and array literals stay allowed, as rejecting them
+                                        // would be too restrictive.
+                                        //
+                                        // A "use cache" file wraps only exports that are, or might
+                                        // be, functions. Known non-function values pass through.
+                                        // Page and layout files need this for route segment
+                                        // configs, metadata, and viewport.
                                         if let Expr::Lit(_) = &**init {
                                             disallowed_export_span = *span;
                                         }
@@ -2738,7 +2743,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                atom!("use turbopack no side effects").into(),
+                                atom!("use turbopack: no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2747,7 +2752,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let mut module_items = vec![
                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                        atom!("use turbopack no side effects").into(),
+                                        atom!("use turbopack: no side effects").into(),
                                     ))),
                                     span: DUMMY_SP,
                                 })),

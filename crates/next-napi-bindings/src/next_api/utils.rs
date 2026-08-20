@@ -7,12 +7,16 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
-    bindgen_prelude::{Buffer, External, ToNapiValue},
-    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Env, Status, Unknown,
+    bindgen_prelude::{
+        Buffer, External, ExternalRef, FunctionRef, JsObjectValue, JsValue, Object, ToNapiValue,
+    },
+    threadsafe_function::{ThreadsafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
-use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
+use next_code_frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Location, render_code_frame,
+};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
@@ -88,7 +92,7 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<RootTask>,
 ) -> napi::Result<()> {
     if let Some(task) = root_task.task_id.take() {
         root_task
@@ -149,7 +153,11 @@ fn is_internal(file_path: &str) -> bool {
 ///
 /// Because this accesses the terminal size, this function call should not be cached (e.g. in
 /// turbo-tasks).
-fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Result<Option<String>> {
+fn render_source_code_frame(
+    severity: IssueSeverity,
+    source: &PlainIssueSource,
+    file_path: &str,
+) -> Result<Option<String>> {
     let Some((start, end)) = source.range else {
         return Ok(None);
     };
@@ -184,7 +192,16 @@ fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Resul
         &content,
         &location,
         &CodeFrameOptions {
-            color: true,
+            color: match severity {
+                IssueSeverity::Bug | IssueSeverity::Fatal | IssueSeverity::Error => {
+                    CodeFrameColorMode::Error
+                }
+                IssueSeverity::Warning => CodeFrameColorMode::Warning,
+                IssueSeverity::Hint
+                | IssueSeverity::Note
+                | IssueSeverity::Suggestion
+                | IssueSeverity::Info => CodeFrameColorMode::Info,
+            },
             highlight_code: true,
             max_width: terminal_size::terminal_size()
                 .map(|(w, _)| w.0 as usize)
@@ -199,7 +216,7 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     let Some(source) = issue.source.as_ref() else {
         return Ok(None);
     };
-    render_source_code_frame(source, &issue.file_path)
+    render_source_code_frame(issue.severity, source, &issue.file_path)
 }
 
 #[napi(object)]
@@ -248,8 +265,12 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|s| NapiAdditionalIssueSource {
                     description: s.description.clone(),
-                    code_frame: render_source_code_frame(&s.source, &s.source.asset.file_path)
-                        .unwrap_or_default(),
+                    code_frame: render_source_code_frame(
+                        issue.severity,
+                        &s.source,
+                        &s.source.asset.file_path,
+                    )
+                    .unwrap_or_default(),
                     source: (&s.source).into(),
                 })
                 .collect(),
@@ -387,35 +408,40 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
+        let result_raw = unsafe { T::to_napi_value(env, val.result)? };
+        let result = unsafe { Unknown::from_raw_unchecked(env, result_raw) };
 
-        let result = unsafe {
-            let result = T::to_napi_value(env, val.result)?;
-            JsUnknown::from_raw(env, result)?
+        // When the result is an object, extend it in place with the `issues`
+        // property. Otherwise, produce a fresh object holding only `issues`.
+        let mut obj = if matches!(result.get_type()?, napi::ValueType::Object) {
+            Object::from_raw(env, result_raw)
+        } else {
+            Object::new(&Env::from_raw(env))?
         };
-        if matches!(result.get_type()?, napi::ValueType::Object) {
-            // SAFETY: We know that result is an object, so we can cast it to a JsObject
-            let result = unsafe { result.cast::<JsObject>() };
-
-            for key in JsObject::keys(&result)? {
-                let value: JsUnknown = result.get_named_property(&key)?;
-                obj.set_named_property(&key, value)?;
-            }
-        }
 
         obj.set_named_property("issues", val.issues)?;
 
-        Ok(unsafe { obj.raw() })
+        Ok(obj.raw())
     }
 }
 
-pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
+pub fn subscribe<
+    T: 'static + Send + Sync,
+    F: Future<Output = Result<T>> + Send,
+    V: 'static + ToNapiValue,
+>(
     ctx: NextTurbopackContext,
-    func: JsFunction,
+    env: &Env,
+    func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
-    mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
+    mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
 ) -> napi::Result<External<RootTask>> {
-    let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
+    let js_func = func.borrow_back(env)?;
+    let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
+        .build_threadsafe_function::<T>()
+        .callee_handled::<true>()
+        .build_callback(mapper)?;
+    let func = Arc::new(func);
     let task_id = ctx.turbo_tasks().spawn_root_task({
         let ctx = ctx.clone();
         move || {
@@ -453,7 +479,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Effects>,
 )> {
-    let result = source_op.read_strongly_consistent().final_read_hint().await;
+    let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
     let effects = Arc::new(take_effects(source_op).await?);
 

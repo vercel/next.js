@@ -931,6 +931,7 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
         new_output = match new_output {
             Type::Group(TypeGroup { elem, .. }) => *elem,
             Type::Tuple(TypeTuple { elems, .. }) if elems.is_empty() => {
+                // special case for returning nothing
                 Type::Path(parse_quote!(turbo_tasks::Vc<()>))
             }
             Type::Path(TypePath {
@@ -985,7 +986,14 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
                     found_vc = true;
                     break; // Vc is the bottom-most level
                 }
-                if ident == "Result" && args.len() == 1 {
+                if ident == "ResolvedVc" && args.len() == 1 {
+                    let GenericArgument::Type(ty) =
+                        args.first().expect("ResolvedVc<...> type has an argument")
+                    else {
+                        break;
+                    };
+                    Type::Path(parse_quote!(turbo_tasks::Vc<#ty>))
+                } else if ident == "Result" && args.len() == 1 {
                     let GenericArgument::Type(ty) =
                         args.first().expect("Result<...> type has an argument")
                     else {
@@ -1005,8 +1013,9 @@ fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Ty
             .span()
             .unwrap()
             .error(
-                "Expected return type to be `turbo_tasks::Vc<T>` or `anyhow::Result<Vc<T>>`. \
-                 Unable to process type.",
+                "Expected return type to be `turbo_tasks::Vc<T>`,  `anyhow::Result<Vc<T>>`, \
+                 `turbo_tasks::ResolvedVc<T>` or `anyhow::Result<ResolvedVc<T>>`. Unable to \
+                 process type.",
             )
             .emit();
     } else if let Some(replace_vc) = replace_vc {

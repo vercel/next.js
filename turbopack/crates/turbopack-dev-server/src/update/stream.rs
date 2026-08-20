@@ -111,6 +111,22 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
+/// Computes the initial [`Version`] for an update stream from a resolved source request. Runs as
+/// an `operation` so [`UpdateStream::new`] can read it strongly consistently from its top-level
+/// task without performing an eventually-consistent read.
+#[turbo_tasks::function(operation, root)]
+async fn initial_version_operation(
+    content: OperationVc<ResolveSourceRequestResult>,
+) -> Result<Vc<Box<dyn Version>>> {
+    Ok(match *content.read_strongly_consistent().await? {
+        ResolveSourceRequestResult::Static(static_content, _) => {
+            static_content.await?.content.version()
+        }
+        ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result.connect()),
+        _ => Vc::upcast(NotFoundVersion::new()),
+    })
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn get_update_stream_item_operation(
     resource: RcStr,
@@ -277,17 +293,13 @@ impl UpdateStream {
 
         let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
-        // will handle them
-        let version = match *content.connect().await? {
-            ResolveSourceRequestResult::Static(static_content, _) => {
-                static_content.await?.content.version()
-            }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-                Vc::upcast(proxy_result.connect())
-            }
-            _ => Vc::upcast(NotFoundVersion::new()),
-        };
-        let version_state = VersionState::new(version.into_trait_ref().await?).await?;
+        // will handle them. This runs in a top-level task (`UpdateServer::run`'s
+        // `start_once_process`), so the initial version is computed in a dedicated `operation`
+        // task (where the per-content reads are legal) and read strongly consistently.
+        let version = initial_version_operation(content)
+            .read_trait_strongly_consistent()
+            .await?;
+        let version_state = VersionState::new(version).await?;
 
         let _ = compute_update_stream(
             resource,

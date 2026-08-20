@@ -8,11 +8,12 @@ use either::Either;
 use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
-use turbopack_core::compile_time_info::CompileTimeInfo;
+use turbopack_core::{compile_time_info::CompileTimeInfo, environment::Rendering};
 use url::Url;
 
 use super::{
-    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind,
 };
 use crate::analyzer::{Bump, BumpVec, RequireContextValue, ThreadLocal};
 
@@ -21,7 +22,7 @@ pub async fn replace_well_known<'a>(
     value: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
     allow_project_root_tracing: bool,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     Ok(match value {
         JsValue::Call(_, call) if matches!(call.callee(), JsValue::WellKnownFunction(_)) => {
             let (callee, args) = call.into_parts();
@@ -38,7 +39,7 @@ pub async fn replace_well_known<'a>(
                     allow_project_root_tracing,
                 )
                 .await?,
-                true,
+                Modified::Yes,
             )
         }
         JsValue::Call(total, call) => {
@@ -47,9 +48,12 @@ pub async fn replace_well_known<'a>(
             if call.args().len() == 1
                 && let JsValue::WellKnownObject(_) = &call.args()[0]
             {
-                return Ok((call.args()[0].clone_in(arena.get_or_default()), true));
+                return Ok((
+                    call.args()[0].clone_in(arena.get_or_default()),
+                    Modified::Yes,
+                ));
             }
-            (JsValue::Call(total, call), false)
+            (JsValue::Call(total, call), Modified::No)
         }
         JsValue::Member(_, mut obj, mut prop) if matches!(&*obj, JsValue::WellKnownObject(_)) => {
             let JsValue::WellKnownObject(kind) = take(&mut *obj) else {
@@ -67,19 +71,19 @@ pub async fn replace_well_known<'a>(
             match prop.as_str() {
                 Some("filter") => (
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayFilter),
-                    true,
+                    Modified::Yes,
                 ),
                 Some("forEach") => (
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayForEach),
-                    true,
+                    Modified::Yes,
                 ),
                 Some("map") => (
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayMap),
-                    true,
+                    Modified::Yes,
                 ),
                 _ => (
                     JsValue::member(arena.get_or_default(), take(&mut *obj), take(&mut *prop)),
-                    false,
+                    Modified::No,
                 ),
             }
         }
@@ -91,10 +95,10 @@ pub async fn replace_well_known<'a>(
         {
             (
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
-                true,
+                Modified::Yes,
             )
         }
-        _ => (value, false),
+        _ => (value, Modified::No),
     })
 }
 
@@ -188,15 +192,17 @@ pub async fn well_known_function_call<'a>(
 fn object_assign<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if args.iter().all(|arg| matches!(arg, JsValue::Object { .. })) {
         if let Some(mut merged_object) = args.into_iter().reduce(|mut acc, cur| {
-            if let JsValue::Object { parts, mutable, .. } = &mut acc
+            if let JsValue::Object {
+                parts, mutability, ..
+            } = &mut acc
                 && let JsValue::Object {
                     parts: next_parts,
-                    mutable: next_mutable,
+                    mutability: next_mutability,
                     ..
                 } = &cur
             {
                 parts.extend(arena, next_parts.iter().map(|p| p.clone_in(arena)));
-                *mutable |= *next_mutable;
+                mutability.merge_with(*next_mutability);
             }
             acc
         }) {
@@ -406,6 +412,8 @@ pub fn import<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a
             JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             }),
         ),
         _ => JsValue::unknown(
@@ -428,6 +436,8 @@ fn require<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
             JsValue::Module(ModuleValue {
                 module: s.into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             })
         } else {
             JsValue::unknown(
@@ -505,6 +515,8 @@ fn require_context_require<'a>(
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
         annotations: None,
+        analyze_for_constants: false,
+        reference: None,
     }))
 }
 
@@ -634,7 +646,7 @@ fn well_known_function_member<'a>(
     arena: &'a Bump,
     kind: WellKnownFunctionKind<'a>,
     prop: JsValue<'a>,
-) -> (JsValue<'a>, bool) {
+) -> (JsValue<'a>, Modified) {
     let new_value = match (kind, prop.as_str()) {
         (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
@@ -664,11 +676,11 @@ fn well_known_function_member<'a>(
         (kind, _) => {
             return (
                 JsValue::member(arena, JsValue::WellKnownFunction(kind), prop),
-                false,
+                Modified::No,
             );
         }
     };
-    (new_value, true)
+    (new_value, Modified::Yes)
 }
 
 async fn well_known_object_member<'a>(
@@ -676,7 +688,7 @@ async fn well_known_object_member<'a>(
     kind: WellKnownObjectKind,
     prop: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(arena.get_or_default(), prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
@@ -714,6 +726,7 @@ async fn well_known_object_member<'a>(
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(arena.get_or_default(), prop),
         WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::ImportMetaEnv),
             // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
             Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
@@ -725,10 +738,44 @@ async fn well_known_object_member<'a>(
             _ => {
                 return Ok((
                     JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
-                    false,
+                    Modified::No,
                 ));
             }
         },
+        WellKnownObjectKind::ImportMetaEnv => {
+            let compile_time_info = compile_time_info.await?;
+            let mode = compile_time_info
+                .defines
+                .read_process_env(rcstr!("NODE_ENV"))
+                .owned()
+                .await?
+                .unwrap_or_else(|| rcstr!("development"));
+            let is_prod = mode == "production";
+
+            match prop.as_str() {
+                Some("MODE") => JsValue::from(mode),
+                Some("PROD") => JsValue::from(ConstantValue::from(is_prod)),
+                Some("DEV") => JsValue::from(ConstantValue::from(!is_prod)),
+                Some("BASE_URL") => {
+                    JsValue::from(compile_time_info.import_meta_env_base_url.clone())
+                }
+                Some("SSR") => JsValue::from(ConstantValue::from(matches!(
+                    *compile_time_info.environment.rendering().await?,
+                    Rendering::Server
+                ))),
+                Some(_) => JsValue::Constant(ConstantValue::Undefined),
+                None => {
+                    return Ok((
+                        JsValue::member(
+                            arena.get_or_default(),
+                            JsValue::WellKnownObject(kind),
+                            prop,
+                        ),
+                        Modified::No,
+                    ));
+                }
+            }
+        }
         WellKnownObjectKind::ModuleHot => match prop.as_str() {
             Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
             Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
@@ -743,7 +790,29 @@ async fn well_known_object_member<'a>(
                         true,
                         rcstr!("unsupported property on module.hot"),
                     ),
-                    true,
+                    Modified::Yes,
+                ));
+            }
+        },
+        WellKnownObjectKind::Navigator => match prop.as_str() {
+            Some("serviceWorker") => {
+                JsValue::WellKnownObject(WellKnownObjectKind::NavigatorServiceWorker)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    Modified::No,
+                ));
+            }
+        },
+        WellKnownObjectKind::NavigatorServiceWorker => match prop.as_str() {
+            Some("register") => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ServiceWorkerRegister)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    Modified::No,
                 ));
             }
         },
@@ -751,11 +820,11 @@ async fn well_known_object_member<'a>(
         _ => {
             return Ok((
                 JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
-                false,
+                Modified::No,
             ));
         }
     };
-    Ok((new_value, true))
+    Ok((new_value, Modified::Yes))
 }
 
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {

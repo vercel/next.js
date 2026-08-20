@@ -3,39 +3,63 @@ title: Next.js encountered the unstable value crypto.randomUUID() while prerende
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
-
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so a fresh token is produced for each
-  visit.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-generated-value"
-  title="Cache the generated value"
->
-  Generate one value at build time and reuse it. Useful when the value is a key
-  into another cached operation.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the random value.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the generated value"
+    href="#cache-the-generated-value"
+    snippets={[
+      { text: 'function TokenId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return crypto.randomUUID()' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = crypto.randomUUID()' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 
@@ -73,7 +97,20 @@ export async function CsrfToken() {
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+#### Alternative: `await io()`
+
+Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
+
+```jsx filename="app/dashboard/csrf-token.js"
+import { io } from 'next/cache'
+
+export async function CsrfToken() {
+  await io()
+  return <input type="hidden" name="csrf" value={crypto.randomUUID()} />
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection), [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
 
 #### Switch to an async crypto API
 
@@ -104,7 +141,7 @@ Learn more: [Node `crypto` API](https://nodejs.org/docs/latest/api/crypto.html).
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints.
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. When the fallback is visible UI, design it to approximate the final layout so it doesn't cause a layout shift when the content arrives. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -155,7 +192,7 @@ Learn more: [How revalidation works](/docs/app/guides/how-revalidation-works).
 
 ### Trade-off
 
-Every visitor in the cache window uses the same generated value. That's the right answer for upstream cache keys and signing keys you control; the wrong answer for per-user identity (sessions, CSRF, nonces).
+Every visitor in the cache window uses the same generated value. That's the right answer for upstream cache keys and signing keys you control, and the wrong answer for per-user identity (sessions, CSRF, nonces).
 
 ### Gotchas
 
@@ -165,7 +202,7 @@ Every visitor in the cache window uses the same generated value. That's the righ
 
 ### Short-lived caches
 
-[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender. The segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
@@ -209,20 +246,30 @@ The first paint shows the SSR fallback (often `null`), and the value appears onl
 - A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
-## Don't want this validation?
+## Verifying the fix
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+## Why `instant = false` doesn't clear this error
 
-## Useful links
+This error fires from the prerender, not from instant-navigation validation. `crypto.randomUUID()` and related APIs return a different value on every call, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
-- [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time)
-- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

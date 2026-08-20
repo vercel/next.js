@@ -322,7 +322,8 @@ export function getResolveRoutes(
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            addPathPrefix(route.page, config.basePath || ''),
+            curPathname || undefined
           )
 
           // i18n locales aren't matched for app dir
@@ -339,6 +340,13 @@ export function getResolveRoutes(
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput
+              ? {
+                  ...pageOutput,
+                  // The dynamic-route scan matched the concrete request path;
+                  // keep those params with the fsChecker route definition.
+                  params,
+                }
+              : null
           }
         }
       }
@@ -522,11 +530,16 @@ export function getResolveRoutes(
                 config.deploymentId
               ) {
                 let isImmutableFile =
-                  config.experimental.supportsImmutableAssets &&
+                  config.supportsImmutableAssets &&
                   clientHashes![`static${decodeURI(output.itemPath)}`]
-                const expectedToken = isImmutableFile
-                  ? undefined
-                  : config.deploymentId
+                // Service workers are served at a fixed, stable URL (so the browser can keep the
+                // same registration across builds), so they don't carry a `?dpl` token.
+                const isServiceWorker =
+                  output.itemPath.startsWith('/service-worker/')
+                const expectedToken =
+                  isImmutableFile || isServiceWorker
+                    ? undefined
+                    : config.deploymentId
                 if (parsedUrl.query.dpl !== expectedToken) {
                   console.error(
                     `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`

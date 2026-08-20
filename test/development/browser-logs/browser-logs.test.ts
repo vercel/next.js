@@ -4,11 +4,6 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 
 const bundlerName = process.env.IS_TURBOPACK_TEST ? 'Turbopack' : 'Webpack'
-const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
-const innerScrollAndMaybeFocusHandlerName = enableNewScrollHandler
-  ? 'InnerScrollHandlerNew'
-  : 'InnerScrollAndFocusHandlerOld'
 
 function setupLogCapture() {
   const logs: string[] = []
@@ -41,6 +36,8 @@ function setupLogCapture() {
 
   return { logs, restore, clearLogs }
 }
+
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe(`Terminal Logging (${bundlerName})`, () => {
   describe('Pages Router', () => {
@@ -203,6 +200,61 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await browser.close()
     })
+
+    // Cache Components validation errors are logged on the server during the
+    // dev render and are also sent to the browser to show in the dev overlay.
+    // The browser then logs them to its own console, which the
+    // browser-to-terminal log forwarding would otherwise replay back to the
+    // CLI, duplicating the error. Only applies with Cache Components enabled.
+    if (isCacheComponentsEnabled) {
+      it('logs the validation error on the server without re-logging the forwarded browser copy', async () => {
+        const outputIndex = logs.length
+
+        const browser = await next.browser('/cache-components-error', {
+          // `disableBrowserLog` stops the test harness from echoing the browser
+          // console to the terminal, so the captured output reflects only the
+          // dev server's own logging.
+          disableBrowserLog: true,
+        })
+
+        // Wait until the browser has logged the validation error to its own
+        // console. This is the same console.error that schedules the log
+        // forwarding, so once it appears any forwarded copy has been queued.
+        await retry(async () => {
+          const browserLogs = await browser.log()
+          expect(browserLogs).toContainEqual(
+            expect.objectContaining({
+              source: 'error',
+              message: expect.stringContaining(
+                'Route "/cache-components-error": Next.js encountered the unstable value'
+              ),
+            })
+          )
+        })
+
+        // Emit a marker afterwards. The forwarding queue preserves order, so
+        // once the marker reaches the terminal we know a forwarded copy of the
+        // error would already be there too.
+        await browser.eval(`console.log('forward-flush-marker')`)
+        await retry(() => {
+          expect(logs.slice(outputIndex).join('')).toContain(
+            '[browser] forward-flush-marker'
+          )
+        })
+
+        const output = logs.slice(outputIndex).join('')
+
+        // The validation error is logged directly by the dev server. It is also
+        // sent to the browser, which logs it to its own console, but the
+        // browser-to-terminal log forwarding skips it since it already
+        // originated on the server. It should therefore appear exactly once.
+        const validationError =
+          'Route "/cache-components-error": Next.js encountered the unstable value'
+        expect(output).toIncludeRepeated(validationError, 1)
+
+        await browser.close()
+      })
+    }
   })
 
   describe('App Router - Client Components', () => {
@@ -325,26 +377,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
        https://react.dev/link/hydration-mismatch
 
          ...
-           <RenderFromTemplateContext>
-             <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
-               <${innerScrollAndMaybeFocusHandlerName} focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="hydration-..." loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="hydration-...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <div>
-                                     <p>
-       +                               client
-       -                               server
-                             ...
+           <ScrollHandler cacheNode={{rsc:{...}, ...}}>
+             <InnerScrollHandler scrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary name="hydration-..." loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+                           <SegmentViewNode type="page" pagePath="hydration-...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+                               <Page params={Promise} searchParams={Promise}>
+                                 <div>
+                                   <p>
+       +                             client
+       -                             server
                            ...
-                 ...
+                         ...
+               ...
 
            at <unknown> (https://react.dev/link/hydration-mismatch)
            at p (<anonymous>)

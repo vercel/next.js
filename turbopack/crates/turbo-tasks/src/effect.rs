@@ -266,7 +266,9 @@ impl EffectStateStorage {
 /// # #![feature(arbitrary_self_types_pointers)]
 /// #
 /// # use anyhow::Result;
-/// # use turbo_tasks::{Effects, ReadRef, Vc, run_once, take_effects};
+/// # use turbo_tasks::{
+/// #     Effects, ReadRef, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+/// # };
 /// #
 /// # async fn _wrapper() -> Result<()> {
 /// # type Example = ();
@@ -292,13 +294,13 @@ impl EffectStateStorage {
 ///     Ok(OutputWithEffects { output, effects }.cell())
 /// }
 ///
-/// // every operation must be read with strong consistency at the top-level
-/// let result_with_effects = some_turbo_tasks_operation_with_effects(args)
-///     .read_strongly_consistent()
-///     .await?;
-///
-/// // apply the effects once outside of a turbo_tasks::function at the top-level (e.g. `run_once`)
-/// result_with_effects.effects.apply().await?;
+/// // read with strong consistency and apply the effects once at the top-level
+/// // (e.g. in a `run_once` closure)
+/// let _result_with_effects = read_strongly_consistent_and_apply_effects(
+///     some_turbo_tasks_operation_with_effects(args),
+///     |result| &result.effects,
+/// )
+/// .await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -566,13 +568,7 @@ where
 {
     let mut attempts = 0usize;
     loop {
-        // final_read_hint because
-        // 1. in the retry case we have just invalidated the operation so we need to recompute
-        //    anyway (not wasteful)
-        // 2. the callers are in top level tasks and the value type inside T is holding a
-        //    non-serializable effects value.  This strongly implies the rest of the data is
-        //    ephemeral often just readrefs on other cells.  So we don't need to keep it.
-        let value = op.read_strongly_consistent().final_read_hint().await?;
+        let value = op.read_strongly_consistent().await?;
         // Deref the `ReadRef<T>` to the read target (`T` for non-transparent types).
         let effects = get_effects(&*value);
         match effects.apply().await {

@@ -22,7 +22,7 @@ const MILLISECONDS_THRESHOLD_NANOSECONDS = 2_000_000 // 2 milliseconds in nanose
  * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
  * - < 2 seconds: show in whole milliseconds (e.g., "1500ms")
  *
- * @deprecated Use durationToStringWithNanoseconds instead, collect time in nanoseconds using process.hrtime.bigint().
+ * @deprecated Use hrtimeBigIntDurationToString instead, collect time in nanoseconds using process.hrtime.bigint().
  * @param compilerDuration - Duration in seconds as a number
  * @returns Formatted duration string with appropriate unit and precision
  */

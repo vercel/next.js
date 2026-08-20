@@ -2,7 +2,7 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
-const isTurbopack = !process.env.IS_WEBPACK_TEST
+const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
 const describeTurbopack =
   isTurbopack && !isNextDeploy ? describe : describe.skip
 
@@ -103,6 +103,11 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+
+      await retry(async () => {
+        const reply = await browser.elementByCss('#worker-reply').text()
+        expect(reply).toBe('pong: ping')
+      })
     })
   })
 
@@ -147,6 +152,15 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+    })
+
+    it('executes the worker and receives a reply', async () => {
+      const browser = await next.browser('/')
+
+      await retry(async () => {
+        const reply = await browser.elementByCss('#worker-reply').text()
+        expect(reply).toBe('pong: ping')
+      })
     })
   })
 })

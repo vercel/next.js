@@ -21,7 +21,7 @@ use crate::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
-            CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
             CjsRequireResolveAssetReferenceCodeGen,
         },
         constant_condition::ConstantConditionCodeGen,
@@ -37,8 +37,9 @@ use crate::{
         ident::IdentReplacement,
         import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
+        removal::RemovalCodeGen,
         require_context::RequireContextAssetReferenceCodeGen,
-        unreachable::Unreachable,
+        service_worker::ServiceWorkerAssetReferenceCodeGen,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
@@ -189,11 +190,12 @@ pub enum CodeGen {
     EsmModuleItem(EsmModuleItem),
     ExportsInfoBinding(ExportsInfoBinding),
     ExportsInfoRef(ExportsInfoRef),
+    CjsExportsDropCodeGen(CjsExportsDropCodeGen),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
     MemberReplacement(MemberReplacement),
-    Unreachable(Unreachable),
+    RemovalCodeGen(RemovalCodeGen),
     CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen),
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
     EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
@@ -202,6 +204,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
     WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
@@ -224,11 +227,12 @@ impl CodeGen {
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
+            Self::CjsExportsDropCodeGen(v) => v.code_generation(ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
             Self::MemberReplacement(v) => v.code_generation(ctx).await,
-            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::RemovalCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
@@ -237,6 +241,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
                 v.code_generation(ctx, scope_hoisting_context).await
             }

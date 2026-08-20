@@ -10,7 +10,6 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
-    environment::ChunkLoading,
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -154,14 +153,12 @@ impl EsmAsyncAssetReferenceCodeGen {
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            if matches!(
-                *chunking_context.environment().chunk_loading().await?,
-                ChunkLoading::Edge
-            ) {
-                ResolveType::ChunkItem
-            } else {
+            if chunking_context.chunk_loading().await?.can_split_async() {
                 ResolveType::AsyncChunkLoader
+            } else {
+                ResolveType::ChunkItem
             },
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
 

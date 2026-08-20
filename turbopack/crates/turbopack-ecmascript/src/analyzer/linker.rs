@@ -7,7 +7,7 @@ use swc_core::ecma::ast::Id;
 use turbo_rcstr::rcstr;
 
 use super::{Bump, JsValue, ThreadLocal, graph::VarGraph};
-use crate::analyzer::BumpVec;
+use crate::analyzer::{BumpVec, Modified};
 
 pub async fn link<'a, 'l, B, RB, F, RF>(
     arena: &'a ThreadLocal<Bump>,
@@ -19,9 +19,9 @@ pub async fn link<'a, 'l, B, RB, F, RF>(
     var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
 ) -> Result<(JsValue<'a>, u32)>
 where
-    RB: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    RB: 'l + Future<Output = Result<(JsValue<'a>, Modified)>> + Send,
     B: 'l + Fn(JsValue<'a>) -> RB + Sync,
-    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, Modified)>> + Send,
     F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
     val.normalize(arena.get_or_default());
@@ -88,9 +88,9 @@ pub(crate) async fn link_internal_iterative<'a, 'l, B, RB, F, RF>(
     var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
 ) -> Result<(JsValue<'a>, u32)>
 where
-    RB: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    RB: 'l + Future<Output = Result<(JsValue<'a>, Modified)>> + Send,
     B: 'l + Fn(JsValue<'a>) -> RB + Sync,
-    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, Modified)>> + Send,
     F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
     let mut work_queue_stack: Vec<Step<'a>> = Vec::new();
@@ -277,7 +277,7 @@ where
 
                 let (mut val, visit_modified) = early_visitor(val).await?;
                 val.debug_assert_total_nodes_up_to_date();
-                if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
+                if visit_modified.is_modified() && val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
                     done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
@@ -296,7 +296,7 @@ where
                 }
                 total_nodes += count;
 
-                if visit_modified {
+                if visit_modified.is_modified() {
                     // When the early visitor has changed the value, we need to enter it again
                     work_queue_stack.push(Step::Enter(val));
                 } else {
@@ -420,13 +420,13 @@ async fn visit<'a, 'l, F, RF>(
     val: JsValue<'a>,
 ) -> Result<()>
 where
-    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, Modified)>> + Send,
     F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
     *total_nodes -= val.total_nodes();
 
-    let (mut val, visit_modified) = visitor(val).await?;
-    if visit_modified {
+    let (mut val, modification_status) = visitor(val).await?;
+    if modification_status.is_modified() {
         val.normalize_shallow(arena.get_or_default());
         #[cfg(debug_assertions)]
         val.debug_assert_total_nodes_up_to_date();
@@ -449,7 +449,7 @@ where
         return Ok(());
     }
     *total_nodes += count;
-    if visit_modified {
+    if modification_status.is_modified() {
         work_queue_stack.push(Step::Enter(val));
     } else {
         done.push(val);

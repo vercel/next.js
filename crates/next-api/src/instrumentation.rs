@@ -18,7 +18,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -186,7 +186,7 @@ impl InstrumentationEndpoint {
         } else {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
                     NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
@@ -200,12 +200,13 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
         let this = self.await?;
-        let userland_module = self.entry_module();
+        let userland_module = self.entry_module().to_resolved().await?;
         Ok(trace_endpoint(
             *this.project,
             None,
-            this.project.module_graph(userland_module),
-            userland_module,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
         ))
     }
 }
@@ -257,8 +258,11 @@ impl Endpoint for InstrumentationEndpoint {
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let entry_module = self.entry_module().to_resolved().await?;
         Ok(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![entry_module])])
-                .cell(),
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![entry_module],
+                heuristics: EntryHeuristics::high_priority(),
+            }])
+            .cell(),
         )
     }
 

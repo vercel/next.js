@@ -309,7 +309,7 @@ async function main() {
     .options('actor', {
       type: 'string',
       description:
-        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be used for notifications but not commit attribution.',
+        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be assigned to the Pull Request for notifications, but neither the commits nor the Pull Request are attributed to them.',
     })
     .options('create-pull', {
       default: false,
@@ -356,12 +356,6 @@ async function main() {
         'Pass an actor via `--actor "some-actor"`.'
     )
   }
-  const githubToken = process.env.GITHUB_TOKEN
-  if (createPull && !githubToken) {
-    throw new Error(
-      `Environment variable 'GITHUB_TOKEN' not specified but required when --create-pull is specified.`
-    )
-  }
   const releaseGithubToken = process.env.RELEASE_GITHUB_TOKEN
   const releaseAppSlug = process.env.RELEASE_GITHUB_APP_SLUG
   const releaseAppUserId = process.env.RELEASE_GITHUB_APP_USER_ID
@@ -382,7 +376,8 @@ async function main() {
     // succeed even on CI runners that don't have a default git identity.
     // The values themselves are discarded by the GitHub REST API: the
     // GPG-signed commits on the remote are attributed to the app token's
-    // identity regardless of local git config.
+    // identity regardless of local git config. The same app token opens the
+    // Pull Request, so the PR author matches the commit author.
     const botUserName = `${releaseAppSlug}[bot]`
     const botUserEmail = `${releaseAppUserId}+${releaseAppSlug}[bot]@users.noreply.github.com`
     await execa('git', ['config', 'user.name', botUserName])
@@ -664,7 +659,7 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   if (createPull) {
-    const octokit = new Octokit({ auth: githubToken })
+    const octokit = new Octokit({ auth: releaseGithubToken })
     const prTitle = `Upgrade React from \`${baseSha}-${baseDateString}\` to \`${newSha}-${newDateString}\``
 
     await execa('git', ['checkout', '-b', branchName])
@@ -684,7 +679,7 @@ Or run this command again without the --no-install flag to do both automatically
       await execa('git', ['rev-parse', 'HEAD'])
     ).stdout.trim()
 
-    const finalSignedSha = await replayLocalCommitsAsSigned({
+    const { headSha: finalSignedSha } = await replayLocalCommitsAsSigned({
       token: releaseGithubToken,
       owner: repoOwner,
       repo: repoName,
@@ -712,6 +707,31 @@ Or run this command again without the --no-install flag to do both automatically
       body: prDescription,
     })
     console.log('Created pull request %s', pullRequest.data.html_url)
+
+    // Enable GitHub auto-merge with the squash method so the PR merges
+    // automatically once required checks pass. GitHub has no REST field for
+    // this, so it must be enabled via the GraphQL mutation on the PR node id.
+    // The commit title is left to GitHub's default (the PR title with the PR
+    // number), while an explicit empty commitBody keeps the squash commit
+    // description empty regardless of the repo's squash message setting.
+    await octokit.graphql(
+      `mutation ($pullRequestId: ID!) {
+         enablePullRequestAutoMerge(
+           input: {
+             pullRequestId: $pullRequestId
+             mergeMethod: SQUASH
+             commitBody: ""
+           }
+         ) {
+           pullRequest {
+             autoMergeRequest {
+               enabledAt
+             }
+           }
+         }
+       }`,
+      { pullRequestId: pullRequest.data.node_id }
+    )
 
     await Promise.all([
       actor

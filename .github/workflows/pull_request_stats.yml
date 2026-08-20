@@ -13,20 +13,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
-  NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
   # Vercel KV Store for test timings
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
@@ -79,6 +74,9 @@ jobs:
           retention-days: 1
 
   build:
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
@@ -89,12 +87,18 @@ jobs:
   stats:
     name: Stats (${{ matrix.bundler }})
     needs: build
-    timeout-minutes: 25
+    # The webpack benchmark alone takes ~25 minutes, so anything at or below
+    # that cancels the job right as it finishes (seen on canary and PRs alike).
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
+        # Keep in sync with STATS_EXPECTED_BUNDLERS
         bundler: [webpack, turbopack]
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-16-core-arm-oss
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -108,19 +112,26 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
-          name: next-swc-binary
+          name: next-swc-binary-${{ runner.os }}-${{ runner.arch }}
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
+      # `TURBO_TOKEN` reaches this Docker action through the job environment.
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           bundler: ${{ matrix.bundler }}
         env:
           TURBO_TEAM: ${{ env.TURBO_TEAM }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_CACHE: ${{ env.TURBO_CACHE }}
           PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
 
@@ -135,7 +146,14 @@ jobs:
   stats-aggregate:
     name: Aggregate Stats
     needs: stats
-    if: always() && needs.stats.result != 'cancelled'
+    # Always run so we can recover partial results. A single bundler timing out
+    # cancels its job, which makes `cancelled()` true here and marks the whole
+    # run "cancelled" even though the other bundler finished, so `!cancelled()`
+    # would wrongly skip aggregation. Running unconditionally lets us aggregate
+    # whatever bundlers succeeded; the reason a bundler is missing is reported in
+    # the comment, and a truly cancelled run (no results at all) is handled by
+    # the cancelled fallback in scripts/pr-ci-comment.mjs.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -159,7 +177,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           package-manager-cache: false
 
       - name: Install dependencies
@@ -174,3 +192,13 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          # Keep in sync with the `stats` job matrix above. The aggregate uses it
+          # to detect and report bundlers whose job failed or was cancelled
+          # (their pr-stats-<bundler>.json artifact will be missing).
+          STATS_EXPECTED_BUNDLERS: 'webpack turbopack'
+          # Collapsed matrix result ('success' | 'failure' | 'cancelled' |
+          # 'skipped'). Used to decide, when no artifacts exist at all, whether
+          # the bundlers genuinely failed (post an "all failed" notice) or the
+          # run was cancelled/superseded (stay silent and let pr-ci-comment.mjs
+          # post the cancelled notice).
+          STATS_RESULT: ${{ needs.stats.result }}
