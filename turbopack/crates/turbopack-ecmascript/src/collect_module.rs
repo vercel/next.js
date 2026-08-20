@@ -14,11 +14,10 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects, Modules},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
-    reference_type::ReferenceType,
-    source::{OptionSource, Source},
+    source::OptionSource,
 };
-use turbopack_ecmascript::{
-    EcmascriptInputTransforms,
+
+use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -28,71 +27,22 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
-use crate::{ModuleAssetContext, module_options::CustomModuleType};
-
 #[turbo_tasks::value]
-pub struct CollectModuleType {}
-
-#[turbo_tasks::value_impl]
-impl CollectModuleType {
-    #[turbo_tasks::function]
-    pub fn new() -> Vc<Self> {
-        CollectModuleType {}.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CustomModuleType for CollectModuleType {
-    #[turbo_tasks::function]
-    fn create_module(
-        self: turbo_tasks::Vc<Self>,
-        _source: Vc<Box<dyn Source>>,
-        asset_context: Vc<ModuleAssetContext>,
-        reference_type: ReferenceType,
-    ) -> Result<Vc<Box<dyn Module>>> {
-        let ReferenceType::Collect {
-            namespace,
-            parent_module,
-        } = reference_type
-        else {
-            bail!("CollectModuleType only supports ReferenceType::Collect");
-        };
-
-        Ok(Vc::upcast(CollectModule::new(
-            *parent_module,
-            namespace,
-            asset_context,
-        )))
-    }
-
-    #[turbo_tasks::function]
-    fn extend_ecmascript_transforms(
-        self: Vc<Self>,
-        _preprocess: Vc<EcmascriptInputTransforms>,
-        _main: Vc<EcmascriptInputTransforms>,
-        _postprocess: Vc<EcmascriptInputTransforms>,
-    ) -> Result<Vc<Box<dyn CustomModuleType>>> {
-        // Ignore the transforms.
-        Ok(Vc::upcast(self))
-    }
-}
-
-#[turbo_tasks::value]
-pub struct CollectModule {
+pub struct EcmascriptCollectModule {
     parent_module: ResolvedVc<Box<dyn Module>>,
     namespace: RcStr,
-    asset_context: ResolvedVc<ModuleAssetContext>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl CollectModule {
+impl EcmascriptCollectModule {
     #[turbo_tasks::function]
     pub fn new(
         parent_module: ResolvedVc<Box<dyn Module>>,
         namespace: RcStr,
-        asset_context: ResolvedVc<ModuleAssetContext>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
-        CollectModule {
+        EcmascriptCollectModule {
             parent_module,
             namespace,
             asset_context,
@@ -102,7 +52,7 @@ impl CollectModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for CollectModule {
+impl Module for EcmascriptCollectModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self
@@ -112,7 +62,7 @@ impl Module for CollectModule {
             .await?
             .with_modifier(rcstr!("collect"))
             .with_modifier(self.namespace.clone())
-            .with_layer(self.asset_context.await?.layer())
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
             .into_vc())
     }
 
@@ -133,7 +83,7 @@ impl Module for CollectModule {
 }
 
 #[turbo_tasks::value_impl]
-impl CollectingModule for CollectModule {
+impl CollectingModule for EcmascriptCollectModule {
     #[turbo_tasks::function]
     fn namespace(&self) -> Vc<RcStr> {
         Vc::cell(self.namespace.clone())
@@ -146,7 +96,7 @@ impl CollectingModule for CollectModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         entry_chunk_group: ResolvedVc<Modules>,
     ) -> Vc<Box<dyn ChunkItem>> {
-        CollectModuleWithChunkGroup {
+        EcmascriptCollectModuleWithChunkGroup {
             module: self,
             entry_chunk_group,
         }
@@ -156,7 +106,7 @@ impl CollectingModule for CollectModule {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for CollectModule {
+impl ChunkableModule for EcmascriptCollectModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
@@ -168,13 +118,13 @@ impl ChunkableModule for CollectModule {
 }
 
 #[turbo_tasks::value]
-struct CollectModuleWithChunkGroup {
-    module: ResolvedVc<CollectModule>,
+struct EcmascriptCollectModuleWithChunkGroup {
+    module: ResolvedVc<EcmascriptCollectModule>,
     entry_chunk_group: ResolvedVc<Modules>,
 }
 
 #[turbo_tasks::value_impl]
-impl Module for CollectModuleWithChunkGroup {
+impl Module for EcmascriptCollectModuleWithChunkGroup {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
@@ -197,7 +147,7 @@ impl Module for CollectModuleWithChunkGroup {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for CollectModuleWithChunkGroup {
+impl ChunkableModule for EcmascriptCollectModuleWithChunkGroup {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
@@ -209,7 +159,7 @@ impl ChunkableModule for CollectModuleWithChunkGroup {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
+impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::EsmExports(

@@ -26,10 +26,9 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    collect_module::CollectModuleType,
     module_options::{
-        EcmascriptOptionsContext, ModuleOptionsContext, ModuleRule, ModuleRuleEffect, ModuleType,
-        RuleCondition, TypescriptTransformOptions, side_effect_free_packages_glob,
+        EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
     },
 };
 use turbopack_core::{
@@ -45,7 +44,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
     },
-    reference_type::{InnerAssets, ReferenceType, ReferenceTypeCondition},
+    reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
@@ -492,12 +491,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     ..Default::default()
                 }
                 .resolved_cell(),
-            )],
-            module_rules: vec![ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-                    ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
-                ))],
             )],
             ..Default::default()
         }

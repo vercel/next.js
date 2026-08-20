@@ -260,13 +260,6 @@ pub enum ReferenceType {
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
     Loader,
-    Collect {
-        namespace: RcStr,
-        // This is a hack, as it's not possible to a module with __turbopack_collect__ that is
-        // shared by multiple entry points. This invariant is currently enforced by a build-time
-        // error.
-        parent_module: ResolvedVc<Box<dyn Module>>,
-    },
     Custom(u8),
     #[default]
     Undefined,
@@ -292,7 +285,6 @@ impl Display for ReferenceType {
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
             ReferenceType::Loader => "loader",
-            ReferenceType::Collect { namespace, .. } => return write!(f, "collect({namespace})"),
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };
@@ -329,7 +321,6 @@ pub enum ReferenceTypeCondition {
     TypeScript(Option<TypeScriptReferenceSubType>),
     Worker(Option<WorkerReferenceSubType>),
     Entry(Option<EntryReferenceSubType>),
-    Collect,
     Runtime,
     Internal,
     Loader,
@@ -385,7 +376,7 @@ impl ReferenceTypeCondition {
         match_condition_includes!(
             self, other,
             optional: [CommonJs, EcmaScriptModules, Css, Url, TypeScript, Worker, Entry],
-            unit: [Runtime, Loader, Internal, Collect],
+            unit: [Runtime, Loader, Internal],
             value: [Custom],
         );
 

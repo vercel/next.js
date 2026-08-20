@@ -35,23 +35,12 @@ pub use next_track_dynamic_imports::get_next_track_dynamic_imports_transform_rul
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{
-    collect_module::CollectModuleType,
-    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::ReferenceTypeCondition;
 use turbopack_ecmascript::{EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
-pub async fn get_collect_rule() -> Result<ModuleRule> {
-    Ok(ModuleRule::new(
-        RuleCondition::ReferenceType(ReferenceTypeCondition::Collect),
-        vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            ResolvedVc::upcast(CollectModuleType::new().to_resolved().await?),
-        ))],
-    ))
-}
 pub async fn get_next_image_rule() -> Result<ModuleRule> {
     Ok(ModuleRule::new(
         RuleCondition::All(vec![

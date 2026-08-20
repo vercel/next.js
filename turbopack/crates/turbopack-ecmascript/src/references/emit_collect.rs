@@ -15,7 +15,7 @@ use turbopack_core::{
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
         BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
         options::ResolveOptions,
@@ -28,6 +28,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
+    collect_module::EcmascriptCollectModule,
     create_visitor,
     references::{
         AstPath,
@@ -195,18 +196,16 @@ impl ModuleReference for CollectReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let origin = self.origin.into_trait_ref().await?;
 
-        // TODO unclear what the request should be here. The question is whether the CollectModule
-        // should be configurable for the user or not.
-        self.origin
-            .resolve_asset(
-                collect_request(),
-                with_data_uri(origin.resolve_options()),
-                ReferenceType::Collect {
-                    parent_module: self.parent_module,
-                    namespace: self.namespace.clone(),
-                },
+        // TODO eventually, you might want to be able to use multiple different collect modules here
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            EcmascriptCollectModule::new(
+                *self.parent_module,
+                self.namespace.clone(),
+                *origin.asset_context(),
             )
-            .await
+            .to_resolved()
+            .await?,
+        )))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
