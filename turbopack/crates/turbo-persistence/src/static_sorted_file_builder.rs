@@ -1514,12 +1514,8 @@ mod tests {
         }
     }
 
-    /// Sort entries by hash (required by SST writer).
+    /// Sort entries by (hash, key) (required by SST writer).
     fn sort_entries(entries: &mut [TestEntry]) {
-        // `StreamingSstWriter::add` requires `(key-hash, key)` order, not hash order alone. Sorting
-        // by hash only would leave key ties in arbitrary order, which a `KeyOnly` block would then
-        // silently repair by re-sorting while a `HashThenKey` block would write unsearchable — so a
-        // hash-only fixture cannot tell a correct writer from a lucky one.
         entries.sort_by(|a, b| a.hash.cmp(&b.hash).then_with(|| a.key.cmp(&b.key)));
     }
 

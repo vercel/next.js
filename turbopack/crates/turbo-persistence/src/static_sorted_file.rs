@@ -1168,13 +1168,8 @@ fn hash_order_for_block<'l>(
         let key = get_entry(i as usize)?.key;
         order.push((crate::key::hash_key(&key), i));
     }
-    // Sort by hash only; ties keep their relative (i.e. key) order, which is exactly the
-    // `(hash, key)` order the entries would have had if stored hash-first.
-    //
-    // Stability is load-bearing and `sort_unstable_by_key` would be wrong here. The block is stored
-    // in *key* order, so two entries that share a hash are generally not adjacent — a colliding
-    // pair can sit either side of unrelated keys. Only a stable sort keeps them in key order
-    // once the hash tie brings them together.
+    // Stable sort by hash, stability is important to preserve the original hash order
+    // This keeps tombstones in their correct relative positions.
     order.sort_by_key(|&(hash, _)| hash);
     Ok(order)
 }
