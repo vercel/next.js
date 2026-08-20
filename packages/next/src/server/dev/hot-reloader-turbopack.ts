@@ -371,7 +371,8 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  serverFastRefresh?: boolean
+  serverFastRefresh: boolean | undefined,
+  onEntrypointsCommitted: (routes: Iterable<string>) => void
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -796,10 +797,6 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
-  // Undefined until the first entrypoints emission. That one has nothing to
-  // compare against, so every route it lists would look added.
-  let previousRouteKeys: Set<string> | undefined
-
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
   // request/render activity that changed no files. This allows us to prevent
@@ -1051,15 +1048,6 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.routes
-      const prevRouteKeys = previousRouteKeys
-      const addedRoutes = prevRouteKeys
-        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
-        : []
-      const removedRoutes = prevRouteKeys
-        ? [...prevRouteKeys].filter((route) => !routes.has(route))
-        : []
-      previousRouteKeys = new Set(routes.keys())
-
       await handleEntrypoints({
         entrypoints: entrypoints as any,
 
@@ -1096,31 +1084,13 @@ export async function createHotReloaderTurbopack(
         },
       })
 
-      if (addedRoutes.length > 0 || removedRoutes.length > 0) {
-        // When the list of routes changes a new manifest should be fetched for Pages Router.
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-          data: [
-            {
-              devPagesManifest: true,
-            },
-          ],
-        })
-      }
-
-      for (const route of addedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-          data: [route],
-        })
-      }
-
-      for (const route of removedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-          data: [route],
-        })
-      }
+      // Do not expose this route generation to clients until Turbopack has
+      // installed the entrypoints that can serve it.
+      onEntrypointsCommitted(
+        [...routes]
+          .filter(([, route]) => route.type !== 'conflict')
+          .map(([pathname]) => pathname)
+      )
 
       currentEntriesHandlingResolve!()
       currentEntriesHandlingResolve = undefined
