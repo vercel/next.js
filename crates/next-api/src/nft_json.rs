@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use either::Either;
-use next_core::util::get_asset_prefix_from_pathname;
+use next_core::next_app::{AppPage, AppPath};
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
@@ -41,12 +41,6 @@ pub struct NftJsonAsset {
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     // The page name, e.g. `pages/index` or `app/route1`
     page_name: Option<RcStr>,
-    /// The path of the route this chunk serves, e.g. `/blog/[slug]`. For app
-    /// routes this is the normalized pathname, without route groups or parallel
-    /// slots. Used to locate the route's prerender manifest. `None` for entries
-    /// that aren't routes and never load one (middleware, instrumentation).
-    pathname: Option<RcStr>,
-
     traced_files: ResolvedVc<EndpointTraceResult>,
 }
 
@@ -56,7 +50,6 @@ impl NftJsonAsset {
     pub fn new(
         project: ResolvedVc<Project>,
         page_name: Option<RcStr>,
-        pathname: Option<RcStr>,
         chunk: ResolvedVc<Box<dyn OutputAsset>>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
         traced_files: ResolvedVc<EndpointTraceResult>,
@@ -66,7 +59,6 @@ impl NftJsonAsset {
             project,
             additional_assets,
             page_name,
-            pathname,
             traced_files,
         }
         .cell()
@@ -87,37 +79,6 @@ impl OutputAsset for NftJsonAsset {
             .await?
             .join(&format!("{}.nft.json", path.path))?
             .cell())
-    }
-}
-
-/// The directory holding a route's `prerender-manifest.json`, relative to the build output
-/// directory, or `None` for entries that aren't routes and never load one.
-///
-/// This has to agree with where the JS side writes the manifests, see `getPrerenderRoutesEntry`
-/// in `packages/next/src/build/index.ts`.
-fn prerender_manifest_dir(page_name: Option<&str>, pathname: &Option<RcStr>) -> Option<String> {
-    // Middleware and instrumentation aren't routes, and `/_app` and `/_document` are not route
-    // modules, so none of them load a prerender manifest.
-    let page_name = page_name?;
-    if matches!(page_name, "pages/_app" | "pages/_document") {
-        return None;
-    }
-    let pathname = pathname.as_deref()?;
-
-    if page_name.starts_with("app/") {
-        // Several app paths can serve the same route: a page and its parallel slots
-        // (`/foo/page` and `/foo/@slot/page`) both serve `/foo`. They share a single manifest at
-        // the normalized pathname, which isn't necessarily any of their own directories.
-        //
-        // The root route's pathname is `/`, which would otherwise produce a trailing slash.
-        Some(format!("server/app{}", pathname.trim_end_matches('/')))
-    } else {
-        // Pages routes have no slots, so the manifest sits alongside the route's other output,
-        // under the same prefix the chunk itself uses.
-        Some(format!(
-            "server/pages{}",
-            get_asset_prefix_from_pathname(pathname)
-        ))
     }
 }
 
@@ -311,20 +272,30 @@ impl Asset for NftJsonAsset {
             // module graph and can't be discovered by tracing. It is also written after the build
             // has finished tracing, so there is no content to hash yet.
             //
-            // The manifest lives at the normalized route path, which is shared by all the app
-            // paths serving it (a page and its parallel slots). That isn't always this chunk's own
-            // directory, so resolve it relative to the trace file.
-            let prerender_manifest;
-            if let Some(dir) = prerender_manifest_dir(this.page_name.as_deref(), &this.pathname) {
-                let manifest_path = this
-                    .project
-                    .node_root()
-                    .await?
-                    .join(&format!("{dir}/prerender-manifest.json"))?;
-                prerender_manifest = ident_folder
-                    .get_relative_path_to(&manifest_path)
-                    .context("expected the prerender manifest to be inside the output root")?;
-                files.push(&*prerender_manifest);
+            let prerender_manifest =
+                if let Some(page_name) = this.page_name.as_deref() {
+                    if let Some(app_page) = page_name.strip_prefix("app") {
+                        let pathname = AppPath::from(AppPage::parse(app_page)?).to_string();
+                        let manifest_path = this.project.node_root().await?.join(&format!(
+                            "server/app{}/prerender-manifest.json",
+                            pathname.trim_end_matches('/')
+                        ))?;
+                        Some(ident_folder.get_relative_path_to(&manifest_path).context(
+                            "expected the prerender manifest to be inside the output root",
+                        )?)
+                    } else if matches!(page_name, "pages/_app" | "pages/_document") {
+                        None
+                    } else if page_name.starts_with("pages/") {
+                        let last_segment = page_name.rsplit('/').next().unwrap();
+                        Some(format!("./{last_segment}/prerender-manifest.json").into())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+            if let Some(prerender_manifest) = &prerender_manifest {
+                files.push(prerender_manifest);
                 file_hashes.push(None);
             }
 
