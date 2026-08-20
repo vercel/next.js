@@ -75,14 +75,14 @@ impl ArcWake for WakeTask {
         let Some(shared) = task.shared.upgrade() else {
             return;
         };
-        shared.queue.lock().unwrap().push(Arc::downgrade(task));
+        shared.queue.lock().unwrap().push(Arc::clone(task));
         shared.parent.wake();
     }
 }
 
 #[derive(Default)]
 struct WakeShared {
-    queue: Mutex<Vec<Weak<WakeTask>>>,
+    queue: Mutex<Vec<Arc<WakeTask>>>,
     parent: AtomicWaker,
 }
 
@@ -231,24 +231,28 @@ where
                     // observes the old queued item (which this poll handles) or waits for the lock
                     // and appends a new item; it cannot be lost between those operations.
                     let queued = mem::take(&mut *queue);
+                    for task in &queued {
+                        task.queued.store(false, Ordering::Release);
+                    }
                     queued
-                        .into_iter()
-                        .filter_map(|task| task.upgrade())
-                        .inspect(|task| task.queued.store(false, Ordering::Release))
-                        .collect::<Vec<_>>()
                 };
 
                 for task in ready {
+                    let wake_tasks = this.wake_tasks.as_mut().unwrap();
+                    if wake_tasks[task.index].is_none() {
+                        continue;
+                    }
                     let mut elem = get_pin_mut(this.elems.as_mut(), task.index);
                     let elem = elem.as_mut().project();
                     if elem.output.is_some() {
+                        wake_tasks[task.index] = None;
                         continue;
                     }
                     let waker = waker_ref(&task);
                     let mut child_cx = Context::from_waker(&waker);
                     if let Poll::Ready(output) = elem.future.poll(&mut child_cx) {
                         *elem.output = Some(output);
-                        this.wake_tasks.as_mut().unwrap()[task.index] = None;
+                        wake_tasks[task.index] = None;
                         this.pending -= 1;
                     }
                 }
@@ -451,6 +455,29 @@ mod tests {
         started: bool,
     }
 
+    struct WakeWhenReady {
+        value: usize,
+        polls: usize,
+        ready_after: usize,
+        completed: bool,
+    }
+
+    impl Future for WakeWhenReady {
+        type Output = Result<usize>;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            assert!(!self.completed, "future polled after completion");
+            self.polls += 1;
+            cx.waker().wake_by_ref();
+            if self.polls == self.ready_after {
+                self.completed = true;
+                Poll::Ready(Ok(self.value))
+            } else {
+                Poll::Pending
+            }
+        }
+    }
+
     impl Future for ThreadWake {
         type Output = Result<usize>;
 
@@ -544,6 +571,22 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.to_string(), "first");
+    }
+
+    #[test]
+    fn completed_futures_queued_by_a_racing_wake_are_not_polled_again() {
+        let values = block_on(
+            (0..31)
+                .map(|value| WakeWhenReady {
+                    value,
+                    polls: 0,
+                    ready_after: if value == 30 { 3 } else { 2 },
+                    completed: false,
+                })
+                .try_join(),
+        )
+        .unwrap();
+        assert_eq!(values, (0..31).collect::<Vec<_>>());
     }
 
     #[test]
