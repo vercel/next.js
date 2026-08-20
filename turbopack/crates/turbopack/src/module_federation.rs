@@ -350,6 +350,9 @@ pub async fn module_federation_container_source(
     }
     let mut registrations = Vec::new();
     for shared in &config.shared {
+        if shared.request.ends_with('/') {
+            continue;
+        }
         let Some(import) = &shared.import else {
             continue;
         };
@@ -431,14 +434,27 @@ pub fn apply_module_federation_import_map(
     }
 
     for (index, shared) in config.shared.iter().enumerate() {
-        let fallback_request: RcStr =
-            format!("__turbopack_module_federation_shared_fallback__/{index}").into();
+        let is_prefix = shared.request.ends_with('/');
+        let fallback_request: RcStr = if is_prefix {
+            format!("__turbopack_module_federation_shared_fallback__/{index}/").into()
+        } else {
+            format!("__turbopack_module_federation_shared_fallback__/{index}").into()
+        };
         if let Some(import) = &shared.import {
-            import_map.insert_exact_alias(
-                fallback_request.clone(),
+            let mapping = if is_prefix {
+                ImportMapping::PrimaryAlternative(
+                    format!("{import}*").into(),
+                    Some(project_path.clone()),
+                )
+            } else {
                 ImportMapping::PrimaryAlternative(import.clone(), Some(project_path.clone()))
-                    .resolved_cell(),
-            );
+            }
+            .resolved_cell();
+            if is_prefix {
+                import_map.insert_wildcard_alias(fallback_request.clone(), mapping);
+            } else {
+                import_map.insert_exact_alias(fallback_request.clone(), mapping);
+            }
         }
         let replacer = ModuleFederationSharedReplacer {
             project_path: project_path.clone(),
@@ -446,10 +462,12 @@ pub fn apply_module_federation_import_map(
             fallback_request,
         }
         .resolved_cell();
-        import_map.insert_exact_alias(
-            shared.request.clone(),
-            ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell(),
-        );
+        let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell();
+        if is_prefix {
+            import_map.insert_wildcard_alias(shared.request.clone(), mapping);
+        } else {
+            import_map.insert_exact_alias(shared.request.clone(), mapping);
+        }
     }
 }
 
@@ -500,6 +518,9 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
         let full_request = serde_json::to_string(&request)?;
         let mut registrations = Vec::new();
         for shared in &this.shared {
+            if shared.request.ends_with('/') {
+                continue;
+            }
             let Some(import) = &shared.import else {
                 continue;
             };
@@ -601,67 +622,226 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
         let Some(request) = request.await?.request() else {
             return Ok(ImportMapResult::NoEntry.cell());
         };
-        if request != this.shared.request {
+        let suffix = if this.shared.request.ends_with('/') {
+            let Some(suffix) = request.strip_prefix(this.shared.request.as_str()) else {
+                return Ok(ImportMapResult::NoEntry.cell());
+            };
+            suffix
+        } else if request == this.shared.request {
+            ""
+        } else {
             return Ok(ImportMapResult::NoEntry.cell());
+        };
+        let effective_key: RcStr = format!("{}{suffix}", this.shared.share_key).into();
+        let effective_fallback: RcStr = format!("{}{suffix}", this.fallback_request).into();
+
+        if this.shared.eager && this.shared.import.is_some() {
+            // An eager consumer must not introduce a `await`/async module boundary. Webpack
+            // consults the share scope synchronously here; Turbopack currently binds the local
+            // module directly, which is correct whenever the host provides the shared module
+            // itself (the common `eager: true` case) but does not yet adopt a provider offered by
+            // a container that initialised earlier.
+            let code = format!(
+                "export * from {};",
+                serde_json::to_string(&effective_fallback)?
+            );
+            let mut virtual_name = request.replace('/', "_");
+            virtual_name.insert_str(0, ".turbopack-module-federation-shared-");
+            virtual_name.push_str(".js");
+            let source = VirtualSource::new(
+                this.project_path.join(&virtual_name)?,
+                AssetContent::file(FileContent::Content(code.into()).cell()),
+            )
+            .to_resolved()
+            .await?;
+            return Ok(ImportMapResult::Result(
+                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+            )
+            .cell());
         }
 
+        let inferred_required_version = if this.shared.required_version.is_none() {
+            let package_name = this.shared.package_name.clone().or_else(|| {
+                let request = this.shared.request.as_str();
+                if request.starts_with('@') {
+                    request
+                        .split_once('/')
+                        .map(|(scope, name)| format!("{scope}/{name}").into())
+                } else {
+                    request.split('/').next().map(Into::into)
+                }
+            });
+            if let Some(package_name) = package_name {
+                let package_json_path = this.project_path.join("package.json")?;
+                if let FileContent::Content(file) = &*package_json_path.read().await? {
+                    let package_json: JsonValue = serde_json::from_reader(file.read())?;
+                    [
+                        "optionalDependencies",
+                        "dependencies",
+                        "peerDependencies",
+                        "devDependencies",
+                    ]
+                    .into_iter()
+                    .find_map(|field| {
+                        package_json
+                            .get(field)
+                            .and_then(|dependencies| dependencies.get(package_name.as_str()))
+                            .and_then(JsonValue::as_str)
+                            .map(RcStr::from)
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let required_version_value = this
+            .shared
+            .required_version
+            .as_ref()
+            .or(inferred_required_version.as_ref());
         let scope = serde_json::to_string(&this.shared.share_scope)?;
-        let key = serde_json::to_string(&this.shared.share_key)?;
-        let required_version = serde_json::to_string(&this.shared.required_version)?;
-        let fallback = this.shared.import.as_ref().map(|_| {
-            format!(
-                "sharedModule = await import({});",
-                serde_json::to_string(&this.fallback_request).unwrap()
+        let key = serde_json::to_string(&effective_key)?;
+        let required_version = serde_json::to_string(&required_version_value)?;
+        let fallback_request_json = serde_json::to_string(&effective_fallback)?;
+        let (fallback_import, fallback) = if this.shared.eager {
+            if this.shared.import.is_some() {
+                (
+                    format!("import * as localFallback from {fallback_request_json};"),
+                    "sharedModule = localFallback;".to_string(),
+                )
+            } else {
+                (
+                    String::new(),
+                    format!(
+                        "throw new Error(`No satisfying shared module for ${{{}}}`);",
+                        serde_json::to_string(&effective_key).unwrap()
+                    ),
+                )
+            }
+        } else if this.shared.import.is_some() {
+            (
+                String::new(),
+                format!("sharedModule = await import({fallback_request_json});"),
             )
-        });
-        let fallback = fallback.unwrap_or_else(|| {
-            format!(
-                "throw new Error(`No satisfying shared module for ${{{}}}`);",
-                serde_json::to_string(&this.shared.share_key).unwrap()
+        } else {
+            (
+                String::new(),
+                format!(
+                    "throw new Error(`No satisfying shared module for ${{{}}}`);",
+                    serde_json::to_string(&effective_key).unwrap()
+                ),
             )
-        });
+        };
+        let selected_load = if this.shared.eager {
+            r#"
+  const factory = versions[selected].get();
+  if (factory && typeof factory.then === "function") {
+    throw new Error("Eager shared module provider returned a promise");
+  }
+  sharedModule = factory();"#
+                .to_string()
+        } else {
+            r#"
+  const factory = await versions[selected].get();
+  sharedModule = factory();"#
+                .to_string()
+        };
         let code = format!(
             r#"
+{fallback_import}
 const scopes = globalThis.__turbopack_module_federation_share_scopes__ ||= Object.create(null);
 const scope = scopes[{scope}] ||= Object.create(null);
 const versions = scope[{key}] || Object.create(null);
 const requiredVersion = {required_version};
 
-function compareVersions(a, b) {{
-  return b.localeCompare(a, undefined, {{ numeric: true, sensitivity: "base" }});
+function parseVersion(version) {{
+  const [mainAndPre] = version.replace(/^v/, "").split("+");
+  const [main, pre = ""] = mainAndPre.split("-");
+  const parts = main.split(".").map((part) => Number(part || 0));
+  while (parts.length < 3) parts.push(0);
+  return {{ parts, pre: pre ? pre.split(".") : [] }};
+}}
+function compareVersionAscending(left, right) {{
+  const a = parseVersion(left);
+  const b = parseVersion(right);
+  for (let index = 0; index < 3; index++) {{
+    if (a.parts[index] !== b.parts[index]) return a.parts[index] - b.parts[index];
+  }}
+  if (!a.pre.length || !b.pre.length) return b.pre.length - a.pre.length;
+  for (let index = 0; index < Math.max(a.pre.length, b.pre.length); index++) {{
+    if (a.pre[index] === undefined) return -1;
+    if (b.pre[index] === undefined) return 1;
+    if (a.pre[index] === b.pre[index]) continue;
+    const aNumber = Number(a.pre[index]);
+    const bNumber = Number(b.pre[index]);
+    const aNumeric = Number.isFinite(aNumber);
+    const bNumeric = Number.isFinite(bNumber);
+    if (aNumeric && bNumeric) return aNumber - bNumber;
+    if (aNumeric !== bNumeric) return aNumeric ? -1 : 1;
+    return a.pre[index] < b.pre[index] ? -1 : 1;
+  }}
+  return 0;
+}}
+function satisfiesComparator(version, comparator) {{
+  const match = /^(<=|>=|<|>|=|~|\^)?\s*(.*)$/.exec(comparator);
+  const operator = match[1] || "=";
+  const target = match[2];
+  if (!target || /^[*xX]$/.test(target)) return true;
+  const targetParts = target.split(/[+-]/, 1)[0].split(".");
+  const versionParts = parseVersion(version).parts;
+  const wildcard = targetParts.findIndex((part) => /^[*xX]$/.test(part));
+  const specified = wildcard >= 0 ? wildcard : targetParts.length;
+  if ((wildcard >= 0 || specified < 3) && operator === "=") {{
+    for (let index = 0; index < specified; index++) {{
+      if (versionParts[index] !== Number(targetParts[index])) return false;
+    }}
+    return true;
+  }}
+  const comparison = compareVersionAscending(version, target);
+  if (operator === ">=") return comparison >= 0;
+  if (operator === ">") return comparison > 0;
+  if (operator === "<=") return comparison <= 0;
+  if (operator === "<") return comparison < 0;
+  if (operator === "~") {{
+    const parsed = parseVersion(target).parts;
+    return comparison >= 0 && versionParts[0] === parsed[0] && versionParts[1] === parsed[1];
+  }}
+  if (operator === "^") {{
+    const parsed = parseVersion(target).parts;
+    const boundary = parsed[0] > 0 ? 0 : parsed[1] > 0 ? 1 : 2;
+    return comparison >= 0 && versionParts.slice(0, boundary + 1).every((part, index) => part === parsed[index]);
+  }}
+  return comparison === 0;
 }}
 function satisfies(version, range) {{
   if (!range || range === "*") return true;
-  const versionParts = version.split(".").map(Number);
-  const normalized = range.replace(/^[v=]/, "");
-  const rangeParts = normalized.replace(/^[~^]/, "").split(".").map(Number);
-  if (range.startsWith("^")) {{
-    if (versionParts[0] !== rangeParts[0]) return false;
-    return compareVersions(version, rangeParts.join(".")) <= 0;
-  }}
-  if (range.startsWith("~")) {{
-    return versionParts[0] === rangeParts[0] && versionParts[1] === rangeParts[1] && compareVersions(version, rangeParts.join(".")) <= 0;
-  }}
-  if (range.startsWith(">=")) return compareVersions(version, range.slice(2)) <= 0;
-  return version === normalized;
+  return range.split(/\s*\|\|\s*/).some((alternative) => {{
+    const hyphen = /^(\S+)\s+-\s+(\S+)$/.exec(alternative);
+    if (hyphen) return satisfiesComparator(version, `>=${{hyphen[1]}}`) && satisfiesComparator(version, `<=${{hyphen[2]}}`);
+    return alternative.trim().split(/\s+/).every((comparator) => satisfiesComparator(version, comparator));
+  }});
 }}
 
-const available = Object.keys(versions).sort(compareVersions);
+const available = Object.keys(versions).sort((a, b) => compareVersionAscending(b, a));
 const satisfying = available.filter((version) => satisfies(version, requiredVersion));
 const selected = {singleton} ? available[0] : satisfying[0];
 let sharedModule;
-if (selected && (!{strict_version} || satisfies(selected, requiredVersion))) {{
-  const factory = await versions[selected].get();
-  sharedModule = factory();
+if (selected && (!{strict_version} || satisfies(selected, requiredVersion))) {{{selected_load}
 }} else {{
   {fallback}
 }}
-__turbopack_export_namespace__(sharedModule);
+// Webpack's module namespace objects are sealed, so copy the bindings into a fresh object
+// before handing them to Turbopack's namespace export helper.
+__turbopack_export_namespace__({{ ...sharedModule }});
 "#,
             singleton = this.shared.singleton,
             strict_version = this.shared.strict_version,
         );
-        let mut virtual_name = this.shared.request.replace('/', "_");
+        let mut virtual_name = request.replace('/', "_");
         virtual_name.insert_str(0, ".turbopack-module-federation-shared-");
         virtual_name.push_str(".js");
         let source = VirtualSource::new(
