@@ -1729,6 +1729,10 @@ export async function createHotReloaderTurbopack(
       // page being rendered, plus the project-wide (top level) issues — never
       // the issues of unrelated pages, otherwise a single broken route makes
       // every other route fail as well.
+      //
+      // Middleware and instrumentation (`root` entries) are the exception: they
+      // run for every request rather than for one page, so a compile error in
+      // them is relevant no matter which page is being rendered.
       const issues = [...currentTopLevelIssues.values()]
 
       for (const type of ['app', 'pages'] as const) {
@@ -1739,6 +1743,12 @@ export async function createHotReloaderTurbopack(
           if (entryIssues !== undefined) {
             issues.push(...entryIssues.values())
           }
+        }
+      }
+
+      for (const [key, entryIssues] of currentEntryIssues) {
+        if (splitEntryKey(key).type === 'root') {
+          issues.push(...entryIssues.values())
         }
       }
 
