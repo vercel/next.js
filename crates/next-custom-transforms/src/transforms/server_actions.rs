@@ -1089,13 +1089,16 @@ impl<C: Comments> ServerActions<C> {
     /// the ID here makes an inline action returned by a client-imported action
     /// reachable through the route's Server Action manifest.
     fn track_client_inline_server_action(&mut self, params: &[Param], has_bound_args: bool) {
+        // Always consume an action index to keep `reference_index` in lockstep with the
+        // server layer, which indexes every inline 'use server' action.
+        let action_ident = Ident::new(self.gen_action_ident(), DUMMY_SP, self.private_ctxt);
+
         let Some(owner_export) = self.current_server_action_export.clone() else {
             return;
         };
 
-        let action_ident = Ident::new(self.gen_action_ident(), DUMMY_SP, self.private_ctxt);
-
         let mut reference_params = params.to_vec();
+
         if has_bound_args {
             reference_params.insert(
                 0,
