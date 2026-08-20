@@ -158,9 +158,13 @@ pub async fn module_federation_output_assets(project: Vc<Project>) -> Result<Vc<
             .context("expected a browser chunking context")?;
     // The container is a project-global artifact, not a route: it gets its own runtime namespace
     // so it can coexist with the host's runtime and with other containers on the same page.
+    let remote_entry_parent_depth = 1 + filename.split('/').count();
     let federation_chunking_context = client_chunking_context
         .await?
         .clone_builder()
+        .chunk_base_path(Some(
+            format!("__turbopack_module_federation__:{remote_entry_parent_depth}").into(),
+        ))
         .asset_suffix(AssetSuffix::None.resolved_cell())
         .without_module_id_strategy()
         .export_usage(None)
@@ -168,7 +172,7 @@ pub async fn module_federation_output_assets(project: Vc<Project>) -> Result<Vc<
         .shared_runtime(false)
         .shared_runtime_chunk(false)
         .chunk_loading_global(format!("TURBOPACK_{name}").into())
-        .single_chunk()
+        .single_entry_chunk()
         .await?
         .build();
     let EntryChunkGroupResult { asset, .. } = *federation_chunking_context
