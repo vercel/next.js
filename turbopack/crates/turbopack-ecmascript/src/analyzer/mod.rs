@@ -106,6 +106,8 @@ pub mod test_utils {
                         JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
+                            analyze_for_constants: false,
+                            reference: None,
                         }),
                     ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),

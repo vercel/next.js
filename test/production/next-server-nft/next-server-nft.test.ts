@@ -624,6 +624,7 @@ async function readNormalizedNFT(next, name) {
            "./.next/server/next-font-manifest.json",
            "./.next/server/pages-manifest.json",
            "./.next/server/prefetch-hints.json",
+           "./.next/server/preview-props.json",
            "./.next/server/server-reference-manifest.js",
            "./.next/server/server-reference-manifest.json",
            "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",

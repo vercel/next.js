@@ -428,8 +428,7 @@ async function createRedirectRenderResult(
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
-          ''
+        workStore.incrementalCache?.previewProps.previewModeId || ''
       )
     }
 
