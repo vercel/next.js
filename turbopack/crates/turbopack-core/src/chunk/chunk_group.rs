@@ -126,19 +126,17 @@ pub async fn make_chunk_group(
                     .ty()
                     .to_resolved()
                     .await?;
-                Ok((chunk_item, chunk_type))
+                Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: Some(ResolvedVc::upcast(*module)),
+                        async_info: None,
+                    },
+                ))
             })
             .try_join()
-            .await?
-            .iter()
-            .map(|&(chunk_item, chunk_type)| {
-                ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(ChunkItemWithAsyncModuleInfo {
-                    chunk_item,
-                    chunk_type,
-                    module: None,
-                    async_info: None,
-                })
-            }),
+            .await?,
     );
 
     // Insert async chunk loaders for every referenced async module
