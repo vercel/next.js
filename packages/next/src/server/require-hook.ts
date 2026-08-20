@@ -26,19 +26,21 @@ try {
     'styled-jsx/style.js': resolve('styled-jsx/style'),
   })
 } catch (cause) {
-  // Not being able to register these aliases is not fatal - an app that doesn't
-  // use styled-jsx doesn't care - but it silently breaks styled-jsx SSR when the
-  // app has its own copy of styled-jsx: user code and the Pages Router renderer
-  // then load two different styled-jsx instances, the style registry never
-  // receives anything and every style is missing from the server-rendered HTML
-  // (the `jsx-*` class names still render, so it only shows as a flash of
-  // unstyled content). Make that diagnosable instead of swallowing the error.
-  console.warn(
-    'Warning: Next.js could not resolve its own copy of `styled-jsx`, so ' +
-      '`styled-jsx` was not deduplicated. If this app uses styled-jsx in the ' +
-      'Pages Router, its styles will be missing from the server-rendered HTML ' +
-      'and only applied after hydration.' +
-      `\nReason: ${(cause as Error)?.message ?? cause}`
+  // These aliases make every `styled-jsx` request resolve to Next.js' own copy, which the Pages
+  // Router depends on: the renderer creates the styled-jsx style registry and hands it to user
+  // code through a React context owned by that module instance. Without the aliases, user code
+  // with its own copy of styled-jsx gets a second instance, `JSXStyle` finds no registry and
+  // silently renders nothing during SSR - the `jsx-*` class names are still emitted, but the CSS
+  // only arrives after hydration, i.e. a flash of unstyled content and no error anywhere. Failing
+  // loudly here is better than that.
+  throw new Error(
+    "Next.js could not resolve its own copy of 'styled-jsx'. It is a dependency of 'next', so " +
+      "this usually means the installation is incomplete or 'node_modules' is out of date - " +
+      "reinstalling dependencies normally fixes it. If your setup can't resolve nested " +
+      "dependencies (for example a custom bundling or vendoring step), add 'styled-jsx' to your " +
+      'app dependencies so it resolves to a single copy.\n' +
+      'See more info here: https://nextjs.org/docs/messages/styled-jsx-not-resolvable',
+    { cause }
   )
 }
 
