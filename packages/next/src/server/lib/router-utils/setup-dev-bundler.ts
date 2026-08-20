@@ -31,6 +31,7 @@ import {
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import { createSerializedAsyncCallback } from './serialized-async-callback'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -443,14 +444,15 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
-    wp.on('aggregated', async () => {
+    const processAggregate = async (
+      knownFiles: ReturnType<Watchpack['getTimeInfoEntries']>
+    ) => {
       const isInitialScan = !hadInitialScan
       hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
@@ -1360,6 +1362,20 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
+    }
+    const handleAggregate = createSerializedAsyncCallback(processAggregate)
+    wp.on('aggregated', () => {
+      // Watchpack does not await async event listeners. Capture this event's
+      // view immediately, then process complete scans in aggregation order.
+      const knownFiles = new Map(wp.getTimeInfoEntries())
+      void handleAggregate(knownFiles).catch((error) => {
+        if (!resolved) {
+          reject(error)
+          resolved = true
+        } else {
+          Log.warn('Failed to reload dynamic routes:', error)
+        }
+      })
     })
 
     wp.watch({ directories: [dir], startTime: 0 })
