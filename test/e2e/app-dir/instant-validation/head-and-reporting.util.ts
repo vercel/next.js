@@ -785,8 +785,6 @@ export function registerHeadAndReportingTests(
       })
 
       it('invalid - unguarded static params in metadata', async () => {
-        // TODO(app-shells): static params currently aren't excluded from the shell.
-        // This should be failing validation.
         if (isNextDev) {
           const browser = await navigateTo(
             '/shells/invalid-static-with-gsp-metadata/123'
@@ -896,6 +894,82 @@ export function registerHeadAndReportingTests(
         }
       })
 
+      it('invalid - unguarded navigation() in a shell', async () => {
+        // TODO(cache-stages): navigation() should not be reported as uncached data.
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/invalid-navigation-without-suspense'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-navigation-without-suspense/page.tsx (4:33) @ instant
+           > 4 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-navigation-without-suspense/page.tsx (4:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1437",
+             "description": "Next.js encountered uncached data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/shells/(default)/invalid-navigation-without-suspense/page.tsx (23:19) @ NavigationContent
+           > 23 |   await navigation()
+                |                   ^",
+             "stack": [
+               "NavigationContent app/shells/(default)/invalid-navigation-without-suspense/page.tsx (23:19)",
+               "Page app/shells/(default)/invalid-navigation-without-suspense/page.tsx (17:7)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(
+            '/shells/(default)/invalid-navigation-without-suspense'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/shells/invalid-navigation-without-suspense": Next.js encountered uncached data during prerendering or a navigation.
+
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+           Build-time instant validation failed for route "/shells/invalid-navigation-without-suspense".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-navigation-without-suspense" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('valid - navigation() with suspense in a shell', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-navigation-with-suspense'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-navigation-with-suspense'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
       it('valid - unguarded root param', async () => {
         if (isNextDev) {
           const browser = await navigateTo(
@@ -935,6 +1009,19 @@ export function registerHeadAndReportingTests(
         } else {
           const result = await prerender(
             '/suspense-in-root/non-app-shell/valid-unguarded-static-params/[slug]'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+      it('valid - unguarded navigation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/non-app-shell/valid-unguarded-navigation'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/non-app-shell/valid-unguarded-navigation'
           )
           expectNoBuildValidationErrors(result)
         }

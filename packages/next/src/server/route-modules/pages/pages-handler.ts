@@ -150,6 +150,7 @@ export const getHandler = ({
       serverFilesManifest,
       reactLoadableManifest,
       prerenderManifest,
+      previewProps,
       isDraftMode,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
@@ -306,7 +307,7 @@ export const getHandler = ({
                   reactLoadableManifest,
 
                   assetPrefix: nextConfig.assetPrefix,
-                  previewProps: prerenderManifest.preview,
+                  previewProps,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
@@ -476,6 +477,7 @@ export const getHandler = ({
               incrementalCache: await routeModule.getIncrementalCache(
                 req,
                 nextConfig,
+                previewProps,
                 prerenderManifest,
                 isMinimalMode
               ),
@@ -538,6 +540,7 @@ export const getHandler = ({
           revalidateOnlyGenerated,
           waitUntil: ctx.waitUntil,
           responseGenerator: responseGenerator,
+          previewProps,
           prerenderManifest,
           isMinimalMode,
         })

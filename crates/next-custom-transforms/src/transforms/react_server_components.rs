@@ -725,6 +725,7 @@ impl ReactServerComponentValidator {
                         "unstable_cacheLife",
                         "cacheTag",
                         "unstable_cacheTag",
+                        "unstable_navigation",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),

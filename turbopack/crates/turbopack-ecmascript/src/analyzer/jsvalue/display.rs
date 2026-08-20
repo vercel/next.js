@@ -28,10 +28,12 @@ impl Display for JsValue<'_> {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Object { parts, mutable, .. } => write!(
+            JsValue::Object {
+                parts, mutability, ..
+            } => write!(
                 f,
                 "{}{{{}}}",
-                if *mutable { "" } else { "frozen " },
+                mutability,
                 parts
                     .iter()
                     .map(|v| v.to_string())
@@ -129,15 +131,22 @@ impl Display for JsValue<'_> {
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
+                analyze_for_constants,
+                reference: _,
             }) => {
                 write!(
                     f,
-                    "Module({}, {})",
+                    "Module({}, {}{})",
                     name.to_string_lossy(),
                     if let Some(annotations) = annotations {
                         Either::Left(annotations)
                     } else {
                         Either::Right("{}")
+                    },
+                    if *analyze_for_constants {
+                        ", analyze for constants"
+                    } else {
+                        ""
                     }
                 )
             }
