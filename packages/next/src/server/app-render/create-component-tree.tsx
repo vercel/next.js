@@ -191,7 +191,7 @@ async function createComponentTreeInternal(
     parseLoaderTree(tree)
 
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
+  const partialPrefetching = Boolean(ctx.renderOpts.partialPrefetching)
 
   const {
     layout,
