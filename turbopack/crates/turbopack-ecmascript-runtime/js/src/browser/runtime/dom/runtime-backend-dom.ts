@@ -181,21 +181,35 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     }
 
     if (sourceType === SourceType.Runtime) {
-      // We don't need to load chunks references from runtime code, as they're already
-      // present in the DOM.
       resolver.loadingStarted = true
 
       if (isCss(chunkUrl)) {
         // CSS chunks do not register themselves, and as such must be marked as
         // loaded instantly.
         resolver.resolve()
+        return resolver.promise
       }
 
-      // We need to wait for JS chunks to register themselves within `registerChunk`
-      // before we can start instantiating runtime modules, hence the absence of
-      // `resolver.resolve()` in this branch.
+      // In a worker the runtime's chunks are imported eagerly, so there is nothing
+      // left to do here.
+      if (typeof importScripts === 'function') {
+        return resolver.promise
+      }
 
-      return resolver.promise
+      // In a document, a chunk referenced from runtime code is *usually* already
+      // present as a `<script>` tag and resolves itself through `registerChunk`, so
+      // there is deliberately no `resolver.resolve()` for JS here.
+      //
+      // That is not guaranteed, though: a chunk can be listed as a runtime dependency
+      // without ever being injected into the document -- for example when its modules
+      // were also emitted into another chunk that *is* injected, leaving this one
+      // redundant and unreferenced. Nothing then loads it, nothing resolves it, and
+      // `registerChunk` waits on it forever, so runtime modules are never instantiated
+      // and the page never hydrates -- with no error, because a pending promise is not
+      // a failure.
+      //
+      // Fall through to the DOM loader below instead: it reuses the existing `<script>`
+      // when there is one (unchanged behaviour) and injects one otherwise.
     }
 
     if (typeof importScripts === 'function') {
