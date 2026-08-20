@@ -4062,9 +4062,42 @@ export default async function build(
                         '$segment'
                       )
                     dynamicRoute.prefetchSegmentDataRoutes ??= []
-                    dynamicRoute.prefetchSegmentDataRoutes.push(
+
+                    // This route is built from the matcher and from the page
+                    // segment path of the candidate. Candidates are grouped by
+                    // pathname, so the matcher is fixed, and every candidate of
+                    // one matcher has given the same segment path in every
+                    // build measured. Therefore the route repeats, once per
+                    // candidate, and a route that declares variant
+                    // combinations has one candidate per combination.
+                    //
+                    // The other per-candidate writes in this loop cannot
+                    // repeat themselves. The manifest entry above is looked up
+                    // in the same array it is pushed to, so the next candidate
+                    // finds it. Prefetch hints keep the first writer. The
+                    // prerender manifest entry is keyed on the output path,
+                    // which carries the combination. This array is the one
+                    // that is appended to without a key, and routing takes the
+                    // first match, so a repeated entry is reached by nothing.
+                    //
+                    // The route is compared in full, and not by one field of
+                    // it. The segment path is candidate data, and nothing here
+                    // holds it constant, so a candidate that gives a different
+                    // one contributes its own route rather than losing it.
+                    const builtSegmentDataRouteKey = JSON.stringify(
                       builtSegmentDataRoute
                     )
+                    const hasSegmentDataRoute =
+                      dynamicRoute.prefetchSegmentDataRoutes.some(
+                        (existing) =>
+                          JSON.stringify(existing) === builtSegmentDataRouteKey
+                      )
+
+                    if (!hasSegmentDataRoute) {
+                      dynamicRoute.prefetchSegmentDataRoutes.push(
+                        builtSegmentDataRoute
+                      )
+                    }
                   }
 
                   // Collect prefetch hints (first-writer-wins per page)
