@@ -1841,69 +1841,6 @@ mod tests {
 
         /// `read_link` never looks at the target, so a dangling link still reads back as a valid
         /// [`LinkContent::Link`]. Resolving it is what discovers the target is missing.
-        #[turbo_tasks::function(operation, root)]
-        async fn assert_dangling_symlink_operation(
-            fs: ResolvedVc<DiskFileSystem>,
-            root_path: FileSystemPath,
-        ) -> anyhow::Result<()> {
-            let link_path = root_path.join("sub/link-dangling")?;
-
-            // The link itself is perfectly valid; only its target is missing.
-            let link = fs.read_link(link_path.clone()).await?;
-            let LinkContent::Link { target } = &*link else {
-                anyhow::bail!("expected a valid link, got {link:?}");
-            };
-            assert_eq!(
-                *target,
-                LinkTarget::Relative {
-                    raw: rcstr!("missing.txt"),
-                    resolved: root_path.join("sub/missing.txt")?,
-                }
-            );
-            assert_eq!(target.target_type().await?, FileSystemEntryType::NotFound,);
-
-            // `realpath` follows the link, so it must report the missing target rather than
-            // succeeding with a path that doesn't exist.
-            let result = link_path.realpath_with_links().await?;
-            assert!(
-                matches!(
-                    &result.path_result,
-                    Err(RealPathResultError::Invalid(reason))
-                        if reason == "a symlink target does not exist"
-                ),
-                "realpath must report the missing target as an invalid chain: {:?}",
-                result.path_result
-            );
-            let error = result.path_result.as_ref().unwrap_err();
-            let message = error.as_error_message(&link_path, &result).await?;
-            assert!(
-                message.contains("could not be resolved: a symlink target does not exist"),
-                "unexpected error message: {message}"
-            );
-
-            // The same missing target after another link is still an invalid chain, never a
-            // missing initial link.
-            let chain_path = root_path.join("sub/link-chain")?;
-            let result = chain_path.realpath_with_links().await?;
-            assert!(
-                matches!(
-                    &result.path_result,
-                    Err(RealPathResultError::Invalid(reason))
-                        if reason == "a symlink target does not exist"
-                ),
-                "realpath must report a missing target later in a chain as invalid: {:?}",
-                result.path_result
-            );
-
-            // Resolving a path that simply doesn't exist is not an error, though: there is no
-            // link involved, so it resolves to itself.
-            let missing = root_path.join("sub/missing.txt")?;
-            let result = missing.realpath_with_links().await?;
-            assert_eq!(result.path_result, Ok(missing));
-
-            Ok(())
-        }
-
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_dangling_symlink() {
@@ -1917,6 +1854,69 @@ mod tests {
 
             let root = canonicalize_to_rcstr(&path).unwrap();
 
+            #[turbo_tasks::function(operation, root)]
+            async fn assert_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+                root_path: FileSystemPath,
+            ) -> anyhow::Result<()> {
+                let link_path = root_path.join("sub/link-dangling")?;
+
+                // The link itself is perfectly valid; only its target is missing.
+                let link = fs.read_link(link_path.clone()).await?;
+                let LinkContent::Link { target } = &*link else {
+                    anyhow::bail!("expected a valid link, got {link:?}");
+                };
+                assert_eq!(
+                    *target,
+                    LinkTarget::Relative {
+                        raw: rcstr!("missing.txt"),
+                        resolved: root_path.join("sub/missing.txt")?,
+                    }
+                );
+                assert_eq!(target.target_type().await?, FileSystemEntryType::NotFound,);
+
+                // `realpath` follows the link, so it must report the missing target rather than
+                // succeeding with a path that doesn't exist.
+                let result = link_path.realpath_with_links().await?;
+                assert!(
+                    matches!(
+                        &result.path_result,
+                        Err(RealPathResultError::Invalid(reason))
+                            if reason == "a symlink target does not exist"
+                    ),
+                    "realpath must report the missing target as an invalid chain: {:?}",
+                    result.path_result
+                );
+                let error = result.path_result.as_ref().unwrap_err();
+                let message = error.as_error_message(&link_path, &result).await?;
+                assert!(
+                    message.contains("could not be resolved: a symlink target does not exist"),
+                    "unexpected error message: {message}"
+                );
+
+                // The same missing target after another link is still an invalid chain, never a
+                // missing initial link.
+                let chain_path = root_path.join("sub/link-chain")?;
+                let result = chain_path.realpath_with_links().await?;
+                assert!(
+                    matches!(
+                        &result.path_result,
+                        Err(RealPathResultError::Invalid(reason))
+                            if reason == "a symlink target does not exist"
+                    ),
+                    "realpath must report a missing target later in a chain as invalid: {:?}",
+                    result.path_result
+                );
+
+                // Resolving a path that simply doesn't exist is not an error, though: there is no
+                // link involved, so it resolves to itself.
+                let missing = root_path.join("sub/missing.txt")?;
+                let result = missing.realpath_with_links().await?;
+                assert_eq!(result.path_result, Ok(missing));
+
+                Ok(())
+            }
+
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
@@ -1928,7 +1928,7 @@ mod tests {
                     .strongly_consistent()
                     .await?;
 
-                assert_dangling_symlink_operation(fs, disk_file_system_root(fs))
+                assert_operation(fs, disk_file_system_root(fs))
                     .read_strongly_consistent()
                     .await?;
 
@@ -1944,62 +1944,6 @@ mod tests {
         /// end. Both of these step above the root; one comes back into it and one doesn't, but
         /// neither can be resolved against a root-relative [`FileSystemPath`], so `read_link`
         /// rejects both and every [`LinkContent::Link`] stays resolvable by construction.
-        #[turbo_tasks::function(operation, root)]
-        async fn assert_read_escaping_relative_symlink_operation(
-            fs: ResolvedVc<DiskFileSystem>,
-            root_path: FileSystemPath,
-        ) -> anyhow::Result<()> {
-            // sub/link-reentrant -> ../../<root dir name>/root.txt, which steps above the root
-            // and back down into it. Resolving this would need the names of the root's own
-            // ancestors, which a root-relative path doesn't carry.
-            let reentrant = fs.read_link(root_path.join("sub/link-reentrant")?).await?;
-            assert!(matches!(
-                &*reentrant,
-                LinkContent::Invalid { reason }
-                    if reason == "the symlink target leaves the filesystem root"
-            ));
-
-            // sub/link-sideways -> ../../sibling/root.txt, which steps above the root and down
-            // into a sibling, so it genuinely ends outside.
-            let sideways = fs.read_link(root_path.join("sub/link-sideways")?).await?;
-            assert!(matches!(
-                &*sideways,
-                LinkContent::Invalid{reason}
-                    if reason == "the symlink target leaves the filesystem root"
-            ));
-
-            // `\` is a legal filename character on unix, so a raw target may contain one. It must
-            // not be treated as a separator, and must not trip `join_path`'s debug assertion.
-            let backslash_path = root_path.join("sub/link-backslash")?;
-            let backslash = fs.read_link(backslash_path.clone()).await?;
-            assert_eq!(
-                *backslash,
-                LinkContent::Link {
-                    target: LinkTarget::Relative {
-                        raw: rcstr!("a\\b.txt"),
-                        resolved: root_path.join("sub/a\\b.txt")?,
-                    },
-                }
-            );
-
-            // A relative target that stays within the root throughout is still fine.
-            let inside_path = root_path.join("sub/link-inside")?;
-            let inside = fs.read_link(inside_path.clone()).await?;
-            let LinkContent::Link { target } = &*inside else {
-                anyhow::bail!("expected a valid link, got {inside:?}");
-            };
-            assert_eq!(
-                *target,
-                LinkTarget::Relative {
-                    raw: rcstr!("../root.txt"),
-                    resolved: root_path.join("root.txt")?,
-                }
-            );
-            assert_eq!(target.target_type().await?, FileSystemEntryType::File,);
-
-            Ok(())
-        }
-
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_read_escaping_relative_symlink() {
@@ -2033,11 +1977,67 @@ mod tests {
 
             let root = canonicalize_to_rcstr(&path).unwrap();
 
+            #[turbo_tasks::function(operation, root)]
+            async fn assert_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+                root_path: FileSystemPath,
+            ) -> anyhow::Result<()> {
+                // sub/link-reentrant -> ../../<root dir name>/root.txt, which steps above the root
+                // and back down into it. Resolving this would need the names of the root's own
+                // ancestors, which a root-relative path doesn't carry.
+                let reentrant = fs.read_link(root_path.join("sub/link-reentrant")?).await?;
+                assert!(matches!(
+                    &*reentrant,
+                    LinkContent::Invalid { reason }
+                        if reason == "the symlink target leaves the filesystem root"
+                ));
+
+                // sub/link-sideways -> ../../sibling/root.txt, which steps above the root and down
+                // into a sibling, so it genuinely ends outside.
+                let sideways = fs.read_link(root_path.join("sub/link-sideways")?).await?;
+                assert!(matches!(
+                    &*sideways,
+                    LinkContent::Invalid{reason}
+                        if reason == "the symlink target leaves the filesystem root"
+                ));
+
+                // `\` is a legal filename character on unix, so a raw target may contain one. It
+                // must not be treated as a separator, and must not trip
+                // `join_path`'s debug assertion.
+                let backslash_path = root_path.join("sub/link-backslash")?;
+                let backslash = fs.read_link(backslash_path.clone()).await?;
+                assert_eq!(
+                    *backslash,
+                    LinkContent::Link {
+                        target: LinkTarget::Relative {
+                            raw: rcstr!("a\\b.txt"),
+                            resolved: root_path.join("sub/a\\b.txt")?,
+                        },
+                    }
+                );
+
+                // A relative target that stays within the root throughout is still fine.
+                let inside_path = root_path.join("sub/link-inside")?;
+                let inside = fs.read_link(inside_path.clone()).await?;
+                let LinkContent::Link { target } = &*inside else {
+                    anyhow::bail!("expected a valid link, got {inside:?}");
+                };
+                assert_eq!(
+                    *target,
+                    LinkTarget::Relative {
+                        raw: rcstr!("../root.txt"),
+                        resolved: root_path.join("root.txt")?,
+                    }
+                );
+                assert_eq!(target.target_type().await?, FileSystemEntryType::File,);
+
+                Ok(())
+            }
+
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
                     .resolve()
@@ -2045,7 +2045,7 @@ mod tests {
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
-                assert_read_escaping_relative_symlink_operation(fs, root_path)
+                assert_operation(fs, root_path)
                     .read_strongly_consistent()
                     .await?;
 
