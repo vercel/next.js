@@ -94,13 +94,23 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
     )
   })
 
+  // The third element defers the poisoned import until after the page has
+  // hydrated. A broken `proxy.js` is compiled while the dev server is starting
+  // up and forces a full reload, which can clear the overlay before
+  // `waitForRedbox` starts observing it. The other two entries surface the
+  // error reliably from the initial compile, and only surface it reliably that
+  // way, so they keep the poisoned import in the initial files.
   test.each([
-    ['middleware.js', 'export function middleware() {}'],
-    ['proxy.js', 'export function proxy() {}'],
-    ['instrumentation.js', 'export function register() {}'],
+    ['middleware.js', 'export function middleware() {}', false],
+    ['proxy.js', 'export function proxy() {}', true],
+    ['instrumentation.js', 'export function register() {}', false],
   ])(
     'should error when catchError from next/error is imported in %s',
-    async (entryFile, exportCode) => {
+    async (entryFile, exportCode, deferPoisonedImport) => {
+      const entryContent = outdent`
+        import { catchError } from 'next/error'
+        ${exportCode}
+      `
       await using sandbox = await createSandbox(
         next,
         new Map([
@@ -112,17 +122,14 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
               }
             `,
           ],
-          [
-            entryFile,
-            outdent`
-              import { catchError } from 'next/error'
-              ${exportCode}
-            `,
-          ],
+          [entryFile, deferPoisonedImport ? exportCode : entryContent],
         ])
       )
 
       const { session } = sandbox
+      if (deferPoisonedImport) {
+        await session.write(entryFile, entryContent)
+      }
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
         'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
