@@ -1463,6 +1463,37 @@ impl AppEndpoint {
             None
         };
 
+        // Like the polyfill, this is a pre-compiled asset distributed as part of next and served
+        // as-is rather than bundled. React only publishes it on the experimental channel, which
+        // `experimental.externalBrowserRuntime` opts into.
+        let external_browser_runtime_output_asset =
+            if matches!(this.ty, AppEndpointType::Page { .. })
+                && *project
+                    .next_config()
+                    .enable_external_browser_runtime()
+                    .await?
+            {
+                let next_package = get_next_package(project.project_path().owned().await?).await?;
+                let external_browser_runtime_source = FileSource::new(next_package.join(
+                    "dist/compiled/react-dom-experimental/unstable_server-external-runtime.js",
+                )?);
+
+                let external_browser_runtime_output_asset = ResolvedVc::upcast(
+                    SingleFileEcmascriptOutput::new(
+                        *client_chunking_context,
+                        Vc::upcast(external_browser_runtime_source),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+
+                client_assets.insert(external_browser_runtime_output_asset);
+
+                Some(external_browser_runtime_output_asset)
+            } else {
+                None
+            };
+
         // Compile any service workers registered via `navigator.serviceWorker.register(new
         // URL(...), { scope })` reachable from this endpoint.
         client_assets.extend(
@@ -1497,6 +1528,7 @@ impl AppEndpoint {
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
+                external_browser_runtime_file: external_browser_runtime_output_asset,
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {

@@ -1660,7 +1660,12 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
       'cjs/react-dom-test-utils.production.min.js',
-      'unstable_server-external-runtime.js',
+      // `unstable_server-external-runtime.js` is deliberately kept. It is the
+      // standalone browser runtime that applies Fizz's instruction set when
+      // `unstable_externalRuntimeSrc` is set, and it is served as a static
+      // asset rather than bundled. React only publishes it on the experimental
+      // channel, so it is absent from the `react-dom` copy and present in the
+      // `react-dom-experimental` one.
     ]
     for (const item of itemsToRemove) {
       yield rmrf(join(reactDomCompiledDir, item))

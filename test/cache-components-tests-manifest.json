@@ -243,6 +243,7 @@
       "test/e2e/app-dir/root-layout-render-once/index.test.ts",
       "test/e2e/app-dir/root-layout/root-layout.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic-blocking-ssr.test.ts",
+      "test/e2e/app-dir/rsc-basic/rsc-basic-external-browser-runtime.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic-react-experimental.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
       "test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts",
