@@ -429,6 +429,28 @@ pub fn apply_module_federation_import_map(
         import_map.insert_exact_alias(remote.request.clone(), mapping);
         import_map.insert_wildcard_alias(RcStr::from(format!("{}/", remote.request)), mapping);
     }
+
+    for (index, shared) in config.shared.iter().enumerate() {
+        let fallback_request: RcStr =
+            format!("__turbopack_module_federation_shared_fallback__/{index}").into();
+        if let Some(import) = &shared.import {
+            import_map.insert_exact_alias(
+                fallback_request.clone(),
+                ImportMapping::PrimaryAlternative(import.clone(), Some(project_path.clone()))
+                    .resolved_cell(),
+            );
+        }
+        let replacer = ModuleFederationSharedReplacer {
+            project_path: project_path.clone(),
+            shared: shared.clone(),
+            fallback_request,
+        }
+        .resolved_cell();
+        import_map.insert_exact_alias(
+            shared.request.clone(),
+            ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell(),
+        );
+    }
 }
 
 #[turbo_tasks::value]
@@ -543,6 +565,107 @@ __turbopack_export_namespace__(federatedModule);
         let path = this.project_path.join(&virtual_name)?;
         let source = VirtualSource::new(
             path,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Clone)]
+struct ModuleFederationSharedReplacer {
+    project_path: FileSystemPath,
+    shared: ModuleFederationShared,
+    fallback_request: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for ModuleFederationSharedReplacer {
+    #[turbo_tasks::function]
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Dynamic(ResolvedVc::upcast(self.clone().resolved_cell())).cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn result(
+        self: Vc<Self>,
+        _lookup_path: FileSystemPath,
+        request: Vc<Request>,
+    ) -> Result<Vc<ImportMapResult>> {
+        let this = self.await?;
+        let Some(request) = request.await?.request() else {
+            return Ok(ImportMapResult::NoEntry.cell());
+        };
+        if request != this.shared.request {
+            return Ok(ImportMapResult::NoEntry.cell());
+        }
+
+        let scope = serde_json::to_string(&this.shared.share_scope)?;
+        let key = serde_json::to_string(&this.shared.share_key)?;
+        let required_version = serde_json::to_string(&this.shared.required_version)?;
+        let fallback = this.shared.import.as_ref().map(|_| {
+            format!(
+                "sharedModule = await import({});",
+                serde_json::to_string(&this.fallback_request).unwrap()
+            )
+        });
+        let fallback = fallback.unwrap_or_else(|| {
+            format!(
+                "throw new Error(`No satisfying shared module for ${{{}}}`);",
+                serde_json::to_string(&this.shared.share_key).unwrap()
+            )
+        });
+        let code = format!(
+            r#"
+const scopes = globalThis.__turbopack_module_federation_share_scopes__ ||= Object.create(null);
+const scope = scopes[{scope}] ||= Object.create(null);
+const versions = scope[{key}] || Object.create(null);
+const requiredVersion = {required_version};
+
+function compareVersions(a, b) {{
+  return b.localeCompare(a, undefined, {{ numeric: true, sensitivity: "base" }});
+}}
+function satisfies(version, range) {{
+  if (!range || range === "*") return true;
+  const versionParts = version.split(".").map(Number);
+  const normalized = range.replace(/^[v=]/, "");
+  const rangeParts = normalized.replace(/^[~^]/, "").split(".").map(Number);
+  if (range.startsWith("^")) {{
+    if (versionParts[0] !== rangeParts[0]) return false;
+    return compareVersions(version, rangeParts.join(".")) <= 0;
+  }}
+  if (range.startsWith("~")) {{
+    return versionParts[0] === rangeParts[0] && versionParts[1] === rangeParts[1] && compareVersions(version, rangeParts.join(".")) <= 0;
+  }}
+  if (range.startsWith(">=")) return compareVersions(version, range.slice(2)) <= 0;
+  return version === normalized;
+}}
+
+const available = Object.keys(versions).sort(compareVersions);
+const satisfying = available.filter((version) => satisfies(version, requiredVersion));
+const selected = {singleton} ? available[0] : satisfying[0];
+let sharedModule;
+if (selected && (!{strict_version} || satisfies(selected, requiredVersion))) {{
+  const factory = await versions[selected].get();
+  sharedModule = factory();
+}} else {{
+  {fallback}
+}}
+__turbopack_export_namespace__(sharedModule);
+"#,
+            singleton = this.shared.singleton,
+            strict_version = this.shared.strict_version,
+        );
+        let mut virtual_name = this.shared.request.replace('/', "_");
+        virtual_name.insert_str(0, ".turbopack-module-federation-shared-");
+        virtual_name.push_str(".js");
+        let source = VirtualSource::new(
+            this.project_path.join(&virtual_name)?,
             AssetContent::file(FileContent::Content(code.into()).cell()),
         )
         .to_resolved()
