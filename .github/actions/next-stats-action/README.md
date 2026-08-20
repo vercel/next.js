@@ -23,7 +23,9 @@ const StatsConfig = {
   // the command to build the app (app source should be in `.stats-app`)
   appBuildCommand: string,
   appStartCommand: string | undefined,
-  // the main branch to compare against (what PRs will be merging into)
+  // fallback branch to compare against, used when the run has no base ref of
+  // its own (pushes, releases, local runs). For a pull request the branch it
+  // targets wins, so PRs into a release branch are diffed against that branch.
   mainBranch: 'canary',
   // the main repository path (relative to https://github.com/)
   mainRepo: 'vercel/next.js',

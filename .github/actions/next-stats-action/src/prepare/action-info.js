@@ -54,6 +54,7 @@ module.exports = function actionInfo() {
     gitRoot: GIT_ROOT_DIR || 'https://github.com/',
     prRepo: GITHUB_REPOSITORY,
     prRef: GITHUB_REF,
+    baseRef: null,
     isLocal: LOCAL_STATS,
     commitId: null,
     issueId: ISSUE_ID,
@@ -83,6 +84,7 @@ module.exports = function actionInfo() {
       if (prData) {
         info.prRepo = prData.head.repo.full_name
         info.prRef = prData.head.ref
+        info.baseRef = prData.base.ref
         info.issueId = prData.number
 
         if (!info.commentEndpoint) {

@@ -54,9 +54,16 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     // load stats config from allowed locations
     const { statsConfig, relativeStatsAppDir } = loadStatsConfig()
 
-    if (actionInfo.isLocal && actionInfo.prRef === statsConfig.mainBranch) {
+    // Compare against whatever the PR actually targets, so that PRs into a
+    // release branch are diffed against that branch instead of canary. Only
+    // pull_request events carry a base ref; the fallback covers `LOCAL_STATS`
+    // runs, which have no event payload. Releases ignore this entirely and
+    // pick the last stable tag below.
+    const baselineRef = actionInfo.baseRef ?? statsConfig.mainBranch
+
+    if (actionInfo.isLocal && actionInfo.prRef === baselineRef) {
       throw new Error(
-        `'GITHUB_REF' can not be the same as mainBranch in 'stats-config.js'.\n` +
+        `'GITHUB_REF' can not be the same as the baseline branch "${baselineRef}".\n` +
           `This will result in comparing against the same branch`
       )
     }
@@ -71,7 +78,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     actionInfo.commitId = await getCommitId(diffRepoDir)
 
     if (!actionInfo.skipClone) {
-      let mainRef = statsConfig.mainBranch
+      let mainRef = baselineRef
 
       if (actionInfo.isRelease) {
         logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
@@ -91,11 +98,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         }
       }
 
+      logger(`Using "${mainRef}" as the baseline`)
       await cloneRepo(statsConfig.mainRepo, mainRepoDir, mainRef)
 
       if (!actionInfo.isRelease && statsConfig.autoMergeMain) {
         logger('Attempting auto merge of main branch')
-        await mergeBranch(statsConfig.mainBranch, mainRepoDir, diffRepoDir)
+        await mergeBranch(baselineRef, mainRepoDir, diffRepoDir)
       }
     }
     let mainRepoPkgPaths
