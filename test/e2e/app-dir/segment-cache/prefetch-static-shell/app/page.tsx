@@ -26,6 +26,16 @@ export default function Page() {
           <LinkAccordion href="/uses-connection">Uses connection</LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/uses-runtime-after-navigation">
+            Uses runtime APIs after navigation()
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/uses-navigation-static">
+            Uses navigation() on a static page
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/dynamic-param/one">
             Dynamic param one
           </LinkAccordion>

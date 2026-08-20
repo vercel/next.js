@@ -1,3 +1,16 @@
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import {
+  throwForMissingRequestStore,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
+import {
+  applyOwnerStack,
+  trackIncompatibleShellContent,
+} from '../dynamic-rendering-utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { RenderStage } from '../app-render/staged-rendering'
+
 /**
  * This function allows you to indicate that the subsequent code should be
  * deferred to the actual navigation instead of rendering during a runtime
@@ -13,5 +26,129 @@
  * content below `await unstable_navigation()` remains fully cacheable.
  */
 export function unstable_navigation(): Promise<void> {
-  throw new Error('unstable_navigation() is not implemented yet.')
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workStore || !workUnitStore) {
+    const callingExpression = 'unstable_navigation'
+    throwForMissingRequestStore(callingExpression)
+  }
+  if (!process.env.__NEXT_CACHE_COMPONENTS) {
+    throw new Error(
+      `Route ${workStore.route} used \`unstable_navigation()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+    )
+  }
+
+  if (!isRequestApiAllowedInCurrentPhase(workUnitStore)) {
+    throw new Error(
+      `Route ${workStore.route} used \`unstable_navigation()\` inside \`after()\` while rendering. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+    )
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender': {
+      // Static prerenders are computed once and shared across many
+      // clients, so there's no per-request prefetch cost to save by
+      // deferring the content — it's deliberately included in the static
+      // output (and thus in static prefetches).
+      // However, it's excluded from the shell, and has to be separated from
+      // unstable_prefetch(), so we have to delay it.
+      const { stagedRendering } = workUnitStore
+      if (!stagedRendering) {
+        // Prospective prerender
+        return Promise.resolve(undefined)
+      } else {
+        // Final prerender
+        return stagedRendering.delayUntilStage(
+          RenderStage.NavigationStatic,
+          'unstable_navigation',
+          undefined
+        )
+      }
+    }
+    case 'prerender-runtime': {
+      // In a shell or runtime prefetch, navigation() doesn't resolve,
+      // because they don't reach `NavigationRuntime`.
+      // It'll only resolve in a runtime prerender produced during a navigation.
+      // Note that this does not mark the subtree as dynamic -- content guarded by
+      // navigation() is still considered cacheable.
+      const { stagedRendering } = workUnitStore
+      if (!stagedRendering) {
+        // Prospective prerender
+        return Promise.resolve(undefined)
+      } else {
+        // Final prerender
+        return stagedRendering.delayUntilStage(
+          RenderStage.NavigationRuntime,
+          'unstable_navigation',
+          undefined
+        )
+      }
+    }
+    case 'request': {
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering) {
+        // We can either recover a static shell or a runtime shell, but not both.
+        trackIncompatibleShellContent(workUnitStore)
+        const stage = workUnitStore.needsAppShell
+          ? RenderStage.NavigationRuntime // Match the timing of 'prerender-runtime'.
+          : RenderStage.NavigationStatic // Match the timing of 'prerender'.
+
+        return stagedRendering.delayUntilStage(
+          stage,
+          'unstable_navigation',
+          undefined
+        )
+      }
+      return Promise.resolve(undefined)
+    }
+
+    case 'cache': {
+      const error = new Error(
+        `Route ${workStore.route} used \`unstable_navigation()\` inside "use cache". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_navigation()\`, so that the cached content is deferred to the navigation without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+      Error.captureStackTrace(error, unstable_navigation)
+      applyOwnerStack(error)
+      workStore.invalidDynamicUsageError ??= error
+      throw error
+    }
+    case 'private-cache': {
+      const error = new Error(
+        `Route ${workStore.route} used \`unstable_navigation()\` inside "use cache: private". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_navigation()\`, so that the cached content is deferred to the navigation without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+      Error.captureStackTrace(error, unstable_navigation)
+      applyOwnerStack(error)
+      workStore.invalidDynamicUsageError ??= error
+      throw error
+    }
+    case 'unstable-cache': {
+      throw new Error(
+        `Route ${workStore.route} used \`unstable_navigation()\` inside a function cached with \`unstable_cache()\`. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`unstable_cache()\` caches must be able to be produced before a navigation, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
+    case 'generate-static-params': {
+      throw new Error(
+        `Route ${workStore.route} used \`unstable_navigation()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+      )
+    }
+    case 'prerender-client':
+    case 'validation-client': {
+      const exportName = '`unstable_navigation`'
+      throw new InvariantError(
+        `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
+      )
+    }
+    case 'prerender-legacy': {
+      // NOTE: Should not be reachable, because we don't use this mode in cacheComponents,
+      // which we require at the top
+      throw new Error(
+        `Route ${workStore.route} used \`unstable_navigation()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+      )
+    }
+
+    default: {
+      workUnitStore satisfies never
+      return Promise.resolve(undefined)
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers'
 import { CachedData } from '../../data-fetching'
 import { connection } from 'next/server'
+import { unstable_navigation as navigation } from 'next/cache'
 import { Suspense } from 'react'
 
 export const instant = true
@@ -18,11 +19,12 @@ export default function Page({ params, searchParams }) {
       <CachedData cacheKey={CACHE_KEY} label="page" />
       <LogAfter label="--- dynamic stage ---" api={() => connection()} />
 
-      {/* Runtime */}
       <LogAfter label="cookies" api={() => cookies()} />
       <LogAfter label="headers" api={() => headers()} />
       <LogAfter label="params" api={() => params} />
       <LogAfter label="searchParams" api={() => searchParams} />
+      <LogAfter label="navigation" api={() => navigation()} />
+
       {/* Dynamic */}
       <LogAfter label="connection" api={() => connection()} />
     </main>
