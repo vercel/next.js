@@ -31,7 +31,7 @@ use std::{
     fs::read_to_string,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
-    sync::{Arc, LazyLock},
+    sync::LazyLock,
 };
 
 use anyhow::{Context as _, anyhow, bail};
@@ -41,10 +41,13 @@ use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_p
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::{Compiler, TransformOutput, config::RuntimeOptions, try_with_handler},
+    base::{Compiler, TransformOutput, try_with_handler},
     common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
+// The wasmtime plugin backend cannot run inside wasm; SWC skips plugin transforms on wasm32
+// for the same reason. See https://github.com/swc-project/swc/issues/3934.
+#[cfg(not(target_arch = "wasm32"))]
 use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 
 use crate::{get_compiler, util::MapErr};
@@ -169,8 +172,15 @@ impl Task for TransformTask {
                             let unresolved_mark = Mark::new();
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
-                            options.swc.runtime_options =
-                                RuntimeOptions::default().plugin_runtime(Arc::new(WasmtimeRuntime));
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                use std::sync::Arc;
+
+                                use swc_core::base::config::RuntimeOptions;
+
+                                options.swc.runtime_options = RuntimeOptions::default()
+                                    .plugin_runtime(Arc::new(WasmtimeRuntime));
+                            }
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
