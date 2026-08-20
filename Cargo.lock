@@ -9994,6 +9994,7 @@ dependencies = [
  "bincode 2.0.1",
  "indexmap 2.13.0",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
