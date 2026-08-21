@@ -69,9 +69,8 @@ async fn async_fn_vc_arg(n: Vc<u32>) -> Result<Vc<u32>> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_methods() {
-    run_once(&REGISTRATION, || async {
-        test_methods_operation().read_strongly_consistent().await?;
-        anyhow::Ok(())
+    run_once(&REGISTRATION, || {
+        test_methods_operation().read_strongly_consistent()
     })
     .await
     .unwrap()
@@ -128,7 +127,7 @@ impl Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         test_trait_methods_operation()
             .read_strongly_consistent()
             .await?;

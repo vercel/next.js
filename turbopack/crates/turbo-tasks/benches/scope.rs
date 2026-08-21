@@ -36,20 +36,13 @@ pub fn overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("scope_overhead");
     group.sample_size(20);
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .disable_lifo_slot()
-        .thread_name("tokio-thread")
-        .enable_all()
-        .build()
-        .unwrap();
-
     for (item_duration, item_count) in get_test_cases() {
         group.bench_with_input(
             BenchmarkId::new(format!("parallel {item_duration:?}"), item_count),
             &item_count,
             |b, &d| {
                 let items = (0..d).collect::<Vec<_>>();
-                b.to_async(&rt).iter(|| async {
+                b.iter(|| {
                     let result: Vec<_> =
                         parallel::map_collect(&items, |&i| black_box(busy_task(item_duration, i)));
                     result
