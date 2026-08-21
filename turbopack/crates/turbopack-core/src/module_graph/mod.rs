@@ -751,14 +751,13 @@ impl ImportTracer for ModuleGraphImportTracer {
                     // import/require/dynamic-import?)
                     let path = path
                         .into_iter()
-                        .map(async |n| {
+                        .map(|n| {
                             graph
                                 .graph
                                 .node_weight(n)
                                 .unwrap() // This is safe since `astar`` only returns indices from the graph
                                 .module()
                                 .ident()
-                                .await
                         })
                         .try_join()
                         .await?;

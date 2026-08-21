@@ -83,9 +83,7 @@ async fn test_manual_mark_top_level_task_causes_error() {
         Ok(Value { value: 42 }.cell())
     }
 
-    run_once(&REGISTRATION, async || {
-        operation().read_strongly_consistent().await
-    })
-    .await
-    .unwrap()
+    run_once(&REGISTRATION, || operation().read_strongly_consistent())
+        .await
+        .unwrap()
 }
