@@ -12,9 +12,11 @@ type StreamRecord = { closed: boolean }
 /** Records every zlib stream the middleware creates, and whether it closed. */
 function trackCompressionStreams(): {
   records: StreamRecord[]
+  streams: Array<zlib.Gzip | zlib.Deflate>
   restore: () => void
 } {
   const records: StreamRecord[] = []
+  const streams: Array<zlib.Gzip | zlib.Deflate> = []
   const originals: Array<[string, unknown]> = []
 
   for (const name of ['createGzip', 'createDeflate'] as const) {
@@ -31,6 +33,7 @@ function trackCompressionStreams(): {
           record.closed = true
         })
         records.push(record)
+        streams.push(stream)
         return stream
       },
     })
@@ -38,6 +41,7 @@ function trackCompressionStreams(): {
 
   return {
     records,
+    streams,
     restore: () => {
       for (const [name, original] of originals) {
         Object.defineProperty(zlib, name, {
@@ -194,5 +198,92 @@ describe('releaseCompressionStream', () => {
     expect(outcome.threw).toBeNull()
     // Cleanup must not leave a stray listener behind on the response.
     expect(outcome.drainListeners).toBe(0)
+  })
+})
+
+describe('compression middleware drain forwarding', () => {
+  let tracker: ReturnType<typeof trackCompressionStreams>
+  let server: http.Server | undefined
+
+  beforeEach(() => {
+    tracker = trackCompressionStreams()
+  })
+
+  afterEach(async () => {
+    tracker.restore()
+    if (server) {
+      await new Promise<void>((resolve) => server!.close(() => resolve()))
+      server = undefined
+    }
+  })
+
+  it('does not forward removeListener, so res.once(drain) leaks on Gzip', async () => {
+    // If this starts failing, the vendored `compression` forwards
+    // `removeListener` / `off` and `pipeNodeReadableToNodeResponse` can go
+    // back to `res.once('drain')` per write.
+    const compress = setupCompression()
+    const seen = { drainListeners: -1 }
+
+    server = http.createServer((req, res) => {
+      // @ts-expect-error not express req/res
+      compress(req, res, () => {})
+      res.setHeader('content-type', 'text/html')
+      res.write(`<html><body>${'x'.repeat(4096)}`)
+      // Flush so the zlib stream exists before we attach drain listeners.
+      ;(res as any).flush()
+
+      for (let i = 0; i < 12; i++) {
+        res.once('drain', () => {})
+      }
+
+      seen.drainListeners = tracker.streams[0]?.listenerCount('drain') ?? -1
+      res.end('</body></html>')
+    })
+    const url = await listen(server)
+
+    const res = await fetch(url, {
+      headers: { 'accept-encoding': 'gzip' },
+      signal: AbortSignal.timeout(10_000),
+    })
+    await res.arrayBuffer()
+
+    expect(tracker.streams).toHaveLength(1)
+    expect(seen.drainListeners).toBeGreaterThanOrEqual(12)
+  })
+
+  it('does not accumulate Gzip drain listeners for a single res.on(drain)', async () => {
+    const compress = setupCompression()
+    const seen = { drainListeners: -1 }
+
+    server = http.createServer((req, res) => {
+      // @ts-expect-error not express req/res
+      compress(req, res, () => {})
+      res.setHeader('content-type', 'text/html')
+      res.write(`<html><body>${'x'.repeat(4096)}`)
+      ;(res as any).flush()
+
+      const onDrain = () => {}
+      res.on('drain', onDrain)
+      // Simulate many backpressure cycles without adding more listeners.
+      for (let i = 0; i < 12; i++) {
+        tracker.streams[0]?.emit('drain')
+      }
+
+      seen.drainListeners = tracker.streams[0]?.listenerCount('drain') ?? -1
+      res.off('drain', onDrain)
+      res.end('</body></html>')
+    })
+    const url = await listen(server)
+
+    const res = await fetch(url, {
+      headers: { 'accept-encoding': 'gzip' },
+      signal: AbortSignal.timeout(10_000),
+    })
+    await res.arrayBuffer()
+
+    expect(tracker.streams).toHaveLength(1)
+    // One listener for the reused handler. `off` is also not forwarded, so
+    // it may still be present — the point is it does not grow past 1.
+    expect(seen.drainListeners).toBe(1)
   })
 })

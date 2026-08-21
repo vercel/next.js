@@ -159,7 +159,19 @@ export async function pipeNodeReadableToNodeResponse(
 
     const finished = createPromiseWithResolvers<void>()
 
+    // Reuse one `drain` listener for the response. Do not use
+    // `res.once('drain')` per backpressured write: the vendored `compression`
+    // middleware forwards `res.on('drain')` to the Gzip stream but does not
+    // forward `removeListener`, so each `once()` permanently adds a listener
+    // and eventually emits `MaxListenersExceededWarning`. This is the same
+    // handle `releaseCompressionStream` uses. Match `createWriterFromResponse`.
+    const onDrain = () => {
+      readable.resume()
+    }
+    res.on('drain', onDrain)
+
     res.once('close', () => {
+      res.off('drain', onDrain)
       readable.destroy()
       finished.resolve()
     })
@@ -204,9 +216,6 @@ export async function pipeNodeReadableToNodeResponse(
 
       if (!ok) {
         readable.pause()
-        res.once('drain', () => {
-          readable.resume()
-        })
       }
     })
 
