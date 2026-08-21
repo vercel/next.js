@@ -34,7 +34,7 @@
   "33": "Turbopack build failed with %s issues:\\n%s",
   "34": "source-map information is not available at url() declaration %s",
   "35": "To use middleware you must provide a `hostname` and `port` to the Next.js Server",
-  "36": "API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: \"edge\"` instead: https://nextjs.org/docs/api-routes/edge-api-routes",
+  "36": "API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: \"edge\"` instead: https://nextjs.org/docs/pages/building-your-application/routing/api-routes#edge-api-routes",
   "37": "\\`%s\\` cannot be called inside \"use cache\". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "38": "Extra keys returned from getStaticPaths in %s (%s) %s",
   "39": "Specified basePath should not end with /, found \"%s\"",
