@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { RouterUrl } from './router-url'
+import { ServerPathname } from './server-pathname'
 import { ThirdPartyPush } from './third-party-push'
 
 export default function RootLayout({
@@ -14,6 +15,7 @@ export default function RootLayout({
         <Suspense>
           <RouterUrl />
         </Suspense>
+        <ServerPathname />
         {children}
       </body>
     </html>

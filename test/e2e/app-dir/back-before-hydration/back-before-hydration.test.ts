@@ -66,6 +66,14 @@ describe('back navigation before hydration after reload', () => {
     )
   }
 
+  async function expectNoPageErrors(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    expect(await browser.log()).not.toContainEqual(
+      expect.objectContaining({ source: 'error' })
+    )
+  }
+
   // The stalled scripts are async, so they do not hold this up.
   async function waitForDocumentParsing(page: Playwright.Page) {
     await page.waitForFunction(() => document.readyState !== 'loading')
@@ -86,6 +94,7 @@ describe('back navigation before hydration after reload', () => {
   ) {
     let page: Playwright.Page
     const browser = await next.browser(startPath, {
+      pushErrorAsConsoleLog: true,
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
@@ -110,6 +119,7 @@ describe('back navigation before hydration after reload', () => {
     const browser = await next.browser(startPath, {
       waitUntil: 'commit',
       waitHydration: false,
+      pushErrorAsConsoleLog: true,
       async beforePageLoad(p: Playwright.Page) {
         page = p
         releaseScripts = await stallScripts(p)
@@ -125,7 +135,7 @@ describe('back navigation before hydration after reload', () => {
   const searchPath = '/search'
 
   it('reconciles the URL with the rendered content once hydration completes', async () => {
-    const { browser, releaseScripts } = await clickThenReloadStalled(
+    const { browser, page, releaseScripts } = await clickThenReloadStalled(
       homePath,
       'to-post',
       '#post'
@@ -136,6 +146,9 @@ describe('back navigation before hydration after reload', () => {
     await browser.back({ waitUntil: 'commit' })
     expect(new URL(await browser.url()).pathname).toBe(homePath)
 
+    await page.evaluate(
+      'document.getElementById("server-pathname").__server = true'
+    )
     releaseScripts()
 
     // We traversed back, so once the router is up it must render the home
@@ -145,6 +158,14 @@ describe('back navigation before hydration after reload', () => {
     await retry(async () => {
       expect(await readRouterUrl(browser)).toBe(homePath)
     })
+    // TODO: The router initializes from the traversed-to URL, so the
+    // pathname rendered during hydration does not match the server HTML.
+    expect(
+      await browser.eval('document.getElementById("server-pathname").__server')
+    ).toBeUndefined()
+    expect(await browser.log()).toContainEqual(
+      expect.objectContaining({ source: 'error' })
+    )
 
     // History traversal must still work after recovery.
     await browser.forward()
@@ -177,6 +198,7 @@ describe('back navigation before hydration after reload', () => {
     await browser.forward()
     await waitForPage(browser, '#page-2')
     expect(new URL(await browser.url()).search).toBe('?page=2')
+    await expectNoPageErrors(browser)
   })
 
   it('hydrates in place on an ordinary reload', async () => {
@@ -202,6 +224,7 @@ describe('back navigation before hydration after reload', () => {
     await browser.back()
     await waitForPage(browser, '#post')
     expect(await browser.eval('window.__stayed')).toBe(true)
+    await expectNoPageErrors(browser)
   })
 
   // History changes before hydration that are NOT missed traversals must
@@ -227,6 +250,7 @@ describe('back navigation before hydration after reload', () => {
       // The router still navigates.
       await browser.elementById('to-home').click()
       await waitForPage(browser, '#home')
+      await expectNoPageErrors(browser)
     })
 
     it('keeps an in-page anchor jump on a fresh load', async () => {
@@ -256,6 +280,7 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(await readRouterUrl(browser)).toBe(postPath)
       })
+      await expectNoPageErrors(browser)
     })
 
     it('keeps an in-page anchor jump between a reload and hydration', async () => {
@@ -281,6 +306,7 @@ describe('back navigation before hydration after reload', () => {
       await browser.back() // -> home
       await waitForPage(browser, '#home')
       expect(new URL(await browser.url()).pathname).toBe(homePath)
+      await expectNoPageErrors(browser)
     })
 
     it('handles a pushState followed by back', async () => {
@@ -303,6 +329,7 @@ describe('back navigation before hydration after reload', () => {
 
       await browser.elementById('to-home').click()
       await waitForPage(browser, '#home')
+      await expectNoPageErrors(browser)
     })
 
     it('leaves the traversal unhandled when a third-party write lands before the replay', async () => {
@@ -330,6 +357,10 @@ describe('back navigation before hydration after reload', () => {
         // TODO: The router never learns about the third-party entry.
         expect(await readRouterUrl(browser)).toBe(homePath)
       })
+      // TODO: Same hydration mismatch as after any Back before hydration.
+      expect(await browser.log()).toContainEqual(
+        expect.objectContaining({ source: 'error' })
+      )
 
       await browser.elementById('to-home').click()
       await waitForPage(browser, '#home')
@@ -355,6 +386,7 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
       })
+      await expectNoPageErrors(browser)
     })
   })
 })
