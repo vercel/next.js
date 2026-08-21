@@ -241,12 +241,12 @@ async fn get_pages_structure_for_root_directory(
                 next_router_path: next_router_path.clone(),
                 items: items
                     .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .map(|(_, v)| v.to_resolved())
                     .try_join()
                     .await?,
                 children: children
                     .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .map(|(_, v)| v.to_resolved())
                     .try_join()
                     .await?,
             }
@@ -386,13 +386,13 @@ async fn get_pages_structure_for_directory(
             items: items
                 .into_iter()
                 .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
+                .map(|v| v.to_resolved())
                 .try_join()
                 .await?,
             children: children
                 .into_iter()
                 .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
+                .map(|v| v.to_resolved())
                 .try_join()
                 .await?,
         }

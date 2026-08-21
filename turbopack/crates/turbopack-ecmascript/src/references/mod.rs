@@ -1640,7 +1640,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     let linked_args_cache = OnceCell::new();
 
     // Create the lazy linking closure that will be passed to handle_well_known_function_call
-    let linked_args = || async {
+    let linked_args = async || {
         linked_args_cache
             .get_or_try_init(|| async {
                 unlinked_args
@@ -4014,15 +4014,12 @@ async fn require_resolve_visitor<'a>(
         )
         .to_resolved()
         .await?;
-        let mut values =
-            resolved
-                .await?
-                .primary_sources()
-                .map(|source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        let mut values = resolved
+            .await?
+            .primary_sources()
+            .map(async |source| Ok(require_resolve(source.ident().await?.path.clone()).into()))
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(

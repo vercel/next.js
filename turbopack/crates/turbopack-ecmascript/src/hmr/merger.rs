@@ -28,7 +28,7 @@ impl VersionedContentMerger for EcmascriptChunkContentMerger {
         let contents = contents
             .await?
             .iter()
-            .map(|content| async move {
+            .map(|content| {
                 if let Some(content) =
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptHmrChunkContent>>(*content)
                 {
@@ -37,8 +37,7 @@ impl VersionedContentMerger for EcmascriptChunkContentMerger {
                     bail!("expected Vc<Box<dyn EcmascriptHmrChunkContent>>")
                 }
             })
-            .try_join()
-            .await?;
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Vc::upcast(EcmascriptMergedChunkContent { contents }.cell()))
     }

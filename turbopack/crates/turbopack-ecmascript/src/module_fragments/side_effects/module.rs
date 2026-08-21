@@ -93,7 +93,7 @@ impl Module for SideEffectsModule {
         references.extend(
             self.side_effects
                 .iter()
-                .map(|side_effect| async move {
+                .map(async |side_effect| {
                     Ok(ResolvedVc::upcast(
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),

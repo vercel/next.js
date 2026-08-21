@@ -465,7 +465,7 @@ impl PatternMapping {
                     .collect();
                 let map = items
                     .into_iter()
-                    .map(|(k, v)| async move {
+                    .map(async |(k, v)| {
                         let single_pattern_mapping = to_single_pattern_mapping(
                             origin,
                             chunking_context,

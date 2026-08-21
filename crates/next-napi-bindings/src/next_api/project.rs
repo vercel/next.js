@@ -1684,7 +1684,7 @@ async fn output_assets_operation(
 
     let endpoint_assets = endpoints
         .iter()
-        .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
+        .map(|endpoint| endpoint.output().await?.output_assets)
         .try_join()
         .await?;
 
