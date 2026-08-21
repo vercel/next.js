@@ -1378,6 +1378,9 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    /// Forks the client router's entry-point modules to the experimental
+    /// concurrent router queue implementation via the import map.
+    concurrent_router_queue: Option<bool>,
     // `rename_all = "camelCase"` would lowercase the acronym to `blockingSsr`;
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
@@ -1440,6 +1443,8 @@ pub struct ExperimentalConfig {
     turbopack_cjs_tree_shaking: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
+    /// Enable cross-module constant inlining. Defaults to false.
+    turbopack_cross_module_constants: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -2429,6 +2434,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_concurrent_router_queue(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.concurrent_router_queue.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
         Vc::cell(self.cache_components.unwrap_or(false))
     }
@@ -2564,6 +2574,15 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .turbopack_cjs_scope_hoisting
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cross_module_constants(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cross_module_constants
                 .unwrap_or(false),
         )
     }

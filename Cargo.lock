@@ -9994,6 +9994,7 @@ dependencies = [
  "bincode 2.0.1",
  "indexmap 2.13.0",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -10001,6 +10002,7 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
@@ -10081,6 +10083,7 @@ dependencies = [
  "either",
  "erased-serde",
  "event-listener",
+ "fixedbitset",
  "futures",
  "indexmap 2.13.0",
  "parking_lot",
@@ -10258,6 +10261,7 @@ dependencies = [
  "turbo-unix-path",
  "url",
  "urlencoding",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -10526,6 +10530,7 @@ dependencies = [
  "const_format",
  "data-encoding",
  "either",
+ "erased-serde",
  "indexmap 2.13.0",
  "num-bigint",
  "patricia_tree",
@@ -10701,6 +10706,7 @@ dependencies = [
  "serde",
  "serde_json",
  "turbo-rcstr",
+ "turbo-tasks",
  "turbopack-cli-utils",
  "turbopack-core",
 ]

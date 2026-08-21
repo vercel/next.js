@@ -274,6 +274,7 @@ dhat = { version = "0.3.2" }
 dunce = "1.0.3"
 either = "1.15.0"
 erased-serde = "0.4.5"
+fixedbitset = "0.5.7"
 flate2 = "1.0.28"
 fs-err = "3.1.1"
 futures = "0.3.31"
@@ -361,6 +362,7 @@ unsize = "1.1.0"
 unty = "0.0.4"
 url = "2.2.2"
 urlencoding = "2.1.2"
+windows-sys = "0.60"
 uuid = "1.18.1"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }

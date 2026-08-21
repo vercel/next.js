@@ -24,6 +24,7 @@ import {
   traceLocalSpan,
 } from './local-span-recorder'
 import {
+  AppRouteRouteModuleSpan,
   AppRenderSpan,
   BaseServerSpan,
   InstrumentationSpan,
@@ -268,6 +269,7 @@ describe('local span recording', () => {
     ])
 
     getTracer().trace(RouteModuleSpan.prepare, () => undefined)
+    getTracer().trace(AppRouteRouteModuleSpan.loadUserland, () => undefined)
     getTracer().trace(RouteModuleSpan.loadManifests, () => undefined)
     getTracer().trace(InstrumentationSpan.register, () => undefined)
     getTracer().trace(InstrumentationSpan.loadModule, () => undefined)
@@ -275,6 +277,7 @@ describe('local span recording', () => {
       NodeSpan.runHandler,
       LoadComponentsSpan.loadRouteModule,
       RouteModuleSpan.prepare,
+      AppRouteRouteModuleSpan.loadUserland,
       InstrumentationSpan.register,
       InstrumentationSpan.loadModule,
     ])
@@ -287,6 +290,7 @@ describe('local span recording', () => {
       NodeSpan.runHandler,
       LoadComponentsSpan.loadRouteModule,
       RouteModuleSpan.prepare,
+      AppRouteRouteModuleSpan.loadUserland,
       InstrumentationSpan.register,
       InstrumentationSpan.loadModule,
       BaseServerSpan.render,

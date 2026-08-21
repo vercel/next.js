@@ -44,7 +44,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
-    scope::scope_and_block,
+    scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
@@ -328,6 +328,20 @@ impl TurboTasksBackend {
         };
         let counts = self.storage.evict_after_snapshot(None);
         (had_new_data, counts)
+    }
+
+    /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
+    /// hook to exercise the non-fabricating existence guarantee: this panics (debug builds) if
+    /// `task` exists in neither memory nor persistent storage (rather than fabricating a
+    /// blank).
+    #[doc(hidden)]
+    pub fn assert_task_exists_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let _ = ctx.task(task, TaskDataCategory::All);
     }
 
     fn should_restore(&self) -> bool {
@@ -1244,7 +1258,7 @@ impl TurboTasksBackend {
                 None
             };
 
-            SnapshotItem {
+            SnapshotItem::Put {
                 task_id,
                 meta,
                 data,
@@ -1793,7 +1807,9 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id, TaskDataCategory::Data);
+        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
+        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
+        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
@@ -2506,7 +2522,7 @@ impl TurboTasksBackend {
         if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD {
             let chunk_size = good_chunk_size(output_dependent_tasks.len());
             let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
-            let _ = scope_and_block(chunks.len(), |scope| {
+            let _ = scope_bounded(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
                     #[cfg(feature = "task_dirty_cause")]

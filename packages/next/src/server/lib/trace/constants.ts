@@ -100,11 +100,6 @@ enum AppRenderSpan {
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
 }
 
-enum DevRouteMatcherManagerSpan {
-  ensureRoute = 'DevRouteMatcherManager.ensureRoute',
-  reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
-}
-
 enum DevBundlerServiceSpan {
   ensurePage = 'DevBundlerService.ensurePage',
 }
@@ -119,6 +114,10 @@ enum NodeSpan {
 
 enum AppRouteRouteHandlersSpan {
   runHandler = 'AppRouteRouteHandlers.runHandler',
+}
+
+enum AppRouteRouteModuleSpan {
+  loadUserland = 'AppRouteRouteModule.loadUserland',
 }
 
 enum RouteModuleSpan {
@@ -144,10 +143,10 @@ type SpanTypes =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
-  | `${DevRouteMatcherManagerSpan}`
   | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
+  | `${AppRouteRouteModuleSpan}`
   | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
@@ -164,6 +163,7 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
+  AppRouteRouteModuleSpan.loadUserland,
   RouteModuleSpan.prepare,
   InstrumentationSpan.loadModule,
   InstrumentationSpan.register,
@@ -194,10 +194,10 @@ export {
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
-  DevRouteMatcherManagerSpan,
   DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
+  AppRouteRouteModuleSpan,
   RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,

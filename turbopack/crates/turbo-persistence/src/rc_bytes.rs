@@ -1,6 +1,7 @@
 use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
+    hash::{Hash, Hasher},
     ops::{Deref, Range},
     rc::Rc,
 };
@@ -74,6 +75,12 @@ impl Debug for RcBytes {
 }
 
 impl Eq for RcBytes {}
+
+impl Hash for RcBytes {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(self.deref(), state);
+    }
+}
 
 impl SharedBytes for RcBytes {
     type MmapHandle = Rc<Mmap>;

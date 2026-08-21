@@ -172,6 +172,9 @@ export function getDefineEnv({
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
       config.experimental.turbopackSharedRuntime
     ),
+    'process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL': `${
+      config.turbopack?.chunkLoadingGlobal ?? 'TURBOPACK'
+    }_CHUNK_UPDATE_LISTENERS`,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
@@ -384,6 +387,8 @@ export function getDefineEnv({
       config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_CONCURRENT_ROUTER_QUEUE':
+      config.experimental.concurrentRouterQueue ?? false,
     'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,

@@ -13,6 +13,19 @@ describe('empty resume', () => {
     },
   })
 
+  it('preserves the fallback shell for a platform route match', async () => {
+    const slug = 'fallback-shell'
+    const response = await next.fetch(`/dynamic/${slug}`, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+        'x-now-route-matches': createNowRouteMatches({ slug }).toString(),
+      },
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-nextjs-postponed')).toBe('1')
+  })
+
   it('treats an empty Next-Resume body as a dynamic RSC request', async () => {
     const slug = 'cold-rdc'
     const response = await next.fetch(`/dynamic/${slug}.rsc`, {
