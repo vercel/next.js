@@ -69,7 +69,7 @@ Before writing tests or editing destinations, follow the guide's [audit guidance
 
 Group equivalent navigations. Summarize what will be ready immediately and what will stream. When a proposal is ambiguous, show the navigation in the running app and ask the user to confirm it. If they are unavailable, follow the guide and record the assumption.
 
-After the target UI is settled, inspect the existing test setup. If the project already runs applicable end-to-end tests against a production build, offer the verification choice in product terms:
+After the target UI is settled, inspect the existing test setup. The `instant()` helper comes from the separate [`@next/playwright`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) package, not `next/experimental/testmode/playwright`. If the user is unavailable, use tests only when an applicable production-mode suite already works; otherwise continue with manual preservation and record the target instead of pausing the run. If the project already runs applicable end-to-end tests against a production build, offer the verification choice in product terms:
 
 > This project already runs production-mode end-to-end tests. I recommend extending them with `instant()` cases to preserve this UI. We can also document the target and verify it manually.
 
@@ -81,7 +81,7 @@ Use **test-backed preservation** when the project already has an applicable suit
 
 For the test-backed path, reuse existing `@next/playwright` tests and production scripts when available. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui) and make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
 
-If the user chooses tests but the suite is not reliable, make one concrete setup attempt, name the blocker, and ask whether to repair it or continue with manual preservation. Do not silently downgrade. If the user is unavailable, use tests only when the existing suite works; otherwise continue with the documented manual target.
+If the user chooses tests but the suite is not reliable, make one concrete setup attempt, name the blocker, and ask whether to repair it or continue with manual preservation. Do not silently downgrade.
 
 This workflow is specific to a clicked `<Link>`. A direct call such as `router.prefetch('/dashboard')` is a manual prefetch, not a Link prefetch; keep it in the source audit and verify it separately in step 4.
 
@@ -117,7 +117,7 @@ When restoring the target changes caching or invalidation, follow the project's 
 Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes every `export const prefetch = 'partial'`, including exports below a `TODO(per-link-prefetch)` marker, and removes its generated Partial Prefetching guide comment. The TODO marker and its Optimizing prefetching guide link remain for step 5. Other values such as `prefetch = 'force-disabled'` stay in place.
+2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes every `export const prefetch = 'partial'`, including exports below a `TODO(per-link-prefetch)` marker, and removes its generated Partial Prefetching guide comment. The TODO marker and its Optimizing prefetching guide link stay for step 5. Other values such as `prefetch = 'force-disabled'` stay in place.
 
    ```bash
    npx @next/codemod@canary remove-partial-prefetch ./app
