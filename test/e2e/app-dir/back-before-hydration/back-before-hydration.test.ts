@@ -308,6 +308,19 @@ describe('back navigation before hydration after reload', () => {
         expect(await readRouterUrl(browser)).toBe(postPath)
       })
 
+      // The entry pushed before hydration is still traversable.
+      await browser.forward()
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
+      })
+      expect(await browser.eval('window.history.state.thirdParty')).toBe(true)
+      expect(await browser.eval('window.__stayed')).toBe(true)
+      await browser.back()
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(postPath)
+      })
+      expect(await browser.eval('window.__stayed')).toBe(true)
+
       await browser.elementById('to-home').click()
       await waitForPage(browser, '#home')
     })
@@ -394,6 +407,19 @@ describe('back navigation before hydration after reload', () => {
         expect(await browser.elementByCss('h1').text()).toBe('Post')
         expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
       })
+      expect(await browser.eval('window.history.state.a')).toBe(1)
+
+      // Both early entries remain traversable.
+      await browser.forward()
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=2`)
+      })
+      expect(await browser.eval('window.history.state.b')).toBe(2)
+      await browser.back()
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?tp=1`)
+      })
+      expect(await browser.eval('window.__stayed')).toBe(true)
     })
   })
 })

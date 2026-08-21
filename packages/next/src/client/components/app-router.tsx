@@ -52,6 +52,7 @@ import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 import {
   installHistoryHandlers,
   shouldSkipFirstHistoryWrite,
+  writeHistory,
 } from './history-handlers'
 
 const globalMutable: {
@@ -101,9 +102,9 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
-      window.history.pushState(historyState, '', canonicalUrl)
+      writeHistory('pushState', historyState, canonicalUrl)
     } else {
-      window.history.replaceState(historyState, '', canonicalUrl)
+      writeHistory('replaceState', historyState, canonicalUrl)
     }
 
     setLastCommittedTree(tree)

@@ -20,6 +20,7 @@ import {
   createMutableActionQueue,
 } from './components/app-router-instance'
 import AppRouter from './components/app-router'
+import { initializeEarlyHistory } from './components/history-handlers'
 import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
@@ -376,14 +377,18 @@ export async function hydrate(
   initializeRouterTransitionModules(instrumentationModules)
 
   const initialTimestamp = Date.now()
-  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
-    createInitialRouterState({
-      navigatedAt: initialTimestamp,
-      initialRSCPayload,
-      initialFlightStreamForCache,
-      location: window.location,
-    })
-  )
+  const initialRouterState = createInitialRouterState({
+    navigatedAt: initialTimestamp,
+    initialRSCPayload,
+    initialFlightStreamForCache,
+    location: window.location,
+  })
+  initializeEarlyHistory({
+    tree: initialRouterState.tree,
+    renderedSearch: initialRouterState.renderedSearch,
+  })
+  const actionQueue: AppRouterActionQueue =
+    createMutableActionQueue(initialRouterState)
 
   const reactEl = (
     <StrictModeIfEnabled>

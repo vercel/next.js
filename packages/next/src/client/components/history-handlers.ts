@@ -3,7 +3,10 @@ import { restore, traverse } from './navigator'
 
 // The inline script in server/app-render/history-bootstrap.ts runs with the
 // shell, long before the Router effect below installs the history handlers.
-// It records whether history changed in between.
+// It marks the entry the document was activated on and records whether
+// history changed in between.
+const ACTIVATION_MARKER = '__PRIVATE_NEXTJS_INTERNALS_HISTORY_ACTIVATION'
+
 type EarlyHistory = {
   // The URL the document was activated on.
   href: string
@@ -20,17 +23,49 @@ declare global {
   }
 }
 
+type HistoryEntry =
+  // Written by the App Router, possibly in an earlier document.
+  | { kind: 'app'; historyState: AppHistoryState | undefined }
+  // The activation entry, or an entry written from it before the router took
+  // over. Both render with the initial payload.
+  | { kind: 'activation' }
+  | { kind: 'unknown' }
+
+let activationHistoryState: AppHistoryState | undefined
+
+function readHistoryEntry(state: unknown): HistoryEntry {
+  if (state === null || typeof state !== 'object') {
+    return { kind: 'unknown' }
+  }
+  const historyState = state as Record<string, unknown>
+  if (historyState.__NA === true) {
+    return {
+      kind: 'app',
+      historyState: historyState.__PRIVATE_NEXTJS_INTERNALS_TREE as
+        | AppHistoryState
+        | undefined,
+    }
+  }
+  if (historyState[ACTIVATION_MARKER] === true) {
+    return { kind: 'activation' }
+  }
+  return { kind: 'unknown' }
+}
+
+export function initializeEarlyHistory(historyState: AppHistoryState): void {
+  activationHistoryState = historyState
+}
+
 // A Back/Forward press before the router's popstate listener exists moves the
 // browser to a different history entry than the one the document was activated
 // on, and the resulting popstate fires with nobody listening. The bootstrap
 // script recorded it, so until the listener is installed a recorded change
-// onto a router-written entry means a traversal went unobserved.
+// onto an entry the router can render means a traversal went unobserved.
 function hasMissedTraversal(): boolean {
   return (
     window.__next_h?.changed === true &&
-    // Only entries written by the app router can be restored; on any other
-    // entry the traversal is left unhandled, as before.
-    window.history.state?.__NA === true
+    // On any other entry the traversal is left unhandled, as before.
+    readHistoryEntry(window.history.state).kind !== 'unknown'
   )
 }
 
@@ -42,6 +77,17 @@ export function shouldSkipFirstHistoryWrite(): boolean {
   }
   checkedMissedTraversalBeforeHistoryWrite = true
   return hasMissedTraversal()
+}
+
+export function writeHistory(
+  method: 'pushState' | 'replaceState',
+  historyState: Record<string, unknown>,
+  url: string
+): void {
+  // The first write on the activation entry inherits its marker through
+  // preserveCustomHistoryState. The entry is the router's from here on.
+  delete historyState[ACTIVATION_MARKER]
+  window.history[method](historyState, '', url)
 }
 
 /**
@@ -56,13 +102,19 @@ function handlePopState(state: PopStateEvent['state']): void {
     return
   }
 
+  const historyEntry = readHistoryEntry(state)
   // This case happens when the history entry was pushed by the `pages` router.
-  if (!state.__NA) {
+  if (historyEntry.kind === 'unknown') {
     window.location.reload()
     return
   }
 
-  traverse(window.location.href, state.__PRIVATE_NEXTJS_INTERNALS_TREE)
+  traverse(
+    window.location.href,
+    historyEntry.kind === 'app'
+      ? historyEntry.historyState
+      : activationHistoryState
+  )
 }
 
 function copyNextJsInternalHistoryState(data: any) {
