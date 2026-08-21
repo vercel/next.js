@@ -26,7 +26,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::{NextSegmentRegion, ParseSegmentMode},
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
 use tracing::Instrument;
@@ -913,7 +913,10 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -938,7 +941,10 @@ impl PageEndpoint {
                     app_module: modules.app_module,
                     document_module: modules.document_module,
                     runtime,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             }
             .cell(),

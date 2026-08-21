@@ -1,6 +1,8 @@
 use anyhow::Result;
 use next_core::{
-    next_config::NextConfig, next_manifests::ProxyMatcher, segment_config::NextSegmentConfig,
+    next_config::NextConfig,
+    next_manifests::ProxyMatcher,
+    segment_config::{NextSegmentConfig, NextSegmentRegion},
     util::NextRuntime,
 };
 use serde::Serialize;
@@ -130,12 +132,11 @@ impl Asset for StaticInfoManifestAsset {
             max_duration: Option<u32>,
         }
 
-        let region = config.preferred_region.as_ref().and_then(|v| match &v[..] {
-            [] => None,
-            [region] => Some(ManifestRegion::Single(region.to_string())),
-            regions => Some(ManifestRegion::Multiple(
-                regions.iter().map(ToString::to_string).collect(),
-            )),
+        let region = config.preferred_region.as_ref().map(|region| match region {
+            NextSegmentRegion::Single(region) => ManifestRegion::Single(region.to_string()),
+            NextSegmentRegion::Multiple(regions) => {
+                ManifestRegion::Multiple(regions.iter().map(ToString::to_string).collect())
+            }
         });
         let (regions, preferred_region) = if self.ty.as_str() == "app" {
             (None, region)
