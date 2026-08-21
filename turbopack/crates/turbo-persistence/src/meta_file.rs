@@ -14,7 +14,7 @@ use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    QueryKey,
+    Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -117,6 +117,8 @@ pub struct MetaEntry {
     ///
     /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::mmap`.
     amqf: qfilter::FilterRef<'static>,
+    /// Compression configured for this entry's family.
+    compression: Compression,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -153,12 +155,13 @@ impl MetaEntry {
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open(&meta.db_path, self.sst_data).with_context(|| {
-                format!(
-                    "Unable to open static sorted file referenced from {:08}.meta",
-                    meta.sequence_number()
-                )
-            })
+            StaticSortedFile::open_with_compression(&meta.db_path, self.sst_data, self.compression)
+                .with_context(|| {
+                    format!(
+                        "Unable to open static sorted file referenced from {:08}.meta",
+                        meta.sequence_number()
+                    )
+                })
         })
     }
 
@@ -264,16 +267,36 @@ pub struct MetaFile {
 }
 
 impl MetaFile {
-    /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
-    /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
+    /// Opens a meta file whose SST entries use LZ4 compression. Memory maps the entire file and
+    /// eagerly deserializes all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from
+    /// the mmap. Databases with per-family compression use the configuration-aware internal
+    /// constructor instead.
     pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
-        let filename = format!("{sequence_number:08}.meta");
-        let path = db_path.join(&filename);
-        Self::open_internal(db_path.to_path_buf(), sequence_number, &path)
-            .with_context(|| format!("Unable to open meta file {filename}"))
+        Self::open_with_family_configs(db_path, sequence_number, None)
     }
 
-    fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
+    pub(crate) fn open_with_family_configs(
+        db_path: &Path,
+        sequence_number: u32,
+        family_configs: Option<&[FamilyConfig]>,
+    ) -> Result<Self> {
+        let filename = format!("{sequence_number:08}.meta");
+        let path = db_path.join(&filename);
+        Self::open_internal(
+            db_path.to_path_buf(),
+            sequence_number,
+            &path,
+            family_configs,
+        )
+        .with_context(|| format!("Unable to open meta file {filename}"))
+    }
+
+    fn open_internal(
+        db_path: PathBuf,
+        sequence_number: u32,
+        path: &Path,
+        family_configs: Option<&[FamilyConfig]>,
+    ) -> Result<Self> {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
         #[cfg(unix)]
@@ -287,6 +310,15 @@ impl MetaFile {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
+        let compression = match family_configs {
+            Some(configs) => {
+                configs
+                    .get(family as usize)
+                    .with_context(|| format!("No configuration for family {family}"))?
+                    .compression
+            }
+            None => Compression::Lz4,
+        };
         let obsolete_count = reader.read_u32::<BE>()?;
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
@@ -344,6 +376,7 @@ impl MetaFile {
                 flags,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
+                compression,
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;

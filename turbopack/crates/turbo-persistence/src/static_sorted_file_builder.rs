@@ -10,7 +10,8 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use fs_err::File;
 
 use crate::{
-    compression::{checksum_block, compress_into_buffer},
+    Compression,
+    compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
     static_sorted_file::{
@@ -299,10 +300,11 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub entries: u64,
 }
 
-/// Writes an SST file from a pre-sorted slice of entries.
+/// Writes an LZ4-compressed SST file from a pre-sorted slice of entries.
 ///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
-/// entries in memory.
+/// entries in memory. Databases with per-family compression use the configuration-aware internal
+/// wrapper instead.
 // TODO: Consider adding a variant that takes ownership (Vec<E> or drain iterator)
 // to free entry memory as blocks are written.
 pub fn write_static_stored_file<E: Entry>(
@@ -310,8 +312,18 @@ pub fn write_static_stored_file<E: Entry>(
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    write_static_stored_file_with_compression(entries, file, flags, Compression::Lz4)
+}
+
+pub(crate) fn write_static_stored_file_with_compression<E: Entry>(
+    entries: &[E],
+    file: &Path,
+    flags: MetaEntryFlags,
+    compression: Compression,
+) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
+    let mut writer =
+        StreamingSstWriter::new_with_compression(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
         writer.add(entry)?;
     }
@@ -363,9 +375,10 @@ fn write_block_to_file(
     block_offsets: &mut Vec<u32>,
     block: &[u8],
     try_compress: bool,
+    compressor: &mut Compressor,
 ) -> Result<u16> {
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compress_into_buffer(block, compress_buffer)?;
+        compressor.compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
         if compress_buffer.len() < block.len() - (block.len() / 8) {
             (block.len().try_into().unwrap(), compress_buffer.as_slice())
@@ -505,6 +518,7 @@ pub struct StreamingSstWriter<E: Entry> {
     file: Option<BufWriter<File>>,
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
+    compressor: Compressor,
 
     /// Pending key entries waiting to be flushed as key blocks.
     ///
@@ -575,11 +589,22 @@ pub struct StreamingSstWriter<E: Entry> {
 }
 
 impl<E: Entry> StreamingSstWriter<E> {
-    /// Creates a new streaming SST writer.
+    /// Creates a new streaming SST writer using LZ4 compression.
     ///
-    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
+    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts. Databases with
+    /// per-family compression use the configuration-aware internal constructor instead.
     pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
+        Self::new_with_compression(file, flags, max_entry_count, Compression::Lz4)
+    }
+
+    pub(crate) fn new_with_compression(
+        file: &Path,
+        flags: MetaEntryFlags,
+        max_entry_count: u64,
+        compression: Compression,
+    ) -> Result<Self> {
         let file = BufWriter::new(File::create(file)?);
+        let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
         // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
@@ -598,6 +623,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             file: Some(file),
             compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
+            compressor,
             pending_keys: VecDeque::with_capacity(entries_per_value_block),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
@@ -681,6 +707,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                     &mut self.block_offsets,
                     value,
                     true,
+                    &mut self.compressor,
                 )
                 .context("Failed to write value block")?;
                 ValueRef::Medium { block_index }
@@ -838,6 +865,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.block_offsets,
             &self.pending_small_value_block,
             true,
+            &mut self.compressor,
         )
         .context("Failed to write small value block")?;
 
@@ -930,6 +958,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.block_offsets,
             &self.key_buffer,
             try_compress,
+            &mut self.compressor,
         )
         .context("Failed to write key block")?;
         self.key_block_boundaries.push((first_hash, block_index));

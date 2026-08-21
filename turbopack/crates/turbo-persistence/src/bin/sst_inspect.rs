@@ -20,7 +20,7 @@ use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
     read_current_version,
@@ -194,6 +194,18 @@ fn family_name(family: u32) -> &'static str {
     }
 }
 
+/// Compression configured by `turbo_tasks_backend::database::key_value_database::KeySpace`.
+/// Keep this mapping in sync when inspecting a Turbopack cache.
+fn family_compression(family: u32) -> Result<Compression> {
+    match family {
+        0 => Ok(Compression::Lz4Hc(4)), // Infra
+        1 => Ok(Compression::Lz4Hc(4)), // TaskMeta
+        2 => Ok(Compression::Zstd(3)),  // TaskData
+        3 => Ok(Compression::Lz4Hc(4)), // TaskCache
+        _ => bail!("No compression configuration for family {family}"),
+    }
+}
+
 /// Format a number with comma separators for readability
 fn format_number(n: u64) -> String {
     let s = n.to_string();
@@ -304,6 +316,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
+    compression: Compression,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -343,7 +356,13 @@ fn read_block(
 
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
-        let bytes_written = decompress(compressed_data, &mut buffer)?;
+        let bytes_written = match compression {
+            Compression::Lz4 | Compression::Lz4Hc(_) => {
+                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd(_) => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
             "Decompressed length does not match expected"
@@ -470,7 +489,7 @@ fn iter_key_block_entry_types(
 }
 
 /// Analyze an SST file and return entry type statistics
-fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+fn analyze_sst_file(db_path: &Path, info: &SstInfo, compression: Compression) -> Result<SstStats> {
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -496,6 +515,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         block_offsets_start,
         index_block_index,
         info.sequence_number,
+        compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
 
@@ -512,6 +532,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             block_offsets_start,
             block_index,
             info.sequence_number,
+            compression,
         ) {
             Ok(raw) => raw,
             Err(e) => {
@@ -930,13 +951,14 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family
+    // Analyze and report by family. This inspector targets Turbopack's four persistence families.
     for (family, sst_list) in &family_sst_info {
+        let compression = family_compression(*family)?;
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
 
         for info in sst_list {
-            match analyze_sst_file(&db_path, info) {
+            match analyze_sst_file(&db_path, info, compression) {
                 Ok(stats) => {
                     family_stats.merge(&stats);
                     if verbose {

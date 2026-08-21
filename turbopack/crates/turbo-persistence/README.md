@@ -88,9 +88,11 @@ The SST file contains only data without any header.
 
 #### Block Compression
 
-Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header distinguishes them:
+Blocks can be stored compressed or uncompressed. The compression algorithm is selected by the block's key-family configuration and is not encoded in the block. Changing a family's configured algorithm requires rewriting that database, consistent with the crate's no-cross-version-compatibility policy.
 
-- **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
+The 4-byte header distinguishes compressed from uncompressed storage:
+
+- **Header > 0**: Block is compressed with the family's configured algorithm. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
 #### Block Checksum
@@ -223,9 +225,9 @@ The plain value compressed with dynamic compression. Each blob file has an 8-byt
 
 - 4 bytes: uncompressed length (u32 big-endian)
 - 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
-- remaining bytes: LZ4-compressed value data
+- remaining bytes: value data compressed with the blob's key-family configuration
 
-The checksum is verified on the compressed data **before** decompression when the blob is read.
+The remaining bytes use the blob's key-family compression configuration. As with SST blocks, the algorithm is not encoded in the blob file. The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
