@@ -1,4 +1,5 @@
 import { createSandbox } from 'development-sandbox'
+import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import { runRscBuildErrorsTests } from './rsc-build-errors.util'
 
@@ -101,28 +102,37 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
   ])(
     'should error when catchError from next/error is imported in %s',
     async (entryFile, exportCode) => {
-      await using sandbox = await createSandbox(
-        next,
-        new Map([
-          [
-            'app/page.js',
-            outdent`
-              export default function Page() {
-                return 'Hello world'
-              }
-            `,
-          ],
-          [
-            entryFile,
-            outdent`
-              import { catchError } from 'next/error'
-              ${exportCode}
-            `,
-          ],
-        ])
-      )
+      const entryContents = outdent`
+        import { catchError } from 'next/error'
+        ${exportCode}
+      `
+      const initialFiles = new Map([
+        [
+          'app/page.js',
+          outdent`
+            export default function Page() {
+              return 'Hello world'
+            }
+          `,
+        ],
+      ])
+
+      if (entryFile !== 'proxy.js') {
+        initialFiles.set(entryFile, entryContents)
+      }
+
+      await using sandbox = await createSandbox(next, initialFiles)
 
       const { session } = sandbox
+      if (entryFile === 'proxy.js') {
+        // A proxy build error can cause the initial browser navigation to
+        // reload and clear the overlay. Introduce it after HMR connects, then
+        // trigger compilation without navigating the browser.
+        await session.write(entryFile, entryContents)
+        await retry(async () => {
+          expect((await next.fetch('/')).status).not.toBe(200)
+        })
+      }
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
         'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
