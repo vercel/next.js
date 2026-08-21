@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use regex::Regex;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
@@ -135,7 +135,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
                     Ok(path) => {
                         results.insert(path.clone());
                     }
-                    Err(error) => return Err(anyhow!(error.clone())),
+                    Err(error) => bail!(error.clone()),
                 }
             }
             PatternMatch::Directory(..) => {}

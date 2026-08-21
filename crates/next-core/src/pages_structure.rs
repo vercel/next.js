@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
@@ -111,7 +111,7 @@ pub async fn find_pages_structure(
         match path.realpath().await? {
             Ok(path) => Ok(Some(path)),
             Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
-            Err(error) => Err(anyhow!(error)),
+            Err(error) => bail!(error),
         }
     }
 
