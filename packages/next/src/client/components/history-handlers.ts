@@ -59,6 +59,12 @@ function readHistoryEntry(state: unknown): HistoryEntry {
   return { kind: 'unknown' }
 }
 
+// The URL the server rendered the initial payload for. It may differ from the
+// current URL if history changed before hydration.
+export function getHistoryActivationUrl(): URL {
+  return new URL(window.__next_h?.href ?? window.location.href)
+}
+
 export function initializeEarlyHistory(historyState: AppHistoryState): void {
   activationHistoryState = historyState
   activationToken = window.__next_h?.token

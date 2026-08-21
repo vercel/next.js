@@ -128,7 +128,7 @@ describe('back navigation before hydration after reload', () => {
   const searchPath = '/search'
 
   it('reconciles the URL with the rendered content once hydration completes', async () => {
-    const { browser, releaseScripts } = await clickThenReloadStalled(
+    const { browser, page, releaseScripts } = await clickThenReloadStalled(
       homePath,
       'to-post',
       '#post'
@@ -139,6 +139,11 @@ describe('back navigation before hydration after reload', () => {
     await browser.back({ waitUntil: 'commit' })
     expect(new URL(await browser.url()).pathname).toBe(homePath)
 
+    // The server rendered the post page. Hydration must match it even though
+    // the URL now says otherwise.
+    await page.evaluate(
+      'document.getElementById("server-pathname").__server = true'
+    )
     releaseScripts()
 
     // We traversed back, so once the router is up it must render the home
@@ -148,6 +153,9 @@ describe('back navigation before hydration after reload', () => {
     await retry(async () => {
       expect(await readRouterUrl(browser)).toBe(homePath)
     })
+    expect(
+      await browser.eval('document.getElementById("server-pathname").__server')
+    ).toBe(true)
 
     // History traversal must still work after recovery.
     await browser.forward()

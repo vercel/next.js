@@ -24,7 +24,7 @@ export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
   initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
-  location: Location | null
+  location: Pick<Location, 'href' | 'pathname' | 'search' | 'hash'> | null
 }
 
 export function createInitialRouterState({
