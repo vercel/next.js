@@ -92,6 +92,75 @@ describe('ReactRefreshLogBox', () => {
     }
   })
 
+  test('Node.js builtins with node: prefix in client code', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'pages/_app.js',
+          outdent`
+            import 'node:async_hooks'
+
+            export default function App({ Component, pageProps }) {
+              return <Component {...pageProps} />
+            }
+          `,
+        ],
+        [
+          'pages/index.js',
+          outdent`
+            export default function Page() {
+              return <p>index page</p>
+            }
+          `,
+        ],
+      ])
+    )
+    const { browser } = sandbox
+
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "node:async_hooks is an external module, which is not supported in the browser environment",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./pages/_app.js (1:1)
+       Error: node:async_hooks is an external module, which is not supported in the browser environment
+       > 1 | import 'node:async_hooks'
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "node:async_hooks
+         × Module build failed:
+         ╰─▶   × Reading from "node:async_hooks" is not handled by plugins (Unhandled scheme).
+               │ Rspack supports "data:" and "file:" URIs by default.
+               │ You may need an additional plugin to handle "node:" URIs.",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Module build failed: UnhandledSchemeError: Reading from "node:async_hooks" is not handled by plugins (Unhandled scheme).",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "node:async_hooks
+       Module build failed: UnhandledSchemeError: Reading from "node:async_hooks" is not handled by plugins (Unhandled scheme).
+       Webpack supports "data:" and "file:" URIs by default.
+       You may need an additional plugin to handle "node:" URIs.",
+         "stack": [],
+       }
+      `)
+    }
+  })
+
   test('Module not found', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox

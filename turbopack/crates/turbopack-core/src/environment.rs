@@ -130,6 +130,19 @@ impl Environment {
         })
     }
 
+    /// A short human-readable name of the environment, intended for error messages.
+    #[turbo_tasks::function]
+    pub fn name(&self) -> Vc<RcStr> {
+        Vc::cell(match self.execution {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
+                rcstr!("Node.js")
+            }
+            ExecutionEnvironment::EdgeWorker(_) => rcstr!("edge"),
+            ExecutionEnvironment::Browser(_) => rcstr!("browser"),
+            ExecutionEnvironment::Custom(_) => rcstr!("custom"),
+        })
+    }
+
     #[turbo_tasks::function]
     pub fn node_externals(&self) -> Vc<bool> {
         match self.execution {
