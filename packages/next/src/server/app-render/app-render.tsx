@@ -1107,9 +1107,16 @@ async function generateStagedDynamicFlightRenderResultNode(
   // fill caches and then spawn a final runtime prerender whose result stream
   // is embedded in the RSC payload. This is gated because it adds extra server
   // processing and increases the response payload size.
+  //
+  // The app-level default is folded into the per-segment resolution inside
+  // anySegmentHasPartialPrefetchingEnabled (rather than OR'd in here), so a
+  // segment's own explicit `prefetch` export can override it either way, not
+  // just turn it on.
   if (
-    Boolean(renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
+    await anySegmentHasPartialPrefetchingEnabled(
+      loaderTree,
+      renderOpts.partialPrefetching ? 'partial' : undefined
+    )
   ) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
@@ -3878,10 +3885,15 @@ async function renderToStream(
         // runtime-prefetchable content during hydration. This is enabled when
         // Partial Prefetching is on for the route, either per segment (a
         // `prefetch` of 'partial') or globally (the
-        // `partialPrefetching` config).
+        // `partialPrefetching` config). The app-level default is folded into
+        // the per-segment resolution inside
+        // anySegmentHasPartialPrefetchingEnabled, so a segment's own explicit
+        // `prefetch` export can override it either way, not just turn it on.
         if (
-          Boolean(renderOpts.partialPrefetching) ||
-          (await anySegmentHasPartialPrefetchingEnabled(tree))
+          await anySegmentHasPartialPrefetchingEnabled(
+            tree,
+            renderOpts.partialPrefetching ? 'partial' : undefined
+          )
         ) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
@@ -5315,12 +5327,18 @@ async function getPrefetchingModeForPage(
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
-  if (renderOpts.partialPrefetching) {
-    debug?.('using prefetching mode Partial because of next.config.js')
-    return PrefetchingMode.Partial
-  }
-  if (await anySegmentHasPartialPrefetchingEnabled(loaderTree)) {
-    debug?.('using prefetching mode Partial because of segment config')
+  // The app-level default is folded into the per-segment resolution inside
+  // anySegmentHasPartialPrefetchingEnabled (rather than checked here first),
+  // so a segment's own explicit `prefetch` export can override it either
+  // way, not just turn it on -- matching the actual runtime-prefetch-spawn
+  // decision this dev-only mode selection should stay consistent with.
+  if (
+    await anySegmentHasPartialPrefetchingEnabled(
+      loaderTree,
+      renderOpts.partialPrefetching ? 'partial' : undefined
+    )
+  ) {
+    debug?.('using prefetching mode Partial')
     return PrefetchingMode.Partial
   }
 
