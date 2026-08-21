@@ -255,7 +255,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                 code,
                 "{{id: {}, data: {}, import: () => {TURBOPACK_IMPORT}({})}},",
                 StringifyJs(&id),
-                data.as_ecmascript(),
+                data.display_ecmascript(),
                 StringifyJs(&id),
             )?;
         }

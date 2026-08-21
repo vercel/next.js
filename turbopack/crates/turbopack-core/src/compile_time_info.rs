@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::Equivalent;
@@ -128,39 +130,6 @@ pub enum CompileTimeDefineValue {
     Regex(RcStr, RcStr),
 }
 
-impl CompileTimeDefineValue {
-    pub fn as_ecmascript(&self) -> String {
-        match self {
-            CompileTimeDefineValue::Null => "null".to_string(),
-            CompileTimeDefineValue::Bool(false) => "false".to_string(),
-            CompileTimeDefineValue::Bool(true) => "true".to_string(),
-            CompileTimeDefineValue::Number(v) => serde_json::to_string(v).unwrap(),
-            CompileTimeDefineValue::String(v) => serde_json::to_string(v).unwrap(),
-            CompileTimeDefineValue::BigInt(b) => format!("{}n", b),
-            CompileTimeDefineValue::Array(a) => {
-                let elements: Vec<_> = a.iter().map(|v| v.as_ecmascript()).collect();
-                format!("[{}]", elements.join(", "))
-            }
-            CompileTimeDefineValue::Object(o) => {
-                let properties: Vec<_> = o
-                    .iter()
-                    .map(|(k, v)| {
-                        format!(
-                            "{}: {}",
-                            serde_json::to_string(k).unwrap(),
-                            v.as_ecmascript()
-                        )
-                    })
-                    .collect();
-                format!("{{{}}}", properties.join(", "))
-            }
-            CompileTimeDefineValue::Undefined => "undefined".to_string(),
-            CompileTimeDefineValue::Evaluate(e) => e.to_string(),
-            CompileTimeDefineValue::Regex(r, f) => format!("/{}/{}", r, f),
-        }
-    }
-}
-
 impl From<bool> for CompileTimeDefineValue {
     fn from(value: bool) -> Self {
         Self::Bool(value)
@@ -196,6 +165,59 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
             serde_json::Value::Object(m) => {
                 Self::Object(m.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
             }
+        }
+    }
+}
+
+impl CompileTimeDefineValue {
+    pub fn display_ecmascript(&self) -> impl Display + '_ {
+        CompileTimeDefineValueDisplay { value: self }
+    }
+}
+
+struct CompileTimeDefineValueDisplay<'a> {
+    value: &'a CompileTimeDefineValue,
+}
+
+impl Display for CompileTimeDefineValueDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.value {
+            CompileTimeDefineValue::Null => write!(f, "null"),
+            CompileTimeDefineValue::Bool(false) => write!(f, "false"),
+            CompileTimeDefineValue::Bool(true) => write!(f, "true"),
+            CompileTimeDefineValue::Number(v) => write!(f, "{}", serde_json::to_string(v).unwrap()),
+            CompileTimeDefineValue::String(v) => write!(f, "{}", serde_json::to_string(v).unwrap()),
+            CompileTimeDefineValue::BigInt(b) => write!(f, "{}n", b),
+            CompileTimeDefineValue::Array(a) => {
+                write!(f, "[")?;
+                for (i, v) in a.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", v.display_ecmascript())?;
+                }
+                write!(f, "]")?;
+                Ok(())
+            }
+            CompileTimeDefineValue::Object(o) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in o.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(
+                        f,
+                        "{}: {}",
+                        serde_json::to_string(k).unwrap(),
+                        v.display_ecmascript()
+                    )?;
+                }
+                write!(f, "}}")?;
+                Ok(())
+            }
+            CompileTimeDefineValue::Undefined => write!(f, "undefined"),
+            CompileTimeDefineValue::Evaluate(e) => write!(f, "{}", e),
+            CompileTimeDefineValue::Regex(regex, flags) => write!(f, "/{}/{}", regex, flags),
         }
     }
 }
@@ -827,51 +849,56 @@ mod test {
     }
 
     #[test]
-    fn compile_time_define_value_as_ecmascript() {
+    fn compile_time_define_value_display_ecmascript() {
+        fn t(v: CompileTimeDefineValue) -> String {
+            v.display_ecmascript().to_string()
+        }
+
         use serde_json::Number;
-        assert_eq!(CompileTimeDefineValue::Null.as_ecmascript(), "null");
-        assert_eq!(CompileTimeDefineValue::Bool(false).as_ecmascript(), "false");
-        assert_eq!(CompileTimeDefineValue::Bool(true).as_ecmascript(), "true");
+        assert_eq!(t(CompileTimeDefineValue::Null), "null");
+        assert_eq!(t(CompileTimeDefineValue::Bool(false)), "false");
+        assert_eq!(t(CompileTimeDefineValue::Bool(true)), "true");
         assert_eq!(
-            CompileTimeDefineValue::Number(Number::from(42)).as_ecmascript(),
-            "42"
+            t(CompileTimeDefineValue::Number(
+                Number::from_f64(42.1).unwrap()
+            )),
+            "42.1"
         );
         assert_eq!(
-            CompileTimeDefineValue::String(rcstr!(r#"a"b"#)).as_ecmascript(),
+            t(CompileTimeDefineValue::String(rcstr!(r#"a"b"#))),
             r#""a\"b""#
         );
         assert_eq!(
-            CompileTimeDefineValue::String(rcstr!(r#"a'b"#)).as_ecmascript(),
+            t(CompileTimeDefineValue::String(rcstr!(r#"a'b"#))),
             r#""a'b""#
         );
         assert_eq!(
-            CompileTimeDefineValue::BigInt(Box::new(42.into())).as_ecmascript(),
+            t(CompileTimeDefineValue::BigInt(Box::new(42.into()))),
             "42n"
         );
+        assert_eq!(t(CompileTimeDefineValue::Undefined), "undefined");
         assert_eq!(
-            CompileTimeDefineValue::Undefined.as_ecmascript(),
-            "undefined"
-        );
-        assert_eq!(
-            CompileTimeDefineValue::Evaluate(rcstr!("someExpression")).as_ecmascript(),
+            t(CompileTimeDefineValue::Evaluate(rcstr!("someExpression"))),
             "someExpression"
         );
         assert_eq!(
-            CompileTimeDefineValue::Regex(rcstr!("pattern"), rcstr!("flags")).as_ecmascript(),
+            t(CompileTimeDefineValue::Regex(
+                rcstr!("pattern"),
+                rcstr!("flags")
+            )),
             "/pattern/flags"
         );
 
         assert_eq!(
-            CompileTimeDefineValue::Array(vec![
+            t(CompileTimeDefineValue::Array(vec![
                 CompileTimeDefineValue::Bool(true),
                 CompileTimeDefineValue::Number(Number::from(42)),
                 CompileTimeDefineValue::String(rcstr!(r#"a"b"#)),
-            ])
-            .as_ecmascript(),
+            ])),
             r#"[true, 42, "a\"b"]"#
         );
         assert_eq!(
-            CompileTimeDefineValue::Object(vec![
+            t(CompileTimeDefineValue::Object(vec![
                 (rcstr!("foo"), CompileTimeDefineValue::Bool(true)),
                 (
                     rcstr!("bar"),
@@ -881,8 +908,7 @@ mod test {
                     rcstr!(r#"a"b"#),
                     CompileTimeDefineValue::String(rcstr!(r#"c"d"#),)
                 ),
-            ])
-            .as_ecmascript(),
+            ])),
             r#"{"foo": true, "bar": 42, "a\"b": "c\"d"}"#
         );
     }
