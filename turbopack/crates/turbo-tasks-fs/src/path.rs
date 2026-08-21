@@ -841,4 +841,170 @@ mod tests {
         .await
         .unwrap()
     }
+
+    mod hash_file {
+        use std::{
+            fs::{create_dir_all, write},
+            path::Path,
+        };
+
+        use turbo_tasks::OperationVc;
+
+        use super::*;
+        use crate::DiskFileSystem;
+
+        /// Creates a symbolic link, mirroring the platform handling of the `read_glob` tests. On
+        /// Windows a link to a directory is created as a junction point, which requires an
+        /// absolute target.
+        fn symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(target, link)
+            }
+            #[cfg(windows)]
+            {
+                if std::fs::metadata(target).is_ok_and(|metadata| metadata.is_dir()) {
+                    assert!(
+                        target.is_absolute(),
+                        "a junction point needs an absolute target"
+                    );
+                    std::os::windows::fs::junction_point(target, link)
+                } else {
+                    std::os::windows::fs::symlink_file(target, link)
+                }
+            }
+        }
+
+        /// Two directories that hold a file of the *same name* but with *different content*, each
+        /// with a symlink pointing at it through the *same* relative target. Plus the entry types
+        /// that `hash_file` has to tell apart.
+        fn create_fixture(root: &Path, outside: &Path) {
+            write(outside.join("outside.txt"), b"outside").unwrap();
+
+            create_dir_all(root.join("data-a")).unwrap();
+            write(root.join("data-a/value.txt"), b"aaa").unwrap();
+            symlink(Path::new("value.txt"), &root.join("data-a/link")).unwrap();
+            symlink(
+                Path::new("../data-b/value.txt"),
+                &root.join("data-a/link-other"),
+            )
+            .unwrap();
+
+            create_dir_all(root.join("data-b")).unwrap();
+            write(root.join("data-b/value.txt"), b"bbbbbb").unwrap();
+            symlink(Path::new("value.txt"), &root.join("data-b/link")).unwrap();
+
+            create_dir_all(root.join("dir")).unwrap();
+            write(root.join("dir/inside.txt"), b"inside").unwrap();
+            // the regression from #97507: reading *through* this link hits the directory
+            symlink(&root.join("dir"), &root.join("link-dir")).unwrap();
+            // a link whose target doesn't exist
+            symlink(Path::new("nope.txt"), &root.join("dangling")).unwrap();
+            // a link whose target leaves the filesystem root
+            symlink(&outside.join("outside.txt"), &root.join("escaping")).unwrap();
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn hash_file_operation(disk_root: RcStr, entry: RcStr) -> Result<Vc<RcStr>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(disk_root));
+            let path = fs.root().await?.join(&entry)?;
+            Ok(path.hash_file(Vc::cell(rcstr!("salt")), HashAlgorithm::Xxh3Hash128Hex))
+        }
+
+        /// `Ok` with the hash, or `Err` with the (flattened) error message.
+        async fn hash_of(disk_root: &RcStr, entry: RcStr) -> Result<RcStr, String> {
+            let operation: OperationVc<RcStr> = hash_file_operation(disk_root.clone(), entry);
+            match operation.read_strongly_consistent().await {
+                Ok(hash) => Ok((*hash).clone()),
+                Err(err) => Err(format!("{err:#}")),
+            }
+        }
+
+        /// `hash_file` hashes a symlink *itself* rather than what it points at, so that a link to a
+        /// directory can be hashed at all and so that the hash matches what consumers write out
+        /// (they recreate a symlink as a symlink). See #97507.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn hashes_by_entry_type() {
+            let scratch = tempfile::tempdir().unwrap();
+            let outside = tempfile::tempdir().unwrap();
+            create_fixture(scratch.path(), outside.path());
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            let disk_root: RcStr = scratch.path().to_str().unwrap().into();
+            tt.run_once(async move {
+                let file_a = hash_of(&disk_root, rcstr!("data-a/value.txt")).await;
+                let file_b = hash_of(&disk_root, rcstr!("data-b/value.txt")).await;
+                let link_a = hash_of(&disk_root, rcstr!("data-a/link")).await;
+                let link_b = hash_of(&disk_root, rcstr!("data-b/link")).await;
+                let link_other = hash_of(&disk_root, rcstr!("data-a/link-other")).await;
+                let link_dir = hash_of(&disk_root, rcstr!("link-dir")).await;
+                let dangling = hash_of(&disk_root, rcstr!("dangling")).await;
+                let escaping = hash_of(&disk_root, rcstr!("escaping")).await;
+                let dir = hash_of(&disk_root, rcstr!("dir")).await;
+                let missing = hash_of(&disk_root, rcstr!("gone.txt")).await;
+
+                // A regular file hashes its content.
+                let file_a = file_a.expect("a file is hashable");
+                let file_b = file_b.expect("a file is hashable");
+                assert_ne!(file_a, file_b, "the two files have different content");
+
+                // A symlink is hashable, including one that points at a directory - reading
+                // through that link would fail with `Is a directory (os error 21)`.
+                let link_a = link_a.expect("a symlink to a file is hashable");
+                let link_b = link_b.expect("a symlink to a file is hashable");
+                let link_other = link_other.expect("a symlink to a file is hashable");
+                let link_dir = link_dir.expect("a symlink to a directory is hashable");
+                // A dangling link is still a link, and so is one that leaves the root (it is
+                // reported as `LinkContent::Invalid`).
+                let dangling = dangling.expect("a dangling symlink is hashable");
+                let escaping = escaping.expect("a symlink leaving the root is hashable");
+
+                // The link is hashed, not the file it points at: `data-a/link` and `data-b/link`
+                // point at files with *different content* through the *same* target, so they hash
+                // the same...
+                assert_eq!(
+                    link_a, link_b,
+                    "the content of the target must not affect the hash of the link"
+                );
+                // ...while a link with a different target hashes differently.
+                assert_ne!(
+                    link_a, link_other,
+                    "the target of the link must affect the hash of the link"
+                );
+                // ...and a link never hashes like the file it points at.
+                assert_ne!(link_a, file_a);
+
+                // All of the hashes above are distinct, i.e. nothing collapses into a shared
+                // "symlink" hash.
+                let hashes = [&link_a, &link_other, &link_dir, &dangling, &escaping];
+                for (index, hash) in hashes.iter().enumerate() {
+                    for other in &hashes[index + 1..] {
+                        assert_ne!(hash, other, "every distinct link hashes distinctly");
+                    }
+                }
+
+                // Entries that have no content to hash are errors today. `hash_file` carries an
+                // open question on whether these should return `None` instead - if that changes,
+                // these two assertions are the ones to revisit.
+                assert!(
+                    dir.as_ref()
+                        .is_err_and(|err| err.contains("Cannot hash content of non-file path")),
+                    "a directory is not hashable, got {dir:?}"
+                );
+                assert!(
+                    missing
+                        .as_ref()
+                        .is_err_and(|err| err.contains("Cannot hash content of missing path")),
+                    "a missing path is not hashable, got {missing:?}"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap()
+        }
+    }
 }
