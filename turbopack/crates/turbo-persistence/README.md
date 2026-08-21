@@ -208,9 +208,10 @@ during binary search.
 - 1 byte value type (shared by all entries, same encoding as variable-size type field), or
   `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
 - 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
-- foreach entry (packed at stride = hash_len + key_size + val_size):
-  - 8 bytes key hash (if block type 3)
-  - key data (key_size bytes)
+- search region, foreach entry at stride `search_stride`:
+  - 8 bytes key hash (block type 3), or key data (block type 4, `key_size` bytes)
+- tail region, foreach entry at stride `tail_stride`:
+  - key data (block type 3 only, `key_size` bytes)
   - 1 byte value type — only present when the block is mixed-type
   - value data (size determined by the block's or the entry's value type)
 
@@ -218,7 +219,28 @@ The mixed-type form exists so that same-sized inline values and key-value tombst
 fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
 mixed marker because it is not itself a valid entry type.
 
-Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
+##### Two regions, not interleaved
+
+Entries are split into a **search region** and a **tail region**, both indexed by the same entry
+number, rather than being stored as one interleaved record per entry. The search region holds
+exactly the bytes a lookup's binary search compares *first* — the hash for block type 3, the key for
+block type 4 (see [Entry ordering](#entry-ordering)) — and the tail region holds everything else.
+
+This exists for cache behaviour. A probe only needs the leading comparison bytes, so interleaving
+forces each probe to pull a cache line that is mostly key and value payload it will not read. With
+the regions split, a probe walks a dense array: 8 bytes per entry for a hashed block regardless of
+how long the keys are. For a block of 75 entries with 200-byte keys, the searched span shrinks from
+about 16 kB to 480 bytes.
+
+Byte count is unchanged — this is a permutation, not a size change, so it does not affect how many
+entries fit in a block. Note the split point follows the *comparison*, not the key/value boundary:
+for a hashed block the key moves into the tail with the value, because the search reads the key only
+when two hashes are equal, which for a 64-bit hash is vanishingly rare.
+
+Entry positions for index `i` are `header_size + i * search_stride` and
+`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection. The writer
+automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to
+the variable-size format above, which is still interleaved behind an offset table.
 
 #### Value Block
 

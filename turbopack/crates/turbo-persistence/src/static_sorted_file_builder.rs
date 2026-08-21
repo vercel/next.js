@@ -576,6 +576,10 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
+    // Reusable buffer for the tail region of a key block (the bytes the binary search never
+    // probes), appended to `key_buffer` when the block is finished.
+    key_tail_buffer: Vec<u8>,
+
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
     collected_fingerprints: Vec<u32>,
@@ -636,6 +640,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
+            key_tail_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
@@ -928,6 +933,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         // loops read `pending_keys`.
         let Self {
             key_buffer,
+            key_tail_buffer,
             pending_keys,
             ..
         } = self;
@@ -952,6 +958,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         {
             let mut builder = FixedKeyBlockBuilder::new(
                 key_buffer,
+                key_tail_buffer,
                 entry_count as u32,
                 layout,
                 key_size,
@@ -1242,15 +1249,27 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// No offset table is written — entry positions are computed arithmetically from the stride. When
 /// entries share a value size but not a value type, the header records
 /// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
+///
+/// Entries are written as two regions rather than interleaved, so that the bytes a lookup's binary
+/// search probes are contiguous: the search region holds only what
+/// [`compare_hash_key`][crate::static_sorted_file::KeyBlockLayout] compares first (the hash for
+/// `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region, addressed
+/// by the same entry index. See the module docs on key block layout.
 struct FixedKeyBlockBuilder<'l> {
+    /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
+    /// Accumulates the tail region, appended to `buffer` by [`Self::finish`].
+    tail: &'l mut Vec<u8>,
     /// Whether each entry writes its own type byte (set for mixed-type blocks).
     per_entry_type: bool,
+    /// Whether the search region holds hashes (`HashThenKey`) rather than keys (`KeyOnly`).
+    search_region_is_hash: bool,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
     fn new(
         buffer: &'l mut Vec<u8>,
+        tail: &'l mut Vec<u8>,
         entry_count: u32,
         layout: KeyBlockLayout,
         key_size: u8,
@@ -1261,6 +1280,7 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         let per_entry_type = value_type.is_none();
         let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
         buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
+        tail.clear();
 
         let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[
@@ -1279,30 +1299,45 @@ impl<'l> FixedKeyBlockBuilder<'l> {
 
         Self {
             buffer,
+            tail,
             per_entry_type,
+            search_region_is_hash: hash_len > 0,
         }
     }
 
-    /// Writes a single entry (key + optional type byte + value data) to the block.
+    /// Writes a single entry to a `KeyOnly` block: key into the search region, value into the tail.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert!(
+            !self.search_region_is_hash,
+            "put() is for KeyOnly blocks; HashThenKey must use put_with_hash()"
+        );
         entry.write_key_to(self.buffer);
-        if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
-        }
-        value_ref.write_value_to(self.buffer);
+        self.put_tail(value_ref);
     }
 
-    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
+    /// Writes a single entry to a `HashThenKey` block: hash into the search region, key and value
+    /// into the tail.
     fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert!(
+            self.search_region_is_hash,
+            "put_with_hash() is for HashThenKey blocks; KeyOnly must use put()"
+        );
         self.buffer
             .extend_from_slice(&entry.key_hash().to_be_bytes());
-        entry.write_key_to(self.buffer);
-        if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
-        }
-        value_ref.write_value_to(self.buffer);
+        entry.write_key_to(self.tail);
+        self.put_tail(value_ref);
     }
+
+    /// Appends the parts of an entry that the search never reads.
+    fn put_tail(&mut self, value_ref: &ValueRef) {
+        if self.per_entry_type {
+            self.tail.push(value_ref.entry_type().0);
+        }
+        value_ref.write_value_to(self.tail);
+    }
+
     fn finish(self) -> &'l mut Vec<u8> {
+        self.buffer.extend_from_slice(self.tail);
         self.buffer
     }
 }

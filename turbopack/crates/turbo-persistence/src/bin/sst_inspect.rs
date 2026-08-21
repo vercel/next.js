@@ -390,12 +390,15 @@ enum KeyBlockHeader {
         value_type: u8,
     },
     /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte between its key and its value.
+    /// its own type byte ahead of its value in the block's tail region.
     FixedMixedType {
         entry_count: u32,
-        hash_len: usize,
-        key_size: usize,
-        stride: usize,
+        /// Offset of the tail region, measured from the start of the entry data.
+        tail_start: usize,
+        /// Bytes per entry in the tail region.
+        tail_stride: usize,
+        /// Bytes of the tail entry that precede its type byte (the key, for `HashThenKey` blocks).
+        tail_key_size: usize,
     },
 }
 
@@ -418,13 +421,20 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
                     0
                 };
                 let key_size = block[4] as usize;
-                let val_size = block[6] as usize;
+                // +1 for the per-entry type byte.
+                let val_size = block[6] as usize + 1;
+                // Entries are split into a search region (hash for `HashThenKey`, key for
+                // `KeyOnly`) and a tail region holding everything else, both indexed by entry.
+                let (search_stride, tail_stride, tail_key_size) = if hash_len > 0 {
+                    (hash_len, key_size + val_size, key_size)
+                } else {
+                    (key_size, val_size, 0)
+                };
                 Ok(KeyBlockHeader::FixedMixedType {
                     entry_count,
-                    hash_len,
-                    key_size,
-                    // +1 for the per-entry type byte.
-                    stride: hash_len + key_size + val_size + 1,
+                    tail_start: entry_count as usize * search_stride,
+                    tail_stride,
+                    tail_key_size,
                 })
             } else {
                 Ok(KeyBlockHeader::Fixed {
@@ -457,14 +467,14 @@ fn iter_key_block_entry_types(
         KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
         KeyBlockHeader::FixedMixedType {
-            hash_len,
-            key_size,
-            stride,
+            tail_start,
+            tail_stride,
+            tail_key_size,
             ..
         } => {
-            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
-            // the entry's key and its value.
-            block[7 + i as usize * stride + hash_len + key_size]
+            // Entry data starts after the 7-byte mixed-type header; within the tail region the
+            // type byte precedes the value, after the key for `HashThenKey` blocks.
+            block[7 + tail_start + i as usize * tail_stride + tail_key_size]
         }
     })
 }
