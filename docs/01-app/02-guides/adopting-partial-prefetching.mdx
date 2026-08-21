@@ -96,8 +96,8 @@ A legacy full prefetch can include more UI than the navigation needs. Preserve t
 To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to verify that the migration preserves the prefetched UI you selected. A preservation test can cover any subset of the legacy full prefetch. If you defer these tests, record the expected UI before enabling Partial Prefetching.
 
 1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Use positive assertions for the selected UI already present in the legacy full prefetch. You don't need to assert other prefetched UI. Confirm the test passes before migrating.
-2. Adopt the destinations and rerun the tests without changing the assertions. For missing UI, cache only the data or rendered subtree needed to restore it.
-3. After enabling the global flag and removing the temporary route exports, rerun the tests and keep them as regression coverage.
+2. Enable Partial Prefetching and rerun the tests without changing the assertions. Use failures to identify prefetched UI that the migration removed, then cache only the data or rendered subtree needed to restore it. When adopting routes incrementally with the global flag off, enable the flag in the test configuration for this verification; a temporary `prefetch = 'partial'` export alone doesn't change the legacy full prefetch.
+3. After removing the temporary route exports, rerun the tests under the final global configuration and keep them as regression coverage.
 
 The `instant()` helper holds back dynamic content while assertions run against the prefetched UI. It doesn't measure navigation duration. Add new prefetched UI as a separate optimization, and verify any deliberate removals after migration.
 
