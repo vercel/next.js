@@ -11,7 +11,7 @@ async function getData() {
 async function AsyncComp() {
   let data = await getData()
 
-  return <p id="data">{data}</p>
+  return <span id="data">{data}</span>
 }
 
 export default async function Home() {
@@ -19,7 +19,7 @@ export default async function Home() {
 
   return (
     <main>
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense fallback={<div>Loading...</div>}>
         <AsyncComp />
       </Suspense>
     </main>
