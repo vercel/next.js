@@ -239,6 +239,12 @@ export type TurbopackRuleConfigCollection =
 
 export interface TurbopackOptions {
   /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   */
+  additionalRoots?: Record<string, { path: string; ignoreIfMissing?: boolean }>
+
+  /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
    * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)

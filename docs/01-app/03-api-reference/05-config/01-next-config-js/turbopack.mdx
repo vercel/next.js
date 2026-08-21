@@ -47,6 +47,7 @@ The following options are available for the `turbopack` configuration:
 | Option              | Description                                                                                                                              |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `root`              | Sets the application root directory. Should be an absolute path.                                                                         |
+| `additionalRoots`   | Allows symlinked dependencies to resolve into explicitly configured filesystem roots.                                                    |
 | `rules`             | List of supported webpack loaders to apply when running with Turbopack.                                                                  |
 | `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                   |
 | `resolveExtensions` | List of extensions to resolve when importing files.                                                                                      |
@@ -121,7 +122,29 @@ module.exports = {
 
 To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must configure the `turbopack.root` to the parent directory of both the project and the linked dependencies.
 
-While this expands the scope of filesystem watching, it's typically only necessary during development when actively working on linked packages.
+For symlinked dependencies, you can instead keep the project root narrow and configure the linked locations with `additionalRoots`.
+
+### Additional roots
+
+`additionalRoots` allows Turbopack to follow symbolic links whose targets are outside `turbopack.root`. It is useful for linked packages that live outside the project.
+
+```js filename="next.config.js"
+const path = require('path')
+
+module.exports = {
+  turbopack: {
+    additionalRoots: {
+      linkedPackages: { path: path.join(__dirname, '../packages') },
+    },
+  },
+}
+```
+
+Each key identifies one root. `path` can be absolute or relative to the directory where you run Next.js. `ignoreIfMissing` defaults to `false`.
+
+Next.js canonicalizes each path before validating it. Missing required roots and overlapping roots produce configuration errors and are excluded. Missing roots with `ignoreIfMissing: true` are silently excluded. Roots cannot overlap `turbopack.root` or one another; when multiple entries overlap, the first entry in JavaScript property order is used.
+
+Additional roots are read-only and watched non-recursively. They only permit symlink crossings: direct relative imports that escape the project root remain unsupported.
 
 ### Configuring webpack loaders
 

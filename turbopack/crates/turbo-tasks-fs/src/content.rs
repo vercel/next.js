@@ -171,7 +171,10 @@ pub(crate) enum FileComparison {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
-    Absolute { resolved: FileSystemPath },
+    Absolute {
+        raw: RcStr,
+        resolved: FileSystemPath,
+    },
     Relative {
         /// The value read from the link. The path is lexically converted to a [unix-style
         /// path][turbo_unix_path::sys_to_unix], but it may contain `..` relative to the *directory
@@ -186,7 +189,9 @@ impl LinkTarget {
     /// The path this link points at.
     pub fn file_system_path(&self) -> &FileSystemPath {
         match self {
-            LinkTarget::Absolute { resolved } | LinkTarget::Relative { resolved, .. } => resolved,
+            LinkTarget::Absolute { resolved, .. } | LinkTarget::Relative { resolved, .. } => {
+                resolved
+            }
         }
     }
 
@@ -259,9 +264,7 @@ impl LinkContent {
         }
         let simplified = match self {
             LinkContent::Link { target } => match target {
-                LinkTarget::Absolute { resolved } => {
-                    SimplifiedLinkContent::Absolute(&resolved.path)
-                }
+                LinkTarget::Absolute { raw, .. } => SimplifiedLinkContent::Absolute(raw),
                 LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(raw),
             },
             LinkContent::NotFound => SimplifiedLinkContent::NotFound,

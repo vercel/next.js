@@ -966,6 +966,7 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/e2e/app-dir/turbopack-additional-roots/turbopack-additional-roots.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'

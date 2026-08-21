@@ -653,8 +653,12 @@ function bindingToApi(
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const additionalRoots = Object.entries(
+      options.nextConfig.turbopack?.additionalRoots ?? {}
+    ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,
+      additionalRoots,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
         path.join(options.rootPath, options.projectPath)
@@ -664,16 +668,14 @@ function bindingToApi(
   }
 
   async function rustifyPartialProjectOptions(
-    options: PartialProjectOptions
+    options: PartialProjectOptions,
+    projectPath: string
   ): Promise<NapiPartialProjectOptions> {
     return {
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(
-          options.nextConfig,
-          path.join(options.rootPath, options.projectPath)
-        )),
+        (await serializeNextConfig(options.nextConfig, projectPath)),
       env: options.env && rustifyEnv(options.env),
     }
   }
@@ -681,7 +683,10 @@ function bindingToApi(
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
 
-    constructor(nativeProject: { __napiType: 'Project' }) {
+    constructor(
+      nativeProject: { __napiType: 'Project' },
+      private readonly projectPath: string
+    ) {
       this._nativeProject = nativeProject
 
       if (typeof binding.registerWorkerScheduler === 'function') {
@@ -692,7 +697,7 @@ function bindingToApi(
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
-        await rustifyPartialProjectOptions(options)
+        await rustifyPartialProjectOptions(options, this.projectPath)
       )
     }
 
@@ -1277,7 +1282,8 @@ function bindingToApi(
           ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
-      )
+      ),
+      path.join(options.rootPath, options.projectPath)
     )
   }
 }

@@ -614,6 +614,8 @@ pub struct TurbopackConfig {
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
     pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
+    // `additionalRoots` is extracted from the Next.js config and passed separately through
+    // project options before this config is deserialized.
 }
 
 #[derive(
