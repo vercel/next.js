@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-unused-async
+message: Async blocks and closures must contain an `.await` expression.
+note: Remove `async` or await an asynchronous operation.
+severity: error
+language: Rust
+rule:
+  all:
+    - any:
+        - kind: async_block
+        - all:
+            - kind: closure_expression
+            - regex: '^async\b'
+    - not:
+        has:
+          any:
+            - kind: await_expression
+            - all:
+                - kind: macro_invocation
+                - has:
+                    field: macro
+                    regex: '(^|::)join$'
+            # Rust macro bodies are parsed as token trees, so awaits inside them
+            # do not produce await_expression nodes.
+            - all:
+                - kind: token_tree
+                - regex: '\.await\b'
+          stopBy:
+            any:
+              - kind: async_block
+              - kind: closure_expression
