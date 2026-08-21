@@ -24,6 +24,7 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
+    segment_config::NextSegmentConfig,
     util::{NextRuntime, app_function_name, file_content_rope, load_next_js_template},
 };
 
@@ -134,11 +135,22 @@ pub async fn get_app_page_entry(
         );
     };
 
+    let config = config.to_resolved().await?;
+    let static_info_config = if matches!(
+        original_name.as_str(),
+        "/_global-error/page" | "/_not-found/page"
+    ) {
+        NextSegmentConfig::default().resolved_cell()
+    } else {
+        config
+    };
+
     Ok(AppEntry {
         pathname,
         original_name,
         rsc_entry: rsc_entry.to_resolved().await?,
-        config: config.to_resolved().await?,
+        config,
+        static_info_config,
     }
     .cell())
 }

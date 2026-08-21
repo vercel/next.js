@@ -91,12 +91,19 @@ impl Asset for StaticInfoManifestAsset {
         let base_path = self.next_config.base_path().await?;
 
         #[derive(Serialize)]
+        #[serde(untagged)]
+        enum ManifestRegion {
+            Single(String),
+            Multiple(Vec<String>),
+        }
+
+        #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct ManifestMiddleware {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub matchers: Option<Vec<ProxyMatcher>>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub regions: Option<String>,
+            pub regions: Option<ManifestRegion>,
         }
         impl ManifestMiddleware {
             fn is_empty(&self) -> bool {
@@ -112,23 +119,23 @@ impl Asset for StaticInfoManifestAsset {
             #[serde(skip_serializing_if = "ManifestMiddleware::is_empty")]
             middleware: ManifestMiddleware,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
-            generate_static_params: bool,
-            #[serde(skip_serializing_if = "std::ops::Not::not")]
             generate_sitemaps: bool,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
             generate_image_metadata: bool,
             #[serde(skip_serializing_if = "Option::is_none")]
             runtime: Option<NextRuntime>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            preferred_region: Option<String>,
+            preferred_region: Option<ManifestRegion>,
             #[serde(skip_serializing_if = "Option::is_none")]
             max_duration: Option<u32>,
         }
 
         let region = config.preferred_region.as_ref().and_then(|v| match &v[..] {
             [] => None,
-            [region] => Some(region.to_string()),
-            regions => Some(regions.join(",")),
+            [region] => Some(ManifestRegion::Single(region.to_string())),
+            regions => Some(ManifestRegion::Multiple(
+                regions.iter().map(ToString::to_string).collect(),
+            )),
         });
         let (regions, preferred_region) = if self.ty.as_str() == "app" {
             (None, region)
@@ -147,7 +154,6 @@ impl Asset for StaticInfoManifestAsset {
             },
             runtime: config.runtime,
             generate_image_metadata: config.generate_image_metadata,
-            generate_static_params: config.generate_static_params.is_some(),
             generate_sitemaps: config.generate_sitemaps,
             preferred_region,
             max_duration: config.max_duration,

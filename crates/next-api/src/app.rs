@@ -1178,6 +1178,7 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
             config,
+            None,
             next_config,
         ))
     }
@@ -2138,7 +2139,7 @@ impl Endpoint for AppEndpoint {
                             "server/app{}/static-info.json",
                             &self.app_endpoint_entry().await?.original_name
                         ))?,
-                        *self.app_endpoint_entry().await?.config,
+                        *self.app_endpoint_entry().await?.static_info_config,
                         project.next_config(),
                     )));
 

@@ -23,10 +23,9 @@ use crate::{
 /// Computes the entry for a Next.js app route.
 /// # Arguments
 ///
-/// * `original_segment_config` - A next segment config to be specified explicitly for the given
-///   source.
-/// For some cases `source` may not be the original but the handler (dynamic
-/// metadata) which will lose segment config.
+/// * `parent_segment_config` - Config inherited by the generated entry for operational behavior.
+/// * `source_static_info_config` - Source-equivalent config when `source` is generated, such as a
+///   dynamic metadata route handler.
 #[turbo_tasks::function]
 pub async fn get_app_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
@@ -34,22 +33,15 @@ pub async fn get_app_route_entry(
     source: Vc<Box<dyn Source>>,
     page: AppPage,
     project_root: FileSystemPath,
-    original_segment_config: Option<Vc<NextSegmentConfig>>,
+    parent_segment_config: Option<Vc<NextSegmentConfig>>,
+    source_static_info_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
-    let config = if let Some(original_segment_config) = original_segment_config {
+    let static_info_config = source_static_info_config.unwrap_or(segment_from_source);
+    let config = if let Some(parent_segment_config) = parent_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
-        let original_segment_config = original_segment_config.await?;
-        segment_config.apply_parent_config(&original_segment_config);
-
-        // Generated metadata route handlers add implementation-detail exports such as
-        // `generateStaticParams`. Preserve the export flags from the original user module for
-        // static info instead of reporting exports from the generated handler.
-        segment_config.generate_image_metadata = original_segment_config.generate_image_metadata;
-        segment_config.generate_sitemaps = original_segment_config.generate_sitemaps;
-        segment_config.generate_static_params = original_segment_config.generate_static_params;
-
+        segment_config.apply_parent_config(&*parent_segment_config.await?);
         segment_config.cell()
     } else {
         segment_from_source
@@ -133,6 +125,7 @@ pub async fn get_app_route_entry(
         original_name,
         rsc_entry: rsc_entry.to_resolved().await?,
         config: config.to_resolved().await?,
+        static_info_config: static_info_config.to_resolved().await?,
     }
     .cell())
 }
