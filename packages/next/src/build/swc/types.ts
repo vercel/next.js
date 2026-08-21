@@ -362,6 +362,16 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
+  /**
+   * Returns whether the entrypoints contain the given route, recomputed
+   * against the current state of the filesystem. Tracked filesystem reads
+   * under `invalidateDirs` (project-relative) are invalidated first, so a
+   * file that was written after Turbopack's file watcher last reported is
+   * taken into account. Pages routes are matched by pathname, app routes by
+   * original name, the same keys `entrypointsSubscribe` emits.
+   */
+  containsRoute(routeKey: string, invalidateDirs: string[]): Promise<boolean>
+
   invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>

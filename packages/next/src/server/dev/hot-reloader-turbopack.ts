@@ -2,7 +2,7 @@ import type { Socket } from 'net'
 import { access, mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import { join, extname, relative, isAbsolute, sep, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -161,15 +161,6 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
-
-/**
- * How long `ensurePage` waits for a route whose file exists on disk to show
- * up in Turbopack's entrypoints. The expected wake-up is the next entrypoints
- * update; the deadline only bounds states where no update ever arrives (a
- * broken file watcher, a route key Turbopack never reports), in which case
- * the request fails as not found like it would have without waiting.
- */
-const ENSURE_PAGE_ENTRYPOINTS_WAIT_MS = 10_000
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -1908,31 +1899,54 @@ export async function createHotReloaderTurbopack(
             if (page === '/src/instrumentation') return
           }
 
-          // The route table that matched this request is built from a
-          // separate file watcher, which can see a new file before Turbopack's
-          // watcher does. While the file exists, wait for Turbopack to report
-          // the route rather than failing the request.
-          const deadline = Date.now() + ENSURE_PAGE_ENTRYPOINTS_WAIT_MS
-          while (!route) {
-            try {
-              await access(routeDef.filename)
-            } catch {
-              break
+          if (!route) {
+            // The route table that matched this request is built from a
+            // separate file watcher, which can see a new file before
+            // Turbopack's watcher does. Ask Turbopack directly, making it
+            // re-read the file's directory. If it reports that the route
+            // exists, the entrypoints subscription delivers an update
+            // containing it under the same key, so wait for that rather than
+            // failing the request. If it reports that the route doesn't
+            // exist, the two disagree about the file and the request fails
+            // now. The next update may have been in flight already and
+            // predate the answer; the one after it cannot. If the route is
+            // still missing then, the two disagree about its key instead, and
+            // waiting for another update would never end.
+            const routeKey = isInsideAppDir ? normalizedAppPage : page
+            const relativeDir = relative(
+              projectPath,
+              dirname(routeDef.filename)
+            )
+            // Files outside the project (e.g. built-in fallback routes)
+            // aren't watched, so there is nothing to invalidate for them.
+            const invalidateDirs =
+              relativeDir.startsWith('..') || isAbsolute(relativeDir)
+                ? []
+                : [relativeDir.split(sep).join('/')]
+            let awaitedUpdates = 0
+            while (!route && awaitedUpdates < 2) {
+              try {
+                await access(routeDef.filename)
+              } catch {
+                break
+              }
+              let routeExists = false
+              try {
+                routeExists = await project.containsRoute(
+                  routeKey,
+                  awaitedUpdates === 0 ? invalidateDirs : []
+                )
+              } catch {
+                // The entrypoints cannot currently be computed, e.g. because
+                // of a build error in a file they depend on.
+                break
+              }
+              if (!routeExists) break
+              await pendingEntrypointsUpdate
+              pendingEntrypointsUpdate = nextEntrypointsUpdate
+              awaitedUpdates++
+              route = findRoute()
             }
-            const timeLeft = deadline - Date.now()
-            if (timeLeft <= 0) break
-            const pending = pendingEntrypointsUpdate
-            const updated = await new Promise<boolean>((resolve) => {
-              const timer = setTimeout(() => resolve(false), timeLeft)
-              timer.unref()
-              pending.then(() => {
-                clearTimeout(timer)
-                resolve(true)
-              })
-            })
-            if (!updated) break
-            pendingEntrypointsUpdate = nextEntrypointsUpdate
-            route = findRoute()
           }
 
           if (!route) {

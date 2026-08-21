@@ -500,6 +500,22 @@ impl DiskFileSystem {
             .invalidate_path_and_children_with_reason(paths, reason);
     }
 
+    /// Like [`Self::invalidate_path_and_children_with_reason`], but serialized
+    /// against the file watcher's own invalidation batches and against
+    /// in-flight reads, the same way watcher-driven invalidations are. Use
+    /// this when invalidating outside of a file watcher callback, so that a
+    /// concurrent read cannot observe directory listings and file contents
+    /// from different sides of the invalidation.
+    pub async fn invalidate_path_and_children_with_reason_synced<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        let _lock = self.inner.invalidation_lock.write().await;
+        self.inner
+            .invalidate_path_and_children_with_reason(paths, reason);
+    }
+
     pub async fn start_watching(&self) -> Result<()> {
         self.inner.start_watching_internal().await
     }

@@ -599,6 +599,20 @@ export declare function projectCompilationEventsSubscribe(
   eventTypes?: Array<string> | undefined | null
 ): void
 
+/**
+ * Returns whether the entrypoints contain the given route, recomputed
+ * against the current state of the filesystem: any tracked filesystem reads
+ * under the given project-relative directories are invalidated first, so a
+ * file that was written after Turbopack's file watcher last reported is
+ * taken into account. Used by `ensurePage` to distinguish a route that
+ * doesn't exist from a route the watcher hasn't picked up yet.
+ */
+export declare function projectContainsRoute(
+  project: { __napiType: 'Project' },
+  routeKey: string,
+  invalidateDirs: Array<string>
+): Promise<boolean>
+
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<Partial<NapiEntrypoints>>>

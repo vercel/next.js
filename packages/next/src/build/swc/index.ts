@@ -829,6 +829,17 @@ function bindingToApi(
       )
     }
 
+    containsRoute(
+      routeKey: string,
+      invalidateDirs: string[]
+    ): Promise<boolean> {
+      return binding.projectContainsRoute(
+        this._nativeProject,
+        routeKey,
+        invalidateDirs
+      )
+    }
+
     invalidateFileSystemCache(): Promise<void> {
       return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }

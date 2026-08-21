@@ -1041,6 +1041,104 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
+#[turbo_tasks::function(operation, root)]
+async fn project_contains_route_operation(
+    container: ResolvedVc<ProjectContainer>,
+    route_key: RcStr,
+) -> Result<Vc<bool>> {
+    let entrypoints = container.entrypoints().await?;
+    // Pages routes are keyed by pathname and app routes by original name,
+    // mirroring how the JS side keys the routes it receives from the
+    // entrypoints subscription (see `handleEntrypoints` in
+    // `turbopack-utils.ts`). A route reported here is therefore guaranteed
+    // to show up in the subscription under the same key.
+    let contains = entrypoints
+        .routes
+        .iter()
+        .any(|(pathname, route)| match route {
+            Route::Page { .. } | Route::PageApi { .. } => *pathname == route_key,
+            Route::AppPage(pages) => pages.iter().any(|page| page.original_name == route_key),
+            Route::AppRoute { original_name, .. } => *original_name == route_key,
+            Route::Conflict => false,
+        });
+    Ok(Vc::cell(contains))
+}
+
+/// Returns whether the entrypoints contain the given route, recomputed
+/// against the current state of the filesystem: any tracked filesystem reads
+/// under the given project-relative directories are invalidated first, so a
+/// file that was written after Turbopack's file watcher last reported is
+/// taken into account. Used by `ensurePage` to distinguish a route that
+/// doesn't exist from a route the watcher hasn't picked up yet.
+#[napi]
+pub async fn project_contains_route(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
+    route_key: String,
+    invalidate_dirs: Vec<String>,
+) -> napi::Result<bool> {
+    let ctx = project.turbopack_ctx.clone();
+    let container = project.container;
+    let route_key: RcStr = route_key.into();
+
+    ctx.turbo_tasks()
+        .run_once(async move {
+            if !invalidate_dirs.is_empty() {
+                #[turbo_tasks::value(cell = "new", eq = "manual")]
+                struct ProjectDirInfo(FileSystemPath, DiskFileSystem);
+
+                #[turbo_tasks::function(operation, root)]
+                async fn project_dir_info_operation(
+                    container: ResolvedVc<ProjectContainer>,
+                ) -> Result<Vc<ProjectDirInfo>> {
+                    let project = container.project();
+                    let project_path = project.project_path().owned().await?;
+                    let project_fs = project.project_fs().owned().await?;
+                    Ok(ProjectDirInfo(project_path, project_fs).cell())
+                }
+
+                let ProjectDirInfo(project_path, project_fs) =
+                    &*project_dir_info_operation(container)
+                        .read_strongly_consistent()
+                        .await?;
+
+                // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against
+                // the invalidator map keys inside `invalidate_path_and_children_with_reason`,
+                // which use the internal (verbatim on Windows) representation.
+                let project_sys_path = project_fs.to_sys_path_raw(project_path);
+                let paths_to_invalidate = invalidate_dirs
+                    .iter()
+                    .map(|dir| {
+                        let relative_dir = dir.trim_start_matches('/');
+                        if relative_dir.is_empty() {
+                            project_sys_path.clone()
+                        } else {
+                            project_sys_path.join(unix_to_sys(relative_dir).as_ref())
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                // The synced variant serializes with the file watcher's own
+                // invalidation batches, so a concurrent read cannot observe
+                // directory listings and file contents from different sides
+                // of this invalidation.
+                project_fs
+                    .invalidate_path_and_children_with_reason_synced(paths_to_invalidate, |path| {
+                        invalidation::Initialize {
+                            path: RcStr::from(path.to_string_lossy()),
+                        }
+                    })
+                    .await;
+            }
+
+            let contains = project_contains_route_operation(container, route_key)
+                .read_strongly_consistent()
+                .await?;
+            Ok(*contains)
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+}
+
 #[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
