@@ -14,7 +14,7 @@ related:
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.
 
-To prefetch more than the App Shell, a link can opt into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch then also resolves URL-specific content that depends on `params`, `searchParams`, or the full URL.
+To prefetch more than the App Shell, a link can opt into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch can then resolve cached URL-specific content that depends on `params`, `searchParams`, or the full URL.
 
 Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-navigation) insights in development, naming the link or route to change.
 
@@ -63,15 +63,15 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-After enabling the flag, every `<Link>` prefetches its destination's App Shell, and `<Link prefetch={true}>` no longer includes the route's dynamic content. A new project has no legacy links to audit and is done here.
+After enabling the flag, every `<Link>` prefetches its destination's App Shell. A link with `prefetch={true}` can also resolve cached URL-specific content, but it no longer includes uncached dynamic content from the legacy full prefetch. A new project has no legacy links to audit and is done here.
 
 ## What changes for `<Link>`
 
-| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                  |
-| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<Link href="/x">`                  | Prefetched the cached page render.                             | Loads the shared App Shell for `/x`.                                                                                                       |
-| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Loads the App Shell, plus URL-specific content through [per-link prefetching](/docs/app/guides/optimizing-prefetching) when `/x` reads it. |
-| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                                 |
+| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<Link href="/x">`                  | Prefetched the cached page render.                             | Prefetches the shared App Shell for `/x`.                                                                                                              |
+| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Prefetches the App Shell, plus cached URL-specific content through [per-link prefetching](/docs/app/guides/optimizing-prefetching) when `/x` reads it. |
+| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                                             |
 
 The App Shell is shared across every link to a given route, regardless of dynamic params, so rendering many `<Link>`s to the same destination doesn't multiply the work.
 
@@ -79,7 +79,7 @@ The App Shell is shared across every link to a given route, regardless of dynami
 
 Only `<Link>` elements whose effective `prefetch` value is `true` use the legacy full prefetch. This includes `prefetch={true}`, the bare `prefetch` prop, and wrapper or conditional props that resolve to `true`. The default value, `prefetch="auto"`, and `prefetch={false}` don't use the legacy full prefetch.
 
-A legacy full prefetch can include more UI than the navigation needs. The migration only needs to preserve content that should be available immediately when the navigation starts. This is usually the primary, above-the-fold content. Secondary, below-the-fold, or frequently changing content can stream after navigation.
+A legacy full prefetch can include more UI than the navigation needs. Preserve the content that should be ready when the user navigates. This is usually the primary content visible at the top of the destination. Secondary content, content farther down the page, or frequently changing content can stream after navigation.
 
 > **Good to know**: `cookies()` and `headers()` don't tie a prefetch to a URL. They vary per session, not per link, so the App Shell still carries session content. Only `params` and `searchParams` are [URL data](/docs/app/glossary#url-data), which varies per link and can't be included in the shared App Shell.
 
@@ -95,11 +95,11 @@ A legacy full prefetch can include more UI than the navigation needs. The migrat
 
 To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to verify that the migration preserves the prefetched UI you selected. A preservation test can cover any subset of the legacy full prefetch. If you defer these tests, record the expected UI before enabling Partial Prefetching.
 
-1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Use positive assertions for the UI that is present in the legacy full prefetch and should remain prefetched. Other prefetched UI can remain unasserted. Confirm the test passes before migrating.
-2. Adopt the destinations and rerun the tests without changing the assertions. For missing UI, cache the smallest coherent data or rendered subtree that restores it.
+1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Use positive assertions for the selected UI already present in the legacy full prefetch. You don't need to assert other prefetched UI. Confirm the test passes before migrating.
+2. Adopt the destinations and rerun the tests without changing the assertions. For missing UI, cache only the data or rendered subtree needed to restore it.
 3. After enabling the global flag and removing the temporary route exports, rerun the tests and keep them as regression coverage.
 
-The `instant()` helper checks which UI is available from a completed, warm prefetch, while navigation duration requires separate measurement. New prefetched UI is a separate optimization, and any UI that should stop being prefetched requires post-migration verification.
+The `instant()` helper holds back dynamic content while assertions run against the prefetched UI. It doesn't measure navigation duration. Add new prefetched UI as a separate optimization, and verify any deliberate removals after migration.
 
 ### Static or cached content
 

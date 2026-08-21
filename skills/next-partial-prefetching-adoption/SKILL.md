@@ -12,11 +12,11 @@ description: >
 
 # next-partial-prefetching-adoption
 
-Enable Partial Prefetching and verify that the app preserves the prefetched UI that matters. This skill sequences the work; the [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the source of truth for behavior, migration patterns, and trade-offs. Read the relevant guide section before changing each destination instead of reproducing its recipes here.
+Enable Partial Prefetching and verify that the app preserves the selected prefetched UI. This skill sequences the work; the [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the source of truth for behavior, migration patterns, and trade-offs. Read the relevant guide section before changing each destination instead of reproducing its recipes here.
 
-The insights surface only in `next dev` and never fail the build. Verify actual prefetching with `next build` and `next start`, because prefetching is limited in development.
+The insights surface only in `next dev` and never fail the build. Automatic prefetching runs only in production, so verify it with `next build` and `next start`.
 
-Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: a `<Link>` loads a shared App Shell, and `prefetch={true}` no longer prefetches everything the old full prefetch did.
+Talk to the user in terms of PRs, features, and navigation behavior. Avoid insight slugs and step labels. Before starting, explain that Partial Prefetching gives all links to a route one shared App Shell. Links with `prefetch={true}` can also resolve cached URL-specific content. The audit determines which UI from the legacy full prefetch to preserve.
 
 ## requires
 
@@ -40,7 +40,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 - **The dev overlay Insights tab** shows the same non-blocking findings and links their fix pages. A route with no insights has no tab; confirm the quiet state from the terminal. The overlay lives in the `nextjs-portal` shadow root when browser automation needs to inspect it.
 - **`next-dev-loop`** drives navigations and reads the overlay. Prefetch insights surface through `get_errors`, not `get_request_insights`.
 
-Every insight has a docs page — open it. Fetch the linked page for every distinct insight you encounter; the inline message is a summary, the page is the recipe.
+Every insight has a docs page. Open the linked page for each distinct insight; the inline message is only a summary.
 
 ## step 1: audit `<Link prefetch={true}>` navigations (before enabling)
 
@@ -116,16 +116,16 @@ Checklist before checking in with the user:
 - Any audited `router.prefetch()` call is verified separately in production.
 - `next build` passes.
 
-Then check in with the user. Speak their language — no insight slugs or step labels.
+Then check in with the user. Speak in terms of the product behavior rather than insight slugs or step labels.
 
 - What you did: which navigations you audited and what each now prefetches.
-- What changed: the Link props, cache boundaries, and route structure that changed.
+- What changed: the `<Link>` props, cache boundaries, and route structure.
 - Show the production navigation live when possible; otherwise attach the clearest before/after evidence.
-- The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-specific content?" Wait for the answer — adoption and per-link prefetching read best as their own changes.
+- The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-specific content?" Wait for the answer. Keep adoption and per-link prefetching in separate changes.
 
 ## further reading
 
-- [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
-- [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
-- [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching) — consider new URL-specific content only after adoption; keep that work in a separate change.
-- [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.
+- [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) covers the broader validation model and loading-state tooling.
+- [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) describes how to build the flag-off baseline suite with the `@next/playwright` `instant()` helper and keep it as a CI regression guard.
+- [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching) covers new URL-specific content after adoption. Keep that work in a separate change.
+- [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) grows each route's static shell so the App Shell carries more.
