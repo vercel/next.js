@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('symbolic-file-links', () => {
+describe('symbolic-links', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -15,5 +15,10 @@ describe('symbolic-file-links', () => {
   it('should work with html', async () => {
     const html = await next.render('/')
     expect(html).toContain('hello world')
+  })
+
+  it('should resolve modules through directory symlinks', async () => {
+    const html = await next.render('/')
+    expect(html).toContain('hello from a directory symlink')
   })
 })

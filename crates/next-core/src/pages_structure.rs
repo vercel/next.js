@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
+    RealPathResultError,
 };
 
 use crate::next_import_map::get_next_package;
@@ -106,12 +107,25 @@ pub async fn find_pages_structure(
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages")?.realpath().await?;
-    let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
+    async fn realpath_if_exists(path: &FileSystemPath) -> Result<Option<FileSystemPath>> {
+        let result = path.realpath_with_links().await?;
+        match &result.path_result {
+            Ok(path) => Ok(Some(path.clone())),
+            Err(RealPathResultError::NotFound) => Ok(None),
+            Err(error) => bail!(error.as_error_message(path, &result).await?),
+        }
+    }
+
+    let pages_root = realpath_if_exists(&project_root.join("pages")?).await?;
+    let pages_root = if let Some(pages_root) = pages_root
+        && *pages_root.get_type().await? == FileSystemEntryType::Directory
+    {
         Some(pages_root)
     } else {
-        let src_pages_root = project_root.join("src/pages")?.realpath().await?;
-        if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
+        let src_pages_root = realpath_if_exists(&project_root.join("src/pages")?).await?;
+        if let Some(src_pages_root) = src_pages_root
+            && *src_pages_root.get_type().await? == FileSystemEntryType::Directory
+        {
             Some(src_pages_root)
         } else {
             // If neither pages nor src/pages exists, we still want to generate

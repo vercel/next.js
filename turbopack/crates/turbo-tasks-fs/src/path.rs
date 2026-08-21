@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
 use indexmap::IndexSet;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
     turbobail, turbofmt,
@@ -511,7 +511,7 @@ pub struct RealPathResult {
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
-    /// The first symlink that resolution attempted to read no longer exists.
+    /// A symlink or path component does not exist.
     NotFound,
     /// Resolution failed after finding a symlink, or the symlink was invalid to begin with.
     Invalid {
@@ -544,10 +544,8 @@ impl RealPathResultError {
                 turbofmt!("Symlink {orig} could not be resolved: {reason}").await?
             }
             RealPathResultError::NotFound => {
-                turbofmt!(
-                    "Symlink {orig} could not be read because the symlink itself no longer exists"
-                )
-                .await?
+                turbofmt!("Path {orig} could not be resolved because a component does not exist")
+                    .await?
             }
         })
     }
@@ -611,9 +609,6 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
     let mut visited: AutoSet<RcStr> = AutoSet::new();
     let mut error = RealPathResultError::TooManySymlinks;
-    // Whether a previous iteration resolved a symbolic link, so `current_path` is now a link
-    // target rather than the path we were asked about.
-    let mut followed_link = false;
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
@@ -646,16 +641,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 }
             }
             Err(parent_error) => {
-                error = match parent_error {
-                    RealPathResultError::NotFound if !symlinks.is_empty() => {
-                        RealPathResultError::Invalid {
-                            reason: rcstr!(
-                                "a symlink encountered while resolving the path no longer exists"
-                            ),
-                        }
-                    }
-                    error => error,
-                };
+                error = parent_error;
                 break;
             }
         }
@@ -664,17 +650,8 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         // `get_type`, and `read_link` isn't the common codepath.
         let entry_type = *current_path.get_type().await?;
         if !matches!(entry_type, FileSystemEntryType::Symlink) {
-            // A link we followed points at something that doesn't exist. `read_link` can't detect
-            // this, as it never looks at the target, so a dangling link reads back as valid.
-            //
-            // Only report this for a link we actually followed: resolving a path that simply
-            // doesn't exist is not an error, it just resolves to itself.
-            if (followed_link || !symlinks.is_empty())
-                && matches!(entry_type, FileSystemEntryType::NotFound)
-            {
-                error = RealPathResultError::Invalid {
-                    reason: rcstr!("a symlink target does not exist"),
-                };
+            if matches!(entry_type, FileSystemEntryType::NotFound) {
+                error = RealPathResultError::NotFound;
                 break;
             }
             return Ok(RealPathResult {
@@ -690,18 +667,9 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 let target_path = target.file_system_path().clone();
                 symlinks.insert(current_path);
                 current_path = target_path;
-                followed_link = true;
             }
             LinkContent::NotFound => {
-                error = if symlinks.is_empty() {
-                    RealPathResultError::NotFound
-                } else {
-                    RealPathResultError::Invalid {
-                        reason: rcstr!(
-                            "a symlink encountered while resolving the path no longer exists"
-                        ),
-                    }
-                };
+                error = RealPathResultError::NotFound;
                 break;
             }
             LinkContent::Invalid { reason } => {

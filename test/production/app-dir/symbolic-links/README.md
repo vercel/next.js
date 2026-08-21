@@ -1,5 +1,6 @@
-# Symbolic File Links
+# Symbolic Links
 
 This test represents what the Next.js file structure may look like when run
 under a build orchestrator, such as bazel, where its sandbox sets up all files
-to be symlinks to their original source.
+to be symlinks to their original source. It also covers resolving modules
+through directory symlinks.
