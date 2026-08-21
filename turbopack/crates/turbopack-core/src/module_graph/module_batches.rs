@@ -895,6 +895,8 @@ pub async fn compute_module_batches(
         let mut module_to_node: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> =
             FxHashMap::default();
         for (module, batches) in &parallel_module_to_pre_batch {
+            // The values in parallel_module_to_pre_batch are guaranteed to be empty or contain
+            // exactly one batch index.
             if let Some(&first_batch) = batches.first() {
                 module_to_node.insert(*module, batch_indices[first_batch]);
             }
@@ -959,6 +961,9 @@ pub async fn compute_module_batches(
                 }
             }
         }
+
+        debug_assert_eq!(graph.capacity().0, graph.node_count());
+        debug_assert_eq!(graph.capacity().1, graph.edge_count());
 
         // Add collected reference edges (conditional on page entry)
         for (collecting_module, refs) in &collected_modules {
