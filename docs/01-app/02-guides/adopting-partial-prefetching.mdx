@@ -22,7 +22,7 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 ## Use the adoption skill (recommended)
 
-The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It audits your `<Link prefetch={true}>` calls, enables the flag, and checks every route for the insights this guide covers.
+The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It audits your `<Link prefetch={true}>` calls with you, enables the flag, and sweeps every route for the insights this guide covers.
 
 Install the skill:
 
@@ -40,11 +40,9 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 
 Adopting an existing app by hand follows the two [instant navigation](/docs/app/guides/instant-navigation) insights Next.js surfaces in `next dev`:
 
-1. Before you enable the global flag, [audit every `<Link prefetch={true}>`](#auditing-link-prefetchtrue-calls) and choose which prefetched UI to preserve. You can use [`instant()` tests](#preserve-existing-prefetched-ui) to add regression coverage.
+1. Before you enable the global flag, [audit every `<Link prefetch={true}>`](#auditing-link-prefetchtrue-calls) and choose which prefetched UI to preserve. You can use [`instant()` tests](#preserve-existing-prefetched-ui) to add regression coverage. When the adoption is large enough that reviewers need smaller diffs, or adopted routes should reach users before the rest, [adopt incrementally](#adopting-incrementally) with the flag off, guided by the [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight.
 2. [Enable `partialPrefetching`](#enable-partial-prefetching), then [audit routes for URL data](#auditing-routes-for-url-data), resolving the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight.
-3. Optionally, [prefetch additional URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
-
-New apps that have always used Partial Prefetching can skip the first step.
+3. Optionally, [prefetch URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
 
 Both insights are development-only and never block the build. They appear in the dev overlay with fix cards that link the docs page for each fix. If a route isn't ready to adopt, export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from its page or layout to opt the route out of instant-navigation validation, and return to it later.
 
@@ -65,7 +63,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With the flag enabled, each prefetching `<Link>` loads its destination's App Shell. The `prefetch={true}` prop no longer includes all dynamic content from the legacy full prefetch.
+After enabling the flag, every `<Link>` prefetches its destination's App Shell, and `<Link prefetch={true}>` no longer includes the route's dynamic content. A new project has no legacy links to audit and is done here.
 
 ## What changes for `<Link>`
 
@@ -87,13 +85,13 @@ Legacy full prefetching may include more UI than the navigation needs. Choose th
 
 > **Good to know**: `cookies()` and `headers()` don't tie a prefetch to a URL. They vary per session, not per link, so the App Shell still carries session content. Only `params` and `searchParams` are [URL data](/docs/app/glossary#url-data), which varies per link and can't be included in the shared App Shell.
 
-| Content to preserve                                                    | Migration                                                                            |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [Fully static, or content already cached](#static-or-cached-content)   | Keep it in the App Shell. Remove `prefetch={true}` if the route no longer needs it.  |
-| [Uncached content](#uncached-content)                                  | Cache it with `use cache`. Remove `prefetch={true}` if the route no longer needs it. |
-| [Content that depends on `cookies()` or `headers()`](#session-content) | Cache the lookup using the session value.                                            |
-| [URL-dependent content](#url-data)                                     | Cache it using the resolved URL value, then add or keep `prefetch={true}`.           |
-| [Real-time content](#real-time-content)                                | Choose between a cached prefetch and streaming fresh content at request time.        |
+| Destination                                                                       | Recommendation                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [Fully static, or content already cached](#static-or-cached-content)              | Remove the now-redundant `prefetch={true}`.                               |
+| [Delivered uncached content you want kept ahead of the click](#uncached-content)  | Cache it with `use cache`, then remove `prefetch={true}`.                 |
+| [Delivered content that depends on `cookies()` or `headers()`](#session-content)  | Cache the lookup behind the session value, then remove `prefetch={true}`. |
+| [Reads URL data, or has cached content that depends on it](#url-data)             | Keep `prefetch={true}` to resolve the content ahead of the click.         |
+| [Delivers real-time content that must stay fresh per request](#real-time-content) | Remove `prefetch={true}` and let the content stream in.                   |
 
 ### Preserve existing prefetched UI
 
@@ -107,7 +105,7 @@ To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-nav
 
 ### Static or cached content
 
-The output is already in the App Shell. A default `<Link>` needs no change. Remove an explicit `prefetch={true}` if the route no longer needs it:
+The output is already in the App Shell. Remove the now-redundant `prefetch={true}`:
 
 ```tsx filename="app/nav.tsx"
 // Before
@@ -118,7 +116,7 @@ The output is already in the App Shell. A default `<Link>` needs no change. Remo
 
 ### Uncached content
 
-Cache the content with `use cache` so the App Shell includes it. Remove an explicit `prefetch={true}` if the route no longer needs per-link prefetching:
+Cache it with `use cache` so it gets included in the App Shell, then remove `prefetch={true}` from the links:
 
 ```tsx filename="app/products/page.tsx" switcher
 // Before
@@ -258,11 +256,11 @@ export default function Page() {
 
 ### URL data
 
-[URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) varies per link, so the shared App Shell can't include content that depends on it. The content streams after navigation from behind its `<Suspense>` boundary. To prefetch this content, cache it using the resolved value and add or keep `prefetch={true}`. See [Prefetching URL data](#prefetching-url-data) for an example.
+[URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) varies per link, so content that depends on it can't be included in the shared App Shell and streams in after navigation from behind its `<Suspense>` boundary. The links keep `prefetch={true}`, and [Prefetching URL data](#prefetching-url-data) covers prefetching the content ahead of the click.
 
 ### Real-time content
 
-Prefetching real-time content can make it stale before the navigation starts. Keep the prefetch with an explicit cache policy when lower latency outweighs freshness. Otherwise, remove `prefetch={true}` and stream fresh content from behind its `<Suspense>` boundary.
+A prefetch of real-time content would be stale by the click, so there is nothing to preserve. Remove `prefetch={true}` and let the content stream in from behind its `<Suspense>` boundary.
 
 ## Adopting incrementally
 
@@ -294,7 +292,7 @@ While the flag is off, `prefetch={true}` still performs the legacy full prefetch
 
 Each card is clickable and opens a page with patterns, code samples, and trade-offs.
 
-1. Choose the UI to preserve for one destination and apply the matching [preservation pattern](#auditing-link-prefetchtrue-calls). Add `export const prefetch = 'partial'` to the page or layout, then rerun its `instant()` test if you added one. The route export clears the insight for every link pointing to that route:
+1. Audit one destination, preserving what its prefetch delivered and updating its links' `prefetch={true}` per the [table above](#auditing-link-prefetchtrue-calls). Then adopt it by adding `export const prefetch = 'partial'` to its page or layout, which clears the insight for every link pointing at the route:
 
    ```tsx filename="app/dashboard/page.tsx" switcher
    // Before
@@ -340,8 +338,6 @@ npx @next/codemod@canary remove-partial-prefetch ./app
 > **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
 
 The codemod removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
-
-If you added `instant()` tests, run them after enabling the global flag and removing the per-route exports.
 
 ## Auditing routes for URL data
 
