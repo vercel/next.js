@@ -3,6 +3,7 @@ pub mod async_module;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
+pub mod cross_module_constants;
 pub mod dynamic_expression;
 pub mod esm;
 pub mod exports;
@@ -15,11 +16,11 @@ pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
+pub mod removal;
 pub mod require_context;
 pub mod service_worker;
 pub mod type_issue;
 pub mod typescript;
-pub mod unreachable;
 pub mod util;
 pub mod worker;
 
@@ -35,11 +36,11 @@ use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
-use either::Either;
 use indexmap::map::Entry;
 use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
+use removal::RemovalCodeGen;
 use rustc_hash::{FxHashMap, FxHashSet};
 use service_worker::ServiceWorkerAssetReference;
 use swc_core::{
@@ -52,7 +53,6 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        utils::IsDirective,
         visit::{
             AstParentKind,
             fields::{
@@ -92,16 +92,15 @@ use turbopack_core::{
 };
 use turbopack_resolve::{ecmascript::cjs_resolve_source, typescript::tsconfig};
 use turbopack_swc_utils::emitter::IssueEmitter;
-use unreachable::Unreachable;
 use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplacementCodeGen};
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    ModuleTypeResult, TreeShakingMode, TypeofWindow,
+    ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
-        JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
+        JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
         WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
@@ -111,8 +110,11 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
+    chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
+    directive::parse_module_turbopack_directives,
     errors,
+    module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
         amd::{
@@ -123,6 +125,9 @@ use crate::{
         cjs::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
             CjsRequireResolveAssetReference,
+        },
+        cross_module_constants::{
+            is_import_name_eligible_for_exports, module_value_to_constants_module,
         },
         dynamic_expression::DynamicExpression,
         esm::{
@@ -148,7 +153,6 @@ use crate::{
         TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
-    tree_shake::{part_of_module, split_module},
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
 };
 
@@ -166,6 +170,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    /// Present when the module is a statically-analyzable CommonJS module;
+    /// carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 #[turbo_tasks::value_impl]
@@ -223,6 +230,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     side_effects: ModuleSideEffects,
+    cjs_static_exports: Option<CjsStaticExports>,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -242,6 +250,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             side_effects: ModuleSideEffects::SideEffectful,
+            cjs_static_exports: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -428,6 +437,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
+                cjs_static_exports: self.cjs_static_exports,
             },
         ))
     }
@@ -451,14 +461,19 @@ struct AnalysisState<'a> {
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, BumpVec<'a, JsValue<'a>>>>,
+    /// A cache for the linked value of variables, to prevent exponential retraversals.
     var_cache: Mutex<FxHashMap<Id, JsValue<'a>>>,
+    /// A cache for the linked value of imported constants.
+    constants_cache: Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
     // There can be many references to __webpack_exports_info__, but only the first should hoist
     // the object allocation.
     first_webpack_exports_info: bool,
-    tree_shaking_mode: Option<TreeShakingMode>,
+    module_fragments_enabled: bool,
+    cjs_tree_shaking: bool,
+    cross_module_constants: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -501,6 +516,9 @@ impl<'a> AnalysisState<'a> {
                     &self.var_graph,
                     attributes,
                     self.allow_project_root_tracing,
+                    &self.constants_cache,
+                    self.import_references,
+                    self.cross_module_constants,
                 )
             },
             &self.fun_args_values,
@@ -658,32 +676,13 @@ async fn analyze_ecmascript_module_internal(
         analysis.add_esm_evaluation_reference(*i);
     }
 
-    let has_side_effect_free_directive = match program {
-        Program::Module(module) => Either::Left(
-            module
-                .body
-                .iter()
-                .take_while(|i| match i {
-                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                    ModuleItem::ModuleDecl(_) => false,
-                })
-                .filter_map(|i| i.as_stmt()),
-        ),
-        Program::Script(script) => Either::Right(
-            script
-                .body
-                .iter()
-                .take_while(|stmt| stmt.directive_continue()),
-        ),
-    }
-    .any(|f| match f {
-        Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-            Expr::Lit(Lit::Str(Str { value, .. })) => value == "use turbopack no side effects",
-            _ => false,
-        },
-        _ => false,
-    });
-    analysis.set_side_effects_mode(if has_side_effect_free_directive {
+    let directives = parse_module_turbopack_directives(program);
+    analysis.set_side_effects_mode(if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // the constant folding would not be safe. This makes a difference when doing `import *
+        // as foo from 'constants-module'`
         ModuleSideEffects::SideEffectFree
     } else if options.infer_module_side_effects {
         // Analyze the AST to infer side effects
@@ -700,6 +699,7 @@ async fn analyze_ecmascript_module_internal(
     });
 
     let is_esm = eval_context.is_esm(specified_type);
+
     let compile_time_info = compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
@@ -822,6 +822,9 @@ async fn analyze_ecmascript_module_internal(
                 eval_context,
                 analyze_mode,
                 supports_block_scoping,
+                specified_type,
+                options.cjs_tree_shaking,
+                options.cjs_scope_hoisting,
             ));
         });
         graph.unwrap()
@@ -831,6 +834,10 @@ async fn analyze_ecmascript_module_internal(
     async {
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
         let effects = take(&mut var_graph.effects);
+        // How each `require("…")` call's result is used, keyed by call position.
+        let require_binding_usage = take(&mut var_graph.require_usage);
+        // The module's static CommonJS exports, if any, for scope hoisting.
+        analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
@@ -851,9 +858,12 @@ async fn analyze_ecmascript_module_internal(
             allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
+            constants_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
-            tree_shaking_mode: options.tree_shaking_mode,
+            module_fragments_enabled: options.module_fragments_enabled,
+            cjs_tree_shaking: options.cjs_tree_shaking,
+            cross_module_constants: options.cross_module_constants,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -868,6 +878,10 @@ async fn analyze_ecmascript_module_internal(
         enum Action<'a> {
             Effect(Effect<'a>),
             LeaveScope(u32),
+        }
+
+        fn unreachable_comment() -> RcStr {
+            rcstr!("TURBOPACK unreachable")
         }
 
         // This is a stack of effects to process. We use a stack since during processing
@@ -901,9 +915,10 @@ async fn analyze_ecmascript_module_internal(
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
-                    analysis.add_code_gen(Unreachable::new(AstPathRange::StartAfter(
-                        start_ast_path.to_vec(),
-                    )));
+                    analysis.add_code_gen(RemovalCodeGen::new(
+                        unreachable_comment(),
+                        AstPathRange::StartAfter(start_ast_path.to_vec()),
+                    ));
                 }
                 Effect::Conditional {
                     mut condition,
@@ -922,7 +937,10 @@ async fn analyze_ecmascript_module_internal(
                     macro_rules! inactive {
                         ($block:ident) => {
                             if analyze_mode.is_code_gen() {
-                                analysis.add_code_gen(Unreachable::new($block.range.clone()));
+                                analysis.add_code_gen(RemovalCodeGen::new(
+                                    unreachable_comment(),
+                                    $block.range.clone(),
+                                ));
                             }
                         };
                     }
@@ -1079,6 +1097,11 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *func), eval_context.imports.get_attributes(span))
                         .await?;
 
+                    let call_usage = require_binding_usage
+                        .get(&span.lo)
+                        .cloned()
+                        .unwrap_or(ExportUsage::All);
+
                     handle_call(
                         &ast_path,
                         span,
@@ -1090,6 +1113,7 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
+                        call_usage,
                     )
                     .await?;
                 }
@@ -1188,6 +1212,9 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
+                        // A member call (`obj.method(...)`) result isn't narrowed
+                        // for require export usage.
+                        ExportUsage::All,
                     )
                     .await?;
                 }
@@ -1300,17 +1327,42 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     };
 
-                    if let Some("__turbopack_module_id__") = export.as_deref() {
+                    if options.cross_module_constants
+                        && (eval_context
+                            .imports
+                            .get_annotations(esm_reference_index)
+                            .and_then(|a| a.turbopack_constants())
+                            .unwrap_or_else(|| {
+                                export
+                                    .as_ref()
+                                    .is_some_and(|v| is_import_name_eligible_for_exports(v))
+                            }))
+                        && let JsValue::Constant(c) = analysis_state
+                            .link_value(
+                                eval_context.imports.get_import_for_idx(
+                                    arena.get_or_default(),
+                                    esm_reference_index,
+                                    export.clone().map(Into::into),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?
+                        && let Ok(c) = CompileTimeDefineValue::try_from(&c)
+                    // We can only inline values that are supported by CompileTimeDefineValue. So
+                    // currently not NaN and Infinity.
+                    {
+                        // This is a constant import, we can inline it directly without creating
+                        // a reference
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
+                    } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.to_vec().into(),
                         )
                     } else {
-                        if matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ReexportsOnly)
-                        ) {
+                        if options.follow_reexports && !options.module_fragments_enabled {
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
                             let original_reference = r.await?;
@@ -1370,11 +1422,32 @@ async fn analyze_ecmascript_module_internal(
                     );
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
+                        let mode = analysis_state
+                            .compile_time_info_ref
+                            .defines
+                            .read_process_env(rcstr!("NODE_ENV"))
+                            .owned()
+                            .await?
+                            .unwrap_or_else(|| rcstr!("development"));
+                        let is_ssr = matches!(
+                            *analysis_state
+                                .compile_time_info_ref
+                                .environment
+                                .rendering()
+                                .await?,
+                            Rendering::Server
+                        );
                         analysis.add_code_gen(ImportMetaBinding::new(
                             source.ident().await?.path.clone(),
                             analysis_state
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
+                            mode,
+                            analysis_state
+                                .compile_time_info_ref
+                                .import_meta_env_base_url
+                                .clone(),
+                            is_ssr,
                         ));
                     }
 
@@ -1394,10 +1467,7 @@ async fn analyze_ecmascript_module_internal(
     analysis
         .build(
             import_references,
-            matches!(
-                options.tree_shaking_mode,
-                Some(TreeShakingMode::ReexportsOnly)
-            ),
+            options.follow_reexports && !options.module_fragments_enabled,
         )
         .await
 }
@@ -1519,6 +1589,7 @@ async fn compile_time_info_for_module_options(
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
         hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
+        import_meta_env_base_url: compile_time_info.import_meta_env_base_url.clone(),
     }
     .cell())
 }
@@ -1534,6 +1605,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     in_try: bool,
     new: bool,
     attributes: &ImportAttributes,
+    call_usage: ExportUsage,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1607,6 +1679,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         collect_affecting_sources,
                         tracing_only,
                         attributes,
+                        call_usage.clone(),
                     )
                     .await?;
                 }
@@ -1631,6 +1704,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 collect_affecting_sources,
                 tracing_only,
                 attributes,
+                call_usage,
             )
             .await?;
         }
@@ -1817,6 +1891,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     collect_affecting_sources: bool,
     tracing_only: bool,
     attributes: &ImportAttributes,
+    call_usage: ExportUsage,
 ) -> Result<()>
 where
     'a: 'l,
@@ -2126,6 +2201,8 @@ where
                         error_mode,
                         attributes.chunking_type,
                         resolve_override,
+                        call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2178,6 +2255,8 @@ where
                         error_mode,
                         attributes.chunking_type,
                         None,
+                        call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2279,6 +2358,7 @@ where
                     options.import,
                     options.query,
                     options.base,
+                    options.case_sensitive,
                     Some(issue_source(source, span)),
                     error_mode,
                 ),
@@ -3371,7 +3451,7 @@ async fn handle_free_var_reference(
                         // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
-                        state.tree_shaking_mode,
+                        state.module_fragments_enabled,
                         None,
                     )
                     .await?
@@ -3654,6 +3734,9 @@ async fn value_visitor<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
+    import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
@@ -3665,6 +3748,9 @@ async fn value_visitor<'a>(
         var_graph,
         attributes,
         allow_project_root_tracing,
+        constants_cache,
+        import_references,
+        cross_module_constants,
     )
     .await?;
     v.normalize_shallow(arena.get_or_default());
@@ -3681,6 +3767,9 @@ async fn value_visitor_inner<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
+    import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
@@ -3845,16 +3934,50 @@ async fn value_visitor_inner<'a>(
             "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
             _ => return Ok((v, Modified::No)),
         },
-        JsValue::Module(ref mv) => compile_time_info
-            .environment()
-            .node_externals()
-            .await?
-            // TODO check externals
-            .then(|| module_value_to_well_known_object(mv))
-            .flatten()
-            .unwrap_or_else(|| {
+
+        JsValue::Module(ref mv) => {
+            if *compile_time_info.environment().node_externals().await?
+                && let Some(external) = module_value_to_well_known_object(mv)
+            {
+                external
+            } else if cross_module_constants
+                && (mv
+                    .annotations
+                    .as_ref()
+                    .and_then(|a| a.turbopack_constants())
+                    .unwrap_or(mv.analyze_for_constants))
+                && let cache = {
+                    // Without this inline block, constants_cache.lock() is held across the await
+                    // point below.
+                    let constants_cache = constants_cache.lock();
+                    constants_cache
+                        .get(mv)
+                        .as_ref()
+                        .map(|v| v.as_ref().map(|v| v.clone_in(arena.get_or_default())))
+                }
+                && let cache_entry = (if let Some(cache_entry) = cache {
+                    cache_entry
+                } else {
+                    let module = module_value_to_constants_module(
+                        arena,
+                        mv,
+                        compile_time_info,
+                        import_references,
+                    )
+                    .await?;
+                    constants_cache.lock().insert(
+                        mv.clone(),
+                        module.as_ref().map(|v| v.clone_in(arena.get_or_default())),
+                    );
+                    module
+                })
+                && let Some(module) = cache_entry
+            {
+                module
+            } else {
                 v.into_unknown(true, rcstr!("cross module analyzing is not yet supported"))
-            }),
+            }
+        }
         JsValue::Argument(..) => v.into_unknown(
             true,
             rcstr!("cross function analyzing is not yet supported"),

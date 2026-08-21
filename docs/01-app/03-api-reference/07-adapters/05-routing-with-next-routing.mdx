@@ -5,9 +5,6 @@ description: Use `@next/routing` to apply Next.js route matching behavior in ada
 
 You can use [`@next/routing`](https://www.npmjs.com/package/@next/routing) to reproduce Next.js route matching behavior with data from `onBuildComplete`.
 
-> [!NOTE]
-> `@next/routing` is experimental and will stabilize with the adapters API.
-
 ```typescript
 import { resolveRoutes } from '@next/routing'
 

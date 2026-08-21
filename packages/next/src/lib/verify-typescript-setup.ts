@@ -64,6 +64,7 @@ export async function verifyAndRunTypeScript({
   pagesDir,
   debugBuildPaths,
   useTypeScriptCli = false,
+  onFirstCliOutput,
 }: {
   dir: string
   distDir: string
@@ -79,6 +80,11 @@ export async function verifyAndRunTypeScript({
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
   useTypeScriptCli?: boolean
+  /**
+   * Called once when the CLI checker first produces output, so the caller can
+   * stop the build spinner. Only used on the in-process CLI path.
+   */
+  onFirstCliOutput?: () => void
 }): Promise<{
   result?: TypeCheckResult
   version: string | null
@@ -258,6 +264,7 @@ export async function verifyAndRunTypeScript({
           tsConfigPath: resolvedTsConfigPath,
           tscPath: typeScriptPath,
           cacheDir,
+          onFirstOutput: onFirstCliOutput,
         })
       } else {
         const { runTypeCheck } =

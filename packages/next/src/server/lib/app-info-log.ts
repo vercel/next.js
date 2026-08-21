@@ -4,7 +4,7 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
-import { detectAgent } from '../../telemetry/detect-agent'
+import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
   hasCurrentAgentRules,
@@ -68,16 +68,14 @@ export function logExperimentalInfo({
 }: {
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
-  partialPrefetching?: boolean | 'unstable_eager'
+  partialPrefetching?: boolean
 }) {
   if (cacheComponents) {
     Log.bootstrap(`- Cache Components enabled`)
   }
 
   if (partialPrefetching) {
-    const mode =
-      partialPrefetching === 'unstable_eager' ? ' (unstable_eager)' : ''
-    Log.bootstrap(`- Partial Prefetching enabled${mode}`)
+    Log.bootstrap(`- Partial Prefetching enabled`)
   }
 
   if (experimentalFeatures?.length) {
@@ -126,8 +124,10 @@ export function logExperimentalInfo({
  * Callers gate this on `config.agentRules !== false` — opt-out is
  * declarative in next.config, not inside this function.
  */
-export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
-  if (detectAgent() === null) return null
+export async function ensureAgentRulesForDev(
+  dir: string
+): Promise<AgentFilesResult | null> {
+  if ((await getAgentName()) === null) return null
   if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)

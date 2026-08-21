@@ -6,17 +6,26 @@ export default function RuntimePrefetchSearchParamsIndexPage() {
       <h1>Runtime Prefetch - SearchParams Not Accessed</h1>
       <ul>
         <li>
-          <LinkAccordion href="/runtime-prefetch-search-params/target-page?q=1">
+          <LinkAccordion
+            href="/runtime-prefetch-search-params/target-page?q=1"
+            prefetch
+          >
             Target q=1
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch-search-params/target-page?q=2">
+          <LinkAccordion
+            href="/runtime-prefetch-search-params/target-page?q=2"
+            prefetch
+          >
             Target q=2
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch-search-params/target-page?q=3">
+          <LinkAccordion
+            href="/runtime-prefetch-search-params/target-page?q=3"
+            prefetch
+          >
             Target q=3
           </LinkAccordion>
         </li>

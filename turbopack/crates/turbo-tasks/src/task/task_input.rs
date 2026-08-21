@@ -90,7 +90,12 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 /// Structs or enums can be made into task inputs by deriving `TaskInput`:
 ///
 /// ```rust
+/// # use turbo_tasks::{
+/// #     macro_helpers::bincode::{Decode, Encode},
+/// #     trace::TraceRawVcs,
+/// # };
 /// #[turbo_tasks::task_input]
+/// #[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 /// struct MyStruct {
 ///     // Fields go here...
 /// }

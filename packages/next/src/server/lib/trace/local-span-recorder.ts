@@ -7,11 +7,13 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
 import {
   isLocalSpanRecordingEnabled,
+  isRequestInsightsEnabled,
   recordSpan,
   type SpanStoreAttributes,
   type SpanStoreEvent,
   type SpanStoreLink,
 } from './span-store'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -19,6 +21,29 @@ const TRACE_ID_HEX_LENGTH = 32
 const SPAN_ID_HEX_LENGTH = 16
 
 type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
+
+type LocalSpanOptions = {
+  name: string
+  attributes?: LocalSpanAttributes
+  links?: SpanOptions['links']
+  startTime?: SpanOptions['startTime']
+  traceId?: string
+  spanId?: string
+  parentSpanId?: string
+  delegateSpan?: Span
+  isolateOpenTelemetry?: boolean
+}
+
+type TraceLocalSpanOptions = Omit<
+  LocalSpanOptions,
+  | 'traceId'
+  | 'spanId'
+  | 'parentSpanId'
+  | 'delegateSpan'
+  | 'isolateOpenTelemetry'
+> & {
+  parentSpan?: Span | null
+}
 
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
@@ -34,28 +59,24 @@ export function createLocalSpan({
   name,
   attributes,
   links,
+  startTime,
   traceId,
   spanId,
   parentSpanId,
   delegateSpan,
-}: {
-  name: string
-  attributes?: LocalSpanAttributes
-  links?: SpanOptions['links']
-  traceId?: string
-  spanId?: string
-  parentSpanId?: string
-  delegateSpan?: Span
-}): Span {
+  isolateOpenTelemetry,
+}: LocalSpanOptions): Span {
   return new LocalRecordingSpan({
     name,
     attributes,
     links,
+    startTime,
     delegateSpan,
     traceId: traceId ?? getLocalTraceId(),
     spanId: spanId ?? getLocalSpanId(),
     parentSpanId,
     requestIdentity: getCurrentRequestIdentity(),
+    isolateOpenTelemetry: isolateOpenTelemetry ?? false,
   })
 }
 
@@ -67,15 +88,53 @@ export function isLocalRecordingSpan(span: Span): boolean {
   return span instanceof LocalRecordingSpan
 }
 
+export function isOpenTelemetryIsolatedSpan(span: Span): boolean {
+  return span instanceof LocalRecordingSpan && span.isOpenTelemetryIsolated()
+}
+
 export function withLocalSpan<T>(span: Span, fn: () => T): T {
   return getLocalSpanAsyncStorage().run(span, fn)
+}
+
+/**
+ * Records an async operation without replacing or exporting through the active
+ * OpenTelemetry context. Nested Next.js spans remain in the local trace.
+ */
+export async function traceLocalSpan<T>(
+  { parentSpan, ...options }: TraceLocalSpanOptions,
+  fn: () => Promise<T>
+): Promise<T> {
+  const resolvedParentSpan =
+    parentSpan === undefined ? getActiveLocalSpan() : parentSpan
+  const parentSpanContext = resolvedParentSpan?.spanContext()
+  const span = createLocalSpan({
+    ...options,
+    traceId: parentSpanContext?.traceId,
+    parentSpanId: parentSpanContext?.spanId,
+    isolateOpenTelemetry: true,
+  })
+
+  return withLocalSpan(span, async () => {
+    try {
+      return await fn()
+    } catch (err) {
+      span.recordException(err as Error)
+      span.setStatus({ code: SpanStatusCode.ERROR })
+      throw err
+    } finally {
+      span.end()
+    }
+  })
 }
 
 export type LocalSpanRecorder = {
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
+  isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
+  isRequestInsightsEnabled: typeof isRequestInsightsEnabled
+  traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
 
@@ -89,7 +148,10 @@ export function registerLocalSpanRecorder(): void {
     createLocalSpan,
     getActiveLocalSpan,
     isLocalRecordingSpan,
+    isOpenTelemetryIsolatedSpan,
     isLocalSpanRecordingEnabled,
+    isRequestInsightsEnabled,
+    traceLocalSpan,
     withLocalSpan,
   }
 }
@@ -106,6 +168,7 @@ function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
 
 type RequestIdentity = {
   requestId?: string
+  requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
   route?: string
   url?: string
@@ -117,12 +180,12 @@ class LocalRecordingSpan implements Span {
   private attributes: SpanStoreAttributes
   private events: SpanStoreEvent[]
   private readonly spanContextValue: ReturnType<Span['spanContext']>
+  private readonly openTelemetryIsolated: boolean
   private delegateSpan?: Span
   private links?: SpanStoreLink[]
   private readonly parentSpanId?: string
   private requestIdentity: RequestIdentity
   private readonly startTime: number
-  private readonly startTimeMs: number
   private statusCode: number | undefined
   private statusMessage: string | undefined
   private exception:
@@ -137,25 +200,30 @@ class LocalRecordingSpan implements Span {
     name,
     attributes,
     links,
+    startTime,
     delegateSpan,
     traceId,
     spanId,
     parentSpanId,
     requestIdentity,
+    isolateOpenTelemetry,
   }: {
     name: string
     attributes?: LocalSpanAttributes
     links?: SpanOptions['links']
+    startTime?: SpanOptions['startTime']
     delegateSpan?: Span
     traceId: string
     spanId: string
     parentSpanId?: string
     requestIdentity: RequestIdentity
+    isolateOpenTelemetry: boolean
   }) {
     this.name = name
     this.attributes = cleanSpanStoreAttributes(attributes)
     this.events = []
     this.delegateSpan = delegateSpan
+    this.openTelemetryIsolated = isolateOpenTelemetry
     this.spanContextValue = delegateSpan?.spanContext() ?? {
       traceId,
       spanId,
@@ -164,8 +232,7 @@ class LocalRecordingSpan implements Span {
     this.links = getSpanStoreLinks(links)
     this.parentSpanId = parentSpanId
     this.requestIdentity = requestIdentity
-    this.startTime = Date.now()
-    this.startTimeMs = getCurrentTimeMs()
+    this.startTime = getTimestamp(startTime)
     this.statusCode = undefined
     this.statusMessage = undefined
     this.exception = undefined
@@ -174,6 +241,10 @@ class LocalRecordingSpan implements Span {
 
   spanContext(): ReturnType<Span['spanContext']> {
     return this.spanContextValue
+  }
+
+  isOpenTelemetryIsolated(): boolean {
+    return this.openTelemetryIsolated
   }
 
   setAttribute(key: string, value: AttributeValue): this {
@@ -212,9 +283,13 @@ class LocalRecordingSpan implements Span {
       return this
     }
 
+    const eventTime =
+      startTime === undefined && isTimestampInput(attributesOrStartTime)
+        ? attributesOrStartTime
+        : startTime
     this.events.push({
       name,
-      timestamp: Date.now(),
+      timestamp: getTimestamp(eventTime),
       attributes: isSpanStoreAttributes(attributesOrStartTime)
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
@@ -254,7 +329,7 @@ class LocalRecordingSpan implements Span {
       this.delegateSpan?.end(endTime)
     } finally {
       try {
-        this.record()
+        this.record(endTime)
       } finally {
         this.releaseReferences()
       }
@@ -276,25 +351,26 @@ class LocalRecordingSpan implements Span {
     this.exception = getSpanStoreException(exception)
     this.events.push({
       name: 'exception',
-      timestamp: Date.now(),
+      timestamp: getTimestamp(time),
       attributes: getSpanStoreExceptionAttributes(this.exception),
     })
     this.delegateSpan?.recordException(exception, time)
   }
 
-  private record(): void {
+  private record(endTime: Parameters<Span['end']>[0]): void {
     const recordAttributes =
       Object.keys(this.attributes).length > 0 ? this.attributes : undefined
 
     recordSpan({
       name: this.name,
       startTime: this.startTime,
-      durationMs: getCurrentTimeMs() - this.startTimeMs,
+      durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
       status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
       traceId: this.spanContextValue.traceId,
       spanId: this.spanContextValue.spanId,
       parentSpanId: this.parentSpanId,
       requestId: this.requestIdentity.requestId,
+      requestInsightKind: this.requestIdentity.requestInsightKind,
       htmlRequestId: this.requestIdentity.htmlRequestId,
       route:
         getStringAttribute(recordAttributes, 'next.route') ??
@@ -374,8 +450,22 @@ function cleanSpanStoreAttributes(
   return cleanedAttributes
 }
 
-function getCurrentTimeMs(): number {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now()
+function getTimestamp(time?: SpanOptions['startTime']): number {
+  if (time instanceof Date) {
+    return time.getTime()
+  }
+
+  if (Array.isArray(time)) {
+    return time[0] * 1000 + time[1] / 1_000_000
+  }
+
+  if (typeof time === 'number') {
+    return time < performance.timeOrigin / 2
+      ? performance.timeOrigin + time
+      : time
+  }
+
+  return performance.timeOrigin + performance.now()
 }
 
 function getStringAttribute(
@@ -394,6 +484,14 @@ function isSpanStoreAttributes(
     value !== null &&
     !Array.isArray(value) &&
     !(value instanceof Date)
+  )
+}
+
+function isTimestampInput(
+  value: Parameters<Span['addEvent']>[1]
+): value is SpanOptions['startTime'] {
+  return (
+    typeof value === 'number' || Array.isArray(value) || value instanceof Date
   )
 }
 
@@ -452,20 +550,25 @@ function getSpanStoreExceptionAttributes(
 
 function getCurrentRequestIdentity(): RequestIdentity {
   try {
+    const { getRequestInsightsIdentity } =
+      require('./request-insights-identity') as typeof import('./request-insights-identity')
     const { workAsyncStorage } =
       require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
     const { workUnitAsyncStorage } =
       require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
+    const requestInsightsIdentity = getRequestInsightsIdentity()
     const url =
       workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
     return {
-      requestId: workStore?.requestId,
-      htmlRequestId: workStore?.htmlRequestId,
+      requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      requestInsightKind: requestInsightsIdentity?.kind,
+      htmlRequestId:
+        requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
       route: workStore?.route,
-      url: url ? `${url.pathname}${url.search}` : undefined,
+      url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
     }
   } catch {
     return {}

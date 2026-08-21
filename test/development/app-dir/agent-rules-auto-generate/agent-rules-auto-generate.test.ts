@@ -48,7 +48,7 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
 describe('agent-rules auto-generate on next dev (no agent)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Explicitly clear every env var `detectAgent()` inspects so the
+    // Explicitly clear every env var the agent detector inspects so the
     // test doesn't inherit one from the host shell (e.g. running it
     // inside Claude Code would otherwise trigger generation).
     env: {

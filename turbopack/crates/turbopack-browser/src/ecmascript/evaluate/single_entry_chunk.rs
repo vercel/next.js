@@ -86,6 +86,15 @@ impl EcmascriptBrowserSingleEntryChunk {
         );
         code.push_code(&*evaluate_chunk.code().await?);
 
+        // Append the shared runtime chunk; without `shared_runtime` it's already inlined above.
+        if *this.chunking_context.shared_runtime().await? {
+            let runtime_chunk = this
+                .chunking_context
+                .generate_runtime_chunk(*this.module_graph)
+                .await?;
+            code.push_code(&*runtime_chunk.code().await?);
+        }
+
         Ok(Code::cell(code.build()))
     }
 

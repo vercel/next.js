@@ -129,6 +129,7 @@ pub struct ChunkGroupResult {
     pub referenced_assets: ResolvedVc<OutputAssets>,
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
+    pub chunk_group_bootstrap_params: Option<RcStr>,
 }
 
 impl ChunkGroupResult {
@@ -138,6 +139,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .cell()
     }
@@ -148,6 +150,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .resolved_cell()
     }
@@ -181,6 +184,7 @@ impl ChunkGroupResult {
                 .to_resolved()
                 .await?,
             availability_info: next.availability_info,
+            chunk_group_bootstrap_params: next.chunk_group_bootstrap_params.clone(),
         }
         .cell())
     }
@@ -255,6 +259,16 @@ pub struct ChunkingConfig {
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
 
+    /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
+    /// loaded on demand) so the runtime can fetch an individual component chunk instead of the
+    /// whole merged chunk when it is already cached.
+    pub generate_component_chunks: bool,
+
+    /// Minimum size for a component chunk to be emitted on its own when
+    /// `generate_component_chunks` is enabled. Component chunks smaller than this are folded
+    /// into a single remainder component chunk.
+    pub min_component_chunk_size: usize,
+
     /// Selects the algorithm used to compute
     /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
     /// type.
@@ -289,7 +303,12 @@ pub enum SourceMapSourceType {
 }
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+#[allow(clippy::type_complexity)]
+/// For each reference, the targets it resolves to that were dropped as unused. One reference can
+/// resolve to several targets, which are dropped independently.
+pub struct UnusedReferences(
+    FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, FxHashSet<ResolvedVc<Box<dyn Module>>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
