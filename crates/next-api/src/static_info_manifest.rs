@@ -95,10 +95,12 @@ impl Asset for StaticInfoManifestAsset {
         struct ManifestMiddleware {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub matchers: Option<Vec<ProxyMatcher>>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub regions: Option<String>,
         }
         impl ManifestMiddleware {
             fn is_empty(&self) -> bool {
-                self.matchers.is_none()
+                self.matchers.is_none() && self.regions.is_none()
             }
         }
 
@@ -123,11 +125,16 @@ impl Asset for StaticInfoManifestAsset {
             max_duration: Option<u32>,
         }
 
-        let preferred_region = config.preferred_region.as_ref().and_then(|v| match &v[..] {
+        let region = config.preferred_region.as_ref().and_then(|v| match &v[..] {
             [] => None,
             [region] => Some(region.to_string()),
             regions => Some(regions.join(",")),
         });
+        let (regions, preferred_region) = if self.ty.as_str() == "app" {
+            (None, region)
+        } else {
+            (region, None)
+        };
         let json = serde_json::to_string(&Manifest {
             ty: self.ty.as_str(),
             middleware: ManifestMiddleware {
@@ -136,6 +143,7 @@ impl Asset for StaticInfoManifestAsset {
                     has_i18n_locales,
                     base_path.as_deref(),
                 ),
+                regions,
             },
             runtime: config.runtime,
             generate_image_metadata: config.generate_image_metadata,
