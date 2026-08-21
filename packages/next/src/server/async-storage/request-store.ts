@@ -135,6 +135,12 @@ export type RequestStoreInputs = {
   onUpdateCookies: ((cookies: string[]) => void) | undefined
   url: { pathname: string; search?: string }
   rootParams: Params
+
+  /**
+   * The variants that this request resolved. This becomes `variants` on the
+   * store.
+   */
+  variants: Record<string, string> | null
   implicitTags: ImplicitTags
   resumeDataCache: ResumeDataCache | null
   previewProps: WrapperRenderOpts['previewProps']
@@ -187,6 +193,7 @@ export function createRequestStoreForRender(
   res: RequestContext['res'],
   url: RequestContext['url'],
   rootParams: Params,
+  variants: Record<string, string> | null,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   previewProps: WrapperRenderOpts['previewProps'],
@@ -209,6 +216,7 @@ export function createRequestStoreForRender(
         : undefined),
     url,
     rootParams,
+    variants,
     implicitTags,
     resumeDataCache,
     previewProps,
@@ -234,6 +242,16 @@ export function createRequestStoreForAPI(
     onUpdateCookies,
     url,
     rootParams: {},
+    // Two callers share this store, and no variants means something different
+    // to each. The edge adapter builds one for the proxy itself, which is the
+    // code that resolves variants, so none are resolved at that point.
+    //
+    // TODO(variants): the other caller is a route handler, which could read a
+    // variant. It has a route pattern the table keys on, the header reaches it
+    // like any other origin request, and the reader needs only a request store.
+    // Support means reading the header where the handler runs and passing the
+    // values through here, so this becomes a parameter rather than a constant.
+    variants: null,
     implicitTags,
     resumeDataCache: null,
     previewProps,
@@ -258,6 +276,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     onUpdateCookies,
     url,
     rootParams,
+    variants,
     implicitTags,
     resumeDataCache,
     previewProps,
@@ -284,6 +303,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
     rootParams,
+    variants,
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could
