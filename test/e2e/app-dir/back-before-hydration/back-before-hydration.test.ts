@@ -415,6 +415,26 @@ describe('back navigation before hydration after reload', () => {
       expect(await browser.eval('window.__reloaded')).not.toBe(true)
     })
 
+    it('adopts a null-state pushState to another pathname', async () => {
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
+
+      await page.evaluate(`window.history.pushState(null, '', '/shallow-path')`)
+      releaseScripts()
+
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe('/shallow-path')
+      })
+      expect(await browser.elementByCss('h1').text()).toBe('Post')
+      expect(await browser.eval('window.__stayed')).toBe(true)
+
+      await browser.elementById('to-home').click()
+      await waitForPage(browser, '#home')
+      await browser.back()
+      await waitForPage(browser, '#post')
+      expect(new URL(await browser.url()).pathname).toBe('/shallow-path')
+      expect(await browser.eval('window.__stayed')).toBe(true)
+    })
+
     // Writes that bypass history.pushState/replaceState (or come from another
     // framework) leave entries the router knows nothing about.
     it('adopts an unknown entry on the same route', async () => {
@@ -437,6 +457,25 @@ describe('back navigation before hydration after reload', () => {
       await waitForPage(browser, '#post')
       expect(await browser.eval('window.history.state.foreign')).toBe(true)
       expect(await browser.eval('window.__stayed')).toBe(true)
+    })
+
+    it('reloads when traversed onto an unknown entry for another route', async () => {
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
+
+      await page.evaluate(`
+        History.prototype.pushState.call(window.history, { foreign: true }, '', '${postPath}?foreign=1')
+        History.prototype.pushState.call(window.history, { foreign: true }, '', '${postPath}?foreign=2')
+        window.history.back()
+      `)
+      await retry(async () => {
+        expect(new URL(page.url()).search).toBe('?foreign=1')
+      })
+      releaseScripts()
+
+      await retry(async () => {
+        expect(await browser.eval('window.__stayed')).not.toBe(true)
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?foreign=1`)
+      })
     })
 
     it('keeps a history wrapper installed before hydration', async () => {

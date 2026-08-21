@@ -234,13 +234,9 @@ export function installHistoryHandlers(): () => void {
   window.addEventListener('popstate', onPopState)
 
   if (handoff !== null) {
-    // History changed before the router was listening. Render the current
-    // entry the way a popstate onto it would, except that an entry the router
-    // knows nothing about is adopted rather than reloaded, as the first
-    // history write would have done before the script existed.
-    renderHistoryEntry(
-      handoff.kind === 'unknown' ? { kind: 'activation' } : handoff
-    )
+    // History changed before the router was listening. Treat the current
+    // entry the same way a popstate onto it would be treated.
+    renderHistoryEntry(handoff)
   }
 
   return () => {
