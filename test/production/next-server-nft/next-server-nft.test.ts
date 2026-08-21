@@ -647,6 +647,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/picocolors.js",
            "/node_modules/next/dist/lib/scheduler.js",
            "/node_modules/next/dist/lib/semver-noop.js",
+           "/node_modules/next/dist/lib/wait.js",
            "/node_modules/next/dist/server/app-render/action-async-storage-instance.js",
            "/node_modules/next/dist/server/app-render/action-async-storage.external.js",
            "/node_modules/next/dist/server/app-render/after-task-async-storage-instance.js",
