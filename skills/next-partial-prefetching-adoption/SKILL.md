@@ -5,7 +5,7 @@ description: >
   insights it surfaces. Use when the user wants to enable or adopt
   Partial Prefetching, flip the `partialPrefetching` flag, opt routes
   in with `export const prefetch = 'partial'`, audit
-  `<Link prefetch={true}>` behavior, preserve existing prefetched UI
+  `Link prefetch={true}` behavior, preserve existing prefetched UI
   with `instant()` tests, or resolve the
   instant-link-prefetch-partial and instant-shell-url-data insights.
 ---
@@ -36,7 +36,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## background
 
-Adopting Partial Prefetching means every route still delivers what its links prefetched before, now split between the shared App Shell and any extra per-link data a link explicitly asks for. The [guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for what a prefetch contains and how to decide each case; this skill sequences that work against a running app.
+Adopting Partial Prefetching means every route preserves the prefetched UI that matters, now split between the shared App Shell and any extra per-link data a link explicitly asks for. The [guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for what a prefetch contains and how to decide each case; this skill sequences that work against a running app.
 
 The catch that decides most of the sweep: a default link warms only the shared App Shell. A route keyed by `params` or `searchParams` can prefetch more only after it has adopted Partial Prefetching and a specific link uses [`<Link prefetch={true}>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch); then Next.js resolves the URL data and any cached content behind it before the click (the guide's [URL data](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#url-data) section).
 
@@ -59,23 +59,32 @@ The work is identical either way — only the commit boundaries differ. Default 
 
 Enumerate explicit prefetch and manual prefetch sites across the whole source tree, not only `app/` — they often live in `src/components` or shared UI packages: `rg -n '\bprefetch\b|router\.prefetch' -g '*.tsx' -g '*.jsx' .`. Trace imports, wrappers, conditional props, and consumers. Include every audited navigation whose effective production Link value is `prefetch={true}`: explicit `true`, a bare `prefetch` prop, and expressions that resolve to `true`. Exclude the default value, `prefetch="auto"`, and `prefetch={false}` from the preservation suite because they do not request the legacy full prefetch. Audit existing [`router.prefetch()`](https://nextjs.org/docs/app/api-reference/functions/use-router#userouter) calls separately because they have no Link insight. For new manual prefetching, follow the [Prefetching guide](https://nextjs.org/docs/app/guides/prefetching#manual-prefetch). If no Link resolves to `prefetch={true}`, say so and move on to [step 2](#step-2-enable-the-flag).
 
-### Choose how to preserve the audited behavior
+### Choose what to preserve and how to verify it
 
-After the audit, check in once before editing destinations. Tell the user how many legacy full-prefetch navigations you found and offer this choice in product terms:
+An explicit `prefetch={true}` proves that someone chose the strongest legacy prefetch, not that every part of the completed page was intentional. Before writing tests or editing destinations, inspect each audited navigation and turn the audit into a decision queue. Keep a local server running and give the user one clickable table:
 
-> I recommend adding `instant()` tests before the migration. They record exactly what each legacy full prefetch makes available, turn any lost UI into a concrete work queue, and remain as regression coverage. This takes longer now because the tests need a reliable production build and test environment. I can instead document the current prefetched UI carefully, adopt it now, and add the tests later. Which do you prefer?
+| Link to try | Destination | Legacy prefetched UI | Proposed target | Content that can stream | Decision |
+| ----------- | ----------- | -------------------- | --------------- | ----------------------- | -------- |
 
-If the user asks you to decide or is unavailable, default to **test-first preservation**. If they choose the manual path, record each source URL, exact Link, destination, and meaningful prefetched UI before changing it; use that inventory with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore parity.”
+Link the source page at the current localhost origin so the user can click the real audited Link; preserve query strings and name the Link when a source page has more than one. Derive the proposal from the Link's purpose, the first viewport, and the destination code. Prefer the smallest coherent target that makes the navigation feel complete: usually the primary heading and content the Link promises. Let secondary panels, below-the-fold content, replies, and freshness-sensitive data stream unless the Link specifically promises them. Propose the full meaningful baseline only when the page is small and coherent or the product intent clearly requires it.
+
+The decision for each row is one of: preserve the full meaningful baseline, preserve a named focused part, or use only the App Shell and remove the explicit full prefetch. Treat every unresolved Decision cell as a todo and walk the table with the user in one conversation, grouping equivalent rows when useful. Explain that preserving more dynamic UI can require more caching and refactoring, while leaving it dynamic preserves request-time freshness. If the user is unavailable or can't judge the pages, use your proposed focused target and record the assumption in the table. Do not treat incidental metadata, invisible markup, or background work as target UI.
+
+After the target UI is settled, offer the verification choice in product terms:
+
+> I recommend adding `instant()` tests before the migration. They prove that the UI you chose remains available after the prefetch changes and stay as regression coverage. This takes longer now because the tests need a reliable production build and test environment. I can instead document the target UI carefully, adopt it now, and add the tests later. Which do you prefer?
+
+If the user asks you to decide or is unavailable, default to **test-first preservation**. If they choose the manual path, keep the table as the before/target inventory, use it with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore the target.”
 
 For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui): write the complete flag-off suite first and make its baseline green before adoption.
 
-If a reliable production run is still unavailable after a concrete setup attempt, name the blocker and ask one follow-up: pause to repair or hand off the test rig (recommended), or proceed from the documented manual baseline and add tests later. Never silently downgrade from test-first. With no answer, preserve first: do not enable the global flag; finish and hand off the audit, expected UI, and runner blocker.
+If a reliable production run is still unavailable after a concrete setup attempt, name the blocker and ask one follow-up: pause to repair or hand off the test rig (recommended), or proceed from the documented manual target and add tests later. Never silently downgrade from test-first. With no answer, preserve first: do not enable the global flag; finish and hand off the audit, target UI, and runner blocker.
 
 This workflow is specific to a clicked `<Link>`. A direct call such as `router.prefetch('/dashboard')` is a manual prefetch, not a Link prefetch; keep it in the source audit and verify it separately in step 4.
 
 Then:
 
-1. **Lock the complete baseline.** For test-first preservation, a successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the recorded UI inventory before editing any destination.
+1. **Lock the chosen target.** For test-first preservation, assert only the selected UI, confirm every test passes against the legacy full prefetch, and keep the complete observed baseline in the audit table. A successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the before/target inventory before editing any destination.
 2. **Verify the audit in `next dev`.** Click every audited Link. The insight fires at navigation time, not when the link prefetches, and only for the Link shapes it covers. Audit manual `router.prefetch()` calls from source and verify them separately in production ([step 4](#step-4-verify)).
 3. **Adopt every audited destination.** Add the temporary route config with a link to the migration guide:
 
@@ -92,9 +101,9 @@ Then:
    export const prefetch = 'partial'
    ```
 
-   Use that exact prefix so step 5 can grep them back. Do not select new target UI now; restore only the locked legacy target.
+   Use that exact prefix so step 5 can grep them back. Do not select new target UI now; restore only the target chosen from the legacy behavior.
 
-4. **Restore the baseline.** For test-first preservation, rerun the unchanged tests and treat failures as the work queue until every test passes. For manual preservation, compare the adopted production navigation with the recorded UI and document anything not yet restored. Apply the guide's matching preservation pattern, and ask the user before making an unclear freshness or caching decision. New URL-data candidates marked in the previous item wait for step 5.
+4. **Restore the target.** For test-first preservation, rerun the unchanged tests and treat failures as the work queue until every test passes. For manual preservation, compare the adopted production navigation with the selected target and document anything not yet restored. Apply the guide's matching preservation pattern, and ask the user before making an unclear freshness or caching decision. New URL-data candidates marked in the previous item wait for step 5.
 
 > **If you add `use cache`, verify under `next start`, not only the build.** A `cookies()`/`headers()`/session read anywhere in the cached call tree throws at request time while `next build` passes clean. See [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache).
 
