@@ -61,12 +61,12 @@ Enumerate explicit prefetch and manual prefetch sites across the whole source tr
 
 ### Choose what to preserve and how to verify it
 
-Before writing tests or editing destinations, follow the guide's [audit guidance](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) to propose the UI worth preserving. Keep a local server running and give the user one concise, clickable table:
+Before writing tests or editing destinations, follow the guide's [audit guidance](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) to propose the UI worth preserving. Present the result in one concise table:
 
-| Link to try | Proposed result |
-| ----------- | --------------- |
+| Navigation | Proposed result |
+| ---------- | --------------- |
 
-Link to the source page at the current localhost origin, preserve query strings, and name the audited Link when a page has more than one. In the proposed result, say what will be ready on navigation and what will stream. Group equivalent links. Keep the detailed legacy baseline in working notes instead of presenting it as a wall of text. Ask whether the user wants to change any proposal. If they are unavailable, apply the guide's default and record the assumption.
+Group equivalent navigations. Summarize what will be ready immediately and what will stream. When a proposal is ambiguous, show the navigation in the running app and ask the user to confirm it. If they are unavailable, follow the guide and record the assumption.
 
 After the target UI is settled, offer the verification choice in product terms:
 
