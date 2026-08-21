@@ -1,6 +1,25 @@
 import type { AppHistoryState } from './router-reducer/router-reducer-types'
 import { restore, traverse } from './navigator'
 
+// The inline script in server/app-render/history-bootstrap.ts runs with the
+// shell, long before the Router effect below installs the history handlers.
+// It records whether history changed in between.
+type EarlyHistory = {
+  // The URL the document was activated on.
+  href: string
+  // Whether any pushState, replaceState or popstate happened since.
+  changed: boolean
+}
+
+// The script's pushState/replaceState wrappers keep the method they replaced.
+type EarlyHistoryWrapper<T> = T & { __original?: T }
+
+declare global {
+  interface Window {
+    __next_h?: EarlyHistory
+  }
+}
+
 // A Back/Forward press before the router's popstate listener exists moves the
 // browser to a different history entry than the one the document was activated
 // on, and the resulting popstate fires with nobody listening. The activation
@@ -72,6 +91,20 @@ function copyNextJsInternalHistoryState(data: any) {
 }
 
 export function installHistoryHandlers(): () => void {
+  // Remove the bootstrap script's wrappers, unless application code wrapped
+  // them in turn.
+  const pushStateWrapper: EarlyHistoryWrapper<History['pushState']> =
+    window.history.pushState
+  if (pushStateWrapper.__original !== undefined) {
+    window.history.pushState = pushStateWrapper.__original
+  }
+  const replaceStateWrapper: EarlyHistoryWrapper<History['replaceState']> =
+    window.history.replaceState
+  if (replaceStateWrapper.__original !== undefined) {
+    window.history.replaceState = replaceStateWrapper.__original
+  }
+  delete window.__next_h
+
   const originalPushState = window.history.pushState.bind(window.history)
   const originalReplaceState = window.history.replaceState.bind(window.history)
 

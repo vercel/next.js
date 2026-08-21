@@ -69,6 +69,7 @@ import {
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
+import { prependHistoryBootstrap } from './history-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -3625,6 +3626,8 @@ async function renderToStream(
       (await getInstantTestBootstrapScriptContent())
   }
 
+  bootstrapScriptContent = prependHistoryBootstrap(bootstrapScriptContent)
+
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
   // during stream consumption, after a typical wrapped function would have ended the span.
@@ -4411,14 +4414,16 @@ async function renderToStream(
       let errorBootstrapScriptContent: string | undefined
       if (process.env.__NEXT_DEV_SERVER) {
         errorBootstrapScriptContent = bootstrapScriptContent
-      } else if (
-        buildManifest.pagesChunkGroupBootstrapParams &&
-        buildManifest.chunkLoadingGlobal
-      ) {
-        errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+      } else {
+        errorBootstrapScriptContent = prependHistoryBootstrap(
+          buildManifest.pagesChunkGroupBootstrapParams &&
+            buildManifest.chunkLoadingGlobal
+            ? getTurbopackChunkGroupBootstrap(
+                buildManifest.pagesChunkGroupBootstrapParams,
+                buildManifest.chunkLoadingGlobal,
+                [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+              )
+            : undefined
         )
       }
 
@@ -8588,6 +8593,8 @@ async function prerenderToStream(
       bootstrapScriptContent
   }
 
+  bootstrapScriptContent = prependHistoryBootstrap(bootstrapScriptContent)
+
   const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
@@ -9731,15 +9738,16 @@ async function prerenderToStream(
       UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
     )
 
-    const errorBootstrapScriptContent =
+    const errorBootstrapScriptContent = prependHistoryBootstrap(
       buildManifest.pagesChunkGroupBootstrapParams &&
-      buildManifest.chunkLoadingGlobal
+        buildManifest.chunkLoadingGlobal
         ? getTurbopackChunkGroupBootstrap(
             buildManifest.pagesChunkGroupBootstrapParams,
             buildManifest.chunkLoadingGlobal,
             [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
           )
         : undefined
+    )
 
     if (cacheComponents) {
       const originalFlightPrerenderResult = reactServerPrerenderResult

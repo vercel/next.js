@@ -342,6 +342,38 @@ describe('back navigation before hydration after reload', () => {
       await waitForPage(browser, '#home')
     })
 
+    it('keeps a history wrapper installed before hydration', async () => {
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
+
+      await page.evaluate(() => {
+        const replaceState = window.history.replaceState
+        const testWindow = window as typeof window & {
+          __replaceStateCalls: number
+        }
+        testWindow.__replaceStateCalls = 0
+        window.history.replaceState = function (...args) {
+          testWindow.__replaceStateCalls++
+          return replaceState.apply(this, args)
+        }
+      })
+      releaseScripts()
+
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(postPath)
+      })
+      const callsBeforeWrite = await browser.eval('window.__replaceStateCalls')
+      await browser.eval(
+        `window.history.replaceState({ thirdParty: true }, '', '${postPath}?wrapped=1')`
+      )
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(`${postPath}?wrapped=1`)
+        expect(
+          await browser.eval('window.__replaceStateCalls')
+        ).toBeGreaterThan(callsBeforeWrite)
+      })
+      expect(await browser.eval('window.history.state.thirdParty')).toBe(true)
+    })
+
     it('handles a traversal onto a third-party entry', async () => {
       const { browser, page, releaseScripts } = await loadStalled(postPath)
 
