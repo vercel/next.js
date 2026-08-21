@@ -156,3 +156,4 @@ export const unstable_cacheLife: typeof cacheLife
 export const unstable_cacheTag: typeof cacheTag
 
 export { unstable_navigation } from 'next/dist/server/request/cache-stages'
+export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
