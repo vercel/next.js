@@ -7,6 +7,7 @@ import type { CacheSignal } from './cache-signal'
 import type { ResponseVaryParamsAccumulator } from './vary-params'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+import type { ManifestNodeEntry } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -358,6 +359,18 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
   readonly outerOwnerStack: string | undefined
+
+  /**
+   * The client references accessed while serializing this cache entry, keyed by
+   * the lookup module path (as resolved by React's
+   * `resolveClientReferenceMetadata`). The value is the resolved client
+   * reference manifest entry (`{ id, name, chunks, async }`) that gets
+   * serialized into the RSC payload. These are folded into the cache key so an
+   * entry is only reused when the underlying client modules haven't changed
+   * (e.g. across deployments). Populated by the client reference manifest proxy
+   * (see `manifests-singleton.ts`).
+   */
+  accessedClientReferences: Map<string, ManifestNodeEntry>
 }
 
 export interface PublicUseCacheStore extends CommonUseCacheStore {
