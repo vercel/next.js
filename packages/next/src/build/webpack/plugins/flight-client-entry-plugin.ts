@@ -73,6 +73,7 @@ type Actions = {
         moduleId: string | number
         async: boolean
         codeHash?: string
+        runtimeEnvVars?: true | string[]
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry
