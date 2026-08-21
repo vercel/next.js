@@ -5,6 +5,7 @@ describe.each([
   { decoratorVersion: 'legacy', experimentalDecorators: false },
   { decoratorVersion: '2021-12', experimentalDecorators: false },
   { decoratorVersion: '2022-03', experimentalDecorators: false },
+  { decoratorVersion: '2023-11', experimentalDecorators: false },
   { decoratorVersion: '2022-03', experimentalDecorators: true },
 ] as const)(
   'decoratorVersion: $decoratorVersion, experimentalDecorators: $experimentalDecorators',

@@ -84,11 +84,11 @@ pub struct PresetEnvConfig {
 )]
 pub enum DecoratorsVersion {
     #[serde(rename = "2023-11")]
-    /// Enables the November 2023 stage 3 version of the decorators proposal.
+    /// Enables the November 2023 version of the decorators proposal.
     Ecma2023_11,
 
     #[serde(rename = "2022-03")]
-    /// Enables the March 2022 stage 3 version of the decorators proposal.
+    /// Enables the March 2022 version of the decorators proposal.
     Ecma2022_03,
 
     #[serde(rename = "2021-12")]
