@@ -9564,7 +9564,7 @@ async function prerenderToStream(
         allowEmptyStaticShell
       )
 
-      if (dynamicValidation.hasDynamicMetadata) {
+      if (dynamicValidation.hasDynamicMetadata && !preludeIsEmpty) {
         metadata.headers ??= {}
         metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
       }

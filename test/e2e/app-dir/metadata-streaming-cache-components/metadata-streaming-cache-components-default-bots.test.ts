@@ -180,6 +180,15 @@ function countSubstring(str: string, substr: string): number {
         await assertNoConsoleErrors(browser)
       })
 
+      it('should omit the header when dynamic metadata has an empty static shell', async () => {
+        const response = await next.fetch('/dynamic-metadata/empty')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+
+        const $ = cheerio.load(await response.text())
+        expect($('title').text()).toBe('dynamic-metadata - empty')
+        expect($('#empty-shell-content').text()).toBe('empty shell content')
+      })
+
       it('should insert static metadata in head when dynamic page content is under a layout Suspense boundary', async () => {
         const response = await next.fetch('/dynamic-page/partial')
         expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
