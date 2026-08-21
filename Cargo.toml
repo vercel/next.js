@@ -18,7 +18,6 @@ members = [
 ]
 
 exclude = [
-  "crates/next-error-code-swc-plugin",
   "rspack/crates/binding"
 ]
 

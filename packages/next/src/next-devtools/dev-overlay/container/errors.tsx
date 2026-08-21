@@ -679,7 +679,6 @@ export function Errors({
 
   const {
     isLoading,
-    errorCode,
     errorType,
     activeIdx,
     errorDetails,
@@ -890,7 +889,6 @@ export function Errors({
       }
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={errorMessage}
           headerChildren={
@@ -938,7 +936,6 @@ export function Errors({
     case 'client-hook':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1015,7 +1012,6 @@ export function Errors({
       }
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={errorMessage}
           headerChildren={
@@ -1092,7 +1088,6 @@ export function Errors({
 
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={errorMessage}
           headerChildren={
@@ -1133,7 +1128,6 @@ export function Errors({
     case 'sync-io':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1179,7 +1173,6 @@ export function Errors({
     case 'sync-io-client':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1225,7 +1218,6 @@ export function Errors({
     case 'unrendered-segment':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
           headerChildren={
@@ -1260,7 +1252,6 @@ export function Errors({
     case 'link-prefetch-partial':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage="Next.js encountered dynamic data during prefetching."
           headerChildren={
@@ -1303,7 +1294,6 @@ export function Errors({
 
   return (
     <ErrorOverlayLayout
-      errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
       renderTabBar={renderTabBar}
