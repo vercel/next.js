@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { waitFor, check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -651,7 +651,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {

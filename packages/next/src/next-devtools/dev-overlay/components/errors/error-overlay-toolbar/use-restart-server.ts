@@ -1,3 +1,4 @@
+import { wait } from '../../../../../lib/wait'
 import { useState } from 'react'
 
 export function useRestartServer() {
@@ -51,7 +52,7 @@ export function useRestartServer() {
       // Poll for server restart confirmation.
       for (let i = 0; i < 10; i++) {
         // generous 1 second delay for large apps.
-        await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 1_000))
+        await wait(1_000)
 
         try {
           const nextId = await fetch('/__nextjs_server_status')

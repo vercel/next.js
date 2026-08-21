@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { waitFor, check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -753,7 +753,7 @@ describe('pages/ error recovery', () => {
         }
       `
     )
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     if (isRspack) {
       await expect(browser).toDisplayRedbox(`
@@ -798,7 +798,7 @@ describe('pages/ error recovery', () => {
         export default function FunctionNamed() {`
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
@@ -864,7 +864,7 @@ describe('pages/ error recovery', () => {
     }
 
     // Test that runtime error does not take over:
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await waitFor(2000)
 
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
