@@ -135,7 +135,7 @@ impl GetContentSourceContent for IntrospectionSource {
         let has_children = !children.is_empty();
         let children = children
             .iter()
-            .map(|(name, child)| async move {
+            .map(async |(name, child)| {
                 let ty = child.ty().await;
                 let ty = str_or_err(&ty);
                 let title = child.title().await;

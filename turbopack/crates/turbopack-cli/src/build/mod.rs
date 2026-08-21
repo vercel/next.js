@@ -262,27 +262,20 @@ async fn build_internal(
         source_maps_type,
     );
 
-    let entry_requests = (*entry_requests
-        .into_iter()
-        .map(|r| async move {
-            Ok(match r {
-                EntryRequest::Relative(p) => Request::relative(
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                    false,
-                ),
-                EntryRequest::Module(m, p) => Request::module(
-                    m.clone().into(),
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                ),
-            })
-        })
-        .try_join()
-        .await?)
-        .to_vec();
+    let entry_requests = entry_requests.into_iter().map(|r| match r {
+        EntryRequest::Relative(p) => Request::relative(
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+            false,
+        ),
+        EntryRequest::Module(m, p) => Request::module(
+            m.clone().into(),
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+        ),
+    });
 
     let origin =
         PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
@@ -292,7 +285,6 @@ async fn build_internal(
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
-            .into_iter()
             .map(|request_vc| {
                 let origin_path = origin_path.clone();
                 async move {
@@ -524,7 +516,7 @@ async fn build_internal(
 
     all_assets
         .iter()
-        .map(|c| async move { c.content().write(c.path().owned().await?).await })
+        .map(async |c| c.content().write(c.path().owned().await?).await)
         .try_join()
         .await?;
 
