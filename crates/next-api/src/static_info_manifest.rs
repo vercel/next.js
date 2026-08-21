@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_core::{
-    next_manifests::ProxyMatcher, segment_config::NextSegmentConfig, util::NextRuntime,
+    next_config::NextConfig, next_manifests::ProxyMatcher, segment_config::NextSegmentConfig,
+    util::NextRuntime,
 };
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
@@ -15,16 +16,22 @@ use turbopack_core::{
 pub struct StaticInfoManifestAsset {
     output_path: FileSystemPath,
     config: ResolvedVc<NextSegmentConfig>,
+    next_config: ResolvedVc<NextConfig>,
     ty: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticInfoManifestAsset {
     #[turbo_tasks::function]
-    pub fn new_app(output_path: FileSystemPath, config: ResolvedVc<NextSegmentConfig>) -> Vc<Self> {
+    pub fn new_app(
+        output_path: FileSystemPath,
+        config: ResolvedVc<NextSegmentConfig>,
+        next_config: ResolvedVc<NextConfig>,
+    ) -> Vc<Self> {
         StaticInfoManifestAsset {
             output_path,
             config,
+            next_config,
             ty: rcstr!("app"),
         }
         .cell()
@@ -34,10 +41,12 @@ impl StaticInfoManifestAsset {
     pub fn new_pages(
         output_path: FileSystemPath,
         config: ResolvedVc<NextSegmentConfig>,
+        next_config: ResolvedVc<NextConfig>,
     ) -> Vc<Self> {
         StaticInfoManifestAsset {
             output_path,
             config,
+            next_config,
             ty: rcstr!("pages"),
         }
         .cell()
@@ -47,10 +56,12 @@ impl StaticInfoManifestAsset {
     pub fn new_middleware(
         output_path: FileSystemPath,
         config: ResolvedVc<NextSegmentConfig>,
+        next_config: ResolvedVc<NextConfig>,
     ) -> Vc<Self> {
         StaticInfoManifestAsset {
             output_path,
             config,
+            next_config,
             // This is what the JS implementation does
             ty: rcstr!("pages"),
         }
@@ -74,6 +85,10 @@ impl Asset for StaticInfoManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let config = self.config.await?;
+        let i18n = self.next_config.i18n().await?;
+        let has_i18n = i18n.is_some();
+        let has_i18n_locales = i18n.is_some();
+        let base_path = self.next_config.base_path().await?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -116,8 +131,11 @@ impl Asset for StaticInfoManifestAsset {
         let json = serde_json::to_string(&Manifest {
             ty: self.ty.as_str(),
             middleware: ManifestMiddleware {
-                // TODO
-                matchers: config.get_proxy_matchers(false, false, None),
+                matchers: config.get_proxy_matchers(
+                    has_i18n,
+                    has_i18n_locales,
+                    base_path.as_deref(),
+                ),
             },
             runtime: config.runtime,
             generate_image_metadata: config.generate_image_metadata,

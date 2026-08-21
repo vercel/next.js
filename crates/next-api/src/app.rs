@@ -2139,6 +2139,7 @@ impl Endpoint for AppEndpoint {
                             &self.app_endpoint_entry().await?.original_name
                         ))?,
                         *self.app_endpoint_entry().await?.config,
+                        project.next_config(),
                     )));
 
             let output_assets = if let Some(sri) =

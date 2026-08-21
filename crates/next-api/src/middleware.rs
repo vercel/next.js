@@ -176,6 +176,7 @@ impl MiddlewareEndpoint {
                 .await?
                 .join("server/middleware/static-info.json")?,
             *this.config,
+            next_config,
         )
         .to_resolved()
         .await?;

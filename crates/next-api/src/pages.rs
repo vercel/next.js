@@ -1698,6 +1698,7 @@ impl Endpoint for PageEndpoint {
                         get_asset_prefix_from_pathname(&this.pathname),
                     ))?,
                     parse_segment_config_from_source(self.source(), ParseSegmentMode::Base),
+                    project.next_config(),
                 ),
             ));
 
