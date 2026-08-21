@@ -313,9 +313,11 @@ impl Asset for ServerActionManifestAsset {
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
                     code_hash: data.as_ref().map(|d| d.ident_code_hash.as_str()),
-                    runtime_env_vars: data
+                    runtime_env_vars: data.as_ref().map(|d| d.runtime_env_vars.as_slice()),
+                    references_client_component: data
                         .as_ref()
-                        .map(|d| d.runtime_env_vars.as_slice()),
+                        .map(|d| d.references_client_component)
+                        .unwrap_or(false),
                 },
             );
 
@@ -370,6 +372,8 @@ struct ModulesInformation {
     pub ident_code_hash: RcStr,
     /// The merged and deduplicated list of all runtime env vars referenced in the subgraph
     pub runtime_env_vars: Vec<RcStr>,
+    /// Whether the subgraph imports any client components
+    pub references_client_component: bool,
 }
 
 #[turbo_tasks::function]
@@ -387,6 +391,8 @@ async fn compute_subtree_content_hash(
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
 
+        let mut references_client_component = false;
+
         let mut modules = FxIndexSet::default();
         module_graph_value.traverse_edges_dfs(
             std::iter::once(entry),
@@ -394,11 +400,13 @@ async fn compute_subtree_content_hash(
             /* visit_preorder */
             |_, target, _| {
                 if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
+                    references_client_component = true;
                     // Don't include the module at all. There is nothing that executes on the server
                     Ok(GraphTraversalAction::Exclude)
                 } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
                     .is_some()
                 {
+                    references_client_component = true;
                     // Include the client reference proxy module, but not the referenced client
                     // modules themselves.
                     modules.insert(target);
@@ -546,6 +554,7 @@ async fn compute_subtree_content_hash(
             ModulesInformation {
                 ident_code_hash: hash,
                 runtime_env_vars: runtime_env_vars.into_iter().cloned().collect(),
+                references_client_component,
             }
             .cell(),
         )

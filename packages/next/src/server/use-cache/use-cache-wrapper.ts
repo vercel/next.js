@@ -3647,7 +3647,9 @@ async function computeCacheKeyImplementationPart(
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&
     // if runtimeEnvVars===true, then always invalidate
-    Array.isArray(serverModuleMapEntry?.runtimeEnvVars)
+    Array.isArray(serverModuleMapEntry?.runtimeEnvVars) &&
+    // TODO replace this with more granular tracking: a list of all client components imported
+    serverModuleMapEntry?.referencesClientComponent !== true
   ) {
     let runtimeEnvVarsWithValues: string[] = await Promise.all(
       serverModuleMapEntry?.runtimeEnvVars?.map(async (v) => {

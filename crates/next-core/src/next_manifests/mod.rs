@@ -459,17 +459,17 @@ pub struct ActionManifestEntry<'a> {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntry<'a> {
-    #[serde(rename = "moduleId")]
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    #[serde(rename = "codeHash")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_hash: Option<&'a str>,
-    #[serde(rename = "runtimeEnvVars")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_env_vars: Option<&'a [RcStr]>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub references_client_component: bool,
 }
 
 #[derive(Serialize, Debug, Clone)]

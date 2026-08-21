@@ -74,6 +74,7 @@ type Actions = {
         async: boolean
         codeHash?: string
         runtimeEnvVars?: true | string[]
+        referencesClientComponent?: boolean
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

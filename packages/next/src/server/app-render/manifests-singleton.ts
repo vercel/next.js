@@ -17,6 +17,7 @@ export interface ServerModuleMap {
     readonly async?: boolean
     readonly codeHash?: string
     readonly runtimeEnvVars?: true | string[]
+    readonly referencesClientComponent?: boolean
   }
 }
 
@@ -269,6 +270,7 @@ function createServerModuleMap(): ServerModuleMap {
             async: boolean
             codeHash?: string
             runtimeEnvVars?: true | readonly string[]
+            referencesClientComponent?: boolean
           }
         | undefined
 
@@ -289,7 +291,13 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const { moduleId, async, codeHash, runtimeEnvVars } = workerEntry
+      const {
+        moduleId,
+        async,
+        codeHash,
+        runtimeEnvVars,
+        referencesClientComponent,
+      } = workerEntry
 
       return {
         id: moduleId,
@@ -298,6 +306,7 @@ function createServerModuleMap(): ServerModuleMap {
         async,
         codeHash,
         runtimeEnvVars,
+        referencesClientComponent,
       }
     },
   })
