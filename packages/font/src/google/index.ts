@@ -26506,9 +26506,10 @@ export declare function Single_Day<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
-
+  preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sintony<
   T extends CssVariable | undefined = undefined,
@@ -26968,9 +26969,10 @@ export declare function Song_Myung<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
-
+  preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sono<
   T extends CssVariable | undefined = undefined,
@@ -27668,9 +27670,10 @@ export declare function Stylish<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
-
+  preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sue_Ellen_Francisco<
   T extends CssVariable | undefined = undefined,
@@ -27727,9 +27730,10 @@ export declare function Sunflower<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
-
+  preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sunshiney<
   T extends CssVariable | undefined = undefined,
