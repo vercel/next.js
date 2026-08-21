@@ -1,6 +1,5 @@
 use anyhow::{Context, Result, bail};
 use either::Either;
-use next_core::next_app::{AppPage, AppPath};
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
@@ -272,28 +271,23 @@ impl Asset for NftJsonAsset {
             // module graph and can't be discovered by tracing. It is also written after the build
             // has finished tracing, so there is no content to hash yet.
             //
-            let prerender_manifest =
-                if let Some(page_name) = this.page_name.as_deref() {
-                    if let Some(app_page) = page_name.strip_prefix("app") {
-                        let pathname = AppPath::from(AppPage::parse(app_page)?).to_string();
-                        let manifest_path = this.project.node_root().await?.join(&format!(
-                            "server/app{}/prerender-manifest.json",
-                            pathname.trim_end_matches('/')
-                        ))?;
-                        Some(ident_folder.get_relative_path_to(&manifest_path).context(
-                            "expected the prerender manifest to be inside the output root",
-                        )?)
-                    } else if matches!(page_name, "pages/_app" | "pages/_document") {
-                        None
-                    } else if page_name.starts_with("pages/") {
-                        let last_segment = page_name.rsplit('/').next().unwrap();
-                        Some(format!("./{last_segment}/prerender-manifest.json").into())
-                    } else {
-                        None
-                    }
+            let prerender_manifest = if let Some(page_name) = this.page_name.as_deref() {
+                if page_name.starts_with("app") {
+                    let last_segment = page_name.rsplit('/').next().unwrap();
+                    // This is /page or /route
+                    Some(format!("./{last_segment}/prerender-manifest.json"))
+                } else if matches!(page_name, "pages/_app" | "pages/_document") {
+                    None
+                } else if page_name.starts_with("pages/") {
+                    let last_segment = page_name.rsplit('/').next().unwrap();
+                    // This is /{name of last segment}
+                    Some(format!("./{last_segment}/prerender-manifest.json"))
                 } else {
                     None
-                };
+                }
+            } else {
+                None
+            };
             if let Some(prerender_manifest) = &prerender_manifest {
                 files.push(prerender_manifest);
                 file_hashes.push(None);
