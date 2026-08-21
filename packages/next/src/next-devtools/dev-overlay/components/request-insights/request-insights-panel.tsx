@@ -5,9 +5,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactElement,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
+import { ContextMenu } from '@base-ui-components/react/context-menu'
 import { Menu } from '@base-ui-components/react/menu'
 import {
   getRequestInsightKey,
@@ -17,6 +19,7 @@ import {
 } from '../../../shared/request-insights'
 import {
   getRequestInsightFetchCount,
+  getRequestInsightSpanCount,
   isRequestInsightSummary,
   type RequestInsightListItem,
 } from '../../../shared/request-insights-summary'
@@ -37,6 +40,8 @@ import {
 import {
   formatRequestRouteParams,
   getRequestDisplayUrl,
+  getRequestInsightAgentPrompt,
+  getRequestInsightSpanAgentPrompt,
   getRequestListDisplayUrl,
   getRequestRouteParams,
 } from './request-label'
@@ -112,6 +117,9 @@ export function RequestInsightsPanel() {
   const [selectedRequestKey, setSelectedRequestKey] = useState<string | null>(
     () => getActiveRequestKey(visibleRequests, null)
   )
+  const [contextMenuRequestKey, setContextMenuRequestKey] = useState<
+    string | null
+  >(null)
   const activeRequestKey = getActiveRequestKey(
     visibleRequests,
     selectedRequestKey
@@ -318,12 +326,22 @@ export function RequestInsightsPanel() {
         ) : (
           <VirtualRequestList
             activeRequestKey={activeRequestKey}
+            contextMenuRequestKey={contextMenuRequestKey}
             entries={listEntries}
             hasMore={!isPaused && history.hasMore}
             initialRequestId={initialRequestId}
             loading={history.loading}
+            onContextMenuOpenChange={(requestKey, open) => {
+              setContextMenuRequestKey((openRequestKey) => {
+                if (open) {
+                  return requestKey
+                }
+                return openRequestKey === requestKey ? null : openRequestKey
+              })
+            }}
             onLoadMore={history.loadMore}
             onSelect={setSelectedRequestKey}
+            shadowRoot={shadowRoot}
             truncated={history.truncated}
           />
         )}
@@ -342,21 +360,27 @@ export function RequestInsightsPanel() {
 
 function VirtualRequestList({
   activeRequestKey,
+  contextMenuRequestKey,
   entries,
   hasMore,
   initialRequestId,
   loading,
+  onContextMenuOpenChange,
   onLoadMore,
   onSelect,
+  shadowRoot,
   truncated,
 }: {
   activeRequestKey: string | null
+  contextMenuRequestKey: string | null
   entries: readonly RequestListEntry[]
   hasMore: boolean
   initialRequestId: string | undefined
   loading: boolean
+  onContextMenuOpenChange: (requestKey: string, open: boolean) => void
   onLoadMore: () => void
   onSelect: (requestKey: string) => void
+  shadowRoot: ShadowRoot
   truncated: boolean
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -474,10 +498,15 @@ function VirtualRequestList({
                 }}
               >
                 <RequestRow
+                  contextMenuOpen={requestKey === contextMenuRequestKey}
                   nested={nested}
+                  onContextMenuOpenChange={(open) =>
+                    onContextMenuOpenChange(requestKey, open)
+                  }
                   request={request}
                   pageLoad={isPageLoadRequest(request, initialRequestId)}
                   selected={requestKey === activeRequestKey}
+                  shadowRoot={shadowRoot}
                   onSelect={() => onSelect(requestKey)}
                 />
               </div>
@@ -662,12 +691,18 @@ function RequestRow({
   nested,
   pageLoad,
   selected,
+  shadowRoot,
+  contextMenuOpen,
+  onContextMenuOpenChange,
   onSelect,
 }: {
   request: RequestInsightListItem
   nested: boolean
   pageLoad: boolean
   selected: boolean
+  shadowRoot: ShadowRoot
+  contextMenuOpen: boolean
+  onContextMenuOpenChange: (open: boolean) => void
   onSelect: () => void
 }) {
   const isInstantInsights =
@@ -681,51 +716,168 @@ function RequestRow({
   const bypassesProxy = request.proxyStatus === 'bypassed'
 
   return (
-    <button
-      aria-label={`${isInstantInsights ? `Instant Insights for ${requestUrl}` : requestUrl}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
-      className="request-insights-row"
-      data-internal={isInstantInsights || undefined}
-      data-nested={nested || undefined}
-      data-page-load={pageLoad}
-      data-selected={selected}
-      onClick={onSelect}
-      type="button"
+    <ContextMenu.Root
+      onOpenChange={onContextMenuOpenChange}
+      open={contextMenuOpen}
     >
-      <span className="request-insights-status" data-status={request.status} />
-      <span className="request-insights-route">
-        {nested ? <NestedArrowIcon /> : null}
-        <span className="request-insights-route-label">
-          {isInstantInsights ? 'Instant Insights' : requestUrl}
-        </span>
-      </span>
-      <span className="request-insights-duration">
-        {formatDuration(request.durationMs)}
-      </span>
-      <span className="request-insights-meta request-insights-row-metadata">
+      <ContextMenu.Trigger
+        render={
+          <button
+            aria-label={`${isInstantInsights ? `Instant Insights for ${requestUrl}` : requestUrl}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
+            className="request-insights-row"
+            data-internal={isInstantInsights || undefined}
+            data-nested={nested || undefined}
+            data-page-load={pageLoad}
+            data-selected={selected}
+            onClick={onSelect}
+            onContextMenu={onSelect}
+            type="button"
+          />
+        }
+      >
         <span
-          className="request-insights-request-type"
-          data-type={requestType.type}
-          title={requestType.accessibleLabel}
-        >
-          {requestType.label}
-        </span>
-        {bypassesProxy ? (
-          <span
-            className="request-insights-request-activity"
-            title="This request did not match the configured proxy"
-          >
-            No proxy
+          className="request-insights-status"
+          data-status={request.status}
+        />
+        <span className="request-insights-route">
+          {nested ? <NestedArrowIcon /> : null}
+          <span className="request-insights-route-label">
+            {isInstantInsights ? 'Instant Insights' : requestUrl}
           </span>
-        ) : null}
-        <span>{clockTime}</span>
-      </span>
-      <span className="request-insights-meta request-insights-fetch-summary">
-        {getRequestInsightFetchCount(request)
-          ? `${getRequestInsightFetchCount(request)} fetch${getRequestInsightFetchCount(request) === 1 ? '' : 'es'}`
-          : 'No fetches'}
-      </span>
-    </button>
+        </span>
+        <span className="request-insights-duration">
+          {formatDuration(request.durationMs)}
+        </span>
+        <span className="request-insights-meta request-insights-row-metadata">
+          <span
+            className="request-insights-request-type"
+            data-type={requestType.type}
+            title={requestType.accessibleLabel}
+          >
+            {requestType.label}
+          </span>
+          {bypassesProxy ? (
+            <span
+              className="request-insights-request-activity"
+              title="This request did not match the configured proxy"
+            >
+              No proxy
+            </span>
+          ) : null}
+          <span>{clockTime}</span>
+        </span>
+        <span className="request-insights-meta request-insights-fetch-summary">
+          {getRequestInsightFetchCount(request)
+            ? `${getRequestInsightFetchCount(request)} fetch${getRequestInsightFetchCount(request) === 1 ? '' : 'es'}`
+            : 'No fetches'}
+        </span>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal container={shadowRoot}>
+        <RequestInsightsContextMenuBackdrop
+          onClose={() => onContextMenuOpenChange(false)}
+        />
+        <ContextMenu.Positioner
+          className="request-insights-context-positioner"
+          sideOffset={4}
+        >
+          <ContextMenu.Popup
+            aria-label={`Actions for request ${request.requestId}`}
+            className="request-insights-context-menu"
+          >
+            <ContextMenu.Group>
+              <ContextMenu.GroupLabel className="request-insights-context-label">
+                Request
+              </ContextMenu.GroupLabel>
+              <div className="request-insights-context-preview">
+                <RequestContextMenuPreview
+                  request={request}
+                  requestUrl={requestUrl}
+                />
+              </div>
+            </ContextMenu.Group>
+            <ContextMenu.Separator className="request-insights-context-separator" />
+            <RequestContextMenuItem
+              getValue={() => request.requestId}
+              label="Copy request ID"
+            />
+            <RequestContextMenuItem
+              getValue={() => getRequestInsightAgentPrompt(request)}
+              label="Copy agent prompt"
+            />
+          </ContextMenu.Popup>
+        </ContextMenu.Positioner>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   )
+}
+
+function RequestContextMenuPreview({
+  request,
+  requestUrl,
+}: {
+  request: RequestInsightListItem
+  requestUrl: string
+}) {
+  const statusCode = getRequestInsightStatusCode(request)
+  const fetchCount = getRequestInsightFetchCount(request)
+  const spanCount = getRequestInsightSpanCount(request)
+
+  return (
+    <>
+      <strong title={requestUrl}>{requestUrl}</strong>
+      <span>
+        {statusCode ?? request.status} ·{' '}
+        {getRequestInsightSummaryTypeLabel(request)}
+      </span>
+      <span>
+        {formatDuration(request.durationMs)} · {spanCount} span
+        {spanCount === 1 ? '' : 's'} · {fetchCount} fetch
+        {fetchCount === 1 ? '' : 'es'}
+      </span>
+      <code title={request.requestId}>{request.requestId}</code>
+    </>
+  )
+}
+
+function RequestContextMenuItem({
+  getValue,
+  label,
+}: {
+  getValue: () => string
+  label: string
+}) {
+  return (
+    <ContextMenu.Item
+      className="request-insights-context-item"
+      onClick={() => copyToClipboard(getValue())}
+    >
+      {label}
+    </ContextMenu.Item>
+  )
+}
+
+function RequestInsightsContextMenuBackdrop({
+  onClose,
+}: {
+  onClose: () => void
+}) {
+  return (
+    <ContextMenu.Backdrop
+      className="request-insights-context-backdrop"
+      onPointerDown={onClose}
+    />
+  )
+}
+
+function copyToClipboard(value: string) {
+  if (!navigator.clipboard) {
+    console.warn('Copy to clipboard is not supported in this browser')
+    return
+  }
+
+  void navigator.clipboard.writeText(value).catch((error) => {
+    console.warn(error)
+  })
 }
 
 function NestedArrowIcon() {
@@ -792,10 +944,10 @@ function RequestDetails({
                 : requestUrl}
             </div>
             <CopyButton
-              actionLabel="Copy request JSON"
+              actionLabel="Copy request path"
               className="request-insights-copy"
-              content={JSON.stringify(request, null, 2)}
-              successLabel="Copied request JSON"
+              content={requestUrl}
+              successLabel="Copied request path"
             />
           </div>
         </div>
@@ -866,8 +1018,12 @@ function Trace({
   request: RequestInsight
   items: TraceItem[]
 }) {
+  const { shadowRoot } = useDevOverlayContext()
   const [activeItemId, setActiveItemId] = useState<string | null>(
     items[0]?.id ?? null
+  )
+  const [contextMenuItemId, setContextMenuItemId] = useState<string | null>(
+    null
   )
   const [activeTraceRow, setActiveTraceRow] = useState<HTMLElement | null>(null)
   const [isTraceFocused, setIsTraceFocused] = useState(false)
@@ -1024,50 +1180,66 @@ function Trace({
                 const description = getTraceItemDescription(item, range)
 
                 return (
-                  <div
-                    aria-label={description}
-                    aria-selected={index === safeActiveItemIndex}
-                    className="request-insights-span-row"
-                    data-active={index === safeActiveItemIndex || undefined}
-                    data-kind={item.kind}
-                    data-trace-item-id={item.id}
-                    data-trace-index={index}
-                    id={`${traceId}-item-${index}`}
+                  <TraceSpanContextMenu
+                    item={item}
                     key={item.id}
-                    ref={
-                      index === safeActiveItemIndex
-                        ? setActiveTraceRow
-                        : undefined
-                    }
-                    role="option"
+                    onOpenChange={(open) => {
+                      setContextMenuItemId((openItemId) => {
+                        if (open) {
+                          return item.id
+                        }
+                        return openItemId === item.id ? null : openItemId
+                      })
+                    }}
+                    open={contextMenuItemId === item.id}
+                    request={request}
+                    shadowRoot={shadowRoot}
                   >
-                    <span
-                      className="request-insights-span-name"
-                      style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
+                    <div
+                      aria-label={description}
+                      aria-selected={index === safeActiveItemIndex}
+                      className="request-insights-span-row"
+                      data-active={index === safeActiveItemIndex || undefined}
+                      data-kind={item.kind}
+                      data-trace-item-id={item.id}
+                      data-trace-index={index}
+                      id={`${traceId}-item-${index}`}
+                      onContextMenu={() => setActiveItemId(item.id)}
+                      ref={
+                        index === safeActiveItemIndex
+                          ? setActiveTraceRow
+                          : undefined
+                      }
+                      role="option"
                     >
-                      <span className="request-insights-span-label">
-                        <span
-                          className="request-insights-span-marker"
-                          data-kind={item.kind}
-                          data-status={item.status}
-                        />
-                        <span>{item.label}</span>
-                      </span>
-                    </span>
-                    <span className="request-insights-span-track">
                       <span
-                        className="request-insights-span-bar"
-                        data-status={item.status}
-                        style={{
-                          left: `${position.left}%`,
-                          width: `${position.width}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="request-insights-span-duration">
-                      {formatDuration(item.durationMs)}
-                    </span>
-                  </div>
+                        className="request-insights-span-name"
+                        style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
+                      >
+                        <span className="request-insights-span-label">
+                          <span
+                            className="request-insights-span-marker"
+                            data-kind={item.kind}
+                            data-status={item.status}
+                          />
+                          <span>{item.label}</span>
+                        </span>
+                      </span>
+                      <span className="request-insights-span-track">
+                        <span
+                          className="request-insights-span-bar"
+                          data-status={item.status}
+                          style={{
+                            left: `${position.left}%`,
+                            width: `${position.width}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="request-insights-span-duration">
+                        {formatDuration(item.durationMs)}
+                      </span>
+                    </div>
+                  </TraceSpanContextMenu>
                 )
               })}
             </div>
@@ -1075,6 +1247,77 @@ function Trace({
         </div>
       </div>
     </div>
+  )
+}
+
+function TraceSpanContextMenu({
+  children,
+  item,
+  onOpenChange,
+  open,
+  request,
+  shadowRoot,
+}: {
+  children: ReactElement<Record<string, unknown>>
+  item: TraceItem
+  onOpenChange: (open: boolean) => void
+  open: boolean
+  request: RequestInsight
+  shadowRoot: ShadowRoot
+}) {
+  const spanId = item.spanId
+  if (!spanId) {
+    return children
+  }
+
+  const label = item.fullLabel ?? item.label
+
+  return (
+    <ContextMenu.Root onOpenChange={onOpenChange} open={open}>
+      <ContextMenu.Trigger render={children} />
+      <ContextMenu.Portal container={shadowRoot}>
+        <RequestInsightsContextMenuBackdrop
+          onClose={() => onOpenChange(false)}
+        />
+        <ContextMenu.Positioner
+          className="request-insights-context-positioner"
+          sideOffset={4}
+        >
+          <ContextMenu.Popup
+            aria-label={`Actions for span ${spanId}`}
+            className="request-insights-context-menu"
+          >
+            <ContextMenu.Group>
+              <ContextMenu.GroupLabel className="request-insights-context-label">
+                Span
+              </ContextMenu.GroupLabel>
+              <div className="request-insights-context-preview">
+                <strong title={label}>{label}</strong>
+                <span>
+                  {item.category === 'nextjs' ? 'Next.js' : 'Application'} ·{' '}
+                  {formatDuration(item.durationMs)} · {item.status}
+                </span>
+                <code title={spanId}>{spanId}</code>
+              </div>
+            </ContextMenu.Group>
+            <ContextMenu.Separator className="request-insights-context-separator" />
+            <RequestContextMenuItem
+              getValue={() => spanId}
+              label="Copy span ID"
+            />
+            <RequestContextMenuItem
+              getValue={() =>
+                getRequestInsightSpanAgentPrompt(request.requestId, {
+                  spanId,
+                  label,
+                })
+              }
+              label="Copy agent prompt"
+            />
+          </ContextMenu.Popup>
+        </ContextMenu.Positioner>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   )
 }
 
