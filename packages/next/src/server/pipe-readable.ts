@@ -159,18 +159,28 @@ export async function pipeNodeReadableToNodeResponse(
 
     const finished = createPromiseWithResolvers<void>()
 
-    // Reuse one `drain` listener for the response. Do not use
-    // `res.once('drain')` per backpressured write: the vendored `compression`
-    // middleware forwards `res.on('drain')` to the Gzip stream but does not
-    // forward `removeListener`, so each `once()` permanently adds a listener
-    // and eventually emits `MaxListenersExceededWarning`. This is the same
-    // handle `releaseCompressionStream` uses. Match `createWriterFromResponse`.
+    // One `drain` listener for the whole response, as in
+    // `createWriterFromResponse` above. It must not be `res.once('drain')` per
+    // backpressured write: the `compression` middleware forwards `res.on` to
+    // its zlib stream but leaves `removeListener` pointing at the response, so
+    // a `once` listener is never removed from the stream it was added to. Each
+    // backpressured write would leak one, and past ten Node reports the stream
+    // as a probable leak via `MaxListenersExceededWarning`.
+    let paused = false
     const onDrain = () => {
+      // The listener outlives the readable: `off` below cannot reach the zlib
+      // stream either, so a late drain can arrive after teardown.
+      if (!paused || readable.destroyed) return
+
+      paused = false
       readable.resume()
     }
     res.on('drain', onDrain)
 
     res.once('close', () => {
+      // Only removes the listener when compression is inactive, which is the
+      // case where it was added to the response itself. Otherwise it lives on
+      // the zlib stream, which is released with the response.
       res.off('drain', onDrain)
       readable.destroy()
       finished.resolve()
@@ -215,6 +225,7 @@ export async function pipeNodeReadableToNodeResponse(
       }
 
       if (!ok) {
+        paused = true
         readable.pause()
       }
     })
