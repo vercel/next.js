@@ -83,6 +83,10 @@ pub struct PresetEnvConfig {
     OperationValue,
 )]
 pub enum DecoratorsVersion {
+    #[serde(rename = "2023-11")]
+    /// Enables the November 2023 stage 3 version of the decorators proposal.
+    Ecma2023_11,
+
     #[serde(rename = "2022-03")]
     /// Enables the March 2022 stage 3 version of the decorators proposal.
     Ecma2022_03,
@@ -433,6 +437,7 @@ impl EcmascriptInputTransform {
             } => {
                 use swc_core::ecma::transforms::proposal::{
                     decorator_2022_03::decorator_2022_03,
+                    decorator_2023_11::decorator_2023_11,
                     decorators::{Config, decorators},
                 };
 
@@ -448,6 +453,9 @@ impl EcmascriptInputTransform {
                     }
                     DecoratorsVersion::Ecma2022_03 => {
                         apply_transform(program, helpers, decorator_2022_03())
+                    }
+                    DecoratorsVersion::Ecma2023_11 => {
+                        apply_transform(program, helpers, decorator_2023_11())
                     }
                 }
             }

@@ -147,16 +147,12 @@ pub async fn get_decorators_transform_options(
 
     let decorators_transform_options = DecoratorsOptions {
         decorators_version,
-        emit_decorators_metadata: if let Some(ref decorators_version) = decorators_version {
-            match decorators_version {
-                DecoratorsVersion::Legacy => emit_decorators_metadata,
-                // ref: This new decorators proposal is not compatible with
-                // --emitDecoratorMetadata, and it does not allow decorating parameters.
-                // Future ECMAScript proposals may be able to help bridge that gap
-                DecoratorsVersion::Ecma2021_12 | DecoratorsVersion::Ecma2022_03 => false,
-            }
-        } else {
-            false
+        emit_decorators_metadata: match decorators_version {
+            Some(DecoratorsVersion::Legacy) => emit_decorators_metadata,
+            // ref: This new decorators proposal is not compatible with
+            // --emitDecoratorMetadata, and it does not allow decorating parameters.
+            // Future ECMAScript proposals may be able to help bridge that gap
+            _ => false,
         },
         use_define_for_class_fields,
         ..Default::default()

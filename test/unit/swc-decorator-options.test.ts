@@ -22,7 +22,7 @@ const baseArgs = {
 }
 
 describe('decorator parser options', () => {
-  it.each(['legacy', '2021-12', '2022-03'] as const)(
+  it.each(['legacy', '2021-12', '2022-03', '2023-11'] as const)(
     'should enable parsing when decoratorVersion is %s',
     (decoratorVersion) => {
       const options = getLoaderSWCOptions({
@@ -57,7 +57,7 @@ describe('decorator parser options', () => {
     expect(options.jsc.transform.decoratorVersion).toBeUndefined()
   })
 
-  it.each(['2021-12', '2022-03'] as const)(
+  it.each(['2021-12', '2022-03', '2023-11'] as const)(
     'should prefer decoratorVersion %s over experimentalDecorators',
     (decoratorVersion) => {
       const options = getLoaderSWCOptions({

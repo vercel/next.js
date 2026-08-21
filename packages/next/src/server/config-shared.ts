@@ -1908,7 +1908,7 @@ export interface NextConfig {
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
 
-    decoratorVersion?: 'legacy' | '2021-12' | '2022-03'
+    decoratorVersion?: 'legacy' | '2021-12' | '2022-03' | '2023-11'
 
     styledJsx?:
       | boolean
