@@ -484,7 +484,7 @@ pub async fn get_server_module_options_context(
         .to_resolved()
         .await?;
     let decorators_options =
-        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
+        get_decorators_transform_options(project_path.clone(), next_config, tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.

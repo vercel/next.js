@@ -3,7 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
 use turbopack::module_options::{
-    DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
+    DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -11,7 +11,10 @@ use turbopack_core::{
     resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
 };
-use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
+use turbopack_ecmascript::{
+    transform::DecoratorsVersion,
+    typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
+};
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
@@ -86,11 +89,11 @@ pub async fn get_typescript_transform_options(
     Ok(ts_transform_options.cell())
 }
 
-/// Build the transform options for the decorators.
-/// **TODO** Currently only typescript's legacy decorators are supported
+/// Build the transform options for decorators.
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
@@ -107,15 +110,15 @@ pub async fn get_decorators_transform_options(
         false
     };
 
-    let decorators_kind = if experimental_decorators {
-        Some(DecoratorsKind::Legacy)
-    } else {
-        // ref: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0-rc/#differences-with-experimental-legacy-decorators
-        // `without the flag, decorators will now be valid syntax for all new code.
-        // Outside of --experimentalDecorators, they will be type-checked and emitted
-        // differently with ts 5.0, new ecma decorators will be enabled
-        // if legacy decorators are not enabled
-        Some(DecoratorsKind::Ecma)
+    let decorator_version = next_config.compiler().await?.decorator_version;
+    let decorators_version = match decorator_version {
+        Some(v) => Some(v),
+        None if experimental_decorators => Some(DecoratorsVersion::Legacy),
+        None => {
+            // ref: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0-rc/#differences-with-experimental-legacy-decorators
+            // Without the flag, TypeScript 5.0 enables modern decorators.
+            Some(DecoratorsVersion::Ecma2021_12)
+        }
     };
 
     let emit_decorators_metadata = if let Some(ref tsconfig) = tsconfig {
@@ -143,14 +146,14 @@ pub async fn get_decorators_transform_options(
     };
 
     let decorators_transform_options = DecoratorsOptions {
-        decorators_kind: decorators_kind.clone(),
-        emit_decorators_metadata: if let Some(ref decorators_kind) = decorators_kind {
-            match decorators_kind {
-                DecoratorsKind::Legacy => emit_decorators_metadata,
+        decorators_version,
+        emit_decorators_metadata: if let Some(ref decorators_version) = decorators_version {
+            match decorators_version {
+                DecoratorsVersion::Legacy => emit_decorators_metadata,
                 // ref: This new decorators proposal is not compatible with
                 // --emitDecoratorMetadata, and it does not allow decorating parameters.
                 // Future ECMAScript proposals may be able to help bridge that gap
-                DecoratorsKind::Ecma => false,
+                DecoratorsVersion::Ecma2021_12 | DecoratorsVersion::Ecma2022_03 => false,
             }
         } else {
             false

@@ -358,15 +358,13 @@ impl ModuleOptions {
 
         let decorators_transform = if let Some(options) = &enable_decorators {
             let options = options.await?;
-            options
-                .decorators_kind
-                .as_ref()
-                .map(|kind| EcmascriptInputTransform::Decorators {
-                    is_legacy: kind == &DecoratorsKind::Legacy,
-                    is_ecma: kind == &DecoratorsKind::Ecma,
+            options.decorators_version.map(|decorators_version| {
+                EcmascriptInputTransform::Decorators {
+                    decorators_version,
                     emit_decorators_metadata: options.emit_decorators_metadata,
                     use_define_for_class_fields: options.use_define_for_class_fields,
-                })
+                }
+            })
         } else {
             None
         };

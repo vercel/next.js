@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
@@ -27,7 +28,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -66,6 +67,46 @@ pub struct PresetEnvConfig {
     pub loose: Option<bool>,
 }
 
+/// The kind of ECMAScript class decorators transform to use.
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+    Hash,
+    Deserialize,
+    OperationValue,
+)]
+pub enum DecoratorsVersion {
+    #[serde(rename = "2022-03")]
+    /// Enables the March 2022 stage 3 version of the decorators proposal.
+    Ecma2022_03,
+
+    #[serde(rename = "2021-12")]
+    /// Enables the December 2021 version of the decorators proposal.
+    ///
+    /// [ts5]: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/#differences-with-experimental-legacy-decorators
+    Ecma2021_12,
+
+    #[serde(rename = "legacy")]
+    /// Enables the legacy class decorator syntax and behavior, as it was defined during the [stage
+    /// 1 proposal].
+    ///
+    /// This is the same as setting [`jsx.transform.legacyDecorator` in SWC][swc].
+    ///
+    /// This option exists for compatibility with the TypeScript compiler's legacy
+    /// `--experimentalDecorators` feature.
+    ///
+    /// [stage 1 proposal]: https://github.com/wycats/javascript-decorators/blob/e1bf8d41bfa2591d9/README.md
+    /// [swc]: https://swc.rs/docs/configuration/compilation#jsctransformlegacydecorator
+    Legacy,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
@@ -86,8 +127,7 @@ pub enum EcmascriptInputTransform {
         verbatim_module_syntax: bool,
     },
     Decorators {
-        is_legacy: bool,
-        is_ecma: bool,
+        decorators_version: DecoratorsVersion,
         emit_decorators_metadata: bool,
         use_define_for_class_fields: bool,
     },
@@ -386,20 +426,30 @@ impl EcmascriptInputTransform {
                 )
             }
             EcmascriptInputTransform::Decorators {
-                is_legacy,
-                is_ecma: _,
+                decorators_version,
                 emit_decorators_metadata,
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::proposal::decorators::{Config, decorators};
-                let config = Config {
-                    legacy: *is_legacy,
-                    emit_metadata: *emit_decorators_metadata,
-                    ..Default::default()
+                use swc_core::ecma::transforms::proposal::{
+                    decorator_2022_03::decorator_2022_03,
+                    decorators::{Config, decorators},
                 };
 
-                apply_transform(program, helpers, decorators(config))
+                match decorators_version {
+                    DecoratorsVersion::Legacy | DecoratorsVersion::Ecma2021_12 => {
+                        let config = Config {
+                            legacy: matches!(decorators_version, DecoratorsVersion::Legacy),
+                            emit_metadata: *emit_decorators_metadata,
+                            ..Default::default()
+                        };
+
+                        apply_transform(program, helpers, decorators(config))
+                    }
+                    DecoratorsVersion::Ecma2022_03 => {
+                        apply_transform(program, helpers, decorator_2022_03())
+                    }
+                }
             }
             EcmascriptInputTransform::ReactCompilerRust {
                 compilation_mode,

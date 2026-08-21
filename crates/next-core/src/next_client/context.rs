@@ -252,7 +252,7 @@ pub async fn get_client_module_options_context(
         .to_resolved()
         .await?;
     let decorators_options =
-        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
+        get_decorators_transform_options(project_path.clone(), next_config, tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path.clone(),
