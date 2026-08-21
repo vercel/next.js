@@ -20,9 +20,11 @@ describe.each([
               : 'tsconfig.json'
           )
         ),
-        'next.config.js': new FileRef(
-          join(__dirname, 'configs', `${decoratorVersion}.js`)
-        ),
+      },
+      nextConfig: {
+        compiler: {
+          decoratorVersion,
+        },
       },
     })
 
