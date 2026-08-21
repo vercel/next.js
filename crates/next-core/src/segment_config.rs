@@ -21,9 +21,8 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
 };
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::Asset,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -556,7 +555,6 @@ pub async fn parse_segment_config_from_source(
                             .await?
                         }
                         Decl::Fn(decl) => {
-                            println!("got decl fn: {:?}", Cow::Borrowed(decl.ident.sym.as_str()),);
                             parse(
                                 Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Fn(FnExpr {
@@ -687,16 +685,6 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
     }
-
-    println!(
-        "Parsing segment config for {path}: {} {:#?}",
-        if let FileContent::Content(v) = source.content().file_content().owned().await? {
-            v.content().to_str()?.to_string()
-        } else {
-            panic!()
-        },
-        config
-    );
 
     Ok(config.cell())
 }
@@ -1505,11 +1493,6 @@ pub async fn parse_segment_config_from_loader_tree(
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    println!(
-        "parse_segment_config_from_loader_tree {} {} {:#?}",
-        loader_tree.page, loader_tree.segment, loader_tree.modules.page
-    );
-
     Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
         .await?
         .cell())
@@ -1529,13 +1512,6 @@ async fn parse_segment_config_from_loader_tree_internal(
         NextSegmentConfig::default()
     };
 
-    println!(
-        "parse_segment_config_from_loader_tree_internal start {} {:?} {:#?}",
-        loader_tree.page,
-        modules.page,
-        config.generate_static_params.is_some()
-    );
-
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
@@ -1552,21 +1528,10 @@ async fn parse_segment_config_from_loader_tree_internal(
         .flatten()
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
-        let x = &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?;
-        println!(
-            "parse_segment_config_from_loader_tree_internal apply {} {:?} {:#?}",
-            loader_tree.page,
-            path,
-            config.generate_static_params.is_some()
-        );
-        config.apply_parent_config(x);
+        let parent_config =
+            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?;
+        config.apply_parent_config(parent_config);
     }
-
-    println!(
-        "parse_segment_config_from_loader_tree_internal result {} {:#?}",
-        loader_tree.page,
-        config.generate_static_params.is_some()
-    );
 
     Ok(config)
 }
