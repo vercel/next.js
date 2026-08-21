@@ -1101,9 +1101,6 @@ export function trackDynamicHoleInStaticShell(
 /**
  * In dev mode, we prefer using the owner stack, otherwise the provided
  * component stack is used.
- *
- * Accepts an already-created Error so the SWC error-code plugin can see the
- * `new Error(...)` call at each call site and auto-assign error codes.
  */
 function addErrorContext(
   error: Error,
