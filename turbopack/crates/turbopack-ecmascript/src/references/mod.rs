@@ -20,6 +20,8 @@ pub mod raw;
 pub mod removal;
 pub mod require_context;
 pub mod service_worker;
+#[cfg(test)]
+mod tests;
 pub mod type_issue;
 pub mod typescript;
 pub mod util;
@@ -98,7 +100,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    ModuleTypeResult, TypeofWindow,
+    EnvVarReferences, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -175,6 +177,8 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// Present when the module is a statically-analyzable CommonJS module;
     /// carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
+
+    pub env_var_references: ResolvedVc<EnvVarReferences>,
 }
 
 #[turbo_tasks::value_impl]
@@ -233,6 +237,10 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     side_effects: ModuleSideEffects,
     cjs_static_exports: Option<CjsStaticExports>,
+
+    env_var_references_runtime: FxIndexSet<RcStr>,
+    env_var_references_all: Option<IssueSource>,
+
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -253,6 +261,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             source_map: None,
             side_effects: ModuleSideEffects::SideEffectful,
             cjs_static_exports: None,
+            env_var_references_runtime: Default::default(),
+            env_var_references_all: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -332,6 +342,16 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Sets whether the analysis was successful.
     pub fn set_successful(&mut self, successful: bool) {
         self.successful = successful;
+    }
+
+    /// Adds a runtime environment variable reference to the analysis result.
+    pub fn add_runtime_env_var_reference(&mut self, runtime_env: RcStr) {
+        self.env_var_references_runtime.insert(runtime_env);
+    }
+
+    /// Sets the analysis result to include all runtime environment variable references.
+    pub fn set_runtime_env_var_reference_all(&mut self, issue_source: IssueSource) {
+        self.env_var_references_all = Some(issue_source);
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -440,6 +460,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
+                env_var_references: EnvVarReferences {
+                    runtime: self.env_var_references_runtime.into_iter().collect(),
+                    runtime_all: self.env_var_references_all,
+                }
+                .resolved_cell(),
             },
         ))
     }
@@ -831,6 +856,10 @@ async fn analyze_ecmascript_module_internal(
         });
         graph.unwrap()
     };
+
+    if let Some(span) = var_graph.dynamic_process_env_access {
+        analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+    }
 
     let span = tracing::trace_span!("effects processing");
     async {
@@ -3426,34 +3455,39 @@ async fn handle_member<'a>(
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
-        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
-        let obj = if has_member || is_prop_cache {
-            Some(link_obj.await?)
-        } else {
-            None
-        };
+        let obj = link_obj.await?;
+        let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
-        if has_member {
-            let obj = obj.as_ref().unwrap();
-            if let Some((mut name, false)) = obj.get_definable_name(Some(&state.var_graph)) {
-                name.0.push(DefinableNameSegmentRef::Name(prop));
-                if let Some(value) = state
-                    .compile_time_info_ref
-                    .free_var_references
-                    .get(&name)
-                    .await?
-                {
-                    handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
-                    return Ok(());
-                }
+        if has_member && let Some((mut name, false)) = obj_name.clone() {
+            name.0.push(DefinableNameSegmentRef::Name(prop));
+            if let Some(value) = state
+                .compile_time_info_ref
+                .free_var_references
+                .get(&name)
+                .await?
+            {
+                // Inline env var
+                handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+                return Ok(());
             }
         }
 
-        if is_prop_cache
-            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
-                obj.as_ref().unwrap()
-        {
+        if is_prop_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = obj {
             analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+            return Ok(());
+        }
+
+        if let Some((name, false)) = obj_name
+            && matches!(
+                name.0.as_slice(),
+                [
+                    DefinableNameSegmentRef::Name("process"),
+                    DefinableNameSegmentRef::Name("env")
+                ]
+            )
+        {
+            // non-inlined env var
+            analysis.add_runtime_env_var_reference(RcStr::from(prop));
         }
     }
 
@@ -3471,41 +3505,44 @@ async fn handle_in<'a>(
         let has_member = state.free_var_references_members.contains_key(left).await?;
         let is_left_cache = left == "cache";
 
-        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
-        let right = if has_member || is_left_cache {
-            Some(link_right.await?)
-        } else {
-            None
-        };
+        let right = link_right.await?;
+        let right_name = right.get_definable_name(Some(&state.var_graph));
 
-        if has_member {
-            let right = right.as_ref().unwrap();
-            if let Some((mut name, false)) = right.get_definable_name(Some(&state.var_graph)) {
-                name.0.push(DefinableNameSegmentRef::Name(left));
-                if state
-                    .compile_time_info_ref
-                    .free_var_references
-                    .get(&name)
-                    .await?
-                    .is_some()
-                {
-                    analysis.add_code_gen(ConstantValueCodeGen::new(
-                        CompileTimeDefineValue::Bool(true),
-                        ast_path.to_vec().into(),
-                    ));
-                    return Ok(());
-                }
+        if has_member && let Some((mut name, false)) = right_name.clone() {
+            name.0.push(DefinableNameSegmentRef::Name(left));
+            if state
+                .compile_time_info_ref
+                .free_var_references
+                .get(&name)
+                .await?
+                .is_some()
+            {
+                analysis.add_code_gen(ConstantValueCodeGen::new(
+                    CompileTimeDefineValue::Bool(true),
+                    ast_path.to_vec().into(),
+                ));
+                return Ok(());
             }
         }
 
-        if is_left_cache
-            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
-                right.as_ref().unwrap()
-        {
+        if is_left_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = right {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 CompileTimeDefineValue::Bool(true),
                 ast_path.to_vec().into(),
             ));
+        }
+
+        if let Some((name, false)) = right_name
+            && matches!(
+                name.0.as_slice(),
+                [
+                    DefinableNameSegmentRef::Name("process"),
+                    DefinableNameSegmentRef::Name("env")
+                ]
+            )
+        {
+            // non-inlined env var
+            analysis.add_runtime_env_var_reference(RcStr::from(left));
         }
     }
 

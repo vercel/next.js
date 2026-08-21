@@ -1793,6 +1793,28 @@ impl VisitAstPath for Analyzer<'_, '_> {
             }
         }
 
+        // if this is process.env and we are not not inside of another member
+        if let MemberProp::Ident(prop) = &member_expr.prop
+            && prop.sym == "env"
+            && let Expr::Ident(obj) = &*member_expr.obj
+            && obj.sym == "process"
+            && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
+            && ast_path.get(ast_path.len() - 2).is_none_or(|parent| {
+                !matches!(
+                    parent,
+                    AstParentNodeRef::MemberExpr(
+                        MemberExpr {
+                            prop: MemberProp::Ident(..),
+                            ..
+                        },
+                        MemberExprField::Obj
+                    )
+                )
+            })
+        {
+            self.data.dynamic_process_env_access = Some(member_expr.span);
+        }
+
         member_expr.visit_children_with_ast_path(self, ast_path);
     }
 

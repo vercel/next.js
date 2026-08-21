@@ -18,7 +18,7 @@ use turbopack_core::{
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarReferences,
     MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -168,6 +168,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         bail!("EcmascriptModuleRenameModule::analyze shouldn't be called");
+    }
+
+    #[turbo_tasks::function]
+    fn env_var_references(self: Vc<Self>) -> Vc<EnvVarReferences> {
+        EnvVarReferences::empty()
     }
 
     #[turbo_tasks::function]
