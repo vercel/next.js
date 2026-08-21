@@ -148,6 +148,9 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
             // Don't need merging
             middleware_matcher: _,
             generate_image_metadata: _,
@@ -193,6 +196,9 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
             // Don't need merging
             middleware_matcher: _,
             generate_image_metadata: _,
