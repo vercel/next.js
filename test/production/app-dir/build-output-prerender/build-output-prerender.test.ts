@@ -17,7 +17,22 @@ describe('build-output-prerender', () => {
       it('prints only the user-selected experimental flags (and the ones enabled via env variable)', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config.js took N
              - Cache Components enabled
@@ -26,8 +41,23 @@ describe('build-output-prerender', () => {
                ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config.js took N
              - Cache Components enabled
@@ -35,8 +65,23 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config.js took N
              - Cache Components enabled
@@ -44,10 +89,25 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config.js took N
              - Cache Components enabled
@@ -55,16 +115,45 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config.js took N
              - Cache Components enabled
@@ -72,6 +161,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           }
         }
       })
@@ -138,7 +228,27 @@ describe('build-output-prerender', () => {
       it('prints a warning and the customized experimental flags', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
+               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config.js took N
@@ -152,8 +262,28 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ✓ Running next.config.js took N
@@ -166,8 +296,28 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (webpack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ✓ Running next.config.js took N
@@ -180,10 +330,30 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
+               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config.js took N
@@ -196,8 +366,27 @@ describe('build-output-prerender', () => {
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ✓ Running next.config.js took N
@@ -209,8 +398,28 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                · staticGenerationMaxConcurrency: 1"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (webpack)
+             ✓ Running next.config.js took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ✓ Running next.config.js took N
@@ -223,6 +432,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           }
         }
       })
@@ -339,7 +549,21 @@ describe('build-output-prerender', () => {
       it('prints no experimental flags (unless enabled via env variable)', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
              - Cache Components enabled
@@ -347,44 +571,111 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
+            }
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+             ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
              - Experiments (use with caution):"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           }
         }
       })
@@ -402,7 +693,26 @@ describe('build-output-prerender', () => {
       it('prints a warning and the customized experimental flags', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
@@ -415,8 +725,27 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
@@ -428,8 +757,27 @@ describe('build-output-prerender', () => {
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (webpack)
+             ✓ Running next.config took N
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
@@ -441,10 +789,28 @@ describe('build-output-prerender', () => {
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
+            }
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Turbopack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
+               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
@@ -455,8 +821,25 @@ describe('build-output-prerender', () => {
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
+            }
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (Rspack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
@@ -466,8 +849,26 @@ describe('build-output-prerender', () => {
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
+            }
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            if (
+              process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT ===
+              'true'
+            ) {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ▲ Next.js x.y.z (webpack)
+             ✓ Running next.config took N
+             - Experiments (use with caution):
+               ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
+               ✓ reactBrowserBailout (enabled by \`NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT\`)
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
+            } else {
+              expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
@@ -478,6 +879,7 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
+            }
           }
         }
       })
