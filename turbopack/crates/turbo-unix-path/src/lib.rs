@@ -6,11 +6,11 @@ use std::borrow::Cow;
 /// directory separators with forward slashes on Windows.
 #[inline]
 pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
-    #[cfg(not(target_family = "windows"))]
+    #[cfg(not(windows))]
     {
         Cow::from(path)
     }
-    #[cfg(target_family = "windows")]
+    #[cfg(windows)]
     {
         Cow::Owned(path.replace(std::path::MAIN_SEPARATOR_STR, "/"))
     }
@@ -20,11 +20,11 @@ pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
 /// slash directory separators with backslashes on Windows.
 #[inline]
 pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
-    #[cfg(not(target_family = "windows"))]
+    #[cfg(not(windows))]
     {
         Cow::from(path)
     }
-    #[cfg(target_family = "windows")]
+    #[cfg(windows)]
     {
         Cow::Owned(path.replace('/', std::path::MAIN_SEPARATOR_STR))
     }
@@ -36,10 +36,8 @@ pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
 /// see also [normalize_path] for normalization.
 /// Returns `None` if the joined path would leave the filesystem root.
 pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
-    // Paths that we join are written as source code (eg, `join_path(fs_path, "foo/bar.js")`) and
-    // it's expected that they will never contain a backslash.
     debug_assert!(
-        !join.contains('\\'),
+        !cfg!(windows) || !join.contains('\\'),
         "joined path {join} must not contain a Windows directory '\\', it must be normalized to \
          Unix '/'"
     );
