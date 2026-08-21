@@ -5,7 +5,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
-    DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, LinkContent, LinkType, glob::Glob,
+    DirectoryContent, DirectoryEntry, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
+    glob::Glob,
 };
 
 #[turbo_tasks::value]
@@ -85,8 +86,11 @@ async fn read_glob_internal(
                         handle_dir(&mut result, entry_path, segment, path).await?;
                     }
                     DirectoryEntry::Symlink(path) => {
-                        if let LinkContent::Link { link_type, .. } = &*path.read_link().await? {
-                            if link_type.contains(LinkType::DIRECTORY) {
+                        // Skip links that leave the filesystem root.
+                        let link_content = path.read_link().await?;
+                        if let LinkContent::Link { target } = &*link_content {
+                            if matches!(target.target_type().await?, FileSystemEntryType::Directory)
+                            {
                                 // Ensure that there are no infinite link loops, but don't resolve
                                 resolve_symlink_safely(entry.clone()).await?;
 

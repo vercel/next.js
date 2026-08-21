@@ -54,9 +54,7 @@ pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> 
             }
             FileContent::NotFound => Vc::cell(rcstr!("not found")),
         },
-        AssetContent::Redirect { target, link_type } => {
-            Vc::cell(format!("redirect to {target} with type {link_type:?}").into())
-        }
+        AssetContent::Redirect(content) => Vc::cell(format!("redirect to {content:?}").into()),
     })
 }
 
