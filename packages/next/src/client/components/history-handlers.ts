@@ -64,27 +64,13 @@ export function initializeEarlyHistory(historyState: AppHistoryState): void {
   activationToken = window.__next_h?.token
 }
 
-// A Back/Forward press before the router's popstate listener exists moves the
-// browser to a different history entry than the one the document was activated
-// on, and the resulting popstate fires with nobody listening. The bootstrap
-// script recorded it, so until the listener is installed a recorded change
-// onto an entry the router can render means a traversal went unobserved.
-function hasMissedTraversal(): boolean {
+function isSameRoute(
+  a: Pick<URL, 'origin' | 'pathname' | 'search'>,
+  b: Pick<URL, 'origin' | 'pathname' | 'search'>
+): boolean {
   return (
-    window.__next_h?.changed === true &&
-    // On any other entry the traversal is left unhandled, as before.
-    readHistoryEntry(window.history.state).kind !== 'unknown'
+    a.origin === b.origin && a.pathname === b.pathname && a.search === b.search
   )
-}
-
-let checkedMissedTraversalBeforeHistoryWrite = false
-
-export function shouldSkipFirstHistoryWrite(): boolean {
-  if (checkedMissedTraversalBeforeHistoryWrite) {
-    return false
-  }
-  checkedMissedTraversalBeforeHistoryWrite = true
-  return hasMissedTraversal()
 }
 
 export function writeHistory(
@@ -92,6 +78,12 @@ export function writeHistory(
   historyState: Record<string, unknown>,
   url: string
 ): void {
+  // History changed before the router took over. The current entry is handed
+  // off in installHistoryHandlers; writing the payload's state onto it here
+  // would mislabel it.
+  if (window.__next_h?.changed) {
+    return
+  }
   // The first write on the activation entry inherits its marker through
   // preserveCustomHistoryState. The entry is the router's from here on.
   delete historyState[ACTIVATION_MARKER]
@@ -110,7 +102,10 @@ function handlePopState(state: PopStateEvent['state']): void {
     return
   }
 
-  const historyEntry = readHistoryEntry(state)
+  renderHistoryEntry(readHistoryEntry(state))
+}
+
+function renderHistoryEntry(historyEntry: HistoryEntry): void {
   // This case happens when the history entry was pushed by the `pages` router.
   if (historyEntry.kind === 'unknown') {
     window.location.reload()
@@ -142,7 +137,15 @@ function copyNextJsInternalHistoryState(data: any) {
 }
 
 export function installHistoryHandlers(): () => void {
-  const missedTraversal = hasMissedTraversal()
+  const earlyHistory = window.__next_h
+  let handoff: HistoryEntry | null = null
+  if (earlyHistory?.changed) {
+    // Whatever the current entry holds, the initial payload is what the
+    // server would render for the activation route.
+    handoff = isSameRoute(new URL(earlyHistory.href), window.location)
+      ? { kind: 'activation' }
+      : readHistoryEntry(window.history.state)
+  }
 
   // Remove the bootstrap script's wrappers, unless application code wrapped
   // them in turn.
@@ -224,8 +227,14 @@ export function installHistoryHandlers(): () => void {
 
   window.addEventListener('popstate', onPopState)
 
-  if (missedTraversal) {
-    handlePopState(window.history.state)
+  if (handoff !== null) {
+    // History changed before the router was listening. Render the current
+    // entry the way a popstate onto it would, except that an entry the router
+    // knows nothing about is adopted rather than reloaded, as the first
+    // history write would have done before the script existed.
+    renderHistoryEntry(
+      handoff.kind === 'unknown' ? { kind: 'activation' } : handoff
+    )
   }
 
   return () => {

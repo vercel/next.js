@@ -49,11 +49,7 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
-import {
-  installHistoryHandlers,
-  shouldSkipFirstHistoryWrite,
-  writeHistory,
-} from './history-handlers'
+import { installHistoryHandlers, writeHistory } from './history-handlers'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -72,13 +68,6 @@ function HistoryUpdater({
     }
 
     const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
-
-    if (shouldSkipFirstHistoryWrite()) {
-      // Skip the write: it would overwrite the traversed-to entry's state.
-      // The tree was rendered even though the history write is skipped.
-      setLastCommittedTree(tree)
-      return
-    }
 
     const appHistoryState: AppHistoryState = {
       tree,

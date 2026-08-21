@@ -407,6 +407,30 @@ describe('back navigation before hydration after reload', () => {
       expect(await browser.eval('window.__reloaded')).not.toBe(true)
     })
 
+    // Writes that bypass history.pushState/replaceState (or come from another
+    // framework) leave entries the router knows nothing about.
+    it('adopts an unknown entry on the same route', async () => {
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
+
+      await page.evaluate(
+        `History.prototype.pushState.call(window.history, { foreign: true }, '', '${postPath}')`
+      )
+      releaseScripts()
+
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(postPath)
+      })
+      expect(await browser.eval('window.__stayed')).toBe(true)
+      expect(await browser.eval('window.history.state.foreign')).toBe(true)
+
+      await browser.elementById('to-home').click()
+      await waitForPage(browser, '#home')
+      await browser.back()
+      await waitForPage(browser, '#post')
+      expect(await browser.eval('window.history.state.foreign')).toBe(true)
+      expect(await browser.eval('window.__stayed')).toBe(true)
+    })
+
     it('keeps a history wrapper installed before hydration', async () => {
       const { browser, page, releaseScripts } = await loadStalled(postPath)
 
