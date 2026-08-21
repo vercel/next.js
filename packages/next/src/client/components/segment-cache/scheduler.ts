@@ -1099,11 +1099,11 @@ function pingStaticHead(
   )
   if (
     headRequiresRuntimeCompleteness &&
-    // The head is not a tree node — it hangs off the route root — so the
-    // static-attempt hint is read from the root's node. (Segments read the
-    // bit from their own node; see the decision point in
-    // pingNewPartOfCacheComponentsTree.)
-    (route.tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0
+    // The head is not a tree node — it hangs off the route root — so its
+    // independently measured static-attempt hint is stored on the root.
+    (route.tree.prefetchHints &
+      PrefetchHint.HeadShouldAttemptStaticPrefetch) ===
+      0
   ) {
     // No static attempt: the head arrives via the runtime request instead.
     addSpawnedRuntimePrefetch(task, route.metadata.requestKey)

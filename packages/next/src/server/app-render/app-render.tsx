@@ -10541,11 +10541,16 @@ async function collectSegmentData(
         ? prerenderStore.shouldAttemptStaticPrefetch
         : null
     const shouldAttemptStaticPrefetch = hintCell !== null && hintCell.current
-    if (prefetchInlining || shouldAttemptStaticPrefetch) {
+    const shouldCollectHeadPrefetchHint = prerenderStore.type === 'prerender'
+    if (
+      prefetchInlining ||
+      shouldAttemptStaticPrefetch ||
+      shouldCollectHeadPrefetchHint
+    ) {
       // Build time: compute fresh hints and store in metadata for the
-      // manifest. When prefetch inlining is disabled there are no sizes to
-      // measure, but the static-prefetch hint still rides the manifest —
-      // collectPrefetchHints then only builds the tree shape carrying it.
+      // manifest. Even when prefetch inlining is disabled and the route body
+      // requires runtime data, collectPrefetchHints probes the head
+      // independently so a complete static head can still be prefetched.
       hints = await ComponentMod.collectPrefetchHints(
         renderOpts.cacheComponents,
         fullPageDataBuffer,
@@ -10557,8 +10562,8 @@ async function collectSegmentData(
       )
       metadata.prefetchHints = hints
     } else {
-      // Inlining is disabled and the hint didn't qualify — there's nothing
-      // to record, so don't write a manifest entry for this route.
+      // Legacy prerender with inlining disabled and no static-prefetch hint:
+      // there's nothing to record, so don't write a manifest entry.
       hints = null
     }
   } else {

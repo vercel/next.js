@@ -52,6 +52,7 @@ export function restoreReducer(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
+    shouldWaitForStaticHead: false,
   }
   const restoreSeed = createNavigationSeed(
     now,

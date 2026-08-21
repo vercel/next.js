@@ -10,7 +10,7 @@ export default function Home() {
         </li>
         <li>
           <LinkAccordion href="/static-meta">
-            static-meta (static metadata, dynamic body)
+            static-meta (static metadata, dynamic shared layout)
           </LinkAccordion>
         </li>
       </ul>
