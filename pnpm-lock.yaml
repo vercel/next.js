@@ -1876,16 +1876,26 @@ importers:
         version: 6.0.2
 
   packages/next-env:
-    devDependencies:
-      '@vercel/ncc':
-        specifier: 0.38.4
-        version: 0.38.4
+    dependencies:
       dotenv:
         specifier: 16.3.1
         version: 16.3.1
       dotenv-expand:
         specifier: 10.0.0
         version: 10.0.0
+    devDependencies:
+      '@swc/cli':
+        specifier: 0.1.55
+        version: 0.1.55(@swc/core@1.11.24(@swc/helpers@0.5.23))(chokidar@3.6.0)
+      '@swc/core':
+        specifier: 1.11.24
+        version: 1.11.24(@swc/helpers@0.5.23)
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      npm-run-all:
+        specifier: 4.1.5
+        version: 4.1.5
 
   packages/next-mdx:
     dependencies:
