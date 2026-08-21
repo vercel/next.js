@@ -40,7 +40,16 @@ pub async fn get_app_route_entry(
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
-        segment_config.apply_parent_config(&*original_segment_config.await?);
+        let original_segment_config = original_segment_config.await?;
+        segment_config.apply_parent_config(&original_segment_config);
+
+        // Generated metadata route handlers add implementation-detail exports such as
+        // `generateStaticParams`. Preserve the export flags from the original user module for
+        // static info instead of reporting exports from the generated handler.
+        segment_config.generate_image_metadata = original_segment_config.generate_image_metadata;
+        segment_config.generate_sitemaps = original_segment_config.generate_sitemaps;
+        segment_config.generate_static_params = original_segment_config.generate_static_params;
+
         segment_config.cell()
     } else {
         segment_from_source
