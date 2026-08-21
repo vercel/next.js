@@ -20,7 +20,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## requires
 
-- **Cache Components on (`cacheComponents: true`).** This is the only hard requirement; `partialPrefetching` depends on it. Full Cache Components adoption is the ideal starting point but not a gate. Nothing in this skill blocks the build, and neither do the prerender insights an unadopted route surfaces, like a leftover `unstable_noStore` or a `cookies()` read outside `<Suspense>`: they are non-blocking dev signals, expected on any fresh branch off `main`, not a reason to stop. They replace the URL-data insight only on their own route in the [step 3](#step-3-sweep-for-url-data-insights-after-enabling) sweep; the flag-off step 1 audit and its static adoption run regardless. The only thing that actually stops this skill is a build-blocking failure, and anything build-blocking would have been resolved before you reached here. Otherwise fix the prerender insights you hit as inline [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) work, or hand them off, and keep going.
+- **Cache Components adopted (`cacheComponents: true`) with a passing build.** Both `partialPrefetching` and the route-level `prefetch` export require Cache Components. If it is off, use [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) first and return after its build-blocking prerender errors are resolved. Those errors can fail `next build`; only the Partial Prefetching insights handled by this skill are non-blocking development signals.
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
@@ -117,7 +117,7 @@ When restoring the target changes caching or invalidation, follow the project's 
 Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(per-link-prefetch)` markers and their Optimizing prefetching guide links, which wait for step 5.
+2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes every `export const prefetch = 'partial'`, including exports below a `TODO(per-link-prefetch)` marker, and removes its generated Partial Prefetching guide comment. The TODO marker and its Optimizing prefetching guide link remain for step 5. Other values such as `prefetch = 'force-disabled'` stay in place.
 
    ```bash
    npx @next/codemod@canary remove-partial-prefetch ./app
