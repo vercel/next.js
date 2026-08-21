@@ -941,6 +941,9 @@ export function createAppPageEntrypoint({
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
               authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+              reactBrowserBailout: Boolean(
+                nextConfig.experimental.reactBrowserBailout
+              ),
               serverComponentsHmrCancellation: Boolean(
                 nextConfig.experimental.serverComponentsHmrCancellation
               ),
