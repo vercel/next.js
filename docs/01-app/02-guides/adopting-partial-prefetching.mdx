@@ -101,6 +101,8 @@ To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-nav
 
 The `instant()` helper holds back dynamic content while assertions run against the prefetched UI. It doesn't measure navigation duration. Add new prefetched UI as a separate optimization, and verify any deliberate removals after migration.
 
+These tests verify which UI is available from the prefetch. When preserving that UI changes caching or invalidation, follow the project's existing verification approach. Extend an applicable test suite to cover behavior such as fresh data after a mutation or cache isolation between users. If the project doesn't test this type of behavior, verify it manually and record the expected result.
+
 ### Static or cached content
 
 The output is already in the App Shell. Remove the now-redundant `prefetch={true}`:
