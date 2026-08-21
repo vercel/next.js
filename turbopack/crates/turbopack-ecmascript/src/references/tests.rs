@@ -94,12 +94,12 @@ async fn fixture_op(input: RcStr) -> anyhow::Result<()> {
 
     let analysis = analyze_ecmascript_module(*module, None).await?;
 
-    let env_var_references = analysis.env_var_references.await?;
+    let env_var_info = analysis.env_var_info.await?;
 
     NormalizedOutput::from(format!(
         "runtime_all: {}\nruntime: {:#?}",
-        env_var_references.runtime_all.is_some(),
-        env_var_references.runtime
+        env_var_info.runtime_all.is_some(),
+        env_var_info.runtime
     ))
     .compare_to_file(&env_vars_path)
     .unwrap();

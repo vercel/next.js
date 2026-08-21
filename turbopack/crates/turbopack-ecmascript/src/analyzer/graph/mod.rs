@@ -45,6 +45,8 @@ pub struct VarGraph<'a> {
     /// dynamic exports); carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
 
+    /// The span of the first access of `process.env` where the key cannot be determined statically
+    /// (if any).
     pub dynamic_process_env_access: Option<Span>,
 }
 

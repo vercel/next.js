@@ -426,16 +426,16 @@ pub trait EcmascriptParsable {
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Debug)]
-pub struct EnvVarReferences {
+pub struct EnvVarInfo {
     /// List of environment variables that are referenced (but not inlined) in the module.
     pub runtime: Vec<RcStr>,
-    // Whether the module references all environment variables (non-statically analyzeable
-    // `process.env`).
+    /// Whether the module potentially references all environment variables (because of a
+    /// non-statically analyzeable `process.env`).
     pub runtime_all: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
-impl EnvVarReferences {
+impl EnvVarInfo {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Self::default().cell()
@@ -448,7 +448,7 @@ pub trait EcmascriptAnalyzable: Module {
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     #[turbo_tasks::function]
-    fn env_var_references(self: Vc<Self>) -> Vc<EnvVarReferences>;
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
@@ -613,8 +613,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn env_var_references(self: Vc<Self>) -> Result<Vc<EnvVarReferences>> {
-        Ok(*self.analyze().await?.env_var_references)
+    async fn env_var_info(self: Vc<Self>) -> Result<Vc<EnvVarInfo>> {
+        Ok(*self.analyze().await?.env_var_info)
     }
 
     /// Generates module contents without an analysis pass. This is useful for

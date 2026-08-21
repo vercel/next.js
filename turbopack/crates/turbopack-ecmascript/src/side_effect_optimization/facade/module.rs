@@ -15,7 +15,7 @@ use turbopack_core::{
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarReferences,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -153,8 +153,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    fn env_var_references(self: Vc<Self>) -> Vc<EnvVarReferences> {
-        EnvVarReferences::empty()
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo> {
+        EnvVarInfo::empty()
     }
 
     #[turbo_tasks::function]
