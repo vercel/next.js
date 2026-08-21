@@ -21,9 +21,8 @@ import {
 // The fixture holds the shape that grows with the number of root param
 // combinations. `generateStaticParams` on the root layout produces one
 // fallback shell for each combination. Each manifest entry then produces
-// three adapter entries:
+// two adapter entries:
 //
-// - A dedicated segment route.
 // - An `.rsc` route.
 // - A plain route.
 describe('adapter dynamic routes (cache components)', () => {
@@ -41,43 +40,7 @@ describe('adapter dynamic routes (cache components)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "27 entries
-
-     /[lang]
-       ^[/]?/(?<nxtPlang>[^/]+?)\\.segments/\\$d\\$lang(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /[lang].segments/$d$lang$segment?nxtPlang=$nxtPlang
-
-     /de/fallback-shell/[slug]
-       ^[/]?/de/fallback\\-shell/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/fallback\\-shell/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /de/fallback-shell/[slug].segments/$d$lang/fallback-shell/$d$slug$segment?nxtPslug=$nxtPslug
-
-     /en/fallback-shell/[slug]
-       ^[/]?/en/fallback\\-shell/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/fallback\\-shell/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /en/fallback-shell/[slug].segments/$d$lang/fallback-shell/$d$slug$segment?nxtPslug=$nxtPslug
-
-     /[lang]/fallback-shell/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/fallback\\-shell/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/fallback-shell/[slug].segments/$d$lang/fallback-shell/$d$slug$segment?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
-
-     /[lang]/ppr
-       ^[/]?/(?<nxtPlang>[^/]+?)/ppr\\.segments/\\$d\\$lang/ppr(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/ppr.segments/$d$lang/ppr$segment?nxtPlang=$nxtPlang
-
-     /[lang]/static
-       ^[/]?/(?<nxtPlang>[^/]+?)/static\\.segments/\\$d\\$lang/static(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/static.segments/$d$lang/static$segment?nxtPlang=$nxtPlang
-
-     /de/[slug]
-       ^[/]?/de/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /de/[slug].segments/$d$lang/$d$slug$segment?nxtPslug=$nxtPslug
-
-     /en/[slug]
-       ^[/]?/en/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /en/[slug].segments/$d$lang/$d$slug$segment?nxtPslug=$nxtPslug
-
-     /[lang]/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)\\.segments/\\$d\\$lang/\\$d\\$slug(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/[slug].segments/$d$lang/$d$slug$segment?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
+     "18 entries
 
      /[lang].rsc
        ^[/]?/(?<nxtPlang>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
