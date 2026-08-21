@@ -31,6 +31,7 @@ import {
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -118,6 +119,13 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
+
+/**
+ * How long a request waits for the route watcher to finish processing
+ * filesystem changes it has reported. The expected wake-up is the scan
+ * completing; the deadline only bounds a watcher that never does.
+ */
+const ROUTE_TABLES_WAIT_MS = 5_000
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -384,6 +392,13 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
+  // Resolved while the route tables reflect every filesystem change the
+  // watcher has reported. Pending from a change event until the scan that
+  // includes it has rebuilt the tables, so that a request arriving in between
+  // can wait for them instead of being routed against the old ones.
+  let routeTablesSettled = Promise.resolve()
+  let settleRouteTables: (() => void) | undefined
+
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
       // Watchpack doesn't emit an event for an empty directory
@@ -455,14 +470,98 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
+
+    const onWatchEvent = () => {
+      if (settleRouteTables) return
+      routeTablesSettled = new Promise<void>((settle) => {
+        settleRouteTables = settle
+      })
+    }
+    wp.on('change', onWatchEvent)
+    wp.on('remove', onWatchEvent)
+
+    // Watchpack discovers directories one level at a time and aggregates
+    // events on a short timer, so its first aggregation can list only part of
+    // the app and pages directories. Read them up front, and keep counting
+    // those files as known until the watcher has reported each of them.
+    let startupFiles: Set<string> | undefined
+    try {
+      startupFiles = new Set(
+        (
+          await Promise.all(
+            directories.map((directory) =>
+              recursiveReadDir(directory, { relativePathnames: false })
+            )
+          )
+        ).flat()
+      )
+    } catch (e) {
+      reject(e)
+      resolved = true
+      return
+    }
+
+    const processScan = async () => {
+      // Events that arrive from here on are not part of this scan.
+      const settleThisScan = settleRouteTables
+      settleRouteTables = undefined
+      const knownFiles = wp.getTimeInfoEntries()
+      if (startupFiles) {
+        let allReported = true
+        for (const fileName of startupFiles) {
+          if (knownFiles.has(fileName)) continue
+          try {
+            const stat = fs.statSync(fileName)
+            knownFiles.set(fileName, {
+              safeTime: stat.mtimeMs,
+              timestamp: stat.mtimeMs,
+            })
+            allReported = false
+          } catch {
+            startupFiles.delete(fileName)
+          }
+        }
+        if (allReported) startupFiles = undefined
+      }
+
+      try {
+        await processKnownFiles(knownFiles, () => settleThisScan?.())
+      } finally {
+        settleThisScan?.()
+      }
+    }
+
+    // Scans are not run concurrently: a slower, older scan finishing after a
+    // newer one would overwrite the tables with stale state. A change during
+    // a scan queues one more scan, which reads the watcher's state afresh.
+    let scanRunning = false
+    let scanQueued = false
     wp.on('aggregated', async () => {
+      if (scanRunning) {
+        scanQueued = true
+        return
+      }
+      scanRunning = true
+      try {
+        do {
+          scanQueued = false
+          await processScan()
+        } while (scanQueued)
+      } finally {
+        scanRunning = false
+      }
+    })
+
+    async function processKnownFiles(
+      knownFiles: ReturnType<Watchpack['getTimeInfoEntries']>,
+      onRouteTablesUpdated: () => void
+    ) {
       const isInitialScan = !hadInitialScan
       hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
@@ -1237,6 +1336,7 @@ async function startWatcher(
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
+        onRouteTablesUpdated()
 
         // Announced from here, right after the route tables were updated, so
         // that a client reacting to the announcement can be served. With
@@ -1372,7 +1472,7 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
-    })
+    }
 
     wp.watch({ directories: [dir], startTime: 0 })
   })
@@ -1445,6 +1545,18 @@ async function startWatcher(
     hotReloader,
     requestHandler,
     logErrorWithOriginalStack,
+
+    waitForRouteTables() {
+      const settled = routeTablesSettled
+      return new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, ROUTE_TABLES_WAIT_MS)
+        timer.unref()
+        settled.then(() => {
+          clearTimeout(timer)
+          resolve()
+        })
+      })
+    },
 
     async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
