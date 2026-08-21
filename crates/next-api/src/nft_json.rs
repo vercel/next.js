@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use next_core::next_app::{AppPage, AppPath};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -196,26 +195,23 @@ impl Asset for NftJsonAsset {
             // has finished tracing, so there is no content to hash yet.
             //
             if let Some(page_name) = this.page_name.as_deref() {
-                let manifest_path = if let Some(app_page) = page_name.strip_prefix("app") {
-                    let pathname = AppPath::from(AppPage::parse(app_page)?).to_string();
-                    Some(this.project.node_root().await?.join(&format!(
-                        "server/app{}/prerender-manifest.json",
-                        pathname.trim_end_matches('/')
-                    ))?)
+                let last_segment = if page_name.starts_with("app") {
+                    // This is /page or /route
+                    page_name.rsplit('/').next()
                 } else if matches!(page_name, "pages/_app" | "pages/_document") {
                     None
                 } else if page_name.starts_with("pages/") {
-                    let last_segment = page_name.rsplit('/').next().unwrap();
-                    Some(
-                        nft_path
-                            .parent()
-                            .join(&format!("{last_segment}/prerender-manifest.json"))?,
-                    )
+                    // This is /{name of last segment}
+                    page_name.rsplit('/').next()
                 } else {
                     None
                 };
-                if let Some(manifest_path) = manifest_path {
-                    nft_json.add_unhashed(manifest_path)?;
+                if let Some(last_segment) = last_segment {
+                    nft_json.add_unhashed(
+                        nft_path
+                            .parent()
+                            .join(&format!("{last_segment}/prerender-manifest.json"))?,
+                    )?;
                 }
             }
 
