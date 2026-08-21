@@ -42,7 +42,7 @@ The catch that decides most of the sweep: a default link warms only the shared A
 
 ## working surfaces
 
-- **The production-mode `instant()` suite — the primary record for test-backed preservation.** Reuse the app's production build, auth, and Playwright setup. Read an existing `instant-nav.rig.md` first. If the project needs this setup and the user chooses the test-backed path, follow the shared [rig template](https://github.com/vercel/next.js/blob/canary/skills/next-cache-components-optimizer/rig-template.md) instead of duplicating its discovery instructions here. The same flag-off tests define the legacy target and become the flag-on work queue. Development can help investigate a failure, but only this suite decides whether the prefetched UI was preserved.
+- **The production-mode `instant()` suite — the primary record for test-backed preservation.** Reuse the app's production build, auth, and Playwright setup. Read an existing `instant-nav.rig.md` first. If the project needs this setup and the user chooses the test-backed path, follow the shared [rig template](https://github.com/vercel/next.js/blob/canary/skills/next-cache-components-optimizer/rig-template.md) instead of duplicating its discovery instructions here. The same tests define the legacy target before adoption and become the work queue after each destination opts into Partial Prefetching. Development can help investigate a failure, but only this suite decides whether the prefetched UI was preserved.
 - **The dev server terminal — the primary record for the insight path.** Each validated route's insights are logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep; it's the greppable record of what fired where, and it works the same on Turbopack and webpack.
 - **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. It appears only once an insight has fired, so a route that surfaces nothing shows no tab at all — that's the clean state, not a missing feature. Don't hunt for the tab on a quiet route; confirm clean from the dev log above, which is the reliable signal. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. When the tab is present, the overlay pill shows the count and each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
 - **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill (webpack apps: see requires). When browsing its `/_next/mcp` tools, the prefetch insights surface through `get_errors` and the overlay, not the similarly-named `get_request_insights`. That one is the span and performance recorder (gated behind `experimental.requestInsights`) and reports nothing about prefetching.
@@ -51,7 +51,7 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` navigations (before enabling)
 
-Keep the global flag **off** while building the baseline or recording the manual target, then adopt each destination with `export const prefetch = 'partial'`. Enabling the flag before locking the target would remove the legacy baseline and silence the [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight used by the development path. After the target is locked, the test-backed path must run with the flag on: the temporary route export alone does not change legacy Link prefetching while the flag is off. If the flag is already on in unshipped work, use the pre-flag commit for the baseline. Ask the user how to ship it, in the language of PRs:
+Keep the global flag **off** while building the baseline or recording the manual target, then adopt each destination with `export const prefetch = 'partial'`. Enabling the flag before locking the target would remove the legacy baseline and silence the [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight used by the development path. The route export is enough for the unchanged tests to exercise Partial Prefetching on that destination. If the flag is already on in unshipped work, use the pre-flag commit for the baseline. Ask the user how to ship it, in the language of PRs:
 
 - **One branch** — the whole audit in one change, with the flag enabled and the codemod run at the end (step 2).
 - **Route by route** — each adopted destination ships as its own PR. The insight still fires for the destinations you haven't reached, a live worklist, and step 2 comes after the last one.
@@ -96,7 +96,7 @@ Then:
    export const prefetch = 'partial'
    ```
 
-   Follow the guide's [preservation patterns](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) for any caching and Link-prop changes. If other URL-specific UI might be worth prefetching but was not part of the legacy contract, keep `prefetch={true}` on its links and mark the route for step 5:
+   If other URL-specific UI might be worth prefetching but was not part of the legacy contract, keep `prefetch={true}` on its links and mark the route for step 5:
 
    ```tsx
    // TODO(per-link-prefetch): assess with the user whether URL data should resolve before click.
@@ -106,7 +106,7 @@ Then:
 
    Use that exact prefix so step 5 can grep them back. Do not select new target UI now; restore only the target chosen from the legacy behavior.
 
-4. **Restore the target.** For test-backed preservation, enable `partialPrefetching` in the test configuration, rerun the unchanged tests, and treat failures as the work queue until every test passes. On a one-branch adoption, keep the flag enabled and continue to step 2. For route-by-route PRs, revert only the global flag before shipping each incremental change; the temporary route exports keep the development worklist intact until the final rollout. For manual preservation, compare the adopted production navigation with the selected target and document anything not yet restored. Apply the guide's matching preservation pattern, and ask the user before making an unclear freshness or caching decision. New URL-data candidates marked in the previous item wait for step 5.
+4. **Restore the target.** For test-backed preservation, rerun the unchanged tests after adding each route export and treat failures as the work queue until every test passes. For manual preservation, compare the adopted production navigation with the selected target and document anything not yet restored. Apply the guide's matching preservation pattern for caching and Link-prop changes, and ask the user before making an unclear freshness or caching decision. New URL-data candidates marked in the previous item wait for step 5.
 
 When restoring the target changes caching or invalidation, follow the project's existing verification approach. Reuse or extend an applicable suite for the affected lifecycle, such as freshness after mutations, cache scope, or generated values. If the project doesn't test this type of behavior, do not introduce new test infrastructure during adoption; verify it manually in production and record the expected and observed results. A green `instant()` test proves readiness, not cache correctness. Ask the user only when the intended behavior is unclear.
 
@@ -116,7 +116,7 @@ When restoring the target changes caching or invalidation, follow the project's 
 
 Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
-1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`) if the one-branch test loop did not leave it enabled. Every route is adopted now, so every link is good.
+1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
 2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(per-link-prefetch)` markers and their Optimizing prefetching guide links, which wait for step 5.
 
    ```bash
