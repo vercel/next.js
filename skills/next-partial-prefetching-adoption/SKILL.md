@@ -61,22 +61,20 @@ Enumerate explicit prefetch and manual prefetch sites across the whole source tr
 
 ### Choose what to preserve and how to verify it
 
-An explicit `prefetch={true}` proves that someone chose the strongest legacy prefetch, not that every part of the completed page was intentional. Before writing tests or editing destinations, inspect each audited navigation and turn the audit into a decision queue. Keep a local server running and give the user one clickable table:
+Before writing tests or editing destinations, follow the guide's [audit guidance](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) to propose the UI worth preserving. Keep a local server running and give the user one concise, clickable table:
 
-| Link to try | Destination | Legacy prefetched UI | Proposed target | Content that can stream | Decision |
-| ----------- | ----------- | -------------------- | --------------- | ----------------------- | -------- |
+| Link to try | Proposed result |
+| ----------- | --------------- |
 
-Link the source page at the current localhost origin so the user can click the real audited Link; preserve query strings and name the Link when a source page has more than one. Derive the proposal from the Link's purpose, the first viewport, and the destination code. Prefer the smallest coherent target that makes the navigation feel complete: usually the primary heading and content the Link promises. Let secondary panels, below-the-fold content, replies, and freshness-sensitive data stream unless the Link specifically promises them. Propose the full meaningful baseline only when the page is small and coherent or the product intent clearly requires it.
-
-The decision for each row is one of: preserve the full meaningful baseline, preserve a named focused part, or use only the App Shell and remove the explicit full prefetch. Treat every unresolved Decision cell as a todo and walk the table with the user in one conversation, grouping equivalent rows when useful. Explain that preserving more dynamic UI can require more caching and refactoring, while leaving it dynamic preserves request-time freshness. If the user is unavailable or can't judge the pages, use your proposed focused target and record the assumption in the table. Do not treat incidental metadata, invisible markup, or background work as target UI.
+Link to the source page at the current localhost origin, preserve query strings, and name the audited Link when a page has more than one. In the proposed result, say what will be ready on navigation and what will stream. Group equivalent links. Keep the detailed legacy baseline in working notes instead of presenting it as a wall of text. Ask whether the user wants to change any proposal. If they are unavailable, apply the guide's default and record the assumption.
 
 After the target UI is settled, offer the verification choice in product terms:
 
-> I recommend adding `instant()` tests before the migration. They prove that the part of the legacy full prefetch you chose to keep remains available after the prefetch changes and stay as regression coverage. This takes longer now because the tests need a reliable production build and test environment. I can instead document the target UI carefully, adopt it now, and add the tests later. Which do you prefer?
+> I recommend adding `instant()` tests now so the selected prefetched UI stays covered after the migration. This needs a working production test environment. Want me to add the tests now, or document the target and add coverage later?
 
 If the user asks you to decide or is unavailable, default to **test-first preservation**. If they choose the manual path, keep the table as the before/target inventory, use it with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore the target.”
 
-For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui): assert only the selected subset already present in the legacy full prefetch, use positive assertions, and do not assert that unselected legacy UI is absent. Make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
+For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui) and make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
 
 If a reliable production run is still unavailable after a concrete setup attempt, name the blocker and ask one follow-up: pause to repair or hand off the test rig (recommended), or proceed from the documented manual target and add tests later. Never silently downgrade from test-first. With no answer, preserve first: do not enable the global flag; finish and hand off the audit, target UI, and runner blocker.
 
