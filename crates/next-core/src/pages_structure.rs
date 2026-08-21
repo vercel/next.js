@@ -1,10 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
-    RealPathResultError,
+    RealPathErrorType,
 };
 
 use crate::next_import_map::get_next_package;
@@ -108,11 +108,10 @@ pub async fn find_pages_structure(
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
     async fn realpath_if_exists(path: &FileSystemPath) -> Result<Option<FileSystemPath>> {
-        let result = path.realpath_with_links().await?;
-        match &result.path_result {
-            Ok(path) => Ok(Some(path.clone())),
-            Err(RealPathResultError::NotFound) => Ok(None),
-            Err(error) => bail!(error.as_error_message(path, &result).await?),
+        match path.realpath().await? {
+            Ok(path) => Ok(Some(path)),
+            Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
+            Err(error) => Err(anyhow!(error)),
         }
     }
 

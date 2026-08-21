@@ -7,7 +7,7 @@ use std::{
     sync::LazyLock,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,7 +20,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathResultError};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
 
 use crate::{
@@ -1151,8 +1151,8 @@ async fn realpath_if_exists(
     }
     match &result.path_result {
         Ok(path) => Ok(Some(path.clone())),
-        Err(RealPathResultError::NotFound) => Ok(None),
-        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
+        Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
+        Err(error) => Err(anyhow!(error.clone())),
     }
 }
 
@@ -1529,7 +1529,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result).await?),
+            Err(error) => return Err(anyhow!(error.clone())),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -3135,7 +3135,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
+        Err(error) => return Err(anyhow!(error.clone())),
     };
 
     let path_ref = path.clone();

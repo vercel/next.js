@@ -1,6 +1,6 @@
 //! [`FileSystemPath`] and the path-resolution operations built on top of it.
 
-use std::path::MAIN_SEPARATOR;
+use std::{error::Error, fmt, path::MAIN_SEPARATOR};
 
 use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
@@ -445,14 +445,13 @@ impl FileSystemPath {
         self.fs().metadata(self.clone())
     }
 
-    // Returns the realpath to the file, resolving all symlinks and reporting an error if the path
-    // is invalid.
-    pub async fn realpath(&self) -> Result<FileSystemPath> {
-        let result = &(*self.realpath_with_links().await?);
-        match &result.path_result {
-            Ok(path) => Ok(path.clone()),
-            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
-        }
+    /// Returns the realpath to the file, resolving all symlinks.
+    ///
+    /// The outer [`anyhow::Error`] represents an internal error in turbo-tasks. Any other error is
+    /// represented using a structured `RealPathError`.
+    pub async fn realpath(&self) -> Result<Result<FileSystemPath, RealPathError>> {
+        // `FileSystemPath` is cheap to clone
+        Ok(self.realpath_with_links().await?.path_result.clone())
     }
 
     pub fn rebase(
@@ -493,24 +492,34 @@ impl FileSystemPath {
         get_type(self.clone())
     }
 
-    pub fn realpath_with_links(&self) -> Vc<RealPathResult> {
+    pub fn realpath_with_links(&self) -> Vc<RealPathWithLinksResult> {
         realpath_with_links(self.clone())
     }
 }
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
-pub struct RealPathResult {
-    pub path_result: Result<FileSystemPath, RealPathResultError>,
-    pub symlinks: Vec<FileSystemPath>,
+pub struct RealPathWithLinksResult {
+    pub path_result: Result<FileSystemPath, RealPathError>,
+    pub symlinks: Box<[FileSystemPath]>,
 }
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
-pub enum RealPathResultError {
-    TooManySymlinks,
-    CycleDetected,
+pub struct RealPathError {
+    original_path: FileSystemPath,
+    kind: RealPathErrorType,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+pub enum RealPathErrorType {
+    TooManySymlinks {
+        symlinks: Box<[FileSystemPath]>,
+    },
+    CycleDetected {
+        symlinks: Box<[FileSystemPath]>,
+    },
     /// A symlink or path component does not exist.
     NotFound,
     /// Resolution failed after finding a symlink, or the symlink was invalid to begin with.
@@ -519,37 +528,45 @@ pub enum RealPathResultError {
     },
 }
 
-impl RealPathResultError {
-    /// Formats the error message
-    pub async fn as_error_message(
-        &self,
-        orig: &FileSystemPath,
-        result: &RealPathResult,
-    ) -> Result<RcStr> {
-        Ok(match self {
-            RealPathResultError::TooManySymlinks => {
-                let len = result.symlinks.len();
-                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
-            }
-            RealPathResultError::CycleDetected => {
-                // symlinks is Vec<FileSystemPath> — format with Debug since
-                // turbofmt can't resolve a whole Vec asynchronously.
-                let symlinks_dbg = format!(
-                    "{:?}",
-                    result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
-                );
-                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
-            }
-            RealPathResultError::Invalid { reason } => {
-                turbofmt!("Symlink {orig} could not be resolved: {reason}").await?
-            }
-            RealPathResultError::NotFound => {
-                turbofmt!("Path {orig} could not be resolved because a component does not exist")
-                    .await?
-            }
-        })
+impl RealPathError {
+    pub fn kind(&self) -> &RealPathErrorType {
+        &self.kind
     }
 }
+
+impl fmt::Display for RealPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.kind {
+            RealPathErrorType::TooManySymlinks { symlinks } => write!(
+                f,
+                "Symlink {} leads to too many other symlinks ({} links)",
+                self.original_path,
+                symlinks.len()
+            ),
+            RealPathErrorType::CycleDetected { symlinks } => write!(
+                f,
+                "Symlink {} is in a symlink loop: {:?}",
+                self.original_path,
+                symlinks
+                    .iter()
+                    .map(|symlink| &symlink.path)
+                    .collect::<Vec<_>>()
+            ),
+            RealPathErrorType::Invalid { reason } => write!(
+                f,
+                "Symlink {} could not be resolved: {reason}",
+                self.original_path
+            ),
+            RealPathErrorType::NotFound => write!(
+                f,
+                "Path {} could not be resolved because a component does not exist",
+                self.original_path
+            ),
+        }
+    }
+}
+
+impl Error for RealPathError {}
 
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
@@ -604,17 +621,20 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
 }
 
 #[turbo_tasks::function]
-async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>> {
+async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLinksResult>> {
+    let original_path = path.clone();
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
     let mut visited: AutoSet<RcStr> = AutoSet::new();
-    let mut error = RealPathResultError::TooManySymlinks;
+    let mut error_type = RealPathErrorType::TooManySymlinks {
+        symlinks: Box::new([]),
+    };
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
         if current_path.is_root() {
             // fast path
-            return Ok(RealPathResult {
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
             }
@@ -622,7 +642,9 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         }
 
         if !visited.insert(current_path.path.clone()) {
-            error = RealPathResultError::CycleDetected;
+            error_type = RealPathErrorType::CycleDetected {
+                symlinks: Box::new([]),
+            };
             break; // we detected a cycle
         }
 
@@ -641,7 +663,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 }
             }
             Err(parent_error) => {
-                error = parent_error;
+                error_type = parent_error.kind;
                 break;
             }
         }
@@ -651,12 +673,12 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         let entry_type = *current_path.get_type().await?;
         if !matches!(entry_type, FileSystemEntryType::Symlink) {
             if matches!(entry_type, FileSystemEntryType::NotFound) {
-                error = RealPathResultError::NotFound;
+                error_type = RealPathErrorType::NotFound;
                 break;
             }
-            return Ok(RealPathResult {
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
-                symlinks: symlinks.into_iter().collect(), // convert set to vec
+                symlinks: symlinks.into_iter().collect(),
             }
             .cell());
         }
@@ -669,11 +691,11 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 current_path = target_path;
             }
             LinkContent::NotFound => {
-                error = RealPathResultError::NotFound;
+                error_type = RealPathErrorType::NotFound;
                 break;
             }
             LinkContent::Invalid { reason } => {
-                error = RealPathResultError::Invalid {
+                error_type = RealPathErrorType::Invalid {
                     reason: reason.clone(),
                 };
                 break;
@@ -683,14 +705,24 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 
     // Too many attempts or detected a cycle, we bailed out!
     //
-    // TODO: There's no proper way to indicate an non-turbo-tasks error here, so just return the
-    // original path and all the symlinks we followed.
-    //
     // Returning the followed symlinks is still important, even if there is an error! Otherwise
     // we may never notice if the symlink loop is fixed.
-    Ok(RealPathResult {
-        path_result: Err(error),
-        symlinks: symlinks.into_iter().collect(),
+    let symlinks: Box<[_]> = symlinks.into_iter().collect();
+    let error_type = match error_type {
+        RealPathErrorType::TooManySymlinks { .. } => RealPathErrorType::TooManySymlinks {
+            symlinks: symlinks.clone(),
+        },
+        RealPathErrorType::CycleDetected { .. } => RealPathErrorType::CycleDetected {
+            symlinks: symlinks.clone(),
+        },
+        error_type => error_type,
+    };
+    Ok(RealPathWithLinksResult {
+        path_result: Err(RealPathError {
+            original_path,
+            kind: error_type,
+        }),
+        symlinks,
     }
     .cell())
 }

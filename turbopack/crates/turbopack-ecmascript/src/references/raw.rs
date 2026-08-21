@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -186,7 +186,7 @@ async fn resolve_reference_from_dir(
                 }
                 let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
-                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
+                    Err(error) => return Err(anyhow!(error.clone())),
                 };
                 results.push((
                     RequestKey::new(matched_path.clone()),

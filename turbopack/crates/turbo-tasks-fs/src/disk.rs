@@ -1719,8 +1719,8 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
-            LinkTarget, RealPathResultError, WriteLinkContent, WriteLinkTarget,
-            WriteLinkTargetType, canonicalize_to_rcstr,
+            LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+            canonicalize_to_rcstr,
         };
 
         #[turbo_tasks::function(operation, root)]
@@ -1903,22 +1903,34 @@ mod tests {
 
                 // `realpath` follows the link and reports the missing target.
                 let result = link_path.realpath_with_links().await?;
-                assert_eq!(result.path_result, Err(RealPathResultError::NotFound));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
                 // The same missing target after another link is also reported as not found.
                 let chain_path = root_path.join("sub/link-chain")?;
                 let result = chain_path.realpath_with_links().await?;
-                assert_eq!(result.path_result, Err(RealPathResultError::NotFound));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
                 // A missing path beneath a resolved directory link is reported as not found.
                 let missing_in_linked_dir = root_path.join("sub/link-dir/package.json")?;
                 let result = missing_in_linked_dir.realpath_with_links().await?;
-                assert_eq!(result.path_result, Err(RealPathResultError::NotFound));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
                 // A path that simply doesn't exist is also reported as not found.
                 let missing = root_path.join("sub/missing.txt")?;
                 let result = missing.realpath_with_links().await?;
-                assert_eq!(result.path_result, Err(RealPathResultError::NotFound));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
                 Ok(())
             }
