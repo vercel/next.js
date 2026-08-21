@@ -395,6 +395,7 @@ export function getDefineEnv({
     'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
+    'process.env.__NEXT_VARIANTS': config.experimental.variants ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
       isCacheComponentsEnabled &&
       (dev || config.experimental.exposeTestingApiInProductionBuild === true),

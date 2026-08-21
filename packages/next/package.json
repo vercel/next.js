@@ -34,6 +34,8 @@
     "script.d.ts",
     "server.js",
     "server.d.ts",
+    "variants.js",
+    "variants.d.ts",
     "head.js",
     "head.d.ts",
     "image.js",

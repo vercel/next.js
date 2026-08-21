@@ -548,6 +548,17 @@ export interface ExperimentalConfig {
   concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
+
+  /**
+   * Enables variants.
+   *
+   * A variant is a value that each request resolves, from cookies, headers, or
+   * a flags service. A route can be prerendered against a variant, in addition
+   * to its route params.
+   *
+   * Only Turbopack supports this option. A webpack build rejects it.
+   */
+  variants?: boolean
   prefetchInlining?:
     | boolean
     | {
