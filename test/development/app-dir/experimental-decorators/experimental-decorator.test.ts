@@ -1,6 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe).each([
+
+describe.each([
   { decoratorVersion: 'legacy', experimentalDecorators: false },
   { decoratorVersion: '2021-12', experimentalDecorators: false },
   { decoratorVersion: '2022-03', experimentalDecorators: false },
