@@ -711,6 +711,7 @@ impl ReactServerComponentValidator {
                 atom!("server-only").into(),
                 atom!("next/headers").into(),
                 atom!("next/root-params").into(),
+                atom!("next/variants").into(),
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([

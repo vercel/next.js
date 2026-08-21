@@ -109,7 +109,7 @@ export function assertValidVariantValue(
  * @param key The identity of the variant. The variants transform will inject
  * it. It is passed explicitly only until that transform exists.
  */
-export function variant<T extends string = string>(
+export function unstable_variant<T extends string = string>(
   decide: (request: NextRequest) => T | Promise<T>,
   key?: string
 ): Variant<T> {
@@ -121,7 +121,7 @@ export function variant<T extends string = string>(
 
   if (typeof decide !== 'function') {
     throw new Error(
-      '`variant()` expects a `decide` function as its first argument.'
+      '`unstable_variant()` expects a `decide` function as its first argument.'
     )
   }
 

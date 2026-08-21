@@ -1,16 +1,16 @@
 'use variants'
 
-import { variant } from 'next/variants'
+import { unstable_variant } from 'next/variants'
 
 // The second argument is the variant's identity, which the variants transform
 // will inject. It is passed explicitly until that transform exists.
-export const theme = variant(
+export const theme = unstable_variant(
   (request) =>
     request.cookies.get('theme')?.value === 'dark' ? 'dark' : 'light',
   'theme@variants.ts'
 )
 
-export const locale = variant(
+export const locale = unstable_variant(
   (request) => (request.cookies.get('locale')?.value === 'de' ? 'de' : 'en'),
   'locale@variants.ts'
 )
