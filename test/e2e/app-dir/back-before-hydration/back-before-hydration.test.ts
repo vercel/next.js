@@ -325,7 +325,7 @@ describe('back navigation before hydration after reload', () => {
       await waitForPage(browser, '#home')
     })
 
-    it('leaves the traversal unhandled when a third-party write lands before the replay', async () => {
+    it('handles a third-party write that lands during hydration', async () => {
       const { browser, page, releaseScripts } = await clickThenReloadStalled(
         homePath,
         'to-post',
@@ -336,23 +336,54 @@ describe('back navigation before hydration after reload', () => {
       expect(new URL(await browser.url()).pathname).toBe(homePath)
 
       // Arms an effect in the fixture that pushes a third-party history
-      // entry between the router's traversal detection and its replay.
+      // entry after hydration has committed but before the router's own
+      // effect has run.
       await page.evaluate('window.__injectThirdPartyPush = true')
       releaseScripts()
 
       await retry(async () => {
-        // The traversal cannot be replayed onto the third-party entry. The
-        // content stays on the reloaded page, like before the fix — and in
-        // particular the router must not reload a page that just loaded.
+        // The entry was pushed from the traversed-to home entry, so it
+        // renders the home page at the pushed URL.
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(new URL(await browser.url()).search).toBe('?tp=1')
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-        // TODO: The router never learns about the third-party entry.
-        expect(await readRouterUrl(browser)).toBe(homePath)
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        expect(await readRouterUrl(browser)).toBe(`${homePath}?tp=1`)
       })
 
-      await browser.elementById('to-home').click()
-      await waitForPage(browser, '#home')
+      await browser.elementById('to-post').click()
+      await waitForPage(browser, '#post')
+    })
+
+    describe.each([
+      { method: 'pushState' as const, search: '?after=back-push' },
+      { method: 'replaceState' as const, search: '?after=back-replace' },
+    ])('$method after an early traversal', ({ method, search }) => {
+      it('renders the traversed-to page at the written URL', async () => {
+        const { browser, page, releaseScripts } = await clickThenReloadStalled(
+          homePath,
+          'to-post',
+          '#post'
+        )
+
+        await browser.back({ waitUntil: 'commit' })
+        await page.evaluate(
+          `window.history.${method}({ thirdParty: true }, '', '${homePath}${search}')`
+        )
+        releaseScripts()
+
+        await waitForPage(browser, '#home')
+        await retry(async () => {
+          expect(await readRouterUrl(browser)).toBe(`${homePath}${search}`)
+        })
+        expect(await browser.eval('window.__stayed')).toBe(true)
+
+        await browser.elementById('to-post').click()
+        await waitForPage(browser, '#post')
+        await browser.back()
+        await waitForPage(browser, '#home')
+        expect(new URL(await browser.url()).search).toBe(search)
+        expect(await browser.eval('window.__stayed')).toBe(true)
+      })
     })
 
     it('does not render onto an entry marked by a previous document', async () => {

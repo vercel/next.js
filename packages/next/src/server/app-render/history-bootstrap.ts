@@ -18,12 +18,12 @@ const historyBootstrapScript = String.raw`
     earlyHistory.changed = true
   }
 
-  // An entry written from the activation entry renders the same page, so it
-  // inherits the mark. Like copyNextJsInternalHistoryState in
-  // history-handlers.ts, absent state becomes an object to carry it. The
-  // router's own writes carry their state already; the first one happens
-  // before the wrappers are removed.
-  function inheritActivation(data) {
+  // An entry written from an entry the router can render renders the same
+  // page, so it inherits that entry's router state or activation mark. Like
+  // copyNextJsInternalHistoryState in history-handlers.ts, absent state
+  // becomes an object to carry it. The router's own writes carry their state
+  // already; the first one happens before the wrappers are removed.
+  function inheritRouterState(data) {
     if (data && data.__NA === true) {
       return data
     }
@@ -31,7 +31,11 @@ const historyBootstrapScript = String.raw`
       data = {}
     }
     const current = history.state
-    if (current && current[marker] === token) {
+    if (current && current.__NA === true) {
+      data.__NA = true
+      data.__PRIVATE_NEXTJS_INTERNALS_TREE =
+        current.__PRIVATE_NEXTJS_INTERNALS_TREE
+    } else if (current && current[marker] === token) {
       data[marker] = token
     }
     return data
@@ -40,7 +44,7 @@ const historyBootstrapScript = String.raw`
   const originalPushState = history.pushState
   function pushState(data, unused, url) {
     recordChange()
-    data = inheritActivation(data)
+    data = inheritRouterState(data)
     return originalPushState.call(history, data, unused, url)
   }
   pushState.__original = originalPushState
@@ -48,7 +52,7 @@ const historyBootstrapScript = String.raw`
   const originalReplaceState = history.replaceState
   function replaceState(data, unused, url) {
     recordChange()
-    data = inheritActivation(data)
+    data = inheritRouterState(data)
     return originalReplaceState.call(history, data, unused, url)
   }
   replaceState.__original = originalReplaceState
