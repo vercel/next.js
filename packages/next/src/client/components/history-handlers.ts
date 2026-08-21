@@ -12,6 +12,9 @@ type EarlyHistory = {
   href: string
   // Whether any pushState, replaceState or popstate happened since.
   changed: boolean
+  // Scopes the activation marker to this document. An entry marked by an
+  // earlier document is not one this document can render.
+  token: number
 }
 
 // The script's pushState/replaceState wrappers keep the method they replaced.
@@ -32,6 +35,7 @@ type HistoryEntry =
   | { kind: 'unknown' }
 
 let activationHistoryState: AppHistoryState | undefined
+let activationToken: number | undefined
 
 function readHistoryEntry(state: unknown): HistoryEntry {
   if (state === null || typeof state !== 'object') {
@@ -46,7 +50,10 @@ function readHistoryEntry(state: unknown): HistoryEntry {
         | undefined,
     }
   }
-  if (historyState[ACTIVATION_MARKER] === true) {
+  if (
+    activationToken !== undefined &&
+    historyState[ACTIVATION_MARKER] === activationToken
+  ) {
     return { kind: 'activation' }
   }
   return { kind: 'unknown' }
@@ -54,6 +61,7 @@ function readHistoryEntry(state: unknown): HistoryEntry {
 
 export function initializeEarlyHistory(historyState: AppHistoryState): void {
   activationHistoryState = historyState
+  activationToken = window.__next_h?.token
 }
 
 // A Back/Forward press before the router's popstate listener exists moves the

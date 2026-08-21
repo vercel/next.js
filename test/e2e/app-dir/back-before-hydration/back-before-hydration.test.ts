@@ -355,6 +355,27 @@ describe('back navigation before hydration after reload', () => {
       await waitForPage(browser, '#home')
     })
 
+    it('does not render onto an entry marked by a previous document', async () => {
+      const { browser, page, releaseScripts } = await loadStalled(postPath)
+
+      await page.evaluate(`window.history.pushState(null, '', '${homePath}')`)
+      releaseScripts()
+      await retry(async () => {
+        expect(await readRouterUrl(browser)).toBe(homePath)
+      })
+
+      // The reloaded document renders the home page. The entry left behind at
+      // /post was marked by the previous document, whose payload is gone, so
+      // going back to it must not render the home page there.
+      await browser.refresh()
+      await waitForPage(browser, '#home')
+      await browser.eval('window.__reloaded = true')
+      await browser.back()
+      await waitForPage(browser, '#post')
+      expect(new URL(await browser.url()).pathname).toBe(postPath)
+      expect(await browser.eval('window.__reloaded')).not.toBe(true)
+    })
+
     it('keeps a history wrapper installed before hydration', async () => {
       const { browser, page, releaseScripts } = await loadStalled(postPath)
 

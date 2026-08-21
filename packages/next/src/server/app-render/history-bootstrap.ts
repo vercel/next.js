@@ -6,9 +6,11 @@
 const historyBootstrapScript = String.raw`
 ;(function () {
   const marker = '__PRIVATE_NEXTJS_INTERNALS_HISTORY_ACTIVATION'
+  const token = Math.random()
   const earlyHistory = {
     href: location.href,
     changed: false,
+    token,
   }
   self.__next_h = earlyHistory
 
@@ -29,8 +31,8 @@ const historyBootstrapScript = String.raw`
       data = {}
     }
     const current = history.state
-    if (current && current[marker] === true) {
-      data[marker] = true
+    if (current && current[marker] === token) {
+      data[marker] = token
     }
     return data
   }
@@ -57,7 +59,7 @@ const historyBootstrapScript = String.raw`
   const activationState = Object.assign({}, history.state)
   delete activationState.__NA
   delete activationState.__PRIVATE_NEXTJS_INTERNALS_TREE
-  activationState[marker] = true
+  activationState[marker] = token
   originalReplaceState.call(history, activationState, '', location.href)
 
   history.pushState = pushState
