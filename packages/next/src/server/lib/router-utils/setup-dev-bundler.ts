@@ -31,6 +31,7 @@ import {
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -384,6 +385,13 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
+  // Resolved while the route tables reflect every filesystem change the
+  // watcher has reported. Pending from a change event until the scan that
+  // includes it has rebuilt the tables, so that a request arriving in between
+  // can wait for them instead of being routed against the old ones.
+  let routeTablesSettled = Promise.resolve()
+  let settleRouteTables: (() => void) | undefined
+
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
       // Watchpack doesn't emit an event for an empty directory
@@ -455,14 +463,108 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
+
+    // Only a path the last scan didn't know, or a removal, can change the
+    // route tables. An edit to a known file is processed by the next scan like
+    // any other change, but requests need not wait for it.
+    const markRouteTablesStale = () => {
+      if (settleRouteTables) return
+      routeTablesSettled = new Promise<void>((settle) => {
+        settleRouteTables = settle
+      })
+    }
+    wp.on('change', (fileName: string) => {
+      if (!fileWatchTimes.has(fileName)) markRouteTablesStale()
+    })
+    wp.on('remove', markRouteTablesStale)
+
+    // Watchpack discovers directories one level at a time and aggregates
+    // events on a short timer, so its first aggregation can list only part of
+    // the app and pages directories. Read them up front, and keep counting
+    // those files as known until the watcher has reported their directories,
+    // from which point it is the authority on what they contain.
+    let startupFiles: Set<string> | undefined
+    try {
+      startupFiles = new Set(
+        (
+          await Promise.all(
+            directories.map((directory) =>
+              recursiveReadDir(directory, { relativePathnames: false })
+            )
+          )
+        ).flat()
+      )
+    } catch (e) {
+      reject(e)
+      resolved = true
+      return
+    }
+
+    const processScan = async () => {
+      // Events that arrive from here on are not part of this scan.
+      const settleThisScan = settleRouteTables
+      settleRouteTables = undefined
+      const knownFiles = wp.getTimeInfoEntries()
+      if (startupFiles) {
+        for (const fileName of startupFiles) {
+          if (
+            knownFiles.has(fileName) ||
+            knownFiles.has(path.dirname(fileName))
+          ) {
+            startupFiles.delete(fileName)
+            continue
+          }
+          try {
+            const stat = fs.statSync(fileName)
+            knownFiles.set(fileName, {
+              safeTime: stat.mtimeMs,
+              timestamp: stat.mtimeMs,
+            })
+          } catch {
+            startupFiles.delete(fileName)
+          }
+        }
+        if (startupFiles.size === 0) startupFiles = undefined
+      }
+
+      try {
+        await processKnownFiles(knownFiles, () => settleThisScan?.())
+      } finally {
+        settleThisScan?.()
+      }
+    }
+
+    // Scans are not run concurrently: a slower, older scan finishing after a
+    // newer one would overwrite the tables with stale state. A change during
+    // a scan queues one more scan, which reads the watcher's state afresh.
+    let scanRunning = false
+    let scanQueued = false
     wp.on('aggregated', async () => {
+      if (scanRunning) {
+        scanQueued = true
+        return
+      }
+      scanRunning = true
+      try {
+        do {
+          scanQueued = false
+          await processScan()
+        } while (scanQueued)
+      } finally {
+        scanRunning = false
+      }
+    })
+
+    async function processKnownFiles(
+      knownFiles: ReturnType<Watchpack['getTimeInfoEntries']>,
+      onRouteTablesUpdated: () => void
+    ) {
       const isInitialScan = !hadInitialScan
       hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
@@ -1237,6 +1339,7 @@ async function startWatcher(
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
+        onRouteTablesUpdated()
 
         // Announced from here, right after the route tables were updated, so
         // that a client reacting to the announcement can be served. With
@@ -1372,7 +1475,7 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
-    })
+    }
 
     wp.watch({ directories: [dir], startTime: 0 })
   })
@@ -1445,6 +1548,10 @@ async function startWatcher(
     hotReloader,
     requestHandler,
     logErrorWithOriginalStack,
+
+    waitForRouteTables() {
+      return routeTablesSettled
+    },
 
     async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return

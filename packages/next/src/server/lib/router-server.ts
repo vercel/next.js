@@ -519,6 +519,12 @@ export async function initialize(opts: {
         }
 
         req.url = origUrl
+
+        // The route tables are rebuilt by the file watcher some time after
+        // the filesystem changes. Routing this request against tables that
+        // don't yet include a route the watcher has already seen would miss
+        // it.
+        await development.bundler.waitForRouteTables()
       }
 
       const {
