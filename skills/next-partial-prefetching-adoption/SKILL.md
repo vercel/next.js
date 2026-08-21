@@ -14,7 +14,7 @@ description: >
 
 Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
 
-The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop — confirming an insight is _cleared_ means driving the running app in a browser. But a missing browser gates that verification, not the whole skill: the adoption work is static and runs from the guide, so do the static pass anyway and hand off the live shell check.
+The development insights and the preservation tests are two different paths. Insights surface only in `next dev`, in the dev overlay's Insights tab. Test-backed preservation runs against a production-like build with `instant()` and does not need a development server. After the flag is enabled, the separate URL-data insight sweep still uses `next dev`.
 
 Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: links to a route prefetch one shared App Shell, and `prefetch={true}` can also resolve cached URL-specific content. The audit determines which UI from the legacy full prefetch to preserve.
 
@@ -24,9 +24,9 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
-- **A browser you can drive.** Install [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) before starting, unless it is already available — it ships alongside this skill (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). Install it without asking — it's a tool, not a product change — and don't assume it's blocked: verify a real blocker (no network, no npm, read-only filesystem) before falling back, and name it in your report. Link prefetches fire when a link renders and enters the viewport, and shell validation fires on navigation — neither is reachable from `curl` or the build. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
+- **A browser you can drive.** The test-backed path uses the project's Playwright production rig. The development insight path and the post-flag URL-data sweep use [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop); install it before either development pass unless it is already available (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
 
-- **A runnable app.** Verification runs against `next dev` for the insight sweep and a production `next build`/`next start` for prefetching (automatic prefetching runs only in production), so the app has to boot in both. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it starts — with the real environment, or local data you stand up — before step 1. An app that won't run can't be swept or verified.
+- **A runnable app.** Preservation and the final demonstration need a production-like build because automatic prefetching runs only in production. The development server is required only when using the insight path or running the post-flag URL-data sweep; do not start it merely to confirm a test-backed preservation case. If the app reads a database or required environment at import, confirm the environment used by the chosen path can start before step 1.
 
 ### notes
 
@@ -42,7 +42,8 @@ The catch that decides most of the sweep: a default link warms only the shared A
 
 ## working surfaces
 
-- **The dev server terminal — your primary record.** Each validated route's insights are logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep; it's the greppable record of what fired where, and it works the same on Turbopack and webpack.
+- **The production `instant()` rig — the primary record for test-backed preservation.** Reuse the app's existing production build, auth, and Playwright setup. The same flag-off tests define the legacy target and become the flag-on work queue. As in the Partial Prefetching optimizer, development can help investigate a failure, but only the production-like rig decides whether the prefetched UI was preserved.
+- **The dev server terminal — the primary record for the insight path.** Each validated route's insights are logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep; it's the greppable record of what fired where, and it works the same on Turbopack and webpack.
 - **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. It appears only once an insight has fired, so a route that surfaces nothing shows no tab at all — that's the clean state, not a missing feature. Don't hunt for the tab on a quiet route; confirm clean from the dev log above, which is the reliable signal. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. When the tab is present, the overlay pill shows the count and each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
 - **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill (webpack apps: see requires). When browsing its `/_next/mcp` tools, the prefetch insights surface through `get_errors` and the overlay, not the similarly-named `get_request_insights`. That one is the span and performance recorder (gated behind `experimental.requestInsights`) and reports nothing about prefetching.
 
@@ -50,7 +51,7 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` navigations (before enabling)
 
-Keep the global flag **off** while building the baseline suite, then adopt each destination with `export const prefetch = 'partial'`. Enabling the flag first would remove the legacy baseline and silence the [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. If the flag is already on in unshipped work, use the pre-flag commit for the baseline. Ask the user how to ship it, in the language of PRs:
+Keep the global flag **off** while building the baseline or recording the manual target, then adopt each destination with `export const prefetch = 'partial'`. Enabling the flag first would remove the legacy baseline and silence the [`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight used by the development path. If the flag is already on in unshipped work, use the pre-flag commit for the baseline. Ask the user how to ship it, in the language of PRs:
 
 - **One branch** — the whole audit in one change, with the flag enabled and the codemod run at the end (step 2).
 - **Route by route** — each adopted destination ships as its own PR. The insight still fires for the destinations you haven't reached, a live worklist, and step 2 comes after the last one.
@@ -68,22 +69,22 @@ Before writing tests or editing destinations, follow the guide's [audit guidance
 
 Group equivalent navigations. Summarize what will be ready immediately and what will stream. When a proposal is ambiguous, show the navigation in the running app and ask the user to confirm it. If they are unavailable, follow the guide and record the assumption.
 
-After the target UI is settled, offer the verification choice in product terms:
+After the target UI is settled, inspect the existing test setup and offer the verification choice in product terms:
 
-> I recommend adding `instant()` tests now so the selected prefetched UI stays covered after the migration. This needs a working production test environment. Want me to add the tests now, or document the target and add coverage later?
+> I recommend using the existing production test rig to preserve this UI with `instant()` tests. We can also document the target and verify it manually if you don't want to add the tests now.
 
-If the user asks you to decide or is unavailable, default to **test-first preservation**. If they choose the manual path, keep the table as the before/target inventory, use it with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore the target.”
+Use **test-backed preservation** when the user wants it and the project has a working production rig, or accepts the additional setup. This is the ideal path because the same assertions drive the migration and stay as regression coverage. If they choose the manual path, keep the table as the before/target inventory, use it with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore the target.”
 
-For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui) and make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
+For the test-backed path, reuse existing `@next/playwright` tests and production scripts. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui) and make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
 
-If a reliable production run is still unavailable after a concrete setup attempt, name the blocker and ask one follow-up: pause to repair or hand off the test rig (recommended), or proceed from the documented manual target and add tests later. Never silently downgrade from test-first. With no answer, preserve first: do not enable the global flag; finish and hand off the audit, target UI, and runner blocker.
+If the user chooses tests but the production rig is not reliable, make one concrete setup attempt, name the blocker, and ask whether to repair the rig or continue with manual preservation. Do not silently downgrade. If the user is unavailable, use tests only when the rig already works; otherwise continue with the documented manual target and record the deferred coverage.
 
 This workflow is specific to a clicked `<Link>`. A direct call such as `router.prefetch('/dashboard')` is a manual prefetch, not a Link prefetch; keep it in the source audit and verify it separately in step 4.
 
 Then:
 
-1. **Lock the chosen target.** For test-first preservation, confirm every test passes against the legacy full prefetch and keep the complete observed baseline in the audit table. A successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the before/target inventory before editing any destination.
-2. **Verify the audit in `next dev`.** Click every audited Link. The insight fires at navigation time, not when the link prefetches, and only for the Link shapes it covers. Audit manual `router.prefetch()` calls from source and verify them separately in production ([step 4](#step-4-verify)).
+1. **Lock the chosen target.** For test-backed preservation, confirm every test passes against the legacy full prefetch and keep the complete observed baseline in the audit table. A successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the before/target inventory before editing any destination.
+2. **Run the chosen verification path.** For test-backed preservation, run the flag-off suite on the production-like rig. Do not start `next dev` or click each Link merely to confirm the insight; the source audit defines the scope and the passing `instant()` tests verify the legacy behavior. For manual preservation, the development insight can confirm the audited Links and provide a worklist, while the before/after behavior comparison runs in production. Audit manual `router.prefetch()` calls from source and verify them separately in production ([step 4](#step-4-verify)).
 3. **Adopt every audited destination.** Add the temporary route config with a link to the migration guide:
 
    ```tsx
