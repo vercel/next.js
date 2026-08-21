@@ -888,6 +888,21 @@ async fn parse_config_value(
                         )
                         .await?;
                     }
+                    "maxDuration" => {
+                        let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value
+                        else {
+                            return invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("`maxDuration` needs to be a static number."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await;
+                        };
+                        config.max_duration = Some(*val as u32);
+                    }
                     _ => {
                         // Ignore,
                     }
