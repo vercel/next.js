@@ -591,6 +591,180 @@ describe('App Shell prefetching', () => {
     })
   })
 
+  describe('prefetch()', () => {
+    it('excludes prefetch() from a static App Shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Caches the App Shell for /static-prefetch/[id].
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-prefetch/1"]')
+          .click()
+      }, [{ includes: 'App shell for prefetch', kind: 'static' }])
+
+      await act(async () => {
+        // /static-prefetch/2 was never prefetched, so the router falls back to
+        // the cached App Shell.
+        await browser.elementByCss('a[href="/static-prefetch/2"]').click()
+
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for prefetch'
+        )
+        // prefetch()-gated content is not part of the App Shell.
+        expect(await browser.locator('#prefetch-content').count()).toBe(0)
+        expect(await browser.elementByCss('#prefetch-loading').text()).toBe(
+          'Loading prefetch...'
+        )
+      })
+
+      expect(await browser.elementById('prefetch-content').text()).toEqual(
+        'Prefetch content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 2'
+      )
+    })
+
+    it('excludes prefetch() from a runtime App Shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Caches the App Shell for /runtime-prefetch/[id]. The route reads
+      // request data, so its static-attempt hint is unset and the prefetch
+      // deopts to a runtime shell.
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/runtime-prefetch/1"]')
+          .click()
+      }, [
+        { includes: 'App shell for prefetch', kind: 'runtime' },
+        { includes: 'param-value', block: 'reject' }, // Only a shell, no URL data.
+      ])
+
+      await act(async () => {
+        // /runtime-prefetch/2 was never prefetched, so the router falls back to
+        // the cached App Shell.
+        await browser.elementByCss('a[href="/runtime-prefetch/2"]').click()
+
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for prefetch'
+        )
+        // prefetch()-gated content is not part of the App Shell.
+        expect(await browser.locator('#prefetch-content').count()).toBe(0)
+        expect(await browser.elementByCss('#prefetch-loading').text()).toBe(
+          'Loading prefetch...'
+        )
+      })
+
+      expect(await browser.elementById('prefetch-content').text()).toEqual(
+        'Prefetch content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 2'
+      )
+    })
+
+    it('includes prefetch() in a static prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-prefetch/1"]')
+          .click()
+      }, [{ includes: 'App shell for prefetch', kind: 'static' }])
+
+      await act(async () => {
+        // Navigate to the prefetched route.
+        await browser.elementByCss('a[href="/static-prefetch/1"]').click()
+
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Post 1'
+        )
+        // prefetch()-gated content resolves in a static prefetch.
+        expect(await browser.locator('#prefetch-loading').count()).toBe(0)
+        expect(await browser.elementByCss('#prefetch-content').text()).toBe(
+          'Prefetch content'
+        )
+        // Dynamic content is not included.
+        expect(await browser.locator('#dynamic-content').count()).toBe(0)
+        expect(await browser.elementByCss('#dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      })
+
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 1'
+      )
+    })
+
+    it('includes prefetch() in a speculative runtime prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // The Shell phase's runtime App Shell request, then the Speculative
+      // phase's per-link runtime prefetch (the link opts in with
+      // `prefetch={true}`).
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/runtime-prefetch/speculative-1"]'
+          )
+          .click()
+      }, [
+        { includes: 'App shell for prefetch', kind: 'runtime' }, // Shell
+        { includes: 'Post speculative-1', kind: 'runtime' }, // Speculative
+      ])
+
+      await act(async () => {
+        // Navigate to the prefetched route.
+        await browser
+          .elementByCss('a[href="/runtime-prefetch/speculative-1"]')
+          .click()
+
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Post speculative-1'
+        )
+        // Unlike navigation(), prefetch() resolves in a speculative runtime
+        // prefetch.
+        expect(await browser.locator('#prefetch-loading').count()).toBe(0)
+        expect(await browser.elementByCss('#prefetch-content').text()).toBe(
+          'Prefetch content'
+        )
+        // Dynamic content is not included.
+        expect(await browser.locator('#dynamic-content').count()).toBe(0)
+        expect(await browser.elementByCss('#dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      })
+
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for speculative-1'
+      )
+    })
+  })
+
   describe('root params', () => {
     it('includes root params in a runtime App Shell', async () => {
       let page: Playwright.Page
