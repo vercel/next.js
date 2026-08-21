@@ -20,30 +20,23 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkStore } from './work-async-storage.external'
 import type {
   WorkUnitStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
   PrerenderStoreModernServer,
-} from '../app-render/work-unit-async-storage.external'
+} from './work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { getStagedRenderingController } from './work-unit-async-storage.external'
 import {
-  getStagedRenderingController,
-  throwForMissingRequestStore,
-  workUnitAsyncStorage,
-} from './work-unit-async-storage.external'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import {
-  ClientHookDynamicError,
   isClientHookDynamicError,
-  makeClientHookHangingPromise,
   trackRuntimeDataAccessed,
 } from '../dynamic-rendering-utils'
 import {
@@ -546,114 +539,6 @@ export function annotateDynamicAccess(
         : undefined,
       expression,
     })
-  }
-}
-
-export function useDynamicRouteParams(expression: string) {
-  const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workStore && workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'prerender-client': {
-        const fallbackParams = workUnitStore.fallbackRouteParams
-
-        if (fallbackParams && fallbackParams.size > 0) {
-          // We are in a prerender with cacheComponents semantics. We are going to
-          // hang here and never resolve. This will cause the currently
-          // rendering component to effectively be a dynamic hole.
-          React.use(
-            makeClientHookHangingPromise(
-              workUnitStore.renderSignal,
-              new ClientHookDynamicError(workStore.route, expression)
-            )
-          )
-        }
-        break
-      }
-      case 'prerender':
-        throw new InvariantError(
-          `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'validation-client': {
-        // Don't check fallbackRouteParams here. We handle params that weren't
-        // provided in the samples using a proxy that throws when accessed.
-        break
-      }
-      case 'prerender-runtime':
-        throw new InvariantError(
-          `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'cache':
-      case 'private-cache':
-        throw new InvariantError(
-          `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'generate-static-params':
-        throw new InvariantError(
-          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
-        )
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
-    }
-  }
-}
-
-export function useDynamicSearchParams(expression: string) {
-  const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (!workStore) {
-    // We assume pages router context and just return
-    return
-  }
-
-  if (!workUnitStore) {
-    throwForMissingRequestStore(expression)
-  }
-
-  switch (workUnitStore.type) {
-    case 'validation-client':
-      // During instant validation we try to behave as close to client as possible,
-      // so this shouldn't hang during SSR.
-      return
-    case 'prerender-client': {
-      React.use(
-        makeClientHookHangingPromise(
-          workUnitStore.renderSignal,
-          new ClientHookDynamicError(workStore.route, expression)
-        )
-      )
-      break
-    }
-    case 'prerender-legacy': {
-      if (workStore.forceStatic) {
-        return
-      }
-      throw new BailoutToCSRError(expression)
-    }
-    case 'prerender':
-    case 'prerender-runtime':
-      throw new InvariantError(
-        `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-      )
-    case 'cache':
-    case 'unstable-cache':
-    case 'private-cache':
-      throw new InvariantError(
-        `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-      )
-    case 'generate-static-params':
-      throw new InvariantError(
-        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
-      )
-    case 'request':
-      return
-    default:
-      workUnitStore satisfies never
   }
 }
 

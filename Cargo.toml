@@ -361,6 +361,7 @@ unsize = "1.1.0"
 unty = "0.0.4"
 url = "2.2.2"
 urlencoding = "2.1.2"
+windows-sys = "0.60"
 uuid = "1.18.1"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }

@@ -314,17 +314,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicSearchParams (webpack:///<next-src>)
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
-                   622 |       return
-                   623 |     case 'prerender-client': {
-                 > 624 |       React.use(
-                       |             ^
-                   625 |         makeClientHookHangingPromise(
-                   626 |           workUnitStore.renderSignal,
-                   627 |           new ClientHookDynamicError(workStore.route, expression) {
+                   54 | // Client components API
+                   55 | export function useSearchParams(): ReadonlyURLSearchParams {
+                 > 56 |   useDynamicSearchParams?.('useSearchParams()')
+                      |                         ^
+                   57 |
+                   58 |   const searchParams = useContext(SearchParamsContext)
+                   59 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
@@ -604,17 +603,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at usePathname (webpack:///<next-src>)
                      at UsePathname (webpack:///app/client-hook-abort-reasons/client.tsx:22:14)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   111 | // Client components API
+                   112 | export function usePathname(): string {
+                 > 113 |   useDynamicRouteParams?.('usePathname()')
+                       |                        ^
+                   114 |
+                   115 |   // In the case where this is \`null\`, the compat types added in \`next-env.d.ts\`
+                   116 |   // will add a new overload that changes the return type to include \`null\`. {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
@@ -894,17 +892,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   214 | // Client components API
+                   215 | export function useParams<T extends Params = Params>(): T {
+                 > 216 |   useDynamicRouteParams?.('useParams()')
+                       |                        ^
+                   217 |
+                   218 |   const params = useContext(PathParamsContext) as T
+                   219 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
@@ -1184,17 +1181,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegments (webpack:///<next-src>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   268 |   parallelRouteKey: string = 'children'
+                   269 | ): string[] {
+                 > 270 |   useDynamicRouteParams?.('useSelectedLayoutSegments()')
+                       |                        ^
+                   271 |
+                   272 |   const context = useContext(LayoutRouterContext)
+                   273 |   // @ts-expect-error This only happens in \`pages\`. Type is overwritten in navigation.d.ts {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
@@ -1474,17 +1470,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   323 |   parallelRouteKey: string = 'children'
+                   324 | ): string | null {
+                 > 325 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
+                       |                        ^
+                   326 |   const navigationPromises = useContext(NavigationPromisesContext)
+                   327 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+                   328 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -2194,17 +2189,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   214 | // Client components API
+                   215 | export function useParams<T extends Params = Params>(): T {
+                 > 216 |   useDynamicRouteParams?.('useParams()')
+                       |                        ^
+                   217 |
+                   218 |   const params = useContext(PathParamsContext) as T
+                   219 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
@@ -2693,17 +2687,16 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   562 |           // hang here and never resolve. This will cause the currently
-                   563 |           // rendering component to effectively be a dynamic hole.
-                 > 564 |           React.use(
-                       |                 ^
-                   565 |             makeClientHookHangingPromise(
-                   566 |               workUnitStore.renderSignal,
-                   567 |               new ClientHookDynamicError(workStore.route, expression) {
+                   323 |   parallelRouteKey: string = 'children'
+                   324 | ): string | null {
+                 > 325 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
+                       |                        ^
+                   326 |   const navigationPromises = useContext(NavigationPromisesContext)
+                   327 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+                   328 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.

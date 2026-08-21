@@ -58,9 +58,11 @@ use turbo_tasks::{
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
+#[cfg(windows)]
+use turbo_tasks_fs::windows::to_verbatim_with_case_folded_disk;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
-    to_verbatim_with_case_folded_disk, util::uri_from_file,
+    util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
@@ -2385,9 +2387,12 @@ fn parse_and_canonicalize_source_url(source_url: &str) -> Result<(RcStr, Option<
         Err(_) => {
             // The file may not exist (e.g. a stale stack frame). Fall back to a purely lexical
             // normalization that approximates the canonical format.
-            if cfg!(windows) {
+            #[cfg(windows)]
+            {
                 to_verbatim_with_case_folded_disk(&path).unwrap_or(path)
-            } else {
+            }
+            #[cfg(not(windows))]
+            {
                 path
             }
         }

@@ -33,6 +33,7 @@ import path from 'path'
           () => {
             const output = stripAnsi(next.cliOutput.slice(outputIndex))
             expect(output).toContain('waiting for the filesystem to settle')
+            expect(output).toContain(pkgFile)
           },
           // The event fires after ~5s; allow a generous window to avoid flakes.
           15000,
