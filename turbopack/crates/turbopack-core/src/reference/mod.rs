@@ -141,7 +141,7 @@ pub async fn referenced_modules_and_affecting_sources(
                 modules.extend(
                     resolve_result
                         .affecting_sources_iter()
-                        .map(|source| async move {
+                        .map(async |source| {
                             Ok(ResolvedVc::upcast(
                                 RawModule::new(*source).to_resolved().await?,
                             ))
