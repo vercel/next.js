@@ -99,7 +99,7 @@ async fn indirect_panic_with_context() -> Result<Vc<u32>> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_bail(),
             indoc! {"
@@ -109,13 +109,14 @@ async fn test_direct_bail() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_with_context() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_bail_with_context(),
             indoc! {"
@@ -129,13 +130,14 @@ async fn test_direct_bail_with_context() {
                 - bail-context
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_panic(),
             indoc! {"
@@ -145,6 +147,7 @@ async fn test_direct_panic() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
@@ -152,7 +155,7 @@ async fn test_direct_panic() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_with_context() {
     // Note: panic! is synchronous, so .context() cannot wrap it
-    test(|| {
+    test(async || {
         assert_error(
             direct_panic_with_context(),
             indoc! {"
@@ -162,13 +165,14 @@ async fn test_direct_panic_with_context() {
                 - Execution of direct_panic_with_context failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_bail(),
             indoc! {"
@@ -179,13 +183,14 @@ async fn test_indirect_bail() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_with_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_bail_with_context(),
             indoc! {"
@@ -200,13 +205,14 @@ async fn test_indirect_bail_with_context() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_panic(),
             indoc! {"
@@ -217,13 +223,14 @@ async fn test_indirect_panic() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_with_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_panic_with_context(),
             indoc! {"
@@ -238,6 +245,7 @@ async fn test_indirect_panic_with_context() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
@@ -292,7 +300,7 @@ async fn indirect_panic_with_context_in_context() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_bail_in_context(),
             indoc! {"
@@ -306,13 +314,14 @@ async fn test_direct_bail_in_context() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_with_context_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_bail_with_context_in_context(),
             indoc! {"
@@ -328,13 +337,14 @@ async fn test_direct_bail_with_context_in_context() {
                 - bail-context
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_panic_in_context(),
             indoc! {"
@@ -348,13 +358,14 @@ async fn test_direct_panic_in_context() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_with_context_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             direct_panic_with_context_in_context(),
             indoc! {"
@@ -368,13 +379,14 @@ async fn test_direct_panic_with_context_in_context() {
                 - Execution of direct_panic_with_context failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_bail_in_context(),
             indoc! {"
@@ -389,13 +401,14 @@ async fn test_indirect_bail_in_context() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_with_context_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_bail_with_context_in_context(),
             indoc! {"
@@ -412,13 +425,14 @@ async fn test_indirect_bail_with_context_in_context() {
                 - Execution of direct_bail failed
                 - direct bail error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_panic_in_context(),
             indoc! {"
@@ -433,13 +447,14 @@ async fn test_indirect_panic_in_context() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_with_context_in_context() {
-    test(|| {
+    test(async || {
         assert_error(
             indirect_panic_with_context_in_context(),
             indoc! {"
@@ -456,6 +471,7 @@ async fn test_indirect_panic_with_context_in_context() {
                 - Execution of direct_panic failed
                 - direct panic error"},
         )
+        .await
     })
     .await;
 }
