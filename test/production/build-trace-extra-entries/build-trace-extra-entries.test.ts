@@ -10,10 +10,6 @@ describe('build trace with extra entries', () => {
     })
 
     if (skipped) return
-    if (isTurbopack) {
-      it('skipped', () => {})
-      return
-    }
 
     it('should build and trace correctly', async () => {
       const { exitCode } = await next.build()
@@ -98,11 +94,12 @@ describe('build trace with extra entries', () => {
       )
 
       if (!isTurbopack) {
+        // Turbopack ignores the `webpack()` config hook, so `lib/get-data.js`
+        // is never injected into the `pages/_app` entry and neither it nor the
+        // `content/hello.json` it reads end up in the trace.
         expect(
           appTrace.files.some((file: string) => file.endsWith('hello.json'))
         ).toBe(true)
-      }
-      if (!isTurbopack) {
         expect(
           appTrace.files.some((file: string) =>
             file.endsWith('lib/get-data.js')
@@ -121,23 +118,30 @@ describe('build trace with extra entries', () => {
       expect(
         indexTrace.files.some((file: string) => file.endsWith('some-dir'))
       ).toBeFalsy()
-      expect(
-        indexTrace.files.some((file: string) =>
-          file.endsWith('.dot-folder/another-file.txt')
-        )
-      ).toBe(true)
-      expect(
-        indexTrace.files.some((file: string) =>
-          file.endsWith('some-dir/file.txt')
-        )
-      ).toBe(true)
+      if (!isTurbopack) {
+        // TODO: Turbopack only matches `outputFileTracingIncludes` keys against
+        // the normalized route ("/index"), not the prefixed entry name
+        // ("/pages/index") that this config uses for the index page. The same
+        // includes are asserted for `/route1` below, which uses the normalized
+        // form and does work in both bundlers.
+        expect(
+          indexTrace.files.some((file: string) =>
+            file.endsWith('.dot-folder/another-file.txt')
+          )
+        ).toBe(true)
+        expect(
+          indexTrace.files.some((file: string) =>
+            file.endsWith('some-dir/file.txt')
+          )
+        ).toBe(true)
+        expect(indexTrace.files).toContain('../../../include-me/hello.txt')
+        expect(indexTrace.files).toContain('../../../include-me/second.txt')
+      }
       expect(
         indexTrace.files.some((file: string) =>
           file.includes('some-cms/index.js')
         )
       ).toBe(true)
-      expect(indexTrace.files).toContain('../../../include-me/hello.txt')
-      expect(indexTrace.files).toContain('../../../include-me/second.txt')
       expect(
         indexTrace.files.some((file: string) => file.includes('exclude-me'))
       ).toBe(false)
