@@ -208,8 +208,14 @@ impl Asset for BuildManifest {
             pages_chunk_group_bootstrap_params: self
                 .pages_chunk_group_bootstrap_params
                 .iter()
-                .map(|(k, v)| Ok((k.clone(), RawValue::from_string(v.to_string())?)))
-                .collect::<Result<FxIndexMap<_, _>>>()?,
+                .map(|(k, v)| {
+                    // SAFETY: These values are produced by `serde_json::to_string` in
+                    // `EvaluateChunk::chunk_group_bootstrap_params`.
+                    (k.clone(), unsafe {
+                        RawValue::from_string_unchecked(v.to_string())
+                    })
+                })
+                .collect(),
             chunk_loading_global: self.chunk_loading_global.clone(),
             ..Default::default()
         };
