@@ -459,6 +459,11 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
       )
     }
+    if (process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT=${process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT}`
+      )
+    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }

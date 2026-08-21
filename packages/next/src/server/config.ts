@@ -2328,6 +2328,25 @@ function enforceExperimentalFeatures(
     config.partialPrefetching = true
   }
 
+  // TODO: Remove this once reactBrowserBailout is the default.
+  if (
+    process.env.NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactBrowserBailout === undefined ||
+      (isDefaultConfig && !config.experimental.reactBrowserBailout))
+  ) {
+    config.experimental.reactBrowserBailout = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactBrowserBailout',
+        true,
+        'enabled by `NEXT_PRIVATE_EXPERIMENTAL_REACT_BROWSER_BAILOUT`'
+      )
+    }
+  }
+
   // TODO: Remove this once cachedNavigations is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
