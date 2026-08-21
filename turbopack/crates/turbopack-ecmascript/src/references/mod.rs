@@ -1327,6 +1327,38 @@ async fn analyze_ecmascript_module_internal(
                     handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
                         .await?;
                 }
+                Effect::DestructuredMember {
+                    mut obj,
+                    mut prop,
+                    span,
+                } => {
+                    // This is only used for env var tracking. The more robust solution would be an
+                    // `Effect::Ident` but that would be even more expensive.
+                    let obj = analysis_state
+                        .link_value(take(&mut *obj), ImportAttributes::empty_ref())
+                        .await?;
+
+                    if let Some((name, false)) =
+                        obj.get_definable_name(Some(&analysis_state.var_graph))
+                        && matches!(
+                            name.0.as_slice(),
+                            [
+                                DefinableNameSegmentRef::Name("process"),
+                                DefinableNameSegmentRef::Name("env")
+                            ]
+                        )
+                    {
+                        let prop = analysis_state
+                            .link_value(take(&mut *prop), ImportAttributes::empty_ref())
+                            .await?;
+                        if let Some(prop) = prop.as_str() {
+                            // TODO add an inlining codegen here
+                            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+                        } else {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+                }
                 Effect::In {
                     mut left,
                     mut right,

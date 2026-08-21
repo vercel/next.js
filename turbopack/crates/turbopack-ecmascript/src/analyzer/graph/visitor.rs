@@ -3084,6 +3084,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -3103,7 +3110,7 @@ impl<'a> Analyzer<'a, '_> {
                         ObjectPatPropField::Assign,
                     ));
                     let AssignPatProp { key, value, .. } = assign;
-                    let key_value = key.sym.clone().into();
+                    let key_value = JsValue::from(key.sym.clone());
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
@@ -3111,6 +3118,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     self.add_value(
                         key.to_id(),
                         if let Some(box value) = value {
