@@ -11,7 +11,12 @@ describe.each([
   ({ decoratorVersion, experimentalDecorators }) => {
     const { next } = nextTestSetup({
       files: {
-        pages: new FileRef(join(__dirname, 'pages')),
+        pages: new FileRef(
+          join(
+            __dirname,
+            decoratorVersion === '2022-03' ? 'pages-2022-03' : 'pages'
+          )
+        ),
         'tsconfig.json': new FileRef(
           join(
             __dirname,
