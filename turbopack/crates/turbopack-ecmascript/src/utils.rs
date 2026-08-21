@@ -268,6 +268,7 @@ pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Opti
         b"resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
         b"@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
         b"fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
+        b"graceful-fs" => JsValue::WellKnownObject(WellKnownObjectKind::GracefulFsModule),
         _ => return None,
     })
 }

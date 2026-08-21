@@ -141,6 +141,34 @@ impl SinglePatternMapping {
         }
     }
 
+    /// Like [`Self::create_require`], but evaluates to the ESM *namespace* of the
+    /// module instead of its CommonJS `exports` object, so that the CommonJS
+    /// interop applies. This is what a static `import * as ns from "..."`
+    /// produces, and it is the difference between a JSON (or CommonJS) module
+    /// having a `default` export and not having one.
+    pub fn create_esm_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
+        match self {
+            Self::Invalid => self.create_id(key_expr),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
+            Self::Module(_) | Self::ModuleLoader(_) => quote!(
+                "$turbopack_import($arg)" as Expr,
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                arg: Expr = self.create_id(key_expr)
+            ),
+            Self::External(request, ExternalType::CommonJs) => quote!(
+                "$turbopack_external_require($arg, () => require($arg), true)" as Expr,
+                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                arg: Expr = request.as_str().into()
+            ),
+            Self::External(request, ty) => throw_module_not_found_error_expr(
+                request,
+                &format!("Unsupported external type {ty:?} for esm reference"),
+            ),
+        }
+    }
+
     pub fn create_import(&self, key_expr: Cow<'_, Expr>, import_externals: bool) -> Expr {
         match self {
             Self::Invalid => {
@@ -465,7 +493,7 @@ impl PatternMapping {
                     .collect();
                 let map = items
                     .into_iter()
-                    .map(|(k, v)| async move {
+                    .map(async |(k, v)| {
                         let single_pattern_mapping = to_single_pattern_mapping(
                             origin,
                             chunking_context,

@@ -51,11 +51,13 @@ import {
   createRuntimeBodyError,
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
+  createNavigationBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
   createDynamicOrRuntimeBodyError,
   createRuntimeMetadataError,
   createDynamicMetadataError,
   createRuntimeViewportError,
+  createNavigationViewportError,
   createDynamicViewportError,
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
@@ -63,6 +65,7 @@ import {
   createLinkBodyErrorInNavigation,
   createLinkMetadataError,
   createLinkViewportError,
+  createNavigationMetadataError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -696,12 +699,14 @@ export function trackAllowedDynamicAccess(
 }
 
 export enum DynamicHoleKind {
-  /** We know that this hole is caused by link data. */
-  Link = 1,
   /** We know that this hole is caused by runtime data. */
-  Runtime = 2,
+  Runtime = 1,
+  /** We know that this hole is caused by link data. */
+  Link = 2,
+  /** We know that this hole is caused by navigation(). */
+  Navigation = 3,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 3,
+  Dynamic = 4,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -760,11 +765,7 @@ export function trackDynamicHoleInNavigation(
 
   if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Link
-        ? createLinkMetadataError(workStore.route)
-        : kind === DynamicHoleKind.Runtime
-          ? createRuntimeMetadataError(workStore.route)
-          : createDynamicMetadataError(workStore.route),
+      createMetadataError(kind, workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -773,11 +774,7 @@ export function trackDynamicHoleInNavigation(
   }
   if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Link
-        ? createLinkViewportError(workStore.route)
-        : kind === DynamicHoleKind.Runtime
-          ? createRuntimeViewportError(workStore.route)
-          : createDynamicViewportError(workStore.route),
+      createViewportError(kind, workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -869,16 +866,54 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Link
-      ? createLinkBodyErrorInNavigation(workStore.route)
-      : kind === DynamicHoleKind.Runtime
-        ? createRuntimeBodyErrorInNavigation(workStore.route)
-        : createDynamicBodyErrorInNavigation(workStore.route),
+    createBodyErrorInNavigation(kind, workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )
   dynamicValidation.dynamicErrors.push(error)
   return
+}
+
+function createBodyErrorInNavigation(
+  kind: DynamicHoleKind,
+  route: string
+): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeBodyErrorInNavigation(route)
+    case DynamicHoleKind.Link:
+      return createLinkBodyErrorInNavigation(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationBodyErrorInNavigation(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicBodyErrorInNavigation(route)
+  }
+}
+
+function createMetadataError(kind: DynamicHoleKind, route: string): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeMetadataError(route)
+    case DynamicHoleKind.Link:
+      return createLinkMetadataError(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationMetadataError(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicMetadataError(route)
+  }
+}
+
+function createViewportError(kind: DynamicHoleKind, route: string): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeViewportError(route)
+    case DynamicHoleKind.Link:
+      return createLinkViewportError(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationViewportError(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicViewportError(route)
+  }
 }
 
 export function trackThrownErrorInNavigation(
