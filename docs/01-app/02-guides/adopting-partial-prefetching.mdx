@@ -93,13 +93,13 @@ A legacy full prefetch can include more UI than the navigation needs. The migrat
 
 ### Preserve existing prefetched UI
 
-To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to verify that the migration preserves the prefetched UI you selected. If you defer these tests, record the expected UI before enabling Partial Prefetching.
+To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to verify that the migration preserves the prefetched UI you selected. A preservation test covers a subset of the legacy full prefetch, not an exact copy. If you defer these tests, record the expected UI before enabling Partial Prefetching.
 
-1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Assert the UI you want to preserve and confirm the test passes against the legacy full prefetch.
+1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Use positive assertions for the UI that is present in the legacy full prefetch and should remain prefetched. Other prefetched UI can remain unasserted. Confirm the test passes before migrating.
 2. Adopt the destinations and rerun the tests without changing the assertions. For missing UI, cache the smallest coherent data or rendered subtree that restores it.
 3. After enabling the global flag and removing the temporary route exports, rerun the tests and keep them as regression coverage.
 
-`instant()` checks which UI is available from a completed, warm prefetch, not the navigation duration. Treat UI that wasn't part of the legacy prefetch as a separate optimization.
+`instant()` checks which UI is available from a completed, warm prefetch, not the navigation duration. Treat UI that wasn't part of the legacy prefetch as a separate optimization. If existing UI should stop being prefetched, verify that behavior separately after migration.
 
 ### Static or cached content
 

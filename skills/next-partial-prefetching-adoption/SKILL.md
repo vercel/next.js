@@ -72,11 +72,11 @@ The decision for each row is one of: preserve the full meaningful baseline, pres
 
 After the target UI is settled, offer the verification choice in product terms:
 
-> I recommend adding `instant()` tests before the migration. They prove that the UI you chose remains available after the prefetch changes and stay as regression coverage. This takes longer now because the tests need a reliable production build and test environment. I can instead document the target UI carefully, adopt it now, and add the tests later. Which do you prefer?
+> I recommend adding `instant()` tests before the migration. They prove that the part of the legacy full prefetch you chose to keep remains available after the prefetch changes and stay as regression coverage. This takes longer now because the tests need a reliable production build and test environment. I can instead document the target UI carefully, adopt it now, and add the tests later. Which do you prefer?
 
 If the user asks you to decide or is unavailable, default to **test-first preservation**. If they choose the manual path, keep the table as the before/target inventory, use it with the guide's preservation patterns, and leave the `instant()` cases as an explicit follow-up. Manual does not mean “ignore the target.”
 
-For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui): write the complete flag-off suite first and make its baseline green before adoption.
+For the test-first path, attempt to use `instant()` rather than assuming the app cannot support it. Reuse existing `@next/playwright` tests and production scripts when present; otherwise verify the aligned dependency, exposed testing API, required environment and auth, then run a focused production smoke. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui): assert only the selected subset already present in the legacy full prefetch, use positive assertions, and do not assert that unselected legacy UI is absent. Make the complete flag-off suite green before adoption. Treat new prefetched UI as step 5 work; verify any deliberate removal separately after adoption.
 
 If a reliable production run is still unavailable after a concrete setup attempt, name the blocker and ask one follow-up: pause to repair or hand off the test rig (recommended), or proceed from the documented manual target and add tests later. Never silently downgrade from test-first. With no answer, preserve first: do not enable the global flag; finish and hand off the audit, target UI, and runner blocker.
 
@@ -84,7 +84,7 @@ This workflow is specific to a clicked `<Link>`. A direct call such as `router.p
 
 Then:
 
-1. **Lock the chosen target.** For test-first preservation, assert only the selected UI, confirm every test passes against the legacy full prefetch, and keep the complete observed baseline in the audit table. A successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the before/target inventory before editing any destination.
+1. **Lock the chosen target.** For test-first preservation, confirm every test passes against the legacy full prefetch and keep the complete observed baseline in the audit table. A successful build or completed navigation is not a substitute for the passing `instant()` suite. For manual preservation, finish the before/target inventory before editing any destination.
 2. **Verify the audit in `next dev`.** Click every audited Link. The insight fires at navigation time, not when the link prefetches, and only for the Link shapes it covers. Audit manual `router.prefetch()` calls from source and verify them separately in production ([step 4](#step-4-verify)).
 3. **Adopt every audited destination.** Add the temporary route config with a link to the migration guide:
 
