@@ -336,7 +336,11 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
-import type { StageEndTimes } from './instant-validation/instant-validation'
+import type {
+  PrefetchedSegmentStage,
+  SegmentStage,
+  StageEndTimes,
+} from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -5697,6 +5701,9 @@ function getStageEndTimes(
       RenderStage.ShellRuntime
     ),
     [RenderStage.Runtime]: stageController.getStageEndTime(RenderStage.Runtime),
+    [RenderStage.NavigationRuntime]: stageController.getStageEndTime(
+      RenderStage.NavigationRuntime
+    ),
   }
 }
 
@@ -7365,37 +7372,140 @@ async function validateInstantConfigs(
 
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
+  type RetryStage = RenderStage.Runtime | RenderStage.NavigationRuntime
+
+  type ValidationSequence = {
+    stageOrder: PrefetchedSegmentStage[]
+    holeResolution: Record<SegmentStage, DynamicHoleKind | null>
+  }
+  const validationSequences = {
+    [ValidationPrefetchKind.Shell]: {
+      stageOrder: [
+        RenderStage.ShellRuntime,
+        RenderStage.Runtime,
+        RenderStage.NavigationRuntime,
+        RenderStage.Dynamic,
+      ],
+      holeResolution: {
+        [RenderStage.Static]: null, // no holes resolve in the Static stage (URL data like static params goes in the Runtime stage)
+        [RenderStage.ShellRuntime]: null, // initial stage
+        [RenderStage.Runtime]: DynamicHoleKind.Link,
+        [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
+        [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
+      },
+    } as ValidationSequence,
+    [ValidationPrefetchKind.LegacySpeculative]: {
+      stageOrder: [
+        RenderStage.Static,
+        RenderStage.Runtime,
+        RenderStage.Dynamic,
+      ],
+      holeResolution: {
+        [RenderStage.Static]: null, // initial stage
+        [RenderStage.ShellRuntime]: null, // currently unused in static prefetch validation.
+        [RenderStage.Runtime]: DynamicHoleKind.Runtime,
+        [RenderStage.NavigationRuntime]: null, // static prefetches never have navigation() holes.
+        [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
+      },
+    } as ValidationSequence,
+  } as const
+
+  const validationSequence = validationSequences[prefetchKind]
+  const initialRenderStage = validationSequence
+    .stageOrder[0] as PrefetchedSegmentStage
+  // When narrowing the cause of a dynamic hole, we need to find the first stage it occurs in.
+  // We do this by starting at the end and eliminating later stages, so we go in reverse.
+  const retryRenderStages = validationSequences[prefetchKind].stageOrder
+    .slice(1, -1) // Exclude first stage and Dynamic
+    .reverse() as RetryStage[]
+
+  function getDynamicHoleKindForSegmentStage(
+    stage: PrefetchedSegmentStage
+  ): DynamicHoleKind {
+    // We report holes in reverse order, i.e. holes in Stage N are only reported
+    // if Stage N+1 didn't have any holes. That means that if we report a hole from Stage N,
+    // it has to be caused by data that would've resolved in Stage N+1.
+    // So, the dynamic hole kind corresponds to the *next* logical stage.
+    const { stageOrder, holeResolution } = validationSequence
+    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1]
+    const holeKind = holeResolution[nextStage]
+    if (!holeKind) {
+      throw new InvariantError(
+        `${RenderStage[stage]} segments do not unblock new data in ${ValidationPrefetchKind[prefetchKind]} prefetches`
+      )
+    }
+    return holeKind
+  }
+
   async function validateAtDepth(
     depth: number,
     groupDepthForValidation: number
   ): Promise<null | NavigationValidationResult> {
-    return validateAtDepthImpl(depth, groupDepthForValidation, null)
-  }
-
-  async function validateAtDepthImpl(
-    depth: number,
-    groupDepthForValidation: number,
-    previousBoundaryState: null | ValidationBoundaryTracking
-  ): Promise<null | NavigationValidationResult> {
     if (validationAbortSignal?.aborted) {
       return null
     }
+
+    // First attempt. If we have any dynamic holes, they will be ambiguous.
+    const initialBoundaryState = createValidationBoundaryTracking()
+    const initialResult = await validateOrRetryAtDepth(
+      depth,
+      groupDepthForValidation,
+      initialBoundaryState,
+      null
+    )
+
+    // If the prerender produced no real errors at this depth — either an
+    // empty array (clean) or a deferred-only result (Error/AggregateError
+    // representing a missing-boundary fallback) — there's nothing to
+    // discriminate. Pass it up so the outer loop can hold any deferred
+    // fallback back until every depth has been tried.
+    if (!Array.isArray(initialResult) || initialResult.length === 0) {
+      return initialResult
+    }
+
+    // We do a followup validation using a payload using later stages to determine
+    // what kind of data caused the hole -- link/navigation/dynamic in app shells,
+    // or runtime/dynamic in static shells.
+    for (const retryStage of retryRenderStages) {
+      if (
+        validationAbortSignal !== undefined &&
+        !(await yieldToForegroundRequest(validationAbortSignal))
+      ) {
+        return []
+      }
+
+      const narrowedResult = await validateOrRetryAtDepth(
+        depth,
+        groupDepthForValidation,
+        createValidationBoundaryTracking(initialBoundaryState),
+        retryStage
+      )
+
+      if (Array.isArray(narrowedResult) && narrowedResult.length > 0) {
+        // The narrowed validation found errors to report.
+        return narrowedResult
+      }
+    }
+
+    // If we didn't return some other errors at this point the only thing to return is this validation's result
+    return initialResult
+  }
+
+  async function validateOrRetryAtDepth(
+    depth: number,
+    groupDepthForValidation: number,
+    boundaryState: ValidationBoundaryTracking,
+    overrideStageForPartialSegments: RetryStage | null = null
+  ): Promise<NavigationValidationResult | null> {
+    // If we're not overriding the stage, we're in the first stage.
+    const stage = overrideStageForPartialSegments ?? initialRenderStage
+    const dynamicHoleKind = getDynamicHoleKindForSegmentStage(stage)
 
     const extraChunksController = new AbortController()
     const extraChunksSignal =
       validationAbortSignal === undefined
         ? extraChunksController.signal
         : AbortSignal.any([extraChunksController.signal, validationAbortSignal])
-
-    const boundaryState = createValidationBoundaryTracking()
-    let useRuntimeStageForPartialSegments = false
-    if (previousBoundaryState) {
-      // We're doing a followup render to better discriminate error types
-      useRuntimeStageForPartialSegments = true
-      for (const [id, filePath] of previousBoundaryState.requiredIds) {
-        boundaryState.requiredIds.set(id, filePath)
-      }
-    }
 
     const payloadResult = await createCombinedPayloadAtDepth(
       prefetchKind,
@@ -7409,7 +7519,7 @@ async function validateInstantConfigs(
       extraChunksSignal,
       boundaryState,
       clientReferenceManifest,
-      useRuntimeStageForPartialSegments
+      overrideStageForPartialSegments
     )
 
     if (payloadResult === null) {
@@ -7469,23 +7579,6 @@ async function validateInstantConfigs(
       validationSampleTracking,
     }
 
-    let dynamicHoleKind: DynamicHoleKind
-    switch (prefetchKind) {
-      case ValidationPrefetchKind.Shell: {
-        dynamicHoleKind = payloadResult.hasAmbiguousErrors
-          ? DynamicHoleKind.Link
-          : DynamicHoleKind.Dynamic
-        break
-      }
-      case ValidationPrefetchKind.LegacySpeculative: {
-        dynamicHoleKind = payloadResult.hasAmbiguousErrors
-          ? DynamicHoleKind.Runtime
-          : DynamicHoleKind.Dynamic
-        break
-      }
-    }
-
-    let result: NavigationValidationResult
     try {
       const { prelude: unprocessedPrelude } = await runInSequentialTasks(
         () => {
@@ -7580,7 +7673,7 @@ async function validateInstantConfigs(
 
       const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
 
-      result = getNavigationDisallowedDynamicReasons(
+      return getNavigationDisallowedDynamicReasons(
         workStore,
         preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
         instantValidationState,
@@ -7589,7 +7682,7 @@ async function validateInstantConfigs(
         devRenderDidError
       )
     } catch (thrownValue) {
-      result = getNavigationDisallowedDynamicReasons(
+      return getNavigationDisallowedDynamicReasons(
         workStore,
         PreludeState.Errored,
         instantValidationState,
@@ -7598,40 +7691,6 @@ async function validateInstantConfigs(
         devRenderDidError
       )
     }
-
-    // If the prerender produced no real errors at this depth — either an
-    // empty array (clean) or a deferred-only result (Error/AggregateError
-    // representing a missing-boundary fallback) — there's nothing to
-    // discriminate. Pass it up so the outer loop can hold any deferred
-    // fallback back until every depth has been tried.
-    if (!Array.isArray(result) || result.length === 0) {
-      return result
-    }
-
-    if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
-      // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
-      // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
-      if (
-        validationAbortSignal !== undefined &&
-        !(await yieldToForegroundRequest(validationAbortSignal))
-      ) {
-        return []
-      }
-
-      const dynamicOnlyResult = await validateAtDepthImpl(
-        depth,
-        groupDepthForValidation,
-        boundaryState
-      )
-
-      if (Array.isArray(dynamicOnlyResult) && dynamicOnlyResult.length > 0) {
-        // The dynamic errors only validation found errors to report so we favor those
-        return dynamicOnlyResult
-      }
-    }
-
-    // If we didn't return some other errors at this point the only thing to return is this validation's result
-    return result
   }
 
   // Discover validation depth bounds from the LoaderTree. The array
