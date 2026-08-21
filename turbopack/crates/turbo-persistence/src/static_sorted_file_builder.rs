@@ -17,8 +17,10 @@ use crate::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE,
-        KeyBlockLayout, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH,
+        KEY_DELETED_REF_SIZE, KeyBlockLayout, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        key_block_table_stride,
     },
 };
 
@@ -1180,6 +1182,8 @@ impl<E: Entry> Drop for StreamingSstWriter<E> {
 struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
+    /// Bytes per offset table entry, which is wider when the block stores hashes.
+    table_stride: usize,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -1192,40 +1196,54 @@ impl<'l> KeyBlockBuilder<'l> {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
-        buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
+        let table_stride = key_block_table_stride(layout.hash_len());
+        buffer.reserve(entry_count as usize * (ESTIMATED_KEY_SIZE + table_stride));
         let block_type = layout.block_type(false);
         buffer.write_u8(block_type).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
-        for _ in 0..entry_count {
-            buffer.write_u32::<BE>(0).unwrap();
-        }
+        // Reserve the offset table; each entry's slot is filled in as it is written.
+        buffer.resize(buffer.len() + entry_count as usize * table_stride, 0);
         Self {
             current_entry: 0,
             header_size: buffer.len(),
+            table_stride,
             buffer,
         }
     }
 
-    /// Writes the entry header (position + type) for the current entry.
+    /// Writes the type and payload position into the current entry's table slot.
+    ///
+    /// The word sits at the end of the slot, after the hash for a `HashThenKey` block.
     fn write_entry_header(&mut self, entry_type: EntryType) {
         let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        let word_offset = slot + self.table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH;
         let header = (pos as u32) | ((entry_type.0 as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+        BE::write_u32(&mut self.buffer[word_offset..word_offset + 4], header);
     }
 
-    /// Writes a single entry (header +  key + value data) to the block.
+    /// Writes a single entry (table slot + key + value data) to the block.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.table_stride, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH,
+            "put() is for KeyOnly blocks; HashThenKey must use put_with_hash()"
+        );
         self.write_entry_header(value_ref.entry_type());
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
     }
-    /// Writes a single entry (header + hash + key + value data) to the block.
+
+    /// Writes a single entry to a `HashThenKey` block, with the hash hoisted into the table slot so
+    /// that a lookup's binary search reads only the table.
     fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.table_stride, KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH,
+            "put_with_hash() is for HashThenKey blocks; KeyOnly must use put()"
+        );
         self.write_entry_header(value_ref.entry_type());
-        self.buffer
-            .extend_from_slice(&entry.key_hash().to_be_bytes());
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        self.buffer[slot..slot + size_of::<u64>()].copy_from_slice(&entry.key_hash().to_be_bytes());
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;

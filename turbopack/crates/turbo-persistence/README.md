@@ -115,39 +115,43 @@ The hashes are sorted.
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
-- foreach entry
+- offset table, foreach entry
+  - 8 bytes key hash (block type 1 only)
   - 1 byte type
   - 3 bytes position in block after header
 - Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
 
-The block type determines whether the key hash is stored per entry, and with it the order the
-entries are stored in:
+The block type determines whether the key hash is stored, and with it the order the entries are
+stored in:
 
-- Block type 1 (with hash): Full 8-byte hash stored per entry. Entries are sorted by
-  `(key hash, key)`.
+- Block type 1 (with hash): Full 8-byte hash per entry, stored in the offset table. Entries are
+  sorted by `(key hash, key)`.
 - Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes). Entries are sorted by **key**.
 
 See [Entry ordering](#entry-ordering) for why the two differ.
 
+The hash lives in the offset table rather than beside its key so that a lookup's binary search reads
+only that dense array. A probe would otherwise load the table word and then chase a data-dependent
+position into the payload; with the hash hoisted, the payload is touched once on a match and never
+on a miss. Total bytes are unchanged — the table grows by 8 per entry and the payload shrinks by the
+same — so this is a permutation, not a size change. Fixed-size key blocks apply the same idea; see
+[Two regions, not interleaved](#two-regions-not-interleaved).
+
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - 8 bytes key hash (if block type 1)
   - key data
   - 4 bytes sequence number
 - 2: deleted key / key tombstone (no data)
-  - 8 bytes key hash (if block type 1)
   - key data
 - 3: normal key (medium sized value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -157,12 +161,10 @@ Depending on the `type` field entry has a different format:
   - 4 bytes position in block
 - 8..=16: inlined value, size = type - 8 (the format supports up to 247, but `MAX_INLINE_VALUE_SIZE`
   currently caps it at 8)
-  - 8 bytes key hash (if block type 1)
   - key data
   - (type - 8) bytes value data (inline, no separate value block)
 - 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
   with `MAX_INLINE_VALUE_SIZE`)
-  - 8 bytes key hash (if block type 1)
   - key data
   - (type - 17) bytes of the deleted value, stored inline
 
