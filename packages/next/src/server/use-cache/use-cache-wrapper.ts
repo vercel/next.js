@@ -47,10 +47,7 @@ import {
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
-import type {
-  ClientReferenceManifest,
-  ManifestNodeEntry,
-} from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
   getClientReferenceManifest,
@@ -785,7 +782,6 @@ function createUseCacheStore(
         workStore,
         outerWorkUnitStore
       ),
-      accessedClientReferences: new Map(),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: process.env.__NEXT_DEV_SERVER ? new Set() : undefined,
       // Every private cache scope is its own work unit. Any cache keyed on
@@ -836,7 +832,6 @@ function createUseCacheStore(
         workStore,
         outerWorkUnitStore
       ),
-      accessedClientReferences: new Map(),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
@@ -3648,32 +3643,11 @@ async function computeCacheKeyImplementationPart(
     }
   }
 
-  let accessedClientReferences: Map<string, ManifestNodeEntry> | null = null
-  switch (workUnitStore.type) {
-    case 'cache':
-    case 'private-cache':
-      accessedClientReferences = workUnitStore.accessedClientReferences
-      break
-    case 'unstable-cache':
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-legacy':
-    case 'request':
-    case 'prerender-runtime':
-    case 'validation-client':
-    case 'generate-static-params':
-      break
-    default:
-      return workUnitStore satisfies never
-  }
-
   const serverModuleMapEntry = getServerModuleMap()?.[id]
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&
     // if runtimeEnvVars===true, then always invalidate
-    Array.isArray(serverModuleMapEntry?.runtimeEnvVars) &&
-    // TODO make this more granular, only invalidate based on the client references that were actually accessed
-    (!accessedClientReferences || accessedClientReferences.size === 0)
+    Array.isArray(serverModuleMapEntry?.runtimeEnvVars)
   ) {
     let runtimeEnvVarsWithValues: string[] = await Promise.all(
       serverModuleMapEntry?.runtimeEnvVars?.map(async (v) => {

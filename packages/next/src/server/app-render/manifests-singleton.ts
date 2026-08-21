@@ -1,8 +1,5 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
-import type {
-  ClientReferenceManifest,
-  ManifestNodeEntry,
-} from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -11,7 +8,6 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { mightBeServerReferenceId } from '../../shared/lib/server-reference-info'
 import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
 import { workAsyncStorage } from './work-async-storage.external'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 export interface ServerModuleMap {
   readonly [name: string]: {
@@ -105,43 +101,6 @@ function createProxiedClientReferenceManifest(
       {},
       {
         get(_, id: string) {
-          // `clientModules` is the bundler config that React reads via
-          // `resolveClientReferenceMetadata` during RSC serialization, so this
-          // trap fires for every client reference accessed while serializing.
-          // When we're serializing a `"use cache"` entry (the active work unit
-          // store is a cache store), record the *resolved* client reference
-          // manifest entry (`{ id, name, chunks, async }`) that gets serialized
-          // into the payload. These are folded into the cache key so an entry
-          // is only reused when the underlying client modules haven't changed
-          // (e.g. across deployments).
-          //
-          // Note: this can slightly over-track in development, because a
-          // reference accessed only via `serializeDebugClientReference`
-          // (owner/debug info) is indistinguishable here from one accessed via
-          // an actual `serializeClientReference` render. That's an acceptable
-          // heuristic for now, and only affects dev.
-          const recordAccessedClientReference =
-            prop === 'clientModules'
-              ? (value: ManifestNodeEntry | undefined) => {
-                  if (value === undefined) {
-                    return
-                  }
-
-                  const workUnitStore = workUnitAsyncStorage.getStore()
-
-                  if (workUnitStore) {
-                    switch (workUnitStore.type) {
-                      case 'cache':
-                      case 'private-cache':
-                        workUnitStore.accessedClientReferences.set(id, value)
-                        break
-                      default:
-                        break
-                    }
-                  }
-                }
-              : undefined
-
           const workStore = workAsyncStorage.getStore()
 
           if (workStore) {
@@ -150,9 +109,6 @@ function createProxiedClientReferenceManifest(
             )?.clientReferenceManifest
 
             if (currentManifest?.[prop][id]) {
-              recordAccessedClientReference?.(
-                currentManifest[prop][id] as ManifestNodeEntry
-              )
               return currentManifest[prop][id]
             }
 
@@ -187,7 +143,6 @@ function createProxiedClientReferenceManifest(
                     workStore.additionalClientReferenceManifestPages.add(page)
                   }
 
-                  recordAccessedClientReference?.(entry as ManifestNodeEntry)
                   return entry
                 }
               }

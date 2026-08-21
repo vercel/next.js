@@ -51,28 +51,26 @@ const pluginState = getProxiedPluginState({
   edgeRscModules: {} as { [rscModuleId: string]: ModuleInfo },
 })
 
-export interface ManifestNodeEntry {
-  /**
-   * Webpack module id
-   */
-  id: ModuleId
-  /**
-   * Export name
-   */
-  name: string
-  /**
-   * Chunks for the module. JS and CSS.
-   */
-  chunks: ManifestChunks
-
-  /**
-   * If chunk contains async module
-   */
-  async?: boolean
-}
-
 export interface ManifestNode {
-  [moduleExport: string]: ManifestNodeEntry
+  [moduleExport: string]: {
+    /**
+     * Webpack module id
+     */
+    id: ModuleId
+    /**
+     * Export name
+     */
+    name: string
+    /**
+     * Chunks for the module. JS and CSS.
+     */
+    chunks: ManifestChunks
+
+    /**
+     * If chunk contains async module
+     */
+    async?: boolean
+  }
 }
 
 export interface ClientReferenceManifestForRsc {

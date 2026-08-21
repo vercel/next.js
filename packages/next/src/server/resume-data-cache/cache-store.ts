@@ -102,9 +102,6 @@ export function parseUseCacheCacheStore(
         readRootParamNames: readRootParamNames
           ? new Set(readRootParamNames)
           : undefined,
-        // Not serialized into the RDC wire format; only populated by a fresh
-        // `collectResult`.
-        accessedClientReferences: undefined,
         // Serialized RDC entries are non-dynamic by construction (the
         // serializer drops dynamic entries), so this is never produced from the
         // wire — the throw path that consumes it is only reachable for dynamic
