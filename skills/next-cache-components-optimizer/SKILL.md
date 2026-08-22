@@ -273,6 +273,10 @@ the abbreviated output lacks the failing frame, and use
 When the public pattern does not explain the observed shell, check these
 production route shapes:
 
+- For `generateMetadata` or `generateViewport`, follow the exact Insight before
+  changing the page tree. Do not count `export const instant = false` or a
+  document-level `<Suspense>` that accepts a fully dynamic route as GREEN. The
+  route is instant only when the locked shell assertion passes.
 - If a marker is present after a `<Link>` click but missing after `page.goto()`,
   inspect layouts above the shared boundary for `await params` or
   `await searchParams`. An initial load rerenders those parents. A client

@@ -168,9 +168,11 @@ async function TeamSettings({
 
 The heading and form skeleton now render in the static shell. The protected settings read stays at request time and replaces only the form skeleton when it resolves.
 
-The same pattern applies to `cookies()`, `headers()`, `searchParams`, and uncached data. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples.
+The same pattern applies to `cookies()`, `headers()`, `searchParams`, and uncached data. For request-time values such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()`, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value, then keep that component behind `<Suspense>`. Cache the value instead when it should be shared across requests. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples.
 
-When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above.
+When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
+
+Metadata and viewport are resolved outside the page's component tree, so a boundary around page content does not cover them. Cache reusable values in `generateMetadata` or `generateViewport`. If metadata must use request data, it can stream alongside a static shell using a dynamic marker. A request-specific viewport cannot stream and makes the route blocking. See [`generateMetadata` and `generateViewport`](/docs/app/guides/migrating-to-cache-components#generatemetadata-and-generateviewport) for the complete patterns.
 
 ### Step 4: Cache data that can be reused
 

@@ -44,9 +44,11 @@ self-validating test variant when deferred content exists.
 7. **Renders for the test user**: under that user's flags, plan, role, and data.
 8. **Conditional redirects accounted for**: assert at the route's real destination for that user.
 9. **Real selector**: a `data-testid` on a known static-shell node, not a guessed `role`/`name`.
-10. **Visible marker**: not `display:none`, `display: contents`, a fragment, off-screen, or inside a
+10. **Committed marker**: assert a DOM node after the client subtree commits, not text searched in
+    the RSC response. Client Component text may not appear in the response bytes.
+11. **Visible marker**: not `display:none`, `display: contents`, a fragment, off-screen, or inside a
     hover overlay; for lists, target `.filter({ visible: true }).first()`.
-11. **Fresh build under test**: the deployment being measured contains the latest commit, not a
+12. **Fresh build under test**: the deployment being measured contains the latest commit, not a
     build URL still serving the previous deploy.
 
 ## Taxonomy: red for the wrong reason
@@ -76,7 +78,7 @@ reason; the rig file's DRIFT list says which rows apply to your app.
   that no element actually had, on a list page whose CI account had no rows. → checks 7, 9. Fix: a
   `data-testid` on a real static-shell node.
 - **Hidden marker**: the testid sat first on a `hidden sm:block` hover-overlay link, then on an
-  off-screen carousel card; Playwright resolved the element but reported it hidden. → check 10.
+  off-screen carousel card; Playwright resolved the element but reported it hidden. → check 11.
   Fix: an always-visible node; for lists, `.filter({ visible: true }).first()`.
 
 ## Differential check (capture in the PR)
