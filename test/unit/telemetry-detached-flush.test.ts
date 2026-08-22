@@ -220,6 +220,13 @@ describe('telemetry detached-flush', () => {
         }
       )
 
+      // `close` rather than `exit`: it waits for stdio to reach EOF. Awaited
+      // at the end, but registered here: `close` fires once, so a listener
+      // attached after the pause below would miss a child that ended during
+      // it, and the test would hang to the Jest timeout instead of failing on
+      // the record count.
+      const closed = new Promise((resolve) => child.once('close', resolve))
+
       // No listener yet, so nothing is read and the child blocks on write. A
       // plain sleep rather than `waitFor` from `next-test-utils`: that module
       // pulls in express, node-fetch and the Next server, which is a lot of
@@ -229,8 +236,7 @@ describe('telemetry detached-flush', () => {
       child.stderr.setEncoding('utf8')
       child.stderr.on('data', (chunk) => (out += chunk))
 
-      // `close` rather than `exit`: it waits for stdio to reach EOF.
-      const code = await new Promise((resolve) => child.on('close', resolve))
+      const code = await closed
 
       expect(code).toBe(0)
       expect((out.match(/\[telemetry\]/g) || []).length).toBe(N)
