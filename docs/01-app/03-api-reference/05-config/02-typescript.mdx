@@ -155,7 +155,7 @@ module.exports = nextConfig
 
 > **Note**: Available on Node.js v22.10.0+ and only when the feature is enabled. Next.js does not enable it.
 
-Next.js detects the [Node.js native TypeScript resolver](https://nodejs.org/api/typescript.html) via [`process.features.typescript`](https://nodejs.org/api/process.html#processfeaturestypescript), added in **v22.10.0**. When present, `next.config.ts` can use native ESM, including top‑level `await` and dynamic `import()`. This mechanism inherits the capabilities and limitations of Node's resolver.
+Next.js detects the [Node.js native TypeScript resolver](https://nodejs.org/api/typescript.html) via [`process.features.typescript`](https://nodejs.org/api/process.html#processfeaturestypescript), added in **v22.10.0**. When present, `next.config.ts` can use native ESM, including top-level `await` and dynamic `import()`. This mechanism inherits the capabilities and limitations of Node's resolver.
 
 In Node.js versions **v22.18.0+**, `process.features.typescript` is enabled by default. For versions between **v22.10.0** and **22.17.x**, opt in with `NODE_OPTIONS=--experimental-transform-types`:
 
@@ -551,6 +551,15 @@ When you need to declare custom types, you might be tempted to modify `next-env.
 }
 ```
 
+
+
+### 
+oPropertyAccessFromIndexSignature`r
+
+Setting 
+oPropertyAccessFromIndexSignature: true in your 	sconfig.json will cause TypeScript errors when accessing process.env with dot notation (e.g. process.env.NEXT_PUBLIC_*). Since Next.js uses webpack's DefinePlugin which only replaces dot-access patterns, you should not enable this option.
+
+If you need this option enabled, use bracket notation for environment variables: process.env["NEXT_PUBLIC_..."]. Note that bracket access is not inlined at build time.
 ## Version Changes
 
 | Version   | Changes                                                                                                                              |
@@ -559,3 +568,4 @@ When you need to declare custom types, you might be tempted to modify `next-env.
 | `v13.2.0` | Statically typed links are available in beta.                                                                                        |
 | `v12.0.0` | [SWC](/docs/architecture/nextjs-compiler) is now used by default to compile TypeScript and TSX for faster builds.                    |
 | `v10.2.1` | [Incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) support added when enabled in your `tsconfig.json`. |
+

@@ -191,6 +191,8 @@ const env = process.env
 setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
+> **Good to know**: Setting `noPropertyAccessFromIndexSignature: true` in your `tsconfig.json` will cause TypeScript errors when accessing `process.env` properties with dot notation (e.g. `process.env.NEXT_PUBLIC_ANALYTICS_ID`). Since Next.js relies on dot-access to inline environment variables, you should keep this option disabled.
+
 ### Runtime Environment Variables
 
 Next.js can support both build time and runtime environment variables.
@@ -287,3 +289,4 @@ For example, if `NODE_ENV` is `development` and you define a variable in both `.
 | Version  | Changes                                       |
 | -------- | --------------------------------------------- |
 | `v9.4.0` | Support `.env` and `NEXT_PUBLIC_` introduced. |
+
