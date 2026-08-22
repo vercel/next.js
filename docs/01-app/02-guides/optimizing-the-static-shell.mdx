@@ -168,7 +168,9 @@ async function TeamSettings({
 
 The heading and form skeleton now render in the static shell. The protected settings read stays at request time and replaces only the form skeleton when it resolves.
 
-The same boundary pattern applies to `cookies()`, `headers()`, `searchParams`, and uncached data. For values that should be generated for each request, such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()`, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value. Cache the value instead when it should be shared across requests. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples.
+On a page load, the same boundary pattern applies to `cookies()`, `headers()`, `searchParams`, and uncached data. A Client Component that calls `useSearchParams()` can resolve synchronously during a client navigation because the router already has the URL, but it still needs a boundary for the page-load shell.
+
+For values that should be generated for each request, such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()`, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value. Cache the value instead when it should be shared across requests. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples.
 
 When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
 
@@ -318,7 +320,7 @@ Keep the breakpoint logic in `SettingsShell`, then let the sidebar slot supply e
 
 ### Step 6: Verify the static shell
 
-Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
+Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Inspect both a direct visit and a client navigation because the direct visit renders from the root while the client navigation reuses shared layouts. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route. For automated regression coverage of initial loads and client navigations, follow [Prevent regressions with end-to-end tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
