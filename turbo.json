@@ -8,8 +8,11 @@
       "outputs": ["dist/**"]
     },
     "dev": {
-      "dependsOn": ["^dev"],
-      "outputs": ["dist/**"]
+      "cache": false,
+      "persistent": true
+    },
+    "dev:precompile": {
+      "dependsOn": ["^build"]
     },
     "storybook": {},
     "build-storybook": {

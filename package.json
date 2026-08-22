@@ -13,7 +13,7 @@
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "build-all": "turbo run build build-native-auto --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
-    "dev": "turbo run dev --parallel --filter=\"!@next/bundle-analyzer-ui\"",
+    "dev": "turbo run dev:precompile --filter=\"next\" --filter=\"eslint-config-next\" && turbo run dev --concurrency=100 --filter=\"!@next/bundle-analyzer-ui\"",
     "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
     "bench:render-pipeline:analyze": "tsx bench/render-pipeline/analyze-profiles.ts",
     "bench:render-pipeline:client": "tsx bench/render-pipeline/client-trace.ts",
