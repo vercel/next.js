@@ -429,6 +429,43 @@ declare module 'next/form' {
 `
 }
 
+// A route can safely narrow its param values only when the same module proves
+// that it owns a closed static set. Keep this module-local because layouts and
+// pages can share a pathname while generating different param sets.
+const routeParamsTypeDefinitions = `type ValidStaticParams<
+  Route extends keyof ParamMap,
+  Params,
+> = 0 extends (1 & Params)
+  ? never
+  : [Params] extends [Partial<ParamMap[Route]>]
+    ? Pick<Params, Extract<keyof Params, keyof ParamMap[Route]>>
+    : never
+
+type StaticParamsForRoute<
+  Route extends keyof ParamMap,
+  Entry,
+> = Entry extends {
+  dynamicParams: false
+  generateStaticParams: (...args: any[]) => infer Result
+}
+  ? Awaited<Result> extends readonly (infer Params)[]
+    ? ValidStaticParams<Route, Params>
+    : never
+  : never
+
+type ApplyStaticParams<Base, Static> = Static extends unknown
+  ? Omit<Base, keyof Static> & Static
+  : never
+
+type RouteParams<
+  Route extends keyof ParamMap,
+  Entry,
+> = [StaticParamsForRoute<Route, Entry>] extends [never]
+  ? ParamMap[Route]
+  : ApplyStaticParams<ParamMap[Route], StaticParamsForRoute<Route, Entry>>
+
+`
+
 export function generateValidatorFile(
   routesManifest: RouteTypesManifest
 ): string {
@@ -465,7 +502,7 @@ export function generateValidatorFile(
           (type === 'AppPageConfig' ||
             type === 'LayoutConfig' ||
             type === 'RouteHandlerConfig')
-            ? `${type}<${JSON.stringify(route)}>`
+            ? `${type}<${JSON.stringify(route)}, Specific>`
             : type
 
         // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
@@ -517,16 +554,20 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
+    typeDefinitions += routeParamsTypeDefinitions
+  }
+
   if (appPageValidations) {
-    typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
-  default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+    typeDefinitions += `type AppPageConfig<Route extends AppRoutes, Entry> = {
+  default: React.ComponentType<{ params: Promise<RouteParams<Route, Entry>> } & any> | ((props: { params: Promise<RouteParams<Route, Entry>> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -558,15 +599,15 @@ export function generateValidatorFile(
   }
 
   if (layoutValidations) {
-    typeDefinitions += `type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
-  default: React.ComponentType<LayoutProps<Route>> | ((props: LayoutProps<Route>) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+    typeDefinitions += `type LayoutConfig<Route extends LayoutRoutes, Entry> = {
+  default: React.ComponentType<Omit<LayoutProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> }> | ((props: Omit<LayoutProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> }) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -577,14 +618,14 @@ export function generateValidatorFile(
   }
 
   if (appRouteHandlerValidations) {
-    typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
-  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+    typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes, Entry> = {
+  GET?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  POST?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  PUT?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  PATCH?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  DELETE?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  HEAD?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  OPTIONS?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
 }
 
 `
@@ -706,7 +747,7 @@ export function generateValidatorFileStrict(
           (type === 'AppPageConfig' ||
             type === 'LayoutConfig' ||
             type === 'RouteHandlerConfig')
-            ? `${type}<${JSON.stringify(route)}>`
+            ? `${type}<${JSON.stringify(route)}, typeof handler>`
             : type
 
         return `// Validate ${filePath}
@@ -752,16 +793,20 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
+    typeDefinitions += routeParamsTypeDefinitions
+  }
+
   if (appPageValidations) {
-    typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
-  default: React.JSXElementConstructor<PageProps<Route>>
+    typeDefinitions += `type AppPageConfig<Route extends AppRoutes, Entry> = {
+  default: React.JSXElementConstructor<Omit<PageProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> }>
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: PageProps<Route>,
+    props: Omit<PageProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> },
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: PageProps<Route>,
+    props: Omit<PageProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> },
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -793,15 +838,15 @@ export function generateValidatorFileStrict(
   }
 
   if (layoutValidations) {
-    typeDefinitions += `type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
-  default: React.ComponentType<LayoutProps<Route>> | ((props: LayoutProps<Route>) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+    typeDefinitions += `type LayoutConfig<Route extends LayoutRoutes, Entry> = {
+  default: React.ComponentType<Omit<LayoutProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> }> | ((props: Omit<LayoutProps<Route>, 'params'> & { params: Promise<RouteParams<Route, Entry>> }) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: { params: Promise<RouteParams<Route, Entry>> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -812,14 +857,14 @@ export function generateValidatorFileStrict(
   }
 
   if (appRouteHandlerValidations) {
-    typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
-  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+    typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes, Entry> = {
+  GET?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  POST?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  PUT?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  PATCH?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  DELETE?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  HEAD?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
+  OPTIONS?: (request: NextRequest, context: { params: Promise<RouteParams<Route, Entry>> }) => Promise<Response | void> | Response | void
 }
 
 `

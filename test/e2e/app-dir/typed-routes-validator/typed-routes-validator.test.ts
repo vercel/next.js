@@ -271,6 +271,66 @@ describe('typed-routes-validator', () => {
       expect(exitCode).toBe(0)
     })
 
+    it('should accept literal params only for closed static param sets', async () => {
+      const tsconfig = await next.readFile('tsconfig.json')
+      await next.patchFile(
+        'tsconfig.json',
+        tsconfig.replace('"strict": false', '"strict": true')
+      )
+
+      const { exitCode: closedExitCode } = await next.build()
+
+      await next.patchFile(
+        'app/open/[locale]/layout.tsx',
+        `
+    type Locale = 'en' | 'de'
+
+    export const dynamicParams = true
+
+    export function generateStaticParams(): { locale: Locale }[] {
+      return [{ locale: 'en' }, { locale: 'de' }]
+    }
+
+    export default async function Layout({
+      children,
+      params,
+    }: {
+      children: React.ReactNode
+      params: Promise<{ locale: Locale }>
+    }) {
+      const { locale } = await params
+      return <div data-locale={locale}>{children}</div>
+    }
+            `
+      )
+      await next.patchFile(
+        'app/open/[locale]/page.tsx',
+        `
+    export default function Page() {
+      return null
+    }
+            `
+      )
+
+      const { exitCode, cliOutput } = await next.build()
+      // clean up before assertion just in case it fails
+      await next.deleteFile('app/open/[locale]/layout.tsx')
+      await next.deleteFile('app/open/[locale]/page.tsx')
+      await next.patchFile('tsconfig.json', tsconfig)
+
+      expect(closedExitCode).toBe(0)
+      expect(exitCode).toBe(1)
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'LayoutConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
+        )
+      }
+    })
+
     it('should fail type checking with invalid layout exports', async () => {
       await next.patchFile(
         'app/invalid/layout.tsx',
