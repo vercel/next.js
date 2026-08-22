@@ -266,7 +266,6 @@ async function runTest(
               '.vercel/output/functions/app-page.func/.vc-config.json',
               '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
               '.vercel/output/functions/app-route.func/.vc-config.json',
-              '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
               '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
               '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
             ])
