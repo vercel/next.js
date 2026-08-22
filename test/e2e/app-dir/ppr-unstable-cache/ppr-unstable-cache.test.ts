@@ -26,8 +26,9 @@ describe('ppr-unstable-cache', () => {
     }
   })
 
-  it('should not cache inner fetch calls', async () => {
+  it('should revalidate inner fetches without degrading generated PPR shells', async () => {
     let generations: string[] = []
+    let pprForceCacheGenerations: string[] = []
     server = http.createServer(async (req, res) => {
       try {
         if (!req.url) throw new Error('No URL')
@@ -37,7 +38,11 @@ describe('ppr-unstable-cache', () => {
 
         const random = Math.floor(Math.random() * 1000).toString()
         const data = cache + ':' + random
-        generations.push(data)
+        if (cache === 'ppr-force-cache') {
+          pprForceCacheGenerations.push(data)
+        } else {
+          generations.push(data)
+        }
         res.end(data)
       } catch (err) {
         res.statusCode = 500
@@ -51,6 +56,14 @@ describe('ppr-unstable-cache', () => {
     await next.start()
 
     expect(generations).toHaveLength(2)
+    expect(pprForceCacheGenerations).toHaveLength(1)
+
+    const $dynamicBefore = await next.render$('/known')
+    const dynamicValueBefore = $dynamicBefore('#dynamic-ppr-content').text()
+    expect(dynamicValueBefore).toBeTruthy()
+    expect(
+      $dynamicBefore('#dynamic-ppr-content').closest('[hidden]').length
+    ).toBe(0)
 
     const first = await next
       .render$('/')
@@ -75,6 +88,24 @@ describe('ppr-unstable-cache', () => {
     const revalidate = await next.fetch('/revalidate-tag', { method: 'POST' })
     expect(revalidate.status).toBe(200)
     await revalidate.text()
+
+    const dynamicRscResponse = await next.fetch('/known', {
+      headers: { RSC: '1' },
+    })
+    expect(dynamicRscResponse.status).toBe(200)
+    const dynamicRscAfter = await dynamicRscResponse.text()
+    expect(dynamicRscAfter).toContain('known:')
+    expect(dynamicRscAfter).not.toContain(dynamicValueBefore)
+    expect(pprForceCacheGenerations).toHaveLength(1)
+
+    const $dynamicAfter = await next.render$('/known')
+    const dynamicValueAfter = $dynamicAfter('#dynamic-ppr-content').text()
+    expect(dynamicValueAfter).toBeTruthy()
+    expect(dynamicValueAfter).not.toBe(dynamicValueBefore)
+    expect(pprForceCacheGenerations).toHaveLength(1)
+    expect(
+      $dynamicAfter('#dynamic-ppr-content').closest('[hidden]').length
+    ).toBe(0)
 
     const revalidated = await next
       .render$('/')

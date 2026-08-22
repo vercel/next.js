@@ -693,6 +693,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (cacheData) {
       entry = {
         isStale,
+        isTagExpired: cacheData.lastModified === -1 || undefined,
         cacheControl,
         revalidateAfter,
         value: cacheData.value,

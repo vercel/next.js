@@ -1122,15 +1122,14 @@ export function createAppPageEntrypoint({
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
-          if (previousIncrementalCacheEntry?.isStale === -1) {
-            isOnDemandRevalidate = true
-          }
+          const isBlockingRevalidation =
+            previousIncrementalCacheEntry?.isStale === -1
 
           // TODO: adapt for PPR
-          // only allow on-demand revalidate for fallback: true/blocking
-          // or for prerendered fallback: false paths
+          // Only allow on-demand or expired-entry blocking revalidation for
+          // fallback: true/blocking or prerendered fallback: false paths
           if (
-            isOnDemandRevalidate &&
+            (isOnDemandRevalidate || isBlockingRevalidation) &&
             (fallbackMode !== FallbackMode.NOT_FOUND ||
               previousIncrementalCacheEntry)
           ) {
@@ -1384,9 +1383,12 @@ export function createAppPageEntrypoint({
               incrementalCacheEntry.value &&
               incrementalCacheEntry.value.kind === CachedRouteKind.APP_PAGE
             ) {
-              // CRITICAL: we're assigning the postponed data from the cache entry
-              // here as we're using the RDC to resume the render.
-              postponed = incrementalCacheEntry.value.postponed
+              // Expired entries must not be resumed because their postponed
+              // state can contain data invalidated by the expired tag. Render
+              // the navigation without it so those reads are fresh.
+              if (incrementalCacheEntry.isStale !== -1) {
+                postponed = incrementalCacheEntry.value.postponed
+              }
 
               // If the cache entry is stale, we should trigger a background
               // revalidation so that subsequent requests will get a fresh response.
