@@ -50,6 +50,9 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+Merge the option into an existing `experimental` object instead of replacing
+the project's other experimental options.
+
 Set the condition while running `next build`. Setting it only for `next start`
 is too late because the testing API is compiled into the production artifact.
 Use the project's existing environment naming when it already distinguishes
