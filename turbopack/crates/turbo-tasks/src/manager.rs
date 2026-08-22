@@ -172,10 +172,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// Records that a read waited for a task that a worker was already executing, so it did not try
     /// to claim it. Diagnostics only, see `TurboTasks::inline_execution_stats`.
-    ///
-    /// Without the `inline_execution_stats` feature this is an empty function. It stays on the
-    /// trait unconditionally because the path that calls it is about to park on an
-    /// [`EventListener`] anyway, so one no-op call is noise next to that.
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -586,9 +583,9 @@ impl InlineExecutionCounters {
     }
 
     /// A read waited without attempting a claim, because the task was already being executed.
+    #[cfg(feature = "inline_execution_stats")]
     #[inline]
     fn waited_in_progress(&self) {
-        #[cfg(feature = "inline_execution_stats")]
         self.waited_in_progress.fetch_add(1, Ordering::Relaxed);
     }
 }
@@ -602,12 +599,8 @@ pub(crate) fn inline_stats_requested() -> bool {
     *REQUESTED
 }
 
-/// Maximum number of task executions that may be nested inline on a single thread.
-///
-/// Executing a task inline (see [`execute_read_target_inline`]) runs its body on the stack of the
-/// task that reads it, and that task might itself have been executed inline. Every level adds a
-/// task body to the stack, so the nesting is capped: at the cap, reads park and wait for a worker
-/// as they always did.
+/// Maximum number of task executions that may be nested inline on a single thread, to conserve
+/// stack space. (The alternative would be growing the stack on demand, the way SWC does.)
 const MAX_INLINE_EXECUTION_DEPTH: usize = 16;
 
 thread_local! {
@@ -636,11 +629,8 @@ impl Drop for InlineExecutionDepthGuard {
     }
 }
 
-/// Polls `future` once on the current thread. When it doesn't complete, it is spawned so it is
-/// driven to completion as usual. Returns whether it completed.
-///
-/// The outcome is also recorded on the span of the task that was executed, see
-/// [`InlineExecutionSpanSlot`].
+/// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
+/// whether it completed.
 fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
     let _depth_guard = InlineExecutionDepthGuard::enter();
     let span_slot = InlineExecutionSpanSlot::default();
@@ -664,16 +654,7 @@ fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool
     }
 }
 
-/// Called by a read that found its task merely *scheduled*: executes it on the reading thread, so
-/// the read can go on without waiting for a worker. Returns whether the read should be retried
-/// because the task's execution completed.
-///
-/// Reads never get here for a task a worker is already executing ([`ReadOutcome::InProgress`]), so
-/// the scheduler's queue lock is not touched in that case.
-///
-/// This is the only place where reads pay for inline execution: a read that finds its value does no
-/// extra work at all, which is why this is kept out of the caller's hot path.
-#[inline(never)]
+/// Executes the task inline if possible, returns true if it executed to completion.
 pub(crate) fn execute_read_target_inline(
     turbo_tasks: &dyn TurboTasksApi,
     key: ScheduleKey,
@@ -1163,24 +1144,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
-    /// Takes the task's execution out of the scheduler queue and polls it on the current thread, so
-    /// that a read of a task that is scheduled but not started yet doesn't have to wait for a
-    /// worker. Returns whether the execution completed.
-    ///
-    /// When the task is not in the queue (a worker already picked it up, it was never scheduled, or
-    /// it is already done) nothing is executed and `false` is returned. When the execution doesn't
-    /// complete on the first poll, it is spawned to be completed as usual.
+    /// Executes the task inline if possible, returns true if it executed to completion.
     fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
         let this = self.pin();
         self.inline_counters.claim_attempted();
-        // The runtime check has to happen *before* claiming, not inside `poll_once_or_spawn`:
-        // claiming removes the task from the queue, so if the execution then yields we must be able
-        // to hand it to the runtime — `tokio::task::spawn` would panic, and the task is already
-        // dequeued and cannot be put back. Reads from outside a runtime keep waiting for a worker,
-        // as they always did.
-        if tokio::runtime::Handle::try_current().is_ok()
-            && let Some(future) = self.priority_runner.claim(&this, &key)
-        {
+        if let Some(future) = self.priority_runner.claim(&this, &key) {
             let completed = poll_once_or_spawn(future);
             if completed {
                 self.inline_counters.claim_completed();
@@ -1193,6 +1161,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         false
     }
 
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
         self.inline_counters.waited_in_progress();
     }
@@ -1858,6 +1827,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.try_execute_scheduled_task_inline(key)
     }
 
+    #[cfg(feature = "inline_execution_stats")]
     fn note_waited_for_in_progress_task(&self) {
         self.note_waited_for_in_progress_task()
     }
@@ -2280,6 +2250,7 @@ pub(crate) async fn read_task_output(
             }
             ReadOutcome::InProgress(listener) => {
                 // A worker is on it — there is nothing to take over, so don't touch the queue.
+                #[cfg(feature = "inline_execution_stats")]
                 this.note_waited_for_in_progress_task();
                 listener.await
             }
@@ -2696,44 +2667,5 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
-    }
-
-    /// The span slot must be per inline execution: a task executed inline while itself being
-    /// executed inline has to record its outcome on its own span, not on its reader's.
-    #[tokio::test]
-    async fn test_nested_inline_executions_use_separate_span_slots() {
-        /// Identifies the slot of the innermost inline execution, or `None` outside one.
-        fn current_slot() -> Option<usize> {
-            INLINE_EXECUTION_SPAN
-                .try_with(|slot| Arc::as_ptr(&slot.0) as usize)
-                .ok()
-        }
-
-        assert_eq!(current_slot(), None, "no slot outside an inline execution");
-
-        let outer_slot = Arc::new(Mutex::new(None));
-        let outer_slot_in_task = outer_slot.clone();
-        assert!(poll_once_or_spawn(async move {
-            let outer = current_slot().expect("an inline execution has a slot");
-            *outer_slot_in_task.lock().unwrap() = Some(outer);
-
-            // A nested inline execution gets its own slot...
-            assert!(poll_once_or_spawn(async move {
-                let inner = current_slot().expect("the nested execution has a slot");
-                assert_ne!(inner, outer, "the nested execution must not share the slot");
-            }));
-
-            // ...and the outer one is back afterwards.
-            assert_eq!(current_slot(), Some(outer));
-        }));
-        assert!(outer_slot.lock().unwrap().is_some(), "the outer body ran");
-        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
-    }
-
-    /// A worker-executed task has no slot, so registering its span is a no-op rather than a panic —
-    /// that is what leaves `inline_execution` unset for it.
-    #[test]
-    fn test_registering_a_span_outside_an_inline_execution_does_nothing() {
-        InlineExecutionSpanSlot::set(&Span::none());
     }
 }

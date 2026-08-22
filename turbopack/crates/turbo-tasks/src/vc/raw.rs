@@ -507,11 +507,8 @@ fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() 
 /// Executes the task a read is waiting for when it is only scheduled, so the read can continue
 /// without waiting for a worker.
 ///
-/// The read loops in [`ResolveRawVcFuture`] / [`ReadRawVcFuture`] report the task to execute
-/// through an out parameter and this is called *outside* of [`with_turbo_tasks`]: the read borrows
-/// the `TURBO_TASKS` task-local, and executing a task enters a task-local scope of its own, which
-/// is not allowed while it is borrowed. Reporting it out-of-band (instead of returning it) keeps
-/// the value path of a read — the hot path — free of any extra work.
+/// Must be called *outside* [`with_turbo_tasks`]: executing a task enters a task-local scope of its
+/// own, which panics while the read borrows `TURBO_TASKS`.
 fn execute_inline(key: ScheduleKey) {
     execute_read_target_inline(&*turbo_tasks(), key);
 }
@@ -599,6 +596,7 @@ impl Future for ResolveRawVcFuture {
                                 // A worker is on it; nothing to take over. Loop back so
                                 // `poll_listener` registers the waker on this listener — returning
                                 // `Pending` here would sleep through the event.
+                                #[cfg(feature = "inline_execution_stats")]
                                 tt.note_waited_for_in_progress_task();
                                 this.listener = Some(listener);
                                 continue 'outer;
@@ -645,11 +643,12 @@ impl Future for ResolveRawVcFuture {
             let result = suppress_top_level_task_check(strongly_consistent, || {
                 with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
             });
-            match execute_inline_key {
+            if let Some(key) = execute_inline_key {
                 // Not inside `with_turbo_tasks`, see `execute_inline`.
-                Some(key) => execute_inline(key),
-                None => return result,
+                execute_inline(key);
+                continue;
             }
+            return result;
         }
     }
 }
@@ -787,6 +786,7 @@ impl Future for ReadRawVcFuture {
                             // A worker is already filling the cell; nothing to take over. Loop back
                             // so `poll_listener` registers the waker on this listener — returning
                             // `Pending` here would sleep through the event.
+                            #[cfg(feature = "inline_execution_stats")]
                             tt.note_waited_for_in_progress_task();
                             *listener = Some(l);
                             continue;
@@ -811,11 +811,12 @@ impl Future for ReadRawVcFuture {
             let result = suppress_top_level_task_check(strongly_consistent, || {
                 with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
             });
-            match execute_inline_key {
+            if let Some(key) = execute_inline_key {
                 // Not inside `with_turbo_tasks`, see `execute_inline`.
-                Some(key) => execute_inline(key),
-                None => return result,
+                execute_inline(key);
+                continue;
             }
+            return result;
         }
     }
 }

@@ -51,8 +51,6 @@ async fn test_read_of_scheduled_task_is_inline() {
 
 #[turbo_tasks::function(operation, root)]
 async fn read_scheduled_task_inline(nonce: u32) -> Result<Vc<()>> {
-    let _ = nonce; // ensure the nonce is part of our cache key
-
     // `leaf` has never been computed and completes without awaiting anything, so the read must
     // resolve in the very first poll.
     let leaf_vc = leaf(nonce);
@@ -94,8 +92,6 @@ async fn read_yielding_task(nonce: &mut u32) {
 
 #[turbo_tasks::function(operation, root)]
 async fn read_yielding_task_operation(nonce: u32) -> Result<Vc<()>> {
-    let _ = nonce;
-
     // `yielding_leaf` yields during its execution, so the inline poll cannot finish it. The read
     // has to park — and the value must still be produced.
     let vc = yielding_leaf(nonce);
@@ -330,6 +326,8 @@ async fn test_read_of_running_task_is_not_executed_again() {
     );
 }
 
+/// Only `read_running_task` may use this: it is process-global, and that operation resets it at the
+/// start of each execution.
 static COUNTED_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
 
 #[turbo_tasks::function(operation, root)]
@@ -349,6 +347,8 @@ async fn read_running_task(nonce: u32) -> Result<Vc<()>> {
 
 #[turbo_tasks::function]
 async fn counted_leaf(nonce: u32) -> Result<Vc<Value>> {
+    // Keeps `nonce` in the cache key: `#[turbo_tasks::function]` filters out arguments the body
+    // never uses, and then every run would reuse the first run's cached value.
     let _ = nonce;
     COUNTED_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
     // Yield so the other readers reach the task while it is in progress.
@@ -393,13 +393,13 @@ async fn chain_link(nonce: u32, depth: u32) -> Result<Vc<Value>> {
 
 #[turbo_tasks::function]
 fn leaf(nonce: u32) -> Result<Vc<Value>> {
-    let _ = nonce;
+    let _ = nonce; // keeps `nonce` in the cache key, see `counted_leaf`
     Ok(Value { value: 42 }.cell())
 }
 
 #[turbo_tasks::function]
 async fn yielding_leaf(nonce: u32) -> Result<Vc<Value>> {
-    let _ = nonce;
+    let _ = nonce; // keeps `nonce` in the cache key, see `counted_leaf`
     tokio::task::yield_now().await;
     Ok(Value { value: 7 }.cell())
 }
