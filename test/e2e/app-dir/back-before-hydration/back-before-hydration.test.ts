@@ -197,6 +197,32 @@ describe('back navigation before hydration after reload', () => {
     await expectNoPageErrors(browser)
   })
 
+  it('replays a traversal after a reload on a prerendered not-found page', async () => {
+    const { browser, releaseScripts } = await clickThenReloadStalled(
+      homePath,
+      'to-missing',
+      '#not-found'
+    )
+
+    await browser.back({ waitUntil: 'commit' })
+    expect(new URL(await browser.url()).pathname).toBe(homePath)
+    releaseScripts()
+
+    await waitForPage(browser, '#home')
+    await retry(async () => {
+      expect(await readRouterUrl(browser)).toBe(homePath)
+    })
+    expect(await browser.eval('window.__routerTransitions')).toEqual([
+      `traverse ${homePath}`,
+    ])
+    expect(await browser.eval('window.__stayed')).toBe(true)
+    // The 404 response is reported as an error.
+    const errors = (await browser.log())
+      .filter((entry) => entry.source === 'error')
+      .map((entry) => entry.message)
+    expect(errors).not.toContainEqual(expect.stringContaining('Hydration'))
+  })
+
   it('hydrates in place on an ordinary reload', async () => {
     const { browser, page, releaseScripts } = await clickThenReloadStalled(
       homePath,
