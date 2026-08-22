@@ -321,7 +321,9 @@ now commits instantly. Verify:
 - **All supported viewports reach the real UI** after the stream.
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
-  and input state persist across the stream.
+  and input state persist across the stream. See
+  [Preserving UI state](https://nextjs.org/docs/app/guides/preserving-ui-state)
+  for the navigation and Activity-specific behavior.
 - **Pre-existing failures stay separate.** If the route errors after the
   change, reproduce it on the base branch. The same failure there is an
   environment or data problem, not an optimizer regression.
