@@ -27,9 +27,10 @@ development server cannot verify preservation.
 
 Record separate build and start commands. For a local rig, record the port,
 stop any previous server before starting, fail on `EADDRINUSE`, and confirm the
-new process owns the port before running Playwright. When the rig starts the
-server itself, record its process ID and stop that exact process before the
-next build instead of relying on a command-name match.
+new process owns the port before running Playwright. `next start` can fork a
+`next-server` child, so the launcher process ID may not own the port. Start the
+server in a process group that the rig can stop as a unit, or discover and stop
+the process listening on the recorded port before the next build.
 
 ### Testing API
 
@@ -57,14 +58,19 @@ the project's other experimental options.
 
 Set the condition while running `next build`. Setting it only for `next start`
 is too late because the testing API is compiled into the production artifact.
-Use the project's existing environment naming when it already distinguishes
-test, staging, preview, and production builds.
+When the artifact was built without it, `instant()` can hang while acquiring
+the testing cookie until Playwright times out. Treat that symptom as a rig
+configuration failure and rebuild with the condition enabled. Use the
+project's existing environment naming when it already distinguishes test,
+staging, preview, and production builds.
 
 ### Test command and base URL
 
 Record the exact Playwright command and how it receives the measured build's
 URL. Reuse the project's package manager, Playwright configuration, projects,
-and reporters. The suite must import `instant()` from `@next/playwright`.
+and reporters. The suite must import `instant()` from `@next/playwright`. If
+the dependencies are absent, install `@next/playwright` on the same release
+line as the project's `next`, alongside `@playwright/test`.
 
 For a local rig, a typical sequence is:
 
@@ -75,7 +81,10 @@ BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-preservation.
 ```
 
 Adapt the script names and port to the project. Keep the production server
-running while the test command executes.
+running while the test command executes. Follow the public
+[client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
+Link is visible, then enter `instant()`, click, wait for the destination URL,
+and assert the prefetched UI.
 
 ### Test context
 
