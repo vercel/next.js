@@ -56,6 +56,7 @@ import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { collectFallbackShellRuns } from './fallback-shell-runs'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -2100,7 +2101,24 @@ export async function handleBuildComplete({
       },
     ]
 
+    // Without this collapse the loop below emits one entry per shell.
+    const fallbackShellRuns = config.experimental.collapseAdapterRoutes
+      ? collectFallbackShellRuns(
+          routesManifest.dynamicRoutes,
+          (page) => prerenderManifest.dynamicRoutes[page]?.fallback === false
+        )
+      : undefined
+
     for (const route of routesManifest.dynamicRoutes) {
+      // An earlier entry in this loop serves this shell.
+      if (fallbackShellRuns?.replacedPages.has(route.page)) {
+        continue
+      }
+
+      const fallbackShellRun = fallbackShellRuns?.byRepresentativePage.get(
+        route.page
+      )
+
       const shouldLocalize = Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
@@ -2110,7 +2128,29 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const sourceRegex = routeRegex.namedRegex.replace(
+      // An entry for a whole run of shells matches every prefix in that run.
+      // The destination copies the prefix that matched.
+      //
+      // This replacement runs on the pattern for the page, and `sourceRegex`
+      // below prefixes the result with the base path and the locale group. That
+      // order is deliberate. The search text anchors at `^`, and here that
+      // anchor is the start of the page path. On `sourceRegex` the same anchor
+      // is the start of the base path. A replacement there would match a base
+      // path such as `/de/x`, and it would rewrite that base path instead of
+      // the page path.
+      const pagePattern = fallbackShellRun
+        ? routeRegex.namedRegex.replace(
+            `^/${escapeStringRegexp(fallbackShellRun.prefixes[0])}/`,
+            `^/(?<shellPrefix>${fallbackShellRun.prefixes
+              .map((prefix) => escapeStringRegexp(prefix))
+              .join('|')})/`
+          )
+        : routeRegex.namedRegex
+      const pagePath = fallbackShellRun
+        ? path.posix.join('/', '$shellPrefix', fallbackShellRun.tail)
+        : route.page
+
+      const sourceRegex = pagePattern.replace(
         '^',
         `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
       )
@@ -2119,7 +2159,7 @@ export async function handleBuildComplete({
           '/',
           config.basePath,
           shouldLocalize ? '/$nextLocale' : '',
-          route.page
+          pagePath
         ) + getDestinationQuery(route.routeKeys)
 
       const hasAppPages = Boolean(appPageKeys && appPageKeys.length > 0)
@@ -2157,7 +2197,7 @@ export async function handleBuildComplete({
         // not match is then absent from that result, and the literal text
         // `$rscSuffix` stays in the destination.
         dynamicRoutes.push({
-          source: route.page,
+          source: pagePath,
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
             '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
@@ -2173,7 +2213,7 @@ export async function handleBuildComplete({
         // suffix, so each request resolves to the artifact that it asks for.
         if (hasAppPages) {
           dynamicRoutes.push({
-            source: route.page + '.rsc',
+            source: pagePath + '.rsc',
             sourceRegex: sourceRegex.replace(
               new RegExp(escapeStringRegexp('(?:/)?$')),
               '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
@@ -2186,7 +2226,7 @@ export async function handleBuildComplete({
 
         // needs basePath and locale handling if pages router
         dynamicRoutes.push({
-          source: route.page,
+          source: pagePath,
           sourceRegex,
           destination,
           has: plainHas,
