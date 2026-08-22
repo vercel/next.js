@@ -167,9 +167,10 @@ export function extractEtag(
   imageBuffer: Buffer
 ) {
   if (etag) {
-    // upstream etag needs to be base64url encoded due to weak etag signature
-    // as we store this in the cache-entry file name.
-    return Buffer.from(etag).toString('base64url')
+    // Hash the upstream ETag to produce a short, filesystem-safe identifier.
+    // This preserves change detection while avoiding overly long or unsafe values
+    // in the cache-entry filename.
+    return getHash([etag])
   }
   return getImageEtag(imageBuffer)
 }
