@@ -5,9 +5,9 @@ import {
   type AdapterRouting,
 } from './dynamic-routes-snapshot'
 
-// This suite pins the dynamic routes that a build passes to an adapter for
-// a Cache Components app. The root layout of the fixture returns two root
-// params.
+// This suite pins the dynamic routes that a build passes to an adapter for a
+// Cache Components app. The root layout of the fixture takes one root param and
+// returns two values for it.
 //
 // Each entry in the snapshot becomes one route in the routes document of a
 // deployment. The snapshot covers the routes that this app shape contributes.
@@ -18,13 +18,14 @@ import {
 // route matches an output during the filesystem check, so it needs no
 // rewrite.
 //
-// The fixture holds the shape that grows with the number of root param
-// combinations. `generateStaticParams` on the root layout produces one
-// fallback shell for each combination. Each manifest entry then produces
-// two adapter entries:
+// The fixture holds the shape that grows with the number of root param values.
+// `generateStaticParams` on the root layout produces one fallback shell for
+// each value. Each shell contributes one entry, and that entry serves three
+// kinds of request:
 //
-// - An `.rsc` route.
-// - A plain route.
+// - A request for the page.
+// - A request for its `.rsc` payload.
+// - A per-segment prefetch.
 describe('adapter dynamic routes (cache components)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'cache-components'),
