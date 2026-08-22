@@ -39,9 +39,11 @@ pub struct FetchClientConfig {
     /// Maximum time for the entire request. Always larger than `connect_timeout`. Defaults to
     /// 60 seconds.
     pub timeout: Duration,
-    /// Times to retry a transient failure (connection error, timeout, or 5xx) before surfacing
-    /// it. Total attempts is `max_retries + 1`. Defaults to 0.
+    /// Times to retry a transient failure (connection error, timeout, 5xx, or a configured status)
+    /// before surfacing it. Total attempts is `max_retries + 1`. Defaults to 0.
     pub max_retries: u32,
+    /// Additional HTTP status codes to retry. Defaults to none.
+    pub retry_status_codes: Vec<u16>,
 }
 
 impl Default for FetchClientConfig {
@@ -51,6 +53,7 @@ impl Default for FetchClientConfig {
             connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(60),
             max_retries: 0,
+            retry_status_codes: Vec::new(),
         }
     }
 }
@@ -173,6 +176,7 @@ impl FetchClientConfig {
         let this = self.await?;
         let min_cache_control_secs = this.min_cache_control;
         let max_retries = this.max_retries;
+        let retry_status_codes = this.retry_status_codes.clone();
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -197,7 +201,10 @@ impl FetchClientConfig {
                                 && (err.is_connect()
                                     || err.is_timeout()
                                     || err.is_request()
-                                    || err.status().is_some_and(|s| s.is_server_error())) =>
+                                    || err.status().is_some_and(|s| {
+                                        s.is_server_error()
+                                            || retry_status_codes.contains(&s.as_u16())
+                                    })) =>
                         {
                             attempt += 1;
                         }

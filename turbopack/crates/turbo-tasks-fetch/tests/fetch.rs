@@ -299,6 +299,49 @@ async fn errors_on_404() {
     .unwrap()
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn retries_configured_status_codes() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let resource_mock = server
+        .mock("GET", "/")
+        .with_status(404)
+        .expect(2)
+        .create_async()
+        .await;
+    let url = RcStr::from(server.url());
+
+    #[turbo_tasks::value]
+    struct FetchOutput(ReadRef<FetchErrorKind>);
+
+    #[turbo_tasks::function(operation, root)]
+    async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
+        let client_vc = FetchClientConfig {
+            max_retries: 1,
+            retry_status_codes: vec![404],
+            ..Default::default()
+        }
+        .cell();
+        let response_vc = client_vc.fetch(url, None);
+        let err_vc = &*response_vc.await?.unwrap_err();
+
+        Ok(FetchOutput(err_vc.await?.kind.await?).cell())
+    }
+
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("retries_configured_status_codes", true);
+    let got_404 = turbo_tasks::run_once(tt.clone(), async move {
+        let FetchOutput(err_kind) = &*fetch_operation(url).read_strongly_consistent().await?;
+        anyhow::Ok(matches!(**err_kind, FetchErrorKind::Status(404)))
+    })
+    .await
+    .unwrap();
+
+    resource_mock.assert_async().await;
+    assert!(got_404);
+    tt.stop_and_wait().await;
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
