@@ -3181,8 +3181,6 @@ version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.1.5",
  "serde",
 ]
@@ -4990,7 +4988,7 @@ dependencies = [
  "qstring",
  "react_remove_properties",
  "regex",
- "regress 0.10.4",
+ "regress",
  "remove_console",
  "rustc-hash 2.1.1",
  "serde",
@@ -6598,16 +6596,6 @@ dependencies = [
 
 [[package]]
 name = "regress"
-version = "0.10.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "145bb27393fe455dd64d6cbc8d059adfa392590a45eadf079c01b11857e7b010"
-dependencies = [
- "hashbrown 0.15.4",
- "memchr",
-]
-
-[[package]]
-name = "regress"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "158a764437582235e3501f683b93a0a6f8d825d04a789dbe5ed30b8799b8908a"
@@ -7966,7 +7954,7 @@ dependencies = [
  "indexmap 2.13.0",
  "once_cell",
  "regex",
- "regress 0.11.1",
+ "regress",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9983,7 +9971,7 @@ dependencies = [
  "anyhow",
  "bincode 2.0.1",
  "regex",
- "regress 0.10.4",
+ "regress",
  "turbo-tasks",
 ]
 

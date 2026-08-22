@@ -322,7 +322,7 @@ quote = "1.0.45"
 rand = "0.10.1"
 rayon = "1.10.0"
 regex = "1.12.3"
-regress = "0.10.4"
+regress = "0.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.5"
 roaring = "0.11.4"
