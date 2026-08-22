@@ -221,22 +221,62 @@ export class AppPageRouteModule extends RouteModule<
 
   public getVaryHeader(
     resolvedPathname: string,
-    interceptionRoutePatterns: RegExp[]
+    interceptionRoutePatterns: RegExp[],
+    existingVaryHeader?: string | number | string[]
   ): string {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
 
+    let varyHeader: string
     if (
       this.pathCouldBeIntercepted(resolvedPathname, interceptionRoutePatterns)
     ) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      return `${baseVaryHeader}, ${NEXT_URL}`
+      varyHeader = `${baseVaryHeader}, ${NEXT_URL}`
     } else {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      return baseVaryHeader
+      varyHeader = baseVaryHeader
+    }
+
+    return mergeVaryHeader(existingVaryHeader, varyHeader)
+  }
+}
+
+/**
+ * Merges field names into a `Vary` header, keeping the existing entries and
+ * skipping duplicates. A `Vary` set by the application — through `headers()` in
+ * `next.config.js`, proxy, or a route — has to survive alongside the ones the
+ * router needs, otherwise a CDN can no longer key its cache on it.
+ */
+function mergeVaryHeader(
+  existing: string | number | string[] | undefined,
+  added: string
+): string {
+  const fields: string[] = []
+  const seen = new Set<string>()
+
+  const collect = (value: string) => {
+    for (const field of value.split(',')) {
+      const trimmed = field.trim()
+      if (!trimmed) continue
+
+      const normalized = trimmed.toLowerCase()
+      if (seen.has(normalized)) continue
+
+      seen.add(normalized)
+      fields.push(trimmed)
     }
   }
+
+  if (typeof existing === 'string') {
+    collect(existing)
+  } else if (Array.isArray(existing)) {
+    for (const value of existing) collect(value)
+  }
+  collect(added)
+
+  return fields.join(', ')
 }
 
 const vendored = {
