@@ -40,9 +40,9 @@ build/run obstacles, accumulated as you first hit them).
    `EXPOSE_TESTING_API=1` for local production builds; `process.env.DEPLOY_ENV
 === 'staging'` for a generic CI/staging env var; `process.env.VERCEL_ENV ===
 'preview'` on Vercel. Set the condition during `next build`, not only
-   `next start`. Otherwise `instant()` can hang while acquiring the testing
-   cookie until the test times out; rebuild the artifact before debugging the
-   assertion.
+   `next start`. Otherwise `instant()` can remain blocked while acquiring the
+   testing cookie until the test times out; rebuild the artifact before
+   debugging the assertion.
 3. **RUN**: how is the Playwright suite invoked, and against which
    `BASE_URL`?
 4. **TEST USER**: which account does the suite run as, and how does login
