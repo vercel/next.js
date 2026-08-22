@@ -314,6 +314,29 @@ export class WrappedBuildError extends Error {
   }
 }
 
+function isClientErrorStatus(
+  statusCode: number | undefined
+): statusCode is number {
+  return statusCode !== undefined && statusCode >= 400 && statusCode < 500
+}
+
+/**
+ * Reason phrases for the client errors the server sets on itself before it
+ * tries to render an error page. Used only for the plain-text body we fall back
+ * to when that render fails, so an exhaustive list isn't needed.
+ */
+const CLIENT_ERROR_TEXT: Record<number, string> = {
+  400: 'Bad Request',
+  404: 'Not Found',
+  405: 'Method Not Allowed',
+  412: 'Precondition Failed',
+  416: 'Range Not Satisfiable',
+}
+
+function getClientErrorText(statusCode: number): string {
+  return CLIENT_ERROR_TEXT[statusCode] ?? 'Client Error'
+}
+
 type ResponsePayload = {
   body: RenderResult
   cacheControl?: CacheControl
@@ -3379,7 +3402,18 @@ export default abstract class Server<
       if (!isWrappedError) {
         this.logError(renderToHtmlError)
       }
-      res.statusCode = 500
+
+      // A 4xx status is set before we get here when the request itself was
+      // rejected — a pathname that could not be decoded, or a method that is
+      // not allowed on a static asset, for example. Being unable to render the
+      // error page for it must not turn that client error into a server error.
+      const clientErrorStatus = isClientErrorStatus(res.statusCode)
+        ? res.statusCode
+        : null
+      if (clientErrorStatus === null) {
+        res.statusCode = 500
+      }
+
       const fallbackComponents = await this.getFallbackErrorComponents(
         ctx.req.url
       )
@@ -3412,7 +3446,12 @@ export default abstract class Server<
         )
       }
       return {
-        body: RenderResult.fromStatic('Internal Server Error', 'text/plain'),
+        body: RenderResult.fromStatic(
+          clientErrorStatus === null
+            ? 'Internal Server Error'
+            : getClientErrorText(clientErrorStatus),
+          'text/plain'
+        ),
       }
     }
   }
