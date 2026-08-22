@@ -158,14 +158,10 @@ describe('back navigation before hydration after reload', () => {
     await retry(async () => {
       expect(await readRouterUrl(browser)).toBe(homePath)
     })
-    // TODO: The router initializes from the traversed-to URL, so the
-    // pathname rendered during hydration does not match the server HTML.
     expect(
       await browser.eval('document.getElementById("server-pathname").__server')
-    ).toBeUndefined()
-    expect(await browser.log()).toContainEqual(
-      expect.objectContaining({ source: 'error' })
-    )
+    ).toBe(true)
+    await expectNoPageErrors(browser)
 
     // History traversal must still work after recovery.
     await browser.forward()
@@ -218,12 +214,28 @@ describe('back navigation before hydration after reload', () => {
     expect(await browser.eval('document.getElementById("post").__server')).toBe(
       true
     )
+    expect(await browser.eval('window.__routerTransitions')).toEqual([])
 
     await browser.elementById('to-home').click()
     await waitForPage(browser, '#home')
     await browser.back()
     await waitForPage(browser, '#post')
     expect(await browser.eval('window.__stayed')).toBe(true)
+    await expectNoPageErrors(browser)
+  })
+
+  // A navigation dispatched while hydrating, before the router's own effect
+  // has run, must not be mistaken for a history change to recover from.
+  it('keeps a navigation made in a layout effect during hydration', async () => {
+    const browser = await next.browser('/tabs/none', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    await waitForPage(browser, '#tab-first')
+    await retry(async () => {
+      expect(await readRouterUrl(browser)).toBe('/tabs/first')
+    })
+    expect(new URL(await browser.url()).pathname).toBe('/tabs/first')
     await expectNoPageErrors(browser)
   })
 
@@ -348,22 +360,15 @@ describe('back navigation before hydration after reload', () => {
       releaseScripts()
 
       await retry(async () => {
-        // The traversal cannot be replayed onto the third-party entry. The
-        // content stays on the reloaded page, like before the fix — and in
-        // particular the router must not reload a page that just loaded.
         expect(await browser.eval('window.__stayed')).toBe(true)
         expect(new URL(await browser.url()).search).toBe('?tp=1')
         expect(await browser.elementByCss('h1').text()).toBe('Post')
-        // TODO: The router never learns about the third-party entry.
-        expect(await readRouterUrl(browser)).toBe(homePath)
+        expect(await readRouterUrl(browser)).toBe(`${homePath}?tp=1`)
       })
-      // TODO: Same hydration mismatch as after any Back before hydration.
-      expect(await browser.log()).toContainEqual(
-        expect.objectContaining({ source: 'error' })
-      )
 
       await browser.elementById('to-home').click()
       await waitForPage(browser, '#home')
+      await expectNoPageErrors(browser)
     })
 
     it('handles a traversal onto a third-party entry', async () => {
