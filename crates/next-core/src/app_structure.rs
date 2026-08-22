@@ -1602,12 +1602,21 @@ async fn directory_tree_to_loader_tree_internal(
             } else {
                 None
             };
+            let slot_has_children = directory_tree
+                .subdirectories
+                .get(&subdir_name)
+                .is_some_and(has_child_routes);
 
             // Only emit the issue if this is not the children slot and there's no default
             // component. The ordinary children route does not require a default.js file.
             // Also skip validation if the slot is UNDER a catch-all route or if this is a
-            // leaf segment (no child routes).
-            if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
+            // leaf segment (no child routes), or if the slot has matching child routes.
+            if default.is_none()
+                && key != "children"
+                && !is_inside_catchall
+                && !is_leaf_segment
+                && !slot_has_children
+            {
                 missing_defaults.push((app_page.clone(), key.clone()));
             }
 
