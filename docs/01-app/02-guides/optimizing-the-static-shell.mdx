@@ -95,7 +95,7 @@ Start with the completed page and separate content by when its data is available
 
 This division determines where the route needs `<Suspense>` and where caching is valid. It also keeps authorization separate from presentation. Protected data must still authorize access inside the function that reads it.
 
-Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint-lcp) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
+Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
 
 ### Step 2: Keep the layout visible while authentication resolves
 
@@ -232,6 +232,8 @@ If the component has no reusable loading state, extract its loading markup into 
 
 If the same layout markup appears in the fallback and the completed component, move that markup above the boundary. React can then keep the stable layout mounted while the data streams. A `fallback={null}` is appropriate only when the deferred component also renders nothing, such as the authentication gate above.
 
+> **Good to know:** Validation checks that request-time work is behind a boundary, not that the boundary renders useful content. A high-level `fallback={null}` can pass validation and still produce a blank shell. Use an empty fallback only when the resolved component also renders nothing. Otherwise, keep stable layout outside the boundary and provide a loading state for the deferred content.
+
 See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the general Suspense pattern and [Iterate on loading states](/docs/app/guides/instant-navigation#iterate-on-loading-states) for inspecting the result.
 
 #### Place boundaries in the segments that change
@@ -247,6 +249,14 @@ app/[team]/settings/
 ```
 
 Each server-rendered slot has its own dynamic reads. A boundary around `children` does not cover a session or database read in `@sidebar`, so place a boundary in each slot that can suspend.
+
+The example reuses a loading state exported by the sidebar:
+
+```tsx filename="app/[team]/settings/@sidebar/sidebar.tsx"
+export function SettingsSidebarSkeleton() {
+  return <nav aria-label="Settings">Loading navigation...</nav>
+}
+```
 
 ```tsx filename="app/[team]/settings/layout.tsx" highlight={16-22}
 import type { ReactNode } from 'react'
@@ -307,20 +317,6 @@ Keep the breakpoint logic in `SettingsShell`, then let the sidebar slot supply e
 Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route. For automated regression coverage of initial loads and client navigations, follow [Prevent regressions with end-to-end tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
-
-## Troubleshooting blocking Insights
-
-After applying these patterns, the build may report another blocking Insight. Open the error page linked from the Insight for guidance about that API or value:
-
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime) covers `cookies()`, `headers()`, `params`, and `searchParams`.
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic) covers uncached network and database reads.
-- [URL data in a Client Component](/docs/messages/blocking-prerender-client-hook) covers `usePathname()` and `useSearchParams()`.
-- [`Date.now()`](/docs/messages/blocking-prerender-current-time), [`Math.random()`](/docs/messages/blocking-prerender-random), and [`crypto`](/docs/messages/blocking-prerender-crypto) cover nondeterministic values.
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) covers dynamic metadata.
-
-React `cache()` and custom memoization can deduplicate a request API read, but they do not make `cookies()` or `headers()` available during prerendering. Keep the read behind `<Suspense>`, or follow [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) when session-derived content should be cached.
-
-URL-specific content that cannot move into a shared static shell may be a candidate for per-link prefetching. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) and [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) for the requirements and server-cost trade-offs.
 
 ## Next steps
 
