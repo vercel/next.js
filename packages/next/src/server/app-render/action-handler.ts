@@ -577,6 +577,32 @@ function getRevalidationWaitUntil(
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
+/**
+ * Errors raised while decoding the body of a Server Action request. The request
+ * is malformed rather than the action having failed, so it has to be answered
+ * with a client error instead of the 500 used for errors thrown by the action.
+ */
+const invalidRequestBodyErrors = new WeakSet<object>()
+
+async function decodeActionRequestBody<T>(
+  decode: () => Promise<T>
+): Promise<T> {
+  try {
+    return await decode()
+  } catch (err) {
+    if (typeof err === 'object' && err !== null) {
+      invalidRequestBodyErrors.add(err)
+    }
+    throw err
+  }
+}
+
+function isInvalidRequestBodyError(err: unknown): boolean {
+  return (
+    typeof err === 'object' && err !== null && invalidRequestBodyErrors.has(err)
+  )
+}
+
 export async function handleAction({
   req,
   res,
@@ -871,10 +897,10 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply<unknown[]>(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
+              boundActionArguments = await decodeActionRequestBody(() =>
+                decodeReply<unknown[]>(formData, serverModuleMap, {
+                  temporaryReferences,
+                })
               )
             } else {
               // Multipart POST, but not a fetch action.
@@ -963,10 +989,10 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
+            boundActionArguments = await decodeActionRequestBody(() =>
+              decodeReply<unknown[]>(actionData, serverModuleMap, {
+                temporaryReferences,
+              })
             )
           }
         } else if (
@@ -1046,9 +1072,11 @@ export async function handleAction({
                   pipeline(body, sizeLimitTransform, busboy, {
                     signal: abortController.signal,
                   }),
-                  decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
-                    temporaryReferences,
-                  }),
+                  decodeActionRequestBody(() =>
+                    decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
+                      temporaryReferences,
+                    })
+                  ),
                 ])
               } catch (err) {
                 abortController.abort()
@@ -1162,10 +1190,10 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
+            boundActionArguments = await decodeActionRequestBody(() =>
+              decodeReply<unknown[]>(actionData, serverModuleMap, {
+                temporaryReferences,
+              })
             )
           }
         } else {
@@ -1349,11 +1377,15 @@ export async function handleAction({
     // (but it could also be a bug in our code!)
 
     if (isFetchAction) {
+      // A body we could not decode means the request itself was malformed, so
+      // it gets a client error. Anything else is a failure of the action, or of
+      // our own code.
       // TODO: consider checking if the error is an `ApiError` and change status code
       // so that we can respond with a 413 to requests that break the body size limit
       // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
-      res.statusCode = 500
-      metadata.statusCode = 500
+      const statusCode = isInvalidRequestBodyError(err) ? 400 : 500
+      res.statusCode = statusCode
+      metadata.statusCode = statusCode
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
