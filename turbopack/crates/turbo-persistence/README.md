@@ -54,8 +54,10 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4A)
+  - 4 bytes magic number (0xFE4ADA4B)
   - 4 bytes key family
+  - 4 bytes compression codec tag (0: LZ4, 1: LZ4 HC, 2: zstd)
+  - 4 bytes signed compression level (0 for LZ4)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -88,7 +90,7 @@ The SST file contains only data without any header.
 
 #### Block Compression
 
-Blocks can be stored compressed or uncompressed. The compression algorithm is selected by the block's key-family configuration and is not encoded in the block. Changing a family's configured algorithm requires rewriting that database, consistent with the crate's no-cross-version-compatibility policy.
+Blocks can be stored compressed or uncompressed. The compression algorithm is recorded once in the containing SST's meta file and must match the key-family configuration used to open the database. It is not repeated in every block. Changing a family's configured algorithm requires rewriting that database, consistent with the crate's no-cross-version-compatibility policy.
 
 The 4-byte header distinguishes compressed from uncompressed storage:
 
@@ -227,7 +229,7 @@ The plain value compressed with dynamic compression. Each blob file has an 8-byt
 - 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
 - remaining bytes: value data compressed with the blob's key-family configuration
 
-The remaining bytes use the blob's key-family compression configuration. As with SST blocks, the algorithm is not encoded in the blob file. The checksum is verified on the compressed data **before** decompression when the blob is read.
+The codec is validated by the family's meta-file marker rather than repeated in each blob. The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 

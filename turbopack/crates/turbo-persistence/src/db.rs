@@ -8,7 +8,7 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::{
-        OnceLock,
+        Arc, OnceLock,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
@@ -32,7 +32,7 @@ use crate::{
     Compression, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
-    compression::{checksum_block, decompress_into_arc},
+    compression::{DecompressionPool, checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -326,6 +326,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     value_block_cache: OnceLock<BlockCache>,
     /// Per-family storage configuration.
     config: DbConfig<FAMILIES>,
+    /// Reusable zstd decompression contexts owned by this database.
+    decompression_pool: Arc<DecompressionPool>,
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
@@ -452,6 +454,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             key_block_cache: OnceLock::new(),
             value_block_cache: OnceLock::new(),
             config,
+            decompression_pool: Arc::new(DecompressionPool::default()),
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
         }
@@ -634,10 +637,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut meta_files = self
             .parallel_scheduler
             .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
+                let family_configs =
+                    (FAMILIES > 0).then_some(self.config.family_configs.as_slice());
                 let meta_file = MetaFile::open_with_family_configs(
                     &self.path,
                     seq,
-                    Some(&self.config.family_configs),
+                    family_configs,
+                    self.decompression_pool.clone(),
                 )?;
                 Ok(meta_file)
             })?;
@@ -690,8 +696,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             );
         }
 
-        let buffer = decompress_into_arc(compression, uncompressed_length, reader)?;
+        let buffer = decompress_into_arc(
+            &self.decompression_pool,
+            compression,
+            uncompressed_length,
+            reader,
+        )?;
         Ok(ArcBytes::from(buffer))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn decompression_pool_weak(&self) -> std::sync::Weak<DecompressionPool> {
+        Arc::downgrade(&self.decompression_pool)
     }
 
     /// Returns true if the database is empty.
@@ -930,10 +946,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
                 SyncItem::Meta(seq, file) => {
                     file.sync_data()?;
+                    let family_configs =
+                        (FAMILIES > 0).then_some(self.config.family_configs.as_slice());
                     let meta_file = MetaFile::open_with_family_configs(
                         &self.path,
                         seq,
-                        Some(&self.config.family_configs),
+                        family_configs,
+                        self.decompression_pool.clone(),
                     )?;
                     Ok(SyncResult::Meta(meta_file))
                 }
@@ -1605,6 +1624,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         path,
                                         entry.sst_metadata(),
                                         self.config.family_configs[family as usize].compression,
+                                        self.decompression_pool.clone(),
                                     )
                                 })
                                 .collect::<Result<Vec<_>>>()?;
@@ -1853,7 +1873,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
 
                     let meta_seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                    let mut meta_file_builder = MetaFileBuilder::new(family);
+                    let mut meta_file_builder = MetaFileBuilder::new(
+                        family,
+                        self.config.family_configs[family as usize].compression,
+                    );
 
                     let mut keys_written = 0;
                     self.parallel_scheduler.block_in_place(|| {

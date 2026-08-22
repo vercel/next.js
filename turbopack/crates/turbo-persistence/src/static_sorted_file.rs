@@ -20,7 +20,7 @@ use crate::{
     Compression, QueryKey,
     arc_bytes::ArcBytes,
     be,
-    compression::checksum_block,
+    compression::{DecompressionPool, checksum_block},
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{IterValue, LookupEntry, LookupValue},
     mmap_helper::advise_mmap_for_persistence,
@@ -165,6 +165,7 @@ struct ArcBlockCacheReader<'a> {
     cache: &'a BlockCache,
     verified_blocks: &'a [AtomicU64],
     compression: Compression,
+    decompression_pool: &'a DecompressionPool,
 }
 
 /// Lookup-path: concurrent `BlockCache` with uncompressed-bypass and
@@ -183,6 +184,7 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
             self.cache,
             self.verified_blocks,
             self.compression,
+            self.decompression_pool,
         )
     }
 }
@@ -191,6 +193,7 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
 struct RcBlockCacheReader<'a> {
     cache: &'a mut Option<(u16, RcBytes)>,
     compression: Compression,
+    decompression_pool: &'a DecompressionPool,
 }
 
 impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
@@ -205,7 +208,13 @@ impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
         {
             return Ok(block.clone());
         }
-        let block: RcBytes = read_block_generic(mmap, meta, block_index, self.compression)?;
+        let block: RcBytes = read_block_generic(
+            mmap,
+            meta,
+            block_index,
+            self.compression,
+            self.decompression_pool,
+        )?;
         *self.cache = Some((block_index, block.clone()));
         Ok(block)
     }
@@ -240,6 +249,7 @@ pub struct StaticSortedFile {
     /// suffices: racing first-time verifications are idempotent.
     verified_blocks: Box<[AtomicU64]>,
     compression: Compression,
+    decompression_pool: Arc<DecompressionPool>,
 }
 
 impl StaticSortedFile {
@@ -247,13 +257,19 @@ impl StaticSortedFile {
     /// read it yet. Databases with per-family compression use the configuration-aware internal
     /// constructor instead.
     pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
-        Self::open_with_compression(db_path, meta, Compression::Lz4)
+        Self::open_with_compression(
+            db_path,
+            meta,
+            Compression::Lz4,
+            Arc::new(DecompressionPool::default()),
+        )
     }
 
     pub(crate) fn open_with_compression(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,
+        decompression_pool: Arc<DecompressionPool>,
     ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
@@ -281,6 +297,7 @@ impl StaticSortedFile {
             mmap: Arc::new(mmap),
             verified_blocks,
             compression,
+            decompression_pool,
         })
     }
 
@@ -306,6 +323,7 @@ impl StaticSortedFile {
             key_block_cache,
             &self.verified_blocks,
             self.compression,
+            &self.decompression_pool,
         )?;
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
@@ -316,11 +334,13 @@ impl StaticSortedFile {
             key_block_cache,
             &self.verified_blocks,
             self.compression,
+            &self.decompression_pool,
         )?;
         let reader = ArcBlockCacheReader {
             cache: value_block_cache,
             verified_blocks: &self.verified_blocks,
             compression: self.compression,
+            decompression_pool: &self.decompression_pool,
         };
         let block_type = be::read_u8(&key_block_arc);
         match block_type {
@@ -525,6 +545,7 @@ impl StaticSortedFile {
             val,
             key_block_arc,
             self.compression,
+            &self.decompression_pool,
             reader,
         )
     }
@@ -545,6 +566,7 @@ fn get_or_cache_block(
     cache: &BlockCache,
     verified_blocks: &[AtomicU64],
     compression: Compression,
+    decompression_pool: &DecompressionPool,
 ) -> Result<ArcBytes> {
     let (uncompressed_length, checksum, block_data) = get_raw_block_slice(mmap, meta, block_index)
         .with_context(|| {
@@ -569,15 +591,18 @@ fn get_or_cache_block(
                 // A cached block may have been evicted, so re-reading still
                 // benefits from the bitmap to skip redundant CRC verification.
                 verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
-                let block =
-                    ArcBytes::from_decompressed(compression, uncompressed_length, block_data)
-                        .with_context(|| {
-                            format!(
-                                "Failed to decompress block {} from {:08}.sst ({} bytes \
-                                 uncompressed)",
-                                block_index, meta.sequence_number, uncompressed_length
-                            )
-                        })?;
+                let block = ArcBytes::from_decompressed(
+                    decompression_pool,
+                    compression,
+                    uncompressed_length,
+                    block_data,
+                )
+                .with_context(|| {
+                    format!(
+                        "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                        block_index, meta.sequence_number, uncompressed_length
+                    )
+                })?;
                 let _ = guard.insert(block.clone());
                 block
             }
@@ -712,6 +737,7 @@ fn read_block_generic<B: SharedBytes>(
     meta: &StaticSortedFileMetaData,
     block_index: u16,
     compression: Compression,
+    decompression_pool: &DecompressionPool,
 ) -> Result<B> {
     let (uncompressed_length, expected_checksum, block) =
         get_raw_block_slice(mmap, meta, block_index).with_context(|| {
@@ -728,8 +754,8 @@ fn read_block_generic<B: SharedBytes>(
         return Ok(unsafe { B::from_mmap(mmap, block) });
     }
 
-    let buffer =
-        B::from_decompressed(compression, uncompressed_length, block).with_context(|| {
+    let buffer = B::from_decompressed(decompression_pool, compression, uncompressed_length, block)
+        .with_context(|| {
             format!(
                 "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
                 block_index, meta.sequence_number, uncompressed_length
@@ -746,6 +772,7 @@ fn handle_key_match_generic<B: SharedBytes>(
     val: &[u8],
     key_block: &B,
     compression: Compression,
+    decompression_pool: &DecompressionPool,
     reader: impl ValueBlockCache<B>,
 ) -> Result<LookupValue<B>> {
     Ok(match ty {
@@ -760,7 +787,7 @@ fn handle_key_match_generic<B: SharedBytes>(
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             let block = be::read_u16(val);
-            let value = read_block_generic(mmap, meta, block, compression)?;
+            let value = read_block_generic(mmap, meta, block, compression, decompression_pool)?;
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -805,6 +832,7 @@ pub struct StaticSortedFileIter {
     /// just the current one avoids redundant decompression.
     value_block_cache: Option<(u16, RcBytes)>,
     compression: Compression,
+    decompression_pool: Arc<DecompressionPool>,
 }
 
 enum CurrentKeyBlockKind {
@@ -843,13 +871,19 @@ impl StaticSortedFileIter {
     /// refcounting during iteration. Database compaction uses the configuration-aware internal
     /// constructor instead.
     pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
-        Self::open_with_compression(db_path, meta, Compression::Lz4)
+        Self::open_with_compression(
+            db_path,
+            meta,
+            Compression::Lz4,
+            Arc::new(DecompressionPool::default()),
+        )
     }
 
     pub(crate) fn open_with_compression(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,
+        decompression_pool: Arc<DecompressionPool>,
     ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
@@ -864,7 +898,7 @@ impl StaticSortedFileIter {
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
         advise_mmap_for_persistence(&mmap)?;
-        Self::new(Rc::new(mmap), meta, compression)
+        Self::new(Rc::new(mmap), meta, compression, decompression_pool)
             .with_context(|| format!("Unable to open static sorted file {filename}"))
     }
 
@@ -872,9 +906,16 @@ impl StaticSortedFileIter {
         mmap: Rc<Mmap>,
         meta: StaticSortedFileMetaData,
         compression: Compression,
+        decompression_pool: Arc<DecompressionPool>,
     ) -> Result<Self> {
         let root_block_index = meta.block_count - 1;
-        let block: RcBytes = read_block_generic(&mmap, &meta, root_block_index, compression)?;
+        let block: RcBytes = read_block_generic(
+            &mmap,
+            &meta,
+            root_block_index,
+            compression,
+            &decompression_pool,
+        )?;
         let block_type = block[0];
 
         // The builder always writes an index block as the root block.
@@ -893,7 +934,8 @@ impl StaticSortedFileIter {
             - size_of::<u16>())
             / INDEX_BLOCK_ENTRY_SIZE;
 
-        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child, compression)?;
+        let current_key_block =
+            Self::parse_key_block(&mmap, &meta, first_child, compression, &decompression_pool)?;
         Ok(StaticSortedFileIter {
             mmap,
             meta,
@@ -903,6 +945,7 @@ impl StaticSortedFileIter {
             current_key_block,
             value_block_cache: None,
             compression,
+            decompression_pool,
         })
     }
 
@@ -912,8 +955,10 @@ impl StaticSortedFileIter {
         meta: &StaticSortedFileMetaData,
         block_index: u16,
         compression: Compression,
+        decompression_pool: &DecompressionPool,
     ) -> Result<CurrentKeyBlock> {
-        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
+        let block: RcBytes =
+            read_block_generic(mmap, meta, block_index, compression, decompression_pool)?;
         let data = &*block;
         ensure!(data.len() >= 4, "key block too short");
         let block_type = data[0];
@@ -1017,9 +1062,11 @@ impl StaticSortedFileIter {
                         val,
                         &kb.entries,
                         self.compression,
+                        &self.decompression_pool,
                         RcBlockCacheReader {
                             cache: &mut self.value_block_cache,
                             compression: self.compression,
+                            decompression_pool: &self.decompression_pool,
                         },
                     )?
                     .into()
@@ -1036,8 +1083,13 @@ impl StaticSortedFileIter {
                 let base = self.index_pos * INDEX_BLOCK_ENTRY_SIZE;
                 let block_index = be::read_u16(&self.index_entries[base..]);
                 self.index_pos += 1;
-                self.current_key_block =
-                    Self::parse_key_block(&self.mmap, &self.meta, block_index, self.compression)?;
+                self.current_key_block = Self::parse_key_block(
+                    &self.mmap,
+                    &self.meta,
+                    block_index,
+                    self.compression,
+                    &self.decompression_pool,
+                )?;
             } else {
                 return Ok(None);
             }

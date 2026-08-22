@@ -133,6 +133,7 @@ impl SstStats {
 struct SstInfo {
     sequence_number: u32,
     block_count: u16,
+    compression: Compression,
 }
 
 /// Accumulates statistics for a single entry of the given type.
@@ -191,18 +192,6 @@ fn family_name(family: u32) -> &'static str {
         2 => "TaskData",
         3 => "TaskCache",
         _ => "Unknown",
-    }
-}
-
-/// Compression configured by `turbo_tasks_backend::database::key_value_database::KeySpace`.
-/// Keep this mapping in sync when inspecting a Turbopack cache.
-fn family_compression(family: u32) -> Result<Compression> {
-    match family {
-        0 => Ok(Compression::Lz4Hc(4)), // Infra
-        1 => Ok(Compression::Lz4Hc(4)), // TaskMeta
-        2 => Ok(Compression::Zstd(3)),  // TaskData
-        3 => Ok(Compression::Lz4Hc(4)), // TaskCache
-        _ => bail!("No compression configuration for family {family}"),
     }
 }
 
@@ -295,6 +284,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
+                compression: meta.compression(),
             });
         }
     }
@@ -489,7 +479,8 @@ fn iter_key_block_entry_types(
 }
 
 /// Analyze an SST file and return entry type statistics
-fn analyze_sst_file(db_path: &Path, info: &SstInfo, compression: Compression) -> Result<SstStats> {
+fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+    let compression = info.compression;
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -951,14 +942,13 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family. This inspector targets Turbopack's four persistence families.
+    // Analyze and report by family.
     for (family, sst_list) in &family_sst_info {
-        let compression = family_compression(*family)?;
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
 
         for info in sst_list {
-            match analyze_sst_file(&db_path, info, compression) {
+            match analyze_sst_file(&db_path, info) {
                 Ok(stats) => {
                     family_stats.merge(&stats);
                     if verbose {

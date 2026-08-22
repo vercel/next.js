@@ -1163,10 +1163,12 @@ fn batch_get_across_families() -> Result<()> {
     // Same keys, but different values per family
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
 
+    let decompression_pool = db.decompression_pool_weak();
     db.shutdown()?;
     drop(db);
+    assert!(decompression_pool.upgrade().is_none());
 
-    // Reopen with the same family configuration. Compression is not signaled on disk.
+    // Reopen with the same family configuration recorded in the meta files.
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
         config,
@@ -1178,15 +1180,15 @@ fn batch_get_across_families() -> Result<()> {
     db.shutdown()?;
     drop(db);
 
-    // Reopening with the wrong codec must fail clearly when a compressed block is read.
-    let db =
+    // Reopening with the wrong codec must fail while validating the meta files.
+    assert!(
         TurboPersistence::<RayonParallelScheduler, 16>::open_with_config_and_parallel_scheduler(
             path.to_path_buf(),
             DbConfig::default(),
             RayonParallelScheduler,
-        )?;
-    assert!(db.get(2, &vec![7u8]).is_err());
-    db.shutdown()?;
+        )
+        .is_err()
+    );
     Ok(())
 }
 

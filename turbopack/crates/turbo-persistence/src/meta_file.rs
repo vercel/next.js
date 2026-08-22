@@ -2,10 +2,10 @@ use std::{
     cmp::Ordering,
     fmt::Display,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
 use fs_err::File;
@@ -15,6 +15,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 
 use crate::{
     Compression, FamilyConfig, QueryKey,
+    compression::DecompressionPool,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -50,7 +51,7 @@ impl Display for MetaEntryFlags {
 }
 
 /// Magic number identifying a `.meta` file.
-pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4B;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -117,8 +118,10 @@ pub struct MetaEntry {
     ///
     /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::mmap`.
     amqf: qfilter::FilterRef<'static>,
-    /// Compression configured for this entry's family.
+    /// Compression recorded in this entry's meta file.
     compression: Compression,
+    /// Database-owned decompression context pool.
+    decompression_pool: Arc<DecompressionPool>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -155,13 +158,18 @@ impl MetaEntry {
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open_with_compression(&meta.db_path, self.sst_data, self.compression)
-                .with_context(|| {
-                    format!(
-                        "Unable to open static sorted file referenced from {:08}.meta",
-                        meta.sequence_number()
-                    )
-                })
+            StaticSortedFile::open_with_compression(
+                &meta.db_path,
+                self.sst_data,
+                self.compression,
+                self.decompression_pool.clone(),
+            )
+            .with_context(|| {
+                format!(
+                    "Unable to open static sorted file referenced from {:08}.meta",
+                    meta.sequence_number()
+                )
+            })
         })
     }
 
@@ -247,6 +255,8 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
+    /// Compression recorded for this family.
+    compression: Compression,
     /// The entries of the file. Dropped before `mmap` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
@@ -267,18 +277,24 @@ pub struct MetaFile {
 }
 
 impl MetaFile {
-    /// Opens a meta file whose SST entries use LZ4 compression. Memory maps the entire file and
-    /// eagerly deserializes all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from
-    /// the mmap. Databases with per-family compression use the configuration-aware internal
-    /// constructor instead.
+    /// Opens a meta file and uses its recorded compression configuration for referenced SSTs.
+    /// Memory maps the entire file and eagerly deserializes all AMQF filters as zero-copy
+    /// [`qfilter::FilterRef`]s that borrow from the mmap. Database opens use the internal
+    /// constructor to also validate the marker against the runtime family configuration.
     pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
-        Self::open_with_family_configs(db_path, sequence_number, None)
+        Self::open_with_family_configs(
+            db_path,
+            sequence_number,
+            None,
+            Arc::new(DecompressionPool::default()),
+        )
     }
 
     pub(crate) fn open_with_family_configs(
         db_path: &Path,
         sequence_number: u32,
         family_configs: Option<&[FamilyConfig]>,
+        decompression_pool: Arc<DecompressionPool>,
     ) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
@@ -287,6 +303,7 @@ impl MetaFile {
             sequence_number,
             &path,
             family_configs,
+            decompression_pool,
         )
         .with_context(|| format!("Unable to open meta file {filename}"))
     }
@@ -296,6 +313,7 @@ impl MetaFile {
         sequence_number: u32,
         path: &Path,
         family_configs: Option<&[FamilyConfig]>,
+        decompression_pool: Arc<DecompressionPool>,
     ) -> Result<Self> {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
@@ -310,15 +328,21 @@ impl MetaFile {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
-        let compression = match family_configs {
-            Some(configs) => {
-                configs
-                    .get(family as usize)
-                    .with_context(|| format!("No configuration for family {family}"))?
-                    .compression
-            }
-            None => Compression::Lz4,
-        };
+        let compression_tag = reader.read_u32::<BE>()?;
+        let compression_level = reader.read_i32::<BE>()?;
+        let compression = Compression::from_meta_fields(compression_tag, compression_level)
+            .context("Invalid compression configuration in meta file")?;
+        if let Some(configs) = family_configs {
+            let configured = configs
+                .get(family as usize)
+                .with_context(|| format!("No configuration for family {family}"))?
+                .compression;
+            ensure!(
+                compression == configured,
+                "Compression configuration mismatch for family {family}: meta file uses \
+                 {compression:?}, runtime config uses {configured:?}"
+            );
+        }
         let obsolete_count = reader.read_u32::<BE>()?;
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
@@ -377,6 +401,7 @@ impl MetaFile {
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
+                decompression_pool: decompression_pool.clone(),
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;
@@ -389,6 +414,7 @@ impl MetaFile {
             db_path,
             sequence_number,
             family,
+            compression,
             entries,
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
@@ -417,6 +443,10 @@ impl MetaFile {
 
     pub fn family(&self) -> u32 {
         self.family
+    }
+
+    pub fn compression(&self) -> Compression {
+        self.compression
     }
 
     /// The on-disk size of this meta file in bytes (the length of its memory map).

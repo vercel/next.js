@@ -10,12 +10,14 @@ use qfilter::Filter;
 use zerocopy::IntoBytes;
 
 use crate::{
+    Compression,
     meta_file::{EntryHeader, META_FILE_MAGIC},
     static_sorted_file_builder::StaticSortedFileBuilderMeta,
 };
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
+    compression: Compression,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
@@ -25,9 +27,10 @@ pub struct MetaFileBuilder<'a> {
 }
 
 impl<'a> MetaFileBuilder<'a> {
-    pub fn new(family: u32) -> Self {
+    pub fn new(family: u32, compression: Compression) -> Self {
         Self {
             family,
+            compression,
             entries: Vec::new(),
             obsolete_sst_files: Vec::new(),
             used_key_hashes_amqf: None,
@@ -59,6 +62,12 @@ impl<'a> MetaFileBuilder<'a> {
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
         file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
+        let (compression_tag, compression_level) = self
+            .compression
+            .to_meta_fields()
+            .map_err(io::Error::other)?;
+        file.write_u32::<BE>(compression_tag)?;
+        file.write_i32::<BE>(compression_level)?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
@@ -137,5 +146,64 @@ impl<W: Write> Write for CountingWriter<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use byteorder::{BE, ByteOrder};
+
+    use super::*;
+    use crate::meta_file::MetaFile;
+
+    fn write_empty_meta(compression: Compression) -> (tempfile::TempDir, std::path::PathBuf) {
+        let tempdir = tempfile::tempdir().unwrap();
+        let (file, _) = MetaFileBuilder::new(0, compression)
+            .write(tempdir.path(), 1)
+            .unwrap();
+        drop(file);
+        let path = tempdir.path().join("00000001.meta");
+        (tempdir, path)
+    }
+
+    #[test]
+    fn compression_configuration_round_trips_through_meta_file() {
+        for compression in [
+            Compression::Lz4,
+            Compression::Lz4Hc(4),
+            Compression::Zstd(0),
+            Compression::Zstd(3),
+        ] {
+            let (tempdir, _) = write_empty_meta(compression);
+            let meta = MetaFile::open(tempdir.path(), 1).unwrap();
+            assert_eq!(meta.compression(), compression);
+        }
+    }
+
+    #[test]
+    fn invalid_meta_compression_headers_are_rejected() {
+        let (tempdir, path) = write_empty_meta(Compression::Zstd(3));
+        let original = std::fs::read(&path).unwrap();
+
+        let mut bytes = original.clone();
+        BE::write_u32(&mut bytes[0..4], META_FILE_MAGIC.wrapping_sub(1));
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(MetaFile::open(tempdir.path(), 1).is_err());
+
+        let mut bytes = original.clone();
+        BE::write_u32(&mut bytes[8..12], 99);
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(MetaFile::open(tempdir.path(), 1).is_err());
+
+        let mut bytes = original.clone();
+        BE::write_i32(
+            &mut bytes[12..16],
+            *zstd::compression_level_range().end() + 1,
+        );
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(MetaFile::open(tempdir.path(), 1).is_err());
+
+        std::fs::write(&path, &original[..10]).unwrap();
+        assert!(MetaFile::open(tempdir.path(), 1).is_err());
     }
 }
