@@ -253,10 +253,10 @@ Read
 [Optimizing the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell)
 before editing the route. Apply the matching public pattern for the blocker:
 
-- [Choose what belongs in the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#choose-what-belongs-in-the-static-shell).
-- [Move request-time work into focused boundaries](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#move-request-time-work-into-focused-boundaries).
-- [Keep the layout visible while authentication resolves](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-the-layout-visible-while-authentication-resolves).
-- [Cache data that can be reused](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-data-that-can-be-reused).
+- [Choose what belongs in the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-1-choose-what-belongs-in-the-static-shell).
+- [Keep the layout visible while authentication resolves](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-keep-the-layout-visible-while-authentication-resolves).
+- [Move request-time work into a focused boundary](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-3-move-request-time-work-into-a-focused-boundary).
+- [Cache data that can be reused](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-4-cache-data-that-can-be-reused).
 - [Reuse existing loading states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#reuse-existing-loading-states).
 - [Place boundaries in the segments that change](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#place-boundaries-in-the-segments-that-change).
 - [Keep loading states responsive](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-loading-states-responsive).

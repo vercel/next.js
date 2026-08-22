@@ -12,11 +12,9 @@ related:
     - app/getting-started/revalidating
 ---
 
-[Cache Components](/docs/app/getting-started/caching) can prerender a static shell while request-time content streams in, keeping the route's layout, navigation, headings, and loading states available instead of replacing the page with one broad fallback.
+[Cache Components](/docs/app/getting-started/caching) can prerender a static shell while request-time content streams in. The shell can keep the route's layout, navigation, headings, and loading states visible instead of replacing the page with one broad fallback.
 
-Read [Instant Navigation](/docs/app/guides/instant-navigation) to understand how Next.js produces the static shell and how to inspect it with Next.js DevTools. This guide focuses on moving more useful content into that shell.
-
-A team settings route initially blocks on authentication and page data. The patterns below move specific parts of that route into the static shell without changing the completed page.
+Read [Instant Navigation](/docs/app/guides/instant-navigation) to understand how Next.js produces the static shell and how to inspect it with Next.js DevTools. This guide uses one route to show how to move more useful content into that shell without changing the completed page.
 
 ## Prerequisites
 
@@ -32,7 +30,13 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-The example route starts with two top-level request-time reads. The layout waits for the current user before rendering the settings frame, and the page waits for the team settings before rendering its heading or form.
+## Example
+
+This guide optimizes a team settings route that initially blocks on authentication and page data. The companion [Team settings demo](https://cache-components-static-shell.labs.vercel.dev) ([source](https://github.com/vercel-labs/cache-components-static-shell)) lets you see the patterns from this guide in action.
+
+{/* TODO(optimizing-static-shell): Create and deploy the companion example before this guide leaves draft. */}
+
+The layout waits for the current user before rendering the settings frame:
 
 ```tsx filename="app/[team]/settings/layout.tsx"
 import type { ReactNode } from 'react'
@@ -55,6 +59,8 @@ export default async function SettingsLayout({
 }
 ```
 
+The page waits for the team settings before rendering its heading or form:
+
 ```tsx filename="app/[team]/settings/page.tsx"
 import { getTeamSettings } from '@/lib/settings'
 import { SettingsForm } from './settings-form'
@@ -76,22 +82,22 @@ export default async function SettingsPage({
 
 Both reads happen before their surrounding components return. The static shell therefore cannot include the settings frame or page.
 
-## Choose what belongs in the static shell
+### Step 1: Choose what belongs in the static shell
 
-Start with the completed page and separate content by when its data is available. The settings route has four different requirements:
+Start with the completed page and separate content by when its data is available. The settings route has four requirements:
 
 | Content                    | Behavior                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------- |
 | Settings frame and heading | Render without request data, so keep them in the static shell.                                    |
 | Authentication redirect    | Check at request time. The check renders nothing for an authorized user.                          |
 | Team settings form         | Read protected, team-specific data at request time and stream it behind the form's loading state. |
-| Plan descriptions          | Cache them when the same values can be reused across requests.                                    |
+| Plan descriptions          | Cache them because the same values can be reused across requests.                                 |
 
-This division determines where the route needs `<Suspense>` and where caching is valid. It also keeps authorization separate from presentation. Protected data must still authorize access inside the data function that reads it.
+This division determines where the route needs `<Suspense>` and where caching is valid. It also keeps authorization separate from presentation. Protected data must still authorize access inside the function that reads it.
 
 Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint-lcp) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
 
-## Keep the layout visible while authentication resolves
+### Step 2: Keep the layout visible while authentication resolves
 
 Move the session read and redirect into a component behind `<Suspense>`. The layout can then return `SettingsShell` and `children` without waiting for the session.
 
@@ -128,7 +134,7 @@ The empty fallback is appropriate because `AuthGate` also returns `null` after a
 
 The shell must contain only content that is safe to send before authentication completes. Keep authorization checks in the data access functions used by the page. A layout redirect does not protect a database query or Server Action by itself. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete authentication pattern.
 
-## Move request-time work into focused boundaries
+### Step 3: Move request-time work into a focused boundary
 
 The page can return its heading before it resolves `params` or reads team settings. Pass the `params` promise to the component that needs it, then place that component behind a focused boundary.
 
@@ -166,7 +172,7 @@ The same pattern applies to `cookies()`, `headers()`, `searchParams`, and uncach
 
 When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above.
 
-## Cache data that can be reused
+### Step 4: Cache data that can be reused
 
 Streaming keeps request-time data from blocking the static shell. Caching includes reusable data in the shell after it resolves.
 
@@ -196,7 +202,7 @@ export async function PlanOptions() {
 
 Render `PlanOptions` outside the team settings boundary:
 
-```tsx filename="app/[team]/settings/page.tsx" highlight={4}
+```tsx filename="app/[team]/settings/page.tsx" highlight={3}
 <main>
   <h1>Settings</h1>
   <PlanOptions />
@@ -210,7 +216,11 @@ Choose the cache lifetime from the data's freshness requirements. Keep data unca
 
 The default `use cache` handler stores entries in memory as a best effort. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when cached data must persist across instances and requests.
 
-## Reuse existing loading states
+### Step 5: Reuse and place loading states
+
+The static shell should reuse the loading states that already describe the completed page. It also needs a boundary in each server-rendered segment that can suspend.
+
+#### Reuse existing loading states
 
 Before writing a loading state, check the route for an existing one:
 
@@ -224,7 +234,7 @@ If the same layout markup appears in the fallback and the completed component, m
 
 See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the general Suspense pattern and [Iterate on loading states](/docs/app/guides/instant-navigation#iterate-on-loading-states) for inspecting the result.
 
-## Place boundaries in the segments that change
+#### Place boundaries in the segments that change
 
 Production routes often split the settings frame into [parallel route slots](/docs/app/api-reference/file-conventions/parallel-routes#slots):
 
@@ -286,15 +296,21 @@ When an Insight still reports an uncovered read, see [Choosing where to place th
 
 A Client Component in the shared layout can update when `usePathname()` changes, but it is outside the server render for the navigation. Focus the server boundaries on the slots and segments that Next.js renders for the destination.
 
-## Keep loading states responsive
+#### Keep loading states responsive
 
 The static shell and completed page should use the same responsive layout. A separate desktop-shaped fallback can drift from a sidebar that becomes a drawer or select menu on smaller screens.
 
 Keep the breakpoint logic in `SettingsShell`, then let the sidebar slot supply either its skeleton or resolved content. The shell changes layout once at each breakpoint, and both states use that same decision.
 
-## Resolve API-specific blockers
+### Step 6: Verify the static shell
 
-Each blocking Insight links to a page for the API or value that stopped prerendering. Use that page for the exact constraint, then return to the patterns above to decide what belongs in the static shell:
+Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
+
+The completed route should have the same settings data, redirects, error states, and interactions as the original route. For automated regression coverage of initial loads and client navigations, follow [Prevent regressions with end-to-end tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+
+## Troubleshooting blocking Insights
+
+After applying these patterns, the build may report another blocking Insight. Open the error page linked from the Insight for guidance about that API or value:
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime) covers `cookies()`, `headers()`, `params`, and `searchParams`.
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic) covers uncached network and database reads.
@@ -305,12 +321,6 @@ Each blocking Insight links to a page for the API or value that stopped prerende
 React `cache()` and custom memoization can deduplicate a request API read, but they do not make `cookies()` or `headers()` available during prerendering. Keep the read behind `<Suspense>`, or follow [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) when session-derived content should be cached.
 
 URL-specific content that cannot move into a shared static shell may be a candidate for per-link prefetching. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) and [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) for the requirements and server-cost trade-offs.
-
-## Verify the static shell
-
-Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
-
-The completed route should have the same settings data, redirects, error states, and interactions as the original route. For automated regression coverage of initial loads and client navigations, follow [Prevent regressions with end-to-end tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
 ## Next steps
 
