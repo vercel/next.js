@@ -27,7 +27,9 @@ development server cannot verify preservation.
 
 Record separate build and start commands. For a local rig, record the port,
 stop any previous server before starting, fail on `EADDRINUSE`, and confirm the
-new process owns the port before running Playwright.
+new process owns the port before running Playwright. When the rig starts the
+server itself, record its process ID and stop that exact process before the
+next build instead of relying on a command-name match.
 
 ### Testing API
 

@@ -64,7 +64,9 @@ build/run obstacles, accumulated as you first hit them).
    chosen mechanism. For a local `build && start` rig the artifact is the one
    freshly built, so no SHA probe is needed. Record the port, stop the previous
    server before starting, fail the loop on `EADDRINUSE`, and verify the newly
-   started process owns the port before running the test.
+   started process owns the port before running the test. Record its process ID
+   and stop that exact process before the next build instead of relying on a
+   command-name match.
 
 ## The file: copy, fill, commit as `instant-nav.rig.md`
 
