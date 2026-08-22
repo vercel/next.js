@@ -58,9 +58,9 @@ the project's other experimental options.
 
 Set the condition while running `next build`. Setting it only for `next start`
 is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, `instant()` can remain blocked while
-acquiring the testing cookie until Playwright times out. Treat that symptom as
-a rig configuration failure and rebuild with the condition enabled. Use the
+When the artifact was built without it, `instant()` may not acquire the
+testing cookie before Playwright times out. Treat that symptom as a rig
+configuration failure and rebuild with the condition enabled. Use the
 project's existing environment naming when it already distinguishes test,
 staging, preview, and production builds.
 
