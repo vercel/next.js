@@ -44,8 +44,8 @@ self-validating test variant when deferred content exists.
 7. **Renders for the test user**: under that user's flags, plan, role, and data.
 8. **Conditional redirects accounted for**: assert at the route's real destination for that user.
 9. **Real selector**: a `data-testid` on a known static-shell node, not a guessed `role`/`name`.
-10. **Visible marker**: not `display:none`, off-screen, or inside a hover overlay; for lists,
-    target `.filter({ visible: true }).first()`.
+10. **Visible marker**: not `display:none`, `display: contents`, a fragment, off-screen, or inside a
+    hover overlay; for lists, target `.filter({ visible: true }).first()`.
 11. **Fresh build under test**: the deployment being measured contains the latest commit, not a
     build URL still serving the previous deploy.
 
