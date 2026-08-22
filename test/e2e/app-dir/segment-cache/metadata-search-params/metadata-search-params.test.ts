@@ -4,9 +4,19 @@ import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache (metadata search params)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const isCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
+    // Cache Components has different partial prerender and prefetch semantics.
+    skipStart: isCacheComponents,
   })
+  if (skipped) return
+
+  if (isCacheComponents) {
+    test('prefetching is covered by the Cache Components suites', () => {})
+    return
+  }
 
   if (isNextDev) {
     test('prefetching is disabled in development', () => {})
