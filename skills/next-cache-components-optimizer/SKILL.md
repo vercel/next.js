@@ -264,9 +264,11 @@ before editing the route. Apply the matching public pattern for the blocker:
 Run the route's scoped build after each edit. Every blocker prints a canonical
 `https://nextjs.org/docs/messages/<slug>` link for its exact API, including
 runtime data, uncached data, metadata, viewport, and nondeterministic values.
-Open that page instead of copying a generic recipe into the skill. Use
-`--debug-prerender` when the abbreviated output lacks the failing frame, and
-use `--debug-build-paths "app/<route>/**"` to keep the loop scoped.
+Open that page instead of copying a generic recipe into the skill. See
+[Building your application](https://nextjs.org/docs/app/guides/building) for
+the route table and production build workflow. Use `--debug-prerender` when
+the abbreviated output lacks the failing frame, and use
+`--debug-build-paths "app/<route>/**"` to keep the loop scoped.
 
 When the public pattern does not explain the observed shell, check these
 production route shapes:
