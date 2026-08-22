@@ -434,6 +434,9 @@ export async function createEntrypoints(
       strictRouteMatching: config.experimental.strictRouteMatching,
       defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
     })
+    // Only App Router pages can make an intercepted URL directly renderable.
+    // Route handlers and metadata routes may share the pathname, but they
+    // cannot provide the canonical page shown by an initial request.
     const appPagePathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).flatMap(([route, routeAppPaths]) => {
         const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
