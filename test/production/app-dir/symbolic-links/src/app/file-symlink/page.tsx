@@ -1,1 +1,1 @@
-../../../somewhere-else/src/app/file-symlink/page.tsx
+../../somewhere-else/src/app/file-symlink/page.tsx

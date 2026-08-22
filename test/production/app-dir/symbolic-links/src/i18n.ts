@@ -1,1 +1,1 @@
-../somewhere-else/src/i18n.ts
+somewhere-else/src/i18n.ts
