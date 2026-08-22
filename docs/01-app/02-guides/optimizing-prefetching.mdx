@@ -199,6 +199,8 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 
 A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell.
 
+Prefetch the destination's canonical URL. If a Link points to a URL that redirects, the prefetch receives the redirect instead of the destination route tree. Point the Link at the final URL when that navigation should be prefetched.
+
 When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
 |         | App Shell                                   | Per-link prefetch with `prefetch={true}` |

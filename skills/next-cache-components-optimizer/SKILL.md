@@ -268,6 +268,20 @@ Open that page instead of copying a generic recipe into the skill. Use
 `--debug-prerender` when the abbreviated output lacks the failing frame, and
 use `--debug-build-paths "app/<route>/**"` to keep the loop scoped.
 
+When the public pattern does not explain the observed shell, check these
+production route shapes:
+
+- If a marker is present after a `<Link>` click but missing after `page.goto()`,
+  inspect layouts above the shared boundary for `await params` or
+  `await searchParams`. An initial load rerenders those parents. A client
+  navigation can keep them mounted. When a parameter is not enumerated by
+  `generateStaticParams`, move its read behind a focused boundary in every
+  render path that needs it, then verify both navigation types.
+- React `cache()` and custom memoization can deduplicate `cookies()` or
+  `headers()` reads, but they do not make request data available during
+  prerendering. Keep the read behind `<Suspense>`, or apply the public
+  authentication and caching patterns when session-derived data can be reused.
+
 Keep the primary heading or other meaningful marker in the shell when its data
 can be static or cached. A blank `fallback={null}` can pass `instant()` without
 providing useful output. Use an empty fallback only when the resolved component
