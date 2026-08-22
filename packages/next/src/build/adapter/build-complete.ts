@@ -2122,38 +2122,82 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      // This route serves two kinds of request for the page: a request for the
-      // `.rsc` payload, and a per-segment prefetch request. The suffix group
-      // accepts both forms, and the destination copies the matched suffix, so
-      // each request resolves to the artifact that it asks for.
-      if (appPageKeys && appPageKeys.length > 0) {
+      const hasAppPages = Boolean(appPageKeys && appPageKeys.length > 0)
+
+      const suffixedHas =
+        isFallbackFalse && !pageKeys.includes(route.page)
+          ? fallbackFalseHasCondition
+          : undefined
+      const plainHas = isFallbackFalse ? fallbackFalseHasCondition : undefined
+
+      // A single entry can serve both forms of the request only when both carry
+      // the same conditions. A pages router route with `fallback: false` is the
+      // one case where they differ: it requires the preview cookies on the
+      // plain form, and not on the suffixed form. An entry holds one set of
+      // conditions, so that case keeps a separate entry per form.
+      const canMergeSuffixedAndPlain =
+        config.experimental.collapseAdapterRoutes &&
+        hasAppPages &&
+        suffixedHas === plainHas
+
+      if (canMergeSuffixedAndPlain) {
+        // One entry serves every form of a request for this page:
+        //
+        // - The document at the page path.
+        // - The `.rsc` payload.
+        // - A per-segment prefetch.
+        //
+        // The suffix group ends with an empty alternative. The group therefore
+        // always matches, and it captures an empty string for a request that
+        // carries no suffix. The destination copies what the group captured.
+        //
+        // An optional group is unsafe here. An adapter, or the router that
+        // consumes its output, can resolve the placeholders in a destination
+        // from the match result rather than from the pattern. A group that does
+        // not match is then absent from that result, and the literal text
+        // `$rscSuffix` stays in the destination.
         dynamicRoutes.push({
-          source: route.page + '.rsc',
+          source: route.page,
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
-          has:
-            isFallbackFalse && !pageKeys.includes(route.page)
-              ? fallbackFalseHasCondition
-              : undefined,
+          has: plainHas,
+          missing: undefined,
+        })
+      } else {
+        // This route serves two kinds of request for the page: a request for
+        // the `.rsc` payload, and a per-segment prefetch request. The suffix
+        // group accepts both forms, and the destination copies the matched
+        // suffix, so each request resolves to the artifact that it asks for.
+        if (hasAppPages) {
+          dynamicRoutes.push({
+            source: route.page + '.rsc',
+            sourceRegex: sourceRegex.replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            ),
+            destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
+            has: suffixedHas,
+            missing: undefined,
+          })
+        }
+
+        // needs basePath and locale handling if pages router
+        dynamicRoutes.push({
+          source: route.page,
+          sourceRegex,
+          destination,
+          has: plainHas,
           missing: undefined,
         })
       }
 
-      // needs basePath and locale handling if pages router
-      dynamicRoutes.push({
-        source: route.page,
-        sourceRegex,
-        destination,
-        has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
-        missing: undefined,
-      })
-
-      // The `.rsc` route above resolves a per-segment request on its own. A
-      // build that turns the collapse off emits a dedicated route for each
-      // segment, and the table lists those before that `.rsc` route.
+      // The entry above resolves a per-segment request on its own, because its
+      // suffix group accepts a segment path. A build that turns the collapse
+      // off emits a dedicated route for each segment, and the table lists those
+      // before that entry.
       if (!config.experimental.collapseAdapterRoutes) {
         for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
           dynamicSegmentRoutes.push({

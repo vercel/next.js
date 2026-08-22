@@ -40,79 +40,43 @@ describe('adapter dynamic routes (cache components)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "18 entries
-
-     /[lang].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /[lang]$rscSuffix?nxtPlang=$nxtPlang
+     "9 entries
 
      /[lang]
-       ^[/]?/(?<nxtPlang>[^/]+?)(?:/)?$
-       -> /[lang]?nxtPlang=$nxtPlang
-
-     /de/fallback-shell/[slug].rsc
-       ^[/]?/de/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /de/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
+       ^[/]?/(?<nxtPlang>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]$rscSuffix?nxtPlang=$nxtPlang
 
      /de/fallback-shell/[slug]
-       ^[/]?/de/fallback\\-shell/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /de/fallback-shell/[slug]?nxtPslug=$nxtPslug
-
-     /en/fallback-shell/[slug].rsc
-       ^[/]?/en/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /en/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
+       ^[/]?/de/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /de/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /en/fallback-shell/[slug]
-       ^[/]?/en/fallback\\-shell/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /en/fallback-shell/[slug]?nxtPslug=$nxtPslug
-
-     /[lang]/fallback-shell/[slug].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/fallback-shell/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
+       ^[/]?/en/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /en/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /[lang]/fallback-shell/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /[lang]/fallback-shell/[slug]?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
-
-     /[lang]/ppr.rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/ppr(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/ppr$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/fallback-shell/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
 
      /[lang]/ppr
-       ^[/]?/(?<nxtPlang>[^/]+?)/ppr(?:/)?$
-       -> /[lang]/ppr?nxtPlang=$nxtPlang
-
-     /[lang]/static.rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/static(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/static$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/(?<nxtPlang>[^/]+?)/ppr(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/ppr$rscSuffix?nxtPlang=$nxtPlang
 
      /[lang]/static
-       ^[/]?/(?<nxtPlang>[^/]+?)/static(?:/)?$
-       -> /[lang]/static?nxtPlang=$nxtPlang
-
-     /de/[slug].rsc
-       ^[/]?/de/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /de/[slug]$rscSuffix?nxtPslug=$nxtPslug
+       ^[/]?/(?<nxtPlang>[^/]+?)/static(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/static$rscSuffix?nxtPlang=$nxtPlang
 
      /de/[slug]
-       ^[/]?/de/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /de/[slug]?nxtPslug=$nxtPslug
-
-     /en/[slug].rsc
-       ^[/]?/en/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /en/[slug]$rscSuffix?nxtPslug=$nxtPslug
+       ^[/]?/de/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /de/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /en/[slug]
-       ^[/]?/en/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /en/[slug]?nxtPslug=$nxtPslug
-
-     /[lang]/[slug].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /[lang]/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
+       ^[/]?/en/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /en/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /[lang]/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /[lang]/[slug]?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
+       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
     `)
   })
 })

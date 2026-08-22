@@ -30,7 +30,7 @@ describe(`adapter dynamic routes (cache components, base path ${basePath})`, () 
     const routing: AdapterRouting = await next.readJSON('build-complete.json')
 
     // A base path prefixes the entries. It does not add or remove any.
-    expect(routing.dynamicRoutes).toHaveLength(18)
+    expect(routing.dynamicRoutes).toHaveLength(9)
 
     for (const route of routing.dynamicRoutes) {
       expect(route.sourceRegex.startsWith(`^${basePath}`)).toBe(true)
