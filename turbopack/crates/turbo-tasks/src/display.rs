@@ -82,6 +82,7 @@ pub mod macro_helpers {
     };
 
     use anyhow::Result;
+    use futures::{FutureExt, TryFutureExt};
     use turbo_rcstr::RcStr;
 
     use super::{ValueToString, ValueToStringRef};
@@ -132,8 +133,7 @@ pub mod macro_helpers {
     impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
         #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-            let s = (self.0).to_string();
-            async move { Ok(StringifyType::String(s)) }
+            std::future::ready(Ok(StringifyType::String((self.0).to_string())))
         }
     }
 
@@ -143,11 +143,8 @@ pub mod macro_helpers {
     {
         #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-            let vc = self.0;
-            async move {
-                let s = vc.to_string().await?;
-                Ok(StringifyType::RcStr((*s).clone()))
-            }
+            std::future::IntoFuture::into_future(self.0.to_string())
+                .map_ok(|s| StringifyType::RcStr((*s).clone()))
         }
     }
 
@@ -157,11 +154,8 @@ pub mod macro_helpers {
     {
         #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
-            let vc = self.0;
-            async move {
-                let s = vc.to_string().await?;
-                Ok(StringifyType::RcStr((*s).clone()))
-            }
+            std::future::IntoFuture::into_future(self.0.to_string())
+                .map_ok(|s| StringifyType::RcStr((*s).clone()))
         }
     }
 
@@ -171,8 +165,7 @@ pub mod macro_helpers {
     {
         #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> {
-            let s = self.0.to_string_ref();
-            async move { Ok(StringifyType::RcStr(s.await?)) }
+            self.0.to_string_ref().map(|r| r.map(StringifyType::RcStr))
         }
     }
 }
