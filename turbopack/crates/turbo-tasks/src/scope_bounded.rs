@@ -1,4 +1,12 @@
-//! A scoped tokio spawn implementation that allow a non-'static lifetime for tasks.
+//! Bounded scoped parallelism: the number of tasks is known before the scope starts.
+//!
+//! [`scope_bounded`] takes that count up front, hands the caller a [`Scope`] to spawn each task
+//! onto, and returns their results as an iterator. Tasks are closures and may borrow from the
+//! enclosing scope (`'env`); the scope blocks until every one has finished, which is what makes
+//! those borrows sound.
+//!
+//! Use [`scope_unbounded`](crate::scope_unbounded::scope_unbounded) instead when a running job can
+//! discover more work, so the total isn't known up front.
 
 use std::{
     any::Any,
@@ -238,8 +246,8 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
 /// Be aware that although this function avoids starving other independently spawned tasks, any
 /// other code running concurrently in the same task will be suspended during the call to
 /// block_in_place. This can happen e.g. when using the `join!` macro. To avoid this issue, call
-/// `scope_and_block` in `spawn_blocking`.
-pub fn scope_and_block<'env, F, R>(number_of_tasks: usize, f: F) -> impl Iterator<Item = R>
+/// `scope_bounded` in `spawn_blocking`.
+pub fn scope_bounded<'env, F, R>(number_of_tasks: usize, f: F) -> impl Iterator<Item = R>
 where
     R: Send + 'env,
     F: for<'scope> FnOnce(&'scope Scope<'scope, 'env, R>) + 'env,
@@ -266,7 +274,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::panic::{AssertUnwindSafe, catch_unwind};
+    use std::{
+        panic::{AssertUnwindSafe, catch_unwind},
+        sync::atomic::AtomicUsize,
+    };
 
     use super::*;
 
@@ -300,7 +311,7 @@ mod tests {
 
         let started = Instant::now();
         let results = tokio::task::spawn_blocking(move || {
-            scope_and_block(JOBS, |scope| {
+            scope_bounded(JOBS, |scope| {
                 for i in 0..JOBS {
                     scope.spawn(move || i);
                 }
@@ -317,7 +328,7 @@ mod tests {
         });
         assert!(
             elapsed < RELEASE_AFTER / 2,
-            "scope_and_block took {elapsed:?}; it should not depend on an occupied worker thread \
+            "scope_bounded took {elapsed:?}; it should not depend on an occupied worker thread \
              freeing up"
         );
 
@@ -331,7 +342,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_scope_current_thread_runtime() {
         let results = tokio::task::spawn_blocking(|| {
-            scope_and_block(16, |scope| {
+            scope_bounded(16, |scope| {
                 for i in 0..16 {
                     scope.spawn(move || i);
                 }
@@ -354,7 +365,7 @@ mod tests {
         const PER_JOB: Duration = Duration::from_millis(50);
         let started = Instant::now();
         let results = tokio::task::spawn_blocking(|| {
-            scope_and_block(JOBS, |scope| {
+            scope_bounded(JOBS, |scope| {
                 for i in 0..JOBS {
                     scope.spawn(move || {
                         thread::sleep(PER_JOB);
@@ -372,13 +383,13 @@ mod tests {
         // so a slow machine won't make this flaky.
         assert!(
             elapsed < (JOBS as u32 * PER_JOB) / 2,
-            "scope_and_block took {elapsed:?}; expected parallel speedup across worker threads"
+            "scope_bounded took {elapsed:?}; expected parallel speedup across worker threads"
         );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_scope() {
-        let results = scope_and_block(1000, |scope| {
+        let results = scope_bounded(1000, |scope| {
             for i in 0..1000 {
                 scope.spawn(move || i);
             }
@@ -392,7 +403,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_empty_scope() {
-        let results = scope_and_block(0, |scope| {
+        let results = scope_bounded(0, |scope| {
             if false {
                 scope.spawn(|| 42);
             }
@@ -402,7 +413,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_single_task() {
-        let results = scope_and_block(1, |scope| {
+        let results = scope_bounded(1, |scope| {
             scope.spawn(|| 42);
         })
         .collect::<Vec<_>>();
@@ -411,7 +422,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_task_finish_before_scope() {
-        let results = scope_and_block(1, |scope| {
+        let results = scope_bounded(1, |scope| {
             scope.spawn(|| 42);
             thread::sleep(std::time::Duration::from_millis(100));
         })
@@ -421,7 +432,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_task_finish_after_scope() {
-        let results = scope_and_block(1, |scope| {
+        let results = scope_bounded(1, |scope| {
             scope.spawn(|| {
                 thread::sleep(std::time::Duration::from_millis(100));
                 42
@@ -434,7 +445,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_panic_in_scope_factory() {
         let result = catch_unwind(AssertUnwindSafe(|| {
-            let _results = scope_and_block(1000, |scope| {
+            let _results = scope_bounded(1000, |scope| {
                 for i in 0..500 {
                     scope.spawn(move || i);
                 }
@@ -452,7 +463,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_panic_in_scope_task() {
         let result = catch_unwind(AssertUnwindSafe(|| {
-            let _results = scope_and_block(1000, |scope| {
+            let _results = scope_bounded(1000, |scope| {
                 for i in 0..1000 {
                     scope.spawn(move || {
                         if i == 500 {

@@ -683,7 +683,7 @@ impl ModuleGraphImportTracer {
             .await?
             .modules
             .iter()
-            .map(|(&module, _)| async move { Ok((module.ident().await?.path.clone(), module)) })
+            .map(async |(&module, _)| Ok((module.ident().await?.path.clone(), module)))
             .try_join()
             .await?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
@@ -711,7 +711,7 @@ impl ImportTracer for ModuleGraphImportTracer {
         return Ok(ImportTraces::cell(ImportTraces(
             modules
                 .iter()
-                .map(|m| async move {
+                .map(async |m| {
                     let Some(&module_idx) = graph.modules.get(m) else {
                         // The only way this could really happen is if `path_to_modules` is computed
                         // from a different graph than graph`.  Just error out.
@@ -2344,7 +2344,7 @@ pub mod tests {
                 // test traversing backwards from 'd' which is only in the child graph
                 let d_module = child_graph
                     .enumerate_nodes()
-                    .map(|(_index, module)| async move {
+                    .map(async |(_index, module)| {
                         Ok(match module {
                             crate::module_graph::SingleModuleGraphNode::Module(module) => {
                                 if module.ident().to_string().owned().await? == "[test]/d.js" {
@@ -2854,7 +2854,7 @@ pub mod tests {
                 .await?
                 .modules
                 .keys()
-                .map(|m| async move { Ok((*m, m.ident().await?.path.path.clone())) })
+                .map(async |m| Ok((*m, m.ident().await?.path.path.clone())))
                 .try_join()
                 .await?
                 .into_iter()
