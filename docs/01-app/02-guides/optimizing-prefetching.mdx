@@ -4,15 +4,12 @@ description: Resolve per-link URL data with the prefetch prop, or include sessio
 nav_title: Optimizing prefetching
 related:
   title: Learn more
-  description: Validate your structure and review the caching primitives.
+  description: Review the APIs used to cache content and validate a route.
   links:
-    - app/api-reference/config/next-config-js/partialPrefetching
-    - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/api-reference/directives/use-cache-private
-    - app/getting-started/caching
-    - app/guides/instant-navigation
-    - app/guides/prefetching
+    - app/api-reference/directives/use-cache
+    - app/api-reference/functions/cacheLife
+    - app/guides/authentication-with-cache-components
 ---
 
 Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip. The [Prefetching guide](/docs/app/guides/prefetching) covers what the App Router prefetches by default.
