@@ -67,6 +67,19 @@ This runs two variants in parallel and prints pass/fail for each:
 
 `agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` first. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
 
+### Evaluating a local skill
+
+Docs can link to a canonical skill, but an unmerged skill revision isn't part of the `next` package tarball. To compare the current checkout's skill with the baseline and bundled-docs variants, add `eval.config.json` to the fixture:
+
+```json filename="eval.config.json"
+{
+  "skills": ["next-partial-prefetching-adoption"],
+  "timeout": 1800
+}
+```
+
+The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
+
 A run takes ~2–5 min. To validate a fixture without executing:
 
 ```bash

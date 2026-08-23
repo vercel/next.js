@@ -1,0 +1,1 @@
+Enable Cache Components across this storefront in one branch. Keep the product catalog reusable, preserve the personalized account greeting, and provide meaningful loading UI for request-time content. Resolve every route without opting routes out, and finish with a production build.
