@@ -491,7 +491,18 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::*;
-    use crate::database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer};
+    use crate::{
+        BackingStorageOptions,
+        database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
+    };
+
+    /// Options used by these tests. `is_short_session` disables background compaction, which
+    /// requires a turbo-tasks context that these tests don't set up.
+    const TEST_STORAGE_OPTIONS: BackingStorageOptions = BackingStorageOptions {
+        is_ci: false,
+        is_short_session: true,
+        skip_compaction: false,
+    };
 
     /// Helper to write to the database using the concurrent batch API.
     fn write_task_cache_entry(
@@ -533,9 +544,7 @@ mod tests {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
 
-        // Use is_short_session=true to disable background compaction (which requires turbo-tasks
-        // context)
-        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
 
         // Simulate a hash collision by writing multiple TaskIds with the same hash key
         let collision_hash: u64 = 0xDEADBEEF;
@@ -575,7 +584,7 @@ mod tests {
 
         // Write all entries in a single batch with flush (like save_snapshot does)
         {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
+            let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
             let batch = db.write_batch()?;
 
             for (hash, task_id) in hashes.iter().zip(task_ids.iter()) {
@@ -594,7 +603,7 @@ mod tests {
 
         // Reopen and verify all entries are readable
         {
-            let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
+            let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
             let mut found = 0;
             let mut missing = 0;
             for (hash, expected_id) in hashes.iter().zip(task_ids.iter()) {
@@ -632,7 +641,14 @@ mod tests {
         let survivor_id = TaskId::try_from(222u32).unwrap();
         let deleted_key = (*deleted_id).to_le_bytes();
 
-        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
+        let db = TurboKeyValueDatabase::new(
+            path.to_path_buf(),
+            BackingStorageOptions {
+                is_ci: false,
+                is_short_session: true,
+                skip_compaction: false,
+            },
+        )?;
 
         // Both ids collide in one TaskCache bucket, purely on disk; the deleted task also has
         // meta and data entries.

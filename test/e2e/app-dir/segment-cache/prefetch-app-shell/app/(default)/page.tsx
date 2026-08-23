@@ -148,6 +148,35 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>Prefetch posts</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/static-prefetch/1">
+            Static prefetch post 1
+          </LinkAccordion>
+        </li>
+        <li>
+          <Link href="/static-prefetch/2" prefetch={false}>
+            Static prefetch post 2 (unprefetched)
+          </Link>
+        </li>
+        <li>
+          <LinkAccordion href="/runtime-prefetch/1">
+            Runtime prefetch post 1
+          </LinkAccordion>
+        </li>
+        <li>
+          <Link href="/runtime-prefetch/2" prefetch={false}>
+            Runtime prefetch post 2 (unprefetched)
+          </Link>
+        </li>
+        <li>
+          <LinkAccordion href="/runtime-prefetch/speculative-1" prefetch={true}>
+            Runtime prefetch post "speculative-1" (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
     </main>
   )
 }
