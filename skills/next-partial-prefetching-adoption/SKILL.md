@@ -164,7 +164,7 @@ The audit marked candidates beyond the already-preserved legacy contract instead
 Where the answer is no, delete the marker and leave the route on the App Shell default. Where the answer is yes, choose one of these paths:
 
 - **Manual:** follow the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching), confirm the opted-in link against a production run, and delete the marker when the selected result is verified.
-- **Test-backed:** hand the source link, destination, selected UI, and viewport-or-intent decision to the experimental [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer). It turns the accepted candidate into a failing `instant()` test, works it to GREEN, and removes the marker only after the differential proves the additional UI comes from that exact link's prefetch.
+- **Test-backed:** hand the source link, destination, selected UI, and viewport-or-intent decision to the experimental [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471). It turns the accepted candidate into a failing `instant()` test, works it to GREEN, and removes the marker only after the differential proves the additional UI comes from that exact link's prefetch.
 
 Keep accepted markers until their manual verification or optimizer test is complete. No `TODO(per-link-prefetch)` marker survives the finished step. Per-link optimization remains a separate commit or PR from adoption.
 
@@ -173,4 +173,4 @@ Keep accepted markers until their manual verification or optimizer test is compl
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.
-- [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer) — adds selected URL-specific UI to an exact link's prefetched result and guards it with `instant()`.
+- [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471) — adds selected URL-specific UI to an exact link's prefetched result and guards it with `instant()`.
