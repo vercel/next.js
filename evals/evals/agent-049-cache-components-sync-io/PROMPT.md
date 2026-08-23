@@ -1,0 +1,1 @@
+Enable Cache Components for this operations console. The navigation must remain immediately useful, while the request identifier, current time, and sampling value must still be generated per request. Finish with a production build and do not leave routes opted out.

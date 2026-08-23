@@ -1,0 +1,1 @@
+Enable Cache Components for this workspace dashboard. Members must continue seeing their own name, team, and request region, while the shared project totals remain reusable. Keep a useful dashboard frame visible while request-specific content loads, and finish with a production build without route opt-outs.
