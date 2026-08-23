@@ -987,6 +987,17 @@ export interface ExperimentalConfig {
   turbopackCjsTreeShaking?: boolean
 
   /**
+   * Shorten ("mangle") the export names modules expose to each other in Turbopack, to reduce
+   * bundle size. Only affects the keys used to link modules together: a module whose export names
+   * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
+   * CommonJS `require()`) keeps its original names. Requires minification with mangling enabled,
+   * so `--no-mangling` also turns this off.
+   *
+   * Defaults to `false`
+   */
+  turbopackMangleExportNames?: boolean
+
+  /**
    * Enable scope hoisting of static CommonJS modules.
    *
    * Defaults to `false`

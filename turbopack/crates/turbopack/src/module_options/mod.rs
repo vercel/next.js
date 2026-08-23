@@ -247,6 +247,7 @@ impl ModuleOptions {
                     inline_helpers,
                     infer_module_side_effects,
                     cjs_tree_shaking,
+                    mangle_export_names,
                     cjs_scope_hoisting,
                     cross_module_constants,
                     ref preset_env_config,
@@ -342,6 +343,7 @@ impl ModuleOptions {
             inline_helpers,
             infer_module_side_effects,
             cjs_tree_shaking,
+            mangle_export_names,
             cjs_scope_hoisting,
             cross_module_constants,
             ..Default::default()

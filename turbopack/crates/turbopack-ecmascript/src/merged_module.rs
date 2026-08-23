@@ -106,6 +106,11 @@ impl ChunkableModule for MergedEcmascriptModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
     #[turbo_tasks::function]
+    async fn mangle_export_names(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.options.await?.mangle_export_names))
+    }
+
+    #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         panic!("get_exports() should not be called on merged modules")
     }

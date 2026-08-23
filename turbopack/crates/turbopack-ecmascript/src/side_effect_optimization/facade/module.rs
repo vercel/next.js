@@ -193,6 +193,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
+    fn mangle_export_names(&self) -> Vc<bool> {
+        self.module.mangle_export_names()
+    }
+
+    #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? else {
             bail!("EcmascriptModuleFacadeModule must only be used on modules with EsmExports");

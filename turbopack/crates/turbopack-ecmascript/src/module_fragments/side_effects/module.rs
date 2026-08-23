@@ -133,6 +133,11 @@ impl Module for SideEffectsModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
+    fn mangle_export_names(&self) -> Vc<bool> {
+        self.resolved_as.mangle_export_names()
+    }
+
+    #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
     }

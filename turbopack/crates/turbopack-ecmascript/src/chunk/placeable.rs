@@ -37,6 +37,17 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         Vc::cell(None)
     }
 
+    /// Whether the keys this module exports its bindings under may be shortened. See
+    /// [`crate::references::esm::mangle::mangled_export_names`], which is what decides whether
+    /// they actually are.
+    ///
+    /// Defaults to `false`: a module type that doesn't opt in keeps its original export names,
+    /// which is always correct.
+    #[turbo_tasks::function]
+    fn mangle_export_names(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     /// Generate chunk item content directly on the module.
     /// This replaces the need for separate ChunkItem wrapper structs.
     /// The `estimated` parameter is used during size estimation - when true, implementations

@@ -211,6 +211,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
+    fn mangle_export_names(&self) -> Vc<bool> {
+        self.module.mangle_export_names()
+    }
+
+    #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let reference = self.module_reference().await?;
 

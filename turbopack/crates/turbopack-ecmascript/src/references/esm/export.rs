@@ -33,7 +33,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     module_fragments::part::module::EcmascriptModulePartAsset,
-    references::esm::base::ReferencedAsset,
+    references::esm::{base::ReferencedAsset, mangle::mangled_export_names},
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     utils::module_id_to_lit,
 };
@@ -697,6 +697,19 @@ impl EsmExports {
         }
 
         let mut getters = Vec::new();
+        // The keys this module's exports are emitted under. Consumers resolve the same map for this
+        // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
+        let mangled_names = match &*mangled_export_names(*module, chunking_context).await? {
+            Some(names) => Some(names.await?),
+            None => None,
+        };
+        let export_key = |exported: &RcStr| -> RcStr {
+            mangled_names
+                .as_ref()
+                .and_then(|names| names.get(exported))
+                .cloned()
+                .unwrap_or_else(|| exported.clone())
+        };
         for (exported, local) in &expanded.exports {
             let exprs: ExportBinding = match local {
                 EsmExport::Error => ExportBinding::Getter(quote!(
@@ -839,7 +852,7 @@ impl EsmExports {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        value: exported.as_str().into(),
+                        value: export_key(exported).as_str().into(),
                         raw: None,
                     }))
                     .into(),

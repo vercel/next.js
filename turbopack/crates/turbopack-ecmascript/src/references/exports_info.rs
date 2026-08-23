@@ -13,7 +13,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
+    references::{AstPath, esm::mangle::mangled_export_names},
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -44,6 +44,16 @@ impl ExportsInfoBinding {
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let export_usage_info = export_usage_info.export_usage.await?;
+        // The keys of `__webpack_exports_info__` stay the *original* export names — user code looks
+        // them up by name. The emitted key is reported as `mangledName` instead.
+        //
+        // Those extra fields are only added when export mangling is enabled for the module, so a
+        // build without it emits exactly what it emitted before.
+        let mangling_enabled = *module.mangle_export_names().await?;
+        let mangled_names = match &*mangled_export_names(*module, chunking_context).await? {
+            Some(names) => Some(names.await?),
+            None => None,
+        };
 
         let props = if let EcmascriptExports::EsmExports(exports) = &*exports.await? {
             exports
@@ -52,10 +62,32 @@ impl ExportsInfoBinding {
                 .keys()
                 .map(|e| {
                     let used: Expr = export_usage_info.is_export_used(e).into();
+                    if !mangling_enabled {
+                        return PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
+                            KeyValueProp {
+                                key: PropName::Str(e.as_str().into()),
+                                value: quote!("{ used: $v }" as Box<Expr>, v: Expr = used),
+                            },
+                        )));
+                    }
+                    let mangled = mangled_names.as_ref().and_then(|names| names.get(e));
+                    let can_mangle: Expr = mangled.is_some().into();
+                    let mangled_name: Expr =
+                        match mangled {
+                            Some(mangled) => Expr::Lit(mangled.as_str().into()),
+                            None => Expr::Lit(swc_core::ecma::ast::Lit::Null(
+                                swc_core::ecma::ast::Null { span: DUMMY_SP },
+                            )),
+                        };
                     PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
                         KeyValueProp {
                             key: PropName::Str(e.as_str().into()),
-                            value: quote!("{ used: $v }" as Box<Expr>, v: Expr = used),
+                            value: quote!(
+                                "{ used: $v, canMangle: $c, mangledName: $m }" as Box<Expr>,
+                                v: Expr = used,
+                                c: Expr = can_mangle,
+                                m: Expr = mangled_name
+                            ),
                         },
                     )))
                 })
