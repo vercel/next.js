@@ -10326,6 +10326,7 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
+ "codspeed-criterion-compat",
  "libc",
  "libmimalloc-sys",
  "mimalloc",
