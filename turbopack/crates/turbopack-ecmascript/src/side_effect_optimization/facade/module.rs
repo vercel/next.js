@@ -193,11 +193,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn mangle_export_names(&self) -> Vc<bool> {
-        self.module.mangle_export_names()
-    }
-
-    #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? else {
             bail!("EcmascriptModuleFacadeModule must only be used on modules with EsmExports");
@@ -243,6 +238,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: esm_exports.star_exports.clone(),
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

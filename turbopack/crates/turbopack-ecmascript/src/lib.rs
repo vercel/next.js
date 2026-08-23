@@ -861,11 +861,6 @@ impl ChunkableModule for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn mangle_export_names(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.options.await?.mangle_export_names))
-    }
-
-    #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         let exports = compute_ecmascript_module_exports(self, None).await?.exports;
         if let EcmascriptExports::CommonJs(_) = &*exports.await? {

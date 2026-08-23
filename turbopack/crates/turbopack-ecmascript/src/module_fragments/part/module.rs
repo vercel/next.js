@@ -348,11 +348,6 @@ impl Module for EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    fn mangle_export_names(&self) -> Vc<bool> {
-        self.full_module.mangle_export_names()
-    }
-
-    #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         Ok(
             *compute_ecmascript_module_exports(*self.full_module, Some(self.part.clone()))

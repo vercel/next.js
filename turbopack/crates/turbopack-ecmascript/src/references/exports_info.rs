@@ -49,13 +49,17 @@ impl ExportsInfoBinding {
         //
         // Those extra fields are only added when export mangling is enabled for the module, so a
         // build without it emits exactly what it emitted before.
-        let mangling_enabled = *module.mangle_export_names().await?;
+        let exports = exports.await?;
+        let mangling_enabled = match &*exports {
+            EcmascriptExports::EsmExports(exports) => exports.await?.mangle_export_names,
+            _ => false,
+        };
         let mangled_names = match &*mangled_export_names(*module, chunking_context).await? {
             Some(names) => Some(names.await?),
             None => None,
         };
 
-        let props = if let EcmascriptExports::EsmExports(exports) = &*exports.await? {
+        let props = if let EcmascriptExports::EsmExports(exports) = &*exports {
             exports
                 .await?
                 .exports

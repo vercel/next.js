@@ -6,7 +6,6 @@
 
 mod base38;
 mod base64;
-mod basejs;
 mod deterministic_hash;
 mod hex;
 mod sha;
@@ -81,7 +80,6 @@ pub fn deterministic_hash<T: DeterministicHash>(
 pub use crate::{
     base38::{BASE38_LEN_64, BASE38_LEN_128, encode_base38, encode_base38_128},
     base64::encode_base64,
-    basejs::{decode_js_identifier, encode_js_identifier, shorten_to_unique_names},
     deterministic_hash::{DeterministicHash, DeterministicHasher},
     hex::{encode_hex, encode_hex_128},
     sha::ShaHasher,

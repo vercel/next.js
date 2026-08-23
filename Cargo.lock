@@ -10285,7 +10285,6 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
  "data-encoding",
- "rustc-hash 2.1.1",
  "sha2",
  "smallvec",
  "turbo-tasks-macros",

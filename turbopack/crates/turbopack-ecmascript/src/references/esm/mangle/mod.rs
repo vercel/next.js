@@ -11,17 +11,24 @@
 //! ([`super::base::ReferencedAsset`]) ask it for the *target* module's map, so they cannot
 //! disagree. It returns `None` whenever the module has to keep its original names.
 
+mod table;
+
 use anyhow::Result;
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_hash::shorten_to_unique_names;
 use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
 };
 
+use self::table::shorten_to_unique_names;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
+
+/// Export keys the runtime defines on a module's exports object itself, so an assigned name landing
+/// on one of them would collide with it. They are never handed out, whether or not the export of
+/// that name is itself mangled.
+const RESERVED_KEYS: &[&str] = &[DEFAULT_EXPORT, ES_MODULE_FLAG];
 
 /// The export name of the default export. Not mangled: the CommonJS interop layer and the
 /// `__esModule` handling in the runtime look it up by name, an embedder's runtime may read
@@ -51,9 +58,10 @@ pub struct OptionMangledExportNames(pub Option<ResolvedVc<MangledExportNames>>);
 ///
 /// A module keeps its original names when any of these hold:
 ///
-/// 1. mangling is disabled for the module, or names are not being mangled at all — either we're not
-///    minifying, or minification was asked to keep names (`MinifyType::Minify` with no
-///    `MangleType`), in which case mangled export keys would only make the output harder to read,
+/// 1. mangling is disabled for the module that owns these exports, or names are not being mangled
+///    at all — either we're not minifying, or minification was asked to keep names
+///    (`MinifyType::Minify` with no `MangleType`), in which case mangled export keys would only
+///    make the output harder to read,
 /// 2. its export usage is [`ModuleExportUsageInfo::All`] — a namespace import that could not be
 ///    lowered to named imports, a computed property access, an unresolvable `export *`, or a module
 ///    referenced from outside the module graph (entries, which are seeded with `All`),
@@ -67,8 +75,14 @@ pub async fn mangled_export_names(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<OptionMangledExportNames>> {
-    // (1) Disabled for this module, or names aren't being mangled in this build at all.
-    if !*module.mangle_export_names().await?
+    // (4) Only statically known ESM exports can be renamed.
+    let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
+        return Ok(Vc::cell(None));
+    };
+
+    // (1) Disabled for the module these exports belong to, or names aren't being mangled in this
+    // build at all.
+    if !exports.await?.mangle_export_names
         || !matches!(
             *chunking_context.minify_type().await?,
             MinifyType::Minify {
@@ -79,11 +93,6 @@ pub async fn mangled_export_names(
     {
         return Ok(Vc::cell(None));
     }
-
-    // (4) Only statically known ESM exports can be renamed.
-    let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-        return Ok(Vc::cell(None));
-    };
 
     let usage = chunking_context
         .module_export_usage(*ResolvedVc::upcast(module))
@@ -124,15 +133,15 @@ pub async fn mangled_export_names(
         return Ok(Vc::cell(None));
     }
 
-    let mangled = shorten_to_unique_names(names.iter().map(|name| name.as_str()));
+    let mangled = shorten_to_unique_names(names.iter().copied(), RESERVED_KEYS);
 
     let map = names
         .iter()
         .map(|name| {
             let mangled = mangled
-                .get(name.as_str())
+                .get(name)
                 .expect("every name passed in has a mangled name");
-            ((*name).clone(), RcStr::from(mangled.as_str()))
+            ((*name).clone(), mangled.clone())
         })
         .collect::<Vec<(RcStr, RcStr)>>();
 

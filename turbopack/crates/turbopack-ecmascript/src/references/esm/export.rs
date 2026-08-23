@@ -533,6 +533,14 @@ pub struct EsmExports {
     pub exports: FrozenMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    /// Whether the keys these exports are emitted under may be shortened, i.e. whether the module
+    /// they belong to has export mangling enabled. Carried with the exports so that a module which
+    /// derives its exports from another one (a facade, a locals module, a part, a rename) inherits
+    /// it automatically. See [`crate::references::esm::mangle::mangled_export_names`], which is
+    /// what decides whether the keys actually are shortened.
+    ///
+    /// `false` for exports built for a wrapper whose export names have to stay as written.
+    pub mangle_export_names: bool,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
@@ -571,6 +579,9 @@ impl EsmExports {
             EsmExports {
                 exports: FrozenMap::from(exports),
                 star_exports: vec![module_reference],
+                // These facades exist so that a host framework can find the wrapped module's
+                // exports by name, so their keys have to stay as written.
+                mangle_export_names: false,
             }
             .resolved_cell(),
         )

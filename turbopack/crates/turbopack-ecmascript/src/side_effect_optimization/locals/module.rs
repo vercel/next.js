@@ -152,11 +152,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    fn mangle_export_names(&self) -> Vc<bool> {
-        self.module.mangle_export_names()
-    }
-
-    #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let EcmascriptExports::EsmExports(exports) = *self.module.get_exports().await? else {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
@@ -184,6 +179,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
