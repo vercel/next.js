@@ -11088,6 +11088,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbopack-core",
  "turbopack-ecmascript",
+ "unicode-id-start",
  "wasmparser 0.235.0",
  "wat",
 ]
