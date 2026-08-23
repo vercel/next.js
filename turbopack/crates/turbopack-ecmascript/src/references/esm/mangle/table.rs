@@ -15,10 +15,12 @@
 //! generated export table, and bracket-access strings at the consuming side. They are never used as
 //! bare binding identifiers (the merged / scope-hoisted path refers to the module's own local
 //! variables, not to these keys), so a name that happens to spell a reserved word like `if` or `in`
-//! is perfectly legal and is not excluded.
+//! is perfectly legal. It is avoided anyway — see `RESERVED_KEYS` in the parent module — because a
+//! downstream minifier that folds `ns["name"]` into the shorter `ns.name` typically only does so
+//! for a non-reserved identifier, so a keyword-shaped key never gets that benefit.
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 /// Characters that may start an identifier. Digits are excluded, so this is one character shorter
@@ -30,6 +32,28 @@ const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij
 /// whose encoding would end in it is degenerate (`a` and `a_` would both decode to the same value),
 /// so such encodings are never produced and never accepted.
 const ZERO_CHAR: char = '_';
+
+/// The name assigned when a module has exactly one export to mangle.
+///
+/// Always picking the same character compresses better than hashing would: `f` is the most common
+/// character in JS keywords (`if`, `for`, `function`), and every single-export module in the graph
+/// then emits the same `.f` / `.f()` byte sequences, which gzip's back-references pick up across
+/// the whole bundle. The cost is that going from one export to two renames this one; that churn is
+/// accepted deliberately in exchange for the compression.
+const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
+
+/// Reserved words that would be legal as a quoted property key but that a minifier will not fold
+/// into a bare `.name` access. Handing one out costs bytes rather than saving them: `ns["if"]`
+/// stays as it is, where a non-reserved `ns["ab"]` becomes `ns.ab`.
+///
+/// Only two- and three-character words are listed. No single character is a reserved word, and by
+/// four characters the table holds 200k+ buckets, so losing a name there is irrelevant.
+const UNQUOTABLE_KEYS: &[&str] = &[
+    // 2 characters
+    "do", "if", "in",
+    // 3 characters. `let` counts: the generated output is a module, and modules are always strict.
+    "for", "let", "new", "try", "var",
+];
 
 /// The number of distinct values encodable in at most `len` characters, i.e. the capacity of the
 /// table for that length. Saturates instead of overflowing for absurd lengths.
@@ -108,13 +132,17 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 ///
 /// `reserved` names are never handed out, even though they are not themselves assigned a short
 /// name: they are keys the output uses for something else (the runtime's own interop properties),
-/// so an assigned name landing on one of them would collide.
+/// so an assigned name landing on one of them would collide. [`UNQUOTABLE_KEYS`] is withheld for
+/// the same mechanical reason, though to save bytes rather than for correctness.
+///
+/// A module with a single export to mangle is special-cased to [`SINGLE_ITEM_IDENTIFIER`], so that
+/// every such module in the graph emits the same key and compresses together.
 ///
 /// The table is sized to the smallest identifier length that can hold every name that needs a
 /// bucket, and assignment happens in two passes:
 ///
 /// 1. Every name that is *already* a valid identifier of at most that length keeps itself and
-///    reserves its bucket, as does every `reserved` name that falls inside the table. This has to
+///    reserves its bucket, as does every withheld name that falls inside the table. This has to
 ///    happen for **all** names before anything is hashed, or a hashed name could take a bucket that
 ///    a later preserved name needs.
 /// 2. The remaining names are hashed into the table, resolving collisions by open addressing.
@@ -133,16 +161,38 @@ pub fn shorten_to_unique_names<'a>(
         return FxHashMap::default();
     }
 
-    // Grow the table until it can hold the names *and* the reserved buckets that fall inside it.
-    // Reserving can only ever push us up by the number of reserved names, so this terminates.
+    // A lone export always gets the same name, which compresses better across modules than a
+    // hashed one would — unless it is already short enough to keep, or that name is spoken for.
+    if let [name] = names[..] {
+        let mangled = if bucket_of(name, 1).is_some() {
+            name.clone()
+        } else if reserved.contains(&SINGLE_ITEM_IDENTIFIER.as_str()) {
+            RcStr::from(encode_js_identifier(
+                hash_xxh3_hash64(name.as_str()) % capacity_for_len(1),
+            ))
+        } else {
+            SINGLE_ITEM_IDENTIFIER
+        };
+        return FxHashMap::from_iter([(name, mangled)]);
+    }
+
+    // Names that must not be handed out: the caller's reserved keys, plus the ones that would not
+    // survive as a bare property access.
+    let withheld = reserved
+        .iter()
+        .copied()
+        .chain(UNQUOTABLE_KEYS.iter().copied());
+
+    // Grow the table until it can hold the names *and* the withheld buckets that fall inside it.
+    // Withholding can only ever push us up by the number of withheld names, so this terminates.
     let mut len = 1;
     loop {
         let capacity = capacity_for_len(len);
-        let reserved_in_table = reserved
-            .iter()
+        let withheld_in_table = withheld
+            .clone()
             .filter(|name| bucket_of(name, len).is_some())
             .count() as u64;
-        if capacity >= names.len() as u64 + reserved_in_table {
+        if capacity >= names.len() as u64 + withheld_in_table {
             break;
         }
         len += 1;
@@ -150,10 +200,12 @@ pub fn shorten_to_unique_names<'a>(
     let capacity = capacity_for_len(len);
 
     let mut result = FxHashMap::with_capacity_and_hasher(names.len(), Default::default());
-    let mut used =
-        FxHashSet::with_capacity_and_hasher(names.len() + reserved.len(), Default::default());
+    let mut used = FxHashSet::with_capacity_and_hasher(
+        names.len() + reserved.len() + UNQUOTABLE_KEYS.len(),
+        Default::default(),
+    );
 
-    for name in reserved {
+    for name in withheld {
         if let Some(bucket) = bucket_of(name, len) {
             used.insert(bucket);
         }
@@ -320,19 +372,36 @@ mod tests {
     }
 
     #[test]
-    fn single_name_is_not_special_cased() {
-        // A lone export is hashed like any other, so adding a second export doesn't rename it.
+    fn a_single_export_always_gets_the_same_name() {
+        // Every single-export module in the graph emits the same key, so the `.f` / `.f()` byte
+        // sequences repeat across the bundle and compress together. The cost is that adding a
+        // second export renames this one, which is accepted deliberately.
         let one = shorten(&["someVeryLongExportName"]);
-        let two = shorten(&["someVeryLongExportName", "anotherLongExportName"]);
         assert_eq!(
-            one.get("someVeryLongExportName"),
-            two.get("someVeryLongExportName"),
-            "adding a second export renamed the first"
+            one.get("someVeryLongExportName").map(RcStr::as_str),
+            Some("f")
         );
         assert_eq!(
-            one.get("someVeryLongExportName").unwrap().chars().count(),
-            1
+            shorten(&["aCompletelyDifferentName"])
+                .get("aCompletelyDifferentName")
+                .map(RcStr::as_str),
+            Some("f"),
+            "a lone export should not depend on its own name"
         );
+    }
+
+    #[test]
+    fn a_single_short_export_still_keeps_itself() {
+        assert_eq!(shorten(&["a"]).get("a").map(RcStr::as_str), Some("a"));
+    }
+
+    #[test]
+    fn a_single_export_avoids_a_reserved_single_name() {
+        // `f` is spoken for, so the lone export falls back to a hashed bucket.
+        let map = shorten_reserving(&["someVeryLongExportName"], &["f"]);
+        let mangled = map.get("someVeryLongExportName").unwrap();
+        assert_ne!(mangled.as_str(), "f");
+        assert_eq!(mangled.chars().count(), 1);
     }
 
     #[test]
@@ -455,18 +524,42 @@ mod tests {
     }
 
     #[test]
-    fn keyword_keys_are_allowed() {
-        // Mangled names are emitted as property keys, never as bindings, so a key that spells a
-        // reserved word is fine and the table is free to hand it out.
-        for keyword in ["if", "in", "do", "try", "new", "for", "let", "var"] {
+    fn keyword_keys_are_never_handed_out() {
+        // `ns["if"]` is legal but a minifier will not fold it to `ns.if`, so it costs bytes. The
+        // words are withheld from the table like any other reserved key.
+        for keyword in UNQUOTABLE_KEYS {
             let value = decode_js_identifier(keyword)
                 .unwrap_or_else(|| panic!("{keyword} should be in the encoding's image"));
-            assert_eq!(encode_js_identifier(value), keyword);
+            assert_eq!(
+                encode_js_identifier(value),
+                *keyword,
+                "{keyword} must round-trip, or withholding its bucket does nothing"
+            );
         }
+
+        // Enough names to need two characters, which is where the words become reachable.
         let names: Vec<String> = (0..2000).map(|i| format!("exportNumber{i:04}")).collect();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let map = shorten(&names);
         assert_all_unique(&map);
         assert_eq!(map.len(), 2000);
+        for mangled in map.values() {
+            assert!(
+                !UNQUOTABLE_KEYS.contains(&mangled.as_str()),
+                "handed out the unquotable key {mangled}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_export_named_like_a_keyword_is_renamed_away_from_it() {
+        // Keeping `if` would emit `ns["if"]` (8 bytes); renaming it to a dot-accessible key gets
+        // `ns.ab` (5), so withholding the word is a win even for a source name that is already
+        // short enough to keep.
+        let map = shorten(&["if", "someLongExportName"]);
+        let mangled = map.get("if").unwrap();
+        assert_ne!(mangled.as_str(), "if");
+        assert_eq!(mangled.chars().count(), 1, "should still be a short key");
+        assert_all_unique(&map);
     }
 }
