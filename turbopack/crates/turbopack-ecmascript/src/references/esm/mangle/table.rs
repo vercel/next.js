@@ -42,18 +42,49 @@ const ZERO_CHAR: char = '_';
 /// accepted deliberately in exchange for the compression.
 const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
 
-/// Reserved words that would be legal as a quoted property key but that a minifier will not fold
-/// into a bare `.name` access. Handing one out costs bytes rather than saving them: `ns["if"]`
-/// stays as it is, where a non-reserved `ns["ab"]` becomes `ns.ab`.
+/// Keys that are never handed out, for two different reasons.
 ///
-/// Only two- and three-character words are listed. No single character is a reserved word, and by
-/// four characters the table holds 200k+ buckets, so losing a name there is irrelevant.
-const UNQUOTABLE_KEYS: &[&str] = &[
-    // 2 characters
-    "do", "if", "in",
-    // 3 characters. `let` counts: the generated output is a module, and modules are always strict.
-    "for", "let", "new", "try", "var",
+/// The reserved words are legal as quoted keys, but a minifier will not fold `ns["if"]` into
+/// `ns.if`, so handing one out costs bytes where any other key of the same length saves them. Only
+/// two- and three-character words are listed: no single character is a reserved word, and by four
+/// characters the table holds 200k+ buckets, so losing a name there is irrelevant.
+///
+/// `default` and `__esModule` are correctness cases instead. Both are emitted under their own names
+/// rather than mangled, so an assigned key landing on one of them would collide; `__esModule` is
+/// additionally defined on every module's exports object by `esm()` in the runtime, whatever the
+/// module's own exports are called.
+///
+/// [`reserved_in_table`] has to be kept in step with this list — there is a test for that.
+const RESERVED_KEYS: &[&str] = &[
+    // 2-character reserved words
+    "do",
+    "if",
+    "in",
+    // 3-character reserved words. `let` counts: the output is a module, and modules are strict.
+    "for",
+    "let",
+    "new",
+    "try",
+    "var",
+    // Emitted under their own names rather than mangled, so an assigned key must not land on
+    // them. `default` is dropped from this list once it is mangled too.
+    "default",
+    "__esModule",
 ];
+
+/// How many of [`RESERVED_KEYS`] occupy a bucket in a table of `len`-character identifiers. A key
+/// only takes a bucket once the table is wide enough to hold it, so this is a running count by
+/// length: nothing at one character, the three two-letter words at two, all eight reserved words
+/// from three, `default` from seven, and `__esModule` from ten.
+const fn reserved_in_table(len: u32) -> u64 {
+    match len {
+        0 | 1 => 0,
+        2 => 3,
+        3..=6 => 8,
+        7..=9 => 9,
+        _ => 10,
+    }
+}
 
 /// The number of distinct values encodable in at most `len` characters, i.e. the capacity of the
 /// table for that length. Saturates instead of overflowing for absurd lengths.
@@ -130,10 +161,8 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 
 /// Assigns a short, unique identifier to each of `names`, deterministically.
 ///
-/// `reserved` names are never handed out, even though they are not themselves assigned a short
-/// name: they are keys the output uses for something else (the runtime's own interop properties),
-/// so an assigned name landing on one of them would collide. [`UNQUOTABLE_KEYS`] is withheld for
-/// the same mechanical reason, though to save bytes rather than for correctness.
+/// [`RESERVED_KEYS`] are never handed out, even though they are not themselves assigned a short
+/// name.
 ///
 /// A module with a single export to mangle is special-cased to [`SINGLE_ITEM_IDENTIFIER`], so that
 /// every such module in the graph emits the same key and compresses together.
@@ -142,7 +171,7 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 /// bucket, and assignment happens in two passes:
 ///
 /// 1. Every name that is *already* a valid identifier of at most that length keeps itself and
-///    reserves its bucket, as does every withheld name that falls inside the table. This has to
+///    reserves its bucket, as does every reserved key that falls inside the table. This has to
 ///    happen for **all** names before anything is hashed, or a hashed name could take a bucket that
 ///    a later preserved name needs.
 /// 2. The remaining names are hashed into the table, resolving collisions by open addressing.
@@ -151,7 +180,6 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 /// the order they arrive in.
 pub fn shorten_to_unique_names<'a>(
     names: impl IntoIterator<Item = &'a RcStr>,
-    reserved: &[&str],
 ) -> FxHashMap<&'a RcStr, RcStr> {
     let mut names: Vec<&RcStr> = names.into_iter().collect();
     names.sort_unstable();
@@ -162,50 +190,29 @@ pub fn shorten_to_unique_names<'a>(
     }
 
     // A lone export always gets the same name, which compresses better across modules than a
-    // hashed one would — unless it is already short enough to keep, or that name is spoken for.
+    // hashed one would — unless it is already short enough to keep its own.
     if let [name] = names[..] {
         let mangled = if bucket_of(name, 1).is_some() {
             name.clone()
-        } else if reserved.contains(&SINGLE_ITEM_IDENTIFIER.as_str()) {
-            RcStr::from(encode_js_identifier(
-                hash_xxh3_hash64(name.as_str()) % capacity_for_len(1),
-            ))
         } else {
             SINGLE_ITEM_IDENTIFIER
         };
         return FxHashMap::from_iter([(name, mangled)]);
     }
 
-    // Names that must not be handed out: the caller's reserved keys, plus the ones that would not
-    // survive as a bare property access.
-    let withheld = reserved
-        .iter()
-        .copied()
-        .chain(UNQUOTABLE_KEYS.iter().copied());
-
-    // Grow the table until it can hold the names *and* the withheld buckets that fall inside it.
-    // Withholding can only ever push us up by the number of withheld names, so this terminates.
+    // Grow the table until it can hold the names *and* the reserved buckets that fall inside it.
+    // Reserving can only ever push us up by the number of reserved keys, so this terminates.
     let mut len = 1;
-    loop {
-        let capacity = capacity_for_len(len);
-        let withheld_in_table = withheld
-            .clone()
-            .filter(|name| bucket_of(name, len).is_some())
-            .count() as u64;
-        if capacity >= names.len() as u64 + withheld_in_table {
-            break;
-        }
+    while capacity_for_len(len) < names.len() as u64 + reserved_in_table(len) {
         len += 1;
     }
     let capacity = capacity_for_len(len);
 
     let mut result = FxHashMap::with_capacity_and_hasher(names.len(), Default::default());
-    let mut used = FxHashSet::with_capacity_and_hasher(
-        names.len() + reserved.len() + UNQUOTABLE_KEYS.len(),
-        Default::default(),
-    );
+    let mut used =
+        FxHashSet::with_capacity_and_hasher(names.len() + RESERVED_KEYS.len(), Default::default());
 
-    for name in withheld {
+    for name in RESERVED_KEYS {
         if let Some(bucket) = bucket_of(name, len) {
             used.insert(bucket);
         }
@@ -241,12 +248,8 @@ mod tests {
     use super::*;
 
     fn shorten(names: &[&str]) -> FxHashMap<RcStr, RcStr> {
-        shorten_reserving(names, &[])
-    }
-
-    fn shorten_reserving(names: &[&str], reserved: &[&str]) -> FxHashMap<RcStr, RcStr> {
         let names: Vec<RcStr> = names.iter().map(|name| RcStr::from(*name)).collect();
-        shorten_to_unique_names(names.iter(), reserved)
+        shorten_to_unique_names(names.iter())
             .into_iter()
             .map(|(name, mangled)| (name.clone(), mangled))
             .collect()
@@ -396,15 +399,6 @@ mod tests {
     }
 
     #[test]
-    fn a_single_export_avoids_a_reserved_single_name() {
-        // `f` is spoken for, so the lone export falls back to a hashed bucket.
-        let map = shorten_reserving(&["someVeryLongExportName"], &["f"]);
-        let mangled = map.get("someVeryLongExportName").unwrap();
-        assert_ne!(mangled.as_str(), "f");
-        assert_eq!(mangled.chars().count(), 1);
-    }
-
-    #[test]
     fn empty() {
         assert!(shorten(&[]).is_empty());
     }
@@ -494,40 +488,52 @@ mod tests {
 
     #[test]
     fn reserved_names_are_never_assigned() {
-        // `_` is the whole single-character bucket 0, so reserving it must push everything else off
-        // that bucket — and with 54 names the table has to grow to make room.
-        let names: Vec<String> = (0..54).map(|i| format!("collidingExport{i:02}")).collect();
+        // Enough names that the two-character table is crowded, so a reserved bucket would be
+        // reached if it were not withheld.
+        let names: Vec<String> = (0..3000)
+            .map(|i| format!("collidingExport{i:04}"))
+            .collect();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
-        let map = shorten_reserving(&names, &["_"]);
-        assert_eq!(map.len(), 54);
+        let map = shorten(&names);
+        assert_eq!(map.len(), 3000);
         assert_all_unique(&map);
-        assert!(
-            map.values().all(|mangled| mangled.as_str() != "_"),
-            "a reserved name was handed out"
-        );
+        for mangled in map.values() {
+            assert!(
+                !RESERVED_KEYS.contains(&mangled.as_str()),
+                "handed out the reserved key {mangled}"
+            );
+        }
     }
 
     #[test]
     fn a_name_that_is_itself_reserved_does_not_keep_itself() {
-        // `a` would normally keep its own name, but it is spoken for, so it gets a fresh bucket.
-        let map = shorten_reserving(&["a", "someLongExportName"], &["a"]);
-        assert_ne!(map.get("a").map(RcStr::as_str), Some("a"));
+        // `in` would normally keep its own name, but it is reserved, so it gets a fresh bucket.
+        let map = shorten(&["in", "someLongExportName"]);
+        assert_ne!(map.get("in").map(RcStr::as_str), Some("in"));
         assert_all_unique(&map);
     }
 
     #[test]
-    fn long_reserved_names_only_matter_once_the_table_reaches_them() {
-        // `default` is 7 characters, so it cannot collide with a small table at all.
-        let names = numbered(20);
-        let names: Vec<&str> = names.iter().map(String::as_str).collect();
-        assert_eq!(shorten(&names), shorten_reserving(&names, &["default"]));
+    fn reserved_bucket_count_matches_the_reserved_list() {
+        // `reserved_in_table` is maintained by hand; keep it honest against the list it summarizes.
+        for len in 1..=12u32 {
+            let counted = RESERVED_KEYS
+                .iter()
+                .filter(|name| bucket_of(name, len).is_some())
+                .count() as u64;
+            assert_eq!(
+                reserved_in_table(len),
+                counted,
+                "reserved_in_table({len}) disagrees with RESERVED_KEYS"
+            );
+        }
     }
 
     #[test]
     fn keyword_keys_are_never_handed_out() {
         // `ns["if"]` is legal but a minifier will not fold it to `ns.if`, so it costs bytes. The
         // words are withheld from the table like any other reserved key.
-        for keyword in UNQUOTABLE_KEYS {
+        for keyword in RESERVED_KEYS.iter().filter(|k| k.len() <= 3) {
             let value = decode_js_identifier(keyword)
                 .unwrap_or_else(|| panic!("{keyword} should be in the encoding's image"));
             assert_eq!(
@@ -545,8 +551,8 @@ mod tests {
         assert_eq!(map.len(), 2000);
         for mangled in map.values() {
             assert!(
-                !UNQUOTABLE_KEYS.contains(&mangled.as_str()),
-                "handed out the unquotable key {mangled}"
+                !RESERVED_KEYS.contains(&mangled.as_str()),
+                "handed out the reserved key {mangled}"
             );
         }
     }

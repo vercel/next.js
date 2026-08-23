@@ -25,11 +25,6 @@ use turbopack_core::{
 use self::table::shorten_to_unique_names;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
-/// Export keys the runtime defines on a module's exports object itself, so an assigned name landing
-/// on one of them would collide with it. They are never handed out, whether or not the export of
-/// that name is itself mangled.
-const RESERVED_KEYS: &[&str] = &[DEFAULT_EXPORT, ES_MODULE_FLAG];
-
 /// The export name of the default export. Not mangled: the CommonJS interop layer and the
 /// `__esModule` handling in the runtime look it up by name, an embedder's runtime may read
 /// `.default` off a loaded module by string, and it is only seven characters to begin with.
@@ -133,7 +128,7 @@ pub async fn mangled_export_names(
         return Ok(Vc::cell(None));
     }
 
-    let mangled = shorten_to_unique_names(names.iter().copied(), RESERVED_KEYS);
+    let mangled = shorten_to_unique_names(names.iter().copied());
 
     let map = names
         .iter()
