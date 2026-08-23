@@ -1,5 +1,6 @@
 mod counter;
 mod memory_pressure;
+mod memory_usage;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
@@ -7,7 +8,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use self::counter::{add, flush, get, remove, update};
+use self::counter::{add, flush, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -85,16 +86,28 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    /// Returns the current amount of live memory (bytes allocated minus freed)
-    /// tracked across all threads.
+    /// Returns the process's current live memory in bytes, as reported by the OS, or `0` on a
+    /// platform that does not expose it.
     ///
-    /// For efficiency reasons every thread only synchronizes with this counter after ~100K bytes of
-    /// allocations or deallocations.  So this could be off by as much as 100K*number of thread in
-    /// either direction.
+    /// This is a syscall costing a few hundred nanoseconds, not a counter read, so sample it
+    /// (eviction decisions, status lines) rather than calling it per operation. Unlike a figure
+    /// derived from allocation counts it includes allocator overhead and fragmentation, and it
+    /// drops only once the allocator returns pages to the OS.
+    ///
+    /// Use [`Self::memory_usage_checked`] to distinguish "no memory in use" from "not available on
+    /// this platform".
     pub fn memory_usage() -> usize {
-        get()
+        memory_usage::memory_usage().unwrap_or(0)
     }
 
+    /// Like [`Self::memory_usage`], but returns `None` when the current platform does not expose a
+    /// live-memory figure or the query failed.
+    pub fn memory_usage_checked() -> Option<usize> {
+        memory_usage::memory_usage()
+    }
+
+    /// Clears the calling thread's allocation counters. Call this when a thread is about to stop,
+    /// so a thread that reuses its slot does not inherit the previous totals.
     pub fn thread_stop() {
         flush();
     }
@@ -204,6 +217,31 @@ unsafe impl GlobalAlloc for TurboMalloc {
 #[cfg(test)]
 mod tests {
     use super::TurboMalloc;
+
+    #[test]
+    fn memory_usage_is_reported_and_tracks_a_large_allocation() {
+        // Supported on the platforms this crate is built for; `None` would mean the query broke.
+        let before = TurboMalloc::memory_usage_checked()
+            .expect("memory usage must be available on this platform");
+        assert!(before > 0, "a running process has live memory");
+
+        // Large enough to dwarf whatever else the test process does concurrently, and written to
+        // so the pages are actually faulted in.
+        const SIZE: usize = 256 * 1024 * 1024;
+        let mut buffer = vec![0u8; SIZE];
+        for chunk in buffer.chunks_mut(4096) {
+            chunk[0] = 1;
+        }
+        std::hint::black_box(&buffer);
+
+        let after = TurboMalloc::memory_usage_checked().unwrap();
+        assert!(
+            after >= before + SIZE / 2,
+            "expected a rise of at least {} bytes, got {before} -> {after}",
+            SIZE / 2
+        );
+        drop(buffer);
+    }
 
     #[test]
     fn memory_pressure_is_in_range() {

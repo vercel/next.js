@@ -1,60 +1,35 @@
-use std::{
-    cell::UnsafeCell,
-    ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::{cell::UnsafeCell, ptr::NonNull};
 
 use crate::AllocationCounters;
 
-/// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
-/// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
-/// to reduce the number of global synchronizations.  This means at any given time this might
-/// overcount by up to [MAX_BUFFER] bytes for each thread.
-static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
-const KB: usize = 1024;
-/// When global counter is updates we will keep a thread-local buffer of this
-/// size.
-const TARGET_BUFFER: usize = 100 * KB;
-/// When the thread-local buffer would exceed this size, we will update the
-/// global counter.
-const MAX_BUFFER: usize = 200 * KB;
-
+/// Per-thread allocation and deallocation totals.
+///
+/// There is deliberately no process-wide byte counter here. Live memory is reported by
+/// [`crate::TurboMalloc::memory_usage`], which asks the OS; a global atomic maintained from every
+/// allocation site needed a thread-local buffer to amortize it, and that buffering was the bulk of
+/// this module.
 #[derive(Default)]
 struct ThreadLocalCounter {
-    /// Thread-local buffer of allocated bytes that have been added to the
-    /// global counter desprite not being allocated yet. It is unsigned so that
-    /// means the global counter is always equal or greater than the real
-    /// value.
-    buffer: usize,
     allocation_counters: AllocationCounters,
 }
 
 impl ThreadLocalCounter {
     const fn new() -> Self {
         Self {
-            buffer: 0,
             allocation_counters: AllocationCounters::new(),
         }
     }
+
     #[inline(always)]
     fn add(&mut self, size: usize) {
         self.allocation_counters.allocations += size;
         self.allocation_counters.allocation_count += 1;
-        if self.buffer >= size {
-            self.buffer -= size;
-        } else {
-            add_slow(self, size);
-        }
     }
 
     #[inline(always)]
     fn remove(&mut self, size: usize) {
         self.allocation_counters.deallocations += size;
         self.allocation_counters.deallocation_count += 1;
-        self.buffer += size;
-        if self.buffer > MAX_BUFFER {
-            remove_slow(self);
-        }
     }
 
     #[inline(always)]
@@ -63,60 +38,15 @@ impl ThreadLocalCounter {
         self.allocation_counters.deallocation_count += 1;
         self.allocation_counters.allocations += new_size;
         self.allocation_counters.allocation_count += 1;
-        match old_size.cmp(&new_size) {
-            std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Less => {
-                let size = new_size - old_size;
-                if self.buffer >= size {
-                    self.buffer -= size;
-                } else {
-                    add_slow(self, size);
-                }
-            }
-            std::cmp::Ordering::Greater => {
-                let size = old_size - new_size;
-                self.buffer += size;
-                if self.buffer > MAX_BUFFER {
-                    remove_slow(self);
-                }
-            }
-        }
     }
 
     fn unload(&mut self) {
-        if self.buffer > 0 {
-            ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
-            self.buffer = 0;
-        }
         self.allocation_counters = AllocationCounters::default();
     }
 }
 
-// Keep the uncommon atomic updates out of the allocator's inlined hot path.
-#[cold]
-#[inline(never)]
-fn add_slow(local: &mut ThreadLocalCounter, size: usize) {
-    debug_assert!(local.buffer < size);
-    let offset = size - local.buffer + TARGET_BUFFER;
-    local.buffer = TARGET_BUFFER;
-    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
-}
-
-#[cold]
-#[inline(never)]
-fn remove_slow(local: &mut ThreadLocalCounter) {
-    debug_assert!(local.buffer > MAX_BUFFER);
-    let offset = local.buffer - TARGET_BUFFER;
-    local.buffer = TARGET_BUFFER;
-    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
-}
-
 thread_local! {
   static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
-}
-
-pub fn get() -> usize {
-    ALLOCATED.load(Ordering::Relaxed)
 }
 
 pub fn allocation_counters() -> AllocationCounters {
@@ -155,8 +85,8 @@ pub fn update(old_size: usize, new_size: usize) {
     with_local_counter(|local| local.update(old_size, new_size));
 }
 
-/// Flushes the thread-local buffer to the global counter. This should be called
-/// e. g. when a thread is stopped or goes to sleep for a long time.
+/// Clears this thread's counters. Called when a thread stops, so a recycled thread does not
+/// inherit the previous occupant's totals.
 pub fn flush() {
     with_local_counter(|local| local.unload());
 }
@@ -165,43 +95,67 @@ pub fn flush() {
 mod tests {
     use super::*;
 
+    /// The counters are thread-local, and this test runs alongside others in the same process, so
+    /// it measures deltas from whatever this thread has already allocated rather than absolutes.
     #[test]
-    fn counting() {
-        let mut expected = get();
-        add(100);
-        // Initial change should fill up the buffer
-        expected += TARGET_BUFFER + 100;
-        assert_eq!(get(), expected);
-        add(100);
-        // Further changes should use the buffer
-        assert_eq!(get(), expected);
-        add(MAX_BUFFER);
-        // Large changes should require more buffer space
-        expected += 100 + MAX_BUFFER;
-        assert_eq!(get(), expected);
-        remove(100);
-        // Small changes should use the buffer
-        // buffer size is now TARGET_BUFFER + 100
-        assert_eq!(get(), expected);
-        remove(MAX_BUFFER);
-        // The buffer should not grow over MAX_BUFFER
-        // buffer size would be TARGET_BUFFER + 100 + MAX_BUFFER
-        // but it will be reduce to TARGET_BUFFER
-        // this means the global counter should reduce by 100 + MAX_BUFFER
-        expected -= MAX_BUFFER + 100;
-        assert_eq!(get(), expected);
+    fn counts_allocations_and_deallocations() {
+        let start = allocation_counters();
 
-        update(100, 200);
-        // Small reallocations should use the buffer.
-        assert_eq!(get(), expected);
-        update(0, MAX_BUFFER);
-        // Growing beyond the buffer should require more buffer space. The prior small growth
-        // consumed another 100 bytes from the buffer.
-        expected += MAX_BUFFER + 100;
-        assert_eq!(get(), expected);
-        update(MAX_BUFFER + 1, 0);
-        // Shrinking beyond MAX_BUFFER should flush the excess.
-        expected -= MAX_BUFFER + 1;
-        assert_eq!(get(), expected);
+        add(100);
+        add(250);
+        remove(100);
+
+        let after = allocation_counters();
+        assert_eq!(after.allocations - start.allocations, 350);
+        assert_eq!(after.allocation_count - start.allocation_count, 2);
+        assert_eq!(after.deallocations - start.deallocations, 100);
+        assert_eq!(after.deallocation_count - start.deallocation_count, 1);
+    }
+
+    /// A reallocation counts as both a deallocation of the old block and an allocation of the new.
+    #[test]
+    fn update_counts_both_sides() {
+        let start = allocation_counters();
+
+        update(40, 100);
+
+        let after = allocation_counters();
+        assert_eq!(after.allocations - start.allocations, 100);
+        assert_eq!(after.allocation_count - start.allocation_count, 1);
+        assert_eq!(after.deallocations - start.deallocations, 40);
+        assert_eq!(after.deallocation_count - start.deallocation_count, 1);
+    }
+
+    /// `reset_allocation_counters` restores a previously captured value, which is how the tracing
+    /// layer excludes its own writes from a span's totals.
+    #[test]
+    fn reset_restores_a_captured_value() {
+        let start = allocation_counters();
+        add(4096);
+        assert!(allocation_counters().allocations > start.allocations);
+
+        reset_allocation_counters(start.clone());
+        assert_eq!(allocation_counters().allocations, start.allocations);
+        assert_eq!(
+            allocation_counters().allocation_count,
+            start.allocation_count
+        );
+    }
+
+    /// `flush` is called when a thread stops so a thread reusing the slot starts clean.
+    #[test]
+    fn flush_clears_this_threads_counters() {
+        std::thread::spawn(|| {
+            add(1234);
+            assert!(allocation_counters().allocations >= 1234);
+            flush();
+            let cleared = allocation_counters();
+            assert_eq!(cleared.allocations, 0);
+            assert_eq!(cleared.allocation_count, 0);
+            assert_eq!(cleared.deallocations, 0);
+            assert_eq!(cleared.deallocation_count, 0);
+        })
+        .join()
+        .unwrap();
     }
 }
