@@ -13,6 +13,7 @@ pub use self::{
     binding::EsmBinding,
     dynamic::EsmAsyncAssetReference,
     export::{EsmExport, EsmExports, FoundExportType, Liveness},
+    mangle::generated_export_key,
     meta::{ImportMetaBinding, ImportMetaRef},
     module_item::EsmModuleItem,
     url::{UrlAssetReference, UrlRewriteBehavior},

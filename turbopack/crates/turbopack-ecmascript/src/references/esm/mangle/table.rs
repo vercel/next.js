@@ -49,10 +49,12 @@ const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
 /// two- and three-character words are listed: no single character is a reserved word, and by four
 /// characters the table holds 200k+ buckets, so losing a name there is irrelevant.
 ///
-/// `default` and `__esModule` are correctness cases instead. Both are emitted under their own names
-/// rather than mangled, so an assigned key landing on one of them would collide; `__esModule` is
-/// additionally defined on every module's exports object by `esm()` in the runtime, whatever the
-/// module's own exports are called.
+/// `__esModule` is a correctness case instead: `esm()` in the runtime does
+/// `defineProp(exports, '__esModule', …)` for every ESM module, so that property is on the exports
+/// object whatever the module's own exports are called, and an assigned key would collide with it.
+/// (`default` needs no such treatment once it is mangled: nothing then emits a property under that
+/// name, and the runtime paths that read it by name only see modules that keep their original
+/// names.)
 ///
 /// [`reserved_in_table`] has to be kept in step with this list — there is a test for that.
 const RESERVED_KEYS: &[&str] = &[
@@ -66,23 +68,21 @@ const RESERVED_KEYS: &[&str] = &[
     "new",
     "try",
     "var",
-    // Emitted under their own names rather than mangled, so an assigned key must not land on
-    // them. `default` is dropped from this list once it is mangled too.
-    "default",
+    // Defined on every module's exports object by the runtime, whatever the module's own exports
+    // are called, so an assigned key must not land on it.
     "__esModule",
 ];
 
 /// How many of [`RESERVED_KEYS`] occupy a bucket in a table of `len`-character identifiers. A key
 /// only takes a bucket once the table is wide enough to hold it, so this is a running count by
 /// length: nothing at one character, the three two-letter words at two, all eight reserved words
-/// from three, `default` from seven, and `__esModule` from ten.
+/// from three, and `__esModule` from ten.
 const fn reserved_in_table(len: u32) -> u64 {
     match len {
         0 | 1 => 0,
         2 => 3,
-        3..=6 => 8,
-        7..=9 => 9,
-        _ => 10,
+        3..=9 => 8,
+        _ => 9,
     }
 }
 

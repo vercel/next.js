@@ -10,6 +10,11 @@
 //! ([`super::export::EsmExports::code_generation`]) and the consumer
 //! ([`super::base::ReferencedAsset`]) ask it for the *target* module's map, so they cannot
 //! disagree. It returns `None` whenever the module has to keep its original names.
+//!
+//! Code generation that spells an export access out **as a string** — rather than going through
+//! `ReferencedAssetIdent`, which handles this automatically — must resolve its key through
+//! [`generated_export_key`]. A hard-coded `["someExport"]` in generated source silently misses as
+//! soon as the target module's exports are mangled.
 
 mod table;
 
@@ -25,19 +30,11 @@ use turbopack_core::{
 use self::table::shorten_to_unique_names;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
-/// The export name of the default export. Not mangled: the CommonJS interop layer and the
-/// `__esModule` handling in the runtime look it up by name, an embedder's runtime may read
-/// `.default` off a loaded module by string, and it is only seven characters to begin with.
-const DEFAULT_EXPORT: &str = "default";
-/// Never mangled — it is part of the interop contract with CommonJS consumers.
-const ES_MODULE_FLAG: &str = "__esModule";
-
 /// A module's export name mapping: original export name -> the key actually used in the output.
 ///
-/// It covers every export the module emits that is eligible for mangling (so not `default` or
-/// `__esModule`), including the ones whose key is unchanged because the original name was already
-/// short enough to keep — which makes the map a complete description of the module's emitted keys.
-/// A name absent from the map keeps its original name.
+/// It covers every export the module emits, including the ones whose key is unchanged because the
+/// original name was already short enough to keep — which makes the map a complete description of
+/// the module's emitted keys. A name absent from the map keeps its original name.
 #[turbo_tasks::value(transparent)]
 pub struct MangledExportNames(pub FrozenMap<RcStr, RcStr>);
 
@@ -115,13 +112,19 @@ pub async fn mangled_export_names(
         return Ok(Vc::cell(None));
     }
 
-    // Mangle exactly the exports that are emitted, minus the ones whose names are part of a
-    // runtime contract.
+    // Every emitted export is mangled, `default` and `__esModule` included.
+    //
+    // Neither is a runtime contract *as an export name*. The runtime paths that look `'default'` up
+    // by name — the CommonJS interop in `esmNamespaceObject` and the proxy traps behind
+    // `ensureDynamicExports` — only apply to CommonJS targets and to modules with dynamic
+    // re-exports, and both already keep their original names via the checks above. `__esModule` is
+    // how a CommonJS module signals interop *to* ESM, so an ESM module that happens to export that
+    // name is just an ordinary export. `__esModule` still cannot be *assigned* to some other
+    // export, because the runtime defines that property itself; see `RESERVED_KEYS` in `table`.
     let names = expanded
         .exports
         .iter()
         .map(|(name, _)| name)
-        .filter(|name| name.as_str() != DEFAULT_EXPORT && name.as_str() != ES_MODULE_FLAG)
         .collect::<Vec<_>>();
 
     if names.is_empty() {
@@ -145,9 +148,18 @@ pub async fn mangled_export_names(
     )))
 }
 
-/// Looks up the key that `export` is emitted under in `module`, which is `export` itself unless
-/// the module's exports are mangled.
-pub async fn mangled_export_name(
+/// The key that generated code has to use to read `export` from `module` — the mangled key when
+/// the module's exports are mangled, and `export` itself otherwise.
+///
+/// **Every** piece of code generation that materializes an export access as a string has to get its
+/// key from here, or the access will miss when the module is mangled. That includes generated
+/// source text (`__turbopack_require__(id)["default"](…)` and friends) as well as AST built by
+/// hand. Code that goes through [`super::base::ReferencedAssetIdent`] is already covered.
+///
+/// `module` must be the module that actually *produces* the export. For a re-export, resolve to the
+/// producing module first (as `ReferencedAsset::get_ident_inner` does), because each module mangles
+/// its own keys independently.
+pub async fn generated_export_key(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     export: &RcStr,
