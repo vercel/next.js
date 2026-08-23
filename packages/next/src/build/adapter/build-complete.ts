@@ -47,6 +47,7 @@ import {
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
@@ -659,6 +660,11 @@ export async function handleBuildComplete({
       prerenders: [],
       staticFiles: [],
     }
+    const appRoutePathnames = new Set(
+      (appPageKeys ?? [])
+        .filter(isAppRouteRoute)
+        .map((appPath) => normalizeAppPath(appPath))
+    )
 
     if (config.output === 'export') {
       // collect export assets and provide as static files
@@ -1212,11 +1218,6 @@ export async function handleBuildComplete({
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)
-            outputs.appRoutes.push({
-              ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
-              id: normalizePagePath(output.pathname) + '.rsc',
-            })
           }
         }
       }
@@ -2075,11 +2076,31 @@ export async function handleBuildComplete({
       }
     }
 
+    const appRouteRscAliases = outputs.appRoutes
+      .filter((output) => !isDynamicRoute(output.pathname))
+      .map((output) => ({
+        output,
+        source: normalizePagePath(output.pathname),
+      }))
+
     normalizePathnames(config, outputs)
 
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    const appRouteRscRoutes: DynamicRouteItem[] = appRouteRscAliases.map(
+      ({ output, source }) => {
+        const pathname = addPathPrefix(source, config.basePath)
+
+        return {
+          source: source + '.rsc',
+          sourceRegex: `^${escapeStringRegexp(pathname)}(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$`,
+          destination: output.pathname,
+          has: undefined,
+          missing: undefined,
+        }
+      }
+    )
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
@@ -2123,13 +2144,20 @@ export async function handleBuildComplete({
         ) + getDestinationQuery(route.routeKeys)
 
       if (appPageKeys && appPageKeys.length > 0) {
+        const isAppRoute = appRoutePathnames.has(route.page)
+
         dynamicRoutes.push({
           source: route.page + '.rsc',
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
             '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
-          destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
+          // Route Handlers return ordinary responses, but RSC requests are
+          // rewritten to an .rsc pathname before filesystem routing. Point
+          // those aliases back to the one ordinary Route Handler output.
+          destination: isAppRoute
+            ? destination
+            : destination?.replace(/($|\?)/, '$rscSuffix$1'),
           has:
             isFallbackFalse && !pageKeys.includes(route.page)
               ? fallbackFalseHasCondition
@@ -2268,6 +2296,7 @@ export async function handleBuildComplete({
       const combinedDynamicRoutes = [
         ...dynamicDataRoutes,
         ...dynamicSegmentRoutes,
+        ...appRouteRscRoutes,
         ...dynamicRoutes,
       ] satisfies Route[]
 

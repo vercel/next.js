@@ -91,6 +91,45 @@ describe('adapter-config', () => {
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
 
+    expect(
+      outputs.appRoutes
+        .map((output) => output.pathname)
+        .filter((pathname) => pathname.endsWith('.rsc'))
+    ).toEqual([])
+
+    // Route Handlers need RSC pathname aliases because App Router
+    // navigations are rewritten to .rsc before filesystem routing. The aliases
+    // must point back to the one ordinary Route Handler output.
+    expect(routing.dynamicRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: '/node-route.rsc',
+          destination: '/docs/node-route',
+        }),
+        expect.objectContaining({
+          source: '/edge-route.rsc',
+          destination: '/docs/edge-route',
+        }),
+        expect.objectContaining({
+          source: '/isr-route/[slug].rsc',
+          destination: '/docs/isr-route/[slug]?nxtPslug=$nxtPslug',
+        }),
+      ])
+    )
+
+    const dynamicRscRouteSources = routing.dynamicRoutes
+      .map((route) => route.source)
+      .filter((source) => source.endsWith('.rsc') && source.includes('['))
+      .sort()
+    expect(dynamicRscRouteSources).toEqual([
+      '/isr-app/[slug].rsc',
+      '/isr-pages-fallback-false/[slug].rsc',
+      '/isr-pages-fallback-true/[slug].rsc',
+      '/isr-pages/[slug].rsc',
+      '/isr-route/[slug].rsc',
+      '/node-app/[slug].rsc',
+    ])
+
     const expectedRouteConfigs = [
       {
         pathname: '/docs/node-app',
@@ -474,5 +513,39 @@ describe('adapter-config', () => {
     expect(preferredRegionRoute).toBeDefined()
     expect(preferredRegionRoute?.runtime).toBe('edge')
     expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
+  })
+})
+
+describe('adapter-config root Route Handler', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  it('aliases root RSC requests to one Route Handler output', async () => {
+    await next.remove('app/page.tsx')
+    await next.patchFile(
+      'app/route.ts',
+      `export function GET() {
+        return new Response('root')
+      }`
+    )
+    await next.build()
+
+    const { outputs, routing }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    expect(
+      outputs.appRoutes.filter((output) => output.pathname === '/docs')
+    ).toHaveLength(1)
+    expect(routing.dynamicRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: '/index.rsc',
+          sourceRegex: expect.stringMatching(/^\^\/docs\/index/),
+          destination: '/docs',
+        }),
+      ])
+    )
   })
 })
