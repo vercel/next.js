@@ -785,6 +785,23 @@ export class IncrementalCache implements IncrementalCacheType {
         this.cacheControls.set(toRoute(pathname), ctx.cacheControl)
       }
 
+      // Page and route entries carry their tags (explicit fetch tags and
+      // implicit path tags) in the cached value's headers. Expose them on the
+      // context as well so that custom cache handlers can maintain a
+      // tag → key index without parsing the header themselves.
+      if (
+        !ctx.fetchCache &&
+        ctx.tags === undefined &&
+        (data?.kind === CachedRouteKind.APP_PAGE ||
+          data?.kind === CachedRouteKind.APP_ROUTE)
+      ) {
+        const tagsHeader = data.headers?.[NEXT_CACHE_TAGS_HEADER]
+
+        if (typeof tagsHeader === 'string' && tagsHeader.length > 0) {
+          ctx = { ...ctx, tags: tagsHeader.split(',') }
+        }
+      }
+
       await this.cacheHandler?.set(pathname, data, ctx)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
