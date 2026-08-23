@@ -51,7 +51,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{all_known_export_names, is_export_missing},
-            mangle::mangled_export_name,
+            mangle::generated_export_key,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -315,7 +315,7 @@ impl ReferencedAsset {
                     // `EsmExports::code_generation`), so the two always agree.
                     export: match &export {
                         Some(export) => {
-                            Some(mangled_export_name(*asset, chunking_context, export).await?)
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
                         }
                         None => None,
                     },
