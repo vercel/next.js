@@ -3,7 +3,11 @@
 //! This asks the OS for the process's resident/committed memory rather than deriving it from a
 //! counter maintained at every allocation site. The query costs a few hundred nanoseconds, which
 //! only suits callers that sample it (eviction decisions, status lines, trace samples) rather than
-//! ones on an allocation hot path. Platforms without an implementation return `None`.
+//! ones on an allocation hot path. Platforms that do not expose a figure return `None`.
+//!
+//! Each platform reports the closest thing it has to "what this process currently costs the
+//! system", so the figures are comparable in trend but not identical in what they include:
+//! macOS uses `phys_footprint`, Linux the resident set size, and Windows the private working set.
 
 /// See [`super::TurboMalloc::memory_usage`].
 pub fn memory_usage() -> Option<usize> {
@@ -57,26 +61,90 @@ mod platform {
 
 #[cfg(all(target_os = "linux", not(target_family = "wasm")))]
 mod platform {
-    /// Reads the resident set size from `/proc/self/statm`, whose second field is the resident
-    /// page count.
+    /// Reads `VmRSS` from `/proc/self/status`, the process's resident set size. `status` is used
+    /// rather than `statm` because it reports kB directly, so no page-size lookup — and so no
+    /// `libc` dependency — is needed.
     pub fn memory_usage() -> Option<usize> {
-        let statm = std::fs::read_to_string("/proc/self/statm").ok()?;
-        let resident_pages: usize = statm.split_ascii_whitespace().nth(1)?.parse().ok()?;
-        // Safety: `_SC_PAGESIZE` is a valid sysconf name and the call has no preconditions.
-        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
-        if page_size <= 0 {
-            return None;
-        }
-        Some(resident_pages * page_size as usize)
+        super::parse_vm_rss(&std::fs::read_to_string("/proc/self/status").ok()?)
     }
 }
 
+/// Extracts `VmRSS` (in bytes) from the contents of `/proc/self/status`.
+///
+/// Compiled on every platform, not just Linux, so the parsing is covered by tests wherever they
+/// run; only the Linux `platform` module calls it.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn parse_vm_rss(content: &str) -> Option<usize> {
+    // Expected line, with the value in kB:
+    //   VmRSS:	   12345 kB
+    let rest = content
+        .lines()
+        .find_map(|line| line.strip_prefix("VmRSS:"))?;
+    let kb: usize = rest.split_ascii_whitespace().next()?.parse().ok()?;
+    Some(kb * 1024)
+}
+
+#[cfg(windows)]
+mod platform {
+    use windows_sys::Win32::System::{
+        ProcessStatus::{K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS_EX},
+        Threading::GetCurrentProcess,
+    };
+
+    /// Reads `PrivateUsage` from `GetProcessMemoryInfo`, the process's private commit charge. This
+    /// is the closest Windows equivalent to macOS' `phys_footprint`: it excludes memory shared
+    /// with other processes, so it tracks what this process is responsible for. It is what Task
+    /// Manager shows in its "Commit size" column.
+    pub fn memory_usage() -> Option<usize> {
+        let mut counters = PROCESS_MEMORY_COUNTERS_EX {
+            cb: size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32,
+            ..unsafe { std::mem::zeroed() }
+        };
+
+        // Safety: `counters` is a correctly sized and initialized `PROCESS_MEMORY_COUNTERS_EX`,
+        // and its `cb` says so. The pseudo-handle from `GetCurrentProcess` needs no closing.
+        let ok = unsafe {
+            K32GetProcessMemoryInfo(
+                GetCurrentProcess(),
+                (&mut counters as *mut PROCESS_MEMORY_COUNTERS_EX).cast(),
+                counters.cb,
+            )
+        };
+        if ok == 0 {
+            return None;
+        }
+        Some(counters.PrivateUsage)
+    }
+}
+
+// WASM has no OS to ask. `wasm32-unknown-unknown` has no memory reporting at all; under WASI the
+// figure would have to come from the host, and nothing wires that up yet, so callers get `None`
+// and fall back to not making memory-driven decisions.
 #[cfg(not(any(
     target_os = "macos",
-    all(target_os = "linux", not(target_family = "wasm"))
+    all(target_os = "linux", not(target_family = "wasm")),
+    windows,
 )))]
 mod platform {
     pub fn memory_usage() -> Option<usize> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_vm_rss;
+
+    #[test]
+    fn parses_the_resident_set_size() {
+        let content = "VmPeak:\t 2078044 kB\nVmSize:\t 2078044 kB\nVmRSS:\t   12345 kB\n";
+        assert_eq!(parse_vm_rss(content), Some(12345 * 1024));
+    }
+
+    #[test]
+    fn absent_or_malformed_vm_rss_reports_nothing() {
+        assert_eq!(parse_vm_rss("VmSize:\t 2078044 kB\n"), None);
+        assert_eq!(parse_vm_rss("VmRSS:\tnot-a-number kB\n"), None);
+        assert_eq!(parse_vm_rss(""), None);
     }
 }
