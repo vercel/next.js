@@ -1189,7 +1189,7 @@
         case 32768:
         case 65536:
         case 131072:
-          return lanes & 261888;
+          return lanes & -lanes;
         case 262144:
         case 524288:
         case 1048576:
@@ -1267,6 +1267,22 @@
           ~(root.suspendedLanes & ~root.pingedLanes) &
           renderLanes)
       );
+    }
+    function getEntangledLanes(root, renderLanes) {
+      0 !== (renderLanes & 8) && (renderLanes |= renderLanes & 32);
+      var allEntangledLanes = root.entangledLanes;
+      if (0 !== allEntangledLanes)
+        for (
+          root = root.entanglements, allEntangledLanes &= renderLanes;
+          0 < allEntangledLanes;
+
+        ) {
+          var index = 31 - clz32(allEntangledLanes),
+            lane = 1 << index;
+          renderLanes |= root[index];
+          allEntangledLanes &= ~lane;
+        }
+      return renderLanes;
     }
     function computeExpirationTime(lane, currentTime) {
       switch (lane) {
@@ -14495,6 +14511,14 @@
             parentFragmentInstances[i]
           );
     }
+    function commitFragmentInstanceInsertionEffects(fiber) {
+      for (var parent = fiber.return; null !== parent; ) {
+        isFragmentInstanceParent(parent) &&
+          commitNewChildToFragmentInstance(fiber.stateNode, parent.stateNode);
+        if (isFragmentInstanceHostBoundary(parent)) break;
+        parent = parent.return;
+      }
+    }
     function commitFragmentInstanceDeletionEffects(fiber) {
       for (var parent = fiber.return; null !== parent; ) {
         if (isFragmentInstanceParent(parent)) {
@@ -14506,8 +14530,8 @@
               var _eventListeners$i3 = eventListeners[i];
               childInstance.removeEventListener(
                 _eventListeners$i3.type,
-                _eventListeners$i3.listener,
-                _eventListeners$i3.optionsOrUseCapture
+                _eventListeners$i3.attachedListener,
+                getAttachOptions(_eventListeners$i3.optionsOrUseCapture)
               );
             }
           3 !== childInstance.nodeType &&
@@ -16037,9 +16061,10 @@
         case 5:
           offscreenSubtreeWasHidden ||
             safelyDetachRef(deletedFiber, nearestMountedAncestor),
-            (5 !== deletedFiber.tag && 6 !== deletedFiber.tag) ||
-              commitFragmentInstanceDeletionEffects(deletedFiber);
+            commitFragmentInstanceDeletionEffects(deletedFiber);
         case 6:
+          6 === deletedFiber.tag &&
+            commitFragmentInstanceDeletionEffects(deletedFiber);
           prevHostParent = hostParent;
           prevHostParentIsContainer = hostParentIsContainer;
           hostParent = null;
@@ -16843,9 +16868,13 @@
         case 21:
           break;
         case 7:
-          current &&
-            null !== current.stateNode &&
-            (current.stateNode._fragmentFiber = finishedWork);
+          flags & 512 &&
+            (offscreenSubtreeWasHidden ||
+              null === current ||
+              safelyDetachRef(current, current.return)),
+            current &&
+              null !== current.stateNode &&
+              (current.stateNode._fragmentFiber = finishedWork);
         default:
           recursivelyTraverseMutationEffects(root, finishedWork, lanes),
             commitReconciliationEffects(finishedWork);
@@ -17034,14 +17063,15 @@
             );
         case 5:
           safelyDetachRef(finishedWork, finishedWork.return);
-          (5 !== finishedWork.tag &&
-            27 !== finishedWork.tag &&
-            6 !== finishedWork.tag) ||
+          (5 !== finishedWork.tag && 27 !== finishedWork.tag) ||
             commitFragmentInstanceDeletionEffects(finishedWork);
           recursivelyTraverseDisappearLayoutEffects(
             finishedWork,
             layoutEffectTraversalFlags
           );
+          break;
+        case 6:
+          commitFragmentInstanceDeletionEffects(finishedWork);
           break;
         case 26:
           safelyDetachRef(finishedWork, finishedWork.return);
@@ -17166,16 +17196,8 @@
             NoLayoutEffectTraversalFlags &&
             commitHostSingletonAcquisition(finishedWork);
         case 5:
-          if (5 === finishedWork.tag || 27 === finishedWork.tag)
-            a: for (var parent = finishedWork.return; null !== parent; ) {
-              isFragmentInstanceParent(parent) &&
-                commitNewChildToFragmentInstance(
-                  finishedWork.stateNode,
-                  parent.stateNode
-                );
-              if (isFragmentInstanceHostBoundary(parent)) break a;
-              parent = parent.return;
-            }
+          (5 !== finishedWork.tag && 27 !== finishedWork.tag) ||
+            commitFragmentInstanceInsertionEffects(finishedWork);
           recursivelyTraverseReappearLayoutEffects(
             finishedRoot,
             finishedWork,
@@ -17187,15 +17209,18 @@
             commitHostMount(finishedWork);
           safelyAttachRef(finishedWork, finishedWork.return);
           break;
+        case 6:
+          commitFragmentInstanceInsertionEffects(finishedWork);
+          break;
         case 26:
-          parent = finishedWork.stateNode;
+          var instance = finishedWork.stateNode;
           null !== finishedWork.memoizedState ||
-            null === parent ||
+            null === instance ||
             offscreenSubtreeIsHidden ||
             mountHoistable(
-              getHoistableRoot(parent.ownerDocument),
+              getHoistableRoot(instance.ownerDocument),
               finishedWork.type,
-              parent
+              instance
             );
           recursivelyTraverseReappearLayoutEffects(
             finishedRoot,
@@ -19807,6 +19832,7 @@
       spawnedLane,
       didAttemptEntireTree
     ) {
+      suspendedLanes = getEntangledLanes(root, suspendedLanes);
       suspendedLanes &= ~workInProgressRootPingedLanes;
       suspendedLanes &= ~workInProgressRootInterleavedUpdatedLanes;
       root.suspendedLanes |= suspendedLanes;
@@ -20343,15 +20369,7 @@
       workInProgressRootRecoverableErrors = workInProgressRootConcurrentErrors =
         null;
       workInProgressRootDidIncludeRecursiveRenderUpdate = !1;
-      0 !== (lanes & 8) && (lanes |= lanes & 32);
-      endTime = root.entangledLanes;
-      if (0 !== endTime)
-        for (root = root.entanglements, endTime &= lanes; 0 < endTime; )
-          (debugTask = 31 - clz32(endTime)),
-            (color = 1 << debugTask),
-            (lanes |= root[debugTask]),
-            (endTime &= ~color);
-      entangledRenderLanes = lanes;
+      entangledRenderLanes = getEntangledLanes(root, lanes);
       finishQueueingConcurrentUpdates();
       root = getCurrentTime();
       1e3 < root - lastResetTime &&
@@ -27088,6 +27106,11 @@
       );
       return !1;
     }
+    function getAttachOptions(opts) {
+      return null == opts || "boolean" === typeof opts || !0 !== opts.once
+        ? opts
+        : { capture: opts.capture, passive: opts.passive, signal: opts.signal };
+    }
     function normalizeListenerOptions(opts) {
       return null == opts
         ? "0"
@@ -27285,8 +27308,8 @@
           var _eventListeners$i2 = eventListeners[i];
           childInstance.addEventListener(
             _eventListeners$i2.type,
-            _eventListeners$i2.listener,
-            _eventListeners$i2.optionsOrUseCapture
+            _eventListeners$i2.attachedListener,
+            getAttachOptions(_eventListeners$i2.optionsOrUseCapture)
           );
         }
       3 !== childInstance.nodeType &&
@@ -32871,20 +32894,40 @@
     ) {
       null === this._eventListeners && (this._eventListeners = []);
       var listeners = this._eventListeners;
-      -1 ===
-        indexOfEventListener(listeners, type, listener, optionsOrUseCapture) &&
-        (listeners.push({
+      if (
+        -1 ===
+        indexOfEventListener(listeners, type, listener, optionsOrUseCapture)
+      ) {
+        var fragmentInstance = this,
+          attachedListener = listener;
+        null != optionsOrUseCapture &&
+          "boolean" !== typeof optionsOrUseCapture &&
+          !0 === optionsOrUseCapture.once &&
+          (attachedListener = function (event) {
+            fragmentInstance.removeEventListener(
+              type,
+              listener,
+              optionsOrUseCapture
+            );
+            "function" === typeof listener
+              ? listener.call(this, event)
+              : listener.handleEvent(event);
+          });
+        var attachOptions = getAttachOptions(optionsOrUseCapture);
+        listeners.push({
           type: type,
           listener: listener,
-          optionsOrUseCapture: optionsOrUseCapture
-        }),
+          optionsOrUseCapture: optionsOrUseCapture,
+          attachedListener: attachedListener
+        });
         traverseFragmentInstancesAndTextInstances(
           this._fragmentFiber,
           addEventListenerToChild,
           type,
-          listener,
-          optionsOrUseCapture
-        ));
+          attachedListener,
+          attachOptions
+        );
+      }
       this._eventListeners = listeners;
     };
     FragmentInstance.prototype.removeEventListener = function (
@@ -32893,22 +32936,29 @@
       optionsOrUseCapture
     ) {
       var listeners = this._eventListeners;
-      if (null !== listeners) {
-        var index = indexOfEventListener(
+      if (
+        null !== listeners &&
+        ((listener = indexOfEventListener(
           listeners,
           type,
           listener,
           optionsOrUseCapture
+        )),
+        -1 !== listener)
+      ) {
+        var _listeners$index = listeners[listener];
+        optionsOrUseCapture = _listeners$index.attachedListener;
+        _listeners$index = getAttachOptions(
+          _listeners$index.optionsOrUseCapture
         );
-        -1 !== index &&
-          (traverseFragmentInstancesAndTextInstances(
-            this._fragmentFiber,
-            removeEventListenerFromChild,
-            type,
-            listener,
-            optionsOrUseCapture
-          ),
-          listeners.splice(index, 1));
+        traverseFragmentInstancesAndTextInstances(
+          this._fragmentFiber,
+          removeEventListenerFromChild,
+          type,
+          optionsOrUseCapture,
+          _listeners$index
+        );
+        listeners.splice(listener, 1);
       }
     };
     FragmentInstance.prototype.dispatchEvent = function (event) {
@@ -32931,8 +32981,8 @@
             var _eventListeners$i = eventListeners[i];
             temp.addEventListener(
               _eventListeners$i.type,
-              _eventListeners$i.listener,
-              _eventListeners$i.optionsOrUseCapture
+              _eventListeners$i.attachedListener,
+              getAttachOptions(_eventListeners$i.optionsOrUseCapture)
             );
           }
         parentHostFiber.appendChild(temp);
@@ -32942,8 +32992,8 @@
             (_eventListeners$i = eventListeners[i]),
               temp.removeEventListener(
                 _eventListeners$i.type,
-                _eventListeners$i.listener,
-                _eventListeners$i.optionsOrUseCapture
+                _eventListeners$i.attachedListener,
+                getAttachOptions(_eventListeners$i.optionsOrUseCapture)
               );
         parentHostFiber.removeChild(temp);
         return event;
@@ -33640,11 +33690,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-22e4f993-20260811" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-eafeac09-20260819" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-22e4f993-20260811\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-eafeac09-20260819\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33681,10 +33731,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-22e4f993-20260811",
+          version: "19.3.0-experimental-eafeac09-20260819",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-22e4f993-20260811"
+          reconcilerVersion: "19.3.0-experimental-eafeac09-20260819"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33998,5 +34048,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-22e4f993-20260811";
+    exports.version = "19.3.0-experimental-eafeac09-20260819";
   })();

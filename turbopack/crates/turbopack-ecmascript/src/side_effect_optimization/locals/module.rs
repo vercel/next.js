@@ -11,16 +11,18 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
+    source::OptionSource,
 };
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    MergedEcmascriptModule,
+    EcmascriptParsable, MergedEcmascriptModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    parse::ParseResult,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
@@ -59,8 +61,8 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+    fn source(&self) -> Vc<OptionSource> {
+        ResolvedVc::upcast::<Box<dyn Module>>(self.module).source()
     }
 
     #[turbo_tasks::function]
@@ -83,6 +85,14 @@ impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn side_effects(&self) -> Vc<ModuleSideEffects> {
         self.module.side_effects()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    fn failsafe_parse(&self) -> Vc<ParseResult> {
+        self.module.failsafe_parse()
     }
 }
 

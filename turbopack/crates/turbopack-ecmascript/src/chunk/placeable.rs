@@ -50,9 +50,9 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent>;
 
-    /// Returns the content identity for cache invalidation.
-    /// Override this for modules whose content depends on more than just the module source
-    /// (e.g., async loaders that depend on available modules).
+    /// See [`ChunkItem::content_ident`]
+    ///
+    /// [`ChunkItem::content_ident`]: turbopack_core::chunk::ChunkItem::content_ident
     #[turbo_tasks::function]
     fn chunk_item_content_ident(
         self: Vc<Self>,
@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
                         })
                     }
                 })
-                .map(|glob| async move {
+                .map(async |glob| {
                     Ok(match glob {
                         Either::Left(glob) => {
                             match glob.to_resolved().await {

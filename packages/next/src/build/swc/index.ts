@@ -43,11 +43,6 @@ import type {
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
 
-export enum HmrTarget {
-  Client = 'client',
-  Server = 'server',
-}
-
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
   default?(): Promise<typeof import('./generated-wasm')>
@@ -762,47 +757,27 @@ function bindingToApi(
       })()
     }
 
-    // Note: only the Server target is implemented in the native binding;
-    // add a Client overload once `all_hmr_update` supports it.
-    allHmrEvents(
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
+    serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
       return subscribe(true, async (callback) =>
-        binding.projectAllHmrEvents(this._nativeProject, target, callback)
+        binding.projectServerHmrEvents(this._nativeProject, callback)
       )
     }
 
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+    clientHmrEvents(
+      chunkName: string
+    ): AsyncIterableIterator<TurbopackResult<Update>> {
       return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
+        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
       )
     }
 
-    /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
-     */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
+    /** Subscribe to client output chunk paths that can receive HMR updates. */
+    clientHmrChunkNamesSubscribe() {
       return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
+          binding.projectClientHmrChunkNamesSubscribe(
             this._nativeProject,
-            target,
             callback
           )
       )

@@ -521,6 +521,12 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  /**
+   * Replaces the client router's sequential action queue with a rewritten
+   * concurrent implementation. The implementations are swapped at the module
+   * level by the bundler; the inactive one is not included in the bundle.
+   */
+  concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -986,6 +992,14 @@ export interface ExperimentalConfig {
    * Defaults to `false`
    */
   turbopackCjsScopeHoisting?: boolean
+
+  /**
+   * Enable cross-module constant inlining in Turbopack. Constants exported from other
+   * modules are inlined at their use sites, which enables dead code elimination.
+   *
+   * Defaults to `false`
+   */
+  turbopackCrossModuleConstants?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -2001,12 +2015,8 @@ export interface NextConfig {
    *
    * When `false` or omitted, this does nothing (the legacy behavior, where
    * dynamic data is included in the prefetch).
-   *
-   * `'unstable_eager'` is like `true`, except the default becomes
-   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
-   * prefetch={true}. Internal migration aid; not part of the public API.
    */
-  partialPrefetching?: boolean | 'unstable_eager'
+  partialPrefetching?: boolean
 
   cacheLife?: {
     [profile: string]: {
@@ -2234,6 +2244,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    concurrentRouterQueue: false,
     instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,

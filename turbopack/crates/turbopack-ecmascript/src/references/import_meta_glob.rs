@@ -846,8 +846,9 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 
             // Generate the value expression based on eager/lazy and import options
             let value_expr = if this.eager {
-                // Eager: direct synchronous require
-                let module_expr = pm.create_require(Cow::Borrowed(&key_expr));
+                // Eager: synchronously evaluate the module and use its ESM namespace,
+                // matching what a static `import * as ns from "..."` would produce.
+                let module_expr = pm.create_esm_require(Cow::Borrowed(&key_expr));
                 // If `import` option is set, access the named export
                 if let Some(named) = &this.import {
                     quote!(

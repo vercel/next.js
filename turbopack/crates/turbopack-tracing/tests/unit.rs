@@ -67,7 +67,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::asset_fs_inlining("asset-fs-inlining")]
 #[case::asset_fs_inlining_multi("asset-fs-inlining-multi")]
 #[case::asset_fs_logical("asset-fs-logical")]
-// #[case::asset_graceful_fs("asset-graceful-fs")]
+#[case::asset_graceful_fs("asset-graceful-fs")]
 #[case::asset_node_require("asset-node-require")]
 #[case::asset_package_json("asset-package-json")]
 #[case::asset_symlink("asset-symlink")]
@@ -102,11 +102,22 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::esm_export_wildcard("esm-export-wildcard")]
 #[case::esm_paths("esm-paths")]
 #[case::esm_paths_trailer("esm-paths-trailer")]
+// nft traces a package's legacy `main` in addition to the target its `exports` field
+// resolves to (unless nft's `exportsOnly` option is set), so its reference output lists
+// `index.js` next to `require-main.cjs`, while Turbopack only traces the file it actually
+// resolves to.
 // #[case::exports("exports")]
+// Two reasons: as for `exports` above, nft also traces the legacy resolution (here the
+// directory index `index.js`). On top of that, Turbopack resolves this fixture's `exports`
+// fallback array to nothing at all, because it stops at the invalid first target
+// (`"in:valid"`) instead of continuing with the next entry, so `require-main.cjs` is missed.
 // #[case::exports_fallback("exports-fallback")]
 #[case::exports_nomodule("exports-nomodule")]
-// #[case::exports_only("exports-only")]
-// #[case::exports_path("exports-path")]
+// `exports-only` is the same fixture as `exports`, but nft traces it with `exportsOnly:
+// true`, which matches Node's (and Turbopack's) semantics of ignoring `main` when an
+// `exports` field is present.
+#[case::exports_only("exports-only")]
+#[case::exports_path("exports-path")]
 #[case::exports_wildcard("exports-wildcard")]
 // #[case::ffmpeg_installer("ffmpeg-installer")]
 #[case::file_folder_slash("file-folder-slash")]
@@ -121,6 +132,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::imports("imports")]
 #[case::imports_module_sync("imports-module-sync")]
 #[case::imports_module_sync_cjs("imports-module-sync-cjs")]
+#[case::imports_wildcard("imports-wildcard")]
 #[case::jsonc_parser_wrapper("jsonc-parser-wrapper")]
 // #[case::jsx_input("jsx-input")]
 // #[case::microtime_node_gyp("microtime-node-gyp")]
@@ -137,6 +149,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
 // Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_cjs_node20("module-sync-condition-cjs-node20")]
+// A `require()` of a subpath export that hands the `module-sync` condition an ESM file and
+// `default` a CommonJS one (not a case that any of the above cover): both have to be traced.
+#[case::module_sync_condition_cjs_subpath("module-sync-condition-cjs-subpath")]
+// The same, but with the package reachable through two `node_modules` directories, as in a pnpm
+// install: merging the results of both must not drop either target.
+#[case::module_sync_condition_cjs_nested_symlink("module-sync-condition-cjs-nested-symlink")]
 #[case::module_sync_condition_es("module-sync-condition-es")]
 #[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
 // Turbopack always includes the module-sync version, regardless of the current Node version
