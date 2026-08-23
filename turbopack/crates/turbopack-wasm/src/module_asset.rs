@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
@@ -21,7 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::async_module::OptionAsyncModule,
+    references::{async_module::OptionAsyncModule, esm::EsmExports},
 };
 
 use crate::{
@@ -211,8 +211,28 @@ impl ChunkableModule for WebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.loader().get_exports()
+    async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        // This module hands out the *loader* module's exports as its own. Export mangling is
+        // decided per module — the producing side keys on the module whose code generation emits
+        // the export object, the consuming side on the module it imports from — so a value shared
+        // by two modules like this would let the two sides compute different keys. Expose it as
+        // unmangled, which both sides agree on.
+        let exports = self.loader().get_exports().await?;
+        Ok(match &*exports {
+            EcmascriptExports::EsmExports(esm_exports) => {
+                let esm_exports = esm_exports.await?;
+                EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: esm_exports.exports.clone(),
+                        star_exports: esm_exports.star_exports.clone(),
+                        mangle_export_names: false,
+                    }
+                    .resolved_cell(),
+                )
+                .cell()
+            }
+            _ => ReadRef::cell(exports.clone()),
+        })
     }
 
     #[turbo_tasks::function]
