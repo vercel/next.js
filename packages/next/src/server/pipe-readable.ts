@@ -155,6 +155,18 @@ export async function pipeNodeReadableToNodeResponse(
     const { errored, destroyed } = res
     if (errored || destroyed) return
 
+    // If the stream already errored before we started piping (e.g. a render
+    // transform failed while the response was being set up), its 'error'
+    // event already fired and won't fire again — waiting for it would hang
+    // forever. Destroy the response with that error instead.
+    const streamError = readable.errored
+    if (streamError) {
+      if (!isAbortError(streamError)) {
+        res.destroy(streamError)
+      }
+      return
+    }
+
     let started = false
 
     const finished = createPromiseWithResolvers<void>()
