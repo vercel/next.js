@@ -222,9 +222,9 @@ Make the navigation from /settings to /dashboard instant using the next-cache-co
 
 The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
-1. Audits the existing `<Link prefetch={true}>` calls with you.
+1. Audits the existing `<Link prefetch={true}>` calls and preserves the selected legacy-prefetched UI.
 2. Turns the flag on and resolves the insights it surfaces.
-3. Marks the routes whose URL data might be worth prefetching later.
+3. Marks only additional URL-specific UI outside that preserved contract for a later decision.
 
 It needs [Cache Components](/docs/app/getting-started/caching) already adopted.
 

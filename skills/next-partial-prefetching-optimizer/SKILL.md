@@ -244,15 +244,16 @@ Read the route tree, source links, destination components, data access, current
 | Large/high-cardinality lists, feeds, or grids                 | Prefer intent-triggered full prefetch, or keep shell-only                        |
 | Rarely used links                                             | Skip; paying before click is unlikely to help                                    |
 
-If adoption left `TODO(runtime-prefetch)` markers, they're a good place to start
+If adoption left `TODO(per-link-prefetch)` markers, they're a good place to start
 when the user hasn't named a link:
 
 ```bash
-rg -n -A2 "TODO\(runtime-prefetch\)" --glob 'app/**' --glob 'src/app/**'
+rg -n -A2 "TODO\(per-link-prefetch\)" --glob 'app/**' --glob 'src/app/**'
 ```
 
-Each hit is a candidate adoption left undecided. There may be none, which is
-fine. The user's chosen navigation is the scope either way.
+Each hit is additional UI outside the legacy contract that adoption left
+undecided. There may be none, which is fine. The user's chosen navigation is
+the scope either way.
 
 Produce a short inspection record before the question:
 
@@ -264,7 +265,7 @@ Produce a short inspection record before the question:
 - **Data classification:** static, URL (`params`/`searchParams`/full URL),
   session (`cookies`/`headers`), or uncached request-time work.
 - **Existing policy:** default, `prefetch={true}`, `prefetch={false}`, custom
-  wrapper, imperative prefetch, or a `TODO(runtime-prefetch)` left by adoption.
+  wrapper, imperative prefetch, or a `TODO(per-link-prefetch)` left by adoption.
 - **Candidate proof:** one stable shell marker and one real URL-specific target
   marker for the test user. For a session-backed exception, record why it is
   absent from the default shell and present under the full-link strategy.
@@ -292,8 +293,13 @@ changes.
 
 ## A. RIG: production prefetch behavior with the API exposed
 
-Reuse an existing `instant-nav.rig.md`; otherwise discover and create it from
-`rig-template.md`. The rig must provide:
+Read an existing `instant-nav.rig.md` first. The Cache Components optimizer
+and test-backed Partial Prefetching adoption use the same project-local build,
+auth, and testing contract, so extend that file with this optimizer's target
+and budget fields instead of creating another rig. If no rig exists because
+the earlier work used a manual path or no prior skill ran, discover and create
+the same file from `rig-template.md`; this optimizer does not require running a
+previous skill. The rig must provide:
 
 1. a production build (`next build` + `next start`, staging, or preview),
    because automatic prefetching is production-only;
@@ -391,7 +397,7 @@ change:
    hovered/focused link using
    [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch)
    as the base pattern.
-5. Remove that link's `TODO(runtime-prefetch)` marker, and its `// See:` line,
+5. Remove that link's `TODO(per-link-prefetch)` marker, and its `// See:` line,
    once the locked test is GREEN. That marker is the only record the work is
    outstanding, so it stays until then.
 6. Re-run the locked test after every coherent edit until both markers are

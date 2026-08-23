@@ -167,8 +167,8 @@ verdicts below are meaningful on older versions.
 
 If `partialPrefetching` is off, only the static App Shell can be made instant
 here. Optimize the shell as usual, but where a route's URL or runtime data
-can't reach the prefetch without it, leave a `TODO(runtime-prefetch)` marker
-(the same one adoption leaves) and handle it in
+can't reach the prefetch without it, leave a `TODO(per-link-prefetch)` marker
+for the additional UI and handle it in
 [After optimization](#after-optimization).
 
 ## 0. SETUP: discover this project's rig, once per repo
@@ -481,7 +481,7 @@ during an incremental rollout and keep checking any other target routes.
   result and locks it in with `instant()`. Don't add per-link prefetching from
   this loop. Keep the default link behavior everywhere else so the shared App
   Shell remains the low-cost baseline.
-- **Not adopted yet:** any `TODO(runtime-prefetch)` markers the loop left are
+- **Not adopted yet:** any `TODO(per-link-prefetch)` markers the loop left are
   routes whose runtime data can't reach the prefetch without Partial
   Prefetching. It's the user's call: adopt it with
   [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption)

@@ -1,9 +1,13 @@
 # Rig discovery: extend or create `instant-nav.rig.md`
 
-Reuse the `instant-nav.rig.md` created by the Cache Components optimizer when
-it exists. Partial Prefetching uses the same production-build and testing API
-contract; do not create a second rig. Add the **PREFETCH TARGETS** and
-**PREFETCH BUDGET** fields below.
+Read an existing `instant-nav.rig.md` first. The Cache Components optimizer and
+test-backed Partial Prefetching adoption use the same project-local
+production-build and testing API contract; do not create a second rig. Add the
+**PREFETCH TARGETS** and **PREFETCH BUDGET** fields below.
+
+If no rig exists because adoption used its manual path or neither earlier
+skill ran, create `instant-nav.rig.md` from this template. Reusing the file is
+an interoperability contract, not a dependency on running another skill.
 
 When no rig exists, inspect before asking:
 
