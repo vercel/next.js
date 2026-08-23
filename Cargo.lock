@@ -4971,7 +4971,7 @@ dependencies = [
  "allsorts",
  "anyhow",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "either",
  "futures",
@@ -5031,7 +5031,7 @@ name = "next-custom-transforms"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bytes-str",
  "chrono",
  "easy-error",
@@ -10757,7 +10757,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "image",
  "mime",
@@ -10836,7 +10836,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "bytes",
  "const_format",

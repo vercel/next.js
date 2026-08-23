@@ -252,6 +252,7 @@ allsorts = { version = "0.14.0", default-features = false, features = [
 ] }
 anyhow = "1.0.100"
 async-trait = "0.1.64"
+base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
 bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
