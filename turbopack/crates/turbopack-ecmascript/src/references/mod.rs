@@ -3,6 +3,7 @@ pub mod async_module;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
+pub mod cross_module_constants;
 pub mod dynamic_expression;
 pub mod esm;
 pub mod exports;
@@ -35,7 +36,6 @@ use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
-use either::Either;
 use indexmap::map::Entry;
 use num_traits::Zero;
 use parking_lot::Mutex;
@@ -53,7 +53,6 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        utils::IsDirective,
         visit::{
             AstParentKind,
             fields::{
@@ -101,7 +100,7 @@ use crate::{
     ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
-        JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
+        JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
         WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
@@ -113,6 +112,7 @@ use crate::{
     },
     chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
+    directive::parse_module_turbopack_directives,
     errors,
     module_fragments::{part_of_module, split_module},
     parse::ParseResult,
@@ -125,6 +125,9 @@ use crate::{
         cjs::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
             CjsRequireResolveAssetReference,
+        },
+        cross_module_constants::{
+            is_import_name_eligible_for_exports, module_value_to_constants_module,
         },
         dynamic_expression::DynamicExpression,
         esm::{
@@ -458,7 +461,10 @@ struct AnalysisState<'a> {
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, BumpVec<'a, JsValue<'a>>>>,
+    /// A cache for the linked value of variables, to prevent exponential retraversals.
     var_cache: Mutex<FxHashMap<Id, JsValue<'a>>>,
+    /// A cache for the linked value of imported constants.
+    constants_cache: Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -467,6 +473,7 @@ struct AnalysisState<'a> {
     first_webpack_exports_info: bool,
     module_fragments_enabled: bool,
     cjs_tree_shaking: bool,
+    cross_module_constants: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -509,6 +516,9 @@ impl<'a> AnalysisState<'a> {
                     &self.var_graph,
                     attributes,
                     self.allow_project_root_tracing,
+                    &self.constants_cache,
+                    self.import_references,
+                    self.cross_module_constants,
                 )
             },
             &self.fun_args_values,
@@ -666,32 +676,13 @@ async fn analyze_ecmascript_module_internal(
         analysis.add_esm_evaluation_reference(*i);
     }
 
-    let has_side_effect_free_directive = match program {
-        Program::Module(module) => Either::Left(
-            module
-                .body
-                .iter()
-                .take_while(|i| match i {
-                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                    ModuleItem::ModuleDecl(_) => false,
-                })
-                .filter_map(|i| i.as_stmt()),
-        ),
-        Program::Script(script) => Either::Right(
-            script
-                .body
-                .iter()
-                .take_while(|stmt| stmt.directive_continue()),
-        ),
-    }
-    .any(|f| match f {
-        Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-            Expr::Lit(Lit::Str(Str { value, .. })) => value == "use turbopack no side effects",
-            _ => false,
-        },
-        _ => false,
-    });
-    analysis.set_side_effects_mode(if has_side_effect_free_directive {
+    let directives = parse_module_turbopack_directives(program);
+    analysis.set_side_effects_mode(if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // the constant folding would not be safe. This makes a difference when doing `import *
+        // as foo from 'constants-module'`
         ModuleSideEffects::SideEffectFree
     } else if options.infer_module_side_effects {
         // Analyze the AST to infer side effects
@@ -867,10 +858,12 @@ async fn analyze_ecmascript_module_internal(
             allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
+            constants_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
             cjs_tree_shaking: options.cjs_tree_shaking,
+            cross_module_constants: options.cross_module_constants,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1334,7 +1327,35 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     };
 
-                    if let Some("__turbopack_module_id__") = export.as_deref() {
+                    if options.cross_module_constants
+                        && (eval_context
+                            .imports
+                            .get_annotations(esm_reference_index)
+                            .and_then(|a| a.turbopack_constants())
+                            .unwrap_or_else(|| {
+                                export
+                                    .as_ref()
+                                    .is_some_and(|v| is_import_name_eligible_for_exports(v))
+                            }))
+                        && let JsValue::Constant(c) = analysis_state
+                            .link_value(
+                                eval_context.imports.get_import_for_idx(
+                                    arena.get_or_default(),
+                                    esm_reference_index,
+                                    export.clone().map(Into::into),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?
+                        && let Ok(c) = CompileTimeDefineValue::try_from(&c)
+                    // We can only inline values that are supported by CompileTimeDefineValue. So
+                    // currently not NaN and Infinity.
+                    {
+                        // This is a constant import, we can inline it directly without creating
+                        // a reference
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
+                    } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
@@ -1619,17 +1640,14 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     let linked_args_cache = OnceCell::new();
 
     // Create the lazy linking closure that will be passed to handle_well_known_function_call
-    let linked_args = || async {
-        linked_args_cache
-            .get_or_try_init(|| async {
-                unlinked_args
-                    .iter()
-                    .map(|arg| arg.clone_in(state.arena.get_or_default()))
-                    .map(|arg| state.link_value(arg, ImportAttributes::empty_ref()))
-                    .try_join()
-                    .await
-            })
-            .await
+    let linked_args = || {
+        linked_args_cache.get_or_try_init(|| {
+            unlinked_args
+                .iter()
+                .map(|arg| arg.clone_in(state.arena.get_or_default()))
+                .map(|arg| state.link_value(arg, ImportAttributes::empty_ref()))
+                .try_join()
+        })
     };
 
     match func {
@@ -3713,6 +3731,9 @@ async fn value_visitor<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
+    import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
@@ -3724,6 +3745,9 @@ async fn value_visitor<'a>(
         var_graph,
         attributes,
         allow_project_root_tracing,
+        constants_cache,
+        import_references,
+        cross_module_constants,
     )
     .await?;
     v.normalize_shallow(arena.get_or_default());
@@ -3740,6 +3764,9 @@ async fn value_visitor_inner<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
+    import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
@@ -3904,16 +3931,50 @@ async fn value_visitor_inner<'a>(
             "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
             _ => return Ok((v, Modified::No)),
         },
-        JsValue::Module(ref mv) => compile_time_info
-            .environment()
-            .node_externals()
-            .await?
-            // TODO check externals
-            .then(|| module_value_to_well_known_object(mv))
-            .flatten()
-            .unwrap_or_else(|| {
+
+        JsValue::Module(ref mv) => {
+            if *compile_time_info.environment().node_externals().await?
+                && let Some(external) = module_value_to_well_known_object(mv)
+            {
+                external
+            } else if cross_module_constants
+                && (mv
+                    .annotations
+                    .as_ref()
+                    .and_then(|a| a.turbopack_constants())
+                    .unwrap_or(mv.analyze_for_constants))
+                && let cache = {
+                    // Without this inline block, constants_cache.lock() is held across the await
+                    // point below.
+                    let constants_cache = constants_cache.lock();
+                    constants_cache
+                        .get(mv)
+                        .as_ref()
+                        .map(|v| v.as_ref().map(|v| v.clone_in(arena.get_or_default())))
+                }
+                && let cache_entry = (if let Some(cache_entry) = cache {
+                    cache_entry
+                } else {
+                    let module = module_value_to_constants_module(
+                        arena,
+                        mv,
+                        compile_time_info,
+                        import_references,
+                    )
+                    .await?;
+                    constants_cache.lock().insert(
+                        mv.clone(),
+                        module.as_ref().map(|v| v.clone_in(arena.get_or_default())),
+                    );
+                    module
+                })
+                && let Some(module) = cache_entry
+            {
+                module
+            } else {
                 v.into_unknown(true, rcstr!("cross module analyzing is not yet supported"))
-            }),
+            }
+        }
         JsValue::Argument(..) => v.into_unknown(
             true,
             rcstr!("cross function analyzing is not yet supported"),
@@ -3950,15 +4011,12 @@ async fn require_resolve_visitor<'a>(
         )
         .to_resolved()
         .await?;
-        let mut values =
-            resolved
-                .await?
-                .primary_sources()
-                .map(|source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        let mut values = resolved
+            .await?
+            .primary_sources()
+            .map(async |source| Ok(require_resolve(source.ident().await?.path.clone()).into()))
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(

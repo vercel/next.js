@@ -1,23 +1,27 @@
 import path from 'path'
-import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
+
+const fixture = path.join(__dirname, 'prerender-native-module')
+
+const expectedUsers = [
+  { id: 1, first_name: 'john', last_name: 'deux' },
+  { id: 2, first_name: 'zeit', last_name: 'geist' },
+]
 
 describe('prerender native module', () => {
   const { next } = nextTestSetup({
-    files: {
-      pages: new FileRef(path.join(__dirname, 'prerender-native-module/pages')),
-      'data.sqlite': new FileRef(
-        path.join(__dirname, 'prerender-native-module/data.sqlite')
-      ),
-    },
-    dependencies: {
-      sqlite: '4.0.22',
-      sqlite3: '5.0.2',
-    },
-    packageJson: {
-      pnpm: {
-        onlyBuiltDependencies: ['sqlite3'],
-      },
-    },
+    files: fixture,
+    // `bindings` is a direct dependency rather than one of `native-addon`. The
+    // addon resolves it by walking up from the virtual store, and declaring it on
+    // the addon would make it a non-registry transitive dependency, which
+    // `blockExoticSubdeps` rejects.
+    //
+    // These use `file:` rather than `link:` so pnpm copies them into the virtual
+    // store. A linked package resolves to a path inside the app, which the bundler
+    // treats as app code and tries to bundle, and `bindings` contains a `require`
+    // it cannot resolve statically.
+    dependencies: require('./prerender-native-module/package.json')
+      .dependencies,
   })
 
   it('should render index correctly', async () => {
@@ -35,10 +39,8 @@ describe('prerender native module', () => {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: { slug: 'first' },
       blog: true,
-      users: [
-        { id: 1, first_name: 'john', last_name: 'deux' },
-        { id: 2, first_name: 'zeit', last_name: 'geist' },
-      ],
+      contextAware: true,
+      users: expectedUsers,
     })
   })
 
@@ -50,10 +52,8 @@ describe('prerender native module', () => {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: { slug: 'second' },
       blog: true,
-      users: [
-        { id: 1, first_name: 'john', last_name: 'deux' },
-        { id: 2, first_name: 'zeit', last_name: 'geist' },
-      ],
+      contextAware: true,
+      users: expectedUsers,
     })
   })
 
@@ -70,7 +70,6 @@ describe('prerender native module', () => {
               ? /node_modules\/react\/cjs\/react\.production\.min\.js/
               : /node_modules\/react\/cjs\/react\.production\.js/,
           ],
-          notTests: [],
         },
         {
           page: '/blog/[slug]',
@@ -81,13 +80,16 @@ describe('prerender native module', () => {
             isReact18
               ? /node_modules\/react\/cjs\/react\.production\.min\.js/
               : /node_modules\/react\/cjs\/react\.production\.js/,
-            /node_modules\/sqlite3\/.*?\.js/,
-            /node_modules\/sqlite3\/.*?\.node/,
-            /node_modules\/sqlite\/.*?\.js/,
+            // The addon's JS entry, and the binary it locates through
+            // `require('bindings')(...)`.
+            /node_modules\/native-addon\/.*?\.js/,
+            /node_modules\/native-addon\/.*?\.node/,
+            // The pure-JS wrapper layered on top of it.
+            /node_modules\/native-addon-wrapper\/.*?\.js/,
             /node_modules\/next/,
-            /\/data\.sqlite/,
+            // Reached only by statically evaluating `path.join(process.cwd(), ...)`.
+            /\/users\.json/,
           ],
-          notTests: [],
         },
       ]
 
@@ -97,14 +99,11 @@ describe('prerender native module', () => {
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
-        expect(
-          check.tests.every((item) => files.some((file) => item.test(file)))
-        ).toBe(true)
 
-        if (path.sep === '/') {
-          expect(
-            check.notTests.some((item) => files.some((file) => item.test(file)))
-          ).toBe(false)
+        for (const test of check.tests) {
+          expect(files).toEqual(
+            expect.arrayContaining([expect.stringMatching(test)])
+          )
         }
       }
     })

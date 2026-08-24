@@ -994,6 +994,14 @@ export interface ExperimentalConfig {
   turbopackCjsScopeHoisting?: boolean
 
   /**
+   * Enable cross-module constant inlining in Turbopack. Constants exported from other
+   * modules are inlined at their use sites, which enables dead code elimination.
+   *
+   * Defaults to `false`
+   */
+  turbopackCrossModuleConstants?: boolean
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
@@ -2007,12 +2015,8 @@ export interface NextConfig {
    *
    * When `false` or omitted, this does nothing (the legacy behavior, where
    * dynamic data is included in the prefetch).
-   *
-   * `'unstable_eager'` is like `true`, except the default becomes
-   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
-   * prefetch={true}. Internal migration aid; not part of the public API.
    */
-  partialPrefetching?: boolean | 'unstable_eager'
+  partialPrefetching?: boolean
 
   cacheLife?: {
     [profile: string]: {

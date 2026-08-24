@@ -33,7 +33,8 @@ pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
 mod watcher;
-mod windows;
+#[cfg(windows)]
+pub mod windows;
 
 use std::{fmt::Debug, fs::FileType, path::PathBuf};
 
@@ -53,7 +54,8 @@ pub(crate) use crate::{
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkType, Permissions, PersistedFileContent,
+        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTarget,
+        WriteLinkTargetType,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
     null_fs::NullFileSystem,
@@ -61,7 +63,6 @@ pub use crate::{
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
-    windows::to_verbatim_with_case_folded_disk,
 };
 
 #[turbo_tasks::value_trait]
@@ -73,23 +74,20 @@ pub trait FileSystem: ValueToString {
     }
     #[turbo_tasks::function]
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
-    /// Reads the target of a symbolic link (or of a junction point on Windows).
-    ///
-    /// The base of the returned [`LinkContent::Link`] `target` depends on the link's
-    /// [`LinkType`]: root-relative and normalized for [`LinkType::ABSOLUTE`] links, or the raw
-    /// link-relative on-disk value otherwise.
-    ///
-    /// Returns [`LinkContent::Invalid`] if the target points outside of the filesystem root, and
-    /// [`LinkContent::NotFound`] if `fs_path` doesn't exist or isn't a link.
+    /// Reads the target of a symbolic link (or junction point on Windows). See [`LinkContent`].
     #[turbo_tasks::function]
     fn read_link(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<LinkContent>;
+    /// Returns whether a symbolic link is a junction point on Windows. Always `false` on all other
+    /// platforms.
+    #[turbo_tasks::function]
+    fn is_junction_point(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<bool>;
     #[turbo_tasks::function]
     fn raw_read_dir(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<RawDirectoryContent>;
     #[turbo_tasks::function]
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
-    /// See [`FileSystemPath::write_symbolic_link_dir`].
+    /// Creates a symbolic link. See [`WriteLinkContent`] and [`FileSystemPath::write_link`].
     #[turbo_tasks::function]
-    fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Vc<()>;
+    fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<WriteLinkContent>) -> Vc<()>;
     #[turbo_tasks::function]
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }
