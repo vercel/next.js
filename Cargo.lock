@@ -3181,8 +3181,6 @@ version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.1.5",
  "serde",
 ]
@@ -4973,7 +4971,7 @@ dependencies = [
  "allsorts",
  "anyhow",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "either",
  "futures",
@@ -4990,7 +4988,7 @@ dependencies = [
  "qstring",
  "react_remove_properties",
  "regex",
- "regress 0.10.4",
+ "regress",
  "remove_console",
  "rustc-hash 2.1.1",
  "serde",
@@ -5033,7 +5031,7 @@ name = "next-custom-transforms"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bytes-str",
  "chrono",
  "easy-error",
@@ -6598,16 +6596,6 @@ dependencies = [
 
 [[package]]
 name = "regress"
-version = "0.10.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "145bb27393fe455dd64d6cbc8d059adfa392590a45eadf079c01b11857e7b010"
-dependencies = [
- "hashbrown 0.15.4",
- "memchr",
-]
-
-[[package]]
-name = "regress"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "158a764437582235e3501f683b93a0a6f8d825d04a789dbe5ed30b8799b8908a"
@@ -7966,7 +7954,7 @@ dependencies = [
  "indexmap 2.14.0",
  "once_cell",
  "regex",
- "regress 0.11.1",
+ "regress",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9983,7 +9971,7 @@ dependencies = [
  "anyhow",
  "bincode 2.0.1",
  "regex",
- "regress 0.10.4",
+ "regress",
  "turbo-tasks",
 ]
 
@@ -10772,7 +10760,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "image",
  "mime",
@@ -10851,7 +10839,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "bytes",
  "const_format",
@@ -11089,7 +11077,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbopack-core",
  "turbopack-ecmascript",
- "wasmparser 0.235.0",
+ "wasmparser 0.239.0",
  "wat",
 ]
 
@@ -12067,10 +12055,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "161296c618fa2d63f6ed5fffd1112937e803cb9ec71b32b01a76321555660917"
 dependencies = [
  "bitflags 2.9.1",
- "hashbrown 0.15.4",
  "indexmap 2.14.0",
- "semver",
- "serde",
 ]
 
 [[package]]
@@ -12307,24 +12292,24 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "235.0.0"
+version = "239.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eda4293f626c99021bb3a6fbe4fbbe90c0e31a5ace89b5f620af8925de72e13"
+checksum = "9139176fe8a2590e0fb174cdcaf373b224cb93c3dde08e4297c1361d2ba1ea5d"
 dependencies = [
  "bumpalo",
  "leb128fmt",
  "memchr",
  "unicode-width 0.2.1",
- "wasm-encoder 0.235.0",
+ "wasm-encoder 0.239.0",
 ]
 
 [[package]]
 name = "wat"
-version = "1.235.0"
+version = "1.239.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e777e0327115793cb96ab220b98f85327ec3d11f34ec9e8d723264522ef206aa"
+checksum = "3e1c941927d34709f255558166f8901a2005f8ab4a9650432e9281b7cc6f3b75"
 dependencies = [
- "wast 235.0.0",
+ "wast 239.0.0",
 ]
 
 [[package]]
