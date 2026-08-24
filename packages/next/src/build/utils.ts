@@ -1293,8 +1293,39 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
+            let symlinkTarget = symlink
+            let junctionTarget = symlink
+
+            if (path.isAbsolute(symlink)) {
+              // Junction targets can use the Windows namespaced path format.
+              const relativeTarget = path.relative(
+                path.toNamespacedPath(tracingRoot),
+                path.toNamespacedPath(symlink)
+              )
+              const isTargetInsideTracingRoot =
+                relativeTarget === '' ||
+                (relativeTarget !== '..' &&
+                  !relativeTarget.startsWith(`..${path.sep}`) &&
+                  !path.isAbsolute(relativeTarget))
+
+              if (isTargetInsideTracingRoot) {
+                junctionTarget = path.join(outputPath, relativeTarget)
+                symlinkTarget =
+                  path.relative(path.dirname(fileOutputPath), junctionTarget) ||
+                  '.'
+              }
+            }
+
+            // The target might not exist in the output yet. Read its type from
+            // the source so that Windows can create the correct link.
+            const targetStat = await fs.stat(tracedFilePath).catch(() => null)
+
             try {
-              await fs.symlink(symlink, fileOutputPath)
+              await fs.symlink(
+                symlinkTarget,
+                fileOutputPath,
+                targetStat?.isDirectory() ? 'dir' : 'file'
+              )
             } catch (err: any) {
               // Windows doesn't support creating symlinks without elevated privileges, unless
               // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
@@ -1307,10 +1338,10 @@ export async function copyTracedFiles(
               if (
                 process.platform === 'win32' &&
                 err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
+                path.isAbsolute(junctionTarget)
               ) {
                 try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                  await fs.symlink(junctionTarget, fileOutputPath, 'junction')
                 } catch (junctionErr: any) {
                   if (junctionErr.code !== 'EEXIST') {
                     throw junctionErr
