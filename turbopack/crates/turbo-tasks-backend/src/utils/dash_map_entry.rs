@@ -1,25 +1,19 @@
-use std::{
-    hash::{BuildHasher, Hash},
-    ptr::NonNull,
-};
+use std::hash::{BuildHasher, Hash};
 
 use crossbeam_utils::CachePadded;
-use dashmap::{DashMap, RawRwLock, RwLock};
-use hashbrown::HashTable;
-use parking_lot::lock_api::RwLockWriteGuard;
+use dashmap::{DashMap, RwLock};
+use hashbrown::{HashTable, hash_table};
 
 /// The type of a single shard inside a [`DashMap`].
 ///
 /// `dashmap::HashMap<K, V>` is a private alias for `HashTable<(K, V)>`.
 pub type Shard<K, V> = CachePadded<RwLock<HashTable<(K, V)>>>;
 
-type ShardWriteGuard<'a, K, V> = RwLockWriteGuard<'a, RawRwLock, HashTable<(K, V)>>;
-
 /// Returns a reference to the shard that owns the given pre-computed hash,
 /// without locking anything.
 ///
-/// Pass the returned reference to [`raw_get_in_shard`] and
-/// [`raw_entry_in_shard`] so that the shard is only located once even when a
+/// Pass the returned reference to [`get_in_shard`] and
+/// [`with_entry_in_shard`] so that the shard is only located once even when a
 /// read-lock miss is followed by a write-lock retry.
 pub fn get_shard<K: Eq + Hash, V, S: BuildHasher + Clone>(
     map: &DashMap<K, V, S>,
@@ -31,7 +25,7 @@ pub fn get_shard<K: Eq + Hash, V, S: BuildHasher + Clone>(
 
 /// Read-only heterogeneous lookup using a pre-located shard reference.
 /// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
-pub fn raw_get_in_shard<K: Eq + Hash, V: Copy>(
+pub fn get_in_shard<K: Eq + Hash, V: Copy>(
     shard: &Shard<K, V>,
     hash: u64,
     eq: impl Fn(&K) -> bool,
@@ -40,30 +34,26 @@ pub fn raw_get_in_shard<K: Eq + Hash, V: Copy>(
     guard.find(hash, |(k, _v)| eq(k)).map(|(_k, v)| *v)
 }
 
-/// Write-lock entry lookup using a pre-located shard reference and
-/// heterogeneous equality.
+/// Runs `then` with the native Hashbrown entry for a pre-located DashMap shard.
 ///
-/// Takes a pre-located `shard` (from [`get_shard`]) and `hash` so the shard is
-/// not located a second time on a read-miss / write-retry path.
-pub fn raw_entry_in_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
-    shard: &'l Shard<K, V>,
+/// The shard write lock is held only for the duration of `then`. The caller
+/// controls the precise point where the entry is consumed and the lock is
+/// released by returning from the closure.
+pub fn with_entry_in_shard<K: Eq + Hash, V, S: BuildHasher + Clone, Q: ?Sized, R>(
+    shard: &Shard<K, V>,
     map_hasher: &S,
     hash: u64,
-    eq: impl Fn(&K) -> bool,
-) -> RawEntry<'l, K, V, S> {
-    let mut shard = shard.write();
-    if let Some(entry) = shard.find_mut(hash, |(k, _v)| eq(k)) {
-        RawEntry::Occupied(OccupiedEntry {
-            entry: NonNull::from(entry),
-            shard,
-        })
-    } else {
-        RawEntry::Vacant(VacantEntry {
-            hash,
-            map_hasher: map_hasher.clone(),
-            shard,
-        })
-    }
+    query: &mut Q,
+    eq: impl Fn(&K, &Q) -> bool,
+    then: impl FnOnce(hash_table::Entry<'_, (K, V)>, &mut Q) -> R,
+) -> R {
+    let mut guard = shard.write();
+    let entry = guard.entry(
+        hash,
+        |(k, _v)| eq(k, query),
+        |(k, _v)| map_hasher.hash_one(k),
+    );
+    then(entry, query)
 }
 
 /// Outcome of [`try_lock_and_remove`].
@@ -103,38 +93,5 @@ pub fn try_lock_and_remove<
             TryLockAndRemove::Removed
         }
         Err(_) => TryLockAndRemove::NotFound,
-    }
-}
-
-pub enum RawEntry<'l, K, V, S> {
-    Occupied(OccupiedEntry<'l, K, V>),
-    Vacant(VacantEntry<'l, K, V, S>),
-}
-
-pub struct OccupiedEntry<'l, K, V> {
-    entry: NonNull<(K, V)>,
-    #[allow(dead_code, reason = "kept to ensure the lock lives long enough")]
-    shard: ShardWriteGuard<'l, K, V>,
-}
-
-impl<K, V> OccupiedEntry<'_, K, V> {
-    pub fn get(&self) -> &V {
-        // SAFETY: The entry remains in the table while we hold the shard's write lock.
-        &unsafe { self.entry.as_ref() }.1
-    }
-}
-
-pub struct VacantEntry<'l, K, V, S> {
-    hash: u64,
-    map_hasher: S,
-    shard: ShardWriteGuard<'l, K, V>,
-}
-
-impl<K: Hash, V, S: BuildHasher> VacantEntry<'_, K, V, S> {
-    pub fn insert(mut self, key: K, value: V) {
-        self.shard
-            .insert_unique(self.hash, (key, value), |(key, _value)| {
-                self.map_hasher.hash_one(key)
-            });
     }
 }

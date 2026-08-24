@@ -41,8 +41,8 @@ pub enum RefMut<'a, K, V> {
 // - `Simple` variant: The entry is accessed under an exclusive `RwLockWriteGuard` on a single
 //   shard. The guard provides exclusive access to all data in that shard.
 // - `Shared` variant: The entry is accessed under an `Arc<RwLockWriteGuard>`. The
-//   `get_multiple_mut` function obtains both references through `HashTable::get_many_mut`, which
-//   validates that they do not alias.
+//   `get_disjoint_mut` function validates that the keys differ before obtaining both references
+//   through `HashTable::get_many_unchecked_mut`.
 // - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
@@ -77,7 +77,7 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
                 // SAFETY: Same as above in `pair`, plus aliasing is prevented via:
                 // 1. The lifetime of `&mut self`.
                 // 2. `Simple` values come from separate shards (no aliasing possible).
-                // 3. `Shared` values come from `HashTable::get_many_mut`.
+                // 3. `Shared` values were validated as disjoint before the pointers were created.
                 let entry = unsafe { entry.as_mut() };
                 (&entry.0, &mut entry.1)
             }
@@ -108,7 +108,7 @@ where
     }
 }
 
-pub fn get_multiple_mut<K, V>(
+pub fn get_disjoint_mut<K, V>(
     map: &DashMap<K, V, impl BuildHasher + Clone>,
     key1: K,
     key2: K,
@@ -133,12 +133,11 @@ where
 
     let shards = map.shards();
     if s1 == s2 {
-        // Equal keys would resolve to a single entry below. `get_many_mut` panics in that case
-        // (which is what keeps this memory-safe), but check up front so the caller gets an error
-        // message that names the actual problem.
+        // Equal keys would resolve to a single entry below. This must be a release-mode assertion
+        // because the unchecked lookup relies on it for memory safety.
         assert!(
             key1 != key2,
-            "`get_multiple_mut` was called with equal keys, which breaks mutable referencing rules"
+            "`get_disjoint_mut` was called with equal keys, which breaks mutable referencing rules"
         );
 
         let mut guard = shards[s1].write();
@@ -150,15 +149,14 @@ where
             guard.insert_unique(h2, (key2.clone(), insert_with()), hash_entry);
         }
 
-        // `get_many_mut` validates that the keys resolve to distinct entries before creating the
-        // mutable references.
+        // SAFETY: `key1 != key2` was asserted above. Since `K: Eq`, the two equality closures
+        // cannot select the same entry, even when the hashes collide.
         let [entry1, entry2] =
-            guard.get_many_mut(
-                [h1, h2],
-                |index, entry| {
+            unsafe {
+                guard.get_many_unchecked_mut([h1, h2], |index, entry| {
                     if index == 0 { eq1(entry) } else { eq2(entry) }
-                },
-            );
+                })
+            };
         let entry1 = NonNull::from(entry1.expect("the first entry was inserted above"));
         let entry2 = NonNull::from(entry2.expect("the second entry was inserted above"));
 
@@ -248,7 +246,7 @@ mod tests {
             for indices in indices {
                 s.spawn(|| {
                     for i in indices {
-                        let (mut a, mut b) = get_multiple_mut(map, i, i + 1, || 0);
+                        let (mut a, mut b) = get_disjoint_mut(map, i, i + 1, || 0);
                         *a += 1;
                         *b += 1;
                     }

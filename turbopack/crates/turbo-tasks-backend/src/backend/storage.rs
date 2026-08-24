@@ -9,7 +9,7 @@ use std::{
     },
 };
 
-use hashbrown::hash_table::IntoIter;
+use hashbrown::hash_table;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -23,8 +23,8 @@ use crate::{
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_multi::{RefMut, get_multiple_mut},
-        dash_map_raw_entry::{TryLockAndRemove, try_lock_and_remove},
+        dash_map_entry::{TryLockAndRemove, try_lock_and_remove},
+        dash_map_multi::{RefMut, get_disjoint_mut},
     },
 };
 
@@ -509,7 +509,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
+        let (a, b) = get_disjoint_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
         (
             StorageWriteGuard {
                 storage: self,
@@ -906,7 +906,7 @@ enum ShardWork {
     /// (modified-only) shard table out of the map. The iterator owns that table and drains it
     /// directly, freeing each task box as it is serialized. No second map lookup, no flag
     /// bookkeeping (the whole map is discarded right after this snapshot).
-    Drain(IntoIter<(TaskId, Box<TaskStorage>)>),
+    Drain(hash_table::IntoIter<(TaskId, Box<TaskStorage>)>),
 }
 
 pub struct SnapshotShard<'l, P> {
