@@ -42,22 +42,12 @@ export async function proxyRequest(
 
   let finished = false
 
-  // httpxy does not properly detect a client disconnect in newer
-  // versions of Node.js. This is caused because it only listens for the
-  // `aborted` event on the our request object, but it also fully reads
-  // and closes the request object. Node **will not** fire `aborted` when
-  // the request is already closed. Listening for `close` on our response
-  // object will detect the disconnect, and we can abort the proxy's
-  // connection.
-  proxy.on('proxyReq', (proxyReq) => {
-    res.on('close', () => proxyReq.destroy())
-  })
-
+  // httpxy destroys the proxy request and response when the client
+  // disconnects. The disconnect can happen before the proxy response is
+  // emitted, so handle that race before httpxy attaches its close listener.
   proxy.on('proxyRes', (proxyRes) => {
     if (res.destroyed) {
       proxyRes.destroy()
-    } else {
-      res.on('close', () => proxyRes.destroy())
     }
   })
 
