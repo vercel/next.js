@@ -3643,7 +3643,12 @@ async function computeCacheKeyImplementationPart(
     }
   }
 
-  const serverModuleMapEntry = getServerModuleMap()?.[id]
+  let serverModuleMapEntry = undefined
+  try {
+    serverModuleMapEntry = getServerModuleMap()?.[id]
+  } catch (err) {
+    // TODO This fails on Webpack. replace this try-catch with if(durableUseCacheEntries) instead?
+  }
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&
     // if runtimeEnvVars===true, then always invalidate
