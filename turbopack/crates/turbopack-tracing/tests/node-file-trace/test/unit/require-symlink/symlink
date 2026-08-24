@@ -1,1 +1,1 @@
-another.js
+module.exports = () => console.log('hello')

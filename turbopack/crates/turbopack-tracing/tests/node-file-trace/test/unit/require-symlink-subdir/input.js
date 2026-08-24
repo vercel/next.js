@@ -1,1 +1,1 @@
-subdir/input.js
+require('./another.js')
