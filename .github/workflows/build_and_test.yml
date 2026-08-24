@@ -448,6 +448,10 @@ jobs:
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export RUST_BACKTRACE=1
+        # Development tests can explicitly allow up to five minutes for one
+        # setup or test, so give no-progress detection a minute of grace. The
+        # diagnostic is passive and does not alter the test result.
+        export NEXT_TEST_FILE_STALL_TIMEOUT_MS=360000
 
         node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \

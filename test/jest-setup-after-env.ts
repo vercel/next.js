@@ -1,6 +1,25 @@
 import * as matchers from 'jest-extended'
 expect.extend(matchers)
 
+const { reportTestFileProgress } = require('./lib/test-file-progress')
+
+if (process.env.NEXT_TEST_FILE_PROGRESS_PATH) {
+  reportTestFileProgress('jest-initializing')
+
+  beforeAll(() => {
+    reportTestFileProgress('suite-setup')
+  })
+  beforeEach(() => {
+    reportTestFileProgress('test-start', expect.getState().currentTestName)
+  })
+  afterEach(() => {
+    reportTestFileProgress('test-cleanup', expect.getState().currentTestName)
+  })
+  afterAll(() => {
+    reportTestFileProgress('suite-teardown')
+  })
+}
+
 // Patch jscodeshift testUtils to normalize line endings (fixes Windows CRLF issues)
 // The issue: jscodeshift's printer (recast) outputs CRLF on Windows, but test fixtures use LF
 // We need to patch both defineTest (which uses internal closure references) and runInlineTest

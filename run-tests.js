@@ -1,6 +1,8 @@
 //@ts-check
 
 const path = require('path')
+const os = require('os')
+const { randomUUID } = require('crypto')
 const _glob = require('glob')
 const fs = require('fs')
 const fsp = require('fs/promises')
@@ -15,6 +17,10 @@ const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const { buildTestReport } = require('./scripts/test-report')
+const {
+  createTestFileProgressMonitor,
+  formatTestFileProgress,
+} = require('./test/lib/test-file-progress')
 
 // --- Test profile and result caching via actions cache ---
 // On CI retry attempts, skip tests that already passed on this commit.
@@ -42,6 +48,8 @@ class TestProfile {
     'NEXT_TURBOPACK_IO_CONCURRENCY',
     'NEXT_TEST_PASSED_FILE',
     'NEXT_TEST_BROWSER_WS_ENDPOINT',
+    'NEXT_TEST_FILE_PROGRESS_PATH',
+    'NEXT_TEST_FILE_STALL_TIMEOUT_MS',
     'TURBO_TASKS_AVAILABLE_PARALLELISM',
   ])
 
@@ -708,10 +716,23 @@ ${ENDGROUP}`)
   let firstError = true
   let hadFailures = false
 
+  /** @param {string} name */
+  const getTimeout = (name) => {
+    const value = Number.parseInt(process.env[name] || '', 10)
+    return Number.isFinite(value) && value > 0 ? value : 0
+  }
+  const stallTimeoutMs = getTimeout('NEXT_TEST_FILE_STALL_TIMEOUT_MS')
+
   const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+      const progressPath = stallTimeoutMs
+        ? path.join(
+            os.tmpdir(),
+            `next-test-progress-${process.pid}-${randomUUID()}.json`
+          )
+        : undefined
 
       const args = [
         ...(process.env.CI ? ['--ci'] : []),
@@ -742,6 +763,7 @@ ${ENDGROUP}`)
         // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
+        NEXT_TEST_FILE_PROGRESS_PATH: progressPath,
 
         ...(options.local
           ? {}
@@ -822,8 +844,28 @@ ${ENDGROUP}`)
 
       children.add(child)
 
+      /** @type {ReturnType<typeof createTestFileProgressMonitor> | undefined} */
+      let progressMonitor
+
+      if (progressPath && stallTimeoutMs) {
+        progressMonitor = createTestFileProgressMonitor({
+          progressPath,
+          stallTimeoutMs,
+          onStall: (progress) => {
+            process.stderr.write(
+              `\n⚠️ ${test.file} has made no progress for ${stallTimeoutMs / 1000}s\n${formatTestFileProgress(progress)}\n`
+            )
+          },
+        })
+      }
+
       child.on('exit', async (code, signal) => {
         children.delete(child)
+        progressMonitor?.stop()
+        if (progressPath && !progressMonitor) {
+          fs.rmSync(progressPath, { force: true })
+          fs.rmSync(`${progressPath}.tmp`, { force: true })
+        }
         const isChildExitWithNonZero = code !== 0 || signal !== null
         if (isChildExitWithNonZero) {
           if (hideOutput) {
