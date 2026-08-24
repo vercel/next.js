@@ -1,28 +1,14 @@
-'use client'
-
-import Link from 'next/link'
-import { useState } from 'react'
+import { LinkAccordion } from './link-accordion'
 
 export default function Home() {
-  const [linksAreVisible, setLinksAreVisible] = useState(false)
   return (
-    <>
-      <input
-        type="checkbox"
-        checked={linksAreVisible}
-        onChange={() => setLinksAreVisible(!linksAreVisible)}
-        data-prefetch-links
-      />
-      {linksAreVisible ? (
-        <ul>
-          <li>
-            <Link href="/search?q=alpha">alpha</Link>
-          </li>
-          <li>
-            <Link href="/search?q=beta">beta</Link>
-          </li>
-        </ul>
-      ) : null}
-    </>
+    <ul>
+      <li>
+        <LinkAccordion href="/search?q=alpha">alpha</LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion href="/search?q=beta">beta</LinkAccordion>
+      </li>
+    </ul>
   )
 }

@@ -21,7 +21,9 @@ export default async function SearchPage({
       <nav>
         <Link href="/search?q=alpha">alpha</Link>{' '}
         <Link href="/search?q=beta">beta</Link>{' '}
-        <Link href="/search?q=gamma">gamma</Link>
+        <Link href="/search?q=gamma" prefetch={false}>
+          gamma
+        </Link>
       </nav>
     </main>
   )
