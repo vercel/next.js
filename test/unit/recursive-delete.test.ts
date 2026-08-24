@@ -38,7 +38,10 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
         overwrite: true,
       })
       // preserve cache dir
-      await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir, /^cache/)
+      await recursiveDeleteSyncWithAsyncRetries(
+        testpreservefileDir,
+        new Set(['cache'])
+      )
 
       const result = await recursiveReadDir(testpreservefileDir)
       expect(result.length).toBe(1)
