@@ -40,7 +40,7 @@ describe('adapter dynamic routes (legacy)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "13 entries
+     "9 entries
 
      /legacy/[id]
        ^/_next/data/test\\-build\\-id[/]?/legacy/(?<nxtPid>[^/]+?)\\.json(?:/)?$
@@ -55,37 +55,21 @@ describe('adapter dynamic routes (legacy)', () => {
        ^/_next/data/test\\-build\\-id[/]?/static\\-two\\.json(?:/)?$
        -> /static-two
 
-     /blog/[slug].rsc
-       ^[/]?/blog/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
+     /blog/[slug]
+       ^[/]?/blog/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /blog/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
-     /blog/[slug]
-       ^[/]?/blog/(?<nxtPslug>[^/]+?)(?:/)?$
-       -> /blog/[slug]?nxtPslug=$nxtPslug
-
-     /docs/[lang]/accounts.rsc
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
+     /docs/[lang]/accounts
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /docs/[lang]/accounts$rscSuffix?nxtPlang=$nxtPlang
 
-     /docs/[lang]/accounts
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(?:/)?$
-       -> /docs/[lang]/accounts?nxtPlang=$nxtPlang
-
-     /docs/[lang]/functions.rsc
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
+     /docs/[lang]/functions
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /docs/[lang]/functions$rscSuffix?nxtPlang=$nxtPlang
 
-     /docs/[lang]/functions
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(?:/)?$
-       -> /docs/[lang]/functions?nxtPlang=$nxtPlang
-
-     /docs/[lang]/guide.rsc
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /docs/[lang]/guide$rscSuffix?nxtPlang=$nxtPlang
-
      /docs/[lang]/guide
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(?:/)?$
-       -> /docs/[lang]/guide?nxtPlang=$nxtPlang
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /docs/[lang]/guide$rscSuffix?nxtPlang=$nxtPlang
 
      /legacy/[id].rsc
        ^[/]?/legacy/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
