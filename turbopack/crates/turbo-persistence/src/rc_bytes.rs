@@ -10,34 +10,56 @@ use memmap2::Mmap;
 
 use crate::{
     compression::decompress_into_rc,
-    shared_bytes::{SharedBytes, is_subslice_of},
+    shared_bytes::{INLINE_CAPACITY, SharedBytes, is_subslice_of},
 };
 
-/// The backing storage for an `RcBytes`.
+/// The representation of an `RcBytes`.
 ///
-/// Uses `Rc` for all refcounting, eliminating atomic operations.
+/// Mirrors [`ArcBytes`][crate::ArcBytes]: the ref-counted variants keep their backing alive while
+/// `data` points into it, and `Inline` owns its bytes so it carries no pointer to dangle on a move.
 #[derive(Clone)]
-enum Backing {
-    Rc { _backing: Rc<[u8]> },
-    Mmap { _backing: Rc<Mmap> },
+enum Repr {
+    Rc {
+        data: *const [u8],
+        _backing: Rc<[u8]>,
+    },
+    Mmap {
+        data: *const [u8],
+        _backing: Rc<Mmap>,
+    },
+    /// Bytes stored in place, for slices up to [`INLINE_CAPACITY`].
+    Inline { buf: [u8; INLINE_CAPACITY], len: u8 },
 }
 
-/// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
+/// An owned byte slice backed by an `Rc<[u8]>`, a memory-mapped file, or an inline buffer.
 ///
 /// Identical to `ArcBytes` but uses `Rc` instead of `Arc`, eliminating atomic
 /// refcount overhead. Use this in single-threaded contexts like SST iteration
 /// during compaction.
 #[derive(Clone)]
 pub struct RcBytes {
-    data: *const [u8],
-    backing: Backing,
+    repr: Repr,
+}
+
+impl RcBytes {
+    /// The ref-counted bytes this slice points into, or `None` when stored inline.
+    #[inline]
+    fn backing_bytes(&self) -> Option<&[u8]> {
+        match &self.repr {
+            Repr::Rc { _backing, .. } => Some(_backing),
+            Repr::Mmap { _backing, .. } => Some(_backing),
+            Repr::Inline { .. } => None,
+        }
+    }
 }
 
 impl From<Rc<[u8]>> for RcBytes {
     fn from(rc: Rc<[u8]>) -> Self {
         Self {
-            data: &*rc as *const [u8],
-            backing: Backing::Rc { _backing: rc },
+            repr: Repr::Rc {
+                data: &*rc as *const [u8],
+                _backing: rc,
+            },
         }
     }
 }
@@ -52,7 +74,13 @@ impl Deref for RcBytes {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.data }
+        match &self.repr {
+            // SAFETY: `data` points into the backing held by the same variant, which keeps it
+            // alive for as long as `self`.
+            Repr::Rc { data, .. } | Repr::Mmap { data, .. } => unsafe { &**data },
+            // Borrowed from `self`, so this is recomputed after a move rather than stored.
+            Repr::Inline { buf, len } => &buf[..*len as usize],
+        }
     }
 }
 
@@ -86,28 +114,48 @@ impl SharedBytes for RcBytes {
     type MmapHandle = Rc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
-        let data = &*self;
-        let data = &data[range] as *const [u8];
+        let sliced = &self[range];
+        // Inline bytes have no backing to carry over, so re-inline the sub-range.
+        if let Repr::Inline { .. } = self.repr {
+            return Self::from_inline(sliced);
+        }
+        let data = sliced as *const [u8];
         Self {
-            data,
-            backing: self.backing,
+            repr: match self.repr {
+                Repr::Rc { _backing, .. } => Repr::Rc { data, _backing },
+                Repr::Mmap { _backing, .. } => Repr::Mmap { data, _backing },
+                Repr::Inline { .. } => unreachable!("handled above"),
+            },
         }
     }
 
     unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
+        // Mirrors `ArcBytes`: short slices are copied so the result owns its bytes. The refcount
+        // saved here is non-atomic and therefore cheap, but keeping the two types identical means
+        // the lookup and iteration paths cannot disagree about what a returned value borrows.
+        if subslice.len() <= INLINE_CAPACITY {
+            return Self::from_inline(subslice);
+        }
         debug_assert!(
-            is_subslice_of(
-                subslice,
-                match &self.backing {
-                    Backing::Rc { _backing } => _backing,
-                    Backing::Mmap { _backing } => _backing,
-                }
-            ),
+            self.backing_bytes()
+                .is_some_and(|backing| is_subslice_of(subslice, backing)),
             "slice_from_subslice: subslice is not within the backing storage"
         );
+        let data = subslice as *const [u8];
         Self {
-            data: subslice as *const [u8],
-            backing: self.backing.clone(),
+            repr: match &self.repr {
+                Repr::Rc { _backing, .. } => Repr::Rc {
+                    data,
+                    _backing: _backing.clone(),
+                },
+                Repr::Mmap { _backing, .. } => Repr::Mmap {
+                    data,
+                    _backing: _backing.clone(),
+                },
+                // Unreachable for a well-formed caller: an inline slice is at most
+                // INLINE_CAPACITY, so it took the branch above.
+                Repr::Inline { .. } => return Self::from_inline(subslice),
+            },
         }
     }
 
@@ -117,8 +165,8 @@ impl SharedBytes for RcBytes {
             "from_mmap: subslice is not within the mmap"
         );
         RcBytes {
-            data: subslice as *const [u8],
-            backing: Backing::Mmap {
+            repr: Repr::Mmap {
+                data: subslice as *const [u8],
                 _backing: mmap.clone(),
             },
         }
@@ -129,5 +177,22 @@ impl SharedBytes for RcBytes {
             uncompressed_length,
             block,
         )?))
+    }
+
+    #[inline]
+    fn from_inline(bytes: &[u8]) -> Self {
+        assert!(
+            bytes.len() <= INLINE_CAPACITY,
+            "{} bytes exceeds the {INLINE_CAPACITY} byte inline capacity",
+            bytes.len()
+        );
+        let mut buf = [0u8; INLINE_CAPACITY];
+        buf[..bytes.len()].copy_from_slice(bytes);
+        RcBytes {
+            repr: Repr::Inline {
+                buf,
+                len: bytes.len() as u8,
+            },
+        }
     }
 }
