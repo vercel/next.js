@@ -1,0 +1,30 @@
+|name, initial| {
+  // `CARGO_TARGET_TMPDIR` is only set for integration-test targets, and this config is included by
+  // unit tests in the library test binary, so derive the cache directory from the temp dir instead.
+  let path = std::env::temp_dir().join(format!("next-api-{name}"));
+  if initial {
+    let _ = std::fs::remove_dir_all(&path);
+  }
+  std::fs::create_dir_all(&path).unwrap();
+  turbo_tasks::TurboTasks::new(
+    turbo_tasks_backend::TurboTasksBackend::new(
+      turbo_tasks_backend::BackendOptions {
+        num_workers: Some(2),
+        small_preallocation: true,
+        storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
+        ..Default::default()
+      },
+      turbo_tasks_backend::turbo_backing_storage(
+        path.as_path(),
+        &turbo_tasks_backend::GitVersionInfo {
+          describe: "test-unversioned",
+          dirty: false,
+        },
+        turbo_tasks_backend::BackingStorageOptions {
+          is_short_session: true,
+          ..Default::default()
+        },
+      ).unwrap().0
+    )
+  )
+}

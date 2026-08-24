@@ -80,6 +80,23 @@ pub struct VersionedContentMap {
 }
 
 impl VersionedContentMap {
+    /// Applies one operation's emitted-path set to `map_path_to_op`.
+    ///
+    /// The whole update — adding the operation to its current paths, dropping it from paths it no
+    /// longer emits, and deleting a path whose last operation just went away — runs inside a single
+    /// `update_conditionally` closure, so it holds the `State` mutex throughout. Splitting it (for
+    /// example checking emptiness, releasing the lock, then deleting the key) would let a
+    /// concurrent insertion under that path be dropped.
+    fn update_output_operation_paths<'a>(
+        &self,
+        assets_operation: OperationVc<ExpandedOutputAssets>,
+        paths: impl IntoIterator<Item = &'a FileSystemPath>,
+    ) {
+        self.map_path_to_op.update_conditionally(|map| {
+            update_output_operation_paths(map, assets_operation, paths)
+        });
+    }
+
     // NOTE(alexkirsz) This must not be a `#[turbo_tasks::function]` because it
     // should be a singleton for each project.
     pub fn new() -> ResolvedVc<Self> {
@@ -194,36 +211,10 @@ impl VersionedContentMap {
             // Any error should result in an empty list, which removes all assets from the map
             .ok();
 
-        self.map_path_to_op.update_conditionally(|map| {
-            let mut changed = false;
-
-            // get current map's keys, subtract keys that don't exist in operation
-            let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
-
-            for (k, _) in entries.iter().flatten() {
-                let res = map
-                    .0
-                    .entry(k.clone())
-                    .or_default()
-                    .0
-                    .insert(assets_operation);
-                stale_assets.remove(k);
-                changed = changed || res;
-            }
-
-            // Make more efficient with reverse map
-            for k in &stale_assets {
-                let res = map
-                    .0
-                    .get_mut(k)
-                    // guaranteed
-                    .unwrap()
-                    .0
-                    .swap_remove(&assets_operation);
-                changed = changed || res
-            }
-            changed
-        });
+        self.update_output_operation_paths(
+            assets_operation,
+            entries.iter().flatten().map(|(path, _)| path),
+        );
 
         // Make sure all written client assets are up-to-date
         emit_assets(
@@ -303,8 +294,8 @@ impl VersionedContentMap {
     #[turbo_tasks::function(session_dependent)]
     fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
-            let map = &self.map_path_to_op.get().0;
-            map.get(&path).and_then(|m| m.0.iter().next().copied())
+            let map = self.map_path_to_op.get();
+            output_operation_for_path(&map, &path)
         };
         let Some(assets) = assets else {
             return Vc::cell(None);
@@ -321,6 +312,59 @@ impl VersionedContentMap {
         };
         compute_entry.connect()
     }
+}
+
+/// Returns whether the map changed. Because an emptied path key is always deleted here, the map
+/// never holds a path with an empty operation set, which is what keeps renamed output paths from
+/// accumulating for the lifetime of this non-evictable map.
+fn update_output_operation_paths<'a>(
+    map: &mut PathToOutputOperation,
+    assets_operation: OperationVc<ExpandedOutputAssets>,
+    paths: impl IntoIterator<Item = &'a FileSystemPath>,
+) -> bool {
+    let mut changed = false;
+
+    // get current map's keys, subtract keys that don't exist in operation
+    let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
+
+    for path in paths {
+        let inserted = map
+            .0
+            .entry(path.clone())
+            .or_default()
+            .0
+            .insert(assets_operation);
+        stale_assets.remove(path);
+        changed = changed || inserted;
+    }
+
+    // Make more efficient with reverse map
+    for path in &stale_assets {
+        let remove_path = {
+            let operations = map
+                .0
+                .get_mut(path)
+                // guaranteed
+                .unwrap();
+            let removed = operations.0.swap_remove(&assets_operation);
+            changed = changed || removed;
+            operations.0.is_empty()
+        };
+        if remove_path {
+            map.0.remove(path);
+            changed = true;
+        }
+    }
+    changed
+}
+
+fn output_operation_for_path(
+    map: &PathToOutputOperation,
+    path: &FileSystemPath,
+) -> Option<OperationVc<ExpandedOutputAssets>> {
+    map.0
+        .get(path)
+        .and_then(|operations| operations.0.iter().next().copied())
 }
 
 type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>;
@@ -356,4 +400,203 @@ fn compute_entry_operation(
         client_relative_path,
         client_output_path,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::{Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+    use turbo_tasks_testing::{Registration, register, run_once};
+
+    use super::*;
+
+    static REGISTRATION: Registration = register!();
+
+    // Distinct ids keep these operations distinct tasks; the operation-entry counts asserted below
+    // would collapse to one otherwise.
+    #[turbo_tasks::function(operation, root)]
+    fn test_assets_operation(id: u32) -> Vc<ExpandedOutputAssets> {
+        let _ = id;
+        Vc::cell(Vec::new())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn test_compute_entry_operation(id: u32) -> Vc<OptionMapEntry> {
+        let _ = id;
+        Vc::cell(None)
+    }
+
+    /// Drives the same entry point `compute_entry` uses, so these tests cover the production
+    /// mutation including its lock boundary.
+    fn set_paths(
+        map: &VersionedContentMap,
+        operation: OperationVc<ExpandedOutputAssets>,
+        paths: &[FileSystemPath],
+    ) {
+        map.update_output_operation_paths(operation, paths);
+    }
+
+    fn stats(map: &VersionedContentMap) -> (usize, usize, usize, usize) {
+        let path_map = map.map_path_to_op.get_untracked();
+        let total = path_map.0.len();
+        let stale = path_map
+            .0
+            .values()
+            .filter(|operations| operations.0.is_empty())
+            .count();
+        let operations = map.map_op_to_compute_entry.get_untracked().len();
+        (total, total - stale, stale, operations)
+    }
+
+    fn has_operation(
+        map: &VersionedContentMap,
+        path: &FileSystemPath,
+        operation: OperationVc<ExpandedOutputAssets>,
+    ) -> bool {
+        let path_map = map.map_path_to_op.get_untracked();
+        path_map
+            .0
+            .get(path)
+            .is_some_and(|operations| operations.0.contains(&operation))
+    }
+
+    fn lookup_operation(
+        map: &VersionedContentMap,
+        path: &FileSystemPath,
+    ) -> Option<OperationVc<ExpandedOutputAssets>> {
+        output_operation_for_path(&map.map_path_to_op.get_untracked(), path)
+    }
+
+    fn map_with_operation(operation: OperationVc<ExpandedOutputAssets>) -> VersionedContentMap {
+        let map = VersionedContentMap {
+            map_path_to_op: State::new(PathToOutputOperation(FxHashMap::default())),
+            map_op_to_compute_entry: State::new(FxHashMap::default()),
+        };
+        add_operation(&map, operation, 0);
+        map
+    }
+
+    fn add_operation(
+        map: &VersionedContentMap,
+        operation: OperationVc<ExpandedOutputAssets>,
+        id: u32,
+    ) {
+        map.map_op_to_compute_entry
+            .update_conditionally(|operation_map| {
+                operation_map.insert(operation, test_compute_entry_operation(id));
+                true
+            });
+    }
+
+    async fn paths() -> Result<(
+        FileSystemPath,
+        FileSystemPath,
+        FileSystemPath,
+        FileSystemPath,
+    )> {
+        let root = DiskFileSystem::new(rcstr!("versioned-content-map-test"), Vc::cell(rcstr!("/")))
+            .root()
+            .owned()
+            .await?;
+        Ok((
+            root.join("a.js")?,
+            root.join("b.js")?,
+            root.join("c.js")?,
+            root.join("d.js")?,
+        ))
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn removes_renamed_output_paths() {
+        run_once(&REGISTRATION, async || {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let operation = test_assets_operation(0);
+            let map = map_with_operation(operation);
+            let (a, b, _, _) = paths().await?;
+
+            set_paths(&map, operation, std::slice::from_ref(&a));
+            set_paths(&map, operation, std::slice::from_ref(&b));
+
+            assert_eq!(lookup_operation(&map, &a), None);
+            assert_eq!(lookup_operation(&map, &b), Some(operation));
+            assert_eq!(stats(&map), (1, 1, 0, 1));
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn preserves_shared_output_paths_until_last_owner_is_removed() {
+        run_once(&REGISTRATION, async || {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let operation_x = test_assets_operation(0);
+            let operation_y = test_assets_operation(1);
+            let map = map_with_operation(operation_x);
+            add_operation(&map, operation_y, 1);
+            let (a, b, c, _) = paths().await?;
+
+            set_paths(&map, operation_x, std::slice::from_ref(&a));
+            set_paths(&map, operation_y, std::slice::from_ref(&a));
+            set_paths(&map, operation_x, std::slice::from_ref(&b));
+            assert!(has_operation(&map, &a, operation_y));
+            assert!(!has_operation(&map, &a, operation_x));
+
+            set_paths(&map, operation_y, std::slice::from_ref(&c));
+            assert_eq!(lookup_operation(&map, &a), None);
+            assert_eq!(stats(&map), (2, 2, 0, 2));
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bounds_repeated_output_path_churn() {
+        run_once(&REGISTRATION, async || {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let operation = test_assets_operation(0);
+            let map = map_with_operation(operation);
+            let paths = paths().await?;
+
+            let mut progression = Vec::new();
+            for path in [&paths.0, &paths.1, &paths.2, &paths.3] {
+                set_paths(&map, operation, std::slice::from_ref(path));
+                progression.push(stats(&map));
+            }
+            // (total paths, live paths, stale paths, operation entries) after each rename.
+            assert_eq!(progression, vec![(1, 1, 0, 1); 4]);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn readds_removed_output_paths() {
+        run_once(&REGISTRATION, async || {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let operation_x = test_assets_operation(0);
+            let operation_y = test_assets_operation(1);
+            let map = map_with_operation(operation_x);
+            let (a, _, _, _) = paths().await?;
+
+            set_paths(&map, operation_x, std::slice::from_ref(&a));
+            set_paths(&map, operation_x, &[]);
+            set_paths(&map, operation_x, std::slice::from_ref(&a));
+            assert_eq!(stats(&map), (1, 1, 0, 1));
+            assert_eq!(lookup_operation(&map, &a), Some(operation_x));
+
+            set_paths(&map, operation_y, std::slice::from_ref(&a));
+            set_paths(&map, operation_x, &[]);
+            assert!(has_operation(&map, &a, operation_y));
+            set_paths(&map, operation_x, std::slice::from_ref(&a));
+            assert!(has_operation(&map, &a, operation_x));
+            assert!(has_operation(&map, &a, operation_y));
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }

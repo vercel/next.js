@@ -4899,6 +4899,7 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbo-tasks-testing",
  "turbo-unix-path",
  "turbopack",
  "turbopack-analyze",
