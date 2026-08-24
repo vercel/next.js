@@ -74,11 +74,12 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 ```json filename="eval.config.json"
 {
   "skills": ["next-partial-prefetching-adoption"],
+  "playwright": true,
   "timeout": 1800
 }
 ```
 
-The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
+The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. Set `playwright` when the workflow must execute browser tests so the sandbox has the required system libraries. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
 
 A run takes ~2–5 min. To validate a fixture without executing:
 

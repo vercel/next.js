@@ -37,13 +37,13 @@ const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 const BASE_VARIANTS = [
   {
     suffix: 'baseline',
-    imports: `import { installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)`,
+    imports: `import { installNextJs, installPlaywrightSystemDependencies } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywrightSystemDependencies(sandbox)`,
   },
   {
     suffix: 'agents-md',
-    imports: `import { installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)`,
+    imports: `import { installNextJs, installPlaywrightSystemDependencies, writeAgentsMd } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywrightSystemDependencies(sandbox)\n    await writeAgentsMd(sandbox)`,
   },
 ]
 
@@ -149,8 +149,8 @@ function getExperimentSettings(evalName) {
       ...BASE_VARIANTS,
       {
         suffix: 'skills',
-        imports: `import { installLocalSkills, installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-        setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skillNames)})`,
+        imports: `import { installLocalSkills, installNextJs, installPlaywrightSystemDependencies, writeAgentsMd } from '../lib/setup.js'`,
+        setup: `await installNextJs(sandbox)\n    await installPlaywrightSystemDependencies(sandbox)\n    await writeAgentsMd(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skillNames)})`,
         evals: configuredSkillEvals.map(({ name }) => name),
       },
     ],

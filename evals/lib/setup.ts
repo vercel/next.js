@@ -4,6 +4,26 @@ import type { Sandbox } from '@vercel/agent-eval'
 
 const REPO_ROOT = join(process.cwd(), '..')
 
+const PLAYWRIGHT_SYSTEM_DEPENDENCIES = [
+  'nss',
+  'nspr',
+  'at-spi2-atk',
+  'cups-libs',
+  'libdrm',
+  'libxkbcommon',
+  'alsa-lib',
+  'gtk3',
+  'libX11',
+  'libXcomposite',
+  'libXdamage',
+  'libXext',
+  'libXfixes',
+  'libXrandr',
+  'libgbm',
+  'pango',
+  'cairo',
+]
+
 /**
  * Install the locally-built Next.js into the sandbox.
  *
@@ -35,6 +55,32 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
     )
   }
   console.log('  Installed local Next.js tarball')
+}
+
+/** Install browser libraries for fixtures that opt into Playwright coverage. */
+export async function installPlaywrightSystemDependencies(
+  sandbox: Sandbox
+): Promise<void> {
+  let config: { playwright?: boolean }
+  try {
+    config = JSON.parse(await sandbox.readFile('eval.config.json'))
+  } catch {
+    return
+  }
+  if (!config.playwright) return
+
+  const { exitCode, stderr } = await sandbox.runCommand('sudo', [
+    'dnf',
+    'install',
+    '-y',
+    ...PLAYWRIGHT_SYSTEM_DEPENDENCIES,
+  ])
+  if (exitCode !== 0) {
+    throw new Error(
+      `Playwright system dependency install failed (exit ${exitCode}):\n${stderr}`
+    )
+  }
+  console.log('  Installed Playwright system dependencies')
 }
 
 /**

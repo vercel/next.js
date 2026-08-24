@@ -56,13 +56,13 @@ test('keeps the reusable checklist cache explicit', () => {
 
 test('produces a useful shell without caching request data', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The final /releases/aurora implementation returns a meaningful static shell for both direct visits and client navigation. The release frame/navigation and Release operations heading are available without waiting for request-time work. The existing viewer and rollout loading states are reused in focused Suspense boundaries. The viewer cookie and live rollout remain request-time and are not placed in a public cache. The page or a high-level boundary is not replaced with an empty or duplicate full-page fallback.`
+    `The final /releases/aurora implementation keeps the release frame/navigation and Release operations heading outside request-time work. The existing viewer and rollout loading states are reused in focused Suspense boundaries. The viewer cookie and live rollout remain request-time and are not placed in a public cache. The page or a high-level boundary is not replaced with an empty or duplicate full-page fallback.`
   )
 })
 
 test('caches only the reusable launch checklist', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The file-backed launch checklist is made reusable with a targeted use-cache boundary and an explicit cacheLife, so the real checklist can be included in the static shell. The cache does not include cookies, viewer identity, connection(), or live rollout state. The URL-dependent rollout stays fresh and streams behind its existing LiveRolloutSkeleton.`
+    `The file-backed launch checklist is made reusable with a targeted use-cache boundary, so the real checklist can be included in the static shell. The cache does not include cookies, viewer identity, connection(), or live rollout state. The URL-dependent rollout stays fresh and streams behind its existing LiveRolloutSkeleton.`
   )
 })
 
