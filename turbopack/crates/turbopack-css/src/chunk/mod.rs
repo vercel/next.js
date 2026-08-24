@@ -549,7 +549,7 @@ impl ChunkType for CssChunkType {
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
+                .map(|ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
                     let Some(chunk_item) =
                         ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
                     else {
@@ -558,8 +558,7 @@ impl ChunkType for CssChunkType {
                     // CSS doesn't need to care about async_info, so we can discard it
                     Ok(chunk_item)
                 })
-                .try_join()
-                .await?,
+                .collect::<Result<Vec<_>>>()?,
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))
