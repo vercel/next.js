@@ -498,6 +498,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             enable_node_native_modules: true,
             enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
+            // A `/`-rooted request resolves from the test's own directory, which is not the root
+            // of the filesystem (that is the repository root), so the two are distinguishable.
+            server_relative_root: Some(project_path.clone()),
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ResolveOptionsContext {

@@ -81,6 +81,13 @@ pub struct ResolveOptionsContext {
     pub loose_errors: bool,
     /// Collect affecting sources for each resolve result.  Useful for tracing.
     pub collect_affecting_sources: bool,
+    /// The directory that a request starting with `/` resolves from, e.g. `/dir/file.js`.
+    ///
+    /// Sets [`ResolveOptions::server_relative_root`].
+    ///
+    /// [`ResolveOptions::server_relative_root`]:
+    ///     turbopack_core::resolve::options::ResolveOptions::server_relative_root
+    pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
 }

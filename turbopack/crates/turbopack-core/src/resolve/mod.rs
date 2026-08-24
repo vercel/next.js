@@ -2023,34 +2023,19 @@ async fn resolve_internal_inline(
                 query,
                 fragment,
             } => {
+                // A `/`-rooted request is resolved from `server_relative_root` when one is
+                // configured, and from the root of the filesystem otherwise. It is not resolved
+                // relative to the importing file, and it does not fall back to a wider directory,
+                // so it can't reach outside of the configured root.
+                let root = match &options_value.server_relative_root {
+                    Some(root) => root.clone(),
+                    None => lookup_path.root().owned().await?,
+                };
                 let mut new_pat = path.clone();
                 new_pat.push_front(rcstr!(".").into());
                 let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
-                if !has_alias {
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
-                    }
-                    .resolved_cell()
-                    .emit();
-                }
-
-                Box::pin(resolve_internal_inline(
-                    lookup_path.root().owned().await?,
-                    relative,
-                    options,
-                ))
-                .await?
+                Box::pin(resolve_internal_inline(root, relative, options)).await?
             }
             Request::Windows {
                 path: _,
