@@ -850,7 +850,47 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
-        data.import_usage = analyzer.program_decl_usage.compute_import_usage();
+        let mut import_usage = analyzer.program_decl_usage.compute_import_usage();
+
+        let mut extra_import_usages: rustc_hash::FxHashMap<
+            usize,
+            rustc_hash::FxHashSet<turbo_rcstr::RcStr>,
+        > = rustc_hash::FxHashMap::default();
+        for (export_name, export) in &data.exports {
+            match export {
+                Export::ImportedBinding(i, _, _) | Export::ImportedNamespace(i) => {
+                    extra_import_usages
+                        .entry(*i)
+                        .or_default()
+                        .insert(export_name.clone());
+                }
+                _ => {}
+            }
+        }
+
+        for (i, extra_exports) in extra_import_usages {
+            import_usage
+                .entry(i)
+                .and_modify(|usage| {
+                    if let turbopack_core::resolve::ImportUsage::Exports(exports) = usage {
+                        let mut new_exports = exports
+                            .iter()
+                            .cloned()
+                            .collect::<rustc_hash::FxHashSet<_>>();
+                        new_exports.extend(extra_exports.clone());
+                        *usage = turbopack_core::resolve::ImportUsage::Exports(
+                            new_exports.into_iter().collect(),
+                        );
+                    }
+                })
+                .or_insert_with(|| {
+                    turbopack_core::resolve::ImportUsage::Exports(
+                        extra_exports.into_iter().collect(),
+                    )
+                });
+        }
+
+        data.import_usage = import_usage;
 
         data
     }

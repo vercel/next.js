@@ -1,4 +1,4 @@
-use std::collections::hash_map::Entry;
+use std::{borrow::Cow, collections::hash_map::Entry};
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
@@ -16,6 +16,10 @@ use crate::{
     },
     resolve::{ExportUsage, ImportUsage},
 };
+
+/// Static constant for `ExportUsage::Evaluation`, used to borrow via `Cow` in the traversal
+/// without allocating.
+const EVALUATION_USAGE: ExportUsage = ExportUsage::Evaluation;
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>);
@@ -157,6 +161,7 @@ pub async fn compute_binding_usage_info(
                     return Ok(GraphTraversalAction::Continue);
                 };
 
+                let mut propagated_export_usage = Cow::Borrowed(&ref_data.binding_usage.export);
                 if remove_unused_imports {
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
@@ -241,12 +246,85 @@ pub async fn compute_binding_usage_info(
                             }
                             // Continue, has to always be included
                         }
+                        ImportUsage::StarReexport => {
+                            let source_used_exports = used_exports
+                                .get(&parent)
+                                .context("parent module must have usage info")?;
+                            match source_used_exports {
+                                ModuleExportUsageInfo::Evaluation => {
+                                    // Parent has no exports used. No export names need to
+                                    // be forwarded, but `export * from '...'` still causes
+                                    // the target to be evaluated at runtime. Only skip the
+                                    // edge if the target is side-effect-free; otherwise we
+                                    // must keep it so the target's side effects are preserved.
+                                    if side_effect_free_modules
+                                        .as_ref()
+                                        .expect(
+                                            "this must be present if `remove_unused_imports` is \
+                                             true",
+                                        )
+                                        .contains(&target)
+                                    {
+                                        #[cfg(debug_assertions)]
+                                        debug_unused_references_name.insert((
+                                            parent,
+                                            ref_data.binding_usage.export.clone(),
+                                            target,
+                                        ));
+                                        unused_references_edges.insert(edge);
+                                        unused_references.insert(ref_data.reference);
+
+                                        return Ok(GraphTraversalAction::Skip);
+                                    }
+                                    // Target has side effects, keep the edge but propagate
+                                    // only evaluation usage (no export names needed).
+                                    propagated_export_usage = Cow::Borrowed(&EVALUATION_USAGE);
+                                }
+                                ModuleExportUsageInfo::Exports(exports) => {
+                                    // Propagate the specific exports used by the parent.
+                                    //
+                                    // TODO: This over-approximates by propagating *all* of the
+                                    // parent's used exports to the target, including exports that
+                                    // are locally defined in the parent and not actually forwarded
+                                    // by this `export * from '...'`. Ideally we would intersect
+                                    // with the set of export names the target module actually
+                                    // provides, but that information is behind async Vc calls
+                                    // (EcmascriptChunkPlaceable::get_exports), may require
+                                    // recursive star-export expansion, and lives in the
+                                    // turbopack-ecmascript crate (cross-crate boundary). The
+                                    // over-approximation is sound (conservative) but can keep
+                                    // star re-export edges alive unnecessarily.
+                                    propagated_export_usage =
+                                        Cow::Owned(ExportUsage::PartialNamespaceObject(
+                                            exports.iter().cloned().collect(),
+                                        ));
+                                    #[cfg(debug_assertions)]
+                                    debug_unused_references_name.remove(&(
+                                        parent,
+                                        ref_data.binding_usage.export.clone(),
+                                        target,
+                                    ));
+                                    unused_references_edges.remove(&edge);
+                                    unused_references.remove(&ref_data.reference);
+                                }
+                                ModuleExportUsageInfo::All => {
+                                    #[cfg(debug_assertions)]
+                                    debug_unused_references_name.remove(&(
+                                        parent,
+                                        ref_data.binding_usage.export.clone(),
+                                        target,
+                                    ));
+                                    unused_references_edges.remove(&edge);
+                                    unused_references.remove(&ref_data.reference);
+                                }
+                            }
+                        }
                     }
                 }
 
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
-                if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
+                if entry.or_default().add(&propagated_export_usage) || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get
                     // used downstream.
                     Ok(GraphTraversalAction::Continue)

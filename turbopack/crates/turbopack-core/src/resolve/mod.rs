@@ -162,6 +162,13 @@ pub enum ImportUsage {
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
+    /// This import is a star re-export (`export * from '...'`). It contributes to a dynamic set
+    /// of the parent module's exports. During binding-usage analysis, instead of propagating
+    /// `ExportUsage::All` to the target, only the parent's actually-used exports are propagated.
+    /// If the parent has no used exports (only evaluation), the reference can be skipped only
+    /// when the target is side-effect-free; otherwise an `Evaluation` usage must still be
+    /// propagated to preserve the target's side effects.
+    StarReexport,
 }
 
 /// Defines what parts of a module are used by another module

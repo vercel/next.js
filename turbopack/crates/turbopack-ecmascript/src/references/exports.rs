@@ -84,6 +84,9 @@ pub async fn compute_ecmascript_module_exports(
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
+        let reexport_namespace_idxs: rustc_hash::FxHashSet<usize> =
+            eval_context.imports.reexport_namespaces().collect();
+
         for (i, r) in eval_context.imports.references().enumerate() {
             let mut should_add_evaluation = false;
 
@@ -94,6 +97,17 @@ pub async fn compute_ecmascript_module_exports(
                 Some(*a)
             } else {
                 None
+            };
+
+            let import_usage = if reexport_namespace_idxs.contains(&i) {
+                turbopack_core::resolve::ImportUsage::StarReexport
+            } else {
+                eval_context
+                    .imports
+                    .import_usage
+                    .get(&i)
+                    .cloned()
+                    .unwrap_or_default()
             };
 
             let reference = EsmAssetReference::new(
@@ -126,12 +140,7 @@ pub async fn compute_ecmascript_module_exports(
                         options.module_fragments_enabled.then(ModulePart::exports)
                     }
                 },
-                eval_context
-                    .imports
-                    .import_usage
-                    .get(&i)
-                    .cloned()
-                    .unwrap_or_default(),
+                import_usage,
                 import_externals,
                 options.module_fragments_enabled,
                 resolve_override,
