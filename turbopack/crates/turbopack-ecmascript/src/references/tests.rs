@@ -13,6 +13,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    free_var_references,
     ident::Layer,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
@@ -61,8 +62,25 @@ async fn setup(
 
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
-    ));
-    let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
+    ))
+    .to_resolved()
+    .await?;
+    let compile_time_info = CompileTimeInfo::builder(environment)
+        .free_var_references(
+            free_var_references!(
+                process.env.INLINED1 = "inlined1",
+                process.env.INLINED2 = "inlined2",
+                process.env.INLINED3 = "inlined3",
+                process.env.INLINED4 = "inlined4",
+                process.env.INLINED5 = "inlined5",
+                process.env.INLINED6 = "inlined6",
+            )
+            .resolved_cell(),
+        )
+        .cell()
+        .await?
+        .to_resolved()
+        .await?;
     let layer = Layer::new(rcstr!("test"));
     let module_asset_context = NoopAssetContext {
         compile_time_info,
