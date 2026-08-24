@@ -87,17 +87,37 @@ const fn reserved_in_table(len: u32) -> u64 {
 }
 
 /// The number of distinct values encodable in at most `len` characters, i.e. the capacity of the
-/// table for that length. Saturates instead of overflowing for absurd lengths.
+/// table for that length.
 ///
 /// This counts *values*, not strings: [`encode_js_identifier`] never emits a trailing
 /// [`ZERO_CHAR`], so a value whose last digit would be zero encodes to a shorter string instead,
 /// and every value below the returned bound really does fit in `len` characters.
+///
+/// Precomputed for `len <= 10` — [`CAPACITY_FOR_LEN`] is kept in step with the formula by a test.
+/// Beyond 10 characters the formula itself overflows `u64` (`len == 11` alone would need
+/// `54 * 64^10 ≈ 6.2e19`, past `u64::MAX`'s `≈ 1.8e19`), and no real export table gets remotely
+/// close to needing this many characters, so those lengths saturate.
 fn capacity_for_len(len: u32) -> u64 {
-    if len == 0 {
-        return 0;
-    }
-    (FIRST_CHARS.len() as u64).saturating_mul((REST_CHARS.len() as u64).saturating_pow(len - 1))
+    CAPACITY_FOR_LEN
+        .get(len as usize)
+        .copied()
+        .unwrap_or(u64::MAX)
 }
+
+/// See [`capacity_for_len`].
+const CAPACITY_FOR_LEN: [u64; 11] = [
+    0,
+    54,
+    3_456,
+    221_184,
+    14_155_776,
+    905_969_664,
+    57_982_058_496,
+    3_710_851_743_744,
+    237_494_511_599_616,
+    15_199_648_742_375_424,
+    972_777_519_512_027_136,
+];
 
 /// Encodes a value to a valid JS identifier. Always returns at least one character, and never
 /// returns an encoding with a trailing [`ZERO_CHAR`] (those values are the degenerate ones, see
@@ -527,6 +547,28 @@ mod tests {
                 "reserved_in_table({len}) disagrees with RESERVED_KEYS"
             );
         }
+    }
+
+    #[test]
+    fn capacity_for_len_matches_the_formula() {
+        // `CAPACITY_FOR_LEN` is a precomputed table; keep it honest against the formula it
+        // replaces (`FIRST_CHARS.len() * REST_CHARS.len()^(len - 1)`, computed with `u128` here so
+        // this check doesn't itself rely on the saturation it's verifying).
+        for len in 0..CAPACITY_FOR_LEN.len() as u32 {
+            let expected: u128 = if len == 0 {
+                0
+            } else {
+                (FIRST_CHARS.len() as u128) * (REST_CHARS.len() as u128).pow(len - 1)
+            };
+            assert_eq!(
+                capacity_for_len(len) as u128,
+                expected,
+                "capacity_for_len({len}) disagrees with the formula"
+            );
+        }
+        // And confirm it still saturates beyond the precomputed range, rather than overflowing.
+        assert_eq!(capacity_for_len(CAPACITY_FOR_LEN.len() as u32), u64::MAX);
+        assert_eq!(capacity_for_len(1000), u64::MAX);
     }
 
     #[test]
