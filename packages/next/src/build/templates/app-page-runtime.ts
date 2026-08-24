@@ -41,7 +41,7 @@ import {
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -291,7 +291,8 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const isPossibleServerAction = getIsPossibleServerAction(req)
+    const { isFetchAction, isPossibleServerAction } =
+      getServerActionRequestMetadata(req)
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -1348,19 +1349,16 @@ export function createAppPageEntrypoint({
               : undefined
 
           if (
-            // If this is a dynamic RSC request or a server action request, we should
-            // use the postponed data from the static render (if available). This
-            // ensures that we can utilize the resume data cache (RDC) from the static
-            // render to ensure that the data is consistent between the static and
-            // dynamic renders (for navigations) or when re-rendering after a server
-            // action.
+            // Dynamic RSC requests and fetch actions should use the postponed data
+            // from the static render (if available). This keeps the resume data
+            // cache consistent between the static and dynamic renders. MPA actions
+            // need a complete HTML document, so they must not resume here.
             // Only enable RDC for Navigations if the feature is enabled.
             supportsRDCForNavigations &&
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
             incrementalCache &&
-            // Include both dynamic RSC requests (navigations) and server actions
-            (isDynamicRSCRequest || isPossibleServerAction) &&
+            (isDynamicRSCRequest || isFetchAction) &&
             // We don't typically trigger an on-demand revalidation for dynamic RSC
             // requests, as we're typically revalidating the page in the background
             // instead. However, if the cache entry is stale, we should trigger a

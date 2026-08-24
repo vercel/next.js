@@ -16,6 +16,19 @@ describe('cache-components', () => {
     })
   })
 
+  it('should return a complete MPA response after a server action', async () => {
+    const browser = await next.browser('/server-action-mpa-partial', {
+      disableJavaScript: true,
+    })
+
+    expect(await browser.elementByCss('#action-state').text()).toBe('initial')
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#action-state').text()).toBe('result')
+    })
+  })
+
   it('should not have cache components errors when encoding bound args for inline server actions', async () => {
     const browser = await next.browser('/server-action-inline')
     expect(await browser.elementByCss('p').text()).toBe('initial')
