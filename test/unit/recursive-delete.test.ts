@@ -58,11 +58,14 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
       await fs.outputFile(join(dir, 'fresh', 'new.js'), 'new')
       await fs.outputFile(join(dir, 'mixed', 'old.js'), 'old')
       await fs.outputFile(join(dir, 'mixed', 'new.js'), 'new')
+      await fs.outputFile(join(dir, 'future.js'), 'future')
 
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       for (const p of ['stale/old.js', 'mixed/old.js']) {
         await fs.utimes(join(dir, p), weekAgo, weekAgo)
       }
+      const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000)
+      await fs.utimes(join(dir, 'future.js'), twoHoursFromNow, twoHoursFromNow)
 
       await recursiveDeleteSyncWithAsyncRetries(dir, undefined, 60 * 60 * 1000)
 
