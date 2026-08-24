@@ -89,9 +89,11 @@ async fn read_glob_internal(
                         // Skip links that leave the filesystem root.
                         let link_content = path.read_link().await?;
                         if let LinkContent::Link { target } = &*link_content {
-                            if matches!(target.target_type().await?, FileSystemEntryType::Directory)
-                            {
-                                // Ensure that there are no infinite link loops, but don't resolve
+                            if matches!(
+                                target.resolved_type().await?,
+                                FileSystemEntryType::Directory
+                            ) {
+                                // Reject links that point to an ancestor before recursing.
                                 resolve_symlink_safely(entry.clone()).await?;
 
                                 // Add the directory to `results` if it is a whole match of the glob
@@ -361,6 +363,24 @@ pub mod tests {
         );
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
+        // A folder behind a symlink-to-symlink chain
+        let read_dir = root
+            .read_glob(Glob::new(rcstr!("sub/dir-chain/*"), GlobOptions::default()))
+            .await
+            .unwrap();
+        assert_eq!(read_dir.results.len(), 0);
+        let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
+        assert_eq!(inner_sub.results.len(), 0);
+        let inner_sub_dir = &*inner_sub.inner.get("dir-chain").unwrap().await?;
+        assert_eq!(
+            inner_sub_dir.results,
+            HashMap::from_iter([(
+                "index.js".into(),
+                DirectoryEntry::File(root.join("sub/dir-chain/index.js")?),
+            )])
+        );
+        assert_eq!(inner_sub_dir.inner.len(), 0);
+
         Ok(())
     }
 
@@ -450,6 +470,9 @@ pub mod tests {
                 .write_all(b"dir index")
                 .unwrap();
             symlink(&dir, path.join("sub/dir")).unwrap();
+            let dir_link = path.join("dir-link");
+            symlink(&dir, &dir_link).unwrap();
+            symlink(dir_link, path.join("sub/dir-chain")).unwrap();
         }
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
