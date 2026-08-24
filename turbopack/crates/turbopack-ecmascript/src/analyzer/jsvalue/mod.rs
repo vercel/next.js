@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bumpalo::boxed::Box as BumpBox;
 use num_bigint::BigInt;
 use smallvec::SmallVec;
@@ -607,6 +607,42 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
                 RcStr::from(regex.0.as_str()),
                 RcStr::from(regex.1.as_str()),
+            ),
+        })
+    }
+}
+
+impl TryFrom<&'_ JsValue<'_>> for CompileTimeDefineValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &JsValue) -> Result<Self> {
+        Ok(match value {
+            JsValue::Constant(v) => return Self::try_from(v),
+            JsValue::Array { items, .. } => {
+                let mut arr = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    arr.push(Self::try_from(item)?);
+                }
+                CompileTimeDefineValue::Array(arr)
+            }
+            JsValue::Object { parts, .. } => {
+                let mut obj = Vec::with_capacity(parts.len());
+                for part in parts.iter() {
+                    if let ObjectPart::KeyValue(key, value) = part {
+                        obj.push((
+                            key.as_str()
+                                .context("JsValue object key is not a string")?
+                                .into(),
+                            Self::try_from(value)?,
+                        ));
+                    } else {
+                        bail!("JsValue object contains non-key-value part");
+                    }
+                }
+                CompileTimeDefineValue::Object(obj)
+            }
+            _ => bail!(
+                "JsValue is not constant and could not be converted to CompileTimeDefineValue"
             ),
         })
     }
