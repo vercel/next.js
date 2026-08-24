@@ -44,14 +44,24 @@ export function createLinkBodyErrorInNavigation(route: string): Error {
 }
 
 export function createNavigationBodyErrorInNavigation(route: string): Error {
-  // TODO(cache-stages): docs link
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` during prerendering or a navigation.\n\n` +
       `\`unstable_navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-shell-url-data`
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage`
+  )
+}
+
+export function createPrefetchBodyErrorInNavigation(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered \`unstable_prefetch()\` during prerendering or a navigation.\n\n` +
+      `\`unstable_prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage`
   )
 }
 
@@ -107,14 +117,24 @@ export function createRuntimeMetadataError(route: string): Error {
 }
 
 export function createNavigationMetadataError(route: string): Error {
-  // TODO(cache-stages): docs link
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateMetadata()\`.\n\n` +
       `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_navigation()\` called in \`generateMetadata()\` prevents it from being prefetched.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime`
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
+  )
+}
+
+export function createPrefetchMetadataError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateMetadata()\`.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_prefetch()\` called in \`generateMetadata()\` prevents the metadata from being included in the App Shell.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
   )
 }
 
@@ -152,14 +172,24 @@ export function createRuntimeViewportError(route: string): Error {
 }
 
 export function createNavigationViewportError(route: string): Error {
-  // TODO(cache-stages): docs link
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateViewport()\`.\n\n` +
       `\`unstable_navigation()\` in \`generateViewport()\` prevents creating a shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime`
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
+  )
+}
+
+export function createPrefetchViewportError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateViewport()\`.\n\n` +
+      `\`unstable_prefetch()\` in \`generateViewport()\` prevents creating the App Shell, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
   )
 }
 

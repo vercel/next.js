@@ -359,6 +359,9 @@ export function getGuidanceVariant(message: string): GuidanceVariant {
   if (message.includes('encountered `unstable_navigation()`')) {
     return 'navigation'
   }
+  if (message.includes('encountered `unstable_prefetch()`')) {
+    return 'prefetch'
+  }
   if (
     message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
@@ -446,7 +449,10 @@ export function getBlockingRouteErrorDetails(
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime') ||
     message.includes('/blocking-prerender-dynamic') ||
-    message.includes('/instant-shell-url-data')
+    message.includes('/instant-shell-url-data') ||
+    (message.includes('/instant-cache-stage') &&
+      !message.includes('/instant-cache-stage-metadata') &&
+      !message.includes('/instant-cache-stage-viewport'))
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -457,7 +463,8 @@ export function getBlockingRouteErrorDetails(
 
   const isDynamicMetadataError =
     message.includes('/blocking-prerender-metadata-dynamic') ||
-    message.includes('/blocking-prerender-metadata-runtime')
+    message.includes('/blocking-prerender-metadata-runtime') ||
+    message.includes('/instant-cache-stage-metadata')
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
@@ -467,7 +474,8 @@ export function getBlockingRouteErrorDetails(
 
   const isBlockingViewportError =
     message.includes('/blocking-prerender-viewport-dynamic') ||
-    message.includes('/blocking-prerender-viewport-runtime')
+    message.includes('/blocking-prerender-viewport-runtime') ||
+    message.includes('/instant-cache-stage-viewport')
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
@@ -879,6 +887,14 @@ export function Errors({
             </>
           )
           break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_prefetch()</code> outside of
+              Suspense.
+            </>
+          )
+          break
         case 'dynamic':
           errorMessage = errorDetails.inNavigation
             ? 'Next.js encountered uncached data during a navigation.'
@@ -897,6 +913,7 @@ export function Errors({
               variant={errorDetails.variant}
               explanation={
                 errorDetails.variant === 'link' ||
+                errorDetails.variant === 'prefetch' ||
                 errorDetails.variant === 'navigation'
                   ? BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION
                   : errorDetails.inNavigation
@@ -999,6 +1016,14 @@ export function Errors({
             </>
           )
           break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_prefetch()</code> in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
         case 'dynamic':
           errorMessage = (
             <>
@@ -1070,6 +1095,14 @@ export function Errors({
           errorMessage = (
             <>
               Next.js encountered <code>unstable_navigation()</code> in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_prefetch()</code> in{' '}
               <code>generateViewport()</code>.
             </>
           )

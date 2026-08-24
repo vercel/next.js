@@ -67,12 +67,12 @@ export function unstable_prefetch(): Promise<void> {
     }
     case 'prerender-runtime': {
       // In a shell render, prefetch() doesn't resolve, because it doesn't reach
-      // `Runtime`. It'll resolve in a runtime prefetch, and in a runtime
-      // prerender produced during a navigation.
+      // `PrefetchRuntime`. It'll resolve in a runtime prefetch, and in a
+      // runtime prerender produced during a navigation.
       // Note that this does not mark the subtree as dynamic -- content guarded by
       // prefetch() is still considered cacheable.
       const { stagedRendering } = workUnitStore
-      const prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+      const prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimePrefetchData
       if (!stagedRendering) {
         // Prospective prerender
         // Make sure we don't unblock content that won't be reached in the final prerender.
@@ -100,7 +100,7 @@ export function unstable_prefetch(): Promise<void> {
         // We can either recover a static shell or a runtime shell, but not both.
         trackIncompatibleShellContent(workUnitStore, '`unstable_prefetch()`')
         const stage = workUnitStore.needsAppShell
-          ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData // Match the timing of 'prerender-runtime'.
+          ? RENDER_STAGES_BY_DATA_KIND.runtimePrefetchData // Match the timing of 'prerender-runtime'.
           : RENDER_STAGES_BY_DATA_KIND.staticLinkData // Match the timing of 'prerender'.
 
         return stagedRendering.delayUntilStage(

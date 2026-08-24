@@ -169,6 +169,7 @@ function stringifySegment(segment: Segment): SegmentPath {
 export type SegmentStage =
   | RenderStage.Static
   | RenderStage.ShellRuntime
+  | RenderStage.PrefetchRuntime
   | RenderStage.Runtime
   | RenderStage.NavigationRuntime
   | RenderStage.Dynamic
@@ -209,6 +210,7 @@ export async function collectStagedSegmentData(
     case ValidationPrefetchKind.Shell: {
       partialStages = [
         RenderStage.ShellRuntime,
+        RenderStage.PrefetchRuntime,
         RenderStage.Runtime,
         RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
       ]
@@ -286,6 +288,7 @@ async function collectSegmentDataForStage(
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
+      case RenderStage.PrefetchRuntime:
       case RenderStage.Runtime:
       case RenderStage.NavigationRuntime:
         return 'Prefetch'
@@ -797,6 +800,7 @@ function createSegmentCacheItem(): SegmentCacheItem {
   return {
     [RenderStage.Static]: null,
     [RenderStage.ShellRuntime]: null,
+    [RenderStage.PrefetchRuntime]: null,
     [RenderStage.Runtime]: null,
     [RenderStage.NavigationRuntime]: null,
     [RenderStage.Dynamic]: null,
@@ -1020,6 +1024,7 @@ export async function createCombinedPayloadAtDepth(
   clientReferenceManifest: ClientReferenceManifest,
   overrideStageForPartialSegments:
     | null
+    | RenderStage.PrefetchRuntime
     | RenderStage.Runtime
     | RenderStage.NavigationRuntime
 ): Promise<ValidationPayloadResult | null> {
