@@ -6,16 +6,20 @@ export async function getFilesInDir(path: string): Promise<Set<string>> {
   const dir = await fs.opendir(path)
   const results = new Set<string>()
 
-  for await (const file of dir) {
-    let resolvedFile: Dirent | StatsBase<number> = file
+  try {
+    for await (const file of dir) {
+      let resolvedFile: Dirent | StatsBase<number> = file
 
-    if (file.isSymbolicLink()) {
-      resolvedFile = await fs.stat(join(path, file.name))
-    }
+      if (file.isSymbolicLink()) {
+        resolvedFile = await fs.stat(join(path, file.name))
+      }
 
-    if (resolvedFile.isFile()) {
-      results.add(file.name)
+      if (resolvedFile.isFile()) {
+        results.add(file.name)
+      }
     }
+  } finally {
+    await dir.close().catch(() => {})
   }
 
   return results

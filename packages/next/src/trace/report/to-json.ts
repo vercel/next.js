@@ -151,9 +151,12 @@ export function createJsonReporter(options: {
       batch
         ? batch.flushAll().then(() => {
             const phase = traceGlobals.get('phase')
-            // Only end writeStream when manually flushing in production
             if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
-              return writeStream.end()
+              if (writeStream) {
+                const stream = writeStream
+                writeStream = undefined!
+                return stream.end()
+              }
             }
           })
         : undefined,

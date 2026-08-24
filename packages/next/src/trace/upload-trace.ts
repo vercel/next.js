@@ -31,7 +31,7 @@ export default function uploadTrace({
       ? child_process.spawnSync
       : child_process.spawn
 
-  spawn(
+  const child = spawn(
     process.execPath,
     [
       require.resolve('./trace-uploader'),
@@ -55,4 +55,13 @@ export default function uploadTrace({
         : {}),
     }
   )
+
+  // Unref the detached child so it doesn't prevent the parent from exiting,
+  // and attach an error handler to avoid unhandled rejection on spawn failure.
+  if (child && 'unref' in child) {
+    child.unref()
+    child.on?.('error', () => {
+      // Silently ignore spawn errors for the detached trace uploader.
+    })
+  }
 }
