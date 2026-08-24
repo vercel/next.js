@@ -339,6 +339,7 @@ import type {
   PrefetchedSegmentStage,
   SegmentStage,
   StageEndTimes,
+  ValidationPayloadResult,
 } from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
@@ -7494,20 +7495,29 @@ async function validateInstantConfigs(
         ? extraChunksController.signal
         : AbortSignal.any([extraChunksController.signal, validationAbortSignal])
 
-    const payloadResult = await createCombinedPayloadAtDepth(
-      prefetchKind,
-      initialRscPayload,
-      cache,
-      loaderTree,
-      ctx.getDynamicParamFromSegment,
-      ctx.query,
-      depth,
-      groupDepthForValidation,
-      extraChunksSignal,
-      boundaryState,
-      clientReferenceManifest,
-      overrideStageForPartialSegments
-    )
+    let payloadResult: ValidationPayloadResult | null = null
+    try {
+      payloadResult = await createCombinedPayloadAtDepth(
+        prefetchKind,
+        initialRscPayload,
+        cache,
+        loaderTree,
+        ctx.getDynamicParamFromSegment,
+        ctx.query,
+        depth,
+        groupDepthForValidation,
+        extraChunksSignal,
+        boundaryState,
+        clientReferenceManifest,
+        overrideStageForPartialSegments
+      )
+    } finally {
+      // `createCombinedPayloadStream` releases this on the path that continues.
+      if (payloadResult === null) {
+        // Release React's listener from the composite signal.
+        extraChunksController.abort()
+      }
+    }
 
     if (payloadResult === null) {
       return null
