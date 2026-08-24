@@ -844,6 +844,40 @@ fn member_access_parent<'r>(
     }
 }
 
+/// Whether the current expression is the value being consumed by an object destructuring pattern.
+fn is_object_destructuring_source(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
+                return matches!(decl.name, Pat::Object(_));
+            }
+            AstParentNodeRef::AssignExpr(assign, AssignExprField::Right) => {
+                return matches!(assign.left, AssignTarget::Pat(AssignTargetPat::Object(_)));
+            }
+            AstParentNodeRef::AssignPat(assign, AssignPatField::Right) => {
+                return matches!(*assign.left, Pat::Object(_));
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current path is the object in a `<...> in obj` expression
+fn is_obj_in(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::BinExpr(bin, BinExprField::Right) => {
+                return matches!(bin.op, BinaryOp::In);
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// Extracts export names from usage patterns on a dynamic import.
 ///
 /// Supports two patterns:
@@ -1791,24 +1825,16 @@ impl VisitAstPath for Analyzer<'_, '_> {
             });
         }
 
-        // if this is process.env and we are not not inside of another member
+        // Effect::Member, Effect::DestructuringMember, and Effect::In handle the static syntaxes.
+        // If this member expression occurs in any other context, record that as escaping.
         if let MemberProp::Ident(prop) = &member_expr.prop
             && prop.sym == "env"
             && let Expr::Ident(obj) = &*member_expr.obj
             && obj.sym == "process"
             && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
-            && ast_path.get(ast_path.len() - 2).is_none_or(|parent| {
-                !matches!(
-                    parent,
-                    AstParentNodeRef::MemberExpr(
-                        MemberExpr {
-                            prop: MemberProp::Ident(..),
-                            ..
-                        },
-                        MemberExprField::Obj
-                    )
-                )
-            })
+            && member_access_parent(ast_path).is_none()
+            && !is_object_destructuring_source(ast_path)
+            && !is_obj_in(ast_path)
         {
             self.data.dynamic_process_env_access = Some(member_expr.span);
         }
