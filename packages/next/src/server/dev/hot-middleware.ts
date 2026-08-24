@@ -30,6 +30,7 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { createBinaryHmrMessageData } from './messages'
+import { getAgentHmrBatchController } from './agent-hmr-batch'
 import type { NextConfigComplete } from '../config-shared'
 import {
   getRequestInsightsSnapshot,
@@ -82,6 +83,13 @@ export class WebpackHotMiddleware {
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
     null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
+  /**
+   * Agent-scoped HMR batching. Inert unless an agent has opened a batch; see
+   * `./agent-hmr-batch.ts`.
+   */
+  private agentHmrBatch = getAgentHmrBatchController()
+  /** Compilers whose invalidation has not finished compiling yet. */
+  private invalidatedCompilers = new Set<number>()
 
   constructor(
     compilers: webpack.Compiler[],
@@ -90,6 +98,22 @@ export class WebpackHotMiddleware {
     private config: NextConfigComplete,
     private devToolsConfig: DevToolsConfig
   ) {
+    this.agentHmrBatch.configure({
+      enabled: config.experimental.agentHmrBatching === true,
+      isCompiling: () => this.invalidatedCompilers.size > 0,
+    })
+
+    // Separate taps, so that tracking "is a compilation in flight" cannot
+    // change the early-return conditions the publishing handlers below rely on.
+    compilers.forEach((compiler, index) => {
+      compiler.hooks.invalid.tap('agent-hmr-batch', () => {
+        this.invalidatedCompilers.add(index)
+      })
+      compiler.hooks.done.tap('agent-hmr-batch', () => {
+        this.invalidatedCompilers.delete(index)
+      })
+    })
+
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
       this.onClientInvalid
@@ -258,12 +282,20 @@ export class WebpackHotMiddleware {
       return
     }
 
-    for (const wsClient of [
-      ...this.clientsWithoutHtmlRequestId,
-      ...this.clientsByHtmlRequestId.values(),
-    ]) {
-      this.publishToClient(wsClient, message)
+    const deliver = () => {
+      for (const wsClient of [
+        ...this.clientsWithoutHtmlRequestId,
+        ...this.clientsByHtmlRequestId.values(),
+      ]) {
+        this.publishToClient(wsClient, message)
+      }
     }
+
+    if (this.agentHmrBatch.intercept(message, deliver)) {
+      return
+    }
+
+    deliver()
   }
 
   publishToLegacyClients = (message: HmrMessageSentToBrowser) => {

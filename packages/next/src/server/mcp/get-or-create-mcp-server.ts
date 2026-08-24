@@ -8,6 +8,8 @@ import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import { registerCompileRouteTool } from './tools/compile-route'
 import { registerGetRequestInsightsTool } from './tools/get-request-insights'
+import { registerHmrBatchTools } from './tools/hmr-batch'
+import { getAgentHmrBatchController } from '../dev/agent-hmr-batch'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
 import type { Project } from '../../build/swc/types'
@@ -65,6 +67,10 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     appDir: options.appDir,
   })
   registerGetRequestInsightsTool(mcpServer)
+
+  if (options.nextConfig.experimental.agentHmrBatching) {
+    registerHmrBatchTools(mcpServer, getAgentHmrBatchController)
+  }
 
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)

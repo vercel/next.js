@@ -137,6 +137,7 @@ import {
 } from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { getAgentHmrBatchController } from './agent-hmr-batch'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
@@ -823,6 +824,21 @@ export async function createHotReloaderTurbopack(
   let updateInProgress = false
   let pendingServerComponentChanges = false
 
+  // Agent-scoped HMR batching. Inert unless an agent has opened a batch
+  // through the MCP tools, which are only registered when the experimental
+  // flag is set. See `./agent-hmr-batch.ts`.
+  const agentHmrBatch = getAgentHmrBatchController()
+  agentHmrBatch.configure({
+    enabled: nextConfig.experimental.agentHmrBatching === true,
+    isCompiling: () => updateInProgress,
+  })
+  // The per-client message and update queues below already hold everything a
+  // compilation produced, so a batch flush re-drives that flush rather than
+  // duplicating the queue.
+  const disposeAgentHmrBatchResume = agentHmrBatch.onResume(() => {
+    sendEnqueuedMessages()
+  })
+
   function sendServerComponentChanges() {
     sendHmr('server-component-changes', {
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
@@ -854,6 +870,13 @@ export async function createHotReloaderTurbopack(
   function sendEnqueuedMessages() {
     if (hasCompilationErrors()) {
       // During compilation errors we want to delay the HMR events until errors are fixed
+      return
+    }
+
+    if (agentHmrBatch.isHolding()) {
+      // An agent is mid-edit. Leave the messages queued so the browser keeps
+      // rendering the last output that compiled; closing the batch calls back
+      // into here to deliver them.
       return
     }
 
@@ -1613,14 +1636,22 @@ export async function createHotReloaderTurbopack(
     },
 
     send(action) {
-      const payload = JSON.stringify(action)
+      const deliver = () => {
+        const payload = JSON.stringify(action)
 
-      for (const client of [
-        ...clientsWithoutHtmlRequestId,
-        ...clientsByHtmlRequestId.values(),
-      ]) {
-        client.send(payload)
+        for (const client of [
+          ...clientsWithoutHtmlRequestId,
+          ...clientsByHtmlRequestId.values(),
+        ]) {
+          client.send(payload)
+        }
       }
+
+      if (agentHmrBatch.intercept(action, deliver)) {
+        return
+      }
+
+      deliver()
     },
 
     getServerComponentsHmrRefreshHash() {
@@ -1970,6 +2001,8 @@ export async function createHotReloaderTurbopack(
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
+      disposeAgentHmrBatchResume()
+
       for (const wsClient of [
         ...clientsWithoutHtmlRequestId,
         ...clientsByHtmlRequestId.values(),
@@ -2054,27 +2087,52 @@ export async function createHotReloaderTurbopack(
           addToErrorsMap(errors, currentTopLevelIssues)
           addErrors(errors, currentEntryIssues)
 
-          for (const client of [
-            ...clientsWithoutHtmlRequestId,
-            ...clientsByHtmlRequestId.values(),
-          ]) {
-            const state = clientStates.get(client)
-            if (!state) {
-              continue
+          // Report the current version without advancing it: a completed
+          // compilation is not itself an edit, and this hash is not consumed by
+          // the Turbopack client. Read here rather than inside the send below,
+          // so that a send an agent batch defers still reports the hash of the
+          // compilation it belongs to.
+          const hash = String(hmrHash)
+
+          const sendBuiltToClients = () => {
+            for (const client of [
+              ...clientsWithoutHtmlRequestId,
+              ...clientsByHtmlRequestId.values(),
+            ]) {
+              const state = clientStates.get(client)
+              if (!state) {
+                continue
+              }
+
+              const clientErrors = new Map(errors)
+              addErrors(clientErrors, state.clientIssues)
+
+              sendToClient(client, {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
+                hash,
+                errors: [...clientErrors.values()],
+                warnings: [],
+              })
             }
+          }
 
-            const clientErrors = new Map(errors)
-            addErrors(clientErrors, state.clientIssues)
-
-            sendToClient(client, {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
-              // Report the current version without advancing it: a completed
-              // compilation is not itself an edit, and this hash is not
-              // consumed by the Turbopack client.
-              hash: String(hmrHash),
-              errors: [...clientErrors.values()],
-              warnings: [],
-            })
+          // The whole fan-out is one unit as far as a batch is concerned: it
+          // is one compilation's result, and the errors on it are what the
+          // batch hands back to the agent that caused them. Client-specific
+          // issues are left out of that summary; they are added per client
+          // when the message is actually delivered.
+          if (
+            !agentHmrBatch.intercept(
+              {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
+                hash,
+                errors: [...errors.values()],
+                warnings: [],
+              },
+              sendBuiltToClients
+            )
+          ) {
+            sendBuiltToClients()
           }
 
           if (hmrEventHappened) {

@@ -82,6 +82,9 @@ describe('MCP Telemetry Events', () => {
       'mcp/get_server_action_by_id',
       'mcp/get_compilation_issues',
       'mcp/compile_route',
+      'mcp/begin_hmr_batch',
+      'mcp/end_hmr_batch',
+      'mcp/get_hmr_batch_status',
     ]
 
     const usages = allTools.map((tool, index) => ({
@@ -91,7 +94,7 @@ describe('MCP Telemetry Events', () => {
 
     const events = eventMcpToolUsage(usages)
 
-    expect(events).toHaveLength(9)
+    expect(events).toHaveLength(allTools.length)
 
     events.forEach((event, index) => {
       expect(event.eventName).toBe(EVENT_MCP_TOOL_USAGE)

@@ -1464,6 +1464,24 @@ export interface ExperimentalConfig {
   mcpServer?: boolean
 
   /**
+   * Let an AI coding agent group a multi-step edit into a single HMR update.
+   *
+   * While a batch is open, the dev server holds back every HMR message that
+   * would change what the browser is rendering, so the preview keeps showing
+   * the last output that compiled instead of walking through each half-finished
+   * intermediate step. Closing the batch either delivers the held messages as
+   * one update, or — if the code does not compile — leaves the preview alone
+   * and hands the errors back to the agent.
+   *
+   * Batches are opened and closed through the `begin_hmr_batch` /
+   * `end_hmr_batch` MCP tools, so this also requires `mcpServer`. With no batch
+   * open, HMR behaves exactly as it does with this option off.
+   *
+   * @default false
+   */
+  agentHmrBatching?: boolean
+
+  /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
    * build`. Failing to acquire the lock causes the process to exit with an
    * error message.
@@ -2336,6 +2354,7 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    agentHmrBatching: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackInferModuleSideEffects: true,

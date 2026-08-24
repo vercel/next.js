@@ -281,6 +281,9 @@ export type McpToolName =
   | 'mcp/get_server_action_by_id'
   | 'mcp/get_compilation_issues'
   | 'mcp/compile_route'
+  | 'mcp/begin_hmr_batch'
+  | 'mcp/end_hmr_batch'
+  | 'mcp/get_hmr_batch_status'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName

@@ -1,0 +1,70 @@
+---
+title: agentHmrBatching
+description: Let an AI coding agent group a multi-step edit into a single HMR update, and receive compile errors itself instead of showing them in the browser.
+version: experimental
+---
+
+An AI coding agent edits a project in many small steps: rename a component, then
+update its call sites, then add the prop it now needs. Each write is a file
+change, so the dev server compiles it and pushes an HMR update, and the preview
+in the browser walks through every intermediate state — including the ones that
+only make sense half-finished. Meanwhile the compile errors from those states
+land in the browser's error overlay, in front of a person, rather than going back
+to the agent that can still fix them.
+
+`experimental.agentHmrBatching` lets the agent group those steps into one update.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    // Batches are opened and closed through MCP tools, so the MCP server has to
+    // be enabled too (it is, by default).
+    mcpServer: true,
+    agentHmrBatching: true,
+  },
+}
+```
+
+## How it works
+
+The agent wraps a multi-step edit in a batch:
+
+1. `begin_hmr_batch` — from here on, every HMR message that would change what the
+   browser is rendering is held back instead of delivered, so the preview keeps
+   showing the last output that compiled.
+2. The agent writes as many files as the change needs. The dev server compiles
+   each write as usual; only the delivery to the browser waits.
+3. `end_hmr_batch` — waits for the compilation to settle, then either:
+   - **`status: "flushed"`** — the code compiles. The held messages are delivered
+     as one coalesced update, so the preview goes straight from the last good
+     state to the new one without rendering anything in between.
+   - **`status: "withheld"`** — the code does not compile. Nothing is delivered,
+     the preview stays on the last good state, and the errors are returned in the
+     tool result. They are the agent's to fix; the held updates stay queued and
+     are delivered once the code compiles again.
+
+`get_hmr_batch_status` reports whether a batch is open, how much it is holding,
+and the errors from the most recent compilation.
+
+With no batch open, HMR behaves exactly as it does with this option off.
+
+## Reading an `end_hmr_batch` result
+
+| Field              | Meaning                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`           | `flushed`, `withheld`, or `no-batch`.                                                                                                          |
+| `compiled`         | Whether a compile result was observed at all. When `false`, an empty `errors` means the edit never reached the bundler — not that it is valid. |
+| `errors`           | Compilation errors as of the end of the batch.                                                                                                 |
+| `heldMessageCount` | How many HMR messages the batch was holding when it closed.                                                                                    |
+| `previewPreserved` | `false` if the batch held so many messages that they had to be released early, so the preview did briefly move.                                |
+| `timedOut`         | The batch was closed by the dev server because it stayed open past its timeout, not by the agent.                                              |
+
+## Good to know
+
+- A batch has a timeout (30 seconds by default, set per batch with `timeoutMs`).
+  An agent that exits without closing its batch does not leave the preview frozen:
+  the dev server closes it and releases the held updates.
+- Batches do not nest. Opening one while another is open returns the open batch.
+- Batching holds back HMR pushes to already-connected clients. It does not freeze
+  the server: a reload or a new navigation during a batch renders the current
+  state of the code, half-finished or not.
