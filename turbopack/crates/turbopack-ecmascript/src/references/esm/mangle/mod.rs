@@ -54,13 +54,16 @@ pub struct OptionMangledExportNames(pub Option<ResolvedVc<MangledExportNames>>);
 ///    at all — either we're not minifying, or minification was asked to keep names
 ///    (`MinifyType::Minify` with no `MangleType`), in which case mangled export keys would only
 ///    make the output harder to read,
-/// 2. its export usage is [`ModuleExportUsageInfo::All`] — a namespace import that could not be
-///    lowered to named imports, a computed property access, an unresolvable `export *`, or a module
-///    referenced from outside the module graph (entries, which are seeded with `All`),
-/// 3. it is read through a namespace value somewhere — a namespace binding's member reads or
-///    destructuring, or the object a dynamic `import()` resolves to (`import(/* webpackExports:
-///    [...] */ "…")`). We know which names are used, but not that every read of them was lowered to
-///    a direct named access, so an original name may still be read by user code,
+/// 2. its export usage is [`ModuleExportUsageInfo::All`] — a namespace import, a computed property
+///    access, an unresolvable `export *`, or a module referenced from outside the module graph
+///    (entries, which are seeded with `All`). This is what a plain `import * as ns` reaches in
+///    practice, whether or not the namespace object escapes: the reads are not enumerated, so the
+///    usage widens to `All`. Note that widening propagates, so splitting such a module into a
+///    facade and a locals module does not rescue the locals module,
+/// 3. it is read through a namespace value whose used names *are* known — in practice a dynamic
+///    `import()` with an enumerated export list (`import(/* webpackExports: [...] */ "…")`). We
+///    know which names are used, but not that every read of them was lowered to a direct named
+///    access, so an original name may still be read by user code,
 /// 4. its exports are not statically known ECMAScript exports, or contain dynamic re-exports.
 #[turbo_tasks::function]
 pub async fn mangled_export_names(
