@@ -166,6 +166,13 @@ export async function pipeNodeReadableToNodeResponse(
     // a `once` listener is never removed from the stream it was added to. Each
     // backpressured write would leak one, and past ten Node reports the stream
     // as a probable leak via `MaxListenersExceededWarning`.
+    //
+    // TODO: the upstream fix for that asymmetry is
+    // https://github.com/expressjs/compression/pull/153, which intercepts
+    // `removeListener` so it reaches the zlib stream. It has been open since
+    // 2019 and is not in upstream 1.8.1; we vendor 1.7.4. If it ever lands and
+    // we upgrade, `res.off('drain', onDrain)` below would start working with
+    // compression active and the caveat on the `close` handler could go away.
     let paused = false
     const onDrain = () => {
       // The listener outlives the readable: `off` below cannot reach the zlib
