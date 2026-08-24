@@ -243,14 +243,13 @@ export async function adapter(
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
 
-      getPrerenderManifest: () => {
-        return {
-          version: -1 as any, // letting us know this doesn't conform to spec
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: getEdgePreviewProps(),
-        }
+      previewProps: getEdgePreviewProps(),
+      prerenderManifest: {
+        version: -1 as any, // letting us know this doesn't conform to spec
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: getEdgePreviewProps(),
       },
     })
   }

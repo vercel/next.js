@@ -17,12 +17,17 @@ export type ClientOptions = {
   addMessageListener: (cb: (msg: WebSocketMessage) => void) => void
   sendMessage: SendMessage
   onUpdateError: (err: unknown) => void
+  chunkUpdateListenersGlobal: string
 }
+
+export const TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL =
+  'TURBOPACK_CHUNK_UPDATE_LISTENERS'
 
 export function connect({
   addMessageListener,
   sendMessage,
   onUpdateError = console.error,
+  chunkUpdateListenersGlobal,
 }: ClientOptions) {
   addMessageListener((msg) => {
     switch (msg.type) {
@@ -55,11 +60,15 @@ export function connect({
     }
   })
 
-  const queued = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS
+  const global = globalThis as unknown as Record<
+    string,
+    ChunkUpdateProvider | [ChunkListPath, UpdateCallback][] | undefined
+  >
+  const queued = global[chunkUpdateListenersGlobal]
   if (queued != null && !Array.isArray(queued)) {
     throw new Error('A separate HMR handler was already registered')
   }
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
+  global[chunkUpdateListenersGlobal] = {
     push: ([chunkPath, callback]: [ChunkListPath, UpdateCallback]) => {
       subscribeToChunkUpdate(chunkPath, sendMessage, callback)
     },

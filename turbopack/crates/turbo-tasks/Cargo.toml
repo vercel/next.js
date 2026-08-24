@@ -33,6 +33,7 @@ dashmap = { workspace = true }
 either = { workspace = true }
 erased-serde = { workspace = true }
 event-listener = "5.4.0"
+fixedbitset = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true, features = ["serde"]}

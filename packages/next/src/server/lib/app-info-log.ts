@@ -68,16 +68,14 @@ export function logExperimentalInfo({
 }: {
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
-  partialPrefetching?: boolean | 'unstable_eager'
+  partialPrefetching?: boolean
 }) {
   if (cacheComponents) {
     Log.bootstrap(`- Cache Components enabled`)
   }
 
   if (partialPrefetching) {
-    const mode =
-      partialPrefetching === 'unstable_eager' ? ' (unstable_eager)' : ''
-    Log.bootstrap(`- Partial Prefetching enabled${mode}`)
+    Log.bootstrap(`- Partial Prefetching enabled`)
   }
 
   if (experimentalFeatures?.length) {

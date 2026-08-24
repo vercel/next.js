@@ -30,7 +30,6 @@ describe('use-cache-search-params', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E842",
            "description": "Route /search-params-used used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
            "label": "Runtime Error",
@@ -61,7 +60,6 @@ describe('use-cache-search-params', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E842",
            "description": "Route /search-params-caught used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -90,7 +88,6 @@ describe('use-cache-search-params', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E842",
            "description": "Route /search-params-caught used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -129,7 +126,6 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E842",
          "description": "Route /search-params-used-generate-metadata used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
@@ -150,7 +146,6 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E842",
          "description": "Route /search-params-used-generate-viewport used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",

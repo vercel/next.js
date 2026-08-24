@@ -130,7 +130,7 @@ pub enum JsValue<'a> {
     Object {
         total_nodes: u32,
         parts: BumpVec<'a, ObjectPart<'a>>,
-        mutable: bool,
+        mutability: ObjectMutability,
     },
     /// A list of alternative values
     Alternatives {
@@ -577,7 +577,7 @@ impl<'a> JsValue<'a> {
                 let mut js_value = JsValue::Object {
                     total_nodes: m.len() as u32,
                     parts,
-                    mutable: false,
+                    mutability: ObjectMutability::Frozen,
                 };
                 js_value.update_total_nodes();
                 return Ok(js_value);
@@ -859,11 +859,14 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: true,
+            mutability: ObjectMutability::Mutable,
         }
     }
 
-    pub fn frozen_object(list: BumpVec<'a, ObjectPart<'a>>) -> Self {
+    pub fn object_with_mutability(
+        list: BumpVec<'a, ObjectPart<'a>>,
+        mutability: ObjectMutability,
+    ) -> Self {
         Self::Object {
             total_nodes: 1 + list
                 .iter()
@@ -873,7 +876,7 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: false,
+            mutability,
         }
     }
 
@@ -1115,7 +1118,7 @@ impl JsValue<'_> {
             JsValue::Object {
                 total_nodes: c,
                 parts,
-                mutable: _,
+                mutability: _,
             } => {
                 *c = 1 + parts
                     .iter()
@@ -1319,11 +1322,11 @@ impl<'a> JsValue<'a> {
             JsValue::Object {
                 total_nodes,
                 parts,
-                mutable,
+                mutability,
             } => JsValue::Object {
                 total_nodes: *total_nodes,
                 parts: BumpVec::from_iter_in(arena, parts.iter().map(|p| p.clone_in(arena))),
-                mutable: *mutable,
+                mutability: *mutability,
             },
             JsValue::Alternatives {
                 total_nodes,

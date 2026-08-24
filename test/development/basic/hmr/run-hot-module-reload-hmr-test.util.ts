@@ -5,6 +5,9 @@ import { nextTestSetup } from 'e2e-utils'
 export function runHotModuleReloadHmrTest(nextConfig: {
   basePath: string
   assetPrefix: string
+  turbopack?: {
+    chunkLoadingGlobal: string
+  }
 }) {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -72,6 +72,12 @@
                 ModuleValue {
                     module: "react",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -575,6 +581,12 @@
                 ModuleValue {
                     module: "https://esm.sh/preact/jsx-runtime",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -631,7 +643,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -949,6 +961,12 @@
                                     ModuleValue {
                                         module: "./external",
                                         annotations: None,
+                                        analyze_for_constants: false,
+                                        reference: Some(
+                                            ModuleReferenceIndex(
+                                                6,
+                                            ),
+                                        ),
                                     },
                                 ),
                                 Constant(
@@ -1070,6 +1088,12 @@
                                                 ModuleValue {
                                                     module: "./external",
                                                     annotations: None,
+                                                    analyze_for_constants: false,
+                                                    reference: Some(
+                                                        ModuleReferenceIndex(
+                                                            6,
+                                                        ),
+                                                    ),
                                                 },
                                             ),
                                             Constant(

@@ -169,9 +169,7 @@ async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
                 }
             }
         },
-        AssetContent::Redirect { target, link_type } => Some(format!(
-            "Redirect {{ target: {target}, link_type: {link_type:?} }}"
-        )),
+        AssetContent::Redirect(content) => Some(format!("Redirect {content:?}")),
     })
 }
 
@@ -189,7 +187,7 @@ async fn diff_paths(
 ) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
+        .map(async |p| Ok((p.path.clone(), p.clone())))
         .try_join()
         .await?
         .iter()

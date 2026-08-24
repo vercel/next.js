@@ -886,15 +886,13 @@ pub struct ChildProcessOperation {
 impl Operation for ChildProcessOperation {
     async fn recv(&mut self) -> Result<Bytes> {
         let bytes = self
-            .with_process(|process| async move {
-                process.recv().await.context("failed to receive message")
-            })
+            .with_process(async |process| process.recv().await.context("failed to receive message"))
             .await?;
         Ok(bytes)
     }
 
     async fn send(&mut self, message: Bytes) -> Result<()> {
-        self.with_process(|process| async move {
+        self.with_process(async |process| {
             timeout(Duration::from_secs(30), process.send(message))
                 .await
                 .context("timeout while sending message")?

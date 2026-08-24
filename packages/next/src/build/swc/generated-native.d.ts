@@ -581,10 +581,15 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
-export declare function projectAllHmrEvents(
+export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
-  target: string,
-  func: (err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void
+  func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
+): { __napiType: 'RootTask' }
+
+export declare function projectClientHmrEvents(
+  project: { __napiType: 'Project' },
+  chunkName: RcStr,
+  func: (err: Error, value: TurbopackResult<Update>) => void
 ): { __napiType: 'RootTask' }
 
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
@@ -634,19 +639,6 @@ export declare function projectGetSourceMapSync(
   sourceMapUrl: RcStr
 ): string | null
 
-export declare function projectHmrChunkNamesSubscribe(
-  project: { __napiType: 'Project' },
-  target: string,
-  func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
-): { __napiType: 'RootTask' }
-
-export declare function projectHmrEvents(
-  project: { __napiType: 'Project' },
-  chunkName: RcStr,
-  target: string,
-  func: (err: Error, value: TurbopackResult<Update | NodeJsHmrUpdate>) => void
-): { __napiType: 'RootTask' }
-
 /**
  * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
  * is created with filesystem cache enabled.
@@ -670,6 +662,11 @@ export declare function projectNew(
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
+
+export declare function projectServerHmrEvents(
+  project: { __napiType: 'Project' },
+  func: (err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void
+): { __napiType: 'RootTask' }
 
 /**
  * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.

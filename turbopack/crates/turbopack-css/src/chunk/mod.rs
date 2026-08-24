@@ -190,7 +190,7 @@ impl CssChunk {
         }
         let assets = chunk_items
             .iter()
-            .map(|chunk_item| async move {
+            .map(async |chunk_item| {
                 Ok((
                     rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
@@ -257,7 +257,7 @@ impl OutputAssetsReference for CssChunk {
         let references = content
             .chunk_items
             .iter()
-            .map(|item| async {
+            .map(async |item| {
                 let refs = item.references().await?;
                 let single_css_chunk = if should_generate_single_item_chunks {
                     Some(ResolvedVc::upcast(
@@ -353,7 +353,7 @@ impl OutputChunk for CssChunk {
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
-            .map(|&css_item| async move {
+            .map(async |&css_item| {
                 Ok(css_item
                     .content()
                     .await?
@@ -498,7 +498,7 @@ impl Introspectable for CssChunk {
                 .await?
                 .chunk_items
                 .iter()
-                .map(|chunk_item| async move {
+                .map(async |chunk_item| {
                     Ok((
                         rcstr!("entry module"),
                         IntrospectableModule::new(chunk_item.module())
