@@ -36,7 +36,15 @@ fn fixture(input: PathBuf) {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            fixture_op(input).read_strongly_consistent().await?;
+            fixture_op(input.clone(), AnalyzeMode::CodeGeneration)
+                .read_strongly_consistent()
+                .await?;
+            fixture_op(input.clone(), AnalyzeMode::Tracing)
+                .read_strongly_consistent()
+                .await?;
+            fixture_op(input, AnalyzeMode::CodeGenerationAndTracing)
+                .read_strongly_consistent()
+                .await?;
             anyhow::Ok(())
         })
         .await
@@ -44,7 +52,11 @@ fn fixture(input: PathBuf) {
     });
 }
 
-async fn setup(root_dir: &str, file: &str) -> Result<ResolvedVc<EcmascriptModuleAsset>> {
+async fn setup(
+    root_dir: &str,
+    file: &str,
+    analyze_mode: AnalyzeMode,
+) -> Result<ResolvedVc<EcmascriptModuleAsset>> {
     let fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root_dir.into()));
 
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -68,7 +80,7 @@ async fn setup(root_dir: &str, file: &str) -> Result<ResolvedVc<EcmascriptModule
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
             follow_reexports: true,
-            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+            analyze_mode,
             ..Default::default()
         }
         .resolved_cell(),
@@ -82,13 +94,12 @@ async fn setup(root_dir: &str, file: &str) -> Result<ResolvedVc<EcmascriptModule
 }
 
 #[turbo_tasks::function(operation, root)]
-async fn fixture_op(input: RcStr) -> anyhow::Result<()> {
+async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<()> {
     let input = PathBuf::from(input.as_str());
-    let env_vars_path = input.with_file_name("env-vars.snapshot");
-
     let module = setup(
         input.parent().unwrap().to_str().unwrap(),
         input.file_name().unwrap().to_str().unwrap(),
+        analyze_mode,
     )
     .await?;
 
@@ -101,7 +112,14 @@ async fn fixture_op(input: RcStr) -> anyhow::Result<()> {
         env_var_info.runtime_all.is_some(),
         env_var_info.runtime
     ))
-    .compare_to_file(&env_vars_path)
+    .compare_to_file(input.with_file_name(format!(
+        "env-vars{}.snapshot",
+        match analyze_mode {
+            AnalyzeMode::CodeGenerationAndTracing => "",
+            AnalyzeMode::CodeGeneration => ".codegen",
+            AnalyzeMode::Tracing => ".tracing",
+        }
+    )))
     .unwrap();
 
     Ok(())
