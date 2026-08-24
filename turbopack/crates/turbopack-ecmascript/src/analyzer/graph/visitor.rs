@@ -1769,28 +1769,26 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            let obj_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &member_expr.obj),
+        let obj_value = BumpBox::new_in(
+            self.eval_context.eval(self.arena, &member_expr.obj),
+            self.arena,
+        );
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+            MemberProp::PrivateName(_) => None,
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                self.eval_context.eval(self.arena, expr),
                 self.arena,
-            );
-            let prop_value = match &member_expr.prop {
-                // TODO avoid clone
-                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
-                MemberProp::PrivateName(_) => None,
-                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
-                    self.eval_context.eval(self.arena, expr),
-                    self.arena,
-                )),
-            };
-            if let Some(prop_value) = prop_value {
-                self.add_effect(Effect::Member {
-                    obj: obj_value,
-                    prop: prop_value,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
-                    span: member_expr.span(),
-                });
-            }
+            )),
+        };
+        if let Some(prop_value) = prop_value {
+            self.add_effect(Effect::Member {
+                obj: obj_value,
+                prop: prop_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: member_expr.span(),
+            });
         }
 
         // if this is process.env and we are not not inside of another member
