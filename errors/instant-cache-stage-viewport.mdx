@@ -22,9 +22,9 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). These functions defer the code below them to a later client-router stage, but viewport metadata must be ready before Next.js can create the route's shell. Viewport metadata cannot stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
+Next.js reported this Insight because [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). Viewport metadata must be ready before Next.js can create the route's shell, so it cannot wait for a later cache stage or stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
-The `unstable_prefetch()` function defers viewport work beyond the [App Shell](/docs/app/glossary#app-shell). The `unstable_navigation()` function defers it beyond every prefetch. Both prevent Next.js from completing the earlier shell.
+For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent viewport work until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), but prevent Next.js from completing the earlier runtime shell.
 
 For the same error in the page body or metadata code, see [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage) or [Cache stage APIs in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata).
 
@@ -131,7 +131,7 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the Insight no longer appears in the dev overlay. Check that the document contains the expected viewport metadata. If you use a static viewport, the route should continue to produce a shell. If you allow the route to block, confirm that behavior is intentional.
 
 In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /products` to iterate on specific routes.
 

@@ -31,6 +31,7 @@ import { getCards } from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
+  getErrorTypeLabel,
   getLinkPrefetchPartialErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -40,6 +41,29 @@ import {
 } from './errors'
 
 const ROUTE = '/example'
+
+describe('getErrorTypeLabel', () => {
+  function getLabel(instance: Error) {
+    const details = getBlockingRouteErrorDetails(instance)
+    if (!details) {
+      throw new Error('Expected Instant Insight details')
+    }
+    return getErrorTypeLabel(instance, 'runtime', details)
+  }
+
+  it('labels warning-only validation messages as Instant', () => {
+    expect(getLabel(createNavigationMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createNavigationViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createLinkBodyErrorInNavigation(ROUTE))).toBe('Instant')
+  })
+
+  it('labels prerender failures as Blocking Route', () => {
+    expect(getLabel(createRuntimeMetadataError(ROUTE))).toBe('Blocking Route')
+    expect(getLabel(createRuntimeViewportError(ROUTE))).toBe('Blocking Route')
+  })
+})
 
 describe('getGuidanceVariant', () => {
   describe('classifies runtime messages as runtime', () => {
@@ -738,12 +762,27 @@ describe('isInstantNavigationError', () => {
     expect(isInstantNavigationError(error)).toBe(true)
   })
 
+  it('returns true for cache stage APIs in metadata and viewport', () => {
+    expect(isInstantNavigationError(createNavigationMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createNavigationViewportError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchViewportError(ROUTE))).toBe(
+      true
+    )
+  })
+
   it('returns false for prerender-phase blocking-route errors', () => {
     expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
     expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
   })
 
-  it('returns false for metadata/viewport/sync-io errors', () => {
+  it('returns false for blocking metadata/viewport/sync-io errors', () => {
     expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
       false
     )

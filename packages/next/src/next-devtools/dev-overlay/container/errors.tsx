@@ -102,10 +102,16 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
-  if (errorDetails.type === 'dynamic-metadata') {
-    return `Blocking Route`
-  }
-  if (errorDetails.type === 'dynamic-viewport') {
+  if (
+    errorDetails.type === 'dynamic-metadata' ||
+    errorDetails.type === 'dynamic-viewport'
+  ) {
+    if (
+      errorDetails.variant === 'prefetch' ||
+      errorDetails.variant === 'navigation'
+    ) {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io') {
@@ -414,14 +420,15 @@ export function isSyncIOClientError(message: string): boolean {
   return match !== null && match[2] === '-client'
 }
 
-// Detects errors emitted during navigation-phase instant validation: body
-// errors from `createRuntimeBodyErrorInNavigation` /
-// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
-// prerendering"), and validation errors from
-// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+// Detects Instant Insights emitted during navigation validation. Body errors
+// identify the navigation in their message. Cache stage APIs in metadata and
+// viewport use dedicated docs URLs because their messages describe the
+// affected API instead of the validation phase.
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
+    message.includes('/instant-cache-stage-metadata') ||
+    message.includes('/instant-cache-stage-viewport') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -555,7 +562,14 @@ export function isInstantNavigationError(error: Error): boolean {
   if (getUnrenderedSegmentErrorDetails(error)) return true
   if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
-  return details?.type === 'blocking-route' && details.inNavigation
+  if (details?.type === 'blocking-route') return details.inNavigation
+  if (
+    details?.type === 'dynamic-metadata' ||
+    details?.type === 'dynamic-viewport'
+  ) {
+    return details.variant === 'prefetch' || details.variant === 'navigation'
+  }
+  return false
 }
 
 export type ErrorTab = 'errors' | 'instant'

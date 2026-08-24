@@ -2,6 +2,8 @@ import {
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
   createLinkBodyErrorInNavigation,
+  createNavigationMetadataError,
+  createPrefetchViewportError,
   createRuntimeBodyError,
   createRuntimeBodyErrorInNavigation,
 } from '../../server/app-render/blocking-route-messages'
@@ -68,6 +70,15 @@ describe('getInstantErrorRoute', () => {
       getInstantErrorRoute(
         createLinkBodyErrorInNavigation(DYNAMIC_ROUTE_TEMPLATE)
       )
+    ).toBe(DYNAMIC_ROUTE_TEMPLATE)
+  })
+
+  it('returns the route for cache stage metadata and viewport Insights', () => {
+    expect(
+      getInstantErrorRoute(createNavigationMetadataError(STATIC_ROUTE))
+    ).toBe(STATIC_ROUTE)
+    expect(
+      getInstantErrorRoute(createPrefetchViewportError(DYNAMIC_ROUTE_TEMPLATE))
     ).toBe(DYNAMIC_ROUTE_TEMPLATE)
   })
 

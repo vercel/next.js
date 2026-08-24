@@ -22,9 +22,9 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). These functions defer the code below them to a later client-router stage, so the route's metadata is not available with the earlier stage. The rest of the route can still be prefetched.
+Next.js reported this Insight because [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). Each function makes the subsequent metadata unavailable until a later cache stage, while the rest of the route can still be prefetched.
 
-The `unstable_prefetch()` function defers metadata beyond the [App Shell](/docs/app/glossary#app-shell). The `unstable_navigation()` function defers metadata beyond every prefetch. Metadata does not have its own [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, so resolve it statically or mark the page body as intentionally dynamic.
+For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent metadata until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering). Because `generateMetadata()` has no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary of its own, make the metadata available earlier or mark the route as dynamic.
 
 For the same error in the page body or viewport code, see [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage) or [Cache stage APIs in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
 
@@ -134,7 +134,7 @@ The route is no longer fully static. The metadata waits for the selected cache s
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the Insight no longer appears in the dev overlay. Check that the document contains the expected title and metadata, and that the page body keeps its intended prefetch behavior.
 
 In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /products` to iterate on specific routes.
 
