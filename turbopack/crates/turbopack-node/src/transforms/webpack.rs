@@ -256,15 +256,11 @@ async fn loaders_changed(
                     ReferenceType::Loader,
                 )
                 .await?;
-            let Some(module) = result.first_module().await? else {
-                // Ignore rather than error
-                return Ok(None);
-            };
-            Ok(Some(
-                any_source_content_changed_of_module(*module)
-                    .to_resolved()
-                    .await?,
-            ))
+            result
+                .primary_modules_raw_iter()
+                .map(|m| any_source_content_changed_of_module(*m).to_resolved())
+                .try_join()
+                .await
         })
         .try_flat_join()
         .await?;
