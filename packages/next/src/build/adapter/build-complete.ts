@@ -2404,52 +2404,76 @@ export async function handleBuildComplete({
             ) + getDestinationQuery(route.routeKeys)
           : destination
 
-        // The prefixed form of the `.rsc` rule above. A prefetch asks for the
-        // payload of the route rather than for the page, and the proxy puts the
-        // prefix on that path as it does on any other.
-        //
-        // Without this rule such a request has no prefixed route. It matches
-        // nothing under the prefix once no output is written there, which is
-        // the case for a param nobody enumerated, and falls through to the
-        // plain rule. The client then receives a document where it asked for a
-        // payload, and the combination is gone.
-        //
-        // It comes before the plain-shape rule because the param group of that
-        // rule takes any character, and would otherwise take the suffix as part
-        // of the param.
-        if (appPageKeys && appPageKeys.length > 0) {
-          const rscDestination = variantsDestination.replace(
-            /($|\?)/,
-            '$rscSuffix$1'
-          )
+        const variantsSourceRegex = buildSourceRegex(
+          `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+        )
+
+        // The combination reaches the origin as a query parameter, in every
+        // form of the request, because that is what the cache key is built
+        // from.
+        const withCombination = (destinationPath: string) =>
+          destinationPath +
+          `${destinationPath.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`
+
+        // The suffixed destination is the plain one with the captured suffix
+        // put in front of the query. An empty capture therefore gives the plain
+        // destination back, which is what lets one entry serve both forms.
+        const rscDestination = variantsDestination.replace(
+          /($|\?)/,
+          '$rscSuffix$1'
+        )
+
+        if (canMergeSuffixedAndPlain) {
+          // One entry serves the document, the `.rsc` payload and a per-segment
+          // prefetch, on the terms the plain entry above sets out. The prefixed
+          // form gains nothing of its own here: the prefix is a literal ahead
+          // of the page pattern, so it neither takes part in the suffix group
+          // nor changes what that group can match.
+          dynamicRoutes.push({
+            source: pagePath,
+            sourceRegex: variantsSourceRegex.replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
+            ),
+            destination: withCombination(rscDestination),
+            has: plainHas,
+            missing: undefined,
+          })
+        } else {
+          // The prefixed form of the `.rsc` rule above. A prefetch asks for the
+          // payload of the route rather than for the page, and the proxy puts
+          // the prefix on that path as it does on any other.
+          //
+          // Without this rule such a request has no prefixed route. It matches
+          // nothing under the prefix once no output is written there, which is
+          // the case for a param nobody enumerated, and falls through to the
+          // plain rule. The client then receives a document where it asked for
+          // a payload, and the combination is gone.
+          //
+          // It comes before the plain-shape rule because the param group of
+          // that rule takes any character, and would otherwise take the suffix
+          // as part of the param.
+          if (hasAppPages) {
+            dynamicRoutes.push({
+              source: pagePath + '.rsc',
+              sourceRegex: variantsSourceRegex.replace(
+                new RegExp(escapeStringRegexp('(?:/)?$')),
+                '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              ),
+              destination: withCombination(rscDestination),
+              has: suffixedHas,
+              missing: undefined,
+            })
+          }
 
           dynamicRoutes.push({
-            source: pagePath + '.rsc',
-            sourceRegex: buildSourceRegex(
-              `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
-            ).replace(
-              new RegExp(escapeStringRegexp('(?:/)?$')),
-              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-            ),
-            destination:
-              rscDestination +
-              `${rscDestination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
-            has: suffixedHas,
+            source: pagePath,
+            sourceRegex: variantsSourceRegex,
+            destination: withCombination(variantsDestination),
+            has: plainHas,
             missing: undefined,
           })
         }
-
-        dynamicRoutes.push({
-          source: pagePath,
-          sourceRegex: buildSourceRegex(
-            `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
-          ),
-          destination:
-            variantsDestination +
-            `${variantsDestination.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
-          has: plainHas,
-          missing: undefined,
-        })
       }
 
       // The entry above resolves a per-segment request on its own, because its

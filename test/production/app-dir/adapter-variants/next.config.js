@@ -9,6 +9,10 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     variants: true,
+    // The suite builds this fixture with the collapse both off and on, so the
+    // option comes from the environment. It is off by default, which is the
+    // default of the option itself.
+    collapseAdapterRoutes: process.env.COLLAPSE_ADAPTER_ROUTES === '1',
   },
   // The adapter is the consumer of the routing table this suite asserts on, so
   // the build needs one. This stub records the context and produces nothing to

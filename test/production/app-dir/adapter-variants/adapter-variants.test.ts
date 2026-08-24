@@ -1,7 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
+import {
+  serializeDynamicRoutes,
+  type AdapterRouting,
+} from '../adapter-dynamic-routes/dynamic-routes-snapshot'
 
 type BuildCompleteContext = Parameters<NextAdapter['onBuildComplete']>[0]
+
+/**
+ * The context, with the routing entries narrowed to the shape the snapshot
+ * helper takes.
+ *
+ * `source` and `destination` are optional on the public `Route` type, which
+ * covers every kind of routing entry. The builder gives a dynamic route both,
+ * so `serializeDynamicRoutes` requires them.
+ */
+type SnapshottableContext = BuildCompleteContext & {
+  routing: AdapterRouting
+}
 
 /**
  * The routing table a deployment resolves against is built from the adapter
@@ -20,16 +36,19 @@ describe('adapter-variants', () => {
     skipStart: true,
   })
 
-  // Two builds run in one hook, and the default timeout of this suite covers
+  // Three builds run in one hook, and the default timeout of this suite covers
   // one. A build that is cut off part way leaves the child process behind, and
   // the retry then fails on a server that is already started, which reports as
   // a flake somewhere else entirely.
-  jest.setTimeout(240_000)
+  jest.setTimeout(360_000)
 
   // Same fixture, same variant keys, and a different number of enumerated
   // combinations. See `combinations.ts`.
   let twoCombinations: BuildCompleteContext
   let fourCombinations: BuildCompleteContext
+
+  // The same fixture again, with `experimental.collapseAdapterRoutes` on.
+  let collapsed: SnapshottableContext
 
   beforeAll(async () => {
     await next.build({ env: { VARIANT_LOCALES: '1' } })
@@ -37,6 +56,11 @@ describe('adapter-variants', () => {
 
     await next.build({ env: { VARIANT_LOCALES: '2' } })
     fourCombinations = await next.readJSON('build-complete.json')
+
+    await next.build({
+      env: { VARIANT_LOCALES: '2', COLLAPSE_ADAPTER_ROUTES: '1' },
+    })
+    collapsed = await next.readJSON('build-complete.json')
   })
 
   function countByEntry(context: BuildCompleteContext) {
@@ -136,5 +160,43 @@ describe('adapter-variants', () => {
     )
 
     expect(Array.from(sizes)).toHaveLength(1)
+  })
+
+  it('should serve every form of a prefixed request from one entry when the collapse is on', () => {
+    // `experimental.collapseAdapterRoutes` merges the entry for the `.rsc`
+    // payload into the entry for the page, by giving the suffix group an empty
+    // final alternative. The prefixed entries of a variant route merge on the
+    // same terms, so a project that declares combinations gets the collapse for
+    // them too.
+    //
+    // Without this the prefixed pair stayed as two entries while the plain pair
+    // merged, so variants was the one feature that did not follow the option.
+    expect(serializeDynamicRoutes(collapsed.routing.dynamicRoutes))
+      .toMatchInlineSnapshot(`
+     "3 entries
+
+     /dynamic/[slug]
+       ^[/]?/dynamic/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /dynamic/[slug]$rscSuffix?nxtPslug=$nxtPslug
+
+     /dynamic/[slug]
+       ^[/]?/__variants/(?<nxtV>[^/]+)/dynamic/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /__variants/$nxtV/dynamic/[slug]$rscSuffix?nxtPslug=$nxtPslug&nxtV=$nxtV
+
+     /concrete
+       ^[/]?/__variants/(?<nxtV>[^/]+)/concrete(?:/)?$
+       -> /concrete?nxtV=$nxtV"
+    `)
+  })
+
+  it('should write the same prerenders whether the collapse is on or off', () => {
+    // The option rewrites the routing table and nothing else. The artifacts and
+    // their paths carry the per-combination cache keys, so a collapse that
+    // reached them would change what a request is served rather than how it is
+    // matched.
+    const pathnamesOf = (context: BuildCompleteContext) =>
+      context.outputs.prerenders.map((prerender) => prerender.pathname).sort()
+
+    expect(pathnamesOf(collapsed)).toEqual(pathnamesOf(fourCombinations))
   })
 })
