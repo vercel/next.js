@@ -490,4 +490,65 @@ describe('adapter-prerender-metadata', () => {
       expectUnclassified(segment)
     }
   })
+
+  it('records the fallback lifetime for blocking dynamic routes', async () => {
+    // A route whose cached shell is keyed on its params serves no HTML
+    // fallback (`fallback: null`), but its per-segment prefetch payloads and
+    // RSC template are still served and cached. The manifest must carry the
+    // shell's cache lifetime so consumers don't fall back to their
+    // 1-second default.
+    const manifest = await getPrerenderManifest()
+    expect(manifest.dynamicRoutes['/blocking-cached/[id]']).toMatchObject({
+      fallback: null,
+      fallbackRevalidate: 3600,
+      fallbackExpire: 86400,
+    })
+  })
+
+  it('gives segment outputs of a blocking route the shell cache lifetime', async () => {
+    const prerenders = await getPrerenders()
+
+    const segments = prerenders.filter((output) =>
+      output.pathname.startsWith('/blocking-cached/[id].segments/')
+    )
+    expect(segments.length).toBeGreaterThan(0)
+    for (const segment of segments) {
+      expect(segment.fallback.initialRevalidate).toBe(3600)
+      expect(segment.fallback.initialExpiration).toBe(86400)
+    }
+
+    const templateRsc = prerenders.find(
+      (output) => output.pathname === '/blocking-cached/[id].rsc'
+    )
+    expect(templateRsc).toBeDefined()
+    expect(templateRsc.fallback.initialRevalidate).toBe(3600)
+    expect(templateRsc.fallback.initialExpiration).toBe(86400)
+
+    // Concrete generated paths carry the same lifetime through the
+    // routes manifest.
+    const concreteSegments = prerenders.filter((output) =>
+      output.pathname.startsWith('/blocking-cached/known.segments/')
+    )
+    expect(concreteSegments.length).toBeGreaterThan(0)
+    for (const segment of concreteSegments) {
+      expect(segment.fallback.initialRevalidate).toBe(3600)
+      expect(segment.fallback.initialExpiration).toBe(86400)
+    }
+  })
+
+  it('never emits a segment output without a revalidate lifetime', async () => {
+    // Regression test: segment outputs used to inherit the revalidate of the
+    // route's HTML fallback, which doesn't exist for blocking routes. The
+    // resulting `undefined` was interpreted downstream as a 1-second TTL,
+    // causing an ISR cache write on nearly every prefetch of a
+    // non-prerendered URL.
+    const prerenders = await getPrerenders()
+    const segments = prerenders.filter((output) =>
+      output.pathname.includes('.segments/')
+    )
+    expect(segments.length).toBeGreaterThan(0)
+    for (const segment of segments) {
+      expect(segment.fallback.initialRevalidate).toBeDefined()
+    }
+  })
 })

@@ -1261,6 +1261,14 @@ export async function handleBuildComplete({
         ctx: {
           htmlAllowQuery?: string[]
           dataAllowQuery?: string[]
+          // The cache lifetime of the route's fallback artifacts, from the
+          // prerender manifest. Segment outputs attach this when the route
+          // has no HTML fallback output to inherit it from (a blocking
+          // route): the segment payloads are cached and served even then,
+          // and platforms interpret a missing revalidate as a 1-second
+          // lifetime, so segment outputs must always carry one.
+          fallbackRevalidate?: Revalidate
+          fallbackExpire?: number
         }
       ) => {
         if (meta.postponed && initialOutput.fallback) {
@@ -1326,8 +1334,12 @@ export async function handleBuildComplete({
               fallback: {
                 filePath: fallbackPathname,
                 postponedState: undefined,
-                initialExpiration: initialOutput.fallback?.initialExpiration,
-                initialRevalidate: initialOutput.fallback?.initialRevalidate,
+                initialExpiration:
+                  initialOutput.fallback?.initialExpiration ??
+                  ctx.fallbackExpire,
+                initialRevalidate:
+                  initialOutput.fallback?.initialRevalidate ??
+                  ctx.fallbackRevalidate,
 
                 initialHeaders: {
                   ...meta.headers,
@@ -1927,6 +1939,8 @@ export async function handleBuildComplete({
             await handleAppMeta(dynamicRoute, initialOutput, meta, {
               htmlAllowQuery,
               dataAllowQuery,
+              fallbackRevalidate,
+              fallbackExpire,
             })
           }
 
@@ -1940,6 +1954,15 @@ export async function handleBuildComplete({
                 filePath: undefined,
                 postponedState: meta.postponed,
                 initialStatus: undefined,
+                // A blocking route has no HTML fallback to spread these
+                // from, but its on-demand RSC template renders are still
+                // cached, so give those entries the lifetime recorded in
+                // the prerender manifest.
+                initialExpiration:
+                  initialOutput.fallback?.initialExpiration ?? fallbackExpire,
+                initialRevalidate:
+                  initialOutput.fallback?.initialRevalidate ??
+                  fallbackRevalidate,
                 initialHeaders: {
                   ...initialOutput.fallback?.initialHeaders,
                   ...dataInitialHeaders,
