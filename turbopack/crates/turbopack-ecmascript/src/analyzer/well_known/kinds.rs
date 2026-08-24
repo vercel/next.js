@@ -13,6 +13,8 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    GracefulFsModule,
+    GracefulFsModuleDefault,
     ModuleModule,
     ModuleModuleDefault,
     UrlModule,
@@ -83,6 +85,10 @@ impl WellKnownObjectKind {
             Self::FsExtraModule | Self::FsExtraModuleDefault => (
                 "fs-extra",
                 "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+            ),
+            Self::GracefulFsModule | Self::GracefulFsModuleDefault => (
+                "graceful-fs",
+                "The Node.js graceful-fs module: https://github.com/isaacs/node-graceful-fs",
             ),
             Self::FsModulePromises => (
                 "fs/promises",

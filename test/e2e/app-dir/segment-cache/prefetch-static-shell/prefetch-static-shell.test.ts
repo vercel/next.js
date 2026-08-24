@@ -144,6 +144,41 @@ describe('static App Shell prefetch attempt', () => {
     }, 'no-requests')
   })
 
+  it('prefetches a fully static route that uses prefetch() with static requests only, then navigates instantly from cache', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // prefetch() resolves during a static prerender, and the route accesses no
+    // runtime data, so the static attempt is sufficient.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/uses-prefetch-static"]')
+        .click()
+    }, [
+      {
+        includes: 'Fully static page content (with prefetch())',
+        kind: 'static',
+      },
+      {
+        includes: 'Fully static page content (with prefetch())',
+        kind: 'runtime',
+        block: 'reject',
+      },
+    ])
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/uses-prefetch-static"]').click()
+      expect(await browser.elementById('page-content').text()).toBe(
+        'Fully static page content (with prefetch())'
+      )
+    }, 'no-requests')
+  })
+
   it('goes straight to a runtime shell prefetch when the shell reads cookies (hint unset)', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -335,6 +370,35 @@ describe('static App Shell prefetch attempt', () => {
     )
   })
 
+  it('goes straight to a runtime shell prefetch for a partial segment that calls runtime APIs after prefetch() (hint unset)', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/uses-runtime-after-prefetch"]'
+        )
+        .click()
+    }, [
+      // Unlike navigation(), prefetch() doesn't stop runtime-data tracking, so
+      // the cookies()/headers() reads below it leave the tree hint unset and
+      // the shell arrives in a runtime response.
+      { includes: 'Runtime APIs called after prefetch()', kind: 'runtime' },
+      // No static attempt precedes it.
+      {
+        includes: 'Runtime APIs called after prefetch()',
+        kind: 'static',
+        block: 'reject',
+      },
+    ])
+  })
+
   it('reuses the static App Shell across different param values of a dynamic route', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -404,6 +468,9 @@ describe('static App Shell prefetch attempt', () => {
         )
         expect(await browser.elementById('navigation-loading').text()).toBe(
           'Loading navigation content...'
+        )
+        expect(await browser.elementById('prefetch-loading').text()).toBe(
+          'Loading prefetch content...'
         )
       },
       // The param content arrives with the navigation response.

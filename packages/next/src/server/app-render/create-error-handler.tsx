@@ -10,7 +10,6 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
@@ -106,10 +105,7 @@ export function createReactServerErrorHandler(
       err.digest =
         typeof thrownValue === 'string'
           ? stringHash(thrownValue).toString()
-          : createDigestWithErrorCode(
-              err,
-              stringHash(err.message + (err.stack || '')).toString()
-            )
+          : stringHash(err.message + (err.stack || '')).toString()
     }
 
     // @TODO by putting this here and not at the top it is possible that
@@ -193,12 +189,9 @@ export function createHTMLErrorHandler(
         // from other means so we don't need to produce a new one
       }
     } else {
-      err.digest = createDigestWithErrorCode(
-        err,
-        stringHash(
-          err.message + (errorInfo?.componentStack || err.stack || '')
-        ).toString()
-      )
+      err.digest = stringHash(
+        err.message + (errorInfo?.componentStack || err.stack || '')
+      ).toString()
     }
 
     // Format server errors in development to add more helpful error messages

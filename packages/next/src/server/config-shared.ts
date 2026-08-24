@@ -498,6 +498,20 @@ export interface ExperimentalConfig {
    * regardless of this flag.
    */
   coldCacheBadge?: boolean
+  /**
+   * Whether a build may serve several dynamic routes from one entry in the
+   * route table that it passes to an adapter. Several routes of an app can
+   * differ only in a part that a single pattern also matches, and one entry for
+   * them keeps the table smaller.
+   *
+   * A collapsed entry resolves each request to the same output as the entries
+   * that it replaces.
+   *
+   * The default is `false`, so a build keeps one entry per route.
+   *
+   * @default false
+   */
+  collapseAdapterRoutes?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -2229,6 +2243,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
     coldCacheBadge: false,
+    collapseAdapterRoutes: false,
     devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,

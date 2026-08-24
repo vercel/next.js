@@ -116,11 +116,10 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .iter()
         .copied()
-        .map(async |module| {
+        .map(|module| {
             chunking_context
                 .async_loader_chunk_item(*module, *module_graph, async_availability_info)
                 .to_resolved()
-                .await
         })
         .try_join()
         .await?;

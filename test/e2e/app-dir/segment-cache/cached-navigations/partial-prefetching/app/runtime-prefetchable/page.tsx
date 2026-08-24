@@ -1,6 +1,9 @@
 import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
-import { unstable_navigation as navigation } from 'next/cache'
+import {
+  unstable_navigation as navigation,
+  unstable_prefetch,
+} from 'next/cache'
 import { Suspense } from 'react'
 
 // Note: intentionally no `export const prefetch` and no `instant` config. This
@@ -38,6 +41,11 @@ export default async function Page({
       <div id="navigation-boundary">
         <Suspense fallback={<p>Loading navigation...</p>}>
           <NavigationContent />
+        </Suspense>
+      </div>
+      <div id="prefetch-boundary">
+        <Suspense fallback={<p>Loading prefetch...</p>}>
+          <PrefetchContent />
         </Suspense>
       </div>
     </main>
@@ -78,4 +86,9 @@ async function ConnectionContent() {
 async function NavigationContent() {
   await navigation()
   return <p>Navigation content</p>
+}
+
+async function PrefetchContent() {
+  await unstable_prefetch()
+  return <p>Prefetch content</p>
 }

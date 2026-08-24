@@ -58,7 +58,7 @@ impl Version for AggregateHmrVersion {
                 let version = TraitRef::cell(version.clone());
                 async move {
                     let id = version.id().owned().await?;
-                    Ok::<_, anyhow::Error>((path, id))
+                    anyhow::Ok((path, id))
                 }
             })
             .try_join()
@@ -93,7 +93,7 @@ impl AggregateHmrVersion {
                 let content = *content;
                 async move {
                     let version = content.version().into_trait_ref().await?;
-                    Ok::<_, anyhow::Error>((path, version))
+                    anyhow::Ok((path, version))
                 }
             })
             .try_join()
@@ -194,9 +194,9 @@ pub async fn diff_chunks_against(
             };
             Some((path.clone(), *content, TraitRef::cell(prev)))
         })
-        .map(|(path, content, prev)| async move {
+        .map(async |(path, content, prev)| {
             let update = content.update(prev).await?;
-            Ok::<_, anyhow::Error>((path, update))
+            anyhow::Ok((path, update))
         })
         .try_join()
         .await?;

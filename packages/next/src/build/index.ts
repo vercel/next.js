@@ -213,7 +213,6 @@ import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
@@ -4730,11 +4729,6 @@ function getBundlerForTelemetry(bundler: Bundler) {
 }
 
 function getErrorCodeForTelemetry(err: unknown) {
-  const code = extractNextErrorCode(err)
-  if (code != null) {
-    return code
-  }
-
   if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
     return err.code
   }
