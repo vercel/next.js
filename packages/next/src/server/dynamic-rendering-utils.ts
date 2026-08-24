@@ -248,6 +248,19 @@ function trackRuntimeDataAccessedImpl(
 ): void {
   switch (workUnitStore.type) {
     case 'prerender': {
+      const { stagedRendering } = workUnitStore
+      if (
+        stagedRendering &&
+        stagedRendering.currentStage >= RenderStage.NavigationStatic
+      ) {
+        // Ignore any accesses that happen after `navigation()` resolves.
+        // The purpose of this tracking is to judge whether a runtime prefetch
+        // would give us a more complete result than a static one.
+        // But `navigation()` wouldn't have resolved in a runtime prefetch,
+        // so e.g. `await navigation(); await cookies()` wouldn't have more content
+        // in those, and we shouldn't count it.
+        return
+      }
       // Response-level flag (the payload's `u`, forwarded to segment
       // responses as `needsRuntimeRequest`): resolved for every kind of
       // access — a pre-upgrade fallback response must keep reporting that
@@ -275,7 +288,6 @@ function trackRuntimeDataAccessedImpl(
       break
     }
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'validation-client':
@@ -413,7 +425,7 @@ export function trackPromiseUsed<T>(promise: Promise<T>, onUse: () => void) {
 
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
-  staticLinkData: RenderStage.Static as const,
+  staticLinkData: RenderStage.PrefetchStatic as const,
   runtimeLinkData: RenderStage.Runtime as const,
 }
 
@@ -441,7 +453,6 @@ export function applyOwnerStack(error: Error): Error {
       case 'unstable-cache':
       case 'request':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'prerender-runtime':
       case 'prerender-client':

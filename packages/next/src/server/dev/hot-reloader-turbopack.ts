@@ -28,7 +28,7 @@ import type {
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -40,6 +40,10 @@ import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
+import {
+  dropDevValidationWorker,
+  mirrorModuleStateToDevValidationWorker,
+} from './dev-validation-worker-pool'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -88,7 +92,6 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
@@ -213,7 +216,7 @@ function setupServerHmr(
   }
 ) {
   async function runSubscription() {
-    const subscription = project.allHmrEvents(HmrTarget.Server)
+    const subscription = project.serverHmrEvents()
 
     // Subscribing immediately emits one event describing the current state.
     // There's no previous state to diff it against, so it never carries anything
@@ -261,6 +264,9 @@ function setupServerHmr(
       if (typeof __turbopack_server_hmr_apply__ === 'function') {
         try {
           __turbopack_server_hmr_apply__(update)
+          // The validation worker keeps its own copy of the module graph, and
+          // applies the same update to it.
+          mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
         } catch {
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
@@ -489,6 +495,7 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'FilesystemSettlingEvent',
       'TraceEvent',
     ],
     parentSpan: hotReloaderSpan,
@@ -980,7 +987,7 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id, HmrTarget.Client)
+    const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
@@ -1089,9 +1096,6 @@ export async function createHotReloaderTurbopack(
         },
       })
 
-      // Reload matchers when the files have been compiled
-      await propagateServerField(opts, 'reloadMatchers', undefined)
-
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
         hotReloader.send({
@@ -1143,7 +1147,6 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
-    getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
     getRestartDevServerMiddleware({
@@ -2138,6 +2141,11 @@ export async function createHotReloaderTurbopack(
 
         resetFetch()
 
+        // This thread gave up on repairing its module graph in place. The
+        // validation worker cannot repair its own either, so it is dropped and
+        // the next validation loads the build output afresh.
+        dropDevValidationWorker()
+
         notifyServerComponentChanges()
       },
       onApplied: (chunkPaths: string[]) => {
@@ -2145,9 +2153,22 @@ export async function createHotReloaderTurbopack(
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
         // modules in devModuleCache must persist for dep preservation.
-        for (const chunkPath of chunkPaths) {
-          clearManifestCache(join(distDir, chunkPath))
+        const manifestPaths = chunkPaths.map((chunkPath) =>
+          join(distDir, chunkPath)
+        )
+
+        for (const manifestPath of manifestPaths) {
+          clearManifestCache(manifestPath)
         }
+
+        // This path clears the manifest cache without going through
+        // `deleteCache`, so `onCacheInvalidation` does not report it to the
+        // validation worker. Report it here instead.
+        mirrorModuleStateToDevValidationWorker({
+          type: 'invalidate',
+          filePaths: manifestPaths,
+          evictModules: false,
+        })
 
         notifyServerComponentChanges()
       },

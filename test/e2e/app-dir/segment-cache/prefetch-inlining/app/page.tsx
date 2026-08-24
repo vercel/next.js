@@ -26,6 +26,16 @@ export default function Page() {
           <LinkAccordion href="/test-dynamic/hello">Dynamic</LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/test-dynamic/world">
+            Dynamic (world)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-on-demand-revalidate">
+            On-demand revalidate
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/test-runtime-bailout">
             Runtime bailout
           </LinkAccordion>
@@ -61,12 +71,12 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/test-independent-head/a">
+          <LinkAccordion href="/test-independent-head/a" prefetch={true}>
             Independent head A
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/test-independent-head/b">
+          <LinkAccordion href="/test-independent-head/b" prefetch={true}>
             Independent head B
           </LinkAccordion>
         </li>

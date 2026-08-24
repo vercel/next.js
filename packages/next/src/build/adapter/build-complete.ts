@@ -11,7 +11,10 @@ import { recursiveReadDir } from '../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import {
@@ -53,10 +56,11 @@ import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { collectFallbackShellRuns } from './fallback-shell-runs'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
-import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { __ApiPreviewProps } from '../../server/api-utils'
 
 interface SharedRouteFields {
   /**
@@ -194,6 +198,37 @@ type PrerenderClassification =
       compute?: never
       htmlSize?: never
     }
+
+// App paths sharing a pathname collapse into one Adapter output. Put the
+// canonical entry first because later paths only merge assets into that output.
+function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
+  const appPathsByPathname = new Map<string, string[]>()
+
+  for (const page of appPageKeys) {
+    const pathname = normalizeAppPath(page)
+    const appPaths = appPathsByPathname.get(pathname)
+
+    if (appPaths) {
+      appPaths.push(page)
+    } else {
+      appPathsByPathname.set(pathname, [page])
+    }
+  }
+
+  const orderedAppPageKeys: string[] = []
+  for (const [pathname, appPaths] of appPathsByPathname) {
+    const entryPage = selectAppPageEntry(pathname, appPaths)
+    orderedAppPageKeys.push(entryPage)
+
+    for (const appPath of appPaths) {
+      if (appPath !== entryPage) {
+        orderedAppPageKeys.push(appPath)
+      }
+    }
+  }
+
+  return orderedAppPageKeys
+}
 
 export interface AdapterOutput {
   /**
@@ -572,6 +607,7 @@ export async function handleBuildComplete({
   nextVersion,
   hasStatic404,
   hasStatic500,
+  previewProps,
   routesManifest,
   serverPropsPages,
   hasNodeMiddleware,
@@ -596,6 +632,7 @@ export async function handleBuildComplete({
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  previewProps: __ApiPreviewProps
   bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
@@ -814,7 +851,7 @@ export async function handleBuildComplete({
                   {
                     type: 'header',
                     key: 'x-prerender-revalidate',
-                    value: prerenderManifest.preview.previewModeId,
+                    value: previewProps.previewModeId,
                   },
                 ],
               }
@@ -1078,7 +1115,7 @@ export async function handleBuildComplete({
                     {
                       type: 'header',
                       key: 'x-prerender-revalidate',
-                      value: prerenderManifest.preview.previewModeId,
+                      value: previewProps.previewModeId,
                     },
                   ],
                 }
@@ -1093,7 +1130,7 @@ export async function handleBuildComplete({
       const appDistDir = path.join(distDir, 'server', 'app')
 
       if (appPageKeys) {
-        for (const page of appPageKeys) {
+        for (const page of orderAppPageKeysByEntry(appPageKeys)) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
             continue
           }
@@ -1556,7 +1593,7 @@ export async function handleBuildComplete({
               isAppPage && srcRoute !== '/_not-found'
                 ? experimentalBypassFor
                 : undefined,
-            bypassToken: prerenderManifest.preview.previewModeId,
+            bypassToken: previewProps.previewModeId,
           },
         }
         // Classification describes the primary HTML or Route Handler body,
@@ -1828,7 +1865,7 @@ export async function handleBuildComplete({
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
-            bypassToken: prerenderManifest.preview.previewModeId,
+            bypassToken: previewProps.previewModeId,
           },
         }
 
@@ -2056,7 +2093,7 @@ export async function handleBuildComplete({
       {
         type: 'cookie',
         key: '__prerender_bypass',
-        value: prerenderManifest.preview.previewModeId,
+        value: previewProps.previewModeId,
       },
       {
         type: 'cookie',
@@ -2064,8 +2101,25 @@ export async function handleBuildComplete({
       },
     ]
 
+    // Without this collapse the loop below emits one entry per shell.
+    const fallbackShellRuns = config.experimental.collapseAdapterRoutes
+      ? collectFallbackShellRuns(
+          routesManifest.dynamicRoutes,
+          (page) => prerenderManifest.dynamicRoutes[page]?.fallback === false
+        )
+      : undefined
+
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
+      // An earlier entry in this loop serves this shell.
+      if (fallbackShellRuns?.replacedPages.has(route.page)) {
+        continue
+      }
+
+      const fallbackShellRun = fallbackShellRuns?.byRepresentativePage.get(
+        route.page
+      )
+
+      const shouldLocalize = Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -2074,7 +2128,29 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const sourceRegex = routeRegex.namedRegex.replace(
+      // An entry for a whole run of shells matches every prefix in that run.
+      // The destination copies the prefix that matched.
+      //
+      // This replacement runs on the pattern for the page, and `sourceRegex`
+      // below prefixes the result with the base path and the locale group. That
+      // order is deliberate. The search text anchors at `^`, and here that
+      // anchor is the start of the page path. On `sourceRegex` the same anchor
+      // is the start of the base path. A replacement there would match a base
+      // path such as `/de/x`, and it would rewrite that base path instead of
+      // the page path.
+      const pagePattern = fallbackShellRun
+        ? routeRegex.namedRegex.replace(
+            `^/${escapeStringRegexp(fallbackShellRun.prefixes[0])}/`,
+            `^/(?<shellPrefix>${fallbackShellRun.prefixes
+              .map((prefix) => escapeStringRegexp(prefix))
+              .join('|')})/`
+          )
+        : routeRegex.namedRegex
+      const pagePath = fallbackShellRun
+        ? path.posix.join('/', '$shellPrefix', fallbackShellRun.tail)
+        : route.page
+
+      const sourceRegex = pagePattern.replace(
         '^',
         `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
       )
@@ -2083,50 +2159,103 @@ export async function handleBuildComplete({
           '/',
           config.basePath,
           shouldLocalize ? '/$nextLocale' : '',
-          route.page
+          pagePath
         ) + getDestinationQuery(route.routeKeys)
 
-      if (appPageKeys && appPageKeys.length > 0) {
+      const hasAppPages = Boolean(appPageKeys && appPageKeys.length > 0)
+
+      const suffixedHas =
+        isFallbackFalse && !pageKeys.includes(route.page)
+          ? fallbackFalseHasCondition
+          : undefined
+      const plainHas = isFallbackFalse ? fallbackFalseHasCondition : undefined
+
+      // A single entry can serve both forms of the request only when both carry
+      // the same conditions. A pages router route with `fallback: false` is the
+      // one case where they differ: it requires the preview cookies on the
+      // plain form, and not on the suffixed form. An entry holds one set of
+      // conditions, so that case keeps a separate entry per form.
+      const canMergeSuffixedAndPlain =
+        config.experimental.collapseAdapterRoutes &&
+        hasAppPages &&
+        suffixedHas === plainHas
+
+      if (canMergeSuffixedAndPlain) {
+        // One entry serves every form of a request for this page:
+        //
+        // - The document at the page path.
+        // - The `.rsc` payload.
+        // - A per-segment prefetch.
+        //
+        // The suffix group ends with an empty alternative. The group therefore
+        // always matches, and it captures an empty string for a request that
+        // carries no suffix. The destination copies what the group captured.
+        //
+        // An optional group is unsafe here. An adapter, or the router that
+        // consumes its output, can resolve the placeholders in a destination
+        // from the match result rather than from the pattern. A group that does
+        // not match is then absent from that result, and the literal text
+        // `$rscSuffix` stays in the destination.
         dynamicRoutes.push({
-          source: route.page + '.rsc',
+          source: pagePath,
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
-          has:
-            isFallbackFalse && !pageKeys.includes(route.page)
-              ? fallbackFalseHasCondition
-              : undefined,
+          has: plainHas,
+          missing: undefined,
+        })
+      } else {
+        // This route serves two kinds of request for the page: a request for
+        // the `.rsc` payload, and a per-segment prefetch request. The suffix
+        // group accepts both forms, and the destination copies the matched
+        // suffix, so each request resolves to the artifact that it asks for.
+        if (hasAppPages) {
+          dynamicRoutes.push({
+            source: pagePath + '.rsc',
+            sourceRegex: sourceRegex.replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            ),
+            destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
+            has: suffixedHas,
+            missing: undefined,
+          })
+        }
+
+        // needs basePath and locale handling if pages router
+        dynamicRoutes.push({
+          source: pagePath,
+          sourceRegex,
+          destination,
+          has: plainHas,
           missing: undefined,
         })
       }
 
-      // needs basePath and locale handling if pages router
-      dynamicRoutes.push({
-        source: route.page,
-        sourceRegex,
-        destination,
-        has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
-        missing: undefined,
-      })
-
-      for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
-        dynamicSegmentRoutes.push({
-          source: route.page,
-          sourceRegex: segmentRoute.source.replace(
-            '^',
-            `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?`
-          ),
-          destination: path.posix.join(
-            '/',
-            config.basePath,
-            segmentRoute.destination +
-              getDestinationQuery(segmentRoute.routeKeys)
-          ),
-          has: undefined,
-          missing: undefined,
-        })
+      // The entry above resolves a per-segment request on its own, because its
+      // suffix group accepts a segment path. A build that turns the collapse
+      // off emits a dedicated route for each segment, and the table lists those
+      // before that entry.
+      if (!config.experimental.collapseAdapterRoutes) {
+        for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
+          dynamicSegmentRoutes.push({
+            source: route.page,
+            sourceRegex: segmentRoute.source.replace(
+              '^',
+              `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?`
+            ),
+            destination: path.posix.join(
+              '/',
+              config.basePath,
+              segmentRoute.destination +
+                getDestinationQuery(segmentRoute.routeKeys)
+            ),
+            has: undefined,
+            missing: undefined,
+          })
+        }
       }
     }
 
@@ -2437,6 +2566,37 @@ async function getSharedNodeAssets({
       outputFileTracingRoot,
       sharedTraceIgnores
     )
+
+    // The require hook redirects shared-runtime imports from external packages
+    // to the Pages vendored contexts. Those contexts load module.compiled, whose
+    // runtime dependency is selected dynamically. Turbopack includes this via
+    // `Project::pages_traced_modules`; trace the Webpack runtime here.
+    const pagesRuntimePath = require.resolve(
+      'next/dist/compiled/next-server/pages.runtime.prod.js'
+    )
+    const pagesRuntimeTrace = await nodeFileTrace([pagesRuntimePath], {
+      base: outputFileTracingRoot,
+      ignore: sharedIgnoreFn,
+      moduleSyncCatchall: true,
+    })
+    pagesRuntimeTrace.esmFileList.forEach((item) =>
+      pagesRuntimeTrace.fileList.add(item)
+    )
+
+    for (const tracingRootRelativeFilePath of pagesRuntimeTrace.fileList) {
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
+      await pushAsset(
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
+        bundler,
+        salt
+      )
+    }
 
     // These are modules that are necessary for bootstrapping node env
     const necessaryNodeDependencies = [

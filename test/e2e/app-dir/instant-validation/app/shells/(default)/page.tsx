@@ -24,6 +24,9 @@ export default async function Page() {
           <DebugLinks href="/shells/valid-static-with-gsp/123" />
         </li>
         <li>
+          <DebugLinks href="/shells/valid-use-cache-instant-false" />
+        </li>
+        <li>
           <DebugLinks href="/shells/invalid-runtime-params/123" />
         </li>
         <li>
@@ -34,6 +37,18 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/shells/invalid-static-with-gsp-metadata/123" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/invalid-navigation-without-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-navigation-with-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/invalid-prefetch-without-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-prefetch-with-suspense" />
         </li>
       </ul>
     </main>

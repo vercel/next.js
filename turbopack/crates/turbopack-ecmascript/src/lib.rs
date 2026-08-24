@@ -14,6 +14,8 @@ pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
 pub mod code_gen;
+mod collect_module;
+mod directive;
 pub mod embed_js;
 mod errors;
 pub mod hmr;
@@ -239,6 +241,10 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to scope hoist static CommonJS modules. Defaults to false.
+    pub cjs_scope_hoisting: bool,
+    /// Whether to enable cross-module constant inlining. Defaults to false.
+    pub cross_module_constants: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -853,7 +859,14 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
+        let exports = compute_ecmascript_module_exports(self, None).await?.exports;
+        if let EcmascriptExports::CommonJs(_) = &*exports.await? {
+            return Ok(EcmascriptExports::CommonJs(
+                self.analyze().await?.cjs_static_exports.clone(),
+            )
+            .cell());
+        }
+        Ok(*exports)
     }
 
     #[turbo_tasks::function]
@@ -1299,10 +1312,12 @@ async fn merge_modules(
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-        /// For a given module, the `eval_context.imports.exports`. So for a given export, this
+        /// For a given module, the `eval_context.imports.exports_ids`. So for a given export, this
         /// allows looking up the corresponding local binding's name and context.
-        export_contexts:
-            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a FxHashMap<RcStr, Id>>,
+        export_contexts: &'a FxHashMap<
+            ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+            &'a FxHashMap<RcStr, (Id, Span)>,
+        >,
         /// A fresh global SyntaxContext for each module-local context, so that we can merge them
         /// into a single global AST.
         unique_contexts_cache: &'a mut FxHashMap<
@@ -1343,7 +1358,7 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
+                let (local, local_ctxt) = if let Some(((local, local_ctxt), _)) =
                     eval_context_exports.get(&sym_rc_str)
                 {
                     (Some(local), *local_ctxt)
@@ -1775,10 +1790,10 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     #[allow(clippy::type_complexity)]
-    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
         FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
-        FxHashMap<RcStr, Id>,
+        FxHashMap<RcStr, (Id, Span)>,
     )>,
 }
 
@@ -1857,7 +1872,7 @@ async fn process_parse_result(
                                 .iter()
                                 .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
                                 .map(|(name, e)| {
-                                    if let Some((sym, ctxt)) = export_contexts.get(name) {
+                                    if let Some(((sym, ctxt), _)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))
                                     } else {
                                         bail!("Couldn't find export {} for binding {:?}", name, e);

@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -50,9 +50,9 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent>;
 
-    /// Returns the content identity for cache invalidation.
-    /// Override this for modules whose content depends on more than just the module source
-    /// (e.g., async loaders that depend on available modules).
+    /// See [`ChunkItem::content_ident`]
+    ///
+    /// [`ChunkItem::content_ident`]: turbopack_core::chunk::ChunkItem::content_ident
     #[turbo_tasks::function]
     fn chunk_item_content_ident(
         self: Vc<Self>,
@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
                         })
                     }
                 })
-                .map(|glob| async move {
+                .map(async |glob| {
                     Ok(match glob {
                         Either::Left(glob) => {
                             match glob.to_resolved().await {
@@ -272,7 +272,10 @@ pub enum EcmascriptExports {
     /// A module using `__turbopack_export_namespace__`, used by custom module types.
     DynamicNamespace,
     /// A module using CommonJS exports.
-    CommonJs,
+    ///
+    /// Carries the static export names when statically analyzable, for scope hoisting.
+    /// `None` means that the exports were not analyzable by us.
+    CommonJs(Option<CjsStaticExports>),
     /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
     /// A value that is made available as both the CommonJS `exports` and the ESM default export.
@@ -306,4 +309,15 @@ impl EcmascriptExports {
             _ => Vc::cell(false),
         })
     }
+}
+
+/// A statically-analyzable CommonJS module's named exports, for scope hoisting.
+/// See the analyzer's `CjsExportsCollector`.
+#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value(shared)]
+pub struct CjsStaticExports {
+    /// Recognized `exports.NAME` / `module.exports.NAME` names, in source order.
+    pub export_names: Vec<RcStr>,
+    /// Whether `exports.__esModule = true` is set.
+    pub has_es_module: bool,
 }

@@ -12,7 +12,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 ## On disk format
 
-There is a single `CURRENT` file which stores the latest committed sequence number.
+There is a single `CURRENT` file, a small JSON object holding the latest committed sequence number (`max_sequence_number`) and when that commit happened (`commit_time`). The commit time is stored in the file rather than taken from its mtime so that it survives the directory being copied or restored. External tools read this file, so its field names are a stable contract.
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
@@ -29,7 +29,10 @@ Therefore there are these value types:
 - SMALL: Values 9–4096 bytes packed into shared value blocks within `*.sst` files.
 - MEDIUM: Values 4097 bytes – 64 MB stored in dedicated value blocks within `*.sst` files.
 - BLOB: Values > 64 MB stored in separate `*.blob` files.
-- DELETED: Values that are deleted. (Tombstone)
+- KEY DELETED: Every value for the key is deleted. (Key tombstone)
+- KEY-VALUE DELETED: Only one named key → value pair is deleted, leaving other values for the same
+  key intact. (Key-value tombstone) Only meaningful for `MultiValue` families; see
+  [Key-value tombstones](#key-value-tombstones).
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
 
@@ -138,7 +141,7 @@ Depending on the `type` field entry has a different format:
   - 8 bytes key hash (if block type 1)
   - key data
   - 4 bytes sequence number
-- 2: deleted key / tombstone (no data)
+- 2: deleted key / key tombstone (no data)
   - 8 bytes key hash (if block type 1)
   - key data
 - 3: normal key (medium sized value)
@@ -150,25 +153,62 @@ Depending on the `type` field entry has a different format:
   - 2 byte block index
   - 3 bytes size
   - 4 bytes position in block
-- 8..255: inlined value (currently only values ≤8 bytes are inlined, though the format supports up to 247)
+- 8..=16: inlined value, size = type - 8 (the format supports up to 247, but `MAX_INLINE_VALUE_SIZE`
+  currently caps it at 8)
   - 8 bytes key hash (if block type 1)
   - key data
   - (type - 8) bytes value data (inline, no separate value block)
+- 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
+  with `MAX_INLINE_VALUE_SIZE`)
+  - 8 bytes key hash (if block type 1)
+  - key data
+  - (type - 17) bytes of the deleted value, stored inline
+
+Both ranged kinds are open-ended, so a decoder must test the key-value tombstone range **before**
+the inline range.
 
 The entries are sorted by key hash and key.
 
+##### Key-value tombstones
+
+A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
+value's bytes. Since the value lives inline in the key block and its length is encoded in the type
+byte, only inline-sized values can be deleted this way — hence `MAX_INLINE_VALUE_SIZE` bounds
+`delete_value`.
+
+The size limit is a consequence of that encoding, not of the comparison logic: matching is a plain
+byte comparison and does not care how a value is stored. Supporting larger deleted values is
+therefore possible but unmotivated — the tombstone stores a second copy of the value, so the cost
+of deleting approaches the cost of the value itself, and reclaiming space is the whole point.
+
+If it is ever needed, the natural encoding is a dedicated is-tombstone bit (e.g. the top bit) on the
+entry type, making "deleted" orthogonal to storage class rather than a parallel type range. That
+would also collapse the current duplication where the tombstone representation mirrors the inline
+one at every layer. Note that blob-backed values need a separate design: comparing against a blob
+means reading it, which would put unbounded I/O in the compaction path, and blob liveness
+accounting would have to handle a tombstone holding a blob reference.
+
 #### Key Block (fixed-size)
 
-Used when all entries in a block have the same key size and value type. Eliminates the per-entry offset table, enabling direct arithmetic indexing during binary search.
+Used when all entries in a block have the same key size, and either the same value type or at least
+the same value size. Eliminates the per-entry offset table, enabling direct arithmetic indexing
+during binary search.
 
 - 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
 - 3 bytes entry count
 - 1 byte key size (uniform across all entries)
-- 1 byte value type (shared by all entries, same encoding as variable-size type field)
+- 1 byte value type (shared by all entries, same encoding as variable-size type field), or
+  `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
+- 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
 - foreach entry (packed at stride = hash_len + key_size + val_size):
   - 8 bytes key hash (if block type 3)
   - key data (key_size bytes)
-  - value data (size determined by value type)
+  - 1 byte value type — only present when the block is mixed-type
+  - value data (size determined by the block's or the entry's value type)
+
+The mixed-type form exists so that same-sized inline values and key-value tombstones can share a
+fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
+mixed marker because it is not itself a valid entry type.
 
 Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
 
@@ -321,3 +361,7 @@ Configuration options for compactions are:
 
 - fsync!
 - (this also deleted enqueued files)
+
+## Compatibility
+
+Currently, the database does not support cross version compatibility. Therefore all updates should be considered breaking changes and the only approach is to rewrite the databases.
