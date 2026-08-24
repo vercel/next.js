@@ -686,7 +686,7 @@ describe('app-dir - server source maps', () => {
     )
   })
 
-  it('logs an error whose message ends with a file location', async () => {
+  it('does not print a stack frame for the error message line', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
       await next.render('/rsc-error-log-location-message')
@@ -698,10 +698,6 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         'Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999' +
-          // TODO(veil): `stacktrace-parser` reads the `<name>: <message>` line
-          // as a frame, because the message ends with text that looks like a
-          // file location.
-          '\n    at <unknown> (Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999)' +
           '\n    at logError (app/rsc-error-log-location-message/page.js:7:5)' +
           '\n    at Page (app/rsc-error-log-location-message/page.js:12:3)' +
           '\n   5 |   // test match this error only.' +
@@ -711,6 +707,13 @@ describe('app-dir - server source maps', () => {
           '\n   8 |   )' +
           '\n   9 | }'
       )
+      // `stacktrace-parser` reads the `<name>: <message>` line as a frame when
+      // the message ends with text that looks like a file location. A real
+      // anonymous frame also reads `at <unknown>`, so this assertion names the
+      // message to keep the two apart.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('at <unknown> (Error: rsc-error-log-location-message')
     } else {
       if (isTurbopack) {
         // TODO(veil): Sourcemap names
@@ -718,6 +721,9 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): relative paths in production
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '(app/rsc-error-log-location-message/page.js:7:5)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'at <unknown> (Error: rsc-error-log-location-message'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack
