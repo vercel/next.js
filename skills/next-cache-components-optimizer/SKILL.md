@@ -261,6 +261,9 @@ before editing the route. Apply the matching public pattern for the blocker:
 - [Place boundaries in the segments that change](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#place-boundaries-in-the-segments-that-change).
 - [Keep loading states responsive](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-loading-states-responsive).
 
+When the fix introduces a `use cache` scope, add an explicit `cacheLife()`
+based on the data's freshness requirements or the project's existing policy.
+
 Run the route's scoped build after each edit. Every blocker prints a canonical
 `https://nextjs.org/docs/messages/<slug>` link for its exact API, including
 runtime data, uncached data, metadata, viewport, and nondeterministic values.
