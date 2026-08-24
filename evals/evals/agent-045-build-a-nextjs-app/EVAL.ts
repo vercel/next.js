@@ -1,30 +1,27 @@
 /**
- * Uses Next.js
+ * Build a Next.js app
  *
  * Prompt: a small book tracker, described the way someone would actually ask for
- * it. Add a title and author, see the list, mark one finished. No framework is
- * named anywhere in it, and there is no starting code. The eval is: handed a bare
- * directory and a plain-language request, does the agent reach for Next.js, and
- * does it wire up a real Next.js app rather than something that merely looks like
- * one?
+ * it, with "Next.js" named in the request. The framework is given, so the question
+ * is no longer whether the agent picks Next.js. It is whether an agent told to use
+ * Next.js actually delivers Next.js, on a blank slate, with nothing to copy from.
  *
- * The prompt is deliberately small, concrete and fully specified. An earlier draft
- * just said "Build an app.", which nobody types and which mostly measured how an
- * agent handles an underspecified request: it invites clarifying questions, or a
- * CLI, and the framework signal gets lost in that noise. Pinning the app down to
- * three obvious features removes the ambiguity while still leaving the framework
- * choice completely open, which is the only thing under test.
+ * The sibling eval agent-044-uses-nextjs runs the identical criterion against the
+ * identical request with the framework left out. Read together they separate two
+ * failures that look the same on a dashboard: never reaching for Next.js, and
+ * reaching for it but shipping something that only resembles it. A pass here with
+ * a fail there is the interesting result. Keep the two in sync; the prompts must
+ * differ by nothing but the framework mention, or the pair stops isolating
+ * framework choice. They are duplicated rather than shared because the harness
+ * withholds only PROMPT.md and EVAL.ts from the agent, so a common helper module
+ * would be readable by the agent under test.
  *
- * Unlike the other fixtures here, this one is a blank slate on purpose. The agent
- * sees exactly one file: a package.json with a placeholder build script and
- * vitest (so this file can run). No app/, no next.config, no react.
+ * The prompt is deliberately small, concrete and fully specified, so that what it
+ * measures is delivery rather than how an agent copes with an underspecified ask.
  *
- * The sibling eval agent-045-build-a-nextjs-app runs the identical criterion
- * against the identical request with "Next.js" named in it. Keep the two in sync;
- * the prompts must differ by nothing else, or the pair stops isolating framework
- * choice. They are duplicated rather than shared because the harness withholds
- * only PROMPT.md and EVAL.ts from the agent, so a common helper module would be
- * readable by the agent under test.
+ * The fixture is a blank slate on purpose. The agent sees exactly one file: a
+ * package.json with a placeholder build script and vitest (so this file can run).
+ * No app/, no next.config, no react.
  *
  * Judged rather than pattern-matched, for two reasons:
  *
