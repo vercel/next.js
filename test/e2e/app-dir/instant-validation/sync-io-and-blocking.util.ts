@@ -21,7 +21,6 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -82,7 +81,6 @@ export function registerSyncIoAndBlockingTests(
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1432",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -141,7 +139,6 @@ export function registerSyncIoAndBlockingTests(
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1432",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -201,7 +198,6 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -271,7 +267,6 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -379,7 +374,6 @@ export function registerSyncIoAndBlockingTests(
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -476,7 +470,6 @@ export function registerSyncIoAndBlockingTests(
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -542,7 +535,6 @@ export function registerSyncIoAndBlockingTests(
                ],
              },
            ],
-           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",

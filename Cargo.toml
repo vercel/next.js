@@ -18,7 +18,6 @@ members = [
 ]
 
 exclude = [
-  "crates/next-error-code-swc-plugin",
   "rspack/crates/binding"
 ]
 
@@ -282,7 +281,7 @@ futures-retry = "0.6.0"
 futures-util = "0.3.31"
 hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
-indexmap = "2.13.0"
+indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.72", features = [

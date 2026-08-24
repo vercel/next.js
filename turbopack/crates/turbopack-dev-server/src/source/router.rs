@@ -105,7 +105,7 @@ impl ContentSource for PrefixedRouterContentSource {
         Ok(Vc::<RouteTrees>::cell(
             inner_trees
                 .chain(once(self.fallback.get_routes()))
-                .map(|v| async move { v.to_resolved().await })
+                .map(|v| v.to_resolved())
                 .try_join()
                 .await?,
         )
