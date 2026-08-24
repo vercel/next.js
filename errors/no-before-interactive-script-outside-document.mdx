@@ -2,17 +2,17 @@
 title: No Before Interactive Script Outside Document
 ---
 
-> Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `app/layout.jsx` or `pages/_document.js`.
+> Prevent usage of `next/script`'s `beforeInteractive` strategy outside of a root layout or `pages/_document.js`.
 
 ## Why This Error Occurred
 
-You cannot use the `next/script` component with the `beforeInteractive` strategy outside `app/layout.jsx` or `pages/_document.js`. That's because `beforeInteractive` strategy only works inside **`app/layout.jsx`** or **`pages/_document.js`** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+You cannot use the `next/script` component with the `beforeInteractive` strategy outside a root layout or `pages/_document.js`. That's because `beforeInteractive` strategy only works inside a **root layout** or **`pages/_document.js`** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
 
 ## Possible Ways to Fix It
 
 ### App Router
 
-If you want a global script, and you are using the App Router, move the script inside `app/layout.jsx`.
+If you want a global script, and you are using the App Router, move the script inside a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout), any layout without a `layout.js` above it.
 
 ```jsx filename="app/layout.jsx"
 import Script from 'next/script'

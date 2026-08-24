@@ -8,6 +8,9 @@ on:
 jobs:
   test-dev:
     name: Next.js integration tests
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/integration_tests_reusable.yml
     with:
       name: turbopack-production

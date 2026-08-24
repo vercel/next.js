@@ -2,9 +2,17 @@ use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
+    num::NonZeroU32,
     sync::Arc,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use num_bigint::BigInt;
 use num_traits::Zero;
 use swc_core::{
@@ -12,6 +20,7 @@ use swc_core::{
     ecma::{ast::Lit, atoms::Atom},
 };
 use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{
     analyzer::{Bump, JsValue, imports::ImportAnnotations},
@@ -42,7 +51,7 @@ impl<'a> ObjectPart<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TraceRawVcs)]
 pub struct ConstantNumber(pub f64);
 
 impl ConstantNumber {
@@ -64,11 +73,27 @@ impl From<f64> for ConstantNumber {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TraceRawVcs)]
 pub enum ConstantString {
-    Atom(Atom),
+    Atom(#[turbo_tasks(trace_ignore)] Atom),
     RcStr(RcStr),
 }
+// SAFETY: ConstantString doesn't contain any Vcs
+unsafe impl NonLocalValue for ConstantString {}
+impl Encode for ConstantString {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        match self {
+            ConstantString::Atom(s) => s.as_str().encode(encoder),
+            ConstantString::RcStr(s) => s.as_str().encode(encoder),
+        }
+    }
+}
+impl<Context> Decode<Context> for ConstantString {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::RcStr(Decode::decode(decoder)?))
+    }
+}
+impl_borrow_decode!(ConstantString);
 
 impl ConstantString {
     pub fn as_str(&self) -> &str {
@@ -141,7 +166,7 @@ impl From<RcStr> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Default, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ConstantValue {
     #[default]
     Undefined,
@@ -150,9 +175,18 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(Box<BigInt>),
-    Regex(Box<(Atom, Atom)>),
+    BigInt(
+        #[turbo_tasks(trace_ignore)]
+        #[bincode(with_serde)]
+        Box<BigInt>,
+    ),
+    Regex(
+        #[turbo_tasks(trace_ignore)]
+        #[bincode(with_serde)]
+        Box<(Atom, Atom)>,
+    ),
 }
+unsafe impl NonLocalValue for ConstantValue {}
 
 impl ConstantValue {
     pub fn as_str(&self) -> Option<&str> {
@@ -260,6 +294,29 @@ impl Display for ConstantValue {
 pub struct ModuleValue {
     pub module: Wtf8Atom,
     pub annotations: Option<Arc<ImportAnnotations>>,
+    /// Whether to analyze this module for constants
+    // TODO this is a hack: ideally we'd have truly "bidirectional linking" instead of the current
+    // `early_visitor` plus `visitor` setup. Then this could just be implemented with a rewrite
+    // rule for `Member(ModuleValue, prop) if prop.as_str().is_upper_case() => { ... }`
+    pub analyze_for_constants: bool,
+    // This is an Option<NonZeroU32> to JsValue to only be 32 bytes in size.
+    pub reference: Option<ModuleReferenceIndex>,
+}
+
+#[derive(Copy, Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ModuleReferenceIndex(NonZeroU32);
+
+impl From<u32> for ModuleReferenceIndex {
+    fn from(value: u32) -> Self {
+        // The only way this can overflow is if value == u32::MAX, which is unlikely since it would
+        // require us to have that many module references.
+        ModuleReferenceIndex(NonZeroU32::new(value + 1).unwrap())
+    }
+}
+impl ModuleReferenceIndex {
+    pub fn get(&self) -> usize {
+        (self.0.get() - 1) as usize
+    }
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -364,6 +421,43 @@ impl Display for LogicalProperty {
             LogicalProperty::Falsy => write!(f, "falsy"),
             LogicalProperty::Nullish => write!(f, "nullish"),
             LogicalProperty::NonNullish => write!(f, "non-nullish"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ObjectMutability {
+    // Don't reorder these variants, as their order is used in `merge_with`.
+    /// Known properties: frozen (= <value>)
+    /// Missing properties: frozen (= Undefined)
+    Frozen,
+    /// Known properties: frozen (= <value>)
+    /// Missing properties: mutable (= Unknown)
+    FrozenSubset,
+    /// Known properties: mutable (= <value> | Unknown)
+    /// Missing properties: mutable (= Unknown)
+    Mutable,
+}
+
+impl ObjectMutability {
+    pub fn merge_with(&mut self, other: Self) {
+        *self = std::cmp::max(*self, other)
+    }
+
+    pub fn is_mutable(&self) -> bool {
+        matches!(self, ObjectMutability::Mutable)
+    }
+    pub fn is_missing_unknown(&self) -> bool {
+        matches!(self, ObjectMutability::FrozenSubset)
+    }
+}
+
+impl Display for ObjectMutability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectMutability::Frozen => write!(f, "frozen"),
+            ObjectMutability::FrozenSubset => write!(f, "frozen subset"),
+            ObjectMutability::Mutable => write!(f, ""),
         }
     }
 }
