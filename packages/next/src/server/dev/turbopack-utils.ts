@@ -460,6 +460,7 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadActionManifest(page)
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
