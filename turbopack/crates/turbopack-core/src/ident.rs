@@ -293,8 +293,17 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_base38(hasher.finish());
-            // 7 base38 chars ≈ 36 bits of collision resistance
-            let truncated_hash = &hash[..7];
+            // 10 base38 chars ≈ 52 bits of collision resistance.
+            //
+            // 7 chars (≈ 36 bits nominal, and closer to ~32 in practice because
+            // the leading character is bounded) is not enough for large apps:
+            // any population of chunks sharing a name prefix and distinguished
+            // only by this hash is a birthday problem, so ~10^5 such chunks
+            // collide with probability of order 1 and the build fails with
+            // "Two or more assets with different content were emitted to the
+            // same output path". Three extra characters drop that by ~5 orders
+            // of magnitude.
+            let truncated_hash = &hash[..10];
             write!(name, "_{truncated_hash}")?;
         }
 
