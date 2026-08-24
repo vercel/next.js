@@ -204,17 +204,21 @@ export function installDevValidationWorker(options: InstallOptions): void {
 
   const runValidation = async (
     snapshot: DevValidationSnapshot,
-    validationAbortSignal: AbortSignal
+    validationAbortSignal: AbortSignal,
+    captureOptions?: {
+      captureLocalSpans?: boolean
+    }
   ): Promise<DevValidationWorkerResult> => {
     let activePool: ValidationPool
     try {
       activePool = getPool()
     } catch {
-      return null
+      return { chunks: null, localSpans: null }
     }
 
     const message: DevValidationWorkerMessage = {
       ...snapshot,
+      captureLocalSpans: captureOptions?.captureLocalSpans ?? false,
       distDir,
       buildId,
       deploymentId,
@@ -252,7 +256,7 @@ export function installDevValidationWorker(options: InstallOptions): void {
       // Worker crash or IPC error: tear down so the next validation starts
       // fresh. The main thread treats a missing result as "nothing to deliver."
       await tearDownPool()
-      return null
+      return { chunks: null, localSpans: null }
     } finally {
       // `once` only auto-removes the listener if it fired, so remove it
       // explicitly to bound its lifetime to this run when validation completed

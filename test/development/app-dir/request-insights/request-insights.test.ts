@@ -27,8 +27,10 @@ type RequestInsight = {
   status: 'ok'
   spans: Array<{
     name?: string
+    traceId?: string
     spanId?: string
     parentSpanId?: string
+    status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -41,7 +43,7 @@ type RequestInsight = {
 }
 
 describe('request insights', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -324,6 +326,53 @@ describe('request insights', () => {
           rootSpans?.some((rootSpan) => rootSpan.spanId === span.parentSpanId)
         ).toBe(true)
       }
+
+      const runValidationSpan = pipelineSpans?.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'AppRender.instantInsights.runValidation'
+      )
+      const workerLoadSpan = instantInsights?.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'LoadComponents.loadRouteModule'
+      )
+      if (isTurbopack) {
+        const spansById = new Map(
+          instantInsights?.spans.flatMap((span) =>
+            span.spanId ? [[span.spanId, span] as const] : []
+          )
+        )
+        const expectDescendantOfRunValidation = (
+          span: RequestInsight['spans'][number] | undefined
+        ) => {
+          const visited = new Set<string>()
+          let ancestor = span
+          while (
+            ancestor?.parentSpanId &&
+            ancestor.parentSpanId !== runValidationSpan?.spanId
+          ) {
+            expect(visited.has(ancestor.parentSpanId)).toBe(false)
+            visited.add(ancestor.parentSpanId)
+            ancestor = spansById.get(ancestor.parentSpanId)
+          }
+          expect(ancestor?.parentSpanId).toBe(runValidationSpan?.spanId)
+        }
+
+        expect(workerLoadSpan).toEqual(
+          expect.objectContaining({
+            name: 'load route module',
+            traceId: runValidationSpan?.traceId,
+            status: 'ok',
+          })
+        )
+        expectDescendantOfRunValidation(workerLoadSpan)
+      } else {
+        // The dev validation worker only runs with Turbopack. Do not invent a
+        // worker span for the in-process Webpack validation path.
+        expect(workerLoadSpan).toBeUndefined()
+      }
+
       expect(
         request?.spans.some(
           (span) =>

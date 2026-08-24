@@ -6,6 +6,7 @@ import type { NextConfigComplete, ValidationLevel } from '../config-shared'
 import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { StageEndTimes } from './instant-validation/instant-validation'
 import type { AdvanceableRenderStage } from './staged-rendering'
+import type { LocalSpanBatch } from '../lib/trace/span-store'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
@@ -130,14 +131,21 @@ export interface DevValidationInstallFields {
  * the main-thread snapshot plus the pool's install-time fields.
  */
 export type DevValidationWorkerMessage = DevValidationSnapshot &
-  DevValidationInstallFields
+  DevValidationInstallFields & {
+    captureLocalSpans: boolean
+  }
 
 /**
  * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
- * or null when validation produced no errors or was aborted. The worker also
- * logs the errors to its own stderr (piped to the parent) with code frames.
+ * or null when validation produced no errors or was aborted. A completed
+ * worker trace is returned as one bounded batch for the parent realm to
+ * consume. The worker also logs errors to its own stderr (piped to the parent)
+ * with code frames.
  */
-export type DevValidationWorkerResult = Uint8Array[] | null
+export type DevValidationWorkerResult = {
+  chunks: Uint8Array[] | null
+  localSpans: LocalSpanBatch | null
+}
 
 /**
  * Worker hook installed by the dev server. Given the render snapshot and the
@@ -150,7 +158,10 @@ export type DevValidationWorkerResult = Uint8Array[] | null
  */
 export type DevValidationWorker = (
   snapshot: DevValidationSnapshot,
-  validationAbortSignal: AbortSignal
+  validationAbortSignal: AbortSignal,
+  options?: {
+    captureLocalSpans?: boolean
+  }
 ) => Promise<DevValidationWorkerResult>
 
 interface WorkerHolder {

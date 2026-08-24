@@ -116,8 +116,14 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
+import {
+  getActiveLocalSpan,
+  traceLocalSpan,
+} from '../lib/trace/local-span-recorder'
+import {
+  importRequestInsightSpans,
+  isRequestInsightsEnabled,
+} from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -4841,6 +4847,9 @@ function runDevValidationInBackground(
             const devValidationWorker = getDevValidationWorker()
 
             if (devValidationWorker) {
+              const runValidationSpan = getActiveLocalSpan()
+              const runValidationSpanContext = runValidationSpan?.spanContext()
+              const requestInsightsIdentity = getRequestInsightsIdentity()
               const snapshot = await buildDevValidationSnapshot(
                 ctx,
                 instantInputs,
@@ -4850,15 +4859,42 @@ function runDevValidationInBackground(
                 devRenderDidError
               )
 
-              const chunks = await devValidationWorker(
+              const workerResult = await devValidationWorker(
                 snapshot,
-                validationAbortSignal
+                validationAbortSignal,
+                {
+                  captureLocalSpans: Boolean(
+                    runValidationSpanContext && requestInsightsIdentity
+                  ),
+                }
               )
 
               // A newer navigation may have superseded this validation while
               // the worker ran; don't surface stale insights for a page the user
               // left.
-              if (chunks && !validationAbortSignal.aborted) {
+              if (!validationAbortSignal.aborted) {
+                if (
+                  workerResult.localSpans &&
+                  runValidationSpanContext &&
+                  requestInsightsIdentity
+                ) {
+                  importRequestInsightSpans(
+                    requestInsightsIdentity,
+                    runValidationSpanContext,
+                    workerResult.localSpans
+                  )
+                  if (workerResult.localSpans.droppedSpanCount > 0) {
+                    runValidationSpan?.setAttribute(
+                      'next.request_insights.omitted_spans',
+                      workerResult.localSpans.droppedSpanCount
+                    )
+                  }
+                }
+
+                const chunks = workerResult.chunks
+                if (!chunks) {
+                  return
+                }
                 const { sendErrorsToBrowser } = ctx.renderOpts
                 if (!sendErrorsToBrowser) {
                   throw new InvariantError(

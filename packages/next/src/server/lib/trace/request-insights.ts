@@ -14,7 +14,13 @@ import {
   type RequestInsightProxyStatus,
   type RequestInsightSource,
 } from '../../../shared/lib/request-insights'
-import type { SpanStoreRecord } from './span-store'
+import type {
+  LocalSpanBatch,
+  LocalSpanParent,
+  SpanStoreRecord,
+} from './span-store'
+import type { RequestInsightsIdentity } from './request-insights-identity'
+import { createLocalSpanId } from './local-span-recorder'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
@@ -46,6 +52,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.idx',
   'next.route',
   'next.request_source',
+  'next.request_insights.omitted_spans',
   'next.rsc',
   'next.segment',
   'next.span_category',
@@ -64,7 +71,10 @@ class InMemoryRequestInsightsStore {
   private readonly requestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
 
-  recordSpan(span: SpanStoreRecord): void {
+  recordSpan(
+    span: SpanStoreRecord,
+    shouldNotify: boolean = true
+  ): RequestInsight | undefined {
     if (!span.requestId) {
       return
     }
@@ -127,7 +137,23 @@ class InMemoryRequestInsightsStore {
       this.recordFetchForInsight(insight, fetch)
     }
 
-    this.notify(insight)
+    if (shouldNotify) {
+      this.notify(insight)
+    }
+    return insight
+  }
+
+  recordSpans(spans: SpanStoreRecord[]): void {
+    const updatedInsights = new Set<RequestInsight>()
+    for (const span of spans) {
+      const insight = this.recordSpan(span, false)
+      if (insight) {
+        updatedInsights.add(insight)
+      }
+    }
+    for (const insight of updatedInsights) {
+      this.notify(insight)
+    }
   }
 
   recordFetch(identity: RequestInsightIdentity, fetch: RequestInsightFetch) {
@@ -318,13 +344,79 @@ function refineSource(
 }
 
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {
-  if (
-    span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
-  ) {
+  if (!shouldRecordRequestInsightSpan(span)) {
     return
   }
 
   getRequestInsightsStore().recordSpan(span)
+}
+
+export function importRequestInsightSpans(
+  identity: RequestInsightsIdentity,
+  parent: LocalSpanParent,
+  batch: LocalSpanBatch
+): void {
+  const spans = batch.spans.filter(shouldRecordRequestInsightSpan)
+  const importedSpanIds = new Map<string, string>()
+
+  for (const span of spans) {
+    if (span.traceId && span.spanId) {
+      importedSpanIds.set(
+        getSpanIdentity(span.traceId, span.spanId),
+        createLocalSpanId(parent.spanId)
+      )
+    }
+  }
+
+  getRequestInsightsStore().recordSpans(
+    spans.map((span) => {
+      const importedSpanId =
+        span.traceId && span.spanId
+          ? importedSpanIds.get(getSpanIdentity(span.traceId, span.spanId))
+          : undefined
+      const importedParentSpanId =
+        span.traceId && span.parentSpanId
+          ? importedSpanIds.get(
+              getSpanIdentity(span.traceId, span.parentSpanId)
+            )
+          : undefined
+
+      return {
+        ...span,
+        traceId: parent.traceId,
+        spanId: importedSpanId ?? createLocalSpanId(parent.spanId),
+        parentSpanId: importedParentSpanId ?? parent.spanId,
+        requestId: identity.requestId,
+        requestInsightKind: identity.kind,
+        requestInsightSource: identity.source,
+        requestInsightProxyStatus: identity.proxyStatus,
+        htmlRequestId: identity.htmlRequestId,
+        url: identity.url,
+        links: span.links?.map((link) => {
+          const importedLinkSpanId = importedSpanIds.get(
+            getSpanIdentity(link.traceId, link.spanId)
+          )
+          return importedLinkSpanId
+            ? {
+                ...link,
+                traceId: parent.traceId,
+                spanId: importedLinkSpanId,
+              }
+            : link
+        }),
+      }
+    })
+  )
+}
+
+function getSpanIdentity(traceId: string, spanId: string): string {
+  return `${traceId}:${spanId}`
+}
+
+function shouldRecordRequestInsightSpan(span: SpanStoreRecord): boolean {
+  return (
+    span.attributes?.['next.span_type'] !== CLIENT_COMPONENT_LOADING_SPAN_TYPE
+  )
 }
 
 export function recordRequestInsightFetch(

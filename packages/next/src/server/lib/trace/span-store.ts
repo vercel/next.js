@@ -1,11 +1,19 @@
-import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import type {
   RequestInsightProxyStatus,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
+import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 
-export type SpanStoreAttributes = Record<string, AttributeValue>
+export type SpanStoreAttributeValue =
+  | string
+  | number
+  | boolean
+  | Array<null | undefined | string>
+  | Array<null | undefined | number>
+  | Array<null | undefined | boolean>
+
+export type SpanStoreAttributes = Record<string, SpanStoreAttributeValue>
 
 export type SpanStoreLink = {
   traceId: string
@@ -44,9 +52,32 @@ export type SpanStoreRecord = {
   }
 }
 
+export type LocalSpanParent = {
+  traceId: string
+  spanId: string
+}
+
+export type LocalSpanBatch = {
+  spans: SpanStoreRecord[]
+  droppedSpanCount: number
+}
+
 type SpanRecorderForTest = (span: SpanStoreRecord) => void
+type LocalSpanSink = (span: SpanStoreRecord) => void
 
 let spanRecorderForTest: SpanRecorderForTest | undefined
+
+function getLocalSpanSinkStorage() {
+  return getOrCreateGlobalAsyncLocalStorage<LocalSpanSink>('local-span-sink')
+}
+
+export function runWithLocalSpanSink<T>(sink: LocalSpanSink, fn: () => T): T {
+  return getLocalSpanSinkStorage().run(sink, fn)
+}
+
+export function isLocalSpanSinkActive(): boolean {
+  return getLocalSpanSinkStorage().getStore() !== undefined
+}
 
 export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
   if (!isLocalSpanRecordingEnabled()) {
@@ -58,9 +89,11 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
     ...record,
   }
 
+  const localSpanSink = getLocalSpanSinkStorage().getStore()
+  localSpanSink?.(spanRecord)
   spanRecorderForTest?.(spanRecord)
 
-  if (isRequestInsightsEnabled() && spanRecord.requestId) {
+  if (!localSpanSink && isRequestInsightsEnabled() && spanRecord.requestId) {
     const { recordRequestInsightSpan } =
       require('./request-insights') as typeof import('./request-insights')
     recordRequestInsightSpan(spanRecord)
@@ -78,7 +111,11 @@ export function isLocalSpanRecordingEnabled(): boolean {
     return false
   }
 
-  return spanRecorderForTest !== undefined || isRequestInsightsEnabled()
+  return (
+    isLocalSpanSinkActive() ||
+    spanRecorderForTest !== undefined ||
+    isRequestInsightsEnabled()
+  )
 }
 
 export function isRequestInsightsEnabled(): boolean {

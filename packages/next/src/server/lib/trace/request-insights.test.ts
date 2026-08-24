@@ -1,6 +1,7 @@
 import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
+  importRequestInsightSpans,
   recordRequestInsightFetch,
   recordRequestInsightSource,
   subscribeRequestInsights,
@@ -149,6 +150,98 @@ describe('request insights', () => {
         requestId: 'req_2',
         htmlRequestId: 'html_2',
         route: '/dashboard',
+      })
+    )
+
+    unsubscribe()
+  })
+
+  it('imports a worker span batch with the main-thread identity', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const listener = jest.fn()
+    const unsubscribe = subscribeRequestInsights(listener)
+
+    importRequestInsightSpans(
+      {
+        requestId: 'instant_1',
+        kind: 'instant-insights',
+        htmlRequestId: 'html_1',
+        url: '/dashboard',
+      },
+      { traceId: 'main-trace', spanId: 'main-parent' },
+      {
+        spans: [
+          {
+            name: 'worker root',
+            timestamp: 1,
+            traceId: 'worker-trace',
+            spanId: 'worker-root',
+            url: '/worker-only-url',
+          },
+          {
+            name: 'worker child',
+            timestamp: 2,
+            traceId: 'worker-trace',
+            spanId: 'worker-child',
+            parentSpanId: 'worker-root',
+            links: [
+              { traceId: 'worker-trace', spanId: 'worker-root' },
+              { traceId: 'external-trace', spanId: 'external-span' },
+            ],
+          },
+          {
+            name: 'worker orphan',
+            timestamp: 3,
+            traceId: 'worker-trace',
+            spanId: 'worker-orphan',
+            parentSpanId: 'dropped-parent',
+          },
+        ],
+        droppedSpanCount: 1,
+      }
+    )
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    const [request] = getRequestInsightsSnapshot().requests
+    const workerRoot = request.spans.find(
+      (span) => span.name === 'worker root'
+    )!
+    const workerChild = request.spans.find(
+      (span) => span.name === 'worker child'
+    )!
+    const workerOrphan = request.spans.find(
+      (span) => span.name === 'worker orphan'
+    )!
+
+    expect(request).toEqual(
+      expect.objectContaining({
+        requestId: 'instant_1',
+        kind: 'instant-insights',
+        htmlRequestId: 'html_1',
+        url: '/dashboard',
+      })
+    )
+    expect(workerRoot).toEqual(
+      expect.objectContaining({
+        traceId: 'main-trace',
+        parentSpanId: 'main-parent',
+      })
+    )
+    expect(workerRoot.spanId).not.toBe('worker-root')
+    expect(workerChild).toEqual(
+      expect.objectContaining({
+        traceId: 'main-trace',
+        parentSpanId: workerRoot.spanId,
+        links: [
+          { traceId: 'main-trace', spanId: workerRoot.spanId },
+          { traceId: 'external-trace', spanId: 'external-span' },
+        ],
+      })
+    )
+    expect(workerOrphan).toEqual(
+      expect.objectContaining({
+        traceId: 'main-trace',
+        parentSpanId: 'main-parent',
       })
     )
 
