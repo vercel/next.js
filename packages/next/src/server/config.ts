@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -68,12 +68,7 @@ const REACT_18_DEPRECATION_WARNING =
 function getInstalledPackageVersion(dir: string, name: 'react' | 'react-dom') {
   try {
     const projectRequire = createRequire(join(dir, 'package.json'))
-    const packageJsonPath = projectRequire.resolve(`${name}/package.json`)
-    return (
-      JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
-        version?: string
-      }
-    ).version
+    return (projectRequire(name) as { version?: string }).version
   } catch {
     return undefined
   }

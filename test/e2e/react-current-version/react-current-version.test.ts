@@ -39,20 +39,6 @@ describe('react-current-version', () => {
     const { next, isNextDeploy, skipped } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
-      overrideFiles: {
-        'next.config.js': `
-// The installed version must come from package metadata rather than the
-// mutable runtime export loaded by next.config.js.
-for (const name of ['react', 'react-dom']) {
-  const dependency = require(name)
-  dependency.version = dependency.version.startsWith('18.')
-    ? '19.0.0'
-    : '18.0.0'
-}
-
-module.exports = {}
-`,
-      },
     })
 
     if (skipped) {
