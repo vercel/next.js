@@ -966,9 +966,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 let ssts = meta
                     .entries()
                     .iter()
-                    .map(|entry| {
+                    .zip(meta.hash_ranges())
+                    .map(|(entry, range)| {
                         let seq = entry.sequence_number();
-                        let range = entry.range();
                         let size = entry.size();
                         let flags = entry.flags();
                         (seq, range.min_hash, range.max_hash, size, flags)
@@ -1253,9 +1253,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             continue;
                         }
                         let meta_seq = meta.sequence_number();
-                        for entry in meta.entries().iter() {
+                        for (entry, range) in meta.entries().iter().zip(meta.hash_ranges()) {
                             let seq = entry.sequence_number();
-                            let range = entry.range();
                             writeln!(
                                 log,
                                 "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
@@ -1400,7 +1399,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         meta_index,
                         index_in_meta: index_in_meta as u32,
                         seq: entry.sequence_number(),
-                        range: entry.range(),
+                        range: meta.range(index_in_meta as u32),
                         size: entry.size(),
                         flags: entry.flags(),
                     })
@@ -1536,9 +1535,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 let meta_file = &meta_files[meta_index];
                                 let entry = meta_file.entry(index_in_meta);
                                 let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let hash_range = meta_file.hash_range(index_in_meta);
                                 let meta = StaticSortedFileBuilderMeta {
-                                    min_hash: entry.min_hash(),
-                                    max_hash: entry.max_hash(),
+                                    min_hash: hash_range.min_hash,
+                                    max_hash: hash_range.max_hash,
                                     amqf,
                                     block_count: entry.block_count(),
                                     size: entry.size(),
@@ -1571,9 +1571,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 let older_filters = ssts_with_ranges[..oldest_index_in_job]
                                     .iter()
                                     .map(|sst| {
-                                        let entry =
-                                            meta_files[sst.meta_index].entry(sst.index_in_meta);
-                                        (entry.min_hash(), entry.max_hash(), entry.amqf())
+                                        let meta_file = &meta_files[sst.meta_index];
+                                        let entry = meta_file.entry(sst.index_in_meta);
+                                        let range = meta_file.hash_range(sst.index_in_meta);
+                                        (range.min_hash, range.max_hash, entry.amqf())
                                     })
                                     .collect::<Vec<_>>();
                                 move |hash: u64| {
@@ -2289,12 +2290,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 let entries = meta_file
                     .entries()
                     .iter()
-                    .map(|entry| {
+                    .zip(meta_file.hash_ranges())
+                    .map(|(entry, range)| {
                         let amqf = entry.raw_amqf(meta_file.amqf_data());
                         MetaFileEntryInfo {
                             sequence_number: entry.sequence_number(),
-                            min_hash: entry.min_hash(),
-                            max_hash: entry.max_hash(),
+                            min_hash: range.min_hash,
+                            max_hash: range.max_hash,
                             sst_size: entry.size(),
                             flags: entry.flags(),
                             amqf_size: entry.amqf_size(),

@@ -99,12 +99,6 @@ impl EntryHeader {
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
     sst_data: StaticSortedFileMetaData,
-    /// The key family of the SST file.
-    family: u32,
-    /// The minimum hash value of the keys in the SST file.
-    min_hash: u64,
-    /// The maximum hash value of the keys in the SST file.
-    max_hash: u64,
     /// The size of the SST file in bytes.
     size: u64,
     /// The status flags for this entry.
@@ -162,23 +156,6 @@ impl MetaEntry {
         })
     }
 
-    /// Returns the key family and hash range of this file.
-    pub fn range(&self) -> StaticSortedFileRange {
-        StaticSortedFileRange {
-            family: self.family,
-            min_hash: self.min_hash,
-            max_hash: self.max_hash,
-        }
-    }
-
-    pub fn min_hash(&self) -> u64 {
-        self.min_hash
-    }
-
-    pub fn max_hash(&self) -> u64 {
-        self.max_hash
-    }
-
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
     }
@@ -232,6 +209,24 @@ pub struct StaticSortedFileRange {
     pub max_hash: u64,
 }
 
+/// The span of key hashes an SST file covers.
+///
+/// Kept in a dense array on [`MetaFile`] rather than in [`MetaEntry`] so that the range scan every
+/// lookup performs reads contiguous memory. See [`MetaFile::hash_ranges`].
+#[derive(Clone, Copy)]
+pub struct HashRange {
+    pub min_hash: u64,
+    pub max_hash: u64,
+}
+
+impl HashRange {
+    /// Whether `hash` falls within this file's span. A lookup can skip the file entirely if not.
+    #[inline(always)]
+    pub fn contains(&self, hash: u64) -> bool {
+        hash >= self.min_hash && hash <= self.max_hash
+    }
+}
+
 /// # Safety
 ///
 /// `entries` **must** be declared before `mmap` so that Rust's field drop order (declaration
@@ -244,6 +239,13 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
+    /// The hash range of each entry, parallel to `entries` and indexed the same way.
+    ///
+    /// Stored apart from [`MetaEntry`] because a lookup that misses reads nothing else: it walks
+    /// every entry comparing the queried hash against these bounds, and only touches the entry
+    /// itself once a range matches. Inline, that scan strided over a 144-byte `MetaEntry` to read
+    /// 16 useful bytes, so 100 entries spanned 225 cache lines instead of 25.
+    hash_ranges: Vec<HashRange>,
     /// The entries of the file. Dropped before `mmap` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
@@ -304,6 +306,7 @@ impl MetaFile {
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
         let mut entries = Vec::with_capacity(count as usize);
+        let mut hash_ranges = Vec::with_capacity(count as usize);
         let mut start_of_amqf_data_offset: u32 = 0;
         for _ in 0..count {
             let (header, rest): (Ref<&[u8], EntryHeader>, _) = Ref::from_prefix(reader)
@@ -335,11 +338,9 @@ impl MetaFile {
             // declaration order), so the borrow remains valid for the lifetime of the MetaEntry.
             let amqf: qfilter::FilterRef<'static> = unsafe { std::mem::transmute(amqf) };
 
+            hash_ranges.push(HashRange { min_hash, max_hash });
             entries.push(MetaEntry {
                 sst_data,
-                family,
-                min_hash,
-                max_hash,
                 size,
                 flags,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
@@ -356,6 +357,7 @@ impl MetaFile {
             db_path,
             sequence_number,
             family,
+            hash_ranges,
             entries,
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
@@ -395,6 +397,26 @@ impl MetaFile {
         &self.entries
     }
 
+    /// The hash ranges of this file's entries, in the same order as [`Self::entries`].
+    pub fn hash_ranges(&self) -> &[HashRange] {
+        &self.hash_ranges
+    }
+
+    /// The hash range of the entry at `index`.
+    pub fn hash_range(&self, index: u32) -> HashRange {
+        self.hash_ranges[index as usize]
+    }
+
+    /// The key family and hash range of the entry at `index`.
+    pub fn range(&self, index: u32) -> StaticSortedFileRange {
+        let HashRange { min_hash, max_hash } = self.hash_range(index);
+        StaticSortedFileRange {
+            family: self.family,
+            min_hash,
+            max_hash,
+        }
+    }
+
     pub fn entry(&self, index: u32) -> &MetaEntry {
         let index = index as usize;
         &self.entries[index]
@@ -420,14 +442,31 @@ impl MetaFile {
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
         let old_len = self.entries.len();
+        debug_assert_eq!(
+            self.entries.len(),
+            self.hash_ranges.len(),
+            "hash_ranges must stay parallel to entries"
+        );
+        // `hash_ranges` is indexed by entry position, so it has to be filtered in lockstep or the
+        // two drift apart and a lookup reads the wrong entry.
+        let obsolete = &mut self.obsolete_entries;
+        let mut keep = Vec::with_capacity(self.entries.len());
         self.entries.retain(|entry| {
-            if predicate(entry.sst_data.sequence_number) {
-                true
-            } else {
-                self.obsolete_entries.push(entry.sst_data.sequence_number);
-                false
+            let retain = predicate(entry.sst_data.sequence_number);
+            if !retain {
+                obsolete.push(entry.sst_data.sequence_number);
             }
+            keep.push(retain);
+            retain
         });
+        let mut keep = keep.into_iter();
+        self.hash_ranges
+            .retain(|_| keep.next().expect("keep flags cover every hash range"));
+        debug_assert_eq!(
+            self.entries.len(),
+            self.hash_ranges.len(),
+            "hash_ranges must stay parallel to entries"
+        );
         old_len != self.entries.len()
     }
 
@@ -462,10 +501,12 @@ impl MetaFile {
         let mut miss_result = MetaLookupResult::RangeMiss;
         let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
 
-        for entry in self.entries.iter().rev() {
-            if key_hash < entry.min_hash || key_hash > entry.max_hash {
+        // Walk the dense range array; only reach for the entry once its span matches.
+        for (index, range) in self.hash_ranges.iter().enumerate().rev() {
+            if !range.contains(key_hash) {
                 continue;
             }
+            let entry = &self.entries[index];
             if !entry.amqf.contains_fingerprint(key_hash) {
                 miss_result = MetaLookupResult::QuickFilterMiss;
                 continue;
@@ -536,9 +577,9 @@ impl MetaFile {
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
-        for entry in self.entries.iter().rev() {
+        for (entry_index, range) in self.hash_ranges.iter().enumerate().rev() {
             let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
                 .err()
                 .unwrap();
             if start_index >= cells.len() {
@@ -549,7 +590,7 @@ impl MetaFile {
                 continue;
             }
             let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
                 .err()
                 .unwrap()
                 .checked_sub(1);
@@ -567,11 +608,9 @@ impl MetaFile {
                 }
                 continue;
             }
+            let entry = &self.entries[entry_index];
             for (hash, index, result) in &mut cells[start_index..=end_index] {
-                debug_assert!(
-                    *hash >= entry.min_hash && *hash <= entry.max_hash,
-                    "Key hash out of range"
-                );
+                debug_assert!(range.contains(*hash), "Key hash out of range");
                 if result.is_some() {
                     continue;
                 }
