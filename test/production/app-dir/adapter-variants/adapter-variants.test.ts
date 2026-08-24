@@ -176,17 +176,48 @@ describe('adapter-variants', () => {
      "3 entries
 
      /dynamic/[slug]
-       ^[/]?/dynamic/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /dynamic/[slug]$rscSuffix?nxtPslug=$nxtPslug
-
-     /dynamic/[slug]
        ^[/]?/__variants/(?<nxtV>[^/]+)/dynamic/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /__variants/$nxtV/dynamic/[slug]$rscSuffix?nxtPslug=$nxtPslug&nxtV=$nxtV
 
      /concrete
        ^[/]?/__variants/(?<nxtV>[^/]+)/concrete(?:/)?$
-       -> /concrete?nxtV=$nxtV"
+       -> /concrete?nxtV=$nxtV
+
+     /dynamic/[slug]
+       ^[/]?/dynamic/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /dynamic/[slug]$rscSuffix?nxtPslug=$nxtPslug"
     `)
+  })
+
+  it('should list every prefixed entry before every plain one', () => {
+    // A route collapse groups entries that are neighbours in the table, so the
+    // entries that could collapse together have to be contiguous. One pair per
+    // page, plain then prefixed, interleaves the two kinds and leaves neither
+    // kind contiguous, which is why the build emits them as two blocks.
+    //
+    // The prefixed block comes first, and the reverse order is unsafe. A
+    // root-level catch-all matches a prefixed path and captures the whole of it
+    // as its param, so a plain entry ahead of the prefixed block would claim a
+    // request that belongs to a per-combination artifact. This order is safe in
+    // both directions, because no request for a plain path can match a prefixed
+    // pattern: every one of those requires the `/__variants/` literal.
+    //
+    // This order changes nothing on its own. It is what lets a later cross-page
+    // collapse group these entries at all.
+    for (const context of [fourCombinations, collapsed]) {
+      const kinds = context.routing.dynamicRoutes.map((route) =>
+        route.sourceRegex.includes('/__variants/') ? 'prefixed' : 'plain'
+      )
+
+      // The fixture has to produce both kinds, or the assertion below holds for
+      // a reason that has nothing to do with the order.
+      expect(kinds).toContain('prefixed')
+      expect(kinds).toContain('plain')
+
+      expect(kinds.indexOf('plain')).toBeGreaterThan(
+        kinds.lastIndexOf('prefixed')
+      )
+    }
   })
 
   it('should write the same prerenders whether the collapse is on or off', () => {
