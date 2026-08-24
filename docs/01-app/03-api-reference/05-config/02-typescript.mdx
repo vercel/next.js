@@ -282,6 +282,7 @@ export function proxy(request: NextRequest) {
 
 ```tsx filename="app/some/page.tsx"
 import type { Route } from 'next'
+import Link from 'next/link'
 
 export default function Page() {
   return <Link href={'/proxy-redirect' as Route}>Link Text</Link>
