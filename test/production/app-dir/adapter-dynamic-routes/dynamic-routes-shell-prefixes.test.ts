@@ -29,19 +29,11 @@ describe('adapter dynamic routes (shell prefixes)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "4 entries
+     "2 entries
 
-     /acme.one-two,three/de/posts/[id]
-       ^[/]?/acme\\.one\\-two,three/de/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /acme.one-two,three/de/posts/[id]$rscSuffix?nxtPid=$nxtPid
-
-     /acme.one-two,three/en/posts/[id]
-       ^[/]?/acme\\.one\\-two,three/en/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /acme.one-two,three/en/posts/[id]$rscSuffix?nxtPid=$nxtPid
-
-     /sparse/en/posts/[id]
-       ^[/]?/sparse/en/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /sparse/en/posts/[id]$rscSuffix?nxtPid=$nxtPid
+     /$shellPrefix/posts/[id]
+       ^[/]?/(?<shellPrefix>acme\\.one\\-two,three/de|acme\\.one\\-two,three/en|sparse/en)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$shellPrefix/posts/[id]$rscSuffix?nxtPid=$nxtPid
 
      /[team]/[locale]/posts/[id]
        ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$

@@ -41,19 +41,15 @@ describe('adapter dynamic routes (cache components)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "9 entries
+     "7 entries
 
      /[lang]
        ^[/]?/(?<nxtPlang>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]$rscSuffix?nxtPlang=$nxtPlang
 
-     /de/fallback-shell/[slug]
-       ^[/]?/de/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /de/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
-
-     /en/fallback-shell/[slug]
-       ^[/]?/en/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /en/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
+     /$shellPrefix/fallback-shell/[slug]
+       ^[/]?/(?<shellPrefix>de|en)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$shellPrefix/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /[lang]/fallback-shell/[slug]
        ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
@@ -67,13 +63,9 @@ describe('adapter dynamic routes (cache components)', () => {
        ^[/]?/(?<nxtPlang>[^/]+?)/static(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]/static$rscSuffix?nxtPlang=$nxtPlang
 
-     /de/[slug]
-       ^[/]?/de/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /de/[slug]$rscSuffix?nxtPslug=$nxtPslug
-
-     /en/[slug]
-       ^[/]?/en/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /en/[slug]$rscSuffix?nxtPslug=$nxtPslug
+     /$shellPrefix/[slug]
+       ^[/]?/(?<shellPrefix>de|en)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$shellPrefix/[slug]$rscSuffix?nxtPslug=$nxtPslug
 
      /[lang]/[slug]
        ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
