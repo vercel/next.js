@@ -73,6 +73,8 @@ export default nextConfig
 
 > **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
+When self-hosting with `next start`, make sure `cacheComponents` resolves to the same value at build time and runtime. This is especially important for multi-stage Docker images. See [Cache Components configuration](/docs/app/guides/self-hosting#cache-components-configuration).
+
 After enabling the flag, route segments that still export `dynamic`, `revalidate`, or `fetchCache` will error. Start by replacing those configs. The sections below explain what to do for each one.
 
 ## Opting out of validation
