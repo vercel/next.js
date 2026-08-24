@@ -888,24 +888,16 @@ async fn analyze_ecmascript_module_internal(
         // of an effect we might want to add more effects into the middle of the
         // processing. Using a stack where effects are appended in reverse
         // order allows us to do that. It's recursion implemented as Stack.
-        let mut queue_stack = Mutex::new(Vec::new());
-        queue_stack
-            .get_mut()
-            .extend(effects.into_iter().map(Action::Effect).rev());
+        let mut queue_stack = Vec::with_capacity(effects.len());
+        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
 
-        while let Some(action) = queue_stack.get_mut().pop() {
+        while let Some(action) = queue_stack.pop() {
             let effect = match action {
                 Action::LeaveScope(func_ident) => {
                     analysis_state.fun_args_values.get_mut().remove(&func_ident);
                     continue;
                 }
                 Action::Effect(effect) => effect,
-            };
-
-            let add_effects = |effects: BumpVec<'_, _>| {
-                queue_stack
-                    .lock()
-                    .extend(effects.into_iter().map(Action::Effect).rev())
             };
 
             match effect {
@@ -956,7 +948,7 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack.get_mut().extend(
+                            queue_stack.extend(
                                 BumpVec::from($block.effects)
                                     .into_iter()
                                     .map(Action::Effect)
@@ -1102,13 +1094,15 @@ async fn analyze_ecmascript_module_internal(
                         .cloned()
                         .unwrap_or(ExportUsage::All);
 
+                    let args = process_effect_args(args, |effects| {
+                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
+                    });
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         new,
@@ -1124,12 +1118,14 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
+                    let args = process_effect_args(args, |effects| {
+                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
+                    });
                     handle_dynamic_import(
                         &ast_path,
                         span,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         eval_context.imports.get_attributes(span),
@@ -1187,8 +1183,8 @@ async fn analyze_ecmascript_module_internal(
                                 *func_ident,
                                 BumpVec::from_iter_in(arena.get_or_default(), [closure_arg]),
                             );
-                            queue_stack.get_mut().push(Action::LeaveScope(*func_ident));
-                            queue_stack.get_mut().extend(
+                            queue_stack.push(Action::LeaveScope(*func_ident));
+                            queue_stack.extend(
                                 BumpVec::from(replace(
                                     &mut block.effects,
                                     BumpVec::new().into_boxed_slice(),
@@ -1201,13 +1197,15 @@ async fn analyze_ecmascript_module_internal(
                         }
                     }
 
+                    let args = process_effect_args(args, |effects| {
+                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
+                    });
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         new,
@@ -1594,13 +1592,33 @@ async fn compile_time_info_for_module_options(
     .cell())
 }
 
-async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+// Process all argument effects first so they happen exactly once. If we model the behavior of
+// closures passed to more functions, their effects need to be inlined at the appropriate spot like
+// the Array.prototype.map handling above.
+fn process_effect_args<'a>(
+    args: BumpVec<'a, EffectArg<'a>>,
+    mut add_effects: impl FnMut(BumpVec<'a, Effect<'a>>),
+) -> Vec<JsValue<'a>> {
+    args.into_iter()
+        .map(|effect_arg| match effect_arg {
+            EffectArg::Value(value) => value,
+            EffectArg::Closure(value, block) => {
+                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
+                value
+            }
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
+        })
+        .collect()
+}
+
+async fn handle_call<'a>(
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue<'a>,
-    args: BumpVec<'a, EffectArg<'a>>,
+    unlinked_args: Vec<JsValue<'a>>,
     state: &AnalysisState<'a>,
-    add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     new: bool,
@@ -1618,23 +1636,6 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
         tracing_only,
         ..
     } = state;
-
-    // Process all effects first so they happen exactly once.
-    // If we end up modeling the behavior of the closures passed to any of these functions then we
-    // will need to inline this into the appropriate spot just like Array.prototype.map support.
-    let unlinked_args = args
-        .into_iter()
-        .map(|effect_arg| match effect_arg {
-            EffectArg::Value(value) => value,
-            EffectArg::Closure(value, block) => {
-                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
-                value
-            }
-            EffectArg::Spread => {
-                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
-            }
-        })
-        .collect::<Vec<_>>();
 
     // Create a OnceCell to cache linked args across multiple calls
     let linked_args_cache = OnceCell::new();
@@ -1711,12 +1712,11 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     Ok(())
 }
 
-async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+async fn handle_dynamic_import<'a>(
     ast_path: &[AstParentKind],
     span: Span,
-    args: BumpVec<'a, EffectArg<'a>>,
+    unlinked_args: Vec<JsValue<'a>>,
     state: &AnalysisState<'a>,
-    add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     attributes: &ImportAttributes,
@@ -1743,21 +1743,6 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
     } else {
         ResolveErrorMode::Error
     };
-
-    // Process all effects (closures) from args
-    let unlinked_args: Vec<JsValue> = args
-        .into_iter()
-        .map(|effect_arg| match effect_arg {
-            EffectArg::Value(value) => value,
-            EffectArg::Closure(value, block) => {
-                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
-                value
-            }
-            EffectArg::Spread => {
-                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
-            }
-        })
-        .collect();
 
     let linked_args = unlinked_args
         .iter()
