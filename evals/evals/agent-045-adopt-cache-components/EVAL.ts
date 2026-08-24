@@ -57,9 +57,9 @@ test('preserves request-specific account behavior and a meaningful shell', async
   )
 })
 
-test('caches catalog data without freezing request-time values', async () => {
+test('preserves the catalog cache and timestamp cadence', async () => {
   await expect(environment).toSatisfyCriterion(
-    `Reusable product catalog queries are cached in small data-level functions with an explicit cache lifetime. The page components themselves are not cached. The catalog check time remains request-time or is explicitly deferred behind Suspense instead of being accidentally frozen in the shared catalog cache.`
+    `The catalog keeps the starter route's hourly revalidation behavior after the incompatible revalidate export is removed. A page-level or data-level use-cache boundary with an equivalent cache lifetime is valid. The catalog check timestamp belongs to that same hourly result and refreshes when the cached result refreshes; it is not incorrectly required to change on every request.`
   )
 })
 
