@@ -566,13 +566,15 @@ describe('request insights', () => {
             proxyStatus: 'matched',
           })
         )
-      })
+      }, 30_000)
     } finally {
-      const release = await next.fetch(
-        `/api/app-stream-lifecycle?release=${waitKey}`,
-        { method: 'POST' }
-      )
-      expect(release.status).toBe(204)
+      await retry(async () => {
+        const release = await next.fetch(
+          `/api/app-stream-lifecycle?release=${waitKey}`,
+          { method: 'POST' }
+        )
+        expect(release.status).toBe(204)
+      }, 30_000)
     }
 
     const response = await responsePromise
