@@ -686,6 +686,45 @@ describe('app-dir - server source maps', () => {
     )
   })
 
+  it('logs an error whose message ends with a file location', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-location-message')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-location-message'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999' +
+          // TODO(veil): `stacktrace-parser` reads the `<name>: <message>` line
+          // as a frame, because the message ends with text that looks like a
+          // file location.
+          '\n    at <unknown> (Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999)' +
+          '\n    at logError (app/rsc-error-log-location-message/page.js:7:5)' +
+          '\n    at Page (app/rsc-error-log-location-message/page.js:12:3)' +
+          '\n   5 |   // test match this error only.' +
+          '\n   6 |   console.error(' +
+          "\n>  7 |     new Error('rsc-error-log-location-message: connect ECONNREFUSED ::1:45999')" +
+          '\n     |     ^' +
+          '\n   8 |   )' +
+          '\n   9 | }'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        //
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-location-message/page.js:7:5)'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('handles invalid sourcemaps gracefully', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
