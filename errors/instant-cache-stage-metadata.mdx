@@ -1,0 +1,169 @@
+---
+title: Next.js encountered a cache stage API in `generateMetadata()`
+kind: insight
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
+During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). These functions defer the code below them to a later client-router stage, so the route's metadata is not available with the earlier stage. The rest of the route can still be prefetched.
+
+The `unstable_prefetch()` function defers metadata beyond the [App Shell](/docs/app/glossary#app-shell). The `unstable_navigation()` function defers metadata beyond every prefetch. Metadata does not have its own [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, so resolve it statically or mark the page body as intentionally dynamic.
+
+For the same error in the page body or viewport code, see [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage) or [Cache stage APIs in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
+
+## Ways to fix this
+
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static metadata"
+    href="#use-static-metadata"
+    snippets={[
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="dynamic"
+    title="Mark the route as dynamic"
+    href="#mark-the-route-as-dynamic"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+## Use static metadata
+
+Choose this fix when the metadata should be available before the selected cache stage. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
+
+### Patterns
+
+#### Export a static object
+
+Use a plain object when the values are known while prerendering.
+
+```jsx filename="app/dashboard/page.js"
+export const metadata = {
+  title: 'Dashboard',
+  description: 'View your account activity.',
+}
+
+export default function Page() {
+  return <Dashboard />
+}
+```
+
+Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadata#metadata-object).
+
+### Trade-off
+
+Static metadata cannot depend on work intentionally deferred to a full prefetch or navigation. Use [Mark the route as dynamic](#mark-the-route-as-dynamic) when the metadata must follow that lifecycle.
+
+### Gotchas
+
+- A static export applies to every request for that route. Keep personalized values out of the object.
+- Metadata that varies by known route params can remain prerendered by combining [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) with cached `generateMetadata()` work.
+
+## Mark the route as dynamic
+
+Choose this fix when the metadata intentionally resolves at the selected cache stage. Add a marker component that calls [`connection()`](/docs/app/api-reference/functions/connection) inside [`<Suspense>`](https://react.dev/reference/react/Suspense) on the page.
+
+### Patterns
+
+#### Add a dynamic marker component
+
+Keep the stage API in `generateMetadata()` and add the marker to the page body. This example defers metadata until navigation. Use `unstable_prefetch()` instead when a full prefetch should include it.
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+import { unstable_navigation as navigation } from 'next/cache'
+import { connection } from 'next/server'
+
+export async function generateMetadata() {
+  await navigation()
+  return { title: await getDashboardTitle() }
+}
+
+async function DynamicMarker() {
+  await connection()
+  return null
+}
+
+export default function Page() {
+  return (
+    <>
+      <Dashboard />
+      <Suspense>
+        <DynamicMarker />
+      </Suspense>
+    </>
+  )
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection).
+
+### Trade-off
+
+The route is no longer fully static. The metadata waits for the selected cache stage, while the rest of the page can remain available from the earlier result.
+
+### Gotchas
+
+- The marker must be inside [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the marker blocks the page body too.
+- Framework-synthesized routes such as `/_not-found` do not provide a page body for the marker. Use [static metadata](#use-static-metadata) when the root layout supplies metadata to those routes.
+
+## Verifying the fix
+
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /products` to iterate on specific routes.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [Cache stage APIs in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

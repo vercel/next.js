@@ -426,6 +426,7 @@ export function trackPromiseUsed<T>(promise: Promise<T>, onUse: () => void) {
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
   staticLinkData: RenderStage.PrefetchStatic as const,
+  runtimePrefetchData: RenderStage.PrefetchRuntime as const,
   runtimeLinkData: RenderStage.Runtime as const,
 }
 

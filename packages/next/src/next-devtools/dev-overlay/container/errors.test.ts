@@ -14,8 +14,11 @@ import {
   createLinkMetadataError,
   createLinkViewportError,
   createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
   createNavigationMetadataError,
+  createPrefetchMetadataError,
   createNavigationViewportError,
+  createPrefetchViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -94,6 +97,25 @@ describe('getGuidanceVariant', () => {
       },
     ])('$description', ({ error }) => {
       expect(getGuidanceVariant(error().message)).toBe('navigation')
+    })
+  })
+
+  describe('classifies prefetch messages as prefetch', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createPrefetchBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createPrefetchMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createPrefetchViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('prefetch')
     })
   })
 
@@ -254,6 +276,16 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
+  it('classifies createPrefetchBodyErrorInNavigation as blocking-route + prefetch + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'prefetch',
+      inNavigation: true,
+    })
+  })
+
   it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
     // dynamic branch by `isRuntimeVariant`. Documents current behavior.
@@ -284,6 +316,12 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
   })
 
+  it('classifies createPrefetchMetadataError as dynamic-metadata + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchMetadataError(ROUTE))
+    ).toEqual({ type: 'dynamic-metadata', variant: 'prefetch' })
+  })
+
   it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicMetadataError(ROUTE))
@@ -312,6 +350,12 @@ describe('getBlockingRouteErrorDetails', () => {
     expect(
       getBlockingRouteErrorDetails(createNavigationViewportError(ROUTE))
     ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
+  })
+
+  it('classifies createPrefetchViewportError as dynamic-viewport + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchViewportError(ROUTE))
+    ).toEqual({ type: 'dynamic-viewport', variant: 'prefetch' })
   })
 
   it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {

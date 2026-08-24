@@ -52,12 +52,14 @@ import {
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
   createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
   createDynamicOrRuntimeBodyError,
   createRuntimeMetadataError,
   createDynamicMetadataError,
   createRuntimeViewportError,
   createNavigationViewportError,
+  createPrefetchViewportError,
   createDynamicViewportError,
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
@@ -66,6 +68,7 @@ import {
   createLinkMetadataError,
   createLinkViewportError,
   createNavigationMetadataError,
+  createPrefetchMetadataError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -705,8 +708,10 @@ export enum DynamicHoleKind {
   Link = 2,
   /** We know that this hole is caused by navigation(). */
   Navigation = 3,
+  /** We know that this hole is caused by prefetch(). */
+  Prefetch = 4,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 4,
+  Dynamic = 5,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -885,6 +890,8 @@ function createBodyErrorInNavigation(
       return createLinkBodyErrorInNavigation(route)
     case DynamicHoleKind.Navigation:
       return createNavigationBodyErrorInNavigation(route)
+    case DynamicHoleKind.Prefetch:
+      return createPrefetchBodyErrorInNavigation(route)
     case DynamicHoleKind.Dynamic:
       return createDynamicBodyErrorInNavigation(route)
   }
@@ -898,6 +905,8 @@ function createMetadataError(kind: DynamicHoleKind, route: string): Error {
       return createLinkMetadataError(route)
     case DynamicHoleKind.Navigation:
       return createNavigationMetadataError(route)
+    case DynamicHoleKind.Prefetch:
+      return createPrefetchMetadataError(route)
     case DynamicHoleKind.Dynamic:
       return createDynamicMetadataError(route)
   }
@@ -911,6 +920,8 @@ function createViewportError(kind: DynamicHoleKind, route: string): Error {
       return createLinkViewportError(route)
     case DynamicHoleKind.Navigation:
       return createNavigationViewportError(route)
+    case DynamicHoleKind.Prefetch:
+      return createPrefetchViewportError(route)
     case DynamicHoleKind.Dynamic:
       return createDynamicViewportError(route)
   }
