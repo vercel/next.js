@@ -118,7 +118,7 @@ async fn test_into_future() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_sidecast() -> Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let concrete_value = ImplementsAAndB.resolved_cell();
         let as_a = ResolvedVc::upcast::<Box<dyn TraitA>>(concrete_value);
         let as_b = ResolvedVc::try_sidecast::<Box<dyn TraitB>>(as_a);
@@ -132,7 +132,7 @@ async fn test_sidecast() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_downcast() -> Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let as_base: Vc<Box<dyn BaseTrait>> = Vc::upcast(ImplementsSubImplemented.cell());
         let ref_base = as_base.into_trait_ref().await?;
         // The concrete value implements SubImplemented, so downcasting the already-read

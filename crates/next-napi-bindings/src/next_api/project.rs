@@ -57,7 +57,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::db_invalidation::invalidation_reasons;
+use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
 #[cfg(windows)]
 use turbo_tasks_fs::windows::to_verbatim_with_case_folded_disk;
 use turbo_tasks_fs::{
@@ -576,18 +576,17 @@ pub fn project_new<'env>(
     env.spawn_future(
         async move {
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-            let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
-            let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
-            let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
             let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 &options.next_version,
                 options.is_persistent_caching_enabled,
                 dependency_tracking,
-                is_ci,
-                is_short_session,
-                skip_compaction,
+                BackingStorageOptions {
+                    is_ci: turbo_engine_options.is_ci.unwrap_or(false),
+                    is_short_session: turbo_engine_options.is_short_session.unwrap_or(false),
+                    skip_compaction: turbo_engine_options.skip_compaction.unwrap_or(false),
+                },
                 turbopack_memory_eviction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);

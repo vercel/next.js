@@ -18,7 +18,6 @@ members = [
 ]
 
 exclude = [
-  "crates/next-error-code-swc-plugin",
   "rspack/crates/binding"
 ]
 
@@ -252,6 +251,7 @@ allsorts = { version = "0.14.0", default-features = false, features = [
 ] }
 anyhow = "1.0.100"
 async-trait = "0.1.64"
+base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
 bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
@@ -282,7 +282,7 @@ futures-retry = "0.6.0"
 futures-util = "0.3.31"
 hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
-indexmap = "2.13.0"
+indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.72", features = [
@@ -323,7 +323,7 @@ quote = "1.0.45"
 rand = "0.10.1"
 rayon = "1.10.0"
 regex = "1.12.3"
-regress = "0.10.4"
+regress = "0.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.5"
 roaring = "0.11.4"

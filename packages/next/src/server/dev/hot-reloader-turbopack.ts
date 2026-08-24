@@ -92,7 +92,6 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
@@ -1148,7 +1147,6 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
-    getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
     getRestartDevServerMiddleware({

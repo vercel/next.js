@@ -295,12 +295,8 @@ impl VersionedContentMap {
         };
         let keys = keys
             .into_iter()
-            .map(|path| {
-                let root = root.clone();
-                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
-            })
-            .try_flat_join()
-            .await?;
+            .filter_map(|path| root.get_path_to(&path).map(RcStr::from))
+            .collect();
         Ok(Vc::cell(keys))
     }
 
