@@ -170,6 +170,9 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                 )]
                 .into(),
                 star_exports: vec![],
+                // Internal bookkeeping module for turbopack's own module-collection tooling, read
+                // by name ("getList") elsewhere in that same tooling — never mangle it.
+                mangle_export_names: false,
             }
             .resolved_cell(),
         )
