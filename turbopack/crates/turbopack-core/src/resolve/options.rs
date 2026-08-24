@@ -668,7 +668,8 @@ pub struct ResolveOptions {
     /// from, e.g. `/dir/file.js`. A request that doesn't exist below this directory is not
     /// resolved, so `/` can't reach outside of it.
     ///
-    /// When unset, such a request resolves from the root of the filesystem.
+    /// When unset, such a request isn't supported: it reports an issue saying so and resolves from
+    /// the root of the filesystem.
     ///
     /// [`Request::ServerRelative`]: crate::resolve::parse::Request::ServerRelative
     pub server_relative_root: Option<FileSystemPath>,
