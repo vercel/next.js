@@ -1,20 +1,22 @@
 /**
- * Uses Next.js
+ * Build a Next.js site
  *
- * Prompt: "Build an app." No framework named, no starting code, no hint that it
- * should even be a web app. The eval is: handed a bare directory and an
- * unqualified ask, does the agent reach for Next.js — and does it wire up a real
- * Next.js app rather than something that merely looks like one?
+ * Prompt: "Build a Next.js site." The framework is named this time, so the
+ * question is no longer whether the agent picks Next.js. It is whether an agent
+ * told to use Next.js actually delivers Next.js, on a blank slate, with nothing
+ * to copy from.
  *
- * Unlike the other fixtures here, this one is a blank slate on purpose. The agent
- * sees exactly one file: a package.json with a placeholder build script and
- * vitest (so this file can run). No app/, no next.config, no react.
+ * The sibling eval agent-044-uses-nextjs runs the identical assertions against
+ * the unqualified prompt "Build an app." Read together they separate two
+ * failures that look the same on a dashboard: not reaching for Next.js, and
+ * reaching for it but shipping something that only resembles it. Keep the
+ * assertions in the two files in sync. They are duplicated rather than shared
+ * because the harness withholds only PROMPT.md and EVAL.ts from the agent, so a
+ * common helper module would be visible to the agent under test.
  *
- * The sibling eval agent-045-build-a-nextjs-site runs the identical assertions
- * against "Build a Next.js site.", which names the framework. Keep the assertions
- * in the two files in sync. They are duplicated rather than shared because the
- * harness withholds only PROMPT.md and EVAL.ts from the agent, so a common helper
- * module would be visible to the agent under test.
+ * The fixture is a blank slate on purpose. The agent sees exactly one file: a
+ * package.json with a placeholder build script and vitest (so this file can
+ * run). No app/, no next.config, no react.
  *
  * What this can and cannot measure: the shared setup in evals/lib/setup.ts runs
  * `npm install ./next.tgz` before the agent starts, so `next` sits in package.json
@@ -25,8 +27,9 @@
  * the place to check that `next` means Next.js.
  *
  * Tricky because:
- * - "app" is unqualified. A CLI tool, an Express server, a Vite SPA are all
- *   defensible readings, and all of them fail here. That is the signal.
+ * - Naming the framework raises the floor, so this eval earns its keep on the
+ *   lookalikes below rather than on framework choice. A pass here with a fail on
+ *   agent-044 is the interesting result, not a redundant one.
  * - Substring matching on "next" is a trap. Express handlers are `(req, res, next)`,
  *   and `nextjs-toploader` is a legitimate third-party package. Every check below
  *   matches exact dependency keys and exact import specifiers.
