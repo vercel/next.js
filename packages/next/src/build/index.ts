@@ -348,6 +348,26 @@ export interface DynamicPrerenderManifestRoute
   fallbackExpire: number | undefined
 
   /**
+   * The cache lifetime collected while prerendering this route's fallback,
+   * recorded for every PPR route. This differs from `fallbackRevalidate`,
+   * which describes the servable HTML fallback and is therefore absent for
+   * blocking routes (`fallback: null`). The fallback prerender runs for those
+   * routes too, and the entries produced from its artifacts — the per-segment
+   * prefetch payloads, the RSC template, and on-demand renders of
+   * non-prerendered URLs — go stale according to this value once a real
+   * render has produced them. It must not be used as the lifetime of a
+   * fallback entry that a regeneration could still specialize (that lifetime
+   * stays short so the entry is upgraded promptly); it describes how long the
+   * *rendered* content stays fresh.
+   */
+  fallbackRenderRevalidate?: Revalidate
+
+  /**
+   * The expire counterpart of `fallbackRenderRevalidate`.
+   */
+  fallbackRenderExpire?: number
+
+  /**
    * The headers that should used when serving the fallback.
    */
   fallbackHeaders?: Record<string, string>
@@ -3890,6 +3910,19 @@ export default async function build(
                   fallback,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
+                  // The fallback prerender runs even when its HTML isn't
+                  // servable (blocking routes), and rendered content produced
+                  // from it goes stale according to the cache lifetimes it
+                  // collected, so record them for every PPR route. The export
+                  // may not report a cache control at all, in which case
+                  // `getCacheControl()` returned its `revalidate: false`
+                  // default (keep until invalidated).
+                  fallbackRenderRevalidate: isRoutePPREnabled
+                    ? cacheControl.revalidate
+                    : undefined,
+                  fallbackRenderExpire: isRoutePPREnabled
+                    ? cacheControl.expire
+                    : undefined,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
                   fallbackRootParams: route.fallbackRouteParams

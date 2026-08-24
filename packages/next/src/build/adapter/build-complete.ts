@@ -328,6 +328,25 @@ export interface AdapterOutput {
       initialRevalidate?: Revalidate
 
       /**
+       * renderRevalidate is how long content produced by an actual render of
+       * this output stays fresh, from the cache lifetimes collected while
+       * prerendering the route's fallback. It differs from initialRevalidate,
+       * which governs the entry seeded from the fallback file: a fallback
+       * entry exists to be replaced by a render, so its lifetime stays short
+       * (the platform default when initialRevalidate is absent), while a
+       * rendered entry should live according to the content's own cache
+       * lifetimes. When absent, rendered content uses initialRevalidate —
+       * for a concrete prerender the file is itself a render, so the two
+       * lifetimes coincide.
+       */
+      renderRevalidate?: Revalidate
+
+      /**
+       * The expire counterpart of renderRevalidate.
+       */
+      renderExpiration?: number
+
+      /**
        * postponedState is the PPR state when it postponed and is used for resuming
        */
       postponedState: string | undefined
@@ -1261,6 +1280,13 @@ export async function handleBuildComplete({
         ctx: {
           htmlAllowQuery?: string[]
           dataAllowQuery?: string[]
+          // The lifetime of rendered content for the segment outputs, used
+          // when the route has no HTML fallback output to inherit it from
+          // (a blocking route). Segment fallback payloads are still emitted
+          // and served for those routes, and renders that replace them have
+          // this lifetime.
+          renderRevalidate?: Revalidate
+          renderExpiration?: number
         }
       ) => {
         if (meta.postponed && initialOutput.fallback) {
@@ -1328,6 +1354,12 @@ export async function handleBuildComplete({
                 postponedState: undefined,
                 initialExpiration: initialOutput.fallback?.initialExpiration,
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
+                renderRevalidate:
+                  initialOutput.fallback?.renderRevalidate ??
+                  ctx.renderRevalidate,
+                renderExpiration:
+                  initialOutput.fallback?.renderExpiration ??
+                  ctx.renderExpiration,
 
                 initialHeaders: {
                   ...meta.headers,
@@ -1702,6 +1734,8 @@ export async function handleBuildComplete({
           fallback,
           fallbackExpire,
           fallbackRevalidate,
+          fallbackRenderRevalidate,
+          fallbackRenderExpire,
           fallbackHeaders,
           fallbackStatus,
           fallbackSourceRoute,
@@ -1857,6 +1891,8 @@ export async function handleBuildComplete({
                   },
                   initialExpiration: fallbackExpire,
                   initialRevalidate: fallbackRevalidate ?? 1,
+                  renderRevalidate: fallbackRenderRevalidate,
+                  renderExpiration: fallbackRenderExpire,
                 }
               : undefined,
           config: {
@@ -1927,6 +1963,8 @@ export async function handleBuildComplete({
             await handleAppMeta(dynamicRoute, initialOutput, meta, {
               htmlAllowQuery,
               dataAllowQuery,
+              renderRevalidate: fallbackRenderRevalidate,
+              renderExpiration: fallbackRenderExpire,
             })
           }
 
@@ -1940,6 +1978,10 @@ export async function handleBuildComplete({
                 filePath: undefined,
                 postponedState: meta.postponed,
                 initialStatus: undefined,
+                // A blocking route has no HTML fallback to spread this from,
+                // but rendered RSC template content has the same lifetime.
+                renderRevalidate: fallbackRenderRevalidate,
+                renderExpiration: fallbackRenderExpire,
                 initialHeaders: {
                   ...initialOutput.fallback?.initialHeaders,
                   ...dataInitialHeaders,

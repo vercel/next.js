@@ -490,4 +490,54 @@ describe('adapter-prerender-metadata', () => {
       expectUnclassified(segment)
     }
   })
+
+  it('records the rendered-content lifetime for blocking dynamic routes', async () => {
+    // A route whose cached shell is keyed on its params serves no HTML
+    // fallback (`fallback: null`), so it records no fallbackRevalidate. Its
+    // rendered content still has a well-defined lifetime — the cache
+    // lifetimes collected while prerendering the fallback — recorded
+    // separately so consumers don't fall back to a 1-second default for
+    // rendered entries.
+    const manifest = await getPrerenderManifest()
+    const entry = manifest.dynamicRoutes['/blocking-cached/[id]']
+    expect(entry).toMatchObject({
+      fallback: null,
+      fallbackRenderRevalidate: 3600,
+      fallbackRenderExpire: 86400,
+    })
+    expect(entry).not.toHaveProperty('fallbackRevalidate')
+  })
+
+  it('keeps fallback-seeded entries short-lived while giving rendered content a lifetime', async () => {
+    const prerenders = await getPrerenders()
+
+    const outputs = prerenders.filter(
+      (output) =>
+        output.pathname.startsWith('/blocking-cached/[id].segments/') ||
+        output.pathname === '/blocking-cached/[id].rsc'
+    )
+    expect(outputs.length).toBeGreaterThan(1)
+    for (const output of outputs) {
+      // The entry seeded from the fallback file must stay short-lived
+      // (platform default): it's a placeholder that a render replaces, and
+      // its staleness is what drives that regeneration. Giving it a long
+      // lifetime would serve the placeholder indefinitely.
+      expect(output.fallback).not.toHaveProperty('initialRevalidate')
+      // Rendered content, by contrast, lives according to the cache
+      // lifetimes the route actually collected.
+      expect(output.fallback.renderRevalidate).toBe(3600)
+      expect(output.fallback.renderExpiration).toBe(86400)
+    }
+
+    // Concrete generated paths are themselves renders: initialRevalidate
+    // already is the rendered-content lifetime, so no separate field.
+    const concreteSegments = prerenders.filter((output) =>
+      output.pathname.startsWith('/blocking-cached/known.segments/')
+    )
+    expect(concreteSegments.length).toBeGreaterThan(0)
+    for (const segment of concreteSegments) {
+      expect(segment.fallback.initialRevalidate).toBe(3600)
+      expect(segment.fallback).not.toHaveProperty('renderRevalidate')
+    }
+  })
 })

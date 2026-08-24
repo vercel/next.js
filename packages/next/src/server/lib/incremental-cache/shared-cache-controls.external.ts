@@ -56,10 +56,28 @@ export class SharedCacheControls {
     const dynamicPrerenderData = this.prerenderManifest.dynamicRoutes[route]
 
     if (dynamicPrerenderData) {
-      const { fallbackRevalidate, fallbackExpire } = dynamicPrerenderData
+      const {
+        fallbackRevalidate,
+        fallbackExpire,
+        fallbackRenderRevalidate,
+        fallbackRenderExpire,
+      } = dynamicPrerenderData
 
       if (typeof fallbackRevalidate !== 'undefined') {
         return { revalidate: fallbackRevalidate, expire: fallbackExpire }
+      }
+
+      // Routes without a servable HTML fallback (blocking) don't record
+      // `fallbackRevalidate`, but their rendered content still has a
+      // well-defined lifetime: the cache lifetimes collected while
+      // prerendering the fallback. Without this, callers fall back to a
+      // 1-second default and re-render the route's entries on nearly
+      // every request.
+      if (typeof fallbackRenderRevalidate !== 'undefined') {
+        return {
+          revalidate: fallbackRenderRevalidate,
+          expire: fallbackRenderExpire,
+        }
       }
     }
 
