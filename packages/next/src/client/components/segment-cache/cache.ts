@@ -2689,11 +2689,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
 
     // Runtime prefetch responses (PPRRuntime and RuntimeShell requests) are
     // partial when the server marks the response as '~' (Partial).
-    // Full/LoadingBoundary prefetch responses are always complete. This only
-    // describes the FULL payload: shell-tier writes don't consume it — a
-    // shell is partial by construction (RuntimeShell responses omit every
-    // dynamic suspense boundary below the shell stage, regardless of what
-    // the server marker says); see writeResponsePayloadsIntoCache.
+    // Full/LoadingBoundary prefetch responses are always complete.
     const isFullResponsePartial =
       (fetchStrategy === FetchStrategy.PPRRuntime ||
         fetchStrategy === FetchStrategy.RuntimeShell) &&
@@ -2866,12 +2862,11 @@ function writeResponsePayloadsIntoCache(
       }
       return null
     }
-    // No shell exists, and the request wasn't a static shell walk. The full
-    // payload fulfills the spawned entries at the request's own keying —
-    // including for a RuntimeShell request (shell staging not enabled, or
-    // the render wasn't staged), whose response is then conservatively treated
-    // as the shell it asked for: keyed at the shell tier and partial
-    // by construction.
+    // This request either:
+    // - didn't allow recovering a shell (no staged rendering),
+    // - or was a (runtime) shell request, so we already have a shell without recovering anything.
+    // In either case, we don't have anything to consider other than the request itself,
+    // so the payload simply fulfills the spawned entries at the request's own keying.
     fulfilledEntries = writeServerResponseIntoCache(
       now,
       fetchStrategy,
@@ -2882,9 +2877,7 @@ function writeResponsePayloadsIntoCache(
       renderedSearch,
       buildId,
       staleAt,
-      fetchStrategy === FetchStrategy.RuntimeShell
-        ? true
-        : isFullResponsePartial,
+      isFullResponsePartial,
       metadataVaryPath,
       spawnedEntries,
       null,
@@ -2909,7 +2902,7 @@ function writeResponsePayloadsIntoCache(
       renderedSearch,
       buildId,
       staleAt,
-      shellWasRequested ? true : isFullResponsePartial,
+      isFullResponsePartial,
       metadataVaryPath,
       spawnedEntries,
       // The full payload's tier: PPR for a static response, PPRRuntime for

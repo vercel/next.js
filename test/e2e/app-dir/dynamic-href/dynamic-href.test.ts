@@ -20,7 +20,6 @@ describe('dynamic-href', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E267",
          "description": "Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -57,7 +56,6 @@ describe('dynamic-href', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E267",
          "description": "Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href",
          "environmentLabel": null,
          "label": "Runtime Error",

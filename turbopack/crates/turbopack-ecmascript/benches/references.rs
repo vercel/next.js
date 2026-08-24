@@ -145,7 +145,7 @@ fn bench_full(b: &mut Bencher, input: &BenchInput) {
             });
             (tt, module)
         },
-        |(tt, module)| async move {
+        async |(tt, module)| {
             tt.run_once(async move {
                 // `analyze_ecmascript_module` performs eventually-consistent Vc reads. Reading
                 // not-yet-settled state at the top level is fine for a throughput benchmark, but

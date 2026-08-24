@@ -100,7 +100,7 @@ impl EcmascriptBuildNodeChunkListContent {
 
     /// Builds a chunk list content directly from a fixed set of `chunks`,
     /// without expanding async-loader references. Used by
-    /// [`super::chunk_list::EcmascriptBuildNodeChunkList`] to track chunks
+    /// `super::chunk_list::EcmascriptBuildNodeChunkList` to track chunks
     /// (e.g. client-component SSR chunks) that are already fully enumerated by
     /// the caller.
     #[turbo_tasks::function]

@@ -233,11 +233,11 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn to_endpoint(
+    async fn to_page_endpoint(
         self: Vc<Self>,
         item: Vc<PagesStructureItem>,
         ty: PageEndpointType,
-    ) -> Result<Vc<Box<dyn Endpoint>>> {
+    ) -> Result<Vc<PageEndpoint>> {
         let PagesStructureItem {
             next_router_path,
             original_path,
@@ -245,15 +245,23 @@ impl PagesProject {
         } = &*item.await?;
         let pathname: RcStr = format!("/{}", next_router_path.path).into();
         let original_name = format!("/{}", original_path.path).into();
-        let endpoint = Vc::upcast(PageEndpoint::new(
+        Ok(PageEndpoint::new(
             ty,
             self,
             pathname,
             original_name,
             item,
             self.pages_structure(),
-        ));
-        Ok(endpoint)
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn to_endpoint(
+        self: Vc<Self>,
+        item: Vc<PagesStructureItem>,
+        ty: PageEndpointType,
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(Vc::upcast(self.to_page_endpoint(item, ty)))
     }
 
     #[turbo_tasks::function]
@@ -264,9 +272,16 @@ impl PagesProject {
         ))
     }
 
+    /// The `/_app` endpoint. Its client chunk group is generated first and seeds the availability
+    /// information of every other page, so it must never depend on an individual page.
+    #[turbo_tasks::function]
+    async fn app_page_endpoint(self: Vc<Self>) -> Result<Vc<PageEndpoint>> {
+        Ok(self.to_page_endpoint(*self.pages_structure().await?.app, PageEndpointType::Html))
+    }
+
     #[turbo_tasks::function]
     pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(*self.pages_structure().await?.app, PageEndpointType::Html))
+        Ok(Vc::upcast(self.app_page_endpoint()))
     }
 
     #[turbo_tasks::function]
@@ -797,12 +812,24 @@ impl PageEndpoint {
                 .iter()
                 .map(|m| ResolvedVc::upcast(*m))
                 .collect();
+            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
+            // the page's chunks don't include modules that the browser already downloaded with
+            // `/_app`.
+            let availability_info = if this.pathname == "/_app" {
+                AvailabilityInfo::root()
+            } else {
+                this.pages_project
+                    .app_page_endpoint()
+                    .client_chunk_group()
+                    .await?
+                    .availability_info
+            };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
+                availability_info,
             );
 
             Ok(client_chunk_group)
