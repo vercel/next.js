@@ -1821,7 +1821,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         bin_expr: &'ast BinExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+        if bin_expr.op == BinaryOp::In {
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
                 self.arena,
