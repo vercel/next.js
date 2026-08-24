@@ -269,6 +269,61 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logs an AggregateError behind a `cause`', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-aggregate-nested')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-aggregate-nested'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-aggregate-nested' +
+          '\n    at logError (app/rsc-error-log-aggregate-nested/page.js:7:5)' +
+          '\n    at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          "\n   5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n   6 |   console.error(' +
+          "\n>  7 |     new Error('rsc-error-log-aggregate-nested', { cause: aggregateError })" +
+          '\n     |     ^' +
+          '\n   8 |   )' +
+          '\n   9 | }' +
+          '\n  10 | {' +
+          '\n  [cause]: AggregateError: Aggregate' +
+          '\n      at logError (app/rsc-error-log-aggregate-nested/page.js:5:26)' +
+          '\n      at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          "\n    3 |   const error1 = Object.assign(new Error('Error 1'), { code: 'ERR_ONE' })" +
+          "\n    4 |   const error2 = Object.assign(new TypeError('Error 2'), { code: 'ERR_TWO' })" +
+          "\n  > 5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n      |                          ^' +
+          '\n    6 |   console.error(' +
+          "\n    7 |     new Error('rsc-error-log-aggregate-nested', { cause: aggregateError })" +
+          '\n    8 |   ) {' +
+          // TODO(veil): Node.js spends one level of the inspect depth on the
+          // array of errors, and one more level on each error in the array. The
+          // errors of an AggregateError behind a `cause` therefore fall outside
+          // the default depth.
+          '\n    [errors]: [ [Error], [Error] ]' +
+          '\n  }' +
+          '\n}'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        //
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-aggregate-nested/page.js:7:5)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]:')
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[errors]:')
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('logged errors in client components during ssr have a sourcemapped stack with a codeframe', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
