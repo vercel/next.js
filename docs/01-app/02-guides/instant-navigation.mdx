@@ -7,7 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/guides/runtime-prefetching
+    - app/guides/optimizing-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/guides/prefetching
@@ -36,7 +36,7 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 </details>
 
-Runtime prefetching extends the static shell with a link's URL data (`searchParams` and `params`) by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without runtime prefetching won't navigate instantly with it either. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
+With `prefetch={true}`, per-link prefetching resolves a link's URL data (`searchParams` and `params`) before navigation. First make the route instant with its App Shell. Per-link prefetching cannot fix a route that blocks without it. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for the patterns.
 
 ## Quick start
 
@@ -78,17 +78,17 @@ The rest of this guide covers the tools these migrations use, walks a navigation
 
 With Cache Components, **caching directives** (`"use cache"` and its variants) assign a lifetime to an async function's result, which is what lets Next.js include it in the static shell.
 
-> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/runtime-prefetching#use-cache-private) in the runtime prefetching guide for how it pairs with prefetching.
+> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/optimizing-prefetching#use-cache-private) in the Optimizing prefetching guide for how it pairs with prefetching.
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
-> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. With [runtime prefetching](/docs/app/guides/runtime-prefetching), the information is available and such a fallback becomes part of the instant UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
+> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. For a link with `prefetch={true}`, [per-link prefetching](/docs/app/guides/optimizing-prefetching) makes URL data available before navigation, so the fallback can become part of the prefetched UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
 
-Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. [Runtime prefetching](/docs/app/guides/runtime-prefetching) builds on it, resolving a link's URL data on top.
+Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route, which renders during client navigations while remaining content streams. Partial Prefetching uses the App Shell as the default `<Link>` prefetch. A link with `prefetch={true}` can also resolve cached content that depends on that link's URL data.
 
-### Tune what `<Link>` prefetches
+### Prefetch URL data for a link
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. The shell is shared across every link to the same route, so rendering a `<Link>` is effectively free.
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. Links to the same route share one App Shell instead of triggering a separate App Shell request for each link.
 
 To prefetch the page content alongside the shell for a specific link, set [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch):
 
@@ -98,7 +98,7 @@ To prefetch the page content alongside the shell for a specific link, set [`pref
 </Link>
 ```
 
-With Partial Prefetching enabled, `prefetch={true}` also opts the link into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
+With Partial Prefetching enabled, `prefetch={true}` also opts the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
 
 ### Validate instant navigation
 
@@ -332,7 +332,7 @@ bun add -D @next/playwright @playwright/test
 A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
 
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
-- **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Runtime prefetching](/docs/app/guides/runtime-prefetching) can add request-specific content to this UI.
+- **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
 ```typescript filename="e2e/navigation.test.ts" highlight={6-14,20-25}
 import { test, expect } from '@playwright/test'
@@ -539,7 +539,7 @@ Agents working on a Cache Components route typically reach for three levers:
 
 - **Push down**: extract I/O into a Suspense-wrapped child so the parent stays static and static siblings lift into the shell.
 - **Cache**: pair `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to assign a freshness profile.
-- **Runtime prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [runtime prefetching](/docs/app/guides/runtime-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
+- **Per-link prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [per-link prefetching](/docs/app/guides/optimizing-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
 
 Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
 
@@ -577,8 +577,8 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 
 ## Next steps
 
-- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
+- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and a step-by-step adoption path
 - [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
-- [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and you want it in the shell
+- [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and should resolve before navigation
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

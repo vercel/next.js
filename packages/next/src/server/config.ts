@@ -1601,8 +1601,8 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
+    // TODO: Kept for backwards compatibility with legacy builders.
+    result.experimental.cacheComponents = true
   }
 
   // `experimental.useCache` is deprecated in favor of the top-level
@@ -2382,30 +2382,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
     config.experimental.cachedNavigations = true
-  }
-
-  // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
-  // keep test coverage of the old scroll handler on the non-experimental CI
-  // shards. Like the other env-var experimental toggles, opting out is surfaced
-  // in the reported experimental features.
-  // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
-  // for test coverage.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'false' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.appNewScrollHandler === undefined ||
-      (isDefaultConfig && config.experimental.appNewScrollHandler))
-  ) {
-    config.experimental.appNewScrollHandler = false
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'appNewScrollHandler',
-        false,
-        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
-      )
-    }
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

@@ -28,7 +28,6 @@ import {
   NodeNextRequest,
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
@@ -51,7 +50,6 @@ import {
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
 import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -90,7 +88,6 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code' with { 'turbopack-transition': 'next-server-utility' }
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
@@ -260,6 +257,7 @@ export function createAppPageEntrypoint({
       interceptionRoutePatterns,
       deploymentId,
       clientAssetToken,
+      previewProps,
     } = prepareResult
 
     let { isOnDemandRevalidate } = prepareResult
@@ -267,16 +265,11 @@ export function createAppPageEntrypoint({
     // We use the resolvedPathname instead of the parsedUrl.pathname because it
     // is not rewritten as resolvedPathname is. This will ensure that the correct
     // prerender info is used instead of using the original pathname as the
-    // source. If however PPR is enabled and cacheComponents is disabled, we
-    // treat the pathname as dynamic. Currently, there's a bug in the PPR
-    // implementation that incorrectly leaves %%drp placeholders in the output of
-    // parallel routes. This is addressed with cacheComponents.
-    const prerenderMatch =
-      nextConfig.experimental.ppr &&
-      !nextConfig.cacheComponents &&
-      isInterceptionRouteAppPath(resolvedPathname)
-        ? null
-        : routeModule.match(resolvedPathname, prerenderManifest)
+    // source.
+    const prerenderMatch = routeModule.match(
+      resolvedPathname,
+      prerenderManifest
+    )
     const prerenderInfo = prerenderMatch?.route ?? null
 
     const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
@@ -323,9 +316,7 @@ export function createAppPageEntrypoint({
      * If the route being rendered is an app page, and the ppr feature has been
      * enabled, then the given route _could_ support PPR.
      */
-    const couldSupportPPR: boolean = checkIsAppPPREnabled(
-      nextConfig.experimental.ppr
-    )
+    const couldSupportPPR: boolean = Boolean(nextConfig.cacheComponents)
 
     // Stash postponed state for server actions when in minimal mode.
     // We extract it here so the RDC is available for the re-render after the action completes.
@@ -433,8 +424,9 @@ export function createAppPageEntrypoint({
 
     // Whether the testing API is exposed (dev mode or explicit flag)
     const exposeTestingApi =
-      routeModule.isDev === true ||
-      nextConfig.experimental.exposeTestingApiInProductionBuild === true
+      nextConfig.cacheComponents === true &&
+      (routeModule.isDev === true ||
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true)
 
     // Enable the Instant Navigation Testing API. Renders only the prefetched
     // portion of the page, excluding dynamic content. This allows tests to
@@ -457,11 +449,7 @@ export function createAppPageEntrypoint({
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
-      // When the instant navigation testing API is active, enable the PPR
-      // prerender path even without Cache Components. In dev mode without CC,
-      // static pages need this path to produce buffered segment data (the
-      // legacy prerender path hangs in dev mode).
-      (couldSupportPPR || isInstantNavigationTest) &&
+      couldSupportPPR &&
       ((
         prerenderManifest.routes[normalizedSrcPage] ??
         prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -817,6 +805,7 @@ export function createAppPageEntrypoint({
         (await routeModule.getIncrementalCache(
           req,
           nextConfig,
+          previewProps,
           prerenderManifest,
           isMinimalMode
         ))
@@ -903,9 +892,8 @@ export function createAppPageEntrypoint({
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
             images: nextConfig.images,
-            previewProps: prerenderManifest.preview,
+            previewProps,
             enableTainting: nextConfig.experimental.taint,
-            htmlLimitedBots: nextConfig.htmlLimitedBots,
             reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
             multiZoneDraftMode,
@@ -966,6 +954,9 @@ export function createAppPageEntrypoint({
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
                 nextConfig.experimental.maxPostponedStateSize
               ),
+              disableResumeDataCacheCompression:
+                nextConfig.experimental.disableResumeDataCacheCompression ??
+                false,
               exposeTestingApi,
             },
 
@@ -1251,6 +1242,7 @@ export function createAppPageEntrypoint({
                 nextConfig,
                 routeKind: RouteKind.APP_PAGE,
                 isFallback: true,
+                previewProps,
                 prerenderManifest,
                 isRoutePPREnabled,
                 responseGenerator: async () =>
@@ -1621,6 +1613,7 @@ export function createAppPageEntrypoint({
           isRoutePPREnabled,
           req,
           nextConfig,
+          previewProps,
           prerenderManifest,
           waitUntil: ctx.waitUntil,
           isMinimalMode,
@@ -1633,21 +1626,14 @@ export function createAppPageEntrypoint({
           )
         }
 
-        // Dev responses use `no-cache` so the browser can restore them from the
-        // HTTP cache on back/forward instead of reloading. HMR refresh responses
-        // opt out into `no-store` because a superseded refresh's fetch is aborted
-        // mid-write: under `no-cache` the response is stored, so the abort leaves
-        // the cache entry shared with the superseding refresh (same URL)
-        // half-written; Chromium then discards it and reissues the superseding
-        // refresh on a second connection as a duplicate request. `no-store` keeps
-        // that entry from being created.
+        // Documents and RSC payloads must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-              ? 'no-store'
-              : 'no-cache, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         if (!cacheEntry) {

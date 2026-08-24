@@ -1,11 +1,11 @@
 ---
 name: next-partial-prefetching-optimizer
 description: >
-  Experimentally optimize what a specific Next.js client navigation can include
-  in its prefetched result under Partial Prefetching. Inspect the app and agree on the
-  desired prefetched UI and cost posture, then encode that exact Link
-  navigation as a failing @next/playwright instant() e2e, work it to green with
-  targeted runtime prefetching and caching, and ship the test as a regression
+  Optimize what a specific Next.js client navigation includes in its
+  prefetched result under Partial Prefetching. Inspect the app and agree on the
+  desired prefetched UI, navigation-only UI, and cost posture, then encode that
+  exact client navigation as a failing @next/playwright instant() e2e, work it to green with
+  targeted prefetch stages and caching, and ship the test as a regression
   guard. Use after Cache Components and Partial Prefetching adoption when asked
   to prefetch URL-specific params/searchParams content or a proven
   session-backed exact-link target, make more than the App Shell instant, tune
@@ -16,17 +16,17 @@ description: >
 
 # next-partial-prefetching-optimizer
 
-Set up an experimental agentic optimization loop that makes selected
-UI eligible for an exact client navigation's prefetched result. The
-loop is test-driven: encode one exact source-link/destination pair as a failing
+Set up an agentic optimization loop that makes selected UI eligible for an
+exact client navigation's prefetched result and leaves other UI for the
+navigation. The loop is test-driven: encode one exact source-link/destination pair as a failing
 `@next/playwright` `instant()` test, work it to green, and ship the test as the
 regression guard. Run the phases P -> G in order; each ends in a gate.
 
 This is an **optimizer**, not an adoption skill. Partial Prefetching must
 already be adopted. Before the unattended loop starts, inspect the app and ask
-the user which additional content should be selected for prefetch and how much
-prefetch traffic is acceptable. Then optimize the agreed navigations without
-stopping after each one.
+the user which content should be prefetched, which should wait for navigation,
+and how much prefetch traffic is acceptable. Then optimize the agreed
+navigations without stopping after each one.
 
 Optimization decisions and links live in
 `reference/patterns.md`. Test-trustworthiness rules live in
@@ -34,19 +34,15 @@ Optimization decisions and links live in
 
 ## Ownership boundary
 
-The public skills form a sequence, not a menu of interchangeable fixes:
+`next-cache-components-adoption` enables the prerequisite. The Cache
+Components optimizer owns the shared static shell, while Partial Prefetching
+adoption owns the legacy link audit, preservation baseline, and app-wide
+migration. Either optimizer can run before the other, but this skill requires
+both adoptions to be complete. It consumes an accepted exact-link goal—often a
+`TODO(per-link-prefetch)` left by either earlier skill—and owns that
+navigation's `instant()` RED-to-GREEN loop.
 
-1. `next-cache-components-adoption` enables Cache Components and reaches a
-   passing build.
-2. `next-cache-components-optimizer` grows and guards the meaningful static
-   shell on hard and soft navigations.
-3. `next-partial-prefetching-adoption` changes the app-wide link model and
-   resolves its development insights.
-4. **This skill** selectively adds URL-specific content, or a proven
-   session-backed exception, to one already-adopted client navigation's
-   prefetched result.
-
-Keep this skill inside the fourth boundary:
+Keep this skill inside that boundary:
 
 - Do **not** enable `cacheComponents` or `partialPrefetching`.
 - Do **not** run the adoption audit, codemod, or development insight sweep.
@@ -62,16 +58,16 @@ Keep this skill inside the fourth boundary:
   automatic prefetching (no prop) or `prefetch={true}`.
 
 This skill may reuse the shell test produced by the Cache Components optimizer
-and extend it with the selected target assertion. It must not weaken, replace,
-or silently reinterpret that test.
+and extend it with selected prefetch and navigation-only assertions. It must
+not weaken, replace, or silently reinterpret that test.
 
 ## What is invariant, and what is yours
 
 - **Invariant: the verification loop.** The proof is a real `<Link>`
   navigation under `instant()`: the destination App Shell commits and the
-  selected target also commits. RED shows that only the shell is available;
-  GREEN shows the selected strategy can produce the richer prefetched UI. The
-  test ships.
+  selected prefetch target also commits, while navigation-only content does
+  not. RED shows that the selected contract is not met; GREEN shows the chosen
+  stages and caching produce it. The test ships.
 - **The mechanism: `@next/playwright` [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).**
   The helper gates dynamic
   writes and reenacts the prefetch strategy of the link being clicked. A
@@ -99,37 +95,12 @@ case is identified by all three of these:
 Do not write a generic route test when the product behavior differs by entry
 point. Two navigations to the same destination may need two tests.
 
-### Different navigations are different contracts
-
-For a source page containing both of these:
-
-See: [`Link` `prefetch`](https://nextjs.org/docs/app/api-reference/components/link#prefetch).
-
-```tsx
-<Link href="/products/42">Shell only</Link>
-<Link href="/products/42" prefetch={true}>Product ready</Link>
-```
-
-the locked tests should intentionally disagree about the URL-specific target:
-
-| Navigation                         | Under `instant()`                             |
-| ---------------------------------- | --------------------------------------------- |
-| Click default link                 | shell visible; product target absent          |
-| Click full-prefetch link           | shell visible; product target visible         |
-| Direct `page.goto('/products/42')` | document shell; per-link policy is irrelevant |
-
-Do not hover the default link, click the full link, and attribute the result to
-the route as a whole. The contract belongs to the exact interaction.
-
 ## Client navigation only
 
-Runtime prefetching changes client-side navigation. It does not improve the
-initial document response. A direct `page.goto()` under `instant()` exposes
-the route's static document UI; a `<Link>` click exposes that link's prefetched
-UI. This optimizer's verdict is always the latter.
-
-An initial-load test can stay as a parity check for the route's actual
-direct-load behavior, but it is not RED or GREEN for this loop.
+Per-link policy changes a real [`<Link>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch)
+navigation, not the initial document response. A direct `page.goto()` may stay
+as a parity check, but it is not RED or GREEN for this loop. Do not substitute
+it for the exact click or attribute one link's result to the route as a whole.
 
 ## Strengthen the existing test first
 
@@ -137,9 +108,11 @@ Search for an existing `instant()` test for the source/destination navigation
 before creating a new file. Prefer this progression:
 
 1. Keep its shell marker and exact navigation.
-2. Add an unlocked scaffold proving the chosen target eventually renders.
-3. Add `TARGET_MARKER` to the locked test, producing RED.
-4. Work only that assertion to GREEN.
+2. Add an unlocked scaffold proving the chosen target and deferred content
+   eventually render.
+3. Add `TARGET_MARKER` and, when applicable, `NAVIGATION_MARKER` to the locked
+   test, producing RED for the selected contract.
+4. Work only those assertions to GREEN.
 5. Delete the unlocked scaffold and ship the strengthened locked test.
 
 Create a new test only when the existing test guards a different source link,
@@ -150,9 +123,11 @@ target assertion; add a separate click-driven test.
 ## Goal
 
 Start from the App Shell as the reliable instant floor, then prefetch one
-meaningful selected region. GREEN means:
+meaningful selected region while keeping explicitly deferred work out. GREEN
+means:
 
-`SHELL_MARKER visible under lock` **and** `TARGET_MARKER visible under lock`
+`SHELL_MARKER visible` **and** `TARGET_MARKER visible` **and**
+`NAVIGATION_MARKER absent` under the lock.
 
 The primary target depends on the destination URL (`params`, `searchParams`, or
 the full URL) and is backed by work with a valid cache lifetime. Prefer cookies
@@ -195,13 +170,13 @@ This loop is meant to run unattended after the initial goal/budget decision.
 - [ ] 0  SCOPE        inspect app shape; agree target UI and prefetch budget
 - [ ] A  RIG          production build with testing API exposed      -> rig-template.md
 - [ ] B  BASELINE     unlocked: shell + target render for test user  -> test-template.md
-- [ ] C  RED          locked: shell commits, target does not         -> test-template.md
+- [ ] C  RED          locked result differs from selected contract   -> test-template.md
 - [ ] C-gate          verify exact link, target, and lock             -> reference/red-test-robustness.md
-- [ ] D  FIX          cache eligible URL work + choose prefetch trigger -> reference/patterns.md
+- [ ] D  FIX          assign content to stages + choose trigger       -> reference/patterns.md
 - [ ]      D1 keep App Shell as the fallback; do not weaken shell behavior
 - [ ]      D2 keep prefetch cost proportional to likely navigations
 - [ ] E  PARITY       loaded UI/freshness/auth behavior is unchanged
-- [ ] F  DIFFERENTIAL remove only optimization -> shell GREEN, target RED; reapply -> both GREEN
+- [ ] F  DIFFERENTIAL remove optimization -> contract RED; reapply -> GREEN
 - [ ] G  REVIEW       checklist below
 ```
 
@@ -236,7 +211,7 @@ Read the route tree, source links, destination components, data access, current
 
 | App/content shape                                             | Optimizer decision                                                               |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Mostly static; little URL-dependent UI                        | Keep the App Shell default; no runtime-prefetch optimization                     |
+| Mostly static; little URL-dependent UI                        | Keep the App Shell default; no per-link optimization                             |
 | Cached params/searchParams content with clear pre-click value | Good candidate                                                                   |
 | Session/user content without URL dependency                   | Prefer the per-session App Shell; consider only after an exact-link differential |
 | Must-be-fresh uncached content                                | Leave it streaming; full prefetch cannot advance past it                         |
@@ -284,7 +259,7 @@ from the table. Do not ask the user to choose framework internals.
 Record each accepted case in the rig as:
 
 ```text
-source -> trigger -> destination | SHELL_MARKER | TARGET_MARKER | viewport/intent
+source -> trigger -> destination | SHELL_MARKER | TARGET_MARKER | NAVIGATION_MARKER | viewport/intent
 ```
 
 Once the list is agreed, run it unattended. If no candidate pays for itself,
@@ -330,7 +305,7 @@ does not prove that production users always finish a best-effort prefetch before
 click, measure network latency, or estimate server cost. Keep those as product
 and traffic judgments; do not turn the e2e into a stopwatch.
 
-## B. BASELINE (unlocked): prove both markers are real
+## B. BASELINE (unlocked): prove the selected markers are real
 
 Drive the exact source link without `instant()` and establish all of these:
 
@@ -338,7 +313,8 @@ Drive the exact source link without `instant()` and establish all of these:
 - the URL reaches the intended destination (no redirect or intercepted-route
   mismatch);
 - `SHELL_MARKER` renders;
-- `TARGET_MARKER` eventually renders with representative data.
+- `TARGET_MARKER` eventually renders with representative data;
+- any `NAVIGATION_MARKER` eventually renders after the navigation.
 
 The target marker must be the real selected region, not its fallback or an
 ancestor already in the App Shell. For a session-backed exception, assert the
@@ -355,31 +331,33 @@ Template: `test-template.md`.
 ## C. RED (locked) + VERIFY-RED
 
 Wrap the same link interaction in `instant()`. The desired positive test
-asserts both markers. Before optimization it must fail only on
-`TARGET_MARKER`: `SHELL_MARKER` is visible, while the target is held back and
-appears after the lock releases.
+asserts the shell and target are visible and any navigation-only marker is
+absent. Before optimization, at least one of those contract assertions must
+fail while `SHELL_MARKER` remains visible. After the lock releases, every real
+page marker must eventually render.
 
-This two-marker RED proves both prerequisites at once:
+This RED proves both prerequisites at once:
 
 - shell absent -> this is a Cache Components/static-shell problem; hand off;
-- shell present and target absent -> genuine Partial Prefetching optimization
-  gap;
-- shell and target present -> this navigation is already optimized; do not
-  change it.
+- shell present and target absent -> content can move into the full prefetch;
+- shell and unwanted content present -> content can wait for navigation;
+- every selected assertion already passes -> this navigation is already
+  optimized; do not change it.
 
 Make this comparison against the exact link's existing policy. Do not set
 `prefetch={false}` to manufacture a RED.
 
 > **C-gate:** do not optimize until the unlocked baseline passes and the locked
-> run proves the shell/target split for the exact link. Read
+> run proves the selected stage contract fails for the exact link. Read
 > `reference/red-test-robustness.md` now.
 
 The expected phase-C failure is narrow: destination URL reached, shell visible,
-target assertion failed. A timeout before the URL changes, absent shell,
-redirect, auth failure, or missing test data is a broken test/rig or another
-skill's problem. Fix or hand it off; do not start changing prefetch policy.
+and only a selected stage assertion failed. A timeout before the URL changes,
+absent shell, redirect, auth failure, or missing test data is a broken test/rig
+or another skill's problem. Fix or hand it off; do not start changing prefetch
+policy.
 
-## D. FIX: add only the prefetch that produces better UI
+## D. FIX: assign the selected UI to the right stages
 
 Read `reference/patterns.md`, then apply the smallest complete
 change:
@@ -391,17 +369,23 @@ change:
    a `stale` time of at least 30 seconds on current Next.js; verify that rule
    against the installed version's bundled
    [`use cache: private` docs](https://nextjs.org/docs/app/api-reference/directives/use-cache-private).
-3. For a small set of high-intent links, use
+3. When the selected contract needs an explicit stage, check that the installed
+   version documents [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/unstable_prefetch)
+   or [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/unstable_navigation),
+   then follow that API reference. If the matching reference is unavailable,
+   do not introduce the API or infer its behavior from this skill.
+4. For a small set of high-intent links, use
    [`prefetch={true}` behavior](https://nextjs.org/docs/app/api-reference/components/link#prefetch).
-4. For many visible links, keep the default shell prefetch and upgrade only the
+5. For many visible links, keep the default shell prefetch and upgrade only the
    hovered/focused link using
    [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch)
    as the base pattern.
-5. Remove that link's `TODO(per-link-prefetch)` marker, and its `// See:` line,
+6. Remove that link's `TODO(per-link-prefetch)` marker, and its `// See:` line,
    once the locked test is GREEN. That marker is the only record the work is
    outstanding, so it stays until then.
-6. Re-run the locked test after every coherent edit until both markers are
-   GREEN. No sleeps, manual warming, or custom time threshold.
+7. Re-run the locked test after every coherent edit until the prefetched
+   markers are GREEN and navigation-only markers stay absent. No sleeps,
+   manual warming, or custom time threshold.
 
 Work one accepted navigation at a time. After each GREEN, immediately run its
 differential and parity checks before moving to the next case. Share cache or
@@ -413,7 +397,7 @@ If a full prefetch still stops at the same fallback, inspect the first
 URL-dependent subtree that did not commit. The common outcomes are:
 
 - eligible work lacks a cache lifetime -> follow the
-  [Runtime Prefetching cache pattern](https://nextjs.org/docs/app/guides/runtime-prefetching#what-runtime-prefetching-does);
+  [Optimizing prefetching cache patterns](https://nextjs.org/docs/app/guides/optimizing-prefetching);
 - the clicked link never switched to full prefetch -> fix that exact wrapper;
 - content is uncached by design -> stop and leave it streaming;
 - content is session-only -> prefer the shell workflow; keep it here only when
@@ -464,11 +448,11 @@ check for the chosen trigger.
 
 ## F. DIFFERENTIAL
 
-Remove only the runtime-prefetch optimization (the `prefetch={true}` upgrade
-and, where necessary, its cache boundary) and rerun the locked test:
+Remove only the per-link optimization (the stage boundary, `prefetch={true}`
+upgrade, and where necessary its cache boundary) and rerun the locked test:
 
 - `SHELL_MARKER` stays GREEN;
-- `TARGET_MARKER` returns RED.
+- at least one selected target/navigation-only assertion returns RED.
 
 Reapply the optimization and require both GREEN. This is stronger than a
 generic before/after: it proves Partial Prefetching still supplies the common
@@ -484,12 +468,12 @@ is automatic prefetching (no prop) versus `prefetch={true}`; never add
 - [ ] Test drives the exact source link and waits for the destination URL.
 - [ ] Existing shell `instant()` test was strengthened where it represented
       the same navigation; otherwise a separate click-driven test was added.
-- [ ] `SHELL_MARKER` and the selected `TARGET_MARKER` passed the C-gate.
-- [ ] Full prefetch produces more UI than the App Shell.
+- [ ] `SHELL_MARKER`, `TARGET_MARKER`, and any `NAVIGATION_MARKER` passed the C-gate.
+- [ ] The full prefetch contains exactly the selected UI stages.
 - [ ] High-cardinality links use intent prefetch or stay shell-only.
 - [ ] Cache lifetime, auth scope, and invalidation preserve behavior.
 - [ ] Exact pathname/query and exact selected target content are asserted.
-- [ ] Differential holds: remove fix -> shell GREEN/target RED; reapply -> both GREEN.
+- [ ] Differential holds: remove fix -> shell GREEN/contract RED; reapply -> contract GREEN.
 - [ ] Only the positive locked regression test ships.
 
 **Stop condition:** every accepted navigation is GREEN on the production rig,
@@ -503,11 +487,11 @@ its differential holds, parity is confirmed, and the checklist is complete.
   interactions, and optional initial-load contrast.
 - `reference/patterns.md`: target selection, viewport/intent link patterns,
   URL-data caching, and cases to skip.
-- `reference/red-test-robustness.md`: exact-link and two-marker C-gate,
+- `reference/red-test-robustness.md`: exact-link and stage-contract C-gate,
   differential, and current `instant()` API limits.
 
 ## Further reading
 
-- [Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+- [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
 - [Prefetching](https://nextjs.org/docs/app/guides/prefetching)
 - [`Link` `prefetch`](https://nextjs.org/docs/app/api-reference/components/link#prefetch)

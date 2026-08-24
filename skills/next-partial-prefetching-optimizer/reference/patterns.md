@@ -1,6 +1,6 @@
 # Optimization decisions
 
-Read this after the two-marker RED is trustworthy. This reference adds the
+Read this after the stage-contract RED is trustworthy. This reference adds the
 optimizer's selection and cost decisions.
 
 ## 1. Choose a valid target
@@ -22,7 +22,7 @@ state. [`use cache: private`](https://nextjs.org/docs/app/api-reference/directiv
 currently requires `stale` of at least 30 seconds for runtime prefetching.
 Verify the app's installed-version docs before changing a lifetime.
 
-See: [What runtime prefetching does](https://nextjs.org/docs/app/guides/runtime-prefetching#what-runtime-prefetching-does).
+See: [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching).
 
 ## 2. Bounded links: use full prefetch
 
@@ -34,7 +34,7 @@ optimizer's additional job is to prove the exact link's UI and confirm the
 bounded count justifies the possible server render per link.
 
 See: [`Link` `prefetch`](https://nextjs.org/docs/app/api-reference/components/link#prefetch)
-and [runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching#what-runtime-prefetching-does).
+and [optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching).
 
 ## 3. High-cardinality links: upgrade on intent
 
@@ -42,7 +42,7 @@ See:
 
 - [Hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch)
 - [`Link` `prefetch`](https://nextjs.org/docs/app/api-reference/components/link#prefetch)
-- [Per-link prefetching trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs)
+- [Per-link prefetching trade-offs](https://nextjs.org/docs/app/guides/optimizing-prefetching#trade-offs)
 
 The hover pattern restores the default policy with `null`. For full runtime
 prefetch on intent, preserve the Partial Prefetching App Shell with `null`, then
@@ -94,11 +94,19 @@ per-session App Shell. Keep session-backed UI in this optimizer only when the
 exact default/full-link differential proves more UI and the user accepts the
 cost.
 
-See: [Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching#what-runtime-prefetching-does),
-[session data](https://nextjs.org/docs/app/guides/runtime-prefetching#session-data-resolves-in-the-shell),
-and [`use cache: private`](https://nextjs.org/docs/app/guides/runtime-prefetching#use-cache-private).
+See: [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
+and [`use cache: private`](https://nextjs.org/docs/app/guides/optimizing-prefetching#use-cache-private).
 
-## 5. Know when to stop
+## 5. Use documented stage boundaries
+
+When the selected contract needs an explicit stage, follow the installed
+version's [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/unstable_prefetch)
+or [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/unstable_navigation)
+API reference. If the matching reference is unavailable, do not introduce the
+API or infer its behavior from this skill. Keep the `instant()` assertions as
+the product contract until the framework documentation lands.
+
+## 6. Know when to stop
 
 Leave the default link alone when the full strategy reaches the same Suspense
 fallback as the App Shell. The change would add server work without adding UI.

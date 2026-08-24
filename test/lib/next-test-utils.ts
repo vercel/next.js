@@ -1229,22 +1229,6 @@ export function getRedboxDescription(
   })
 }
 
-export function getRedboxErrorCode(
-  browser: Playwright
-): Promise<string | null> {
-  return browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
-    const root = portal.shadowRoot
-    return (
-      root
-        .querySelector('[data-nextjs-error-code]')
-        ?.getAttribute('data-nextjs-error-code') ?? null
-    )
-  })
-}
-
 export function getRedboxDescriptionWarning(
   browser: Playwright
 ): Promise<string | null> {
@@ -1541,13 +1525,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackBoundary',
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
-  'InnerScrollAndFocusHandlerOld',
-  'InnerScrollHandlerNew',
+  'InnerScrollHandler',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndMaybeFocusHandler',
+  'ScrollHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary

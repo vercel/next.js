@@ -5,6 +5,7 @@ import type { PrefetchingMode } from './app-render'
 import type { NextConfigComplete, ValidationLevel } from '../config-shared'
 import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { StageEndTimes } from './instant-validation/instant-validation'
+import type { AdvanceableRenderStage } from './staged-rendering'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
@@ -22,13 +23,10 @@ const SYMBOL: unique symbol = Symbol.for('next.dev.validationWorker')
  * Per-stage RSC chunks, the serializable form of `AccumulatedStreamChunks` that
  * the worker replays. No live streams cross the boundary.
  */
-export interface SerializedAccumulatedChunks {
-  shellStaticChunks: Uint8Array[]
-  staticChunks: Uint8Array[]
-  shellRuntimeChunks: Uint8Array[]
-  runtimeChunks: Uint8Array[]
-  dynamicChunks: Uint8Array[]
-}
+export type SerializedAccumulatedChunks = Record<
+  AdvanceableRenderStage,
+  Uint8Array[]
+>
 
 /**
  * Serializable view of one validation input (the shape `DevValidationInputs`
@@ -55,6 +53,7 @@ export interface DevValidationRequestSnapshot {
   isDraftMode: boolean
   isHmrRefresh: boolean
   hmrRefreshHash: string | undefined
+  requestStartTime: number
 }
 
 /**
@@ -134,7 +133,7 @@ export type DevValidationWorkerMessage = DevValidationSnapshot &
   DevValidationInstallFields
 
 /**
- * The RSC-encoded `{ errors, errorCodes }` Flight chunks for the dev overlay,
+ * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
  * or null when validation produced no errors or was aborted. The worker also
  * logs the errors to its own stderr (piped to the parent) with code frames.
  */

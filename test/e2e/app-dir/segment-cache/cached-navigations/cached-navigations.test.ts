@@ -991,11 +991,11 @@ describe('cached navigations', () => {
     })
   })
 
-  // A `prefetch` config that enables Partial Prefetching ('partial' or
-  // 'unstable_eager') also opts the route into runtime Cached Navigations,
-  // even though this fixture does not set the global `partialPrefetching`
-  // flag. Contrast with `partially-static`, which has no `prefetch` config
-  // and only gets static caching.
+  // A `prefetch` config that enables Partial Prefetching ('partial') also opts
+  // the route into runtime Cached Navigations, even though this fixture does
+  // not set the global `partialPrefetching` flag. Contrast with
+  // `partially-static`, which has no `prefetch` config and only gets static
+  // caching.
   async function expectRuntimeCachedOnSecondNavigation(route: string) {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -1056,9 +1056,5 @@ describe('cached navigations', () => {
 
   it('runtime-caches a route with prefetch = "partial"', async () => {
     await expectRuntimeCachedOnSecondNavigation('/prefetch-partial')
-  })
-
-  it('runtime-caches a route with prefetch = "unstable_eager"', async () => {
-    await expectRuntimeCachedOnSecondNavigation('/prefetch-eager')
   })
 })

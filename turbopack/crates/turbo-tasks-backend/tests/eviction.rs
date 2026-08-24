@@ -11,23 +11,21 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::{
+    BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, TurboTasksBackend,
+};
 
-/// Creates a fresh per-call persistence directory rooted under
-/// `CARGO_TARGET_TMPDIR/.cache/`, with the test `name` as a prefix so failed
-/// runs are easy to find on disk. The unique suffix from `tempfile` lets
-/// multiple processes (or repeated invocations of the same test) run in
-/// parallel without trampling each other's database.
+/// Creates a fresh per-call persistence directory in the OS temp dir, with the test `name` as a
+/// prefix so a leaked directory from a failed run is identifiable. The unique suffix from
+/// `tempfile` lets repeated or concurrent runs coexist without trampling each other's database.
 ///
-/// The returned [`tempfile::TempDir`] cleans up its contents on drop, so
-/// callers should keep it alive at least until the `TurboTasks` it backs has
-/// finished shutting down (so the final snapshot can flush to disk).
+/// The returned [`tempfile::TempDir`] cleans up its contents on drop, so callers should keep it
+/// alive at least until the `TurboTasks` it backs has finished shutting down (so the final snapshot
+/// can flush to disk).
 fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
-    let parent = std::path::PathBuf::from(format!("{}/.cache", env!("CARGO_TARGET_TMPDIR")));
-    std::fs::create_dir_all(&parent).unwrap();
     tempfile::Builder::new()
         .prefix(&format!("{name}-"))
-        .tempdir_in(&parent)
+        .tempdir()
         .unwrap()
 }
 
@@ -52,9 +50,11 @@ fn create_tt_with_workers(
                 describe: "test-unversioned",
                 dirty: false,
             },
-            false,
-            true,
-            true,
+            BackingStorageOptions {
+                is_short_session: true,
+                skip_compaction: true,
+                ..Default::default()
+            },
         )
         .unwrap()
         .0,

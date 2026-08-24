@@ -1,4 +1,3 @@
-import { isPostpone } from '../lib/router-utils/is-postpone'
 import * as Log from '../../build/output/log'
 
 let _global = globalThis as typeof globalThis & {
@@ -14,11 +13,6 @@ const UNHANDLED_REJECTION_LISTENER_KEY = Symbol.for(
 )
 
 function unhandledRejectionListener(reason: unknown) {
-  if (isPostpone(reason)) {
-    // React postpones that are unhandled might end up logged here but they're
-    // not really errors. They're just part of rendering.
-    return
-  }
   // Immediately log the error.
   // TODO: Ideally, if we knew that this error was triggered by application
   // code, we would suppress it entirely without logging. We can't reliably
@@ -46,9 +40,9 @@ export function isUnhandledRejectionListenerRegistered(): boolean {
 
 /**
  * Registers the Next.js unhandled rejection listener, which logs unhandled
- * rejections (except React postpones) and prevents them from crashing the
- * process. Safe to call unconditionally: if the listener is already attached,
- * this is a no-op, so it never registers a duplicate.
+ * rejections and prevents them from crashing the process. Safe to call
+ * unconditionally: if the listener is already attached, this is a no-op, so it
+ * never registers a duplicate.
  */
 export function registerUnhandledRejectionListener(): void {
   if (isUnhandledRejectionListenerRegistered()) {
@@ -121,9 +115,6 @@ export function installProcessErrorHandlers(
     // is unrelated to the late-awaiting pattern. However, for similar reasons,
     // we still shouldn't crash the process. Just log it.
     process.on('uncaughtException', (reason: unknown) => {
-      if (isPostpone(reason)) {
-        return
-      }
       console.error(reason)
     })
   }

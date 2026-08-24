@@ -83,7 +83,7 @@ pub async fn is_export_missing(
         EcmascriptExports::None => return Ok(Vc::cell(true)),
         EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
         EcmascriptExports::Value => return Ok(Vc::cell(false)),
-        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::CommonJs(_) => return Ok(Vc::cell(false)),
         EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
         EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
         EcmascriptExports::EsmExports(exports) => *exports,
@@ -110,7 +110,7 @@ pub async fn is_export_missing(
         let exports = dynamic_module.get_exports().await?;
         match &*exports {
             EcmascriptExports::Value
-            | EcmascriptExports::CommonJs
+            | EcmascriptExports::CommonJs(_)
             | EcmascriptExports::DynamicNamespace
             | EcmascriptExports::Unknown => {
                 return Ok(Vc::cell(false));
@@ -375,7 +375,7 @@ async fn get_all_export_names(
     let star_export_names = exports
         .star_exports
         .iter()
-        .map(|esm_ref| async {
+        .map(async |esm_ref| {
             Ok(
                 if let ReferencedAsset::Some(m) =
                     ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
@@ -479,7 +479,7 @@ pub async fn expand_star_exports(
                 )
                 .await?
             }
-            EcmascriptExports::CommonJs => {
+            EcmascriptExports::CommonJs(_) => {
                 dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
@@ -706,8 +706,11 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some((local, ctxt)) =
-                        eval_context.imports.exports_ids.get(exported)
+                    let binding = if let Some((local, ctxt)) = eval_context
+                        .imports
+                        .exports_ids
+                        .get(exported)
+                        .map(|(id, _)| id)
                     {
                         Some((local.clone(), *ctxt))
                     } else {

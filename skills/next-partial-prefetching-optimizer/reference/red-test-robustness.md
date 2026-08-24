@@ -1,7 +1,7 @@
 # Trustworthy RED and differential
 
 The optimizer is allowed to change code only after the RED proves a genuine
-prefetch gap for one exact link. A failing target assertion is not enough.
+stage-contract gap for one exact link. A failing assertion is not enough.
 
 ## The C-gate
 
@@ -11,10 +11,11 @@ user:
 1. **Unlocked:** click the exact source link; exact pathname/query, shell, and
    expected URL-derived target content all render.
 2. **Locked diagnostic:** click the same link; destination URL changes,
-   `SHELL_MARKER` is visible, and `TARGET_MARKER` has count zero.
-3. **After release:** `TARGET_MARKER` becomes visible.
+   `SHELL_MARKER` is visible, and the current result differs from the selected
+   target/navigation-only contract.
+3. **After release:** every marker selected from the loaded page is visible.
 
-Only then restore the positive target assertion and begin phase D.
+Only then restore the selected contract assertions and begin phase D.
 
 ## What each signal rules out
 
@@ -55,21 +56,21 @@ do not hover: the test should prove the link's declared eager strategy.
 - A remote test ran against a stale deployment.
 - A local start failed with `EADDRINUSE` and the test hit the previous build.
 
-## Target already GREEN
+## Contract already GREEN
 
 Run the locked diagnostic against the exact link as it exists. If the shell and
-target are both visible and the lock is engaged, the current link policy already
-commits the target. It is not an optimizer candidate, even if setting
-`prefetch={false}` would make it RED. Never add that prop as a test control; the
-optimizer compares automatic prefetching with no prop against
-`prefetch={true}`.
+target are visible, navigation-only markers are absent, and the lock is
+engaged, the current link already meets the contract. It is not an optimizer
+candidate, even if setting `prefetch={false}` would make it RED. Never add that
+prop as a test control; the optimizer compares automatic prefetching with no
+prop against `prefetch={true}`.
 
 ## Lock engagement
 
 `experimental.exposeTestingApiInProductionBuild` must be true on the measured
-artifact. The self-validating diagnostic (target absent under lock, then
-visible after release) is the in-band proof that the lock engaged. A vacuous
-no-op cannot satisfy both halves.
+artifact. A marker that is absent under lock and visible after release is the
+in-band proof that the lock engaged. A vacuous no-op cannot satisfy both
+halves.
 
 Never enable this flag for real production traffic. For a remote rig, verify
 the deployed commit before trusting RED or GREEN.
@@ -89,10 +90,10 @@ test does not produce a framework stack locating the data read where the
 prefetch stopped. The exact-link comparison is the supported control:
 
 - existing exact-link policy -> current committed UI;
-- accepted policy change -> additional URL-specific UI may commit.
+- accepted policy change -> the selected prefetch stages may commit.
 
 When GREEN does not advance, inspect params/searchParams usage, Suspense, cache
-directives, and the [Runtime Prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching).
+directives, and the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching).
 Do not compensate with timing.
 
 ## Differential
@@ -100,14 +101,15 @@ Do not compensate with timing.
 After GREEN:
 
 1. Record the build/commit under test.
-2. Remove only the full-prefetch trigger and cache boundary introduced for the
-   target.
-3. Rebuild and rerun: shell must stay GREEN; target must be RED.
-4. Reapply, rebuild, and rerun: both must be GREEN.
+2. Remove only the stage, full-prefetch trigger, and cache boundary introduced
+   for the contract.
+3. Rebuild and rerun: shell must stay GREEN and the stage contract must be RED.
+4. Reapply, rebuild, and rerun: the whole contract must be GREEN.
 5. Confirm the unlocked loaded page is identical in both versions.
 
 If removing the optimization also removes the shell, the change mixed Cache
-Components work into this loop. Split it. If the target remains GREEN, it was
-already in the shell or another policy still controls the clicked link; the
-test does not guard the intended optimization. Do not replace the unchanged
-automatic policy with `prefetch={false}` to force this step RED.
+Components work into this loop. Split it. If the contract remains GREEN,
+another policy still controls the clicked link or the changed boundary does
+not own the asserted content; the test does not guard the intended
+optimization. Do not replace the unchanged automatic policy with
+`prefetch={false}` to force this step RED.

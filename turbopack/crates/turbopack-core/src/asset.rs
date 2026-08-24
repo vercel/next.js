@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
+    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
 };
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 
@@ -52,10 +52,8 @@ pub trait Asset {
 #[derive(Clone)]
 pub enum AssetContent {
     File(ResolvedVc<FileContent>),
-    // for the relative link, the target is raw value read from the link
-    // for the absolute link, the target is stripped of the root path while reading
-    // See [LinkContent::Link] for more details.
-    Redirect { target: RcStr, link_type: LinkType },
+    /// A symbolic link. See [`WriteLinkContent`] for how it is written.
+    Redirect(WriteLinkContent),
 }
 
 #[turbo_tasks::value_impl]
@@ -69,7 +67,7 @@ impl AssetContent {
     pub fn parse_json(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json(),
-            AssetContent::Redirect { .. } => {
+            AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
         }
@@ -79,7 +77,7 @@ impl AssetContent {
     pub fn file_content(&self) -> Vc<FileContent> {
         match self {
             AssetContent::File(content) => **content,
-            AssetContent::Redirect { .. } => FileContent::NotFound.cell(),
+            AssetContent::Redirect(..) => FileContent::NotFound.cell(),
         }
     }
 
@@ -87,7 +85,7 @@ impl AssetContent {
     pub fn lines(&self) -> Vc<FileLinesContent> {
         match self {
             AssetContent::File(content) => content.lines(),
-            AssetContent::Redirect { .. } => FileLinesContent::Unparsable.cell(),
+            AssetContent::Redirect(..) => FileLinesContent::Unparsable.cell(),
         }
     }
 
@@ -95,7 +93,7 @@ impl AssetContent {
     pub fn len(&self) -> Vc<Option<u64>> {
         match self {
             AssetContent::File(content) => content.len(),
-            AssetContent::Redirect { .. } => Vc::cell(None),
+            AssetContent::Redirect(..) => Vc::cell(None),
         }
     }
 
@@ -103,7 +101,7 @@ impl AssetContent {
     pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json_with_comments(),
-            AssetContent::Redirect { .. } => {
+            AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
         }
@@ -115,16 +113,10 @@ impl AssetContent {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
             }
-            AssetContent::Redirect { target, link_type } => {
-                path.write_symbolic_link_dir(
-                    LinkContent::Link {
-                        target: target.clone(),
-                        link_type: *link_type,
-                    }
-                    .cell(),
-                )
-                .as_side_effect()
-                .await?;
+            AssetContent::Redirect(content) => {
+                path.write_link(content.clone().cell())
+                    .as_side_effect()
+                    .await?;
             }
         }
         Ok(())
@@ -134,9 +126,9 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
-            AssetContent::Redirect { target, link_type } => Vc::cell(RcStr::from(
+            AssetContent::Redirect(content) => Vc::cell(RcStr::from(
                 // no_hash_salt
-                deterministic_hash(&salt.await?, (target, link_type), algorithm),
+                deterministic_hash(&salt.await?, content, algorithm),
             )),
         })
     }
@@ -154,7 +146,7 @@ impl AssetContent {
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
             AssetContent::File(content) => Ok(content.content_hash(salt, algorithm)),
-            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+            AssetContent::Redirect(..) => Ok(Vc::cell(None)),
         }
     }
 }

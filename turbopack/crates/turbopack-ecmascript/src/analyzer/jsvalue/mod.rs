@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bumpalo::boxed::Box as BumpBox;
 use num_bigint::BigInt;
 use smallvec::SmallVec;
@@ -130,7 +130,7 @@ pub enum JsValue<'a> {
     Object {
         total_nodes: u32,
         parts: BumpVec<'a, ObjectPart<'a>>,
-        mutable: bool,
+        mutability: ObjectMutability,
     },
     /// A list of alternative values
     Alternatives {
@@ -577,7 +577,7 @@ impl<'a> JsValue<'a> {
                 let mut js_value = JsValue::Object {
                     total_nodes: m.len() as u32,
                     parts,
-                    mutable: false,
+                    mutability: ObjectMutability::Frozen,
                 };
                 js_value.update_total_nodes();
                 return Ok(js_value);
@@ -607,6 +607,42 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
                 RcStr::from(regex.0.as_str()),
                 RcStr::from(regex.1.as_str()),
+            ),
+        })
+    }
+}
+
+impl TryFrom<&'_ JsValue<'_>> for CompileTimeDefineValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &JsValue) -> Result<Self> {
+        Ok(match value {
+            JsValue::Constant(v) => return Self::try_from(v),
+            JsValue::Array { items, .. } => {
+                let mut arr = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    arr.push(Self::try_from(item)?);
+                }
+                CompileTimeDefineValue::Array(arr)
+            }
+            JsValue::Object { parts, .. } => {
+                let mut obj = Vec::with_capacity(parts.len());
+                for part in parts.iter() {
+                    if let ObjectPart::KeyValue(key, value) = part {
+                        obj.push((
+                            key.as_str()
+                                .context("JsValue object key is not a string")?
+                                .into(),
+                            Self::try_from(value)?,
+                        ));
+                    } else {
+                        bail!("JsValue object contains non-key-value part");
+                    }
+                }
+                CompileTimeDefineValue::Object(obj)
+            }
+            _ => bail!(
+                "JsValue is not constant and could not be converted to CompileTimeDefineValue"
             ),
         })
     }
@@ -859,11 +895,14 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: true,
+            mutability: ObjectMutability::Mutable,
         }
     }
 
-    pub fn frozen_object(list: BumpVec<'a, ObjectPart<'a>>) -> Self {
+    pub fn object_with_mutability(
+        list: BumpVec<'a, ObjectPart<'a>>,
+        mutability: ObjectMutability,
+    ) -> Self {
         Self::Object {
             total_nodes: 1 + list
                 .iter()
@@ -873,7 +912,7 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: false,
+            mutability,
         }
     }
 
@@ -1115,7 +1154,7 @@ impl JsValue<'_> {
             JsValue::Object {
                 total_nodes: c,
                 parts,
-                mutable: _,
+                mutability: _,
             } => {
                 *c = 1 + parts
                     .iter()
@@ -1319,11 +1358,11 @@ impl<'a> JsValue<'a> {
             JsValue::Object {
                 total_nodes,
                 parts,
-                mutable,
+                mutability,
             } => JsValue::Object {
                 total_nodes: *total_nodes,
                 parts: BumpVec::from_iter_in(arena, parts.iter().map(|p| p.clone_in(arena))),
-                mutable: *mutable,
+                mutability: *mutability,
             },
             JsValue::Alternatives {
                 total_nodes,

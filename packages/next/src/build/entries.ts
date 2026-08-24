@@ -4,15 +4,11 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type {
-  ProxyConfig,
-  ProxyMatcher,
-  PageStaticInfo,
-} from './analysis/get-page-static-info'
+import type { ProxyConfig, ProxyMatcher } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, normalize } from 'path'
+import { dirname, posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -385,6 +381,7 @@ export async function createEntrypoints(
   client: webpack.EntryObject
   server: webpack.EntryObject
   edgeServer: webpack.EntryObject
+  entrySourceDirectories: string[]
   middlewareMatchers: undefined
 }> {
   const {
@@ -404,6 +401,7 @@ export async function createEntrypoints(
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
+  const entrySourceDirectories = new Set<string>()
   let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
@@ -466,13 +464,17 @@ export async function createEntrypoints(
         appDir,
         rootDir,
       })
+      // A deferred-entry callback may materialize source beside this route.
+      // Keep the owning directory so the bundler can invalidate that subtree
+      // without discarding filesystem cache entries for the rest of the app.
+      entrySourceDirectories.add(dirname(pageFilePath))
 
       const isInsideAppDir =
         !!appDir &&
         (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
           absolutePagePath.startsWith(appDir))
 
-      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+      const staticInfo = await getStaticInfoIncludingLayouts({
         isInsideAppDir,
         pageExtensions,
         pageFilePath,
@@ -664,6 +666,7 @@ export async function createEntrypoints(
     client,
     server,
     edgeServer,
+    entrySourceDirectories: [...entrySourceDirectories].sort(),
     middlewareMatchers,
   }
 }

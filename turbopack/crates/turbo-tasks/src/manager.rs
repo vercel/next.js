@@ -1966,6 +1966,18 @@ pub struct CurrentCellRef {
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
+/// What a conditional cell update returns: the new content, the key hashes that changed, and an
+/// optional hash of the value.
+type CellUpdate = (
+    SharedReference,
+    Option<SmallVec<[u64; 2]>>,
+    Option<CellHash>,
+);
+
+/// The callback [`CurrentCellRef::conditional_update_with_shared_reference`] takes. It is a `dyn`
+/// trait object so that the function's body is compiled once rather than once per cell type.
+type CellUpdateFn<'l> = dyn FnMut(Option<&SharedReference>) -> Option<CellUpdate> + 'l;
+
 impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
@@ -1974,7 +1986,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType,
     {
-        self.conditional_update_with_shared_reference(|old_shared_reference| {
+        // `FnMut` cannot move out of its captures, and the callee calls this at most once, so
+        // the `FnOnce` is handed over through an `Option`.
+        let mut functor = Some(functor);
+        self.conditional_update_with_shared_reference(&mut |old_shared_reference| {
+            let functor = functor.take().expect("functor is called at most once");
             let old_ref = old_shared_reference.and_then(|sr| sr.0.downcast_ref::<T>());
             let (new_value, updated_key_hashes, content_hash) = functor(old_ref)?;
             Some((
@@ -1986,16 +2002,12 @@ impl CurrentCellRef {
     }
 
     /// Updates the cell if the given `functor` returns a `SharedReference`.
-    fn conditional_update_with_shared_reference(
-        &self,
-        functor: impl FnOnce(
-            Option<&SharedReference>,
-        ) -> Option<(
-            SharedReference,
-            Option<SmallVec<[u64; 2]>>,
-            Option<CellHash>,
-        )>,
-    ) {
+    ///
+    /// `functor` is a `dyn` trait object rather than a generic parameter on purpose. This body is
+    /// identical for every cell type, so making it generic monomorphized it once per
+    /// `VcValueType` in the dependency graph — over a thousand copies of the same code. The
+    /// indirect call it costs instead is negligible next to the cell read and update it wraps.
+    fn conditional_update_with_shared_reference(&self, functor: &mut CellUpdateFn<'_>) {
         let tt = turbo_tasks();
         let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
@@ -2070,7 +2082,11 @@ impl CurrentCellRef {
     where
         T: VcValueType + PartialEq,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2117,7 +2133,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq + DeterministicHash,
     {
-        self.conditional_update_with_shared_reference(move |old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut move |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2167,7 +2187,11 @@ impl CurrentCellRef {
         VcReadTarget<T>: KeyedEq,
         <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             let Some(old_sr) = old_sr else {
                 return Some((new_shared_reference, None, None));
             };

@@ -1983,7 +1983,7 @@
         null !== type &&
         type.$$typeof === REACT_LAZY_TYPE
       )
-        return type._init === readChunk ? '"use client"' : "<...>";
+        return type._payload instanceof ReactPromise ? '"use client"' : "<...>";
       try {
         var name = getComponentNameFromType(type);
         return name ? "<" + name + ">" : "<...>";
@@ -2029,22 +2029,29 @@
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
       null !== lazyNode &&
-        (lazyNode._store &&
-          lazyNode._store.validated &&
-          !element._store.validated &&
-          (element._store.validated = lazyNode._store.validated),
         "fulfilled" === lazyNode._payload.status &&
-          lazyNode._debugInfo &&
-          ((response = lazyNode._debugInfo.splice(0)),
-          element._debugInfo
-            ? element._debugInfo.unshift.apply(element._debugInfo, response)
-            : Object.defineProperty(element, "_debugInfo", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: response
-              })));
+        lazyNode._debugInfo &&
+        ((response = lazyNode._debugInfo.splice(0)),
+        element._debugInfo
+          ? element._debugInfo.unshift.apply(element._debugInfo, response)
+          : Object.defineProperty(element, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: response
+            }));
       Object.freeze(element.props);
+    }
+    function readChunkAndTransferValidation(store, payload) {
+      payload = readChunk(payload);
+      if (store.validated && "object" === typeof payload && null !== payload) {
+        var $$typeof = payload.$$typeof;
+        ($$typeof !== REACT_ELEMENT_TYPE && $$typeof !== REACT_LAZY_TYPE) ||
+          !($$typeof = payload._store) ||
+          $$typeof.validated ||
+          ($$typeof.validated = store.validated);
+      }
+      return payload;
     }
     function createLazyChunkWrapper(chunk, validated) {
       var lazyType = {
@@ -2053,7 +2060,9 @@
         _init: readChunk
       };
       lazyType._debugInfo = chunk._debugInfo;
-      lazyType._store = { validated: validated };
+      chunk = { validated: validated };
+      lazyType._store = chunk;
+      lazyType._init = readChunkAndTransferValidation.bind(null, chunk);
       return lazyType;
     }
     function getChunk(response, id) {
@@ -5242,10 +5251,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-11eddecd-20260805",
+      version: "19.3.0-experimental-eafeac09-20260819",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-11eddecd-20260805",
+      reconcilerVersion: "19.3.0-experimental-eafeac09-20260819",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

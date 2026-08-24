@@ -3,7 +3,10 @@
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioo.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis["TURBOPACK"])) {
+var chunksToRegister = globalThis["TURBOPACK"];
+if (chunksToRegister === undefined) {
+    chunksToRegister = [];
+} else if (!Array.isArray(chunksToRegister)) {
     return;
 }
 
@@ -11,6 +14,10 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 const SUPPORT_COMPONENT_CHUNKS = false;
+globalThis["TURBOPACK_CHUNK_UPDATE_LISTENERS"] ||= [];
+var CHUNK_UPDATE_LISTENERS = {
+    push: (registration) => globalThis["TURBOPACK_CHUNK_UPDATE_LISTENERS"].push(registration),
+};
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
@@ -2124,7 +2131,7 @@ function registerChunk(registration) {
     const chunkListPath = getPathFromScript(chunkListScript);
     // The "chunk" is also registered to finish the loading in the backend
     BACKEND.registerChunk(chunkListPath);
-    globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
+    CHUNK_UPDATE_LISTENERS.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)
     ]);
@@ -2146,7 +2153,6 @@ function registerChunk(registration) {
         markChunkListAsRuntime(chunkListPath);
     }
 }
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /**
  * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
@@ -2472,7 +2478,6 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-var chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 var chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];

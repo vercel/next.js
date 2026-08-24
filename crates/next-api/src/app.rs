@@ -827,7 +827,7 @@ impl AppProject {
                             .any(|route| route.as_str() == pathname.to_string())
                     })
                 })
-                .map(|(pathname, app_entrypoint)| async {
+                .map(async |(pathname, app_entrypoint)| {
                     Ok((
                         pathname.to_string().into(),
                         app_entry_point_to_route(self, app_entrypoint.clone())
@@ -2061,6 +2061,7 @@ impl AppEndpoint {
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
             Vc::cell(entry_modules),
+            this.app_project.project().additional_traced_modules(),
         ))
     }
 }

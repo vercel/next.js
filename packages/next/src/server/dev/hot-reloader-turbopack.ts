@@ -28,7 +28,7 @@ import type {
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -40,6 +40,10 @@ import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
+import {
+  dropDevValidationWorker,
+  mirrorModuleStateToDevValidationWorker,
+} from './dev-validation-worker-pool'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -88,7 +92,6 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
@@ -213,7 +216,7 @@ function setupServerHmr(
   }
 ) {
   async function runSubscription() {
-    const subscription = project.allHmrEvents(HmrTarget.Server)
+    const subscription = project.serverHmrEvents()
 
     // Subscribing immediately emits one event describing the current state.
     // There's no previous state to diff it against, so it never carries anything
@@ -261,6 +264,9 @@ function setupServerHmr(
       if (typeof __turbopack_server_hmr_apply__ === 'function') {
         try {
           __turbopack_server_hmr_apply__(update)
+          // The validation worker keeps its own copy of the module graph, and
+          // applies the same update to it.
+          mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
         } catch {
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
@@ -489,6 +495,7 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'FilesystemSettlingEvent',
       'TraceEvent',
     ],
     parentSpan: hotReloaderSpan,
@@ -789,6 +796,9 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
+  // Undefined until the first entrypoints emission. That one has nothing to
+  // compare against, so every route it lists would look added.
+  let previousRouteKeys: Set<string> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
@@ -977,7 +987,7 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id, HmrTarget.Client)
+    const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
@@ -1041,18 +1051,14 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.routes
-      const existingRoutes = [
-        ...currentEntrypoints.app.keys(),
-        ...currentEntrypoints.page.keys(),
-      ]
-      const newRoutes = [...routes.keys()]
-
-      const addedRoutes = newRoutes.filter(
-        (route) =>
-          !currentEntrypoints.app.has(route) &&
-          !currentEntrypoints.page.has(route)
-      )
-      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
+      const prevRouteKeys = previousRouteKeys
+      const addedRoutes = prevRouteKeys
+        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
+        : []
+      const removedRoutes = prevRouteKeys
+        ? [...prevRouteKeys].filter((route) => !routes.has(route))
+        : []
+      previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
         entrypoints: entrypoints as any,
@@ -1089,9 +1095,6 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
-
-      // Reload matchers when the files have been compiled
-      await propagateServerField(opts, 'reloadMatchers', undefined)
 
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
@@ -1144,7 +1147,6 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
-    getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
     getRestartDevServerMiddleware({
@@ -1622,13 +1624,13 @@ export async function createHotReloaderTurbopack(
     },
 
     getServerComponentsHmrRefreshHash() {
-      // The current server-components generation. Only the change subscription
-      // (an actual recompile) advances `hmrHash`; reloads and config
-      // invalidations don't, so the value stays stable across requests until a
-      // real edit. Returned unconditionally (`"0"` before the first edit) so
-      // `"use cache"` keys are present and consistent for every request,
-      // mirroring webpack's always-present `stats.hash`.
-      return String(hmrHash)
+      // Only the change subscription (an actual recompile) advances `hmrHash`;
+      // reloads and config invalidations don't, so the value stays stable
+      // across requests until a real edit. `sessionId` stands in for a key
+      // derived from the compiled implementation, which would let entries
+      // outlive a restart when the code didn't change (see the note on Action
+      // IDs in `use-cache-wrapper.ts`).
+      return `${sessionId}-${hmrHash}`
     },
 
     sendToLegacyClients(action) {
@@ -1765,10 +1767,7 @@ export async function createHotReloaderTurbopack(
       }
       return errors
     },
-    async invalidate({
-      // .env files or tsconfig/jsconfig change
-      reloadAfterInvalidation,
-    }) {
+    async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
@@ -2142,6 +2141,11 @@ export async function createHotReloaderTurbopack(
 
         resetFetch()
 
+        // This thread gave up on repairing its module graph in place. The
+        // validation worker cannot repair its own either, so it is dropped and
+        // the next validation loads the build output afresh.
+        dropDevValidationWorker()
+
         notifyServerComponentChanges()
       },
       onApplied: (chunkPaths: string[]) => {
@@ -2149,9 +2153,22 @@ export async function createHotReloaderTurbopack(
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
         // modules in devModuleCache must persist for dep preservation.
-        for (const chunkPath of chunkPaths) {
-          clearManifestCache(join(distDir, chunkPath))
+        const manifestPaths = chunkPaths.map((chunkPath) =>
+          join(distDir, chunkPath)
+        )
+
+        for (const manifestPath of manifestPaths) {
+          clearManifestCache(manifestPath)
         }
+
+        // This path clears the manifest cache without going through
+        // `deleteCache`, so `onCacheInvalidation` does not report it to the
+        // validation worker. Report it here instead.
+        mirrorModuleStateToDevValidationWorker({
+          type: 'invalidate',
+          filePaths: manifestPaths,
+          evictModules: false,
+        })
 
         notifyServerComponentChanges()
       },

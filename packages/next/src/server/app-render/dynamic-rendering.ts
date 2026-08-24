@@ -20,30 +20,23 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkStore } from './work-async-storage.external'
 import type {
   WorkUnitStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
   PrerenderStoreModernServer,
-} from '../app-render/work-unit-async-storage.external'
+} from './work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { getStagedRenderingController } from './work-unit-async-storage.external'
 import {
-  getStagedRenderingController,
-  throwForMissingRequestStore,
-  workUnitAsyncStorage,
-} from './work-unit-async-storage.external'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import {
-  ClientHookDynamicError,
   isClientHookDynamicError,
-  makeClientHookHangingPromise,
   trackRuntimeDataAccessed,
 } from '../dynamic-rendering-utils'
 import {
@@ -58,11 +51,13 @@ import {
   createRuntimeBodyError,
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
+  createNavigationBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
   createDynamicOrRuntimeBodyError,
   createRuntimeMetadataError,
   createDynamicMetadataError,
   createRuntimeViewportError,
+  createNavigationViewportError,
   createDynamicViewportError,
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
@@ -70,6 +65,7 @@ import {
   createLinkBodyErrorInNavigation,
   createLinkMetadataError,
   createLinkViewportError,
+  createNavigationMetadataError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -83,8 +79,6 @@ import {
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
-
-const hasPostpone = typeof React.unstable_postpone === 'function'
 
 export type DynamicAccess = {
   /**
@@ -187,7 +181,6 @@ export function markCurrentScopeAsDynamic(
         // A private cache scope is already dynamic by definition.
         return
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'request':
       case 'generate-static-params':
         break
@@ -209,12 +202,6 @@ export function markCurrentScopeAsDynamic(
 
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -286,7 +273,6 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-legacy':
-    case 'prerender-ppr':
     case 'prerender-client':
     case 'validation-client':
     case 'generate-static-params':
@@ -393,78 +379,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
-/**
- * This component will call `React.postpone` that throws the postponed error.
- */
-type PostponeProps = {
-  reason: string
-  route: string
-}
-export function Postpone({ reason, route }: PostponeProps): never {
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  const dynamicTracking =
-    prerenderStore && prerenderStore.type === 'prerender-ppr'
-      ? prerenderStore.dynamicTracking
-      : null
-  postponeWithTracking(route, reason, dynamicTracking)
-}
-
-export function postponeWithTracking(
-  route: string,
-  expression: string,
-  dynamicTracking: null | DynamicTrackingState
-): never {
-  assertPostpone()
-  if (dynamicTracking) {
-    dynamicTracking.dynamicAccesses.push({
-      // When we aren't debugging, we don't need to create another error for the
-      // stack trace.
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
-      expression,
-    })
-  }
-
-  React.unstable_postpone(createPostponeReason(route, expression))
-}
-
-function createPostponeReason(route: string, expression: string) {
-  return (
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
-    `React throws this special object to indicate where. It should not be caught by ` +
-    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  )
-}
-
-export function isDynamicPostpone(err: unknown) {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    typeof (err as any).message === 'string'
-  ) {
-    return isDynamicPostponeReason((err as any).message)
-  }
-  return false
-}
-
-function isDynamicPostponeReason(reason: string) {
-  return (
-    reason.includes(
-      'needs to bail out of prerendering at this point because it used'
-    ) &&
-    reason.includes(
-      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
-    )
-  )
-}
-
-if (isDynamicPostponeReason(createPostponeReason('%%%', '^^^')) === false) {
-  throw new Error(
-    'Invariant: isDynamicPostpone misidentified a postpone reason. This is a bug in Next.js'
-  )
-}
-
 const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
 function createPrerenderInterruptedError(message: string): Error {
@@ -545,18 +459,6 @@ export function formatDynamicAPIAccesses(
     })
 }
 
-function assertPostpone() {
-  if (!hasPostpone) {
-    throw new Error(
-      `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
-    )
-  }
-}
-
-/**
- * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
- * abort semantics slightly.
- */
 export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
   controller.abort(new BailoutToCSRError('Render in Browser'))
@@ -614,7 +516,6 @@ export function createHangingInputAbortSignal(
       return controller.signal
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
@@ -641,126 +542,6 @@ export function annotateDynamicAccess(
         : undefined,
       expression,
     })
-  }
-}
-
-export function useDynamicRouteParams(expression: string) {
-  const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workStore && workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'prerender-client': {
-        const fallbackParams = workUnitStore.fallbackRouteParams
-
-        if (fallbackParams && fallbackParams.size > 0) {
-          // We are in a prerender with cacheComponents semantics. We are going to
-          // hang here and never resolve. This will cause the currently
-          // rendering component to effectively be a dynamic hole.
-          React.use(
-            makeClientHookHangingPromise(
-              workUnitStore.renderSignal,
-              new ClientHookDynamicError(workStore.route, expression)
-            )
-          )
-        }
-        break
-      }
-      case 'prerender':
-        throw new InvariantError(
-          `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'prerender-ppr': {
-        const fallbackParams = workUnitStore.fallbackRouteParams
-        if (fallbackParams && fallbackParams.size > 0) {
-          return postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
-          )
-        }
-        break
-      }
-      case 'validation-client': {
-        // Don't check fallbackRouteParams here. We handle params that weren't
-        // provided in the samples using a proxy that throws when accessed.
-        break
-      }
-      case 'prerender-runtime':
-        throw new InvariantError(
-          `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'cache':
-      case 'private-cache':
-        throw new InvariantError(
-          `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-        )
-      case 'generate-static-params':
-        throw new InvariantError(
-          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
-        )
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
-    }
-  }
-}
-
-export function useDynamicSearchParams(expression: string) {
-  const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (!workStore) {
-    // We assume pages router context and just return
-    return
-  }
-
-  if (!workUnitStore) {
-    throwForMissingRequestStore(expression)
-  }
-
-  switch (workUnitStore.type) {
-    case 'validation-client':
-      // During instant validation we try to behave as close to client as possible,
-      // so this shouldn't hang during SSR.
-      return
-    case 'prerender-client': {
-      React.use(
-        makeClientHookHangingPromise(
-          workUnitStore.renderSignal,
-          new ClientHookDynamicError(workStore.route, expression)
-        )
-      )
-      break
-    }
-    case 'prerender-legacy':
-    case 'prerender-ppr': {
-      if (workStore.forceStatic) {
-        return
-      }
-      throw new BailoutToCSRError(expression)
-    }
-    case 'prerender':
-    case 'prerender-runtime':
-      throw new InvariantError(
-        `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-      )
-    case 'cache':
-    case 'unstable-cache':
-    case 'private-cache':
-      throw new InvariantError(
-        `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-      )
-    case 'generate-static-params':
-      throw new InvariantError(
-        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
-      )
-    case 'request':
-      return
-    default:
-      workUnitStore satisfies never
   }
 }
 
@@ -918,12 +699,14 @@ export function trackAllowedDynamicAccess(
 }
 
 export enum DynamicHoleKind {
-  /** We know that this hole is caused by link data. */
-  Link = 1,
   /** We know that this hole is caused by runtime data. */
-  Runtime = 2,
+  Runtime = 1,
+  /** We know that this hole is caused by link data. */
+  Link = 2,
+  /** We know that this hole is caused by navigation(). */
+  Navigation = 3,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 3,
+  Dynamic = 4,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -982,11 +765,7 @@ export function trackDynamicHoleInNavigation(
 
   if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Link
-        ? createLinkMetadataError(workStore.route)
-        : kind === DynamicHoleKind.Runtime
-          ? createRuntimeMetadataError(workStore.route)
-          : createDynamicMetadataError(workStore.route),
+      createMetadataError(kind, workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -995,11 +774,7 @@ export function trackDynamicHoleInNavigation(
   }
   if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Link
-        ? createLinkViewportError(workStore.route)
-        : kind === DynamicHoleKind.Runtime
-          ? createRuntimeViewportError(workStore.route)
-          : createDynamicViewportError(workStore.route),
+      createViewportError(kind, workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -1091,16 +866,54 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Link
-      ? createLinkBodyErrorInNavigation(workStore.route)
-      : kind === DynamicHoleKind.Runtime
-        ? createRuntimeBodyErrorInNavigation(workStore.route)
-        : createDynamicBodyErrorInNavigation(workStore.route),
+    createBodyErrorInNavigation(kind, workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )
   dynamicValidation.dynamicErrors.push(error)
   return
+}
+
+function createBodyErrorInNavigation(
+  kind: DynamicHoleKind,
+  route: string
+): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeBodyErrorInNavigation(route)
+    case DynamicHoleKind.Link:
+      return createLinkBodyErrorInNavigation(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationBodyErrorInNavigation(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicBodyErrorInNavigation(route)
+  }
+}
+
+function createMetadataError(kind: DynamicHoleKind, route: string): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeMetadataError(route)
+    case DynamicHoleKind.Link:
+      return createLinkMetadataError(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationMetadataError(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicMetadataError(route)
+  }
+}
+
+function createViewportError(kind: DynamicHoleKind, route: string): Error {
+  switch (kind) {
+    case DynamicHoleKind.Runtime:
+      return createRuntimeViewportError(route)
+    case DynamicHoleKind.Link:
+      return createLinkViewportError(route)
+    case DynamicHoleKind.Navigation:
+      return createNavigationViewportError(route)
+    case DynamicHoleKind.Dynamic:
+      return createDynamicViewportError(route)
+  }
 }
 
 export function trackThrownErrorInNavigation(
@@ -1288,9 +1101,6 @@ export function trackDynamicHoleInStaticShell(
 /**
  * In dev mode, we prefer using the owner stack, otherwise the provided
  * component stack is used.
- *
- * Accepts an already-created Error so the SWC error-code plugin can see the
- * `new Error(...)` call at each call site and auto-assign error codes.
  */
 function addErrorContext(
   error: Error,

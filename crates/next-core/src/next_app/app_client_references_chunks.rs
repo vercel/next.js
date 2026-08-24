@@ -192,7 +192,7 @@ pub async fn get_app_client_references_chunks(
 
                 let ssr_modules = client_reference_types
                     .iter()
-                    .map(|client_reference_ty| async move {
+                    .map(async |client_reference_ty| {
                         Ok(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
@@ -241,7 +241,7 @@ pub async fn get_app_client_references_chunks(
 
                 let client_modules = client_reference_types
                     .iter()
-                    .map(|client_reference_ty| async move {
+                    .map(async |client_reference_ty| {
                         Ok(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
@@ -351,7 +351,7 @@ pub async fn get_client_references_chunks_for_hmr(
     let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = client_references_chunks_ref
         .layout_segment_client_chunks
         .values()
-        .map(|&assets| async move {
+        .map(async |&assets| {
             let primary = assets.primary_assets().await?;
             Ok(primary.iter().copied().collect::<Vec<_>>())
         })

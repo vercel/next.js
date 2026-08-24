@@ -83,6 +83,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -138,7 +139,11 @@ import {
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
-import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
+import type {
+  FallbackRouteParam,
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -151,7 +156,11 @@ import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  compareAppPaths,
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -192,10 +201,6 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -208,7 +213,6 @@ import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
@@ -410,6 +414,7 @@ export type PrerenderManifest = {
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
+  /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
 }
 
@@ -503,6 +508,7 @@ function getPagesFallbackClassification(
 }
 
 export type SubresourceIntegrityManifest = Record<string, string>
+export type PreviewPropsManifest = __ApiPreviewProps
 
 type ManifestBuiltRoute = {
   /**
@@ -797,7 +803,7 @@ async function writeStandaloneDirectory(
   nextBuildSpan: Span,
   distDir: string,
   pageKeys: { pages: string[]; app: string[] | undefined },
-  denormalizedAppPages: string[] | undefined,
+  appPageKeys: string[] | undefined,
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
@@ -815,7 +821,7 @@ async function writeStandaloneDirectory(
         requiredServerFiles.appDir,
         distDir,
         pageKeys.pages,
-        denormalizedAppPages,
+        appPageKeys,
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
@@ -1494,10 +1500,14 @@ export default async function build(
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<string>()
-      let denormalizedAppPages: string[] | undefined
+
+      // Discovery produces the entries we ask the compiler to build. Keep this
+      // input separate from the entries the compiler actually emits.
+      let discoveredAppPageKeys: string[] | undefined
+      let emittedAppPageKeys: string[] | undefined
       if (discovery.mappedAppPages) {
-        denormalizedAppPages = Object.keys(discovery.mappedAppPages)
-        for (const appKey of denormalizedAppPages) {
+        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages)
+        for (const appKey of discoveredAppPageKeys) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = NextBuildContext.mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -1665,7 +1675,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+      const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -2004,6 +2014,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, PREVIEW_PROPS_MANIFEST),
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
@@ -2164,6 +2175,7 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
+      const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2178,8 +2190,32 @@ export default async function build(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
+        // The app paths manifest contains only entries the compiler emitted.
+        // Post-build consumers use this filtered list so they do not look for
+        // output files belonging to candidates that were not emitted.
+        const emittedAppPageKeySet = new Set(Object.keys(appPathsManifest))
+        emittedAppPageKeys = discoveredAppPageKeys?.filter((appPageKey) =>
+          emittedAppPageKeySet.has(appPageKey)
+        )
+
+        const appPathsByPathname = new Map<string, string[]>()
         for (const key in appPathsManifest) {
-          appPathRoutes[key] = normalizeAppPath(key)
+          const pathname = normalizeAppPath(key)
+          const routeAppPaths = appPathsByPathname.get(pathname)
+          if (routeAppPaths) {
+            routeAppPaths.push(key)
+          } else {
+            appPathsByPathname.set(pathname, [key])
+          }
+        }
+
+        // Legacy deployment builders collapse this manifest by pathname using
+        // the final entry. Keep that entry aligned with selectAppPageEntry so
+        // the traced module and the module loaded at runtime cannot diverge.
+        for (const [pathname, routeAppPaths] of appPathsByPathname) {
+          for (const key of routeAppPaths.sort(compareAppPaths)) {
+            appPathRoutes[key] = pathname
+          }
         }
 
         await writeManifest(
@@ -2254,7 +2290,6 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
@@ -2366,6 +2401,7 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
+                  const originalAppPaths: string[] = []
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
                   )) {
@@ -2373,13 +2409,16 @@ export default async function build(
                       normalizedPath === page &&
                       mappedAppPages[originalPath]
                     ) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
+                      originalAppPaths.push(originalPath)
                     }
+                  }
+
+                  if (originalAppPaths.length > 0) {
+                    originalAppPath = selectAppPageEntry(page, originalAppPaths)
+                    pagePath = mappedAppPages[originalAppPath].replace(
+                      /^private-next-app-dir/,
+                      ''
+                    )
                   }
                 }
 
@@ -2487,7 +2526,6 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,
@@ -2537,6 +2575,13 @@ export default async function build(
                               (route) => route.pathname
                             )
                             isSSG = true
+                          }
+
+                          if (workerResult.prerenderRouteMatchers) {
+                            prerenderRouteMatchers.set(
+                              originalAppPath,
+                              workerResult.prerenderRouteMatchers
+                            )
                           }
 
                           const appConfig = workerResult.appConfig || {}
@@ -2912,10 +2957,6 @@ export default async function build(
           invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
         },
         {
-          featureName: 'experimental/ppr',
-          invocationCount: config.experimental.ppr ? 1 : 0,
-        },
-        {
           featureName: 'turbopackFileSystemCache',
           invocationCount: config.experimental?.turbopackFileSystemCacheForBuild
             ? 1
@@ -3103,7 +3144,7 @@ export default async function build(
                 const isDynamicError = appConfig?.dynamic === 'error'
 
                 const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr)
+                  ? isAppCacheComponentsEnabled
                   : false
 
                 routes.forEach((route) => {
@@ -3200,29 +3241,30 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          const getFallbackMode = (route: PrerenderedRoute) => {
-            const hasEmptyStaticShell = exportResult.byPath.get(
-              route.pathname
-            )?.hasEmptyStaticShell
-
+          const resolveFallbackMode = (
+            matcher: PrerenderRouteMatcher,
+            prerenderCandidate: PrerenderedRoute | undefined,
+            hasEmptyStaticShell: boolean | undefined
+          ) => {
             // If the route has an empty static shell and is not configured to
             // throw on empty static shell, then we should use the blocking
             // static render mode.
             if (
+              prerenderCandidate &&
               hasEmptyStaticShell &&
-              !route.throwOnEmptyStaticShell &&
-              route.fallbackMode === FallbackMode.PRERENDER
+              !prerenderCandidate.throwOnEmptyStaticShell &&
+              matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
             }
 
             // If the route has no fallback mode, then we should use the
             // `NOT_FOUND` fallback mode.
-            if (!route.fallbackMode) {
+            if (!matcher.fallbackMode) {
               return FallbackMode.NOT_FOUND
             }
 
-            return route.fallbackMode
+            return matcher.fallbackMode
           }
 
           const getCacheControl = (
@@ -3285,6 +3327,15 @@ export default async function build(
             if (!appConfig) throw new InvariantError('App config not found')
 
             const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
+            // Preserve the specificity order that unknown prerender routes had
+            // before matchers were modeled separately. Some metadata, such as
+            // prefetch hints, is collected using first-writer-wins semantics.
+            const dynamicRouteMatchers = [
+              ...sortPageObjects(
+                prerenderRouteMatchers.get(originalAppPath) ?? [],
+                (route) => route.pathname
+              ),
+            ]
 
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
@@ -3305,8 +3356,7 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr)
+              !isAppRouteHandler && isAppCacheComponentsEnabled
                 ? true
                 : undefined
 
@@ -3342,13 +3392,10 @@ export default async function build(
                 : []),
             ]
 
-            // We should collect all the dynamic routes into a single array for
-            // this page. Including the full fallback route (the original
-            // route), any routes that were generated with unknown route params
-            // should be collected and included in the dynamic routes part
-            // of the manifest instead.
-            const staticPrerenderedRoutes: PrerenderedRoute[] = []
-            const dynamicPrerenderedRoutes: PrerenderedRoute[] = []
+            // Candidates without unknown params can become concrete static
+            // outputs. Candidates with unknown params are finalized alongside
+            // the logical matcher directives collected above.
+            const concretePrerenderCandidates: PrerenderedRoute[] = []
 
             // Sort the outputted routes to ensure consistent output. Any route
             // though that has unknown route params will be pulled and sorted
@@ -3414,18 +3461,17 @@ export default async function build(
                 prerenderedRoute.fallbackRouteParams &&
                 prerenderedRoute.fallbackRouteParams.length > 0
               ) {
-                // If the route has unknown params, then we need to add it to
-                // the list of dynamic routes.
-                dynamicPrerenderedRoutes.push(prerenderedRoute)
+                // Partial candidates have a corresponding matcher directive
+                // and are finalized below after inspecting their render.
               } else {
                 // If the route doesn't have unknown params, then we need to
                 // add it to the list of static routes.
-                staticPrerenderedRoutes.push(prerenderedRoute)
+                concretePrerenderCandidates.push(prerenderedRoute)
               }
             }
 
             // Handle all the static routes.
-            for (const route of staticPrerenderedRoutes) {
+            for (const route of concretePrerenderCandidates) {
               if (isDynamicRoute(page) && route.pathname === page) continue
 
               const pageInfo = pageInfos.get(page) as PageInfo
@@ -3577,20 +3623,59 @@ export default async function build(
               // they are enabled, then it'll already be included in the
               // prerendered routes.
               if (!isRoutePPREnabled) {
-                dynamicPrerenderedRoutes.push({
-                  params: {},
+                dynamicRouteMatchers.push({
                   pathname: page,
-                  encodedPathname: page,
                   fallbackRouteParams: [],
                   fallbackMode:
                     fallbackModes.get(originalAppPath) ??
                     FallbackMode.NOT_FOUND,
                   fallbackRootParams: [],
-                  throwOnEmptyStaticShell: true,
                 })
               }
 
-              for (const route of dynamicPrerenderedRoutes) {
+              // A logical matcher can have zero or more render candidates.
+              // Today generateStaticParams produces at most one candidate per
+              // pathname. Variants can multiply that into several artifacts
+              // without changing the logical matcher, so retain every
+              // candidate instead of letting pathname select whichever one was
+              // inserted last.
+              const prerenderCandidatesByPathname = new Map<
+                string,
+                PrerenderedRoute[]
+              >()
+              for (const candidate of prerenderedRoutes) {
+                const candidates = prerenderCandidatesByPathname.get(
+                  candidate.pathname
+                )
+                if (candidates) {
+                  candidates.push(candidate)
+                } else {
+                  prerenderCandidatesByPathname.set(candidate.pathname, [
+                    candidate,
+                  ])
+                }
+              }
+
+              const dynamicRouteEntries: Array<{
+                matcher: PrerenderRouteMatcher
+                prerenderCandidate: PrerenderedRoute | undefined
+              }> = []
+              for (const matcher of dynamicRouteMatchers) {
+                const candidates = prerenderCandidatesByPathname.get(
+                  matcher.pathname
+                ) ?? [undefined]
+                for (const prerenderCandidate of candidates) {
+                  dynamicRouteEntries.push({
+                    matcher,
+                    prerenderCandidate,
+                  })
+                }
+              }
+
+              for (const {
+                matcher: route,
+                prerenderCandidate,
+              } of dynamicRouteEntries) {
                 // Static metadata files are rewritten above into the known
                 // static bucket under their `-`-placeholder pathname, so any
                 // entry that slips through here (e.g. an unexpected fallback
@@ -3601,13 +3686,24 @@ export default async function build(
                   continue
                 }
 
-                const normalizedRoute = normalizePagePath(route.pathname)
+                // This is the artifact associated with this matcher entry. It
+                // currently has the same pathname as the logical matcher, but
+                // that is not an invariant: variants can write several
+                // artifacts for one matcher under distinct output paths.
+                const prerenderOutputPathname =
+                  prerenderCandidate?.pathname ?? route.pathname
+
+                const normalizedRoute = normalizePagePath(
+                  prerenderOutputPathname
+                )
                 const parentPageInfo = pageInfos.get(page) as PageInfo
 
-                const routeResult = exportResult.byPath.get(route.pathname)
+                const routeResult = exportResult.byPath.get(
+                  prerenderOutputPathname
+                )
                 const metadata = routeResult?.metadata
 
-                const cacheControl = getCacheControl(route.pathname)
+                const cacheControl = getCacheControl(prerenderOutputPathname)
 
                 let dataRoute: string | null = null
                 if (!isAppRouteHandler) {
@@ -3695,10 +3791,10 @@ export default async function build(
 
                 if (route.pathname === page) {
                   // The route pattern entry (for example `/blog/[slug]`) is
-                  // also present in `dynamicPrerenderedRoutes`. Keep updating
-                  // the parent entry in place so it retains its `ssgPageRoutes`
-                  // subtree; if we rewrote it like a concrete child route we
-                  // would lose the generated child paths from the build output.
+                  // also present in `dynamicRouteMatchers`. Keep updating the
+                  // parent entry in place so it retains its `ssgPageRoutes`
+                  // subtree; rewriting it like a concrete child route would
+                  // lose the generated child paths from the build output.
                   pageInfos.set(page, {
                     ...(pageInfos.get(page) as PageInfo),
                     initialCacheControl: cacheControl,
@@ -3726,22 +3822,39 @@ export default async function build(
                   })
                 }
 
-                const fallbackMode = getFallbackMode(route)
+                const fallbackMode = resolveFallbackMode(
+                  route,
+                  prerenderCandidate,
+                  routeResult?.hasEmptyStaticShell
+                )
 
-                // When the route is configured to serve a prerender, we should
-                // use the cache control from the export result. If it can't be
-                // found, mark that we should keep the shell forever
-                // (revalidate: `false` via `getCacheControl()`).
-                const fallbackCacheControl =
-                  isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? cacheControl
-                    : undefined
+                // The cache lifetime collected while prerendering this route's
+                // fallback. It's recorded for every PPR route, not just those
+                // that serve an HTML fallback: the fallback prerender runs
+                // either way, and the artifacts it produces — the per-segment
+                // prefetch payloads and the RSC template — are cached and
+                // served even when the HTML fallback itself is not
+                // (`fallback: null`, blocking). Cache layers use this value to
+                // decide when entries for URLs without their own prerender go
+                // stale, and they interpret a missing value as a 1-second
+                // lifetime, so it must be present whenever such entries can
+                // exist. When the export collected no cache control,
+                // `getCacheControl()` returns revalidate: `false` (keep until
+                // invalidated).
+                const fallbackCacheControl = isRoutePPREnabled
+                  ? cacheControl
+                  : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route.pathname
                 )
 
+                // Unlike the cache lifetime above, the status and headers
+                // describe the prerendered fallback response itself, so they
+                // only apply when a fallback is actually served (PRERENDER
+                // mode). A blocking route's on-demand renders produce their
+                // own status and headers per request.
                 const meta =
                   metadata &&
                   isRoutePPREnabled &&
@@ -3770,7 +3883,7 @@ export default async function build(
                   }
                 }
 
-                prerenderManifest.dynamicRoutes[route.pathname] = {
+                prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
@@ -3782,7 +3895,7 @@ export default async function build(
                   ...classification,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route.pathname, {
+                    getNamedRouteRegex(prerenderOutputPathname, {
                       prefixRouteKeys: false,
                     }).re.source
                   ),
@@ -4317,10 +4430,15 @@ export default async function build(
           version: 4,
           routes: {},
           dynamicRoutes: {},
-          preview: previewProps,
           notFoundRoutes: [],
+          preview: previewProps,
         })
       }
+
+      await writeManifest(
+        path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),
+        previewProps
+      )
 
       // #endregion
 
@@ -4452,9 +4570,10 @@ export default async function build(
               outputFileTracingRoot,
               hasNodeMiddleware,
               hasInstrumentationHook,
+              previewProps,
               adapterPath,
               pageKeys: pageKeys.pages,
-              appPageKeys: denormalizedAppPages,
+              appPageKeys: emittedAppPageKeys,
               routesManifest,
               prerenderManifest,
               middlewareManifest,
@@ -4474,7 +4593,7 @@ export default async function build(
               nextBuildSpan,
               distDir,
               pageKeys,
-              denormalizedAppPages,
+              emittedAppPageKeys,
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,
@@ -4623,11 +4742,6 @@ function getBundlerForTelemetry(bundler: Bundler) {
 }
 
 function getErrorCodeForTelemetry(err: unknown) {
-  const code = extractNextErrorCode(err)
-  if (code != null) {
-    return code
-  }
-
   if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
     return err.code
   }

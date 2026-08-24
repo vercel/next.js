@@ -41,7 +41,7 @@ pub use self::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
         EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item,
     },
-    placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
+    placeable::{CjsStaticExports, EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::value]
@@ -150,7 +150,7 @@ impl Chunk for EcmascriptChunk {
 
         let assets = chunk_items
             .iter()
-            .map(|&chunk_item| async move {
+            .map(async |&chunk_item| {
                 Ok((
                     rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,

@@ -6,10 +6,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(ptr_metadata)]
+#![feature(exclusive_wrapper)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(const_type_name)]
+#![feature(mpmc_channel)]
 
 pub mod backend;
 mod capture_future;
@@ -46,7 +48,8 @@ mod priority_runner;
 mod read_options;
 mod read_ref;
 pub mod registry;
-pub mod scope;
+pub mod scope_bounded;
+pub mod scope_unbounded;
 mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;

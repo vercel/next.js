@@ -433,6 +433,31 @@ describe('use-cache', () => {
     })
   })
 
+  it('should refresh a stale cache before storing it in an outer cache', async () => {
+    const browser = await next.browser(
+      '/cache-consumer-foreground-revalidate/first'
+    )
+    const firstValue = await browser.elementById('inner-value').text()
+
+    const response = await next.fetch('/api/revalidate-cache-consumer', {
+      method: 'POST',
+    })
+    expect(response.status).toBe(204)
+
+    // Use a different outer key to force a cache miss. Because that outer
+    // scope will cache what it consumes, it must wait for the stale inner
+    // entry to revalidate instead of persisting the stale value.
+    await browser.loadPage(
+      new URL(
+        '/cache-consumer-foreground-revalidate/second',
+        next.url
+      ).toString()
+    )
+    const secondValue = await browser.elementById('inner-value').text()
+
+    expect(secondValue).not.toBe(firstValue)
+  })
+
   it('should revalidate caches during on-demand revalidation', async () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
@@ -1668,11 +1693,57 @@ describe('use-cache', () => {
     expect(randA).toBe(randB)
   })
 
-  it('should dedupe private caches within a single request', async () => {
+  it('should dedupe private caches for concurrent calls within a single request', async () => {
     const browser = await next.browser('/private-dedup')
     const first = await browser.elementByCss('.rand:nth-of-type(1)').text()
     const second = await browser.elementByCss('.rand:nth-of-type(2)').text()
     expect(first).toBe(second)
+  })
+
+  it('should dedupe private caches for sequential calls within a single request', async () => {
+    const $ = await next.render$('/private-dedup-sequential')
+    expect($('.first').text()).toBe($('.second').text())
+  })
+
+  it('should dedupe caches for sequential calls within a single request', async () => {
+    const $ = await next.render$('/dedup-sequential')
+    expect($('.first').text()).toBe($('.second').text())
+  })
+
+  it('should dedupe sequential calls in a server action and its subsequent render', async () => {
+    const browser = await next.browser('/action-dedupe')
+
+    const initial = await browser.elementByCss('.first').text()
+    expect(await browser.elementByCss('.second').text()).toBe(initial)
+
+    // With no revalidation, the action's two reads and the re-render's two
+    // reads all serve the entry that the initial render produced.
+    await browser.elementById('no-revalidate').click()
+
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        `action-dedupe: plain action read ${initial} ${initial}`
+      )
+    })
+
+    expect(await browser.elementByCss('.first').text()).toBe(initial)
+    expect(await browser.elementByCss('.second').text()).toBe(initial)
+
+    // The action reads the still-valid entry twice, then revalidates the tag.
+    // The re-render must not reuse that entry, but its own two reads must share
+    // the entry the first of them regenerated.
+    await browser.elementById('revalidate').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('.first').text()).not.toBe(initial)
+    })
+
+    const revalidated = await browser.elementByCss('.first').text()
+    expect(await browser.elementByCss('.second').text()).toBe(revalidated)
+
+    expect(next.cliOutput).toContain(
+      `action-dedupe: revalidate action read ${initial} ${initial}`
+    )
   })
 
   it('dedupes private caches across concurrent requests in dev but not in production', async () => {

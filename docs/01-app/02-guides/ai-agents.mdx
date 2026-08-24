@@ -200,7 +200,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes one navigation that isn't instant, or one where you want more of the destination on screen at click time:
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
 
 1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
@@ -212,7 +212,7 @@ It needs a route that already builds with [Cache Components](/docs/app/getting-s
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-Then give the agent this prompt like:
+Then give the agent a prompt like:
 
 ```prompt
 Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
@@ -222,9 +222,9 @@ Make the navigation from /settings to /dashboard instant using the next-cache-co
 
 The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
-1. Audits the existing `<Link prefetch={true}>` calls and preserves the selected legacy-prefetched UI.
+1. Audits the existing `<Link prefetch={true}>` calls with you.
 2. Turns the flag on and resolves the insights it surfaces.
-3. Marks only additional URL-specific UI outside that preserved contract for a later decision.
+3. Marks the routes whose URL data might be worth prefetching later.
 
 It needs [Cache Components](/docs/app/getting-started/caching) already adopted.
 
@@ -238,22 +238,22 @@ Then give the agent this prompt:
 Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
 ```
 
-### `next-partial-prefetching-optimizer` (experimental)
+### `next-partial-prefetching-optimizer`
 
-The experimental [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill adds the UI you want one link to carry into a specific route before the click:
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill tunes what one client navigation prepares before the click:
 
-1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for that link's prefetched result.
-2. Adds only the prefetching needed to pass it.
-3. Commits the passing test with the change.
+1. Agrees on the UI the navigation should prefetch and what should wait for navigation.
+2. Encodes that result in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+3. Adjusts the route's prefetch stages and caching until the test passes, then keeps the test as regression coverage.
 
-It needs [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) already adopted. A runtime prefetch costs a server invocation per link, so the shared App Shell stays the baseline for other links.
+It needs Cache Components and Partial Prefetching already adopted.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
 ```
 
-Then give the agent this prompt:
+Then give the agent a prompt like:
 
 ```prompt
-Make the navigation from the projects list to /projects/123 instant using the next-partial-prefetching-optimizer Skill. The project name and status should be part of the instant UI.
+When navigating to a product, make its title available immediately, but don't prefetch the rest of the product page. Use the next-partial-prefetching-optimizer Skill.
 ```

@@ -88,7 +88,8 @@ swc_core = { workspace = true, features = [
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-lightningcss-napi = { workspace = true }
+swc_ecma_react_compiler = { workspace = true }
+turbopack-lightningcss-napi = { workspace = true }
 lightningcss = { workspace = true }
 swc_plugin_backend_wasmtime = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

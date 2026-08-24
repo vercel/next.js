@@ -22,10 +22,10 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
-  shouldRevalidateStaleCacheEntryInForeground,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
   type WorkUnitStore,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -37,7 +37,7 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
-import { encodeCacheTag } from './encode-cache-tag'
+import { encodeHeaderSafe } from './encode-header-safe'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -59,7 +59,6 @@ function shouldProcessFetchConfigForWorkUnit(
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -147,7 +146,7 @@ export function validateTags(tags: any[], description: string) {
       // Encode so a non-ASCII tag can be safely serialized into the
       // `x-next-cache-tags` HTTP header without tripping Node's header
       // validation. Length is checked on the raw input above.
-      validTags.push(encodeCacheTag(tag))
+      validTags.push(encodeHeaderSafe(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
@@ -467,7 +466,6 @@ export function createPatchedFetcher(
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'validation-client':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -510,7 +508,6 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
@@ -682,7 +679,6 @@ export function createPatchedFetcher(
                 )
               }
               break
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -815,7 +811,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -862,7 +857,6 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
             case 'generate-static-params':
@@ -1015,7 +1009,6 @@ export function createPatchedFetcher(
                       )
                     }
                   // fallthrough
-                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'cache':
                   case 'private-cache':
@@ -1099,7 +1092,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1120,12 +1112,9 @@ export function createPatchedFetcher(
             }
 
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
-              // when stale and is revalidating we wait for fresh data
-              // so the revalidated entry has the updated data
-              if (
-                shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
-                entry.isStale
-              ) {
+              // If the consumer will persist this result in a server cache,
+              // wait for fresh data so it doesn't persist a stale value.
+              if (willConsumerServerCache(workUnitStore) && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
@@ -1226,7 +1215,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1278,7 +1266,6 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'prerender-ppr':
                   case 'generate-static-params':
                     break
                   default:

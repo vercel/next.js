@@ -13,8 +13,8 @@ real route, auth setup, and stable test IDs.
 
 ## Unlocked baseline: do not ship
 
-This proves the exact link reaches the intended URL and both markers exist for
-the test user. It does not prove either marker was prefetched.
+This proves the exact link reaches the intended URL and every selected marker
+exists for the test user. It does not prove any marker was prefetched.
 
 ```ts
 import { test, expect } from '@playwright/test'
@@ -23,6 +23,8 @@ import { logIntoTestAccount, testUrl } from '../helpers'
 
 const SHELL_MARKER = '[data-testid="<destination>-shell"]'
 const TARGET_MARKER = '[data-testid="<destination>-url-content"]'
+// Delete when the contract does not defer a specific region to navigation.
+const NAVIGATION_MARKER = '[data-testid="<destination>-deferred-content"]'
 const EXPECTED_TARGET_TEXT = '<exact expected content for this destination>'
 const EXPECTED_PATHNAME = '/<destination>'
 
@@ -60,6 +62,7 @@ test('dev-only: target eventually renders from the exact link', async ({
   await expect(page.locator(SHELL_MARKER)).toBeVisible({ timeout: 15000 })
   await expect(page.locator(TARGET_MARKER)).toBeVisible({ timeout: 15000 })
   await expect(page.locator(TARGET_MARKER)).toHaveText(EXPECTED_TARGET_TEXT)
+  await expect(page.locator(NAVIGATION_MARKER)).toBeVisible({ timeout: 15000 })
 })
 ```
 
@@ -73,9 +76,10 @@ Run it unlocked, verify representative content, then delete it before the PR.
 
 ## Locked RED/GREEN: ship this
 
-Before optimization, the shell assertion passes and the target assertion is
-RED. After optimization, both are GREEN. Waiting for the URL before asserting
-prevents a selector shared with the source page from passing early.
+Before optimization, the shell assertion passes and at least one stage
+assertion is RED. After optimization, the target is present and explicitly
+navigation-only content is absent under the lock. Waiting for the URL before
+asserting prevents a selector shared with the source page from passing early.
 
 ```ts
 test('prefetches <target> for <source> -> <destination>', async ({ page }) => {
@@ -93,7 +97,10 @@ test('prefetches <target> for <source> -> <destination>', async ({ page }) => {
     await expect(page.locator(SHELL_MARKER)).toBeVisible()
     await expect(page.locator(TARGET_MARKER)).toBeVisible()
     await expect(page.locator(TARGET_MARKER)).toHaveText(EXPECTED_TARGET_TEXT)
+    await expect(page.locator(NAVIGATION_MARKER)).toHaveCount(0)
   })
+
+  await expect(page.locator(NAVIGATION_MARKER)).toBeVisible()
 })
 ```
 
@@ -102,10 +109,10 @@ timeouts, retries, network-idle waits, or a pre-test hover. The lock uses a
 clean set of entries and the clicked link's strategy; warming the same URL from
 another link is not a substitute.
 
-Run this first with the exact link unchanged. If the target already passes
-under lock, stop: the existing policy already commits it. Never add
-`prefetch={false}` as a test control. Compare automatic prefetching with no prop
-against `prefetch={true}`.
+Run this first with the exact link unchanged. If every selected assertion
+already passes under lock, stop: the existing policy already meets the
+contract. Never add `prefetch={false}` as a test control. Compare automatic
+prefetching with no prop against `prefetch={true}`.
 
 For an intent policy, use `trigger.focus()` instead of `hover()` in a separate
 test when keyboard focus is part of the promised behavior. Touch normally falls
@@ -113,7 +120,8 @@ back to the App Shell unless the product defines and budgets another trigger.
 
 ## Temporary RED diagnostic
 
-When verifying the C-gate, temporarily replace the positive target assertion:
+When verifying a missing-prefetch C-gate, temporarily replace the positive
+target assertion:
 
 ```ts
 await expect(page.locator(SHELL_MARKER)).toBeVisible()
@@ -128,8 +136,7 @@ await expect(page.locator(TARGET_MARKER)).toHaveText(EXPECTED_TARGET_TEXT)
 ```
 
 This proves the target exists but is withheld by the prefetched result. Restore
-the positive assertion for the shipped test. If the target is already visible
-under the unchanged link policy, there is no optimization gap to guard.
+the selected contract assertions for the shipped test.
 
 ## Optional initial-load contrast
 

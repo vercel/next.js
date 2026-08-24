@@ -276,8 +276,14 @@ struct TestOptions {
     remove_unused_exports: bool,
     #[serde(default = "default_true")]
     scope_hoisting: bool,
+    #[serde(default = "default_true")]
+    infer_module_side_effects: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
+    #[serde(default = "default_true")]
+    cross_module_constants: bool,
+    #[serde(default)]
+    cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
     #[serde(default)]
@@ -301,6 +307,9 @@ impl Default for TestOptions {
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
             cjs_tree_shaking: false,
+            cjs_scope_hoisting: false,
+            cross_module_constants: true,
+            infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
             side_effect_free_packages: Vec::new(),
@@ -463,8 +472,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
-                infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
+                cjs_scope_hoisting: options.cjs_scope_hoisting,
+                cross_module_constants: options.cross_module_constants,
+                infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },
             environment: Some(env),
