@@ -1144,7 +1144,7 @@ impl FileSystem for DiskFileSystem {
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
                 let body = self.content.as_ref().map(|content| {
-                    || async { self.apply_inner(content).await.map_err(AnyhowWrapper::from) }
+                    async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
                 });
                 self.inner
                     .effect_state_storage
@@ -1347,7 +1347,7 @@ impl FileSystem for DiskFileSystem {
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
                 let body = self.content.as_ref().map(|content| {
-                    || async { self.apply_inner(content).await.map_err(AnyhowWrapper::from) }
+                    async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
                 });
                 self.inner
                     .effect_state_storage
