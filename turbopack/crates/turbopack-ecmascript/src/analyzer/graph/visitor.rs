@@ -845,21 +845,41 @@ fn member_access_parent<'r>(
 }
 
 /// Whether the current expression is the value being consumed by an object destructuring pattern.
-fn is_object_destructuring_source(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+fn is_object_destructuring_source_without_rest(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> bool {
     for node_ref in ast_path.iter().rev() {
-        match node_ref {
-            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
-            AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
-                return matches!(decl.name, Pat::Object(_));
+        let pat = match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
             }
-            AstParentNodeRef::AssignExpr(assign, AssignExprField::Right) => {
-                return matches!(assign.left, AssignTarget::Pat(AssignTargetPat::Object(_)));
-            }
-            AstParentNodeRef::AssignPat(assign, AssignPatField::Right) => {
-                return matches!(*assign.left, Pat::Object(_));
-            }
+            AstParentNodeRef::VarDeclarator(
+                VarDeclarator {
+                    name: Pat::Object(pat),
+                    ..
+                },
+                VarDeclaratorField::Init,
+            ) => pat,
+            AstParentNodeRef::AssignExpr(
+                AssignExpr {
+                    left: AssignTarget::Pat(AssignTargetPat::Object(pat)),
+                    ..
+                },
+                AssignExprField::Right,
+            ) => pat,
+            AstParentNodeRef::AssignPat(
+                AssignPat {
+                    left: box Pat::Object(pat),
+                    ..
+                },
+                AssignPatField::Right,
+            ) => pat,
             _ => return false,
-        }
+        };
+        return pat
+            .props
+            .iter()
+            .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
     }
     false
 }
@@ -1833,7 +1853,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             && obj.sym == "process"
             && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
             && member_access_parent(ast_path).is_none()
-            && !is_object_destructuring_source(ast_path)
+            && !is_object_destructuring_source_without_rest(ast_path)
             && !is_obj_in(ast_path)
         {
             self.data.dynamic_process_env_access = Some(member_expr.span);
