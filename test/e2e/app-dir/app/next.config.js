@@ -9,6 +9,7 @@ module.exports = {
     clientRouterFilterRedirects: true,
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
+    turbopackStaleOutputMaxAge: 0,
     webpackBuildWorker: true,
   },
   // output: 'standalone',
