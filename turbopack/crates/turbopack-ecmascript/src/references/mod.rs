@@ -3473,12 +3473,12 @@ async fn handle_member<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
+    let obj = link_obj.await?;
+    let obj_name = obj.get_definable_name(Some(&state.var_graph));
+
     if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
-
-        let obj = link_obj.await?;
-        let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
         if has_member && let Some((mut name, false)) = obj_name.clone() {
             name.0.push(DefinableNameSegmentRef::Name(prop));
@@ -3499,7 +3499,7 @@ async fn handle_member<'a>(
             return Ok(());
         }
 
-        if let Some((name, false)) = obj_name
+        if let Some((name, false)) = &obj_name
             && matches!(
                 name.0.as_slice(),
                 [
@@ -3510,7 +3510,24 @@ async fn handle_member<'a>(
         {
             // non-inlined env var
             analysis.add_runtime_env_var_reference(RcStr::from(prop));
+            return Ok(());
         }
+    }
+
+    if let Some((name, false)) = obj_name
+        && matches!(
+            name.0.as_slice(),
+            [
+                DefinableNameSegmentRef::Name("process"),
+                DefinableNameSegmentRef::Name("env")
+            ]
+        )
+    {
+        analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
+            state.source,
+            span.lo.to_u32(),
+            span.hi.to_u32(),
+        ));
     }
 
     Ok(())
