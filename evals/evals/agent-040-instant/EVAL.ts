@@ -1,67 +1,52 @@
 /**
- * Instant Navigations
+ * Instant Validation
  *
- * Verifies that the agent enables instant navigation on the product route.
- *
- * The eval harness runs `next build` as a script — with `cacheComponents: true`,
- * the build validates that the caching structure produces an instant static shell.
- * This test checks the agent actually exported `instant` (the build would
- * pass without it, since Suspense alone satisfies the build on a static route).
+ * Verifies that the agent opts the product route into Instant Validation and
+ * produces a meaningful Cache Components shell: the stable title is available
+ * immediately while live inventory streams behind a Suspense boundary.
  */
 
 import { expect, test } from 'vitest'
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
-type SourceFile = { path: string; content: string }
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+}
 
-const IGNORE_DIRS = new Set([
-  '.git',
-  '.next',
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-])
-
-const IGNORE_FILES = new Set(['EVAL.ts', 'PROMPT.md'])
-
-function readSourceFiles(dir: string): SourceFile[] {
+function readRouteSource(dir: string): string[] {
   if (!existsSync(dir)) return []
 
-  const files: SourceFile[] = []
+  const files: string[] = []
   for (const entry of readdirSync(dir)) {
-    if (IGNORE_DIRS.has(entry)) continue
-
     const fullPath = join(dir, entry)
     const stats = statSync(fullPath)
-
     if (stats.isDirectory()) {
-      files.push(...readSourceFiles(fullPath))
-      continue
-    }
-
-    if (IGNORE_FILES.has(entry)) continue
-
-    if (/\.(ts|tsx|js|jsx)$/.test(entry)) {
-      files.push({
-        path: fullPath,
-        content: readFileSync(fullPath, 'utf-8'),
-      })
+      files.push(...readRouteSource(fullPath))
+    } else if (/\.(ts|tsx|js|jsx)$/.test(entry)) {
+      files.push(stripComments(readFileSync(fullPath, 'utf-8')))
     }
   }
-
   return files
 }
 
-const sourceFiles = readSourceFiles(process.cwd())
+const productRouteSource = readRouteSource(
+  join(process.cwd(), 'app/product')
+).join('\n---FILE---\n')
 
-test('instant exported from the product route', () => {
-  const productPage = sourceFiles.find(
-    (f) => f.path.includes('product') && /page\.(tsx?|jsx?)$/.test(f.path)
+test('opts the product route into Instant Validation', () => {
+  expect(productRouteSource).toMatch(
+    /export\s+const\s+instant\s*=\s*(?:true|\{[\s\S]*?level\s*:\s*['"]warning['"][\s\S]*?\})/
   )
+})
 
-  expect(productPage).toBeDefined()
-  expect(productPage!.content).toMatch(/export\s+(const|var|let)\s+instant\b/)
-  expect(productPage!.content).toMatch(/prefetch\s*:\s*['"]static['"]/)
+test('keeps the title in the shell while live inventory streams', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The product route must produce meaningful instant UI with Cache Components, without relying on Partial Prefetching.
+
+The product title "Premium Widget" must render in the product page's static shell, outside the Suspense boundary that contains the live inventory. The inventory count and price must render from an async child beneath that Suspense boundary, so the page returns its title and fallback without waiting for getInventory(). The runtime boundary in getInventory(), such as connection(), must be preserved; do not cache the randomized inventory or replace it with static values.
+
+Accept equivalent component and file organization. Reject solutions where the page awaits inventory before returning, the title is hidden behind the inventory boundary, the live inventory is cached, or Partial Prefetching is used as a substitute for a valid instant shell.`
+  )
 })
