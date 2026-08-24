@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
+    mem::take,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -92,10 +93,12 @@ impl EntryHeader {
 /// # Safety
 ///
 /// `MetaEntry` stores a `FilterRef<'static>` with a transmuted lifetime that actually borrows
-/// from the parent [`MetaFile`]'s mmap. This is safe because entries are only accessed by
-/// reference through `MetaFile` and are never moved out.
+/// from the parent [`MetaFile`]'s mmap. This is safe as long as an entry never outlives that
+/// mmap: entries are only handed out by reference, and the one place that moves them
+/// ([`MetaFile::retain_entries`]) keeps them inside the same `MetaFile`.
 ///
-/// For this reason this type should not implement Clone or Copy.
+/// For this reason this type should not implement Clone or Copy — a copy could outlive the
+/// `MetaFile` that owns the mmap it points into.
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
     sst_data: StaticSortedFileMetaData,
@@ -441,32 +444,34 @@ impl MetaFile {
     }
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
+        debug_assert_eq!(
+            self.entries.len(),
+            self.hash_ranges.len(),
+            "hash_ranges must stay parallel to entries"
+        );
         let old_len = self.entries.len();
-        debug_assert_eq!(
-            self.entries.len(),
-            self.hash_ranges.len(),
-            "hash_ranges must stay parallel to entries"
-        );
-        // `hash_ranges` is indexed by entry position, so it has to be filtered in lockstep or the
-        // two drift apart and a lookup reads the wrong entry.
+        // Filter the two vectors as pairs so they cannot drift apart. Retaining them separately
+        // would leave a lookup indexing one by a position that means something else in the other.
+        //
+        // This rebuilds both vectors rather than compacting in place, which is the more expensive
+        // shape but a fine trade here: the callers are commit and compaction, never a lookup.
+        //
+        // Entries move between slots but never leave this `MetaFile`, so the `FilterRef`s they
+        // hold keep borrowing a mmap that is neither touched nor dropped.
         let obsolete = &mut self.obsolete_entries;
-        let mut keep = Vec::with_capacity(self.entries.len());
-        self.entries.retain(|entry| {
-            let retain = predicate(entry.sst_data.sequence_number);
-            if !retain {
-                obsolete.push(entry.sst_data.sequence_number);
-            }
-            keep.push(retain);
-            retain
-        });
-        let mut keep = keep.into_iter();
-        self.hash_ranges
-            .retain(|_| keep.next().expect("keep flags cover every hash range"));
-        debug_assert_eq!(
-            self.entries.len(),
-            self.hash_ranges.len(),
-            "hash_ranges must stay parallel to entries"
-        );
+        let (entries, hash_ranges) = take(&mut self.entries)
+            .into_iter()
+            .zip(take(&mut self.hash_ranges))
+            .filter(|(entry, _)| {
+                let retain = predicate(entry.sst_data.sequence_number);
+                if !retain {
+                    obsolete.push(entry.sst_data.sequence_number);
+                }
+                retain
+            })
+            .unzip();
+        self.entries = entries;
+        self.hash_ranges = hash_ranges;
         old_len != self.entries.len()
     }
 
