@@ -35,8 +35,8 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import {
-  BLOCKING_ROUTE_NAVIGATION_EXPLANATION,
-  BLOCKING_ROUTE_LINK_EXPLANATION,
+  BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION,
 } from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
@@ -353,9 +353,12 @@ function InstantRuntimeError({
 }
 
 export function getGuidanceVariant(message: string): GuidanceVariant {
-  // Discriminates between `createLinkBodyErrorInNavigation`,
-  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
-  // in-navigation variants).
+  // Discriminates between `createNavigationBodyErrorInNavigation`,
+  // `createLinkBodyErrorInNavigation`, `createRuntimeBodyError`, and
+  // `createDynamicBodyError` (and their in-navigation variants).
+  if (message.includes('encountered `unstable_navigation()`')) {
+    return 'navigation'
+  }
   if (
     message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
@@ -676,7 +679,6 @@ export function Errors({
 
   const {
     isLoading,
-    errorCode,
     errorType,
     activeIdx,
     errorDetails,
@@ -859,31 +861,46 @@ export function Errors({
         )
       }
       break
-    case 'blocking-route':
+    case 'blocking-route': {
+      switch (errorDetails.variant) {
+        case 'runtime':
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered runtime data during a navigation.'
+            : 'Next.js encountered runtime data during prerendering.'
+          break
+        case 'link':
+          errorMessage = 'Next.js encountered URL data outside of Suspense.'
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_navigation()</code> outside of
+              Suspense.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered uncached data during a navigation.'
+            : 'Next.js encountered uncached data during prerendering.'
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'link'
-              ? 'Next.js encountered URL data outside of Suspense.'
-              : errorDetails.variant === 'runtime'
-                ? errorDetails.inNavigation
-                  ? 'Next.js encountered runtime data during a navigation.'
-                  : 'Next.js encountered runtime data during prerendering.'
-                : errorDetails.inNavigation
-                  ? 'Next.js encountered uncached data during a navigation.'
-                  : 'Next.js encountered uncached data during prerendering.'
-          }
+          errorMessage={errorMessage}
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
               variant={errorDetails.variant}
               explanation={
-                errorDetails.variant === 'link'
-                  ? BLOCKING_ROUTE_LINK_EXPLANATION
+                errorDetails.variant === 'link' ||
+                errorDetails.variant === 'navigation'
+                  ? BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION
                   : errorDetails.inNavigation
-                    ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                    ? BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION
                     : undefined
               }
             />
@@ -915,10 +932,10 @@ export function Errors({
           </Suspense>
         </ErrorOverlayLayout>
       )
+    }
     case 'client-hook':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -957,28 +974,46 @@ export function Errors({
           </Suspense>
         </ErrorOverlayLayout>
       )
-    case 'dynamic-metadata':
+    case 'dynamic-metadata': {
+      switch (errorDetails.variant) {
+        case 'runtime':
+          errorMessage = (
+            <>
+              Next.js encountered runtime data in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'link':
+          errorMessage = (
+            <>
+              Next.js encountered URL data in <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_navigation()</code> in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = (
+            <>
+              Next.js encountered uncached data in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'link' ? (
-              <>
-                Next.js encountered URL data in <code>generateMetadata()</code>.
-              </>
-            ) : errorDetails.variant === 'runtime' ? (
-              <>
-                Next.js encountered runtime data in{' '}
-                <code>generateMetadata()</code>.
-              </>
-            ) : (
-              <>
-                Next.js encountered uncached data in{' '}
-                <code>generateMetadata()</code>.
-              </>
-            )
-          }
+          errorMessage={errorMessage}
           headerChildren={
             <InstantHeaderExplanation
               kind="metadata"
@@ -1013,28 +1048,48 @@ export function Errors({
           </Suspense>
         </ErrorOverlayLayout>
       )
-    case 'dynamic-viewport':
+    }
+    case 'dynamic-viewport': {
+      switch (errorDetails.variant) {
+        case 'link':
+          errorMessage = (
+            <>
+              Next.js encountered URL data in <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'runtime':
+          errorMessage = (
+            <>
+              Next.js encountered runtime data in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>unstable_navigation()</code> in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = (
+            <>
+              Next.js encountered uncached data in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
+
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'link' ? (
-              <>
-                Next.js encountered URL data in <code>generateViewport()</code>.
-              </>
-            ) : errorDetails.variant === 'runtime' ? (
-              <>
-                Next.js encountered runtime data in{' '}
-                <code>generateViewport()</code>.
-              </>
-            ) : (
-              <>
-                Next.js encountered uncached data in{' '}
-                <code>generateViewport()</code>.
-              </>
-            )
-          }
+          errorMessage={errorMessage}
           headerChildren={
             <InstantHeaderExplanation
               kind="viewport"
@@ -1069,10 +1124,10 @@ export function Errors({
           </Suspense>
         </ErrorOverlayLayout>
       )
+    }
     case 'sync-io':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1118,7 +1173,6 @@ export function Errors({
     case 'sync-io-client':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1164,7 +1218,6 @@ export function Errors({
     case 'unrendered-segment':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
           headerChildren={
@@ -1199,7 +1252,6 @@ export function Errors({
     case 'link-prefetch-partial':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage="Next.js encountered dynamic data during prefetching."
           headerChildren={
@@ -1242,7 +1294,6 @@ export function Errors({
 
   return (
     <ErrorOverlayLayout
-      errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
       renderTabBar={renderTabBar}

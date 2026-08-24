@@ -624,8 +624,7 @@ function processQueueInMicrotask() {
           // Finished prefetching the route tree. The two-phase (Shell then
           // Speculative) flow only applies to routes that have opted into
           // Partial Prefetching — either globally via the `partialPrefetching`
-          // config or per segment (`prefetch: 'partial'` or
-          // `'unstable_eager'`), all surfaced as the
+          // config or per segment (`prefetch: 'partial'`), both surfaced as the
           // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
           // route skips the Shell phase and goes straight to Speculative.
           //
@@ -907,16 +906,14 @@ function pingRootRouteTree(
               ? FetchStrategy.StaticShell
               : FetchStrategy.PPR
 
+          // In PPF, links may skip speculative prefetching if they only need a shell.
           if (
             staticWalkStrategy === FetchStrategy.PPR &&
-            !subtreeHasSpeculativePrefetch(
+            !needsSpeculativePrefetch(
               task.fetchStrategy,
-              tree.prefetchHints
+              route.tree.prefetchHints
             )
           ) {
-            // Nothing in the target route needs to be speculatively prefetched.
-            // Bail out. (A PPR walk is the Speculative pass; same check as
-            // the per-subtree bail in pingNewPartOfCacheComponentsTree.)
             return PrefetchTaskExitStatus.Done
           }
 
@@ -1172,17 +1169,11 @@ function pingStaticHead(
  * walks prefetch static data and partial entries are acceptable — the
  * dynamic holes are filled by the navigation-time request.
  *
- * Note that on a Partial Prefetching route, non-eager subtrees are still
- * skipped by the Speculative pass of a default (auto) link — eagerness is
- * unaffected by this predicate. But every segment the pass DOES walk (eager
- * segments, and everything on a `prefetch={true}` walk) is held to the
- * runtime-completeness contract. The contract is affordable because most
+ * Note: The runtime contract is affordable because most
  * routes carry the ShouldAttemptStaticPrefetch hint: their segments are
  * prefetched statically and the responses' own sufficiency signal makes a
  * runtime request rare. On a hint-unset route, a walked segment deopts
- * directly to the batched runtime request — which then serves the segment's
- * whole subtree, so navigations into it are complete without a
- * navigation-time request.
+ * directly to the batched runtime request.
  *
  * This is also the gate for the batched runtime request at the end of
  * pingRootRouteTree; requiring runtime completeness does not itself mean a
@@ -1479,15 +1470,11 @@ function pingNewPartOfCacheComponentsTree(
   // runtime data carries it, and the dynamic holes are filled by the
   // navigation-time request.
 
+  // In PPF, links may skip speculative prefetching if they only need a shell.
   if (
-    // Only the Speculative pass skips subtrees with nothing to speculatively
-    // prefetch. (It's also the only pass that walks at FetchStrategy.PPR;
-    // the Shell phase walks at StaticShell and covers the whole new tree.)
     fetchStrategy === FetchStrategy.PPR &&
-    !subtreeHasSpeculativePrefetch(task.fetchStrategy, tree.prefetchHints)
+    !needsSpeculativePrefetch(task.fetchStrategy, route.tree.prefetchHints)
   ) {
-    // Nothing in the new part of the tree needs to be speculatively prefetched.
-    // Bail out.
     return PrefetchTaskExitStatus.Done
   }
 
@@ -2678,24 +2665,21 @@ function doesCurrentSegmentMatchCachedSegment(
 }
 
 /**
- * Decides whether to skip the speculative prefetch of a subtree. Usually we
- * only perform a speculative prefetch if the Link's prefetch prop is set to
- * true. However, we also will do a speculative prefetch if the prefetching
- * mode of the segment is set to "unstable_eager".
+ * Decides whether to speculatively prefetch a subtree. Under Partial
+ * Prefetching we only do this if the Link's prefetch prop is set to true —
+ * otherwise the subtree relies on the shell that the Shell phase prefetches.
  */
-export function subtreeHasSpeculativePrefetch(
-  fetchStrategy: FetchStrategy,
-  prefetchHints: number
+export function needsSpeculativePrefetch(
+  taskfetchStrategy: PrefetchTaskFetchStrategy,
+  rootPrefetchHints: number
 ): boolean {
-  return (
-    // Check if this is a "full" prefetch (<Link prefetch={true}>).
-    fetchStrategy === FetchStrategy.Full ||
-    // Check if something in this subtree is configured to be eagerly
-    // prefetched at the route level. Segments that don't opt into Partial
-    // Prefetching are marked eager, so a route without any Partial Prefetching
-    // still speculatively prefetches everything.
-    (prefetchHints & PrefetchHint.SubtreeHasEagerPrefetch) !== 0
-  )
+  if ((rootPrefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0) {
+    // PPF - only needs a speculative prefetch if this is a `<Link prefetch={true}>`.
+    return taskfetchStrategy === FetchStrategy.Full
+  } else {
+    // non-PPF -- all prefetches are speculative.
+    return true
+  }
 }
 
 // -----------------------------------------------------------------------------

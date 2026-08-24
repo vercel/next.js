@@ -20,7 +20,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkType,
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, WriteLinkContent,
+    WriteLinkTarget, WriteLinkTargetType,
 };
 
 // `read_or_write_all_paths_operation` always writes the sentinel values to files/symlinks. We can
@@ -76,12 +77,12 @@ enum SymlinkMode {
 }
 
 impl SymlinkMode {
-    fn to_link_type(self) -> LinkType {
+    fn is_directory(self) -> bool {
         match self {
-            SymlinkMode::File => LinkType::empty(),
-            SymlinkMode::Directory => LinkType::DIRECTORY,
+            SymlinkMode::File => false,
+            SymlinkMode::Directory => true,
             #[cfg(windows)]
-            SymlinkMode::Junction => LinkType::DIRECTORY,
+            SymlinkMode::Junction => true,
         }
     }
 }
@@ -139,8 +140,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         };
         let track_writes = args.track_writes;
         let symlink_mode = args.symlinks;
-        let symlink_is_directory =
-            symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
+        let symlink_is_directory = symlink_mode.map(SymlinkMode::is_directory);
 
         let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
             invalidations.clone(),
@@ -348,12 +348,14 @@ async fn write_link(
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let link_type = if is_directory {
-        LinkType::DIRECTORY
-    } else {
-        LinkType::empty()
+    let link_content = WriteLinkContent {
+        target: WriteLinkTarget::Relative(target),
+        target_type: if is_directory {
+            WriteLinkTargetType::DirectoryOrJunctionPoint
+        } else {
+            WriteLinkTargetType::FileNonPortable
+        },
     };
-    let link_content = LinkContent::Link { target, link_type };
     let _ = path
         .fs()
         .write_link(path.clone(), link_content.cell())

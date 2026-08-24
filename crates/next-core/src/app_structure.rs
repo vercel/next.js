@@ -899,6 +899,43 @@ impl Issue for DuplicateParallelRouteIssue {
 }
 
 #[turbo_tasks::value]
+struct MissingRootLayoutIssue {
+    app_dir: FileSystemPath,
+    page_path: FileSystemPath,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for MissingRootLayoutIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.page_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        let page_path = self
+            .app_dir
+            .get_path_to(&self.page_path)
+            .context("page should be within the app directory")?;
+
+        Ok(StyledString::Text(
+            format!(
+                "{page_path} doesn't have a root layout. To fix this error, make sure every page \
+                 has a root layout."
+            )
+            .into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value]
 struct MissingDefaultParallelRouteIssue {
     app_dir: FileSystemPath,
     app_page: AppPage,
@@ -1591,7 +1628,16 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         root_params
     };
 
-    if modules.page.is_some() {
+    if let Some(page_path) = &modules.page {
+        if root_layouts.await?.is_empty() {
+            MissingRootLayoutIssue {
+                app_dir: app_dir.clone(),
+                page_path: page_path.clone(),
+            }
+            .resolved_cell()
+            .emit();
+        }
+
         let app_path = AppPath::from(app_page.clone());
 
         let loader_tree = *directory_tree_to_loader_tree(

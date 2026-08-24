@@ -7,9 +7,13 @@ use std::{
 };
 
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::message_queue::{CompilationEvent, Severity};
 
-use crate::{DiskWatcherConfig, watcher::fs_api::DiskFileSystemWatcherApi};
+use crate::{
+    DiskWatcherConfig,
+    watcher::{BatchedInvalidations, fs_api::DiskFileSystemWatcherApi},
+};
 
 /// Decides how long a batch of watcher events stays open, and emits a repeated
 /// [`FilesystemSettlingEvent`] for as long as it does.
@@ -45,7 +49,9 @@ impl BatchSchedule {
         let now = Instant::now();
         let deadline = now.checked_add(delay).unwrap_or_else(far_future);
         match &mut self.pending {
-            Some(pending) => pending.deadline = pending.deadline.max(deadline),
+            Some(pending) => {
+                pending.deadline = pending.deadline.max(deadline);
+            }
             None => {
                 self.pending = Some(PendingBatch {
                     started: now,
@@ -68,6 +74,7 @@ impl BatchSchedule {
         &mut self,
         rx: &Receiver<notify::Result<notify::Event>>,
         fs: &FsApi,
+        batch: &BatchedInvalidations,
     ) -> Result<notify::Result<notify::Event>, RecvTimeoutError> {
         let max_event_delay = self.settling_event_max_delay;
         loop {
@@ -78,7 +85,7 @@ impl BatchSchedule {
 
             let now = Instant::now();
             if now >= pending.settling_event_next_at {
-                pending.emit_settling_event(fs, now, max_event_delay);
+                pending.emit_settling_event(fs, batch, now, max_event_delay);
             }
 
             let timeout = pending
@@ -112,6 +119,7 @@ impl PendingBatch {
     fn emit_settling_event<FsApi: DiskFileSystemWatcherApi>(
         &mut self,
         fs: &FsApi,
+        batch: &BatchedInvalidations,
         now: Instant,
         max_event_delay: Duration,
     ) {
@@ -119,6 +127,9 @@ impl PendingBatch {
         if let Some(turbo_tasks) = fs.turbo_tasks() {
             turbo_tasks.send_compilation_event(Arc::new(FilesystemSettlingEvent {
                 elapsed_secs: (now - self.started).as_secs_f64(),
+                last_modified_path: batch
+                    .last_updated_path()
+                    .map(|path| RcStr::from(format!("{path:?}"))),
             }));
         }
         self.event_interval = self.event_interval.saturating_mul(2).min(max_event_delay);
@@ -137,6 +148,8 @@ impl PendingBatch {
 pub struct FilesystemSettlingEvent {
     /// How long the current batch has been held open, in seconds.
     pub elapsed_secs: f64,
+    /// The most recently changed path in the current batch.
+    pub last_modified_path: Option<RcStr>,
 }
 
 impl CompilationEvent for FilesystemSettlingEvent {
@@ -149,9 +162,14 @@ impl CompilationEvent for FilesystemSettlingEvent {
     }
 
     fn message(&self) -> String {
+        let last_modified = self
+            .last_modified_path
+            .as_deref()
+            .map(|path| format!("; last modified: {path}"))
+            .unwrap_or_default();
         format!(
             "Turbopack has seen frequent file updates and is waiting for the filesystem to settle \
-             ({:.1}s elapsed so far).",
+             ({:.1}s elapsed so far{last_modified}).",
             self.elapsed_secs
         )
     }

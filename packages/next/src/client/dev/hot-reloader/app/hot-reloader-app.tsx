@@ -543,7 +543,6 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
       createFromReadableStream<{
         errors: Error[]
-        errorCodes: Map<Error, string>
       }>(
         new ReadableStream({
           start(controller) {
@@ -553,16 +552,8 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        ({ errors, errorCodes }) => {
+        ({ errors }) => {
           for (const error of errors) {
-            const code = errorCodes.get(error)
-            if (code !== undefined) {
-              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
-                value: code,
-                enumerable: false,
-                configurable: true,
-              })
-            }
             // These errors originated on the server and were already logged
             // there. Mark them so the browser-to-terminal log forwarding
             // doesn't replay them back to the CLI as duplicates.

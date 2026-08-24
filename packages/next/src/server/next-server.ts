@@ -11,7 +11,11 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest, RoutesManifest } from '../build'
+import type {
+  PrerenderManifest,
+  PreviewPropsManifest,
+  RoutesManifest,
+} from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type {
   NextParsedUrlQuery,
@@ -49,6 +53,7 @@ import {
   NEXT_FONT_MANIFEST,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -459,7 +464,8 @@ export default class NextNodeServer extends BaseServer<
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      getPrerenderManifest: () => this.getPrerenderManifest(),
+      previewProps: this.getPreviewProps(),
+      prerenderManifest: this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
   }
@@ -2000,17 +2006,34 @@ export default class NextNodeServer extends BaseServer<
     return result.finished
   }
 
-  private _cachedPreviewManifest: DeepReadonly<PrerenderManifest> | undefined
+  private _cachedPrerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   protected getPrerenderManifest(): DeepReadonly<PrerenderManifest> {
-    if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
+    if (this._cachedPrerenderManifest) {
+      return this._cachedPrerenderManifest
     }
 
-    this._cachedPreviewManifest = loadManifest<PrerenderManifest>(
+    this._cachedPrerenderManifest = loadManifest<PrerenderManifest>(
       join(/* turbopackIgnore: true */ this.distDir, PRERENDER_MANIFEST)
     )
 
-    return this._cachedPreviewManifest
+    return this._cachedPrerenderManifest
+  }
+
+  private _cachedPreviewPropsManifest: PreviewPropsManifest | undefined
+  protected getPreviewProps(): PreviewPropsManifest {
+    if (this._cachedPreviewPropsManifest) {
+      return this._cachedPreviewPropsManifest
+    }
+
+    this._cachedPreviewPropsManifest = loadManifest(
+      join(
+        /* turbopackIgnore: true */ this.distDir,
+        'server',
+        PREVIEW_PROPS_MANIFEST
+      )
+    ) as PreviewPropsManifest
+
+    return this._cachedPreviewPropsManifest
   }
 
   private _cachedPrefetchHints: Record<string, PrefetchHints> | undefined
