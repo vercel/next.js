@@ -450,7 +450,7 @@ struct AnalysisState<'a> {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     origin_path: FileSystemPath,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
-    free_var_references_members: ResolvedVc<FreeVarReferencesMembers>,
+    free_var_references_members: Vc<FreeVarReferencesMembers>,
     compile_time_info_ref: ReadRef<CompileTimeInfo>,
     arena: &'a ThreadLocal<Bump>,
     var_graph: VarGraph<'a>,
@@ -848,11 +848,7 @@ async fn analyze_ecmascript_module_internal(
             origin,
             origin_path: origin_path.clone(),
             compile_time_info,
-            free_var_references_members: compile_time_info_ref
-                .free_var_references
-                .members()
-                .to_resolved()
-                .await?,
+            free_var_references_members: compile_time_info_ref.free_var_references.members(),
             compile_time_info_ref,
             var_graph,
             allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
