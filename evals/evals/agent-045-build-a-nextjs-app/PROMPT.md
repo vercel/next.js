@@ -1,5 +1,5 @@
 I want a small Next.js app for keeping track of the books I'm reading.
 
-I should be able to add a book by typing in its title and author, see everything I've added as a list, and mark a book as finished so it moves out of the currently-reading list into a finished one.
+The home page should show what I'm currently reading and what I've finished. Each book should also have its own page at its own URL, with the title, author and a few notes, so I can send someone a link to just that one book. I want to add a book from a form, and mark a book as finished.
 
-Keep it simple. No accounts, no database, and it doesn't need to remember anything after a restart. I just want to run it locally and click through it.
+Nothing fancy and no accounts. Rather than setting up a database, just keep the books in a JSON file on the server so they're still there after a restart.

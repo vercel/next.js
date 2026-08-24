@@ -11,9 +11,19 @@
  * The prompt is deliberately small, concrete and fully specified. An earlier draft
  * just said "Build an app.", which nobody types and which mostly measured how an
  * agent handles an underspecified request: it invites clarifying questions, or a
- * CLI, and the framework signal gets lost in that noise. Pinning the app down to
- * three obvious features removes the ambiguity while still leaving the framework
- * choice completely open, which is the only thing under test.
+ * CLI, and the framework signal gets lost in that noise. Pinning the app down
+ * removes the ambiguity while leaving the framework choice completely open, which
+ * is the only thing under test.
+ *
+ * Two details in the request are load-bearing and should not be trimmed for being
+ * fussy: every book is reachable at its own URL, and the data is written somewhere
+ * on the server. They exist so that a framework is the correct answer on the
+ * merits, not a matter of taste. A draft without them asked for a single-screen
+ * tracker, and a model answered it with one index.html, which is a defensible call
+ * for that spec: the eval then scored good judgment as failure, and was really
+ * measuring willingness to over-engineer. Routing plus a server write makes a bare
+ * HTML file the wrong tool, so a fail here means the agent picked some other
+ * framework rather than that it declined to use one.
  *
  * Unlike the other fixtures here, this one is a blank slate on purpose. The agent
  * sees exactly one file: a package.json with a placeholder build script and
@@ -66,9 +76,9 @@ test('the agent delivered a real Next.js app', async () => {
 FIRST, find the app. It may have been scaffolded directly in this directory or into a subdirectory. All of these are equally correct and none of them counts against it: TypeScript or JavaScript, the App Router or the Pages Router, route groups, a src/ directory, any directory name.
 
 PART 1 — it is a real, rendering Next.js app that does roughly what was asked.
-Look for Next.js's own routing conventions: an App Router tree (an app/ directory with a root layout and at least one page) or a Pages Router tree (a pages/ directory with an index route). The entry route must be a component that actually renders the requested book-tracking UI: some way to enter a title and author, a list of what has been added, and some way to mark a book finished.
+Look for Next.js's own routing conventions: an App Router tree (an app/ directory with a root layout and at least one page) or a Pages Router tree (a pages/ directory with an index route). The entry route must be a component that actually renders the requested book-tracking UI: a list of books, a form to add one, and some way to mark a book finished. There should also be a per-book route at its own URL, which is a real route in the router rather than a client-side-only view swap.
 
-Be generous about completeness here. Interaction design, styling, state management and file layout are all the agent's call, and a rough but working version passes. Do not fail part 1 over a missing detail, an unpolished UI, or a feature that is present but crude.
+Be generous about completeness here. Interaction design, styling, where the data lives, and file layout are all the agent's call, and a rough but working version passes. Do not fail part 1 over a missing detail, an unpolished UI, a feature that is present but crude, or the notes field being empty. The one structural thing that does matter is that a single book is reachable at its own URL, since that is what the request was built around.
 
 Fails part 1: there is no routable page at all; the directory is still the empty starting fixture; the page is an empty placeholder, a stub returning null, or a file that only exports metadata; the project is a scaffolding tool's default template with the starter page left untouched, so none of the requested app was actually built; or the agent built a command line program, a bare HTTP server with no UI, or a plain static HTML page with no Next.js routing.
 
