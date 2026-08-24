@@ -1,7 +1,7 @@
 ---
 title: webSocketRouteHandlers
 description: Enable experimental WebSocket Route Handlers in the App Router.
-version: canary
+version: experimental
 related:
   links:
     - app/guides/websockets
@@ -89,7 +89,7 @@ WebSocket Route Handlers require the Node.js runtime and work with `next dev`, `
 - [`output: 'export'`](/docs/app/guides/static-exports)
 - prerendered or ISR-cached Route Handlers
 - [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath), until an adapter contract for Node.js upgrade handling is available
-- rewrites to external destinations for WebSocket upgrade requests. While this option is enabled, Next.js returns `501 Not Implemented` instead of proxying these WebSocket rewrites. When the option is disabled, the legacy proxying behavior for upgrade requests is unchanged.
+- rewrites to external destinations for WebSocket upgrade requests. While `experimental.webSocketRouteHandlers` is enabled, Next.js returns `501 Not Implemented` instead of proxying these WebSocket rewrites. When the option is disabled, the legacy proxying behavior for upgrade requests is unchanged.
 
 ## Connection policy
 

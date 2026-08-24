@@ -31,8 +31,6 @@ import {
  * bounded because the pending-upgrade tracker owns the raw socket until the
  * registry accepts the peer.
  */
-=======
->>>>>>> 66863d63dd (Add the shared WebSocket route invalidation policy)
 
 export type WebSocketRegistryConnection = WebSocketTransportConnection
 
@@ -56,6 +54,7 @@ const ABANDONED_TASKS_SYMBOL = Symbol.for(
 const TASK_ADMISSION_CLOSED_SCOPES_SYMBOL = Symbol.for(
   'next.websocket.connection-registry-task-admission-closed-scopes'
 )
+
 type WebSocketRouteState = {
   readonly peers: Set<WebSocketRegistryConnection>
   leases: number

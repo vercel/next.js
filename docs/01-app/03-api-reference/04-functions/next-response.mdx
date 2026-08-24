@@ -158,6 +158,8 @@ The `peer` passed to every hook represents one connection:
 | `close(code?, reason?)` | Starts the WebSocket closing handshake.                             |
 | `terminate()`           | Abruptly destroys the connection.                                   |
 
+`request.signal` is an `AbortSignal` that aborts when the connection closes. Because hooks run outside the original request's scope, use it as the cancellation primitive for work that should stop when the connection ends.
+
 `send()` accepts strings, `ArrayBuffer`, `SharedArrayBuffer`, and `ArrayBufferView` values; other values throw a `TypeError`, so serialize structured values explicitly, for example with `peer.send(JSON.stringify(value))`. After a successful send, `send()` returns the updated `bufferedAmount`. If the connection is not open, or a [connection limit](#fixed-connection-limits) rejects the message and starts a close, `send()` returns the last observed `bufferedAmount` without throwing.
 
 For `close()`, the code must be an integer from `1000` through `1014` (excluding `1004`, `1005`, and `1006`), or from `3000` through `4999`. The optional reason is limited to 123 UTF-8 bytes. Invalid arguments throw synchronously, including after closing has started. A `reason` without a `code` is ignored.
@@ -200,7 +202,7 @@ Requests without an `Origin` header are accepted so non-browser WebSocket client
 
 ### Runtime and lifecycle
 
-`NextResponse.upgrade()` is available only in dynamic App Route Handlers using the Node.js runtime, on [deployments that keep the process and raw socket alive](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers#supported-deployments). It is not supported in Proxy, the Edge Runtime, static exports, or prerendered and ISR-cached routes. An upgrade targeting a prerendered or ISR-cacheable route returns `404 Not Found` before the handler runs; Draft Mode bypasses this restriction and runs the handler dynamically.
+`NextResponse.upgrade()` is available only in dynamic App Route Handlers using the Node.js runtime, on [deployments that keep the process and raw socket alive](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers#supported-deployments). It is not supported in Proxy, the Edge Runtime, static exports, or prerendered and ISR-cached routes. Returning `NextResponse.upgrade()` from `proxy.ts` throws an error at runtime instead of being silently ignored. An upgrade targeting a prerendered or ISR-cacheable route returns `404 Not Found` before the handler runs; Draft Mode bypasses this restriction and runs the handler dynamically.
 
 Connection hooks run after the HTTP request that accepted the connection has completed:
 

@@ -100,6 +100,56 @@ export async function GET() {
 
 The handler runs once per handshake. It can return an ordinary `Response`, such as a `401`, to decline the connection. After an upgrade, Next.js runs the `open`, `message`, `close`, and `error` hooks serially for that connection. See the [`NextResponse.upgrade()` reference](/docs/app/api-reference/functions/next-response#upgrade) for hook semantics, subprotocol selection, peer methods, message conversions, connection limits, and close codes.
 
+## Parse JSON messages
+
+If an `open` or `message` hook throws, Next.js closes the connection with code `1011`, which signals a server failure to the client. Protocol-level client errors, such as malformed JSON, should close with `1008` instead. Parse the message inside a `try`/`catch` in the hook, and validate the shape of the parsed data before using it:
+
+```ts filename="app/ws/route.ts" highlight={8-13} switcher
+import { NextResponse, type WebSocketHooks } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export function GET() {
+  const hooks: WebSocketHooks = {
+    message(peer, message) {
+      let data: unknown
+      try {
+        data = message.json()
+      } catch {
+        peer.close(1008, 'Invalid JSON.')
+        return
+      }
+      // Validate the shape of `data` before using it.
+    },
+  }
+
+  return NextResponse.upgrade(hooks)
+}
+```
+
+```js filename="app/ws/route.js" highlight={8-13} switcher
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export function GET() {
+  const hooks = {
+    message(peer, message) {
+      let data
+      try {
+        data = message.json()
+      } catch {
+        peer.close(1008, 'Invalid JSON.')
+        return
+      }
+      // Validate the shape of `data` before using it.
+    },
+  }
+
+  return NextResponse.upgrade(hooks)
+}
+```
+
 ## Connect from a Client Component
 
 Derive `ws:` or `wss:` from the page URL so development and HTTPS deployments use the correct scheme. This example closes the socket when the component unmounts and retries transient closes, including development close code `1012`, with bounded backoff:
