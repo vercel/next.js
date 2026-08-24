@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
+import { METHODS } from 'node:http'
 import { Readable } from 'stream'
 
 import {
@@ -18,6 +19,17 @@ describe('app-custom-routes', () => {
       '@types/node-fetch': '2.6.1',
     },
   })
+
+  // Node.js added QUERY to its HTTP parser in v20.19.2, but that release leaves
+  // IncomingMessage.method undefined. Keep testing the minimum supported
+  // Node.js version while exercising QUERY when the parser fully supports it.
+  // Deployed Node.js routes support QUERY independently of the Node.js version
+  // running this test.
+  const queryRequestDescribe =
+    (METHODS.includes('QUERY') && process.versions.node !== '20.19.2') ||
+    isNextDeploy
+      ? describe
+      : describe.skip
 
   describe('works with api prefix correctly', () => {
     it('statically generates correctly with no dynamic usage', async () => {
@@ -547,13 +559,15 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toBeEmpty()
     })
 
-    it('recognizes QUERY as a valid but unimplemented method', async () => {
-      const res = await next.fetch(basePath + '/status/405', {
-        method: 'QUERY',
-      })
+    queryRequestDescribe('QUERY requests', () => {
+      it('recognizes QUERY as a valid but unimplemented method', async () => {
+        const res = await next.fetch(basePath + '/status/405', {
+          method: 'QUERY',
+        })
 
-      expect(res.status).toEqual(405)
-      expect(await res.text()).toBeEmpty()
+        expect(res.status).toEqual(405)
+        expect(await res.text()).toBeEmpty()
+      })
     })
 
     it('responds with 500 (Internal Server Error) when the handler throws an error', async () => {
@@ -608,9 +622,12 @@ describe('app-custom-routes', () => {
   })
 
   describe('QUERY method', () => {
-    it.each(['/methods/query', '/methods/query/edge'])(
-      'handles request content in %s',
-      async (path) => {
+    queryRequestDescribe('requests', () => {
+      it.each(
+        isNextDeploy
+          ? ['/methods/query']
+          : ['/methods/query', '/methods/query/edge']
+      )('handles request content in %s', async (path) => {
         const res = await next.fetch(basePath + path, {
           method: 'QUERY',
           headers: { 'content-type': 'application/json' },
@@ -623,8 +640,8 @@ describe('app-custom-routes', () => {
           contentType: 'application/json',
           body: { filter: 'active' },
         })
-      }
-    )
+      })
+    })
 
     it.each(['/methods/query', '/methods/query/edge'])(
       'includes QUERY in the Allow header for %s',
