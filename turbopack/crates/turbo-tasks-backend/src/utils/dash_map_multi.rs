@@ -2,23 +2,25 @@ use std::{
     hash::{BuildHasher, Hash},
     marker::PhantomData,
     ops::{Deref, DerefMut},
+    ptr::NonNull,
     sync::Arc,
 };
 
-use dashmap::{DashMap, RwLockWriteGuard, SharedValue};
-use hashbrown::raw::{Bucket, RawTable};
+use dashmap::{DashMap, RawRwLock};
+use hashbrown::HashTable;
+use parking_lot::lock_api::RwLockWriteGuard;
 
-type RwLockWriteTableGuard<'a, K, V> = RwLockWriteGuard<'a, RawTable<(K, SharedValue<V>)>>;
+type RwLockWriteTableGuard<'a, K, V> = RwLockWriteGuard<'a, RawRwLock, HashTable<(K, V)>>;
 
 pub enum RefMut<'a, K, V> {
     Base(dashmap::mapref::one::RefMut<'a, K, V>),
     Simple {
         _guard: RwLockWriteTableGuard<'a, K, V>,
-        bucket: Bucket<(K, SharedValue<V>)>,
+        entry: NonNull<(K, V)>,
     },
     Shared {
         _guard: Arc<RwLockWriteTableGuard<'a, K, V>>,
-        bucket: Bucket<(K, SharedValue<V>)>,
+        entry: NonNull<(K, V)>,
         // Ensures that RefMut is !Send, preventing holding RefMut across .await points in async
         // code, which can cause deadlocks. See safety comment on `unsafe impl Sync for RefMut`
         // below.
@@ -34,13 +36,13 @@ pub enum RefMut<'a, K, V> {
 // while every other tokio worker piles up trying to take the same lock — leaving no thread free
 // to poll the parked future. Marking the type `!Send` makes the borrow checker reject those call
 // sites at compile time.
-// SAFETY (Sync): `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
+// SAFETY (Sync): `RefMut` contains a non-null pointer into a `DashMap` shard's `HashTable`.
 // Sharing `&RefMut` is safe because:
-// - `Simple` variant: The `Bucket` is accessed under an exclusive `RwLockWriteGuard` on a single
+// - `Simple` variant: The entry is accessed under an exclusive `RwLockWriteGuard` on a single
 //   shard. The guard provides exclusive access to all data in that shard.
-// - `Shared` variant: The `Bucket` is accessed under an `Arc<RwLockWriteGuard>`. The
-//   `get_multiple_mut` function asserts that bucket pointers do not alias, so each `RefMut` has
-//   exclusive access to its bucket even when sharing a guard.
+// - `Shared` variant: The entry is accessed under an `Arc<RwLockWriteGuard>`. The
+//   `get_multiple_mut` function obtains both references through `HashTable::get_many_mut`, which
+//   validates that they do not alias.
 // - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
@@ -60,14 +62,10 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
     pub fn pair(&self) -> (&K, &V) {
         match self {
             RefMut::Base(r) => r.pair(),
-            RefMut::Simple { bucket, .. } | RefMut::Shared { bucket, .. } => {
-                // SAFETY:
-                // - The bucket is still valid, as we're holding a write guard on the shard
-                // - These bucket pointers are convertible to references
-                //
-                // https://doc.rust-lang.org/std/ptr/index.html#pointer-to-reference-conversion
-                let entry = unsafe { bucket.as_ref() };
-                (&entry.0, entry.1.get())
+            RefMut::Simple { entry, .. } | RefMut::Shared { entry, .. } => {
+                // SAFETY: The entry remains valid while the shard write guard is held.
+                let entry = unsafe { entry.as_ref() };
+                (&entry.0, &entry.1)
             }
         }
     }
@@ -75,13 +73,13 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
     pub fn pair_mut(&mut self) -> (&K, &mut V) {
         match self {
             RefMut::Base(r) => r.pair_mut(),
-            RefMut::Simple { bucket, .. } | RefMut::Shared { bucket, .. } => {
+            RefMut::Simple { entry, .. } | RefMut::Shared { entry, .. } => {
                 // SAFETY: Same as above in `pair`, plus aliasing is prevented via:
                 // 1. The lifetime of `&mut self`.
-                // 2. `Simple` values come from separate shards (no aliasing possible)
-                // 3. `Shared` values are asserted in `get_multiple_mut` to have unique pointers
-                let entry = unsafe { bucket.as_mut() };
-                (&entry.0, entry.1.get_mut())
+                // 2. `Simple` values come from separate shards (no aliasing possible).
+                // 3. `Shared` values come from `HashTable::get_many_mut`.
+                let entry = unsafe { entry.as_mut() };
+                (&entry.0, &mut entry.1)
             }
         }
     }
@@ -135,49 +133,45 @@ where
 
     let shards = map.shards();
     if s1 == s2 {
-        let mut guard = shards[s1].write();
-
-        // we need to call `find_or_find_insert_slot` to avoid overwriting existing entries, but we
-        // can't use the returned bucket until after we get `bucket2` (below)
-        let _ = guard
-            .find_or_find_insert_slot(h1, eq1, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
-                // mutation of the table has occurred since that call.
-                guard.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
-            });
-
-        let bucket2 = guard
-            .find_or_find_insert_slot(h2, eq2, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: See previous call above
-                guard.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
-            });
-
-        // Getting `bucket2` might invalidate the bucket pointer of the first entry, *even if no
-        // insert happens* as `RawTable::find_or_find_insert_slot` will *sometimes* resize the
-        // table, as it unconditionally reserves space for a potential insertion.
-        let bucket1 = guard.find(h1, eq1).expect(
-            "failed to find bucket of previously inserted item, is the hash or eq implementation \
-             incorrect?",
-        );
-
-        // this assertion is needed for memory safety reasons
+        // Equal keys would resolve to a single entry below. `get_many_mut` panics in that case
+        // (which is what keeps this memory-safe), but check up front so the caller gets an error
+        // message that names the actual problem.
         assert!(
-            !std::ptr::eq(bucket1.as_ptr(), bucket2.as_ptr()),
+            key1 != key2,
             "`get_multiple_mut` was called with equal keys, which breaks mutable referencing rules"
         );
+
+        let mut guard = shards[s1].write();
+
+        if guard.find(h1, eq1).is_none() {
+            guard.insert_unique(h1, (key1.clone(), insert_with()), hash_entry);
+        }
+        if guard.find(h2, eq2).is_none() {
+            guard.insert_unique(h2, (key2.clone(), insert_with()), hash_entry);
+        }
+
+        // `get_many_mut` validates that the keys resolve to distinct entries before creating the
+        // mutable references.
+        let [entry1, entry2] =
+            guard.get_many_mut(
+                [h1, h2],
+                |index, entry| {
+                    if index == 0 { eq1(entry) } else { eq2(entry) }
+                },
+            );
+        let entry1 = NonNull::from(entry1.expect("the first entry was inserted above"));
+        let entry2 = NonNull::from(entry2.expect("the second entry was inserted above"));
 
         let guard = Arc::new(guard);
         (
             RefMut::Shared {
                 _guard: guard.clone(),
-                bucket: bucket1,
+                entry: entry1,
                 phantom: PhantomData,
             },
             RefMut::Shared {
                 _guard: guard,
-                bucket: bucket2,
+                entry: entry2,
                 phantom: PhantomData,
             },
         )
@@ -197,27 +191,31 @@ where
             }
         };
 
-        let bucket1 = guard1
-            .find_or_find_insert_slot(h1, eq1, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: See first insert_in_slot call
-                guard1.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
-            });
-        let bucket2 = guard2
-            .find_or_find_insert_slot(h2, eq2, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: See first insert_in_slot call
-                guard2.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
-            });
+        if guard1.find(h1, eq1).is_none() {
+            guard1.insert_unique(h1, (key1.clone(), insert_with()), hash_entry);
+        }
+        if guard2.find(h2, eq2).is_none() {
+            guard2.insert_unique(h2, (key2.clone(), insert_with()), hash_entry);
+        }
+        let entry1 = NonNull::from(
+            guard1
+                .find_mut(h1, eq1)
+                .expect("the first entry was inserted"),
+        );
+        let entry2 = NonNull::from(
+            guard2
+                .find_mut(h2, eq2)
+                .expect("the second entry was inserted"),
+        );
 
         (
             RefMut::Simple {
                 _guard: guard1,
-                bucket: bucket1,
+                entry: entry1,
             },
             RefMut::Simple {
                 _guard: guard2,
-                bucket: bucket2,
+                entry: entry2,
             },
         )
     }

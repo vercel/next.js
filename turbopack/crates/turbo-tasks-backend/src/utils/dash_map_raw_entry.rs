@@ -1,13 +1,19 @@
-use std::hash::{BuildHasher, Hash};
+use std::{
+    hash::{BuildHasher, Hash},
+    ptr::NonNull,
+};
 
 use crossbeam_utils::CachePadded;
-use dashmap::{DashMap, RwLock, RwLockWriteGuard, SharedValue};
-use hashbrown::raw::{Bucket, InsertSlot, RawTable};
+use dashmap::{DashMap, RawRwLock, RwLock};
+use hashbrown::HashTable;
+use parking_lot::lock_api::RwLockWriteGuard;
 
 /// The type of a single shard inside a [`DashMap`].
 ///
-/// `dashmap::HashMap<K, V>` is a private alias for `RawTable<(K, SharedValue<V>)>`.
-pub type Shard<K, V> = CachePadded<RwLock<RawTable<(K, SharedValue<V>)>>>;
+/// `dashmap::HashMap<K, V>` is a private alias for `HashTable<(K, V)>`.
+pub type Shard<K, V> = CachePadded<RwLock<HashTable<(K, V)>>>;
+
+type ShardWriteGuard<'a, K, V> = RwLockWriteGuard<'a, RawRwLock, HashTable<(K, V)>>;
 
 /// Returns a reference to the shard that owns the given pre-computed hash,
 /// without locking anything.
@@ -31,10 +37,7 @@ pub fn raw_get_in_shard<K: Eq + Hash, V: Copy>(
     eq: impl Fn(&K) -> bool,
 ) -> Option<V> {
     let guard = shard.read();
-    // Safety: We have a read lock on the shard.
-    guard
-        .find(hash, |(k, _v)| eq(k))
-        .map(|bucket| *unsafe { bucket.as_ref() }.1.get())
+    guard.find(hash, |(k, _v)| eq(k)).map(|(_k, v)| *v)
 }
 
 /// Write-lock entry lookup using a pre-located shard reference and
@@ -47,20 +50,19 @@ pub fn raw_entry_in_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
     map_hasher: &S,
     hash: u64,
     eq: impl Fn(&K) -> bool,
-) -> RawEntry<'l, K, V> {
-    let mut guard = shard.write();
-    let result =
-        guard.find_or_find_insert_slot(hash, |(k, _v)| eq(k), |(k, _v)| map_hasher.hash_one(k));
-    match result {
-        Ok(bucket) => RawEntry::Occupied(OccupiedEntry {
-            bucket,
-            shard: guard,
-        }),
-        Err(insert_slot) => RawEntry::Vacant(VacantEntry {
+) -> RawEntry<'l, K, V, S> {
+    let mut shard = shard.write();
+    if let Some(entry) = shard.find_mut(hash, |(k, _v)| eq(k)) {
+        RawEntry::Occupied(OccupiedEntry {
+            entry: NonNull::from(entry),
+            shard,
+        })
+    } else {
+        RawEntry::Vacant(VacantEntry {
             hash,
-            insert_slot,
-            shard: guard,
-        }),
+            map_hasher: map_hasher.clone(),
+            shard,
+        })
     }
 }
 
@@ -95,49 +97,44 @@ pub fn try_lock_and_remove<
     let Some(mut shard) = map.shards()[shard_idx].try_write() else {
         return TryLockAndRemove::WouldBlock;
     };
-    // SAFETY: we hold the write lock for the duration of the find/erase.
-    match shard.find(hash, |(k, _v)| k.as_ref() == key) {
-        Some(bucket) => {
-            unsafe { shard.erase(bucket) };
+    match shard.find_entry(hash, |(k, _v)| k.as_ref() == key) {
+        Ok(entry) => {
+            entry.remove();
             TryLockAndRemove::Removed
         }
-        None => TryLockAndRemove::NotFound,
+        Err(_) => TryLockAndRemove::NotFound,
     }
 }
 
-pub enum RawEntry<'l, K, V> {
+pub enum RawEntry<'l, K, V, S> {
     Occupied(OccupiedEntry<'l, K, V>),
-    Vacant(VacantEntry<'l, K, V>),
+    Vacant(VacantEntry<'l, K, V, S>),
 }
 
 pub struct OccupiedEntry<'l, K, V> {
-    bucket: Bucket<(K, SharedValue<V>)>,
+    entry: NonNull<(K, V)>,
     #[allow(dead_code, reason = "kept to ensure the lock lives long enough")]
-    shard: RwLockWriteGuard<'l, RawTable<(K, SharedValue<V>)>>,
+    shard: ShardWriteGuard<'l, K, V>,
 }
 
-impl<'l, K, V> OccupiedEntry<'l, K, V> {
+impl<K, V> OccupiedEntry<'_, K, V> {
     pub fn get(&self) -> &V {
-        // Safety: We have a write lock on the shard, so no other references to the value can
-        // exist.
-        unsafe { self.bucket.as_ref().1.get() }
+        // SAFETY: The entry remains in the table while we hold the shard's write lock.
+        &unsafe { self.entry.as_ref() }.1
     }
 }
 
-pub struct VacantEntry<'l, K, V> {
+pub struct VacantEntry<'l, K, V, S> {
     hash: u64,
-    insert_slot: InsertSlot,
-    shard: RwLockWriteGuard<'l, RawTable<(K, SharedValue<V>)>>,
+    map_hasher: S,
+    shard: ShardWriteGuard<'l, K, V>,
 }
 
-impl<'l, K, V> VacantEntry<'l, K, V> {
+impl<K: Hash, V, S: BuildHasher> VacantEntry<'_, K, V, S> {
     pub fn insert(mut self, key: K, value: V) {
-        let shared_value = SharedValue::new(value);
-        // Safety: The insert slot is valid and the map has not been modified since we obtained it
-        // (we hold the write lock).
-        unsafe {
-            self.shard
-                .insert_in_slot(self.hash, self.insert_slot, (key, shared_value));
-        }
+        self.shard
+            .insert_unique(self.hash, (key, value), |(key, _value)| {
+                self.map_hasher.hash_one(key)
+            });
     }
 }

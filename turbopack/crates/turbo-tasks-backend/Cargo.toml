@@ -43,7 +43,7 @@ bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
-hashbrown = { workspace = true, features = ["raw"] }
+hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
 lzzzz = { workspace = true, optional = true }
