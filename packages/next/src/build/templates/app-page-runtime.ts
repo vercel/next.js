@@ -319,8 +319,9 @@ export function createAppPageEntrypoint({
      */
     const couldSupportPPR: boolean = Boolean(nextConfig.cacheComponents)
 
-    // Stash postponed state for server actions when in minimal mode.
-    // We extract it here so the RDC is available for the re-render after the action completes.
+    // Split postponed state from Server Action bodies in minimal mode. Fetch
+    // actions resume with that state, while MPA actions only reuse the extracted
+    // action body because their response must include the complete page.
     const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
     if (
       !getRequestMeta(req, 'postponed') &&
@@ -371,10 +372,12 @@ export function createAppPageEntrypoint({
 
         if (fullBody.length >= stateLength) {
           // Extract postponed state from the beginning
-          const postponedState = fullBody
-            .subarray(0, stateLength)
-            .toString('utf8')
-          addRequestMeta(req, 'postponed', postponedState)
+          if (isFetchAction) {
+            const postponedState = fullBody
+              .subarray(0, stateLength)
+              .toString('utf8')
+            addRequestMeta(req, 'postponed', postponedState)
+          }
 
           // Store the remaining action body for the action handler
           const actionBody = fullBody.subarray(stateLength)
