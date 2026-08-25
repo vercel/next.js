@@ -1,36 +1,53 @@
 use anyhow::Result;
-use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+#[cfg(target_family = "wasm")]
+use turbo_rcstr::rcstr;
+#[cfg(not(target_family = "wasm"))]
+use turbo_tasks::ResolvedVc;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
+#[cfg(not(target_family = "wasm"))]
 use turbopack_ecmascript::{CustomTransformer, TransformPlugin};
 
 use crate::next_config::NextConfig;
 
-/// A wrapper around [`serde_json::Value`] that implements [`turbo_tasks::TaskInput`].
-///
-/// [`serde_json::Value`] does not implement [`std::hash::Hash`], so we implement it manually by
-/// hashing the serialized JSON string.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode)]
-pub struct JsonValue(#[bincode(with = "turbo_bincode::serde_self_describing")] serde_json::Value);
+// Everything below only backs the native implementation of `get_swc_ecma_transform_rule_impl`; on
+// wasm that function is a stub, because SWC wasm plugins need the wasmtime backend.
+#[cfg(not(target_family = "wasm"))]
+mod native_types {
+    use bincode::{Decode, Encode};
+    use serde::{Deserialize, Serialize};
+    use turbo_tasks::trace::TraceRawVcs;
 
-impl std::hash::Hash for JsonValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        serde_json::to_string(&self.0)
-            .expect("JSON serialization should never fail")
-            .hash(state);
+    /// A wrapper around [`serde_json::Value`] that implements [`turbo_tasks::TaskInput`].
+    ///
+    /// [`serde_json::Value`] does not implement [`std::hash::Hash`], so we implement it manually by
+    /// hashing the serialized JSON string.
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode)]
+    pub struct JsonValue(
+        #[bincode(with = "turbo_bincode::serde_self_describing")] pub serde_json::Value,
+    );
+
+    impl std::hash::Hash for JsonValue {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            serde_json::to_string(&self.0)
+                .expect("JSON serialization should never fail")
+                .hash(state);
+        }
+    }
+
+    // Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
+    // never contain any `Vc` types.
+    impl turbo_tasks::TaskInput for JsonValue {
+        fn is_transient(&self) -> bool {
+            false
+        }
     }
 }
 
-// Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
-// never contain any `Vc` types.
-impl turbo_tasks::TaskInput for JsonValue {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+#[cfg(not(target_family = "wasm"))]
+pub use native_types::JsonValue;
 
 pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
@@ -39,14 +56,104 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
         let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-        get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
+        // Resolved here rather than in the wasm arm so that the arm stays independent of
+        // `NextConfig`; it is only needed to point an issue at the file the user has to edit, and
+        // this branch only runs when plugins are actually configured.
+        let config_file_path = next_config
+            .config_file_path(project_path.clone())
+            .owned()
+            .await?;
+        get_swc_ecma_transform_rule_impl(
+            project_path,
+            config_file_path,
+            &plugin_configs,
+            enable_mdx_rs,
+        )
+        .await
     } else {
         Ok(None)
     }
 }
 
+/// SWC wasm plugins are not available when Next.js itself is built for wasm: executing them needs
+/// the wasmtime backend, which cannot be hosted inside wasm. SWC skips plugin transforms on wasm32
+/// for the same reason, see <https://github.com/swc-project/swc/issues/3934>.
+///
+/// Silently dropping the transform would produce a successful build whose code was not transformed
+/// the way it was configured, so report it instead. This only runs when plugins are actually
+/// configured, so projects that don't use them are unaffected.
+#[cfg(target_family = "wasm")]
+pub async fn get_swc_ecma_transform_rule_impl(
+    _project_path: FileSystemPath,
+    config_file_path: FileSystemPath,
+    plugin_configs: &[(RcStr, serde_json::Value)],
+    _enable_mdx_rs: bool,
+) -> Result<Option<ModuleRule>> {
+    use turbopack_core::issue::IssueExt;
+
+    UnsupportedSwcPluginsIssue {
+        path: config_file_path,
+        plugin_names: plugin_configs
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect(),
+    }
+    .resolved_cell()
+    .emit();
+
+    Ok(None)
+}
+
+/// Reported when `experimental.swcPlugins` is configured on a platform that cannot execute SWC wasm
+/// plugins.
+#[cfg(target_family = "wasm")]
+#[turbo_tasks::value(shared)]
+struct UnsupportedSwcPluginsIssue {
+    path: FileSystemPath,
+    plugin_names: Vec<RcStr>,
+}
+
+#[cfg(target_family = "wasm")]
+#[async_trait::async_trait]
+#[turbo_tasks::value_impl]
+impl turbopack_core::issue::Issue for UnsupportedSwcPluginsIssue {
+    fn stage(&self) -> turbopack_core::issue::IssueStage {
+        turbopack_core::issue::IssueStage::Unsupported
+    }
+
+    fn severity(&self) -> turbopack_core::issue::IssueSeverity {
+        turbopack_core::issue::IssueSeverity::Error
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn title(&self) -> Result<turbopack_core::issue::StyledString> {
+        Ok(turbopack_core::issue::StyledString::Text(rcstr!(
+            "`experimental.swcPlugins` is not supported on this platform"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<turbopack_core::issue::StyledString>> {
+        use turbopack_core::issue::StyledString;
+
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("The configured SWC plugins (")),
+            StyledString::Code(self.plugin_names.join(", ").into()),
+            StyledString::Text(rcstr!(
+                ") cannot run in this build of Next.js, because executing SWC wasm plugins \
+                 requires a native binary. Remove them from `experimental.swcPlugins`, or use a \
+                 platform with native Next.js binaries."
+            )),
+        ])))
+    }
+}
+
+#[cfg(not(target_family = "wasm"))]
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
+    _config_file_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
@@ -148,6 +255,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
     )))
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[turbo_tasks::function]
 fn swc_ecma_transform_plugins_transform_plugin(
     plugins: Vec<(

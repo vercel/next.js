@@ -18,7 +18,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1141",
          "description": "Route /[lang]/[countryCode]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
          "environmentLabel": "Server",
          "label": "Runtime Error",
@@ -37,7 +36,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/nested-in-unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1140",
          "description": "Route /[lang]/[countryCode]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",

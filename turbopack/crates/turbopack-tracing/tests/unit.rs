@@ -67,7 +67,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::asset_fs_inlining("asset-fs-inlining")]
 #[case::asset_fs_inlining_multi("asset-fs-inlining-multi")]
 #[case::asset_fs_logical("asset-fs-logical")]
-// #[case::asset_graceful_fs("asset-graceful-fs")]
+#[case::asset_graceful_fs("asset-graceful-fs")]
 #[case::asset_node_require("asset-node-require")]
 #[case::asset_package_json("asset-package-json")]
 #[case::asset_symlink("asset-symlink")]
