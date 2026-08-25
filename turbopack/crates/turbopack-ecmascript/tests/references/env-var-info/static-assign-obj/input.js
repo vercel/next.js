@@ -28,3 +28,27 @@ if (p1.env.FOO5 === 'x') {
 if ('FOO6' in p1.env) {
   return true
 }
+
+// ---
+
+// An alternative (process.env | unknown)
+let e
+if (foo) {
+  e = foo
+} else {
+  e = process.env
+}
+// TODO currently not tracked
+console.log(e.FOO7)
+
+// ---
+
+// An alternative (process|unknown).env
+let p2
+if (foo) {
+  p2 = foo
+} else {
+  p2 = process
+}
+// TODO currently not tracked
+console.log(p2.env.FOO8)
