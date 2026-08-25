@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import http from 'node:http'
+import { requestWebSocketUpgrade } from 'next-websocket-test-utils'
 import path from 'path'
 import WebSocket from 'ws'
 
@@ -98,6 +98,27 @@ describe('multi-zone', () => {
     })
   }
 
+  it('fails closed with dispatcher guidance when no dispatcher is installed', async () => {
+    // Each app registers its automatic upgrade listener on its first HTTP
+    // request; make both register before the ambiguous upgrade arrives.
+    expect((await next.fetch('/')).status).toBe(200)
+    expect((await next.fetch('/guest')).status).toBe(200)
+
+    // With two Next.js apps' automatic listeners on one server and no outer
+    // dispatcher, an application WebSocket upgrade must be rejected once with
+    // actionable guidance instead of either app claiming it.
+    for (const [pathname, origin] of [
+      ['/socket', 'https://host.example'],
+      ['/guest/socket', 'https://guest.example'],
+    ] as const) {
+      const response = await requestWebSocketUpgrade(next, pathname, {
+        headers: { origin },
+      })
+      expect(response.status).toBe(501)
+      expect(response.body).toContain('single outer upgrade dispatcher')
+    }
+  })
+
   it('isolates WebSocket routes and lifecycle state between apps', async () => {
     const [hostReady, guestReady] = await Promise.all([
       next.fetch('/'),
@@ -130,47 +151,27 @@ describe('multi-zone', () => {
       })
     }
 
-    function requestUpgrade(
-      pathname: string,
-      origin: string,
-      extraHeaders: Record<string, string> = {}
-    ) {
-      return new Promise<number>((resolve, reject) => {
-        const request = http.request({
-          host: 'localhost',
-          port: next.appPort,
-          path: pathname,
-          headers: {
-            connection: 'Upgrade',
-            origin,
-            'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-            'sec-websocket-version': '13',
-            upgrade: 'websocket',
-            ...extraHeaders,
-          },
-        })
-        request.once('response', (response) => {
-          response.resume()
-          response.once('end', () => resolve(response.statusCode!))
-        })
-        request.once('upgrade', (response, socket) => {
-          socket.destroy()
-          resolve(response.statusCode!)
-        })
-        request.once('error', reject)
-        request.end()
-      })
-    }
-
     expect(
-      await requestUpgrade('/missing-socket', 'https://host.example')
+      await requestWebSocketUpgrade(next, '/missing-socket', {
+        statusOnly: true,
+        headers: { origin: 'https://host.example' },
+      })
     ).toBe(404)
-    expect(await requestUpgrade('/socket', 'https://guest.example')).toBe(403)
+    expect(
+      await requestWebSocketUpgrade(next, '/socket', {
+        statusOnly: true,
+        headers: { origin: 'https://guest.example' },
+      })
+    ).toBe(403)
 
     const malformedLogStart = next.cliOutput.length
     expect(
-      await requestUpgrade('/socket', 'https://host.example', {
-        'transfer-encoding': 'chunked',
+      await requestWebSocketUpgrade(next, '/socket', {
+        statusOnly: true,
+        headers: {
+          origin: 'https://host.example',
+          'transfer-encoding': 'chunked',
+        },
       })
     ).toBe(400)
     expect(next.cliOutput.slice(malformedLogStart)).not.toContain(

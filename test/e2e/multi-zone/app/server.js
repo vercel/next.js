@@ -36,6 +36,11 @@ const http = require('http')
       return res.end()
     }
 
+    if (req.url === '/__upgrade-listener-count') {
+      res.end(String(server.listenerCount('upgrade')))
+      return
+    }
+
     const closeMatch = req.url.match(/^\/__close\/(host|guest)$/)
     if (req.method === 'POST' && closeMatch) {
       await nextApps.get(closeMatch[1]).close()

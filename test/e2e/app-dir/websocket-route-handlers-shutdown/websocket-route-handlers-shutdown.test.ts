@@ -1,7 +1,7 @@
-import http from 'node:http'
 import WebSocket from 'ws'
 import { isNextDev, nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { requestWebSocketUpgrade } from 'next-websocket-test-utils'
 
 function connect(port: number | string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
@@ -35,32 +35,6 @@ function waitForOpen(socket: WebSocket) {
   })
 }
 
-function requestUpgrade(port: number | string, path: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const request = http.request({
-      host: 'localhost',
-      port,
-      path,
-      headers: {
-        connection: 'Upgrade',
-        upgrade: 'websocket',
-        'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-        'sec-websocket-version': '13',
-      },
-    })
-    request.once('response', (response) => {
-      response.resume()
-      resolve(response.statusCode!)
-    })
-    request.once('upgrade', (response, socket) => {
-      socket.destroy()
-      resolve(response.statusCode!)
-    })
-    request.once('error', reject)
-    request.end()
-  })
-}
-
 async function triggerCustomAppClose(next: NextInstance) {
   const response = await next.fetch('/__close-next')
   expect(response.status).toBe(202)
@@ -91,6 +65,7 @@ describe('WebSocket Route Handler process shutdown', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Process-lifecycle drains on SIGTERM are not verifiable when deployed.
     skipDeployment: true,
     env: {
       NEXT_EXIT_TIMEOUT_MS: '10000',
@@ -118,6 +93,8 @@ describe('WebSocket Route Handler custom-server shutdown', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Custom-server process-lifecycle drains and SIGTERM semantics are not
+    // verifiable when deployed.
     skipDeployment: true,
     forcedPort: 'random',
     startCommand: 'node server.mjs',
@@ -151,6 +128,7 @@ describe('WebSocket Route Handler custom-server shutdown', () => {
     await retry(() => {
       expect(next.cliOutput).toContain('[slow-websocket-upgrade] started')
     }, 10_000)
+    const outputIndex = next.cliOutput.length
     await triggerCustomAppClose(next)
     await retry(() => {
       expect(next.cliOutput).toContain('[custom-server] next app closing')
@@ -162,13 +140,12 @@ describe('WebSocket Route Handler custom-server shutdown', () => {
     await expect(closed).resolves.toEqual({ code: 1001, reason: '' })
     await finishCustomAppClose(next)
 
-    const routeFinished = next.cliOutput.indexOf(
-      '[slow-websocket-upgrade] finished'
-    )
-    const appClosing = next.cliOutput.indexOf(
-      '[custom-server] next app closing'
-    )
-    const appClosed = next.cliOutput.indexOf('[custom-server] next app closed')
+    // The in-flight route must finish while the app is closing, before the
+    // app close completes.
+    const output = next.cliOutput.slice(outputIndex)
+    const appClosing = output.indexOf('[custom-server] next app closing')
+    const routeFinished = output.indexOf('[slow-websocket-upgrade] finished')
+    const appClosed = output.indexOf('[custom-server] next app closed')
     expect(routeFinished).toBeGreaterThan(appClosing)
     expect(appClosed).toBeGreaterThan(routeFinished)
     expect(next.cliOutput).toContain('[slow-websocket-upgrade] opened')
@@ -203,6 +180,8 @@ describe('WebSocket Route Handler manual custom-server ownership', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Custom-server ownership and process-lifecycle drains are not verifiable
+    // when deployed.
     skipDeployment: true,
     forcedPort: 'random',
     startCommand: 'node server.mjs',
@@ -225,7 +204,7 @@ describe('WebSocket Route Handler manual custom-server ownership', () => {
 
   it('removes a manually attached handler after WebSocket-only traffic', async () => {
     await expect(
-      requestUpgrade(next.appPort, '/ws?manual-owner=1')
+      requestWebSocketUpgrade(next, '/ws?manual-owner=1', { statusOnly: true })
     ).resolves.toBe(418)
 
     await triggerCustomAppClose(next)
@@ -239,13 +218,15 @@ describe('WebSocket Route Handler manual custom-server ownership', () => {
       '[manual-upgrade-owner] Next.js route raced'
     )
     await expect(
-      requestUpgrade(next.appPort, '/ws?after-next-close=1')
+      requestWebSocketUpgrade(next, '/ws?after-next-close=1', {
+        statusOnly: true,
+      })
     ).resolves.toBe(418)
   })
 
   it('does not duplicate a manual handler after lazy HTTP discovery', async () => {
     await expect(
-      requestUpgrade(next.appPort, '/ws?manual-owner=1')
+      requestWebSocketUpgrade(next, '/ws?manual-owner=1', { statusOnly: true })
     ).resolves.toBe(418)
 
     // The first ordinary request lazily discovers the embedding server. The
@@ -274,6 +255,7 @@ if (isNextDev === false && process.env.IS_TURBOPACK_TEST) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // Process-lifecycle drains on SIGTERM are not verifiable when deployed.
       skipDeployment: true,
       env: {
         NEXT_EXIT_TIMEOUT_MS: '15000',
@@ -304,6 +286,8 @@ if (isNextDev === false && process.env.IS_TURBOPACK_TEST) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // Custom-server process-lifecycle drains are not verifiable when
+      // deployed.
       skipDeployment: true,
       forcedPort: 'random',
       startCommand: 'node server.mjs',

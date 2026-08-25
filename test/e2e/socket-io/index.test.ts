@@ -1,61 +1,16 @@
 import http from 'node:http'
 
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('socket-io', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies: {
-      'socket.io': '4.7.2',
-      'socket.io-client': '4.7.2',
-      'utf-8-validate': '6.0.3',
-      bufferutil: '4.0.8',
-    },
-    nextConfig: {
-      experimental: {
-        webSocketRouteHandlers: true,
-      },
-    },
-    // the socket.io setup relies on patching next's `http.Server` instance,
-    // which we can't do when deployed
-    skipDeployment: true,
-  })
+const dependencies = {
+  'socket.io': '4.7.2',
+  'socket.io-client': '4.7.2',
+  'utf-8-validate': '6.0.3',
+  bufferutil: '4.0.8',
+}
 
-  it('preserves non-WebSocket custom upgrade listeners', async () => {
-    await next.fetch('/api/socket')
-    const outputIndex = next.cliOutput.length
-
-    const status = await new Promise<number>((resolve, reject) => {
-      const request = http.request({
-        host: 'localhost',
-        port: next.appPort,
-        path: '/custom-upgrade',
-        headers: {
-          connection: 'Upgrade',
-          upgrade: 'h2c',
-          origin: 'https://cross-origin.example',
-          'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-        },
-      })
-      request.once('upgrade', (response, socket) => {
-        socket.destroy()
-        resolve(response.statusCode!)
-      })
-      request.once('response', (response) => {
-        response.resume()
-        resolve(response.statusCode!)
-      })
-      request.once('error', reject)
-      request.end()
-    })
-
-    expect(status).toBe(101)
-    const output = next.cliOutput.slice(outputIndex)
-    expect(output).toContain('delegated an upgrade event')
-    expect(output).not.toContain('delegated a WebSocket upgrade')
-  })
-
+function describeSocketIoCompatibility(next: NextInstance) {
   it('should support socket.io without falling back to polling', async () => {
     let pollingRequestsCount = 0
 
@@ -103,5 +58,68 @@ describe('socket-io', () => {
 
     // There should be no new requests (polling) and using the existing WS connection
     expect(pollingRequestsCount).toBe(currentPollingRequestsCount)
+  })
+}
+
+describe('socket-io without webSocketRouteHandlers', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    // the socket.io setup relies on patching next's `http.Server` instance,
+    // which we can't do when deployed
+    skipDeployment: true,
+  })
+
+  describeSocketIoCompatibility(next)
+})
+
+describe('socket-io with webSocketRouteHandlers', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig: {
+      experimental: {
+        webSocketRouteHandlers: true,
+      },
+    },
+    // the socket.io setup relies on patching next's `http.Server` instance,
+    // which we can't do when deployed
+    skipDeployment: true,
+  })
+
+  describeSocketIoCompatibility(next)
+
+  it('preserves non-WebSocket custom upgrade listeners', async () => {
+    await next.fetch('/api/socket')
+    const outputIndex = next.cliOutput.length
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const request = http.request({
+        host: 'localhost',
+        port: next.appPort,
+        path: '/custom-upgrade',
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'h2c',
+          origin: 'https://cross-origin.example',
+          'sec-websocket-key': Buffer.alloc(16).toString('base64'),
+        },
+      })
+      request.once('upgrade', (response, socket) => {
+        socket.destroy()
+        resolve(response.statusCode!)
+      })
+      request.once('response', (response) => {
+        response.resume()
+        resolve(response.statusCode!)
+      })
+      request.once('error', reject)
+      request.end()
+    })
+
+    expect(status).toBe(101)
+    const output = next.cliOutput.slice(outputIndex)
+    expect(output).toContain('delegated an upgrade event')
+    expect(output).not.toContain('delegated a WebSocket upgrade')
   })
 })
