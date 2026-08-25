@@ -7,10 +7,12 @@ import {
   File,
   waitFor,
   launchApp,
+  getStaticPngBlurBase64,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
+const staticPngBlurBase64 = getStaticPngBlurBase64()
 const appDir = join(__dirname, '../')
 let appPort
 let app
@@ -93,7 +95,7 @@ const runTests = (isDev = false) => {
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(${
           isDev
             ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&amp;w=8&amp;q=70&quot;'
-            : '&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAH0lEQVR4nGNgwAaYmKAMZmYIzcjKyghmsDAysmDTAgAEXAAhXbseDQAAAABJRU5ErkJggg==&quot;'
+            : `&quot;data:image/png;base64,${staticPngBlurBase64}&quot;`
         })`
       )
     }

@@ -54,7 +54,13 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+// sharp 0.35 requires Node 20.9, so Node 18 resolves 0.34 instead. Only 0.35
+// exposes the module as a `default` export, so pick whichever this build has.
+type SharpModule = typeof import('sharp') extends { default: infer D }
+  ? D
+  : typeof import('sharp')
+
+let _sharp: SharpModule
 
 async function initCacheEntries(
   cacheDir: string
@@ -84,7 +90,8 @@ export function getSharp(concurrency: number | null | undefined) {
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
+    // eslint-disable-next-line @next/internal/typechecked-require -- sharp 0.34 and 0.35 type the module differently, see SharpModule
+    _sharp = require('sharp') as SharpModule
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
@@ -739,7 +746,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using dssim and ssimulacra2 visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {

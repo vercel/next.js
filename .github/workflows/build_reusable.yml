@@ -254,6 +254,15 @@ jobs:
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      # `next` accepts sharp 0.34 or 0.35, and the lockfile pins 0.35. That
+      # version requires Node 20.9, so on Node 18 the package manager silently
+      # skips the optional dependency and leaves it uninstalled. Install the
+      # 0.34 line instead, which is what Node 18 users resolve in practice.
+      # Must run before `pnpm build`, which type-checks against sharp.
+      - name: Install sharp 0.34 for Node 18
+        if: ${{ inputs.skipInstallBuild != 'yes' && startsWith(inputs.nodeVersion, '18') }}
+        run: pnpm --filter next add --save-optional sharp@0.34.3
+
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
         working-directory: turbopack/crates/turbopack/tests/node-file-trace
