@@ -345,8 +345,10 @@ export function createAppRouteWebSocketEntrypoint({
           let requestSignal: AbortSignal | undefined
           try {
             if (!Buffer.isBuffer(head)) {
+              // The operator-facing diagnostic stays on the server; the
+              // client gets a generic 501, not the transport contract.
               console.error(transportMessage)
-              await writeRawHttpError(req, socket, 501, transportMessage)
+              await writeRawHttpError(req, socket, 501, 'Not Implemented')
               return (outcome = { statusCode: 501, upgraded: false })
             }
             return (outcome = await upgradeHandlerImpl(

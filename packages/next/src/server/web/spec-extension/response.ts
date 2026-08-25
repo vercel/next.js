@@ -252,11 +252,14 @@ export class NextResponse<Body = unknown> extends Response {
       Array.isArray(hooks) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(hooks))
     ) {
-      throw new TypeError('NextResponse.upgrade() requires a hooks object.')
+      throw new TypeError(
+        'NextResponse.upgrade() requires a plain object with optional open, message, close, and error hooks.'
+      )
     }
 
     for (const name of Reflect.ownKeys(hooks)) {
-      if (typeof name !== 'string' || !WEBSOCKET_HOOKS.has(name)) {
+      if (typeof name === 'symbol') continue
+      if (!WEBSOCKET_HOOKS.has(name)) {
         throw new TypeError(
           `NextResponse.upgrade() does not support the "${String(name)}" hook.`
         )

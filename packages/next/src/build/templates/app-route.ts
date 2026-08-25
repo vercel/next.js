@@ -297,7 +297,7 @@ export async function handler(
       if (isWebSocketUpgradeResponse(response)) {
         if (!process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
           throw new Error(
-            'This App Route returned NextResponse.upgrade(), but experimental.webSocketRouteHandlers is not enabled in next.config.js.'
+            'This App Route returned NextResponse.upgrade(), but experimental.webSocketRouteHandlers is not enabled in `next.config`.'
           )
         }
         response = createWebSocketUpgradeFallbackResponse(

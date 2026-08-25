@@ -143,13 +143,18 @@ describe('NextResponse.upgrade', () => {
   })
 
   it.each([
-    [null, 'requires a hooks object'],
-    [[], 'requires a hooks object'],
-    [Object.create({ open() {} }), 'requires a hooks object'],
+    [null, 'requires a plain object'],
+    [[], 'requires a plain object'],
+    [Object.create({ open() {} }), 'requires a plain object'],
     [{ unsupported() {} }, 'does not support the "unsupported" hook'],
     [{ open: true }, 'hook "open" must be a function'],
   ])('rejects invalid hooks %#', (hooks, message) => {
     expect(() => NextResponse.upgrade(hooks as any)).toThrow(message)
+  })
+
+  it('ignores symbol-own-key hooks entries', () => {
+    const hooks = { open() {}, [Symbol('self-reference')]: true }
+    expect(NextResponse.upgrade(hooks)).toBeInstanceOf(NextResponse)
   })
 
   it.each([
