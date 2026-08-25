@@ -31,9 +31,9 @@ use tracing::{Span, field::display, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
-    ReadConsistency, ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT,
-    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks,
-    TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
+    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
+    TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
         TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -486,7 +486,7 @@ impl TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
@@ -518,19 +518,25 @@ impl TurboTasksBackend {
             })
         }
 
-        fn check_in_progress(
+        /// Reports whether the task is already being computed, and — crucially for the reader —
+        /// whether a worker has actually started it. A task that is only `Scheduled` can be taken
+        /// over and executed by the reader; one that is `InProgress` can only be waited for.
+        fn check_in_progress<T>(
             task: &impl TaskGuard,
             reader_description: Option<EventDescription>,
             tracking: ReadTracking,
-        ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
-        {
+        ) -> Option<Result<ReadOutcome<T>>> {
             match task.get_in_progress() {
-                Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
-                    listen_to_done_event(reader_description, tracking, done_event),
-                ))),
+                Some(InProgressState::Scheduled { done_event, .. }) => {
+                    Some(Ok(ReadOutcome::Scheduled(listen_to_done_event(
+                        reader_description,
+                        tracking,
+                        done_event,
+                    ))))
+                }
                 Some(InProgressState::InProgress(box InProgressStateInner {
                     done_event, ..
-                })) => Some(Ok(Err(listen_to_done_event(
+                })) => Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
                     reader_description,
                     tracking,
                     done_event,
@@ -704,7 +710,7 @@ impl TurboTasksBackend {
                     queue.execute(&mut ctx);
                 }
 
-                return Ok(Err(listener));
+                return Ok(ReadOutcome::InProgress(listener));
             }
         }
 
@@ -723,8 +729,8 @@ impl TurboTasksBackend {
 
         if let Some(output) = task.get_output() {
             let result = match output {
-                OutputValue::Cell(cell) => Ok(Ok(RawVc::task_cell(cell.task, cell.cell))),
-                OutputValue::Output(task) => Ok(Ok(RawVc::task_output(*task))),
+                OutputValue::Cell(cell) => Ok(RawVc::task_cell(cell.task, cell.cell)),
+                OutputValue::Output(task) => Ok(RawVc::task_output(*task)),
                 OutputValue::Error(error) => Err(error.clone()),
             };
             if let Some(mut reader_task) = reader_task.take()
@@ -770,7 +776,7 @@ impl TurboTasksBackend {
                 drop(task);
             }
 
-            return result.map_err(|error| {
+            return result.map(ReadOutcome::Value).map_err(|error| {
                 self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
                     .with_task_context(task_id, turbo_tasks.pin())
                     .into()
@@ -801,7 +807,7 @@ impl TurboTasksBackend {
         debug_assert!(old.is_none(), "InProgress already exists");
         ctx.schedule_task(task, TaskPriority::Recomputation);
 
-        Ok(Err(listener))
+        Ok(ReadOutcome::Scheduled(listener))
     }
 
     fn try_read_task_cell(
@@ -811,7 +817,7 @@ impl TurboTasksBackend {
         cell: CellId,
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
         fn add_cell_dependency(
@@ -876,7 +882,7 @@ impl TurboTasksBackend {
             if tracking.should_track(false) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
-            return Ok(Ok(TypedCellContent(
+            return Ok(ReadOutcome::Value(TypedCellContent(
                 cell.type_id(),
                 CellContent(Some(content)),
             )));
@@ -887,9 +893,17 @@ impl TurboTasksBackend {
             in_progress,
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
         ) {
-            return Ok(Err(self
+            // Tell the reader whether the task is merely queued (it may take it over and execute it
+            // itself) or already being executed by a worker (it can only wait).
+            let started = matches!(in_progress, Some(InProgressState::InProgress(..)));
+            let listener = self
                 .listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell)
-                .0));
+                .0;
+            return Ok(if started {
+                ReadOutcome::InProgress(listener)
+            } else {
+                ReadOutcome::Scheduled(listener)
+            });
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
@@ -926,7 +940,8 @@ impl TurboTasksBackend {
             self.listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell);
         drop(reader_task);
         if !new_listener {
-            return Ok(Err(listener));
+            // Somebody else is already waiting for this cell, so the task is being taken care of.
+            return Ok(ReadOutcome::InProgress(listener));
         }
 
         let _span = tracing::trace_span!(
@@ -942,7 +957,7 @@ impl TurboTasksBackend {
         );
         ctx.schedule_task(task, TaskPriority::Recomputation);
 
-        Ok(Err(listener))
+        Ok(ReadOutcome::Scheduled(listener))
     }
 
     fn listen_to_cell(
@@ -1982,7 +1997,12 @@ impl TurboTasksBackend {
                 )
             }
             TaskType::Transient(task_type) => {
-                let span = tracing::trace_span!("turbo_tasks::root_task");
+                // `inline_execution` is recorded when a read executed this task on its own thread,
+                // see `NativeFunction::span`.
+                let span = tracing::trace_span!(
+                    "turbo_tasks::root_task",
+                    inline_execution = tracing::field::Empty
+                );
                 let future = match &*task_type {
                     TransientTask::Root(f) => f(),
                     TransientTask::Once(future_mutex) => take(&mut *future_mutex.lock())?,
@@ -3662,7 +3682,7 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         self.try_read_task_output(task_id, reader, options, turbo_tasks)
     }
 
@@ -3673,7 +3693,7 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
