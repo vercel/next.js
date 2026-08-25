@@ -3473,12 +3473,12 @@ async fn handle_member<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    let obj = link_obj.await?;
-    let obj_name = obj.get_definable_name(Some(&state.var_graph));
-
     if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
+
+        let obj = link_obj.await?;
+        let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
         if has_member && let Some((mut name, false)) = obj_name.clone() {
             name.0.push(DefinableNameSegmentRef::Name(prop));
@@ -3494,7 +3494,7 @@ async fn handle_member<'a>(
             }
         }
 
-        if is_prop_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = obj {
+        if is_prop_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj {
             analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
             return Ok(());
         }
@@ -3514,22 +3514,6 @@ async fn handle_member<'a>(
         }
     }
 
-    if let Some((name, false)) = obj_name
-        && matches!(
-            name.0.as_slice(),
-            [
-                DefinableNameSegmentRef::Name("process"),
-                DefinableNameSegmentRef::Name("env")
-            ]
-        )
-    {
-        analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
-            state.source,
-            span.lo.to_u32(),
-            span.hi.to_u32(),
-        ));
-    }
-
     Ok(())
 }
 
@@ -3539,14 +3523,14 @@ async fn handle_in<'a>(
     left: JsValue<'a>,
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    span: Span,
+    _span: Span,
 ) -> Result<()> {
-    let right = link_right.await?;
-    let right_name = right.get_definable_name(Some(&state.var_graph));
-
     if let Some(left) = left.as_str() {
         let has_member = state.free_var_references_members.contains_key(left).await?;
         let is_left_cache = left == "cache";
+
+        let right = link_right.await?;
+        let right_name = right.get_definable_name(Some(&state.var_graph));
 
         if has_member && let Some((mut name, false)) = right_name.clone() {
             name.0.push(DefinableNameSegmentRef::Name(left));
@@ -3565,7 +3549,8 @@ async fn handle_in<'a>(
             }
         }
 
-        if is_left_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = right {
+        if is_left_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &right
+        {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 CompileTimeDefineValue::Bool(true),
                 ast_path.to_vec().into(),
@@ -3586,22 +3571,6 @@ async fn handle_in<'a>(
             analysis.add_runtime_env_var_reference(RcStr::from(left));
             return Ok(());
         }
-    }
-
-    if let Some((name, false)) = right_name
-        && matches!(
-            name.0.as_slice(),
-            [
-                DefinableNameSegmentRef::Name("process"),
-                DefinableNameSegmentRef::Name("env")
-            ]
-        )
-    {
-        analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
-            state.source,
-            span.lo.to_u32(),
-            span.hi.to_u32(),
-        ));
     }
 
     Ok(())
