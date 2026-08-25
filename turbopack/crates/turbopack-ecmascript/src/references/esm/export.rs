@@ -35,7 +35,6 @@ use crate::{
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
     utils::module_id_to_lit,
 };
 
@@ -160,17 +159,31 @@ pub async fn follow_reexports(
     let mut module = module;
     let mut export_name = export_name;
     loop {
-        // A locals module only exposes local bindings, so there are no more reexports to follow.
-        // Returning it still preserves its evaluation and side effects. Avoid asking it for side
-        // effects or exports from the original module: resolving the facade's synthetic locals
-        // reference can happen while that module is still being analyzed, and either request would
-        // create a dependency cycle.
-        if ResolvedVc::try_downcast_type::<EcmascriptModuleLocalsModule>(module).is_some() {
-            return Ok(FollowExportsResult::cell(FollowExportsResult {
-                module,
-                export_name: Some(export_name),
-                ty: FoundExportType::Found,
-            }));
+        let exports = module.get_exports().await?;
+
+        // Side effects only matter when following an export past the current module. Resolve
+        // terminal ESM outcomes first, since computing side effects can require the current
+        // module's analysis while reexport following itself may run during that analysis.
+        if let EcmascriptExports::EsmExports(esm_exports) = &*exports {
+            let esm_exports = esm_exports.await?;
+            match esm_exports.exports.get(&export_name) {
+                Some(export @ (EsmExport::LocalBinding(..) | EsmExport::Error)) => {
+                    let ControlFlow::Break(result) =
+                        handle_declared_export(module, export_name, export).await?
+                    else {
+                        bail!("local and error exports must be terminal");
+                    };
+                    return Ok(result.cell());
+                }
+                None if esm_exports.star_exports.is_empty() || &*export_name == "default" => {
+                    return Ok(FollowExportsResult::cell(FollowExportsResult {
+                        module,
+                        export_name: Some(export_name),
+                        ty: FoundExportType::NotFound,
+                    }));
+                }
+                _ => {}
+            }
         }
 
         if !ignore_side_effects
@@ -187,7 +200,6 @@ pub async fn follow_reexports(
         }
         ignore_side_effects = false;
 
-        let exports = module.get_exports().await?;
         let EcmascriptExports::EsmExports(exports) = &*exports else {
             return Ok(FollowExportsResult::cell(FollowExportsResult {
                 module,

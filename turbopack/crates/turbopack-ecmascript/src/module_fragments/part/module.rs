@@ -268,7 +268,17 @@ async fn follow_reexports_with_side_effects(
                 current_module = *module;
                 current_export_name = export_name.clone().unwrap_or(current_export_name);
             }
-            _ => break result,
+            _ => {
+                // `follow_reexports` returns terminal exports before checking their side effects.
+                // When it followed to a different terminal module, retain that module's evaluation
+                // just like the next loop iteration used to do for `SideEffects`.
+                if *module != current_module
+                    && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
+                {
+                    side_effects.push(only_effects(**module).to_resolved().await?);
+                }
+                break result;
+            }
         }
     };
 
