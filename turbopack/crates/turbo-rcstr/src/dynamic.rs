@@ -74,12 +74,12 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 /// Construct a new dynamic RcStr from a DynamicPrehashedString
 pub(crate) fn new_atom_from_prehashed(prehashed: DynamicPrehashedString) -> RcStr {
     let entry: Arc<DynamicPrehashedString> = Arc::new(prehashed);
-    let mut entry = Arc::into_raw(entry);
-    debug_assert!(0 == entry as u8 & TAG_MASK);
-    entry = ((entry as usize) | DYNAMIC_TAG as usize) as *mut DynamicPrehashedString;
+    let entry = Arc::into_raw(entry);
+    debug_assert_eq!(entry.addr() & TAG_MASK as usize, 0);
+    let entry = entry.map_addr(|addr| addr | DYNAMIC_TAG as usize);
     let ptr: NonNull<DynamicPrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
-        NonNull::new_unchecked(entry as *mut _)
+        NonNull::new_unchecked(entry.cast_mut())
     };
 
     RcStr {
