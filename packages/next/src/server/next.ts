@@ -919,6 +919,12 @@ class NextCustomServer implements NextWrapperServer {
           }
 
           addRequestMeta(req, 'webSocketUpgradeOwnership', ownership)
+          if (ownership === 'sibling') {
+            // The router defers to the sibling only when a live sibling HMR
+            // matcher actually claims this request; URL shape alone is not
+            // enough (a route path containing `/_next/hmr` must not hang).
+            addRequestMeta(req, 'webSocketSiblingHMR', isSiblingHMRRequest)
+          }
           if (
             this.isClosing ||
             socket.destroyed ||

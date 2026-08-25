@@ -1025,11 +1025,14 @@ export async function initialize(opts: {
 
     // Multiple automatic Next.js listeners share one Node upgrade event. Only
     // the app whose base path matches may evaluate the request or apply its
-    // origin policy; the other apps leave the HMR socket untouched.
+    // origin policy; the other apps leave the HMR socket untouched. The
+    // dispatch layer knows the live sibling matchers; trust its verdict rather
+    // than a URL-shape guess (a route path containing `/_next/hmr` must not be
+    // deferred by every app into a hang).
     if (
       webSocketUpgradeOwnership === 'sibling' &&
       !isHMRRequest &&
-      isNextHMRUpgradeRequest(req.url)
+      getRequestMeta(req, 'webSocketSiblingHMR') === true
     ) {
       return
     }

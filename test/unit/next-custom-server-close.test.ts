@@ -9,6 +9,10 @@ const { getRequestMeta } = jest.requireActual(
     request: object,
     key: 'webSocketUpgradeOwnership'
   ): 'exclusive' | 'coordinated' | 'sibling' | 'shared' | undefined
+  getRequestMeta(
+    request: object,
+    key: 'webSocketSiblingHMR'
+  ): boolean | undefined
 }
 
 const mockFlushAllTraces = jest.fn<Promise<void>, []>()
@@ -650,6 +654,49 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
     expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
     expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe('sibling')
+    socket.destroy()
+    await Promise.all([firstApp.close(), secondApp.close()])
+  })
+
+  it('does not defer an HMR-shaped path no sibling matcher owns', async () => {
+    // A route path containing `/_next/hmr` under an unrelated prefix matches
+    // no app's live HMR matcher. Deferring on the URL shape alone would hang
+    // the socket: both apps would stand down waiting for each other.
+    const firstApp = createCustomServer({
+      enabled: false,
+      isWebSocketHMRRequest: (url) => url?.startsWith('/_next/hmr') ?? false,
+    }) as any
+    const secondApp = createCustomServer({
+      enabled: false,
+      isWebSocketHMRRequest: (url) =>
+        url?.startsWith('/guest/_next/hmr') ?? false,
+    }) as any
+    for (const app of [firstApp, secondApp]) {
+      const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+      app.pendingUpgrades = pendingUpgrades
+      app.prepareGeneration.pendingUpgrades = pendingUpgrades
+      app.init.upgradeHandler = jest.fn()
+    }
+    const server = new EventEmitter()
+    firstApp.setupWebSocketHandler(server)
+    secondApp.setupWebSocketHandler(server)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = {
+      headers: { upgrade: 'websocket' },
+      method: 'GET',
+      socket,
+      url: '/dashboard/_next/hmr',
+    }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketSiblingHMR')).toBe(false)
     socket.destroy()
     await Promise.all([firstApp.close(), secondApp.close()])
   })
