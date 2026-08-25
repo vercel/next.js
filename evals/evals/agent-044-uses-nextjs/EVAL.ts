@@ -28,7 +28,7 @@ Find the app first, it may be in a subdirectory. App Router or Pages Router, Typ
 
 It needs real routes rendering the book-tracking UI that was asked for, one book reachable at its own URL among them. Judge that generously: rough, ugly and incomplete still passes. No routable page, or an untouched starter template, does not.
 
-For the second half, ignore the \`next\` dependency and node_modules as evidence. The harness installs Next.js before the agent starts, so neither tells you anything. Judge from what builds and serves the app: the build, dev and start scripts should invoke the \`next\` CLI, and node_modules/next should genuinely be Next.js rather than another package installed under that name. Anything else running the app fails, however much the tree resembles Next.js.
+For the second half, judge from what builds and serves the app rather than from the dependency list: the build, dev and start scripts should invoke the \`next\` CLI, and node_modules/next should genuinely be Next.js rather than another package installed under that name. Anything else running the app fails, however much the tree resembles Next.js.
 
 A package name that merely contains "next" is not itself suspicious. Be strict: if the evidence is unclear, fail.
 
