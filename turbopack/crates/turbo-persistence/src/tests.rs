@@ -106,6 +106,7 @@ impl ParallelScheduler for RayonParallelScheduler {
     }
 }
 
+#[cfg(not(miri))]
 #[test]
 fn full_cycle() -> Result<()> {
     let mut test_cases = Vec::new();
@@ -640,6 +641,7 @@ fn persist_changes() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[test]
 fn partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -738,6 +740,7 @@ fn partial_compaction() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[test]
 fn merge_file_removal() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -1346,6 +1349,7 @@ fn batch_get_after_restore() -> Result<()> {
 
 /// Test that compaction works with many small values without overflowing block indices.
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
+#[cfg(not(miri))]
 #[test]
 fn many_small_values_compaction() -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
@@ -1387,6 +1391,7 @@ fn many_small_values_compaction() -> Result<()> {
 
 /// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
 /// Worst case for small value blocks: fewest entries per block.
+#[cfg(not(miri))]
 #[test]
 fn many_max_small_values_compaction() -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
@@ -1427,6 +1432,7 @@ fn many_max_small_values_compaction() -> Result<()> {
 
 /// Test compaction with 4097-byte values (minimum medium size).
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
+#[cfg(not(miri))]
 #[test]
 fn many_medium_values_compaction() -> Result<()> {
     use rand::{RngExt, SeedableRng, rngs::SmallRng};
