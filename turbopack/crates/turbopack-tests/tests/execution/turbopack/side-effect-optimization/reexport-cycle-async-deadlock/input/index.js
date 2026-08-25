@@ -1,9 +1,9 @@
 import { A } from './A'
 
 /*
- * Regression test: turbopack hangs (deadlocks) while building the module graph
- * for an import cycle whose modules are split into facade + locals modules and
- * which contains an async module.
+ * Regression test: turbopack used to hang (deadlock) while building the module
+ * graph for an import cycle whose modules are split into facade + locals
+ * modules.
  *
  * Topology (same shape as ../../async-modules/cycle-2, plus re-exports):
  *
@@ -19,14 +19,15 @@ import { A } from './A'
  *
  * Resolving `import { A } from './A'` goes through `apply_reexport_tree_shaking`
  * (module resolution, `turbopack/src/lib.rs`), which calls
- * `follow_reexports(A_facade, "A")`. That walks facade -> locals and then stalls
- * inside the locals module's `get_exports()`, which awaits the original module's
- * `analyze()` — already in flight further up the same import cycle. The result is
- * a turbo-tasks await cycle: the process sits at ~0.5% CPU with completely flat
- * RSS and never finishes, so `next build` would hang with no output and no error.
+ * `follow_reexports(A_facade, "A")`. That walks facade -> locals, and the locals
+ * step used to ask the locals module for its side effects, which are derived
+ * from the original module's `analyze()` — already in flight further up the same
+ * import cycle. The result was a turbo-tasks await cycle: the process sat at
+ * ~0.5% CPU with completely flat RSS and never finished, so `next build` would
+ * hang with no output and no error.
  *
- * Setting `followReexports: false` in options.json makes this pass instantly,
- * which is what pins the stall to the `follow_reexports` path.
+ * The async module is not required to trigger this; see
+ * `../reexport-cycle-deadlock` for the same cycle without a top-level `await`.
  */
 
 it('should not deadlock building a re-exporting import cycle with an async module', () => {

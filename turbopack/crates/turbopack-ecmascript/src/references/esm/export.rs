@@ -35,6 +35,7 @@ use crate::{
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
     utils::module_id_to_lit,
 };
 
@@ -159,6 +160,19 @@ pub async fn follow_reexports(
     let mut module = module;
     let mut export_name = export_name;
     loop {
+        // A locals module only exposes local bindings, so there are no more reexports to follow.
+        // Returning it still preserves its evaluation and side effects. Avoid asking it for side
+        // effects or exports from the original module: resolving the facade's synthetic locals
+        // reference can happen while that module is still being analyzed, and either request would
+        // create a dependency cycle.
+        if ResolvedVc::try_downcast_type::<EcmascriptModuleLocalsModule>(module).is_some() {
+            return Ok(FollowExportsResult::cell(FollowExportsResult {
+                module,
+                export_name: Some(export_name),
+                ty: FoundExportType::Found,
+            }));
+        }
+
         if !ignore_side_effects
             && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
         {
