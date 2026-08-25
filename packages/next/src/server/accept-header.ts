@@ -71,13 +71,15 @@ function parse(
       }
 
       const score = parseFloat(value)
+      if (!Number.isFinite(score) || score < 0 || score > 1) {
+        throw new Error(`Invalid ${options.type} header`)
+      }
+
       if (score === 0) {
         continue
       }
 
-      if (Number.isFinite(score) && score <= 1 && score >= 0.001) {
-        selection.q = score
-      }
+      selection.q = score
     }
 
     selections.push(selection)
