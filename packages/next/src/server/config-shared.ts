@@ -959,6 +959,12 @@ export interface ExperimentalConfig {
   turbopackSeedCacheFromWorktree?: boolean
 
   /**
+   * The maximum age, in milliseconds, of Turbopack development output kept
+   * between dev server sessions. Defaults to one week.
+   */
+  turbopackStaleOutputMaxAge?: number
+
+  /**
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
@@ -2348,6 +2354,7 @@ export const defaultConfig = Object.freeze({
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
+    turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     turbopackSharedRuntime: !isStableBuild(),

@@ -1719,8 +1719,8 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
-            LinkTarget, RealPathResultError, WriteLinkContent, WriteLinkTarget,
-            WriteLinkTargetType, canonicalize_to_rcstr,
+            LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+            canonicalize_to_rcstr,
         };
 
         #[turbo_tasks::function(operation, root)]
@@ -1864,7 +1864,7 @@ mod tests {
         }
 
         /// `read_link` never looks at the target, so a dangling link still reads back as a valid
-        /// [`LinkContent::Link`]. Resolving it is what discovers the target is missing.
+        /// [`LinkContent::Link`]. Resolving it reports the missing target.
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_dangling_symlink() {
@@ -1873,8 +1873,10 @@ mod tests {
             let scratch = tempfile::tempdir().unwrap();
             let path = scratch.path().to_owned();
             create_dir_all(path.join("sub")).unwrap();
+            create_dir_all(path.join("target-dir")).unwrap();
             symlink("missing.txt", path.join("sub/link-dangling")).unwrap();
             symlink("link-dangling", path.join("sub/link-chain")).unwrap();
+            symlink("../target-dir", path.join("sub/link-dir")).unwrap();
 
             let root = canonicalize_to_rcstr(&path).unwrap();
 
@@ -1899,44 +1901,36 @@ mod tests {
                 );
                 assert_eq!(target.target_type().await?, FileSystemEntryType::NotFound,);
 
-                // `realpath` follows the link, so it must report the missing target rather than
-                // succeeding with a path that doesn't exist.
+                // `realpath` follows the link and reports the missing target.
                 let result = link_path.realpath_with_links().await?;
-                assert!(
-                    matches!(
-                        &result.path_result,
-                        Err(RealPathResultError::Invalid { reason })
-                            if reason == "a symlink target does not exist"
-                    ),
-                    "realpath must report the missing target as an invalid chain: {:?}",
-                    result.path_result
-                );
-                let error = result.path_result.as_ref().unwrap_err();
-                let message = error.as_error_message(&link_path, &result).await?;
-                assert!(
-                    message.contains("could not be resolved: a symlink target does not exist"),
-                    "unexpected error message: {message}"
-                );
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
-                // The same missing target after another link is still an invalid chain, never a
-                // missing initial link.
+                // The same missing target after another link is also reported as not found.
                 let chain_path = root_path.join("sub/link-chain")?;
                 let result = chain_path.realpath_with_links().await?;
-                assert!(
-                    matches!(
-                        &result.path_result,
-                        Err(RealPathResultError::Invalid { reason })
-                            if reason == "a symlink target does not exist"
-                    ),
-                    "realpath must report a missing target later in a chain as invalid: {:?}",
-                    result.path_result
-                );
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
-                // Resolving a path that simply doesn't exist is not an error, though: there is no
-                // link involved, so it resolves to itself.
+                // A missing path beneath a resolved directory link is reported as not found.
+                let missing_in_linked_dir = root_path.join("sub/link-dir/package.json")?;
+                let result = missing_in_linked_dir.realpath_with_links().await?;
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
+
+                // A path that simply doesn't exist is also reported as not found.
                 let missing = root_path.join("sub/missing.txt")?;
                 let result = missing.realpath_with_links().await?;
-                assert_eq!(result.path_result, Ok(missing));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
                 Ok(())
             }
