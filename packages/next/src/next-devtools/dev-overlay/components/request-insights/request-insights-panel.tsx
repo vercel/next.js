@@ -15,6 +15,11 @@ import {
   type RequestInsight,
   type RequestInsightFetch,
 } from '../../../shared/request-insights'
+import {
+  getRequestInsightFetchCount,
+  isRequestInsightSummary,
+  type RequestInsightListItem,
+} from '../../../shared/request-insights-summary'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { ACTION_DEVTOOLS_CONFIG } from '../../shared'
 import { saveDevToolsConfig } from '../../utils/save-devtools-config'
@@ -43,6 +48,7 @@ import {
   getRequestListEntries,
   isInternalRequestInsight,
   isPageLoadRequest,
+  type RequestListEntry,
 } from './request-list'
 import {
   getTraceItems,
@@ -51,25 +57,26 @@ import {
   getTraceRange,
   type TraceItem,
 } from './trace-viewer'
+import {
+  loadRequestInsightDetail,
+  useRequestInsightsHistory,
+} from './request-insights-history'
 import './request-insights-panel.css'
 
 const TRACE_TICK_COUNT = 5
+const REQUEST_ROW_HEIGHT = 52
+const REQUEST_ROW_OVERSCAN = 8
+const REQUEST_SCROLLBAR_TRACK_INSET = 4
+const REQUEST_SCROLLBAR_MIN_THUMB_HEIGHT = 24
 
 export function RequestInsightsPanel() {
   const { dispatch, state, shadowRoot } = useDevOverlayContext()
   const [activeFilters, setActiveFilters] = useState<
     readonly RequestInsightFilter[]
   >([])
-  const [pausedRequests, setPausedRequests] = useState<
-    readonly RequestInsight[] | null
-  >(null)
-  const displayedRequests = pausedRequests ?? state.requestInsights
-  const requests = useMemo(
-    () => [...displayedRequests].reverse(),
-    [displayedRequests]
-  )
-  const isPaused = pausedRequests !== null
   const { showInternal, verbose } = state.requestInsightsConfig
+  const showInternalInList =
+    showInternal || activeFilters.includes('activity:instant-insights')
   const setRequestInsightsConfig = (patch: {
     showInternal?: boolean
     verbose?: boolean
@@ -80,12 +87,20 @@ export function RequestInsightsPanel() {
     })
     saveDevToolsConfig({ requestInsights: patch })
   }
+  const history = useRequestInsightsHistory({
+    activeFilters,
+    liveRequests: state.requestInsights,
+    showInternal: showInternalInList,
+  })
+  const [pausedRequests, setPausedRequests] = useState<
+    readonly RequestInsightListItem[] | null
+  >(null)
+  const requests = pausedRequests ?? history.requests
+  const isPaused = pausedRequests !== null
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
     [activeFilters, requests, showInternal]
   )
-  const showInternalInList =
-    showInternal || activeFilters.includes('activity:instant-insights')
   const listEntries = useMemo(
     () => getRequestListEntries(filterResult.requests, showInternalInList),
     [filterResult.requests, showInternalInList]
@@ -101,10 +116,37 @@ export function RequestInsightsPanel() {
     visibleRequests,
     selectedRequestKey
   )
-  const selectedRequest =
+  const selectedListItem =
     visibleRequests.find(
       (request) => getRequestInsightKey(request) === activeRequestKey
     ) ?? null
+  const [historicalRequest, setHistoricalRequest] = useState<{
+    key: string
+    request: RequestInsight
+  } | null>(null)
+  useEffect(() => {
+    if (!selectedListItem || !isRequestInsightSummary(selectedListItem)) {
+      return
+    }
+
+    const controller = new AbortController()
+    const key = getRequestInsightKey(selectedListItem)
+    void loadRequestInsightDetail(selectedListItem, controller.signal).then(
+      (request) => {
+        if (request) {
+          setHistoricalRequest({ key, request })
+        }
+      }
+    )
+    return () => controller.abort()
+  }, [selectedListItem])
+  const selectedRequest = selectedListItem
+    ? isRequestInsightSummary(selectedListItem)
+      ? historicalRequest?.key === getRequestInsightKey(selectedListItem)
+        ? historicalRequest.request
+        : null
+      : selectedListItem
+    : null
   const initialRequestId = self.__next_r
   const internalRequests = useMemo(
     () => requests.filter((request) => isInternalRequestInsight(request)),
@@ -115,9 +157,11 @@ export function RequestInsightsPanel() {
     : internalRequests.filter((request) => request.status === 'error').length
   // Only offer the internal-activity toggle once the session has captured
   // internal activity to reveal.
-  const showInternalToggle = internalRequests.length > 0
+  const showInternalToggle =
+    internalRequests.length > 0 ||
+    history.optionCounts['activity:instant-insights'] > 0
 
-  if (displayedRequests.length === 0) {
+  if (requests.length === 0 && !history.loading) {
     return (
       <div className="request-insights-empty">
         Request insights will appear after the next App Router request.
@@ -149,7 +193,9 @@ export function RequestInsightsPanel() {
                   toggleRequestInsightFilter(filters, filter)
                 )
               }
-              optionCounts={filterResult.optionCounts}
+              optionCounts={
+                isPaused ? filterResult.optionCounts : history.optionCounts
+              }
               shadowRoot={shadowRoot}
             />
             <div className="request-insights-settings">
@@ -181,7 +227,7 @@ export function RequestInsightsPanel() {
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
                           setPausedRequests(
-                            checked ? [...state.requestInsights] : null
+                            checked ? [...history.requests] : null
                           )
                         }
                       >
@@ -239,8 +285,14 @@ export function RequestInsightsPanel() {
         {activeFilters.length > 0 ? (
           <div className="request-insights-filter-status">
             <span>
-              {filterResult.matchingRequestCount} of{' '}
-              {filterResult.totalRequestCount} requests
+              {isPaused
+                ? filterResult.matchingRequestCount
+                : history.matchingRequestCount}{' '}
+              of{' '}
+              {isPaused
+                ? filterResult.totalRequestCount
+                : history.totalRequestCount}{' '}
+              requests
             </span>
             <button onClick={() => setActiveFilters([])} type="button">
               Reset
@@ -264,25 +316,257 @@ export function RequestInsightsPanel() {
             )}
           </div>
         ) : (
-          listEntries.map(({ request, nested }) => {
-            const requestKey = getRequestInsightKey(request)
-            return (
-              <RequestRow
-                key={requestKey}
-                nested={nested}
-                request={request}
-                pageLoad={isPageLoadRequest(request, initialRequestId)}
-                selected={requestKey === activeRequestKey}
-                onSelect={() => setSelectedRequestKey(requestKey)}
-              />
-            )
-          })
+          <VirtualRequestList
+            activeRequestKey={activeRequestKey}
+            entries={listEntries}
+            hasMore={!isPaused && history.hasMore}
+            initialRequestId={initialRequestId}
+            loading={history.loading}
+            onLoadMore={history.loadMore}
+            onSelect={setSelectedRequestKey}
+            truncated={history.truncated}
+          />
         )}
       </div>
 
-      {selectedRequest && (
+      {selectedRequest ? (
         <RequestDetails request={selectedRequest} verbose={verbose} />
-      )}
+      ) : selectedListItem ? (
+        <div className="request-insights-details-loading">
+          Loading request details…
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function VirtualRequestList({
+  activeRequestKey,
+  entries,
+  hasMore,
+  initialRequestId,
+  loading,
+  onLoadMore,
+  onSelect,
+  truncated,
+}: {
+  activeRequestKey: string | null
+  entries: readonly RequestListEntry[]
+  hasMore: boolean
+  initialRequestId: string | undefined
+  loading: boolean
+  onLoadMore: () => void
+  onSelect: (requestKey: string) => void
+  truncated: boolean
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const scrollbarDragRef = useRef<{
+    pointerId: number
+    pointerY: number
+    scrollTop: number
+  } | null>(null)
+  const [viewportHeight, setViewportHeight] = useState(0)
+  const [scrollTop, setScrollTop] = useState(0)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) {
+      return
+    }
+    const observer = new ResizeObserver(() => {
+      setViewportHeight(viewport.clientHeight)
+    })
+    observer.observe(viewport)
+    setViewportHeight(viewport.clientHeight)
+    return () => observer.disconnect()
+  }, [])
+
+  const startIndex = Math.max(
+    0,
+    Math.floor(scrollTop / REQUEST_ROW_HEIGHT) - REQUEST_ROW_OVERSCAN
+  )
+  const endIndex = Math.min(
+    entries.length,
+    Math.ceil((scrollTop + viewportHeight) / REQUEST_ROW_HEIGHT) +
+      REQUEST_ROW_OVERSCAN
+  )
+  const footerHeight = loading || hasMore || truncated ? 32 : 0
+  const contentHeight = entries.length * REQUEST_ROW_HEIGHT + footerHeight
+  const maxScrollTop = Math.max(0, contentHeight - viewportHeight)
+  const scrollbarTrackHeight = Math.max(
+    0,
+    viewportHeight - REQUEST_SCROLLBAR_TRACK_INSET * 2
+  )
+  const scrollbarThumbHeight =
+    maxScrollTop > 0
+      ? Math.max(
+          REQUEST_SCROLLBAR_MIN_THUMB_HEIGHT,
+          (viewportHeight / contentHeight) * scrollbarTrackHeight
+        )
+      : 0
+  const scrollbarThumbTravel = Math.max(
+    0,
+    scrollbarTrackHeight - scrollbarThumbHeight
+  )
+  const scrollbarThumbTop =
+    maxScrollTop > 0 ? (scrollTop / maxScrollTop) * scrollbarThumbTravel : 0
+
+  const scrollFromThumbDelta = (
+    pointerDelta: number,
+    startScrollTop: number
+  ) => {
+    const viewport = viewportRef.current
+    if (!viewport || scrollbarThumbTravel === 0) {
+      return
+    }
+    viewport.scrollTop =
+      startScrollTop + (pointerDelta / scrollbarThumbTravel) * maxScrollTop
+  }
+
+  useEffect(() => {
+    if (
+      hasMore &&
+      !loading &&
+      viewportHeight > entries.length * REQUEST_ROW_HEIGHT
+    ) {
+      onLoadMore()
+    }
+  }, [entries.length, hasMore, loading, onLoadMore, viewportHeight])
+
+  return (
+    <div
+      aria-label="Requests"
+      className="request-insights-list-scroll"
+      onScroll={() => {
+        const viewport = viewportRef.current
+        if (!viewport) {
+          return
+        }
+        setScrollTop(viewport.scrollTop)
+        if (
+          hasMore &&
+          !loading &&
+          viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
+            REQUEST_ROW_HEIGHT * 4
+        ) {
+          onLoadMore()
+        }
+      }}
+      ref={viewportRef}
+      role="region"
+      tabIndex={0}
+    >
+      <div
+        className="request-insights-list-virtual-content"
+        style={{ height: contentHeight }}
+      >
+        {entries
+          .slice(startIndex, endIndex)
+          .map(({ request, nested }, index) => {
+            const requestKey = getRequestInsightKey(request)
+            const itemIndex = startIndex + index
+            return (
+              <div
+                className="request-insights-list-virtual-row"
+                key={requestKey}
+                style={{
+                  transform: `translateY(${itemIndex * REQUEST_ROW_HEIGHT}px)`,
+                }}
+              >
+                <RequestRow
+                  nested={nested}
+                  request={request}
+                  pageLoad={isPageLoadRequest(request, initialRequestId)}
+                  selected={requestKey === activeRequestKey}
+                  onSelect={() => onSelect(requestKey)}
+                />
+              </div>
+            )
+          })}
+        {footerHeight > 0 ? (
+          <div
+            className="request-insights-history-status"
+            style={{
+              transform: `translateY(${entries.length * REQUEST_ROW_HEIGHT}px)`,
+            }}
+          >
+            {loading
+              ? 'Loading earlier requests…'
+              : hasMore
+                ? 'Scroll to load earlier requests'
+                : truncated
+                  ? 'Older requests were discarded to keep history within 50 MB.'
+                  : null}
+          </div>
+        ) : null}
+      </div>
+      {maxScrollTop > 0 ? (
+        <div
+          aria-hidden="true"
+          className="request-insights-list-scrollbar"
+          onPointerDown={(event) => {
+            if (event.button !== 0) {
+              return
+            }
+            const trackBounds = event.currentTarget.getBoundingClientRect()
+            const nextThumbTop = Math.min(
+              scrollbarThumbTravel,
+              Math.max(
+                0,
+                event.clientY - trackBounds.top - scrollbarThumbHeight / 2
+              )
+            )
+            const viewport = viewportRef.current
+            if (viewport && scrollbarThumbTravel > 0) {
+              viewport.scrollTop =
+                (nextThumbTop / scrollbarThumbTravel) * maxScrollTop
+            }
+          }}
+          style={{
+            height: scrollbarTrackHeight,
+            transform: `translateY(${scrollTop + REQUEST_SCROLLBAR_TRACK_INSET}px)`,
+          }}
+        >
+          <div
+            className="request-insights-list-scrollbar-thumb"
+            onPointerDown={(event) => {
+              if (event.button !== 0) {
+                return
+              }
+              event.preventDefault()
+              event.stopPropagation()
+              event.currentTarget.setPointerCapture(event.pointerId)
+              scrollbarDragRef.current = {
+                pointerId: event.pointerId,
+                pointerY: event.clientY,
+                scrollTop,
+              }
+            }}
+            onPointerMove={(event) => {
+              const drag = scrollbarDragRef.current
+              if (!drag || drag.pointerId !== event.pointerId) {
+                return
+              }
+              scrollFromThumbDelta(
+                event.clientY - drag.pointerY,
+                drag.scrollTop
+              )
+            }}
+            onPointerCancel={() => {
+              scrollbarDragRef.current = null
+            }}
+            onPointerUp={(event) => {
+              if (scrollbarDragRef.current?.pointerId === event.pointerId) {
+                scrollbarDragRef.current = null
+              }
+            }}
+            style={{
+              height: scrollbarThumbHeight,
+              transform: `translateY(${scrollbarThumbTop}px)`,
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -380,7 +664,7 @@ function RequestRow({
   selected,
   onSelect,
 }: {
-  request: RequestInsight
+  request: RequestInsightListItem
   nested: boolean
   pageLoad: boolean
   selected: boolean
@@ -436,8 +720,8 @@ function RequestRow({
         <span>{clockTime}</span>
       </span>
       <span className="request-insights-meta request-insights-fetch-summary">
-        {request.fetches.length
-          ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
+        {getRequestInsightFetchCount(request)
+          ? `${getRequestInsightFetchCount(request)} fetch${getRequestInsightFetchCount(request) === 1 ? '' : 'es'}`
           : 'No fetches'}
       </span>
     </button>
