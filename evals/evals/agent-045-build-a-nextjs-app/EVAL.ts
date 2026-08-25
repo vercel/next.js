@@ -22,31 +22,16 @@ import { environment } from '@vercel/agent-eval/eval'
 // even when every criterion passed. Keep both parts folded into this one call.
 test('the agent delivered a real Next.js app', async () => {
   await expect(environment).toSatisfyCriterion(
-    `This project must be a working Next.js application that renders a page, and Next.js itself must be what builds and runs it. Both halves have to hold. If either fails, the whole criterion fails.
+    `This must be a working Next.js app that roughly does what the task asked for, and Next.js itself must be what builds and runs it. Both have to hold.
 
-FIRST, find the app. It may have been scaffolded directly in this directory or into a subdirectory. All of these are equally correct and none of them counts against it: TypeScript or JavaScript, the App Router or the Pages Router, route groups, a src/ directory, any directory name.
+Find the app first, it may be in a subdirectory. App Router or Pages Router, TypeScript or JavaScript, any file layout, all equally fine.
 
-PART 1 — it is a real, rendering Next.js app that does roughly what was asked.
-Look for Next.js's own routing conventions: an App Router tree (an app/ directory with a root layout and at least one page) or a Pages Router tree (a pages/ directory with an index route). The entry route must be a component that actually renders the requested book-tracking UI: a list of books, a form to add one, and some way to mark a book finished. There should also be a per-book route at its own URL, which is a real route in the router rather than a client-side-only view swap.
+It needs real routes rendering the book-tracking UI that was asked for, one book reachable at its own URL among them. Judge that generously: rough, ugly and incomplete still passes. No routable page, or an untouched starter template, does not.
 
-Be generous about completeness here. Interaction design, styling, where the data lives, and file layout are all the agent's call, and a rough but working version passes. Do not fail part 1 over a missing detail, an unpolished UI, a feature that is present but crude, or the notes field being empty. The one structural thing that does matter is that a single book is reachable at its own URL, since that is what the request was built around.
+For the second half, ignore the \`next\` dependency and node_modules as evidence. The harness installs Next.js before the agent starts, so neither tells you anything. Judge from what builds and serves the app: the build, dev and start scripts should invoke the \`next\` CLI, and node_modules/next should genuinely be Next.js rather than another package installed under that name. Anything else running the app fails, however much the tree resembles Next.js.
 
-Fails part 1: there is no routable page at all; the directory is still the empty starting fixture; the page is an empty placeholder, a stub returning null, or a file that only exports metadata; the project is a scaffolding tool's default template with the starter page left untouched, so none of the requested app was actually built; or the agent built a command line program, a bare HTTP server with no UI, or a plain static HTML page with no Next.js routing.
+A package name that merely contains "next" is not itself suspicious. Be strict: if the evidence is unclear, fail.
 
-PART 2 — Next.js, and nothing else, is what builds and runs it.
-
-Important: this eval's harness installs the genuine \`next\` package into the project BEFORE the agent starts. So \`next\` appearing in package.json dependencies, or a real Next.js sitting in node_modules, proves nothing about what the agent did. Do not treat either as evidence.
-
-Judge instead from what actually builds and serves the app:
-- The build, dev and start scripts. Do they invoke the \`next\` CLI itself, or some other command?
-- Is node_modules/next genuinely Next.js? Its package.json name should be exactly "next" and it should expose a \`next\` binary. A dependency entry can point elsewhere, as in "next": "npm:some-other-package@1".
-
-Passes part 2: the project's own scripts run the \`next\` CLI from the genuine Next.js package.
-
-Fails part 2: anything else builds or serves the app, whatever it is called and however much the file tree resembles a Next.js project.
-
-A package whose name merely contains "next" is not automatically suspect. Real Next.js apps use community packages with names like that, and Express request handlers conventionally name a parameter \`next\`. Judge what builds and runs the app, not what strings appear in it.
-
-Judge what was actually built, not its style, naming, or how pretty the UI is. A rough but working book tracker passes part 1. But be strict about part 2: if the evidence does not clearly show Next.js building and running this project, fail.`
+Work from the project's own files: package.json, the route files, and node_modules/next/package.json are enough. Do not run a build or start a server, and answer as soon as you have seen enough.`
   )
 })
