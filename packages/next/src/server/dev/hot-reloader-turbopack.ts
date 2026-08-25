@@ -101,6 +101,12 @@ import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
+  getActiveWebSocketRouteBundlePaths,
+  getWebSocketRouteBundlePath,
+  invalidateWebSocketRoutes,
+  reloadWebSocketScope,
+} from '../websocket-connection-registry'
+import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
@@ -274,6 +280,31 @@ function collectUpdatedChunkPaths(
     )
   }
   return Array.from(paths)
+}
+
+/** Maps a Turbopack entry chunk under `server/app` to its route bundle key. */
+export function getWebSocketRouteBundlePathFromTurbopackEntry(
+  entryPath: string
+): string | undefined {
+  const normalizedPath = entryPath.replaceAll('\\', '/')
+  if (
+    normalizedPath.startsWith('/') ||
+    /^[A-Za-z]:\//.test(normalizedPath) ||
+    !normalizedPath.endsWith('.js')
+  ) {
+    return undefined
+  }
+
+  const page = normalizedPath.slice(0, -'.js'.length)
+  if (
+    page.length === 0 ||
+    page
+      .split('/')
+      .some((segment) => segment === '' || segment === '.' || segment === '..')
+  ) {
+    return undefined
+  }
+  return getWebSocketRouteBundlePath(page)
 }
 
 function setupServerHmr(
@@ -652,6 +683,12 @@ export async function createHotReloaderTurbopack(
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
+  // WebSocket connections are long-lived: no future request will ever pull
+  // their route's server HMR update, so they cannot wait for the lazy
+  // request-driven pull. Keep the entry paths each route was last written
+  // with so project updates can pull for them eagerly (see the updateInfo
+  // 'end' handler in handleProjectUpdates).
+  const writtenServerHmrEntriesByRoute = new Map<string, string[]>()
   const currentEntrypoints: Entrypoints = {
     global: {
       app: undefined,
@@ -1930,6 +1967,12 @@ export async function createHotReloaderTurbopack(
       if (reloadAfterInvalidation) {
         await serverHmr?.reset()
 
+        if (
+          nextConfig.experimental.webSocketRouteHandlers &&
+          opts.webSocketRegistryScope
+        ) {
+          void reloadWebSocketScope(opts.webSocketRegistryScope)
+        }
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
         }
@@ -2121,6 +2164,16 @@ export async function createHotReloaderTurbopack(
                   shouldPullServerHmr ||= participatesInServerHmr(id, result)
                   if (result.serverHmrEntryPaths.length > 0) {
                     serverHmrEntryPaths = result.serverHmrEntryPaths
+                    for (const entryPath of result.serverHmrEntryPaths) {
+                      const bundlePath =
+                        getWebSocketRouteBundlePathFromTurbopackEntry(entryPath)
+                      if (bundlePath && bundlePath.endsWith('/route')) {
+                        writtenServerHmrEntriesByRoute.set(
+                          bundlePath,
+                          result.serverHmrEntryPaths
+                        )
+                      }
+                    }
                   }
                   return clearRequireCache(id, result, {
                     force: forceDeleteCache,
@@ -2271,6 +2324,22 @@ export async function createHotReloaderTurbopack(
           if (hasDeferredEntriesConfig) {
             callOnBeforeDeferredEntriesAfterHMR()
           }
+
+          // Server HMR applies lazily, driven by the request being built.
+          // WebSocket routes have live connections that never issue another
+          // request, so pull for them eagerly to close stale generations.
+          if (
+            serverHmr &&
+            opts.webSocketRegistryScope &&
+            nextConfig.experimental.webSocketRouteHandlers
+          ) {
+            for (const bundlePath of getActiveWebSocketRouteBundlePaths(
+              opts.webSocketRegistryScope
+            )) {
+              const entryPaths = writtenServerHmrEntriesByRoute.get(bundlePath)
+              if (entryPaths) await serverHmr.apply(entryPaths)
+            }
+          }
           break
         }
         default:
@@ -2285,9 +2354,58 @@ export async function createHotReloaderTurbopack(
 
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {
+    const webSocketRegistryScope = opts.webSocketRegistryScope
+    const invalidateChangedWebSocketRoutes = ({
+      chunkPaths,
+      affectedEntries,
+      hasAffectedEntriesMetadata,
+    }: {
+      chunkPaths: string[]
+      affectedEntries: string[] | undefined
+      hasAffectedEntriesMetadata: boolean
+    }) => {
+      if (
+        !nextConfig.experimental.webSocketRouteHandlers ||
+        !webSocketRegistryScope
+      ) {
+        return
+      }
+
+      let affected: ReadonlySet<string> | 'unknown' = 'unknown'
+      if (
+        hasAffectedEntriesMetadata &&
+        Array.isArray(affectedEntries) &&
+        !(chunkPaths.length > 0 && affectedEntries.length === 0)
+      ) {
+        const bundlePaths = new Set<string>()
+        let unmapped = false
+        for (const entryPath of affectedEntries) {
+          const bundlePath =
+            typeof entryPath === 'string'
+              ? getWebSocketRouteBundlePathFromTurbopackEntry(entryPath)
+              : undefined
+          if (!bundlePath) {
+            // An unmapped entry shape means the affected set cannot be proven.
+            unmapped = true
+            break
+          }
+          bundlePaths.add(bundlePath)
+        }
+        affected = unmapped ? 'unknown' : bundlePaths
+      }
+      invalidateWebSocketRoutes(webSocketRegistryScope, affected)
+    }
+
     serverHmr = setupServerHmr(project, {
       runtimeRoot,
       reEvaluateAllModulesExpensive: async () => {
+        if (
+          nextConfig.experimental.webSocketRouteHandlers &&
+          webSocketRegistryScope
+        ) {
+          void reloadWebSocketScope(webSocketRegistryScope)
+        }
+
         // Evict every server-HMR-managed chunk from `require.cache`.
         // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
         const serverChunksDir = join(distDir, SERVER_HMR_CHUNKS_DIR) + sep
@@ -2315,12 +2433,14 @@ export async function createHotReloaderTurbopack(
         // the next validation loads the build output afresh.
         dropDevValidationWorker()
       },
-      onApplied: ({ chunkPaths }) => {
+      onApplied: (update) => {
+        invalidateChangedWebSocketRoutes(update)
+
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
         // modules in devModuleCache must persist for dep preservation.
-        const manifestPaths = chunkPaths.map((chunkPath) =>
+        const manifestPaths = update.chunkPaths.map((chunkPath) =>
           join(distDir, chunkPath)
         )
 
