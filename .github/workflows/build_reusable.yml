@@ -36,6 +36,10 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      needsRustJsInstall:
+        required: false
+        description: 'if Rust JS dependencies should be installed'
+        type: string
       rustBuildProfile:
         required: false
         description: 'The profile to use for the build, default is `release-with-assertions`, also supports `` for debug and `release` for normal release'
@@ -357,7 +361,7 @@ jobs:
         # risk caching an incomplete store
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
-        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsRustJsInstall == 'yes' }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
@@ -368,10 +372,10 @@ jobs:
 
       - run: pnpm install
         # condititions must be superset of cache step, otherwise we risk running install without a cache and then caching the incomplete store.
-        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsRustJsInstall == 'yes' }}
 
       - name: Install node-file-trace test dependencies
-        if: ${{ inputs.needsNextest == 'yes' }}
+        if: ${{ inputs.needsRustJsInstall == 'yes' }}
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install --recursive
 
