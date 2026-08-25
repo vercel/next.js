@@ -3615,6 +3615,9 @@ const encoder = new TextEncoder()
  * This returns a cache key that has to cover everything that can affect the result of the cached
  * function (apart from the arguments). So
  * - codeHash: the code itself that generates the return value
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version
+ *      anyway:
+ *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
  * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
  *   not inlined)
  * - the version of Next.js (to account for RSC write format changes, or use-cache-wrapper.ts
@@ -3651,7 +3654,6 @@ async function computeCacheKeyImplementationPart(
   }
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&
-    // if runtimeEnvVars===true, then always invalidate
     Array.isArray(serverModuleMapEntry?.runtimeEnvVars) &&
     // TODO replace this with more granular tracking: a list of all client components imported
     serverModuleMapEntry?.referencesClientComponent !== true

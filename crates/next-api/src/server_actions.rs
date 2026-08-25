@@ -9,6 +9,7 @@ use next_core::{
     },
     util::NextRuntime,
 };
+use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::{Atom, atom},
     common::comments::Comments,
@@ -41,6 +42,7 @@ use turbopack_core::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
     },
     output::{OutputAsset, OutputAssetsReference},
+    reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
@@ -50,6 +52,7 @@ use turbopack_ecmascript::{
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
+    references::esm::EsmAssetReference,
 };
 
 use crate::project::Project;
@@ -393,22 +396,65 @@ async fn compute_subtree_content_hash(
 
         let mut references_client_component = false;
 
+        // These modules shouldn't be traversed. They end up pulling in a lot of env vars. But they
+        // don't actually read the env vars for the imports that are used. Their code is versioned
+        // anyway via the Next.js version in the cache key.
+        let modules_to_ignore: FxHashSet<_> = entry
+            .references()
+            .await?
+            .into_iter()
+            .filter_map(ResolvedVc::try_downcast_type::<EsmAssetReference>)
+            .map(async |reference| {
+                let reference_value = reference.await?;
+                Ok(
+                    // These pull in app-page-turbo.runtime.prod.js which reads basically all env
+                    // vars that exist and would always cause a deopt.
+                    if reference_value.request == "private-next-rsc-server-reference"
+                        || reference_value.request == "private-next-rsc-cache-wrapper"
+                        || reference_value.request == "react"
+                        || reference_value.request.starts_with("react/")
+                        || reference_value.request == "react-dom"
+                        || reference_value.request.starts_with("react-dom/")
+                    {
+                        reference
+                            .resolve_reference()
+                            .await?
+                            .primary_modules()
+                            .await?
+                    } else {
+                        vec![]
+                    },
+                )
+            })
+            .try_flat_join()
+            .await?
+            .into_iter()
+            .collect();
+        debug_assert!(
+            !modules_to_ignore.is_empty(),
+            "at least private-next-rsc-server-reference should have been detected"
+        );
+
         let mut modules = FxIndexSet::default();
         module_graph_value.traverse_edges_dfs(
             std::iter::once(entry),
             /* state */ &mut (),
             /* visit_preorder */
             |_, target, _| {
-                if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
-                    references_client_component = true;
+                if modules_to_ignore.contains(&target) {
+                    Ok(GraphTraversalAction::Exclude)
+                } else if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target)
+                    .is_some()
+                {
                     // Don't include the module at all. There is nothing that executes on the server
+                    references_client_component = true;
                     Ok(GraphTraversalAction::Exclude)
                 } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
                     .is_some()
                 {
-                    references_client_component = true;
                     // Include the client reference proxy module, but not the referenced client
                     // modules themselves.
+                    references_client_component = true;
                     modules.insert(target);
                     Ok(GraphTraversalAction::Exclude)
                 } else {
@@ -592,6 +638,18 @@ async fn module_hash(
     let ident = m.ident();
     let ident_value = ident.await?;
     let ident_str = ident.to_string().await?;
+
+    if cfg!(debug_assertions)
+        && (ident_str
+            .contains("next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js")
+            || ident_str.contains(
+                "next/dist/compiled/next-server/app-page-turbo-experimental.runtime.prod.js",
+            )
+            || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.dev.js")
+            || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js"))
+    {
+        bail!("use cache subtree shouldn't contain app-page-turbo.");
+    }
 
     let env_var_info =
         if let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(m) {

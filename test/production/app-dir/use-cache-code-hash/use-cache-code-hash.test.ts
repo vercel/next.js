@@ -60,10 +60,6 @@ async function getCodeHashes(
         ).toMatchInlineSnapshot(`
          [
            "BUNDLED_NON_INLINED_ENVVAR",
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
            "EXTERNAL_ENV_VAR",
          ]
         `)
@@ -71,16 +67,7 @@ async function getCodeHashes(
         expect(
           data.filter((e) => e.page === 'app/env-dynamic/page')[0]
             .runtimeEnvVars
-          // TODO DECOY here is wrong
-        ).toMatchInlineSnapshot(`
-         [
-           "DECOY",
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-         ]
-        `)
+        ).toMatchInlineSnapshot(`[]`)
       })
     })
 
