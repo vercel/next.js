@@ -503,6 +503,7 @@ function waitForCloseOrTerminate(
       return
     }
 
+    // Install-phase deferral latch (see ownWebSocketUpgradeSocketErrors).
     let closeDuringListenerRegistration = false
     let registeringCloseListener = true
     try {
