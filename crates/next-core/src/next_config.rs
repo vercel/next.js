@@ -1443,6 +1443,8 @@ pub struct ExperimentalConfig {
     turbopack_cjs_tree_shaking: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
+    /// Enable cross-module constant inlining. Defaults to false.
+    turbopack_cross_module_constants: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -1881,12 +1883,11 @@ impl OutputFileTracingIncludesExcludes {
                             .iter()
                             .flat_map(|pattern| pattern.iter())
                             .filter_map(|pattern| pattern.as_str())
-                            .map(async |pattern_str| {
+                            .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
                             })
-                            .try_join()
-                            .await?;
+                            .collect::<Result<Vec<_>>>()?;
                         Ok((route_pattern, file_patterns))
                     })
                     .try_join()
@@ -2572,6 +2573,15 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .turbopack_cjs_scope_hoisting
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cross_module_constants(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cross_module_constants
                 .unwrap_or(false),
         )
     }

@@ -1,20 +1,8 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import type { Page } from 'playwright'
 
 const emptyImage =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-
-const browserOptions = {
-  beforePageLoad(page: Page) {
-    // Block all image requests to external hosts immediately so we are not introducing flakes due
-    // to long DNS timeouts
-    page.route(
-      /^https:\/\/(?:example\.com|arbitraryurl\.com|example\.vercel\.sh|www\.otherhost\.com)\//,
-      (route) => route.abort()
-    )
-  },
-}
 
 describe('Image Component Tests', () => {
   const { next } = nextTestSetup({
@@ -69,21 +57,21 @@ describe('Image Component Tests', () => {
       expect(
         await browser().elementById('basic-image').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=1024&q=60'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?auto=format&fit=max&w=1024&q=60'
       )
     })
     it('should correctly generate src even if preceding slash is included in prop', async () => {
       expect(
         await browser().elementById('preceding-slash-image').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/fooslash.jpg?auto=format&fit=max&w=1024'
       )
     })
     it('should add a srcset based on the loader', async () => {
       expect(
         await browser().elementById('basic-image').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=480&q=60 1x, https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=1024&q=60 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?auto=format&fit=max&w=480&q=60 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?auto=format&fit=max&w=1024&q=60 2x'
       )
     })
     it('should add a srcset even with preceding slash in prop', async () => {
@@ -92,31 +80,37 @@ describe('Image Component Tests', () => {
           .elementById('preceding-slash-image')
           .getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/fooslash.jpg?auto=format&fit=max&w=480 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/fooslash.jpg?auto=format&fit=max&w=1024 2x'
       )
     })
     it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
       expect(
         await browser().elementById('icon-image-16').getAttribute('src')
-      ).toBe('https://example.com/myaccount/icon.png?auto=format&fit=max&w=32')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=32'
+      )
       expect(
         await browser().elementById('icon-image-16').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=16 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=32 2x'
       )
       expect(
         await browser().elementById('icon-image-32').getAttribute('src')
-      ).toBe('https://example.com/myaccount/icon.png?auto=format&fit=max&w=64')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=64'
+      )
       expect(
         await browser().elementById('icon-image-32').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=64 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=32 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/icon.png?auto=format&fit=max&w=64 2x'
       )
     })
     it('should support the unoptimized attribute', async () => {
       expect(
         await browser().elementById('unoptimized-image').getAttribute('src')
-      ).toBe('https://arbitraryurl.com/foo.jpg')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg'
+      )
     })
     it('should not add a srcset if unoptimized attribute present', async () => {
       expect(
@@ -127,7 +121,7 @@ describe('Image Component Tests', () => {
       expect(
         await browser().elementById('image-with-param-auto').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/foo.png?auto=compress&fit=max&w=1024'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.png?auto=compress&fit=max&w=1024'
       )
     })
     it('should keep width parameter if already set', async () => {
@@ -135,13 +129,15 @@ describe('Image Component Tests', () => {
         await browser()
           .elementById('image-with-param-width')
           .getAttribute('src')
-      ).toBe('https://example.com/myaccount/foo.png?auto=format&w=500&fit=max')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.png?auto=format&w=500&fit=max'
+      )
     })
     it('should keep fit parameter if already set', async () => {
       expect(
         await browser().elementById('image-with-param-fit').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/foo.png?auto=format&fit=crop&w=300&h=300'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.png?auto=format&fit=crop&w=300&h=300'
       )
     })
   }
@@ -149,12 +145,12 @@ describe('Image Component Tests', () => {
   function lazyLoadingTests(browser: () => Browser) {
     it('should have loaded the first image immediately', async () => {
       expect(await browser().elementById('lazy-top').getAttribute('src')).toBe(
-        'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy1.jpg?auto=format&fit=max&w=2000'
       )
       expect(
         await browser().elementById('lazy-top').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy1.jpg?auto=format&fit=max&w=1024 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy1.jpg?auto=format&fit=max&w=2000 2x'
       )
     })
     it('should not have loaded the second image immediately', async () => {
@@ -183,13 +179,13 @@ describe('Image Component Tests', () => {
 
       await retry(async () => {
         expect(await b.elementById('lazy-mid').getAttribute('src')).toBe(
-          'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy2.jpg?auto=format&fit=max&w=1024'
         )
       })
 
       await retry(async () => {
         expect(await b.elementById('lazy-mid').getAttribute('srcset')).toBe(
-          'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024 2x'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy2.jpg?auto=format&fit=max&w=480 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy2.jpg?auto=format&fit=max&w=1024 2x'
         )
       })
     })
@@ -213,7 +209,7 @@ describe('Image Component Tests', () => {
       )
       await new Promise((r) => setTimeout(r, 200))
       expect(await b.elementById('lazy-bottom').getAttribute('src')).toBe(
-        'https://www.otherhost.com/lazy3.jpg'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy3.jpg'
       )
       expect(
         await b.elementById('lazy-bottom').getAttribute('srcset')
@@ -239,12 +235,12 @@ describe('Image Component Tests', () => {
       expect(
         await b.elementById('lazy-without-attribute').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1600'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy4.jpg?auto=format&fit=max&w=1600'
       )
       expect(
         await b.elementById('lazy-without-attribute').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1600 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy4.jpg?auto=format&fit=max&w=1024 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy4.jpg?auto=format&fit=max&w=1600 2x'
       )
     })
 
@@ -252,7 +248,7 @@ describe('Image Component Tests', () => {
       expect(
         await browser().elementById('eager-loading').getAttribute('src')
       ).toBe(
-        'https://example.com/myaccount/lazy5.jpg?auto=format&fit=max&w=2000'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy5.jpg?auto=format&fit=max&w=2000'
       )
       expect(
         await browser().elementById('eager-loading').getAttribute('srcset')
@@ -282,7 +278,7 @@ describe('Image Component Tests', () => {
             'document.querySelector("#lazy-boundary").getAttribute("src")'
           )
         ).toBe(
-          'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy6.jpg?auto=format&fit=max&w=1600'
         )
       })
 
@@ -292,7 +288,7 @@ describe('Image Component Tests', () => {
             'document.querySelector("#lazy-boundary").getAttribute("srcset")'
           )
         ).toBe(
-          'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy6.jpg?auto=format&fit=max&w=1600 2x'
         )
       })
     })
@@ -301,7 +297,7 @@ describe('Image Component Tests', () => {
   describe('SSR Image Component Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/', browserOptions)
+      browser = await next.browser('/')
     })
     runTests(() => browser)
 
@@ -309,7 +305,7 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           browser,
-          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/withpriority.png?auto=format&fit=max&w=1024&q=60'
         )
       ).toBe(true)
     })
@@ -317,7 +313,7 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           browser,
-          'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/fooslash.jpg?auto=format&fit=max&w=1024'
         )
       ).toBe(true)
     })
@@ -325,7 +321,7 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           browser,
-          'https://arbitraryurl.com/withpriority3.png'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/withpriority3.png'
         )
       ).toBe(true)
     })
@@ -333,7 +329,7 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           browser,
-          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/withpriority.png?auto=format&fit=max&w=1024&q=60'
         )
       ).toBe(true)
     })
@@ -349,16 +345,18 @@ describe('Image Component Tests', () => {
       ).toBe('intrinsic')
     })
     it('should not pass config to custom loader prop', async () => {
-      const loaderBrowser = await next.browser('/loader-prop', browserOptions)
+      const loaderBrowser = await next.browser('/loader-prop')
       expect(
         await loaderBrowser.elementById('loader-prop-img').getAttribute('src')
-      ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
+      ).toBe(
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?width=1024'
+      )
       expect(
         await loaderBrowser
           .elementById('loader-prop-img')
           .getAttribute('srcset')
       ).toBe(
-        'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
+        'https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?width=480 1x, https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg?width=1024 2x'
       )
     })
   })
@@ -366,7 +364,7 @@ describe('Image Component Tests', () => {
   describe('Client-side Image Component Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/', browserOptions)
+      browser = await next.browser('/')
       await browser.waitForElementByCss('#clientlink').click()
     })
     runTests(() => browser)
@@ -376,7 +374,7 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           browser,
-          'https://example.com/myaccount/withpriorityclient.png?auto=format&fit=max'
+          'https://next-data-api-endpoint.vercel.app/next-image-legacy/withpriorityclient.png?auto=format&fit=max'
         )
       ).toBe(false)
     })
@@ -414,7 +412,7 @@ describe('Image Component Tests', () => {
   describe('SSR Lazy Loading Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/lazy', browserOptions)
+      browser = await next.browser('/lazy')
     })
     lazyLoadingTests(() => browser)
   })
@@ -422,7 +420,7 @@ describe('Image Component Tests', () => {
   describe('Client-side Lazy Loading Tests', () => {
     let browser: Playwright
     beforeAll(async () => {
-      browser = await next.browser('/', browserOptions)
+      browser = await next.browser('/')
       await browser.waitForElementByCss('#lazylink').click()
       await new Promise((r) => setTimeout(r, 500))
     })

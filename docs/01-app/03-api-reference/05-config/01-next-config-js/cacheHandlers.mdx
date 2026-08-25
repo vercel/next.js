@@ -71,7 +71,11 @@ Note that `'use cache: private'` does not use cache handlers and cannot be custo
 
 ## API Reference
 
-A cache handler must implement the [`CacheHandler`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) interface with the following methods:
+A cache handler must implement the `CacheHandler` interface with the following methods. The `CacheHandler` and `CacheEntry` types are exported from `next/cache`:
+
+```ts
+import type { CacheHandler, CacheEntry } from 'next/cache'
+```
 
 ### `get()`
 
@@ -227,7 +231,7 @@ const cacheHandler = {
 
 ## CacheEntry Type
 
-The [`CacheEntry`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) object has the following structure:
+The `CacheEntry` object (exported from `next/cache`) has the following structure:
 
 ```ts
 interface CacheEntry {

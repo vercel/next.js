@@ -58,7 +58,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -73,7 +72,6 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -88,7 +86,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -227,7 +224,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -244,7 +240,6 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -260,7 +255,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -334,7 +328,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -349,7 +342,6 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -373,7 +365,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",

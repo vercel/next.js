@@ -124,7 +124,7 @@ impl VersionedContentMap {
                 let rel = root.get_path_to(&path)?;
                 Some((RcStr::from(rel), path))
             })
-            .map(|(name, path)| async move {
+            .map(async |(name, path)| {
                 // Skip Redirect assets: they're symlinks with no file content,
                 // so versioning them would bail with "not a file".
                 let Some(asset) = *self.get_asset(path).await? else {
@@ -295,12 +295,8 @@ impl VersionedContentMap {
         };
         let keys = keys
             .into_iter()
-            .map(|path| {
-                let root = root.clone();
-                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
-            })
-            .try_flat_join()
-            .await?;
+            .filter_map(|path| root.get_path_to(&path).map(RcStr::from))
+            .collect();
         Ok(Vc::cell(keys))
     }
 
@@ -337,7 +333,7 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
         .iter()
-        .map(|&asset| async move {
+        .map(async |&asset| {
             let path = asset.path().owned().await?;
             Ok((path, asset))
         })

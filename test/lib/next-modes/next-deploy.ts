@@ -563,9 +563,17 @@ export class NextDeployInstance extends NextInstance {
     require('console').log(
       `Writing .npmrc for preview-builds mirror: ${registryKey}`
     )
+    // Appended rather than written, because a fixture may ship its own `.npmrc`
+    // (several do) and overwriting it silently drops that configuration.
+    const npmrcPath = path.join(this.testDir, '.npmrc')
+    const existing = (await fs.pathExists(npmrcPath))
+      ? await fs.readFile(npmrcPath, 'utf8')
+      : ''
+    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
+
     await fs.writeFile(
-      path.join(this.testDir, '.npmrc'),
-      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
+      npmrcPath,
+      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
   }
 

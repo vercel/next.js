@@ -2,7 +2,7 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
     TaskId,
-    scope::scope_and_block,
+    scope_bounded::scope_bounded,
     util::{good_chunk_size, into_chunks},
 };
 
@@ -139,7 +139,7 @@ pub fn connect_children(
     if len >= CONNECT_CHILDREN_PARALLIZATION_THRESHOLD {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
-        let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {
+        let _ = scope_bounded(len.div_ceil(chunk_size), |scope| {
             for chunk in into_chunks(new_follower_ids, chunk_size) {
                 let upper_ids = &upper_ids;
                 let child_ctx = ctx.child_context();

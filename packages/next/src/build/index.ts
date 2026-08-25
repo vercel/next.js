@@ -83,6 +83,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -212,7 +213,6 @@ import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
@@ -414,6 +414,7 @@ export type PrerenderManifest = {
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
+  /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
 }
 
@@ -507,6 +508,7 @@ function getPagesFallbackClassification(
 }
 
 export type SubresourceIntegrityManifest = Record<string, string>
+export type PreviewPropsManifest = __ApiPreviewProps
 
 type ManifestBuiltRoute = {
   /**
@@ -1219,7 +1221,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        await flushAllTraces()
+        flushAllTraces()
         teardownTraceSubscriber()
         process.exit(0)
       }
@@ -2012,6 +2014,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, PREVIEW_PROPS_MANIFEST),
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
@@ -4414,10 +4417,15 @@ export default async function build(
           version: 4,
           routes: {},
           dynamicRoutes: {},
-          preview: previewProps,
           notFoundRoutes: [],
+          preview: previewProps,
         })
       }
+
+      await writeManifest(
+        path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),
+        previewProps
+      )
 
       // #endregion
 
@@ -4549,6 +4557,7 @@ export default async function build(
               outputFileTracingRoot,
               hasNodeMiddleware,
               hasInstrumentationHook,
+              previewProps,
               adapterPath,
               pageKeys: pageKeys.pages,
               appPageKeys: emittedAppPageKeys,
@@ -4682,8 +4691,8 @@ export default async function build(
       await telemetry.flush()
     }
 
-    // Ensure all traces are flushed before finishing the command
-    await flushAllTraces()
+    // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
+    flushAllTraces()
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {
@@ -4720,11 +4729,6 @@ function getBundlerForTelemetry(bundler: Bundler) {
 }
 
 function getErrorCodeForTelemetry(err: unknown) {
-  const code = extractNextErrorCode(err)
-  if (code != null) {
-    return code
-  }
-
   if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
     return err.code
   }
