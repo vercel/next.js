@@ -124,6 +124,12 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
+/** Recovers the page from a getEntryKey() value; the inverse encoding lives
+ * here so the two never drift. */
+export function parseEntryKey(entryKey: string): string {
+  return entryKey.replace(/^[^@]+@[^@]+@/, '')
+}
+
 function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
   if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
@@ -288,12 +294,11 @@ export function removeMissingOnDemandEntry(
   entryKey: string,
   expectedEntry: EntryType
 ): boolean {
-  const page = entryKey.replace(/^[^@]+@[^@]+@/, '')
   return removeOnDemandEntry(
     outputPath,
     entryKey,
     expectedEntry,
-    new PageNotFoundError(page)
+    new PageNotFoundError(parseEntryKey(entryKey))
   )
 }
 
@@ -302,12 +307,11 @@ export function removeStaleOnDemandEntry(
   entryKey: string,
   expectedEntry: EntryType
 ): boolean {
-  const page = entryKey.replace(/^[^@]+@[^@]+@/, '')
   return removeOnDemandEntry(
     outputPath,
     entryKey,
     expectedEntry,
-    new RuntimeChangedError(page)
+    new RuntimeChangedError(parseEntryKey(entryKey))
   )
 }
 
@@ -315,15 +319,24 @@ export async function retryOnDemandEntryRuntimeChange(
   page: string,
   operation: () => Promise<void>
 ): Promise<void> {
+  let lastError: unknown
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await operation()
       return
     } catch (error) {
       if (!(error instanceof RuntimeChangedError)) throw error
-      if (attempt === 2) throw new PageNotFoundError(page)
+      lastError = error
     }
   }
+  // The runtime kept flip-flopping under us. Preserve the cause chain on the
+  // dev-overlay-rendered error instead of blaming the page with a bare
+  // PageNotFoundError.
+  const pageNotFoundError = new PageNotFoundError(page)
+  if (lastError instanceof Error) {
+    ;(pageNotFoundError as { cause?: unknown }).cause = lastError
+  }
+  throw pageNotFoundError
 }
 
 const invalidators: Map<string, Invalidator> = new Map()
