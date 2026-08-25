@@ -1,0 +1,1 @@
+Changelog entries are immutable once generated — cache the rendering in lib/changelog.ts permanently. Truly forever: not "a long time", not "a year". It should stay prerenderable so the content is baked into the static output at build time.

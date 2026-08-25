@@ -1,0 +1,1 @@
+We enabled the new caching architecture and the build now fails on /admin. That route genuinely cannot be prerendered — every byte of it is per-user — and the admin team explicitly does not want skeleton or loading fallbacks there. Make the build green without touching the admin data code and without relaxing validation for the rest of the app.

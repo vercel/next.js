@@ -1,0 +1,1 @@
+Every deploy invalidates all of our users' cached JavaScript, and profiling points at the deploy-info footer. Fix the footer so client chunks stop changing on every deploy, and add a build-time guardrail so this whole class of mistake fails loudly if anyone reintroduces it.
