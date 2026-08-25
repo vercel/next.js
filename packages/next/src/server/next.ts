@@ -38,6 +38,7 @@ import {
   writeRawHttpError,
 } from './websocket-http'
 import { addDistinctServerCleanupFailures } from './lib/server-cleanup'
+import { throwCombinedFailures } from './websocket-http'
 import { RESTART_EXIT_CODE } from './lib/utils'
 import { addRequestMeta } from './request-meta'
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
@@ -744,11 +745,9 @@ class NextCustomServer implements NextWrapperServer {
       } catch (cleanupError) {
         if (!failures.includes(cleanupError)) failures.push(cleanupError)
       }
-      if (failures.length === 1) throw failures[0]
-      throw new AggregateError(
+      throwCombinedFailures(
         failures,
-        'Failed to register the custom-server WebSocket upgrade listener',
-        { cause: failures[0] }
+        'Failed to register the custom-server WebSocket upgrade listener'
       )
     } finally {
       registration.resolve()
@@ -1148,14 +1147,10 @@ class NextCustomServer implements NextWrapperServer {
                 }
               }
             }
-            if (removalFailures.length === 1) throw removalFailures[0]
-            if (removalFailures.length > 1) {
-              throw new AggregateError(
-                removalFailures,
-                'Failed to remove the custom-server WebSocket upgrade listener',
-                { cause: removalFailures[0] }
-              )
-            }
+            throwCombinedFailures(
+              removalFailures,
+              'Failed to remove the custom-server WebSocket upgrade listener'
+            )
           }
         },
       ])
@@ -1206,14 +1201,10 @@ class NextCustomServer implements NextWrapperServer {
       ) {
         return
       }
-      if (failures.length === 1) throw failures[0]
-      if (failures.length > 1) {
-        throw new AggregateError(
-          failures,
-          'Failed to close the Next.js custom server',
-          { cause: failures[0] }
-        )
-      }
+      throwCombinedFailures(
+        failures,
+        'Failed to close the Next.js custom server'
+      )
     }
 
     void runClose().then(

@@ -3,6 +3,8 @@ import type { Duplex } from 'node:stream'
 import {
   createOwnedListeners,
   isRawHttpResponseCommitted,
+  throwCombinedFailures,
+  tryDestroySocket,
 } from './websocket-http'
 import {
   UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS,
@@ -13,19 +15,6 @@ interface PendingUpgrade {
   socket: Duplex
   done: Promise<void>
   finish(): unknown[]
-}
-
-function throwFailures(failures: unknown[]): void {
-  if (failures.length === 1) throw failures[0]
-  if (failures.length > 1) {
-    throw new AggregateError(
-      failures,
-      'Failed to close pending WebSocket upgrades',
-      {
-        cause: failures[0],
-      }
-    )
-  }
 }
 
 function isCommittedOrFlushing(socket: Duplex): boolean {
@@ -53,11 +42,9 @@ export class PendingWebSocketUpgradeTracker {
   }
 
   private destroy(socket: Duplex): void {
-    try {
-      if (!socket.destroyed) socket.destroy()
-    } catch (error) {
+    tryDestroySocket(socket, (error) => {
       if (!this.failures.includes(error)) this.failures.push(error)
-    }
+    })
   }
 
   track(socket: Duplex): () => void {
@@ -151,7 +138,10 @@ export class PendingWebSocketUpgradeTracker {
       this.pending.delete(pending)
       resolve()
       this.record(installFailures)
-      throwFailures(installFailures)
+      throwCombinedFailures(
+        installFailures,
+        'Failed to close pending WebSocket upgrades'
+      )
     }
 
     if (endRemovalRequested) {
@@ -208,6 +198,9 @@ export class PendingWebSocketUpgradeTracker {
       }
     }
 
-    throwFailures(this.failures)
+    throwCombinedFailures(
+      this.failures,
+      'Failed to close pending WebSocket upgrades'
+    )
   }
 }
