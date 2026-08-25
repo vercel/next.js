@@ -52,6 +52,12 @@ const MAX_PENDING_MESSAGE_HOOKS = 32
 const MAX_PENDING_MESSAGE_BYTES = 16 * 1024 * 1024
 const MAX_OUTBOUND_BUFFER_BYTES = 16 * 1024 * 1024
 const textEncoder = new TextEncoder()
+// Threat model for the primordial getters below: `send()`/`publish()` accept
+// values authored by application code, which may share a realm with
+// dependencies that patch TypedArray/DataView prototypes. Byte lengths and
+// copies for those user-supplied values must ignore instance and prototype
+// overrides or the outbound limits could be mis-measured. Transport-supplied
+// inbound data (vendored ws) is trusted and read with plain property access.
 const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype)
 const typedArrayBufferGetter = Object.getOwnPropertyDescriptor(
   typedArrayPrototype,

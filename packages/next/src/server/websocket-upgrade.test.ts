@@ -316,7 +316,23 @@ describe('WebSocket transport lifecycle', () => {
     })
     expect(peer.request).toBe(request)
     expect(peer.remoteAddress).toBe('203.0.113.9')
-    expect(peer.id).toBe(peer.id)
+
+    // Peer ids are per-connection and stable across repeated reads.
+    let secondPeer!: WebSocketTransportPeer
+    const second = await openConnection({
+      transportOptions: {
+        registerPeer(registeredPeer) {
+          secondPeer = registeredPeer
+        },
+      },
+    })
+    const peerId = peer.id
+    const secondPeerId = secondPeer.id
+    expect(peer.id).toBe(peerId)
+    expect(secondPeer.id).toBe(secondPeerId)
+    expect(secondPeerId).not.toBe(peerId)
+    second.socket.destroy()
+
     expect('websocket' in peer).toBe(false)
     expect(peer.send('okay')).toBe(4)
     expect(websocket.send).toHaveBeenCalledWith('okay')
