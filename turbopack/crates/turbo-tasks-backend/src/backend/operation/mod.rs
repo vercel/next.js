@@ -796,6 +796,22 @@ fn restored_from_disk(result: &Option<Result<Option<TaskStorage>>>) -> bool {
     matches!(result, Some(Ok(Some(_))))
 }
 
+/// The priority a task is scheduled with: an already computed task is a re-computation of a
+/// (possibly deep) dependency, everything else starts at the initial priority.
+fn schedule_priority(task: &impl TaskGuard, parent_priority: TaskPriority) -> TaskPriority {
+    let priority = if task.has_output() {
+        TaskPriority::invalidation(
+            task.get_leaf_distance()
+                .copied()
+                .unwrap_or_default()
+                .distance,
+        )
+    } else {
+        TaskPriority::initial()
+    };
+    priority.in_parent(parent_priority)
+}
+
 /// Combines per-category booleans into a single `TaskDataCategory` for waiting.
 fn wait_category(wait_data: bool, wait_meta: bool) -> Option<TaskDataCategory> {
     match (wait_data, wait_meta) {
@@ -1095,18 +1111,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
-        let priority = if task.has_output() {
-            TaskPriority::invalidation(
-                task.get_leaf_distance()
-                    .copied()
-                    .unwrap_or_default()
-                    .distance,
-            )
-        } else {
-            TaskPriority::initial()
-        };
-        self.turbo_tasks
-            .schedule(task.id(), priority.in_parent(parent_priority));
+        let priority = schedule_priority(&task, parent_priority);
+        self.turbo_tasks.schedule(task.id(), priority);
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {
