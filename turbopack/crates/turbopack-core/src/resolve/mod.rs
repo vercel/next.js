@@ -2032,35 +2032,27 @@ async fn resolve_internal_inline(
                 // so it can't reach outside of that root.
                 if let Some(root) = &options_value.server_relative_root {
                     Box::pin(resolve_internal_inline(root.clone(), relative, options)).await?
-                } else if has_alias {
-                    // An alias almost matched (see above) but didn't resolve to anything, so this
-                    // falls back to resolving normally, the same as any other unaliased request.
-                    Box::pin(resolve_internal_inline(
-                        lookup_path.root().owned().await?,
-                        relative,
-                        options,
-                    ))
-                    .await?
                 } else {
                     // Without a root configured there is nothing to resolve this from, so it isn't
-                    // supported: report that and give up, rather than also guessing at the root of
-                    // the filesystem, which could otherwise silently resolve or silently fail
-                    // depending on what happens to exist there.
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
+                    // supported. Guessing at the root of the filesystem would silently resolve or
+                    // silently fail depending on what happens to live there.
+                    if !has_alias {
+                        ResolvingIssue {
+                            severity: resolve_error_severity(options).await?,
+                            request_type: "server relative import: not implemented yet".to_string(),
+                            request: relative.to_resolved().await?,
+                            file_path: lookup_path.clone(),
+                            resolve_options: options.to_resolved().await?,
+                            error_message: Some(
+                                "server relative imports are not implemented yet. Please try an \
+                                 import relative to the file you are importing from."
+                                    .to_string(),
+                            ),
+                            source: None,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
 
                     ResolveResult::unresolvable().cell()
                 }
