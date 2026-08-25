@@ -62,7 +62,7 @@ pub async fn item_code_module_ids_and_paths(
             .await?
             .chunk_items
             .iter()
-            .map(|item| async {
+            .map(async |item| {
                 Ok((
                     item.chunk_item.id().await?,
                     item.chunk_item

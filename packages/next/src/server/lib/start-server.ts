@@ -264,7 +264,7 @@ export async function startServer(
           'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
-        await flushAllTraces()
+        flushAllTraces()
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -428,7 +428,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {

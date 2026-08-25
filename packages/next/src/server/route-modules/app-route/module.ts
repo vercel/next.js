@@ -22,7 +22,10 @@ import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
-import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
+import {
+  AppRouteRouteHandlersSpan,
+  AppRouteRouteModuleSpan,
+} from '../../lib/trace/constants'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -281,8 +284,19 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
-    this._lazyUserland = new LazyModule(userland, (module) =>
-      this._onUserlandLoaded(module)
+    this._lazyUserland = new LazyModule(
+      () =>
+        getTracer().trace(
+          AppRouteRouteModuleSpan.loadUserland,
+          {
+            spanName: 'load app route module',
+            attributes: {
+              'next.route': this.definition.pathname,
+            },
+          },
+          userland
+        ),
+      (module) => this._onUserlandLoaded(module)
     )
 
     // output:export routes load eagerly, so that errors surface at module
