@@ -32,7 +32,7 @@ use crate::{
     Compression, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
-    compression::{DecompressionPool, checksum_block, decompress_into_arc},
+    compression::{DecompressionContext, checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -327,7 +327,7 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// Per-family storage configuration.
     config: DbConfig<FAMILIES>,
     /// Reusable zstd decompression contexts owned by this database.
-    decompression_pool: Arc<DecompressionPool>,
+    decompression_context: Arc<DecompressionContext>,
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
@@ -454,7 +454,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             key_block_cache: OnceLock::new(),
             value_block_cache: OnceLock::new(),
             config,
-            decompression_pool: Arc::new(DecompressionPool::default()),
+            decompression_context: Arc::new(DecompressionContext::default()),
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
         }
@@ -643,7 +643,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     &self.path,
                     seq,
                     family_configs,
-                    self.decompression_pool.clone(),
+                    self.decompression_context.clone(),
                 )?;
                 Ok(meta_file)
             })?;
@@ -697,7 +697,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let buffer = decompress_into_arc(
-            &self.decompression_pool,
+            &self.decompression_context,
             compression,
             uncompressed_length,
             reader,
@@ -706,8 +706,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     #[cfg(test)]
-    pub(crate) fn decompression_pool_weak(&self) -> std::sync::Weak<DecompressionPool> {
-        Arc::downgrade(&self.decompression_pool)
+    pub(crate) fn decompression_context_weak(&self) -> std::sync::Weak<DecompressionContext> {
+        Arc::downgrade(&self.decompression_context)
     }
 
     /// Returns true if the database is empty.
@@ -952,7 +952,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         &self.path,
                         seq,
                         family_configs,
-                        self.decompression_pool.clone(),
+                        self.decompression_context.clone(),
                     )?;
                     Ok(SyncResult::Meta(meta_file))
                 }
@@ -1624,7 +1624,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         path,
                                         entry.sst_metadata(),
                                         self.config.family_configs[family as usize].compression,
-                                        self.decompression_pool.clone(),
+                                        self.decompression_context.clone(),
                                     )
                                 })
                                 .collect::<Result<Vec<_>>>()?;

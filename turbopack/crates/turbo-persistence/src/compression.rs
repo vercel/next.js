@@ -1,123 +1,82 @@
-use std::{
-    io,
-    mem::MaybeUninit,
-    ops::{Deref, DerefMut},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
 use lzzzz::{
     lz4::{self, decompress},
     lz4_hc,
 };
-use parking_lot::Mutex;
+use thread_local::ThreadLocal;
 
-const COMPRESSION_TAG_LZ4: u32 = 0;
-const COMPRESSION_TAG_LZ4_HC: u32 = 1;
-const COMPRESSION_TAG_ZSTD: u32 = 2;
-
-/// Compression algorithm used for a family's SST blocks and blob values.
+/// Compression preset used for a family's SST blocks and blob values.
 ///
-/// The configuration is recorded once in each meta file and must match the runtime family
-/// configuration used to open the database.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// Variant order is part of the meta-file format. New presets must be appended without reordering
+/// existing variants.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
 pub enum Compression {
     /// Fast LZ4 compression using the default acceleration level.
     #[default]
     Lz4,
-    /// LZ4 high-compression mode at the given level (3 through 12).
-    Lz4Hc(i32),
-    /// Zstandard compression at a level in [`zstd::compression_level_range`].
-    ///
-    /// The range is currently -131072 through 22. Level 0 asks zstd to use its default level
-    /// (currently 3).
-    Zstd(i32),
+    /// LZ4 high-compression mode at level 4.
+    Lz4Hc4,
+    /// Zstandard compression at level 3.
+    Zstd3,
 }
 
 impl Compression {
-    pub(crate) fn validate(self) -> Result<()> {
-        match self {
-            Compression::Lz4 => Ok(()),
-            Compression::Lz4Hc(level) => {
-                ensure!(
-                    (lz4_hc::CLEVEL_MIN..=lz4_hc::CLEVEL_MAX).contains(&level),
-                    "Invalid LZ4 HC compression level {level}; expected {} through {}",
-                    lz4_hc::CLEVEL_MIN,
-                    lz4_hc::CLEVEL_MAX
-                );
-                Ok(())
-            }
-            Compression::Zstd(level) => {
-                let range = zstd::compression_level_range();
-                ensure!(
-                    range.contains(&level),
-                    "Invalid zstd compression level {level}; expected {} through {}",
-                    range.start(),
-                    range.end()
-                );
-                Ok(())
-            }
-        }
+    pub const fn lz4() -> Self {
+        Self::Lz4
     }
 
-    pub(crate) fn to_meta_fields(self) -> Result<(u32, i32)> {
-        self.validate()?;
-        Ok(match self {
-            Compression::Lz4 => (COMPRESSION_TAG_LZ4, 0),
-            Compression::Lz4Hc(level) => (COMPRESSION_TAG_LZ4_HC, level),
-            Compression::Zstd(level) => (COMPRESSION_TAG_ZSTD, level),
-        })
+    pub const fn lz4_hc4() -> Self {
+        Self::Lz4Hc4
     }
 
-    pub(crate) fn from_meta_fields(tag: u32, level: i32) -> Result<Self> {
-        let compression = match tag {
-            COMPRESSION_TAG_LZ4 => {
-                ensure!(
-                    level == 0,
-                    "LZ4 compression must store level 0, got {level}"
-                );
-                Compression::Lz4
-            }
-            COMPRESSION_TAG_LZ4_HC => Compression::Lz4Hc(level),
-            COMPRESSION_TAG_ZSTD => Compression::Zstd(level),
-            _ => anyhow::bail!("Unknown compression tag {tag}"),
-        };
-        compression.validate()?;
+    pub const fn zstd_3() -> Self {
+        Self::Zstd3
+    }
+
+    pub(crate) fn encode(self) -> Result<Vec<u8>> {
+        bincode::encode_to_vec(self, bincode::config::standard())
+            .context("Failed to encode compression preset")
+    }
+
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self> {
+        let (compression, consumed) =
+            bincode::decode_from_slice(bytes, bincode::config::standard())
+                .context("Failed to decode compression preset")?;
+        ensure!(
+            consumed == bytes.len(),
+            "Compression preset has {} trailing bytes",
+            bytes.len() - consumed
+        );
         Ok(compression)
     }
 }
 
-/// Reusable zstd decompression contexts owned by a database.
+/// Reusable zstd decompression contexts owned by one database.
 ///
-/// A context is about 96 KiB with the linked zstd version. The pool grows only to peak concurrent
-/// zstd reads, and all retained contexts are released when the database is dropped.
+/// A context is about 96 KiB with the linked zstd version. Each participating thread lazily creates
+/// one lock-free context, and dropping this object releases all of them.
 #[derive(Default)]
-pub(crate) struct DecompressionPool {
-    zstd: Mutex<Vec<zstd::bulk::Decompressor<'static>>>,
+pub(crate) struct DecompressionContext {
+    zstd: ThreadLocal<RefCell<zstd::bulk::Decompressor<'static>>>,
     #[cfg(test)]
     zstd_contexts_created: std::sync::atomic::AtomicUsize,
 }
 
-impl DecompressionPool {
-    fn checkout_zstd(&self) -> io::Result<PooledZstdDecompressor<'_>> {
-        let decompressor = match self.zstd.lock().pop() {
-            Some(decompressor) => decompressor,
-            None => {
-                #[cfg(test)]
-                self.zstd_contexts_created
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                zstd::bulk::Decompressor::new()?
-            }
-        };
-        Ok(PooledZstdDecompressor {
-            pool: self,
-            decompressor: Some(decompressor),
-        })
-    }
-
-    fn decompress_zstd(&self, block: &[u8], dest: &mut [u8]) -> io::Result<usize> {
-        self.checkout_zstd()?.decompress_to_buffer(block, dest)
+impl DecompressionContext {
+    fn decompress_zstd(&self, block: &[u8], dest: &mut [u8]) -> std::io::Result<usize> {
+        let decompressor = self.zstd.get_or_try(|| {
+            #[cfg(test)]
+            self.zstd_contexts_created
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            zstd::bulk::Decompressor::new().map(RefCell::new)
+        })?;
+        decompressor
+            .try_borrow_mut()
+            .expect("zstd decompressor used recursively")
+            .decompress_to_buffer(block, dest)
     }
 
     #[cfg(test)]
@@ -125,48 +84,11 @@ impl DecompressionPool {
         self.zstd_contexts_created
             .load(std::sync::atomic::Ordering::Relaxed)
     }
-
-    #[cfg(test)]
-    fn available_zstd_contexts(&self) -> usize {
-        self.zstd.lock().len()
-    }
-}
-
-struct PooledZstdDecompressor<'a> {
-    pool: &'a DecompressionPool,
-    decompressor: Option<zstd::bulk::Decompressor<'static>>,
-}
-
-impl Deref for PooledZstdDecompressor<'_> {
-    type Target = zstd::bulk::Decompressor<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        self.decompressor
-            .as_ref()
-            .expect("decompressor checked out")
-    }
-}
-
-impl DerefMut for PooledZstdDecompressor<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.decompressor
-            .as_mut()
-            .expect("decompressor checked out")
-    }
-}
-
-impl Drop for PooledZstdDecompressor<'_> {
-    fn drop(&mut self) {
-        self.pool
-            .zstd
-            .lock()
-            .push(self.decompressor.take().expect("decompressor checked out"));
-    }
 }
 
 /// Decompresses `block` into `dest`, verifying the output length matches `expected_len`.
 fn decompress_block(
-    pool: &DecompressionPool,
+    decompression_context: &DecompressionContext,
     compression: Compression,
     block: &[u8],
     dest: &mut [u8],
@@ -177,12 +99,11 @@ fn decompress_block(
         "decompress_block called with uncompressed_length=0; uncompressed blocks should use \
          zero-copy mmap path"
     );
-    compression.validate()?;
     let result: Result<usize> = match compression {
-        Compression::Lz4 | Compression::Lz4Hc(_) => {
+        Compression::Lz4 | Compression::Lz4Hc4 => {
             decompress(block, dest).map_err(anyhow::Error::from)
         }
-        Compression::Zstd(_) => pool
+        Compression::Zstd3 => decompression_context
             .decompress_zstd(block, dest)
             .map_err(anyhow::Error::from),
     };
@@ -207,7 +128,7 @@ fn decompress_block(
 /// The caller must ensure `uncompressed_length > 0` (i.e., the block is actually compressed).
 /// Uncompressed blocks should be handled via zero-copy mmap slices before calling this.
 pub(crate) fn decompress_into_arc(
-    pool: &DecompressionPool,
+    decompression_context: &DecompressionContext,
     compression: Compression,
     uncompressed_length: u32,
     block: &[u8],
@@ -220,13 +141,19 @@ pub(crate) fn decompress_into_arc(
     let mut buffer = unsafe { buffer.assume_init() };
     // We just created this Arc so refcount is 1; get_mut always succeeds.
     let dest = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
-    decompress_block(pool, compression, block, dest, uncompressed_length)?;
+    decompress_block(
+        decompression_context,
+        compression,
+        block,
+        dest,
+        uncompressed_length,
+    )?;
     Ok(buffer)
 }
 
 /// Like [`decompress_into_arc`] but returns an `Rc<[u8]>` for thread-local use.
 pub(crate) fn decompress_into_rc(
-    pool: &DecompressionPool,
+    decompression_context: &DecompressionContext,
     compression: Compression,
     uncompressed_length: u32,
     block: &[u8],
@@ -236,7 +163,13 @@ pub(crate) fn decompress_into_rc(
     // decompress_block).
     let mut buffer = unsafe { buffer.assume_init() };
     let dest = Rc::get_mut(&mut buffer).expect("Rc refcount should be 1");
-    decompress_block(pool, compression, block, dest, uncompressed_length)?;
+    decompress_block(
+        decompression_context,
+        compression,
+        block,
+        dest,
+        uncompressed_length,
+    )?;
     Ok(buffer)
 }
 
@@ -253,12 +186,11 @@ pub(crate) struct Compressor {
 
 impl Compressor {
     pub(crate) fn new(compression: Compression) -> Result<Self> {
-        compression.validate()?;
         let zstd = match compression {
-            Compression::Zstd(level) => Some(
-                zstd::bulk::Compressor::new(level).context("Failed to create zstd compressor")?,
-            ),
-            Compression::Lz4 | Compression::Lz4Hc(_) => None,
+            Compression::Zstd3 => {
+                Some(zstd::bulk::Compressor::new(3).context("Failed to create zstd compressor")?)
+            }
+            Compression::Lz4 | Compression::Lz4Hc4 => None,
         };
         Ok(Self { compression, zstd })
     }
@@ -274,15 +206,14 @@ impl Compressor {
                 lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT)
                     .context("LZ4 compression failed")?;
             }
-            Compression::Lz4Hc(level) => {
-                lz4_hc::compress_to_vec(block, buffer, level)
-                    .context("LZ4 HC compression failed")?;
+            Compression::Lz4Hc4 => {
+                lz4_hc::compress_to_vec(block, buffer, 4).context("LZ4 HC compression failed")?;
             }
-            Compression::Zstd(_) => {
+            Compression::Zstd3 => {
                 buffer.reserve(zstd::zstd_safe::compress_bound(block.len()));
                 self.zstd
                     .as_mut()
-                    .expect("zstd compressor initialized")
+                    .expect("zstd compressor not initialized")
                     .compress_to_buffer(block, buffer)
                     .context("zstd compression failed")?;
             }
@@ -301,78 +232,87 @@ pub(crate) fn compress_into_buffer(
 
 #[cfg(test)]
 mod tests {
+    use std::{sync::Barrier, thread};
+
     use super::*;
 
     #[test]
     fn compression_round_trips() {
         let input = b"turbo persistence compression ".repeat(1024);
-        let pool = DecompressionPool::default();
+        let decompression_context = DecompressionContext::default();
         for compression in [
-            Compression::Lz4,
-            Compression::Lz4Hc(4),
-            Compression::Zstd(3),
+            Compression::lz4(),
+            Compression::lz4_hc4(),
+            Compression::zstd_3(),
         ] {
             let mut compressed = Vec::new();
             compress_into_buffer(compression, &input, &mut compressed).unwrap();
-            let output =
-                decompress_into_arc(&pool, compression, input.len() as u32, &compressed).unwrap();
+            let output = decompress_into_arc(
+                &decompression_context,
+                compression,
+                input.len() as u32,
+                &compressed,
+            )
+            .unwrap();
             assert_eq!(&*output, input);
         }
     }
 
     #[test]
-    fn compression_meta_fields_round_trip() {
+    fn compression_bincode_round_trip() {
         for compression in [
-            Compression::Lz4,
-            Compression::Lz4Hc(3),
-            Compression::Lz4Hc(12),
-            Compression::Zstd(0),
-            Compression::Zstd(3),
+            Compression::lz4(),
+            Compression::lz4_hc4(),
+            Compression::zstd_3(),
         ] {
-            let (tag, level) = compression.to_meta_fields().unwrap();
-            assert_eq!(
-                Compression::from_meta_fields(tag, level).unwrap(),
-                compression
-            );
+            let encoded = compression.encode().unwrap();
+            assert_eq!(Compression::decode(&encoded).unwrap(), compression);
         }
-        assert!(Compression::from_meta_fields(99, 0).is_err());
-        assert!(Compression::from_meta_fields(COMPRESSION_TAG_LZ4, 1).is_err());
+        assert!(Compression::decode(&[99]).is_err());
+        assert!(Compression::decode(&[0, 0]).is_err());
     }
 
     #[test]
-    fn invalid_compression_levels_are_rejected() {
-        let mut output = Vec::new();
-        assert!(compress_into_buffer(Compression::Lz4Hc(2), b"data", &mut output).is_err());
-        assert!(
-            compress_into_buffer(
-                Compression::Zstd(*zstd::compression_level_range().end() + 1),
-                b"data",
-                &mut output,
-            )
-            .is_err()
-        );
-    }
+    fn decompression_context_is_reused_per_thread_and_released() {
+        let input = b"thread local zstd context".repeat(1024);
+        let mut compressed = Vec::new();
+        compress_into_buffer(Compression::zstd_3(), &input, &mut compressed).unwrap();
+        let compressed = Arc::new(compressed);
+        let decompression_context = Arc::new(DecompressionContext::default());
 
-    #[test]
-    fn decompression_pool_reuses_and_releases_contexts() {
-        let pool = Arc::new(DecompressionPool::default());
+        let mut output = vec![0; input.len()];
+        decompression_context
+            .decompress_zstd(&compressed, &mut output)
+            .unwrap();
+        decompression_context
+            .decompress_zstd(&compressed, &mut output)
+            .unwrap();
+        assert_eq!(decompression_context.zstd_contexts_created(), 1);
 
-        {
-            let first = pool.checkout_zstd().unwrap();
-            let second = pool.checkout_zstd().unwrap();
-            assert_eq!(pool.zstd_contexts_created(), 2);
-            assert_eq!(pool.available_zstd_contexts(), 0);
-            drop((first, second));
+        let barrier = Arc::new(Barrier::new(3));
+        let threads = (0..2)
+            .map(|_| {
+                let decompression_context = decompression_context.clone();
+                let compressed = compressed.clone();
+                let barrier = barrier.clone();
+                let output_len = input.len();
+                thread::spawn(move || {
+                    let mut output = vec![0; output_len];
+                    decompression_context
+                        .decompress_zstd(&compressed, &mut output)
+                        .unwrap();
+                    barrier.wait();
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        for thread in threads {
+            thread.join().unwrap();
         }
-        assert_eq!(pool.available_zstd_contexts(), 2);
+        assert_eq!(decompression_context.zstd_contexts_created(), 3);
 
-        let reused = pool.checkout_zstd().unwrap();
-        assert_eq!(pool.zstd_contexts_created(), 2);
-        drop(reused);
-        assert_eq!(pool.available_zstd_contexts(), 2);
-
-        let weak = Arc::downgrade(&pool);
-        drop(pool);
+        let weak = Arc::downgrade(&decompression_context);
+        drop(decompression_context);
         assert!(weak.upgrade().is_none());
     }
 }

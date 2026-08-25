@@ -10003,6 +10003,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",

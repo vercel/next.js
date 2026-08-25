@@ -539,7 +539,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
             use crate::{
                 collector_entry::CollectorEntryValue,
-                compression::DecompressionPool,
+                compression::DecompressionContext,
                 key::hash_key,
                 lookup_entry::LookupValue,
                 static_sorted_file::{
@@ -556,7 +556,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     block_count: meta.block_count,
                 },
                 self.family_configs[usize_from_u32(family)].compression,
-                Arc::new(DecompressionPool::default()),
+                Arc::new(DecompressionContext::default()),
             )?;
             let cache2 = BlockCache::with(
                 10,

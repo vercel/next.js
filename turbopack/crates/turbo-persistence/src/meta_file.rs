@@ -15,7 +15,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 
 use crate::{
     Compression, FamilyConfig, QueryKey,
-    compression::DecompressionPool,
+    compression::DecompressionContext,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -121,7 +121,7 @@ pub struct MetaEntry {
     /// Compression recorded in this entry's meta file.
     compression: Compression,
     /// Database-owned decompression context pool.
-    decompression_pool: Arc<DecompressionPool>,
+    decompression_context: Arc<DecompressionContext>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -162,7 +162,7 @@ impl MetaEntry {
                 &meta.db_path,
                 self.sst_data,
                 self.compression,
-                self.decompression_pool.clone(),
+                self.decompression_context.clone(),
             )
             .with_context(|| {
                 format!(
@@ -286,7 +286,7 @@ impl MetaFile {
             db_path,
             sequence_number,
             None,
-            Arc::new(DecompressionPool::default()),
+            Arc::new(DecompressionContext::default()),
         )
     }
 
@@ -294,7 +294,7 @@ impl MetaFile {
         db_path: &Path,
         sequence_number: u32,
         family_configs: Option<&[FamilyConfig]>,
-        decompression_pool: Arc<DecompressionPool>,
+        decompression_context: Arc<DecompressionContext>,
     ) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
@@ -303,7 +303,7 @@ impl MetaFile {
             sequence_number,
             &path,
             family_configs,
-            decompression_pool,
+            decompression_context,
         )
         .with_context(|| format!("Unable to open meta file {filename}"))
     }
@@ -313,7 +313,7 @@ impl MetaFile {
         sequence_number: u32,
         path: &Path,
         family_configs: Option<&[FamilyConfig]>,
-        decompression_pool: Arc<DecompressionPool>,
+        decompression_context: Arc<DecompressionContext>,
     ) -> Result<Self> {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
@@ -328,9 +328,12 @@ impl MetaFile {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
-        let compression_tag = reader.read_u32::<BE>()?;
-        let compression_level = reader.read_i32::<BE>()?;
-        let compression = Compression::from_meta_fields(compression_tag, compression_level)
+        let compression_len = reader.read_u32::<BE>()? as usize;
+        let compression_bytes = reader
+            .get(..compression_len)
+            .context("Compression configuration out of bounds")?;
+        reader = &reader[compression_len..];
+        let compression = Compression::decode(compression_bytes)
             .context("Invalid compression configuration in meta file")?;
         if let Some(configs) = family_configs {
             let configured = configs
@@ -401,7 +404,7 @@ impl MetaFile {
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
-                decompression_pool: decompression_pool.clone(),
+                decompression_context: decompression_context.clone(),
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;

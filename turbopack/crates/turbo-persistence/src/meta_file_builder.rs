@@ -62,12 +62,9 @@ impl<'a> MetaFileBuilder<'a> {
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
         file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
-        let (compression_tag, compression_level) = self
-            .compression
-            .to_meta_fields()
-            .map_err(io::Error::other)?;
-        file.write_u32::<BE>(compression_tag)?;
-        file.write_i32::<BE>(compression_level)?;
+        let compression = self.compression.encode().map_err(io::Error::other)?;
+        file.write_u32::<BE>(compression.len() as u32)?;
+        file.write_all(&compression)?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
@@ -169,10 +166,9 @@ mod tests {
     #[test]
     fn compression_configuration_round_trips_through_meta_file() {
         for compression in [
-            Compression::Lz4,
-            Compression::Lz4Hc(4),
-            Compression::Zstd(0),
-            Compression::Zstd(3),
+            Compression::lz4(),
+            Compression::lz4_hc4(),
+            Compression::zstd_3(),
         ] {
             let (tempdir, _) = write_empty_meta(compression);
             let meta = MetaFile::open(tempdir.path(), 1).unwrap();
@@ -182,7 +178,7 @@ mod tests {
 
     #[test]
     fn invalid_meta_compression_headers_are_rejected() {
-        let (tempdir, path) = write_empty_meta(Compression::Zstd(3));
+        let (tempdir, path) = write_empty_meta(Compression::zstd_3());
         let original = std::fs::read(&path).unwrap();
 
         let mut bytes = original.clone();
@@ -191,19 +187,11 @@ mod tests {
         assert!(MetaFile::open(tempdir.path(), 1).is_err());
 
         let mut bytes = original.clone();
-        BE::write_u32(&mut bytes[8..12], 99);
+        bytes[12] = 99;
         std::fs::write(&path, &bytes).unwrap();
         assert!(MetaFile::open(tempdir.path(), 1).is_err());
 
-        let mut bytes = original.clone();
-        BE::write_i32(
-            &mut bytes[12..16],
-            *zstd::compression_level_range().end() + 1,
-        );
-        std::fs::write(&path, &bytes).unwrap();
-        assert!(MetaFile::open(tempdir.path(), 1).is_err());
-
-        std::fs::write(&path, &original[..10]).unwrap();
+        std::fs::write(&path, &original[..12]).unwrap();
         assert!(MetaFile::open(tempdir.path(), 1).is_err());
     }
 }

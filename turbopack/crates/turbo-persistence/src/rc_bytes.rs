@@ -10,7 +10,7 @@ use memmap2::Mmap;
 
 use crate::{
     Compression,
-    compression::{DecompressionPool, decompress_into_rc},
+    compression::{DecompressionContext, decompress_into_rc},
     shared_bytes::{SharedBytes, is_subslice_of},
 };
 
@@ -126,13 +126,13 @@ impl SharedBytes for RcBytes {
     }
 
     fn from_decompressed(
-        pool: &DecompressionPool,
+        decompression_context: &DecompressionContext,
         compression: Compression,
         uncompressed_length: u32,
         block: &[u8],
     ) -> anyhow::Result<Self> {
         Ok(RcBytes::from(decompress_into_rc(
-            pool,
+            decompression_context,
             compression,
             uncompressed_length,
             block,

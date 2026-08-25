@@ -1056,7 +1056,7 @@ fn batch_get_different_sizes() -> Result<()> {
     let path = tempdir.path();
 
     let mut config = DbConfig::default();
-    config.family_configs[0].compression = Compression::Zstd(3);
+    config.family_configs[0].compression = Compression::zstd_3();
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
         config,
@@ -1113,10 +1113,10 @@ fn batch_get_across_families() -> Result<()> {
     let path = tempdir.path();
 
     let mut config = DbConfig::default();
-    config.family_configs[0].compression = Compression::Lz4;
-    config.family_configs[1].compression = Compression::Lz4Hc(4);
-    config.family_configs[2].compression = Compression::Zstd(3);
-    config.family_configs[3].compression = Compression::Lz4Hc(4);
+    config.family_configs[0].compression = Compression::lz4();
+    config.family_configs[1].compression = Compression::lz4_hc4();
+    config.family_configs[2].compression = Compression::zstd_3();
+    config.family_configs[3].compression = Compression::lz4_hc4();
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
         config.clone(),
@@ -1163,10 +1163,10 @@ fn batch_get_across_families() -> Result<()> {
     // Same keys, but different values per family
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
 
-    let decompression_pool = db.decompression_pool_weak();
+    let decompression_context = db.decompression_context_weak();
     db.shutdown()?;
     drop(db);
-    assert!(decompression_pool.upgrade().is_none());
+    assert!(decompression_context.upgrade().is_none());
 
     // Reopen with the same family configuration recorded in the meta files.
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
@@ -1198,7 +1198,7 @@ fn batch_get_after_compaction() -> Result<()> {
     let path = tempdir.path();
 
     let mut config = DbConfig::default();
-    config.family_configs[0].compression = Compression::Zstd(3);
+    config.family_configs[0].compression = Compression::zstd_3();
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
         config,
@@ -1570,7 +1570,7 @@ fn multi_value_config() -> DbConfig<1> {
     config.family_configs[0] = FamilyConfig {
         name: "test",
         kind: FamilyKind::MultiValue,
-        compression: Compression::Lz4,
+        compression: Compression::lz4(),
     };
     config
 }
@@ -2150,7 +2150,7 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
+            compression: Compression::lz4(),
         }],
     };
 

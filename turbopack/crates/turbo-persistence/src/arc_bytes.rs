@@ -10,7 +10,7 @@ use memmap2::Mmap;
 
 use crate::{
     Compression,
-    compression::{DecompressionPool, decompress_into_arc},
+    compression::{DecompressionContext, decompress_into_arc},
     shared_bytes::{SharedBytes, is_subslice_of},
 };
 /// The backing storage for an `ArcBytes`.
@@ -146,13 +146,13 @@ impl SharedBytes for ArcBytes {
     }
 
     fn from_decompressed(
-        pool: &DecompressionPool,
+        decompression_context: &DecompressionContext,
         compression: Compression,
         uncompressed_length: u32,
         block: &[u8],
     ) -> anyhow::Result<Self> {
         Ok(ArcBytes::from(decompress_into_arc(
-            pool,
+            decompression_context,
             compression,
             uncompressed_length,
             block,

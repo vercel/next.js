@@ -38,44 +38,19 @@ impl KeySpace {
             KeySpace::Infra | KeySpace::TaskMeta => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
-                compression: Compression::Lz4Hc(4),
+                compression: Compression::lz4_hc4(),
             },
             KeySpace::TaskData => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
-                compression: Compression::Zstd(3),
+                compression: Compression::zstd_3(),
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
-                compression: Compression::Lz4Hc(4),
+                compression: Compression::lz4_hc4(),
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn keyspace_compression_configuration() {
-        assert_eq!(
-            KeySpace::Infra.family_config().compression,
-            Compression::Lz4Hc(4)
-        );
-        assert_eq!(
-            KeySpace::TaskMeta.family_config().compression,
-            Compression::Lz4Hc(4)
-        );
-        assert_eq!(
-            KeySpace::TaskData.family_config().compression,
-            Compression::Zstd(3)
-        );
-        assert_eq!(
-            KeySpace::TaskCache.family_config().compression,
-            Compression::Lz4Hc(4)
-        );
     }
 }

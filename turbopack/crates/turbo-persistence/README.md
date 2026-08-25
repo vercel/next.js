@@ -56,8 +56,8 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number (0xFE4ADA4B)
   - 4 bytes key family
-  - 4 bytes compression codec tag (0: LZ4, 1: LZ4 HC, 2: zstd)
-  - 4 bytes signed compression level (0 for LZ4)
+  - 4 bytes compression preset byte length
+  - `n` bytes bincode-encoded compression preset (standard config; variants in format order: LZ4, LZ4 HC4, zstd3)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file

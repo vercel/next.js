@@ -74,23 +74,12 @@ struct DbConfig {
     entry_count: usize,
     commit_count: usize,
     compacted: bool,
-    compression: Compression,
 }
 
 const KEY_SHARED_PERCENTAGE: usize = 33;
 const KEY_COMPRESSIBLE_PERCENTAGE: usize = 33;
 const VALUE_SHARED_PERCENTAGE: usize = 33;
 const VALUE_COMPRESSIBLE_PERCENTAGE: usize = 33;
-
-fn single_family_config(compression: Compression) -> TpDbConfig<1> {
-    TpDbConfig {
-        family_configs: [FamilyConfig {
-            name: "benchmark",
-            kind: FamilyKind::SingleValue,
-            compression,
-        }],
-    }
-}
 
 /// Generate a random key of the specified size
 fn random_data(
@@ -148,10 +137,7 @@ fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
 
 /// Prefill a database with the given configuration and return the generated keys
 fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
-    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-        path.to_path_buf(),
-        single_family_config(config.compression),
-    )?;
+    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
     let mut rng = SmallRng::seed_from_u64(42);
     // Bound prefill work unless `LARGE_DB` is set; `LARGE_DB` runs use the full count.
     let entry_count = scaled(config.entry_count);
@@ -356,65 +342,6 @@ fn bench_write(c: &mut Criterion) {
     group.finish();
 }
 
-/// Compares the write cost of the supported family compression configurations on identical data.
-fn bench_compression_write(c: &mut Criterion) {
-    let mut group = c.benchmark_group("compression/write");
-    group.sample_size(10);
-    group.sampling_mode(SamplingMode::Flat);
-
-    let key_size = 4;
-    let value_size = 32 * 1024;
-    let full_entry_count = 32 * MB as usize / (key_size + value_size);
-    let entry_count = scaled(full_entry_count);
-
-    for (name, compression) in [
-        ("lz4", Compression::Lz4),
-        ("lz4_hc4", Compression::Lz4Hc(4)),
-        ("zstd3", Compression::Zstd(3)),
-    ] {
-        group.bench_function(name, |b| {
-            b.iter_batched(
-                || {
-                    let tempdir = tempfile::tempdir().unwrap();
-                    let mut rng = SmallRng::seed_from_u64(42);
-                    let entry_size = key_size + value_size;
-                    let mut data = vec![0u8; entry_count * entry_size];
-                    for (i, key) in unique_keys(&mut rng, key_size, entry_count)
-                        .iter()
-                        .enumerate()
-                    {
-                        let key_start = i * entry_size;
-                        data[key_start..key_start + key_size].copy_from_slice(key);
-                        data[key_start + key_size..(i + 1) * entry_size]
-                            .copy_from_slice(&random_value(&mut rng, value_size));
-                    }
-                    (tempdir, data)
-                },
-                |(tempdir, data)| {
-                    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-                        tempdir.path().to_path_buf(),
-                        single_family_config(compression),
-                    )
-                    .unwrap();
-                    let batch = db.write_batch().unwrap();
-                    let entry_size = key_size + value_size;
-                    for i in 0..entry_count {
-                        let key = &data[i * entry_size..i * entry_size + key_size];
-                        let value = &data[i * entry_size + key_size..(i + 1) * entry_size];
-                        batch.put(0, key, value.into()).unwrap();
-                    }
-                    db.commit_write_batch(batch).unwrap();
-                    db.shutdown().unwrap();
-                    tempdir
-                },
-                BatchSize::PerIteration,
-            );
-        });
-    }
-
-    group.finish();
-}
-
 // =============================================================================
 // Read Benchmarks - Single Get
 // =============================================================================
@@ -455,7 +382,6 @@ fn bench_read_get(c: &mut Criterion) {
                 entry_count,
                 commit_count,
                 compacted,
-                compression: Compression::Lz4,
             };
 
             let compacted_str = if compacted {
@@ -474,11 +400,8 @@ fn bench_read_get(c: &mut Criterion) {
 
             let db = LazyLock::new(|| {
                 let (tempdir, keys) = setup_prefilled_db(&config, &id).unwrap();
-                let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-                    tempdir.path().to_path_buf(),
-                    single_family_config(config.compression),
-                )
-                .unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
                 let rng = Mutex::new(SmallRng::seed_from_u64(123));
                 (tempdir, db, keys, rng)
             });
@@ -562,62 +485,6 @@ fn bench_read_get(c: &mut Criterion) {
     group.finish();
 }
 
-/// Compares cached and uncached reads across family compression configurations.
-fn bench_compression_read(c: &mut Criterion) {
-    let mut group = c.benchmark_group("compression/read_get");
-    group.measurement_time(Duration::from_secs(10));
-
-    for (name, compression) in [
-        ("lz4", Compression::Lz4),
-        ("lz4_hc4", Compression::Lz4Hc(4)),
-        ("zstd3", Compression::Zstd(3)),
-    ] {
-        let config = DbConfig {
-            key_size: 4,
-            value_size: 32 * 1024,
-            entry_count: 32 * MB as usize / (4 + 32 * 1024),
-            commit_count: 1,
-            compacted: true,
-            compression,
-        };
-        let id = format!("{name}/value_32Ki");
-        let db = LazyLock::new(|| {
-            let (tempdir, keys) = setup_prefilled_db(&config, &id).unwrap();
-            let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-                tempdir.path().to_path_buf(),
-                single_family_config(config.compression),
-            )
-            .unwrap();
-            let rng = Mutex::new(SmallRng::seed_from_u64(123));
-            (tempdir, db, keys, rng)
-        });
-
-        group.bench_function(format!("{name}/uncached"), |b| {
-            let (_, db, keys, rng) = &*db;
-            let mut rng = rng.lock();
-            iter_batched_with_init(
-                b,
-                |_| prepare_db_for_benchmarking(db),
-                |_| &keys[rng.random_range(0..keys.len())],
-                |key| black_box(db.get(0, key).unwrap()),
-                BatchSize::PerIteration,
-            );
-        });
-        group.bench_function(format!("{name}/cached"), |b| {
-            let (_, db, keys, _) = &*db;
-            iter_batched_with_init(
-                b,
-                |_| prepare_db_for_benchmarking(db),
-                |i| &keys[i as usize % keys.len()],
-                |key| black_box(db.get(0, key).unwrap()),
-                BatchSize::NumBatches(1),
-            );
-        });
-    }
-
-    group.finish();
-}
-
 // =============================================================================
 // Read Benchmarks - Batch Get
 // =============================================================================
@@ -644,7 +511,6 @@ fn bench_read_batch_get(c: &mut Criterion) {
                 entry_count,
                 commit_count,
                 compacted,
-                compression: Compression::Lz4,
             };
 
             let compacted_str = if compacted {
@@ -664,11 +530,8 @@ fn bench_read_batch_get(c: &mut Criterion) {
 
             let db = LazyLock::new(|| {
                 let (tempdir, stored_keys) = setup_prefilled_db(&config, &id).unwrap();
-                let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-                    tempdir.path().to_path_buf(),
-                    single_family_config(config.compression),
-                )
-                .unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
                 let rng = Mutex::new(SmallRng::seed_from_u64(456));
                 (tempdir, db, stored_keys, rng)
             });
@@ -759,7 +622,7 @@ fn prefill_multi_value_database(
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
+            compression: Compression::lz4(),
         }],
     };
     let db =
@@ -834,7 +697,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
+            compression: Compression::lz4(),
         }],
     };
     TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
@@ -1011,14 +874,10 @@ fn bench_compaction(c: &mut Criterion) {
                     entry_count,
                     commit_count,
                     compacted: false,
-                    compression: Compression::Lz4,
                 };
                 let (tempdir, _keys) = setup_prefilled_db(&config, &id).unwrap();
-                let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
-                    tempdir.path().to_path_buf(),
-                    single_family_config(config.compression),
-                )
-                .unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
                 (tempdir, db)
             };
 
@@ -1107,7 +966,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                             family_configs: [FamilyConfig {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
-                                compression: Compression::Lz4,
+                                compression: Compression::lz4(),
                             }],
                         };
                         let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
@@ -1626,6 +1485,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_compression_write, bench_write_multi_value, bench_read_get, bench_compression_read, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);
