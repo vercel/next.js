@@ -591,7 +591,9 @@ Since `getUser` is wrapped with `React.cache`, multiple calls within the same re
 
 ### Preloading data
 
-Once a data-fetching function deduplicates matching calls, you can use it to preload data before the component that needs it renders. Call the function without `await` above blocking work, then call the same function when you render the component.
+Once matching calls can reuse one request, you can start that request before the component that needs it renders. Call the data-fetching function without `await` above blocking work, then call the same function when you render the component.
+
+The example below uses `fetch`, which deduplicates identical requests. For other data access, use `React.cache` as shown above. With Cache Components, add [`'use cache'`](/docs/app/api-reference/directives/use-cache) to the data-fetching function instead of wrapping it in `React.cache`. For request-specific data that reads `cookies()` or `headers()`, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private#deduplicating-calls-within-a-request).
 
 Keep the preload function next to the component that consumes the data. This makes the dependency easier to find if you move or remove the component:
 
@@ -662,5 +664,3 @@ export default async function Page({ params }) {
 ```
 
 The item request continues while `checkIsAvailable()` runs. If the page renders `<Item>`, the identical `fetch` call reuses the request that `preload()` started.
-
-For data access that is not based on `fetch` or a Cache Function, wrap the data-fetching function in `React.cache`. With Cache Components, add [`'use cache'`](/docs/app/api-reference/directives/use-cache) to the data-fetching function instead of wrapping it in `React.cache`. Call the same Cache Function from the preload function and the component so matching calls reuse the result. For request-specific data that reads `cookies()` or `headers()`, [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private#deduplicating-calls-within-a-request) deduplicates matching calls within a server request without sharing the result across production requests.
