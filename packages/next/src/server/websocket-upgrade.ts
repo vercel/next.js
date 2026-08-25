@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { types } from 'node:util'
+import { WS_CLOSE_TIMEOUT_MS } from './websocket-shutdown-budget'
 import type {
   Server as WebSocketServer,
   ServerOptions as WebSocketServerOptions,
@@ -50,7 +51,6 @@ const MAX_BUFFERED_CHUNKS = 1024
 const MAX_PENDING_MESSAGE_HOOKS = 32
 const MAX_PENDING_MESSAGE_BYTES = 16 * 1024 * 1024
 const MAX_OUTBOUND_BUFFER_BYTES = 16 * 1024 * 1024
-const WS_CLOSE_TIMEOUT_MS = 5_000
 const textEncoder = new TextEncoder()
 const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype)
 const typedArrayBufferGetter = Object.getOwnPropertyDescriptor(
