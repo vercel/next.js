@@ -466,7 +466,7 @@ function RequestDetails({
     [request, verbose]
   )
   const overview = useMemo(() => getRequestOverview(request), [request])
-  const diagnosis = getDiagnosis(request, traceItems)
+  const diagnosis = verbose ? getDiagnosis(request, traceItems) : null
 
   return (
     <div className="request-insights-details">
@@ -495,7 +495,9 @@ function RequestDetails({
       {overview.errorSummary ? (
         <div className="request-insights-error">{overview.errorSummary}</div>
       ) : null}
-      <div className="request-insights-diagnosis">{diagnosis}</div>
+      {diagnosis ? (
+        <div className="request-insights-diagnosis">{diagnosis}</div>
+      ) : null}
 
       <Trace items={traceItems} request={request} />
 
