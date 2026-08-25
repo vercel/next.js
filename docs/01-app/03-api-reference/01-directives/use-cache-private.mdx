@@ -20,9 +20,7 @@ Reach for `'use cache: private'` when:
 - You want to cache a function that already accesses runtime data, and refactoring to [move the runtime access outside and pass values as arguments](/docs/app/getting-started/caching#working-with-runtime-apis) is not practical.
 - You need request-specific data to be excluded from server caches that persist across production requests.
 
-Private Cache Functions run at request time and are excluded from [static shell](/docs/app/getting-started/caching#prerendering) generation. Matching calls during the request share the same result.
-
-To start a private Cache Function before the component that uses it renders, see [Preloading data](/docs/app/getting-started/fetching-data#preloading-data).
+Private Cache Functions run at request time and are excluded from [static shell](/docs/app/getting-started/caching#prerendering) generation. To start a private Cache Function before the component that uses it renders, see [Preloading data](/docs/app/getting-started/fetching-data#preloading-data).
 
 It is **not** possible to configure custom cache handlers for `'use cache: private'`.
 
