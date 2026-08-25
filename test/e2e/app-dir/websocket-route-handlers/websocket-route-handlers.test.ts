@@ -489,4 +489,34 @@ describe('WebSocket Route Handler Cache Components contract', () => {
       await closed
     })
   })
+
+  // The dev runtime path (bundler, hook dispatch, lease lifecycle) still
+  // applies under Cache Components and must accept/closing handshakes.
+  const describeDevContract = isNextDev ? describe : describe.skip
+  describeDevContract('development runtime contract', () => {
+    beforeAll(async () => {
+      await next.start()
+    })
+
+    it('accepts and closes a WebSocket route with cache components enabled', async () => {
+      const response = await next.fetch('/ws')
+      expect(response.status).toBe(426)
+      expect(await response.text()).toBe(
+        'This route only accepts WebSocket upgrade requests.'
+      )
+
+      const socket = new WebSocket(`ws://localhost:${next.appPort}/ws`)
+      const message = await new Promise<string>((resolve, reject) => {
+        socket.once('message', (data) => resolve(data.toString()))
+        socket.once('error', reject)
+      })
+      expect(message).toBe('cache-components')
+
+      const closed = new Promise<void>((resolve) =>
+        socket.once('close', resolve)
+      )
+      socket.close()
+      await closed
+    })
+  })
 })
