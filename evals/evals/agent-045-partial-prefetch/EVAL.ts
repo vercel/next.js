@@ -35,12 +35,18 @@ test('config keeps cacheComponents enabled', () => {
 })
 
 test('the account segment opts into partial prefetching', () => {
-  const withPartial = accountFiles().filter((f) =>
-    /export\s+const\s+prefetch\s*=\s*['"]partial['"]/.test(
+  // Two sanctioned paths: a route-level segment config on /account, or the
+  // app-wide flag (which makes 'partial' the default for every segment).
+  const routeLevel = accountFiles().some((f) =>
+    /export\s+const\s+prefetch\s*=\s*['"](partial|unstable_eager)['"]/.test(
       readFileSync(f, 'utf-8')
     )
   )
-  expect(withPartial.length).toBeGreaterThan(0)
+  const globalFlag =
+    /partialPrefetching\s*:\s*(true|['"]unstable_eager['"])/.test(
+      read('next.config.ts')
+    )
+  expect(routeLevel || globalFlag).toBe(true)
 })
 
 test('the link keeps eager prefetching', () => {
