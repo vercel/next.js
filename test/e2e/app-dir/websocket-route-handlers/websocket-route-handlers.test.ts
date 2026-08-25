@@ -351,7 +351,7 @@ describe('WebSocket Route Handlers', () => {
     const response = await requestUpgrade('/external-socket')
     expect(response).toMatchObject({
       status: 501,
-      body: 'External WebSocket rewrite targets are not proxied while webSocketRouteHandlers is enabled.',
+      body: 'External WebSocket rewrite targets are not proxied while experimental.webSocketRouteHandlers is enabled.',
     })
   })
 

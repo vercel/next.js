@@ -1222,7 +1222,7 @@ export async function initialize(opts: {
           req,
           socket,
           501,
-          'External WebSocket rewrite targets are not proxied while webSocketRouteHandlers is enabled.'
+          'External WebSocket rewrite targets are not proxied while experimental.webSocketRouteHandlers is enabled.'
         )
         return
       }
