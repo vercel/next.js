@@ -152,6 +152,7 @@ export interface WebSocketTransportConnection {
 export interface WebSocketUpgradeTransportContext {
   onHookError?: (error: unknown) => void | Promise<void>
   trackTask?: (promise: Promise<void>) => void
+  registryScope?: object
 }
 
 export interface WebSocketUpgradeTransportOptions {
