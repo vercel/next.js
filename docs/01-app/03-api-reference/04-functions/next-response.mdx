@@ -127,12 +127,12 @@ NextResponse.upgrade(hooks, options?)
 
 The hooks for one WebSocket connection. Every hook is optional, and no other keys are accepted:
 
-| Hook                     | Runs when                                                      |
-| ------------------------ | -------------------------------------------------------------- |
-| `open(peer)`             | The handshake is committed and the connection is open.         |
-| `message(peer, message)` | A complete text or binary message is received.                 |
-| `close(peer, details)`   | The connection closes. `details` contains `code` and `reason`. |
-| `error(peer, error)`     | The transport reports a connection error.                      |
+| Hook                     | Runs when                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `open(peer)`             | The handshake is committed and the connection is open.                                                             |
+| `message(peer, message)` | A complete text or binary message is received.                                                                     |
+| `close(peer, details)`   | The connection closes. `details` contains `code` and `reason`.                                                     |
+| `error(peer, error)`     | The transport reports a connection error. `error` is a plain `Error` — there is no separate `WebSocketError` type. |
 
 Hooks can return a promise. Next.js runs the hooks of one connection serially and waits for each returned promise before running the next hook. If an `open` or `message` hook throws or rejects, Next.js reports the error and closes the peer with code `1011`. While asynchronous `message` hooks are pending, the transport pauses inbound message delivery for that connection.
 
