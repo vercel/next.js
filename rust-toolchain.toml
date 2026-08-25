@@ -2,5 +2,5 @@
 # if you move the file, also update any turbo.json inputs that references it.
 [toolchain]
 channel = "nightly-2026-07-29"
-components = ["rustfmt", "clippy", "rust-analyzer"]
+components = ["rustfmt", "clippy", "rust-analyzer", "miri"]
 profile = "minimal"
