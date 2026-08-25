@@ -1070,46 +1070,11 @@ export async function initialize(opts: {
       }
       ownWebSocketUpgradeSocketErrors(req, socket)
 
-      if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
-        const preflight = await preflightWebSocketUpgrade(req, socket)
-        if (preflight.kind === 'rejected') return
-        isWebSocketRequest = preflight.kind === 'continue-routing'
-      }
-
-      if (isWebSocketRequest) {
-        const handshakeError = validateWebSocketHandshake(req)
-        if (handshakeError) {
-          await writeRawHttpError(
-            req,
-            socket,
-            handshakeError.status,
-            handshakeError.message,
-            handshakeError.headers
-          )
-          return
-        }
-
-        const webSocketConfig = config.experimental.webSocketRouteHandlers as
-          | true
-          | { allowedOrigins?: string[] }
-        const originError = validateWebSocketOrigin(
-          req,
-          typeof webSocketConfig === 'object'
-            ? webSocketConfig.allowedOrigins
-            : undefined
-        )
-        if (originError) {
-          await writeRawHttpError(
-            req,
-            socket,
-            originError.status,
-            originError.message,
-            originError.headers
-          )
-          return
-        }
-      }
-
+      // RFC order: development origin checks and the internal HMR channel
+      // claim come before any application WebSocket validation. The product
+      // origin policy below (same-origin default + allowedOrigins) is
+      // strictly stronger than allowedDevOrigins, so it intentionally
+      // supersedes it for application WebSocket routes.
       if (opts.dev && development && req.url) {
         if (
           blockCrossSiteDEV(
@@ -1147,6 +1112,46 @@ export async function initialize(opts: {
               }
             }
           )
+        }
+      }
+
+      if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
+        const preflight = await preflightWebSocketUpgrade(req, socket)
+        if (preflight.kind === 'rejected') return
+        isWebSocketRequest = preflight.kind === 'continue-routing'
+      }
+
+      if (isWebSocketRequest) {
+        const handshakeError = validateWebSocketHandshake(req)
+        if (handshakeError) {
+          await writeRawHttpError(
+            req,
+            socket,
+            handshakeError.status,
+            handshakeError.message,
+            handshakeError.headers
+          )
+          return
+        }
+
+        const webSocketConfig = config.experimental.webSocketRouteHandlers as
+          | true
+          | { allowedOrigins?: string[] }
+        const originError = validateWebSocketOrigin(
+          req,
+          typeof webSocketConfig === 'object'
+            ? webSocketConfig.allowedOrigins
+            : undefined
+        )
+        if (originError) {
+          await writeRawHttpError(
+            req,
+            socket,
+            originError.status,
+            originError.message,
+            originError.headers
+          )
+          return
         }
       }
 
