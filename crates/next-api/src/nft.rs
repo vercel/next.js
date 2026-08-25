@@ -89,7 +89,6 @@ pub async fn trace_endpoint(
                 .await?
                 .map(|v| *v),
             Some(next_config.config_file_path(project_path.clone())),
-            hash_salt,
         )
         .await?;
 
@@ -121,7 +120,8 @@ pub async fn trace_endpoint(
                     // where
                     // node_modules/.pnpm/node_modules/@libsql/client is a symlink
                     let parent_path = referenced_chunk_path.parent();
-                    if parent_path.realpath().await? != parent_path {
+                    let resolved_parent_path = parent_path.realpath().await??;
+                    if resolved_parent_path != parent_path {
                         turbo_tasks::turbobail!(
                             "Encountered file inside of symlink in NFT list: {parent_path} is a \
                              symlink, but {referenced_chunk_path} was created inside of it"
@@ -284,12 +284,11 @@ pub async fn traced_modules_for_entries(
     traced_entries: Vc<Modules>,
     exclude_glob: Option<Vc<Glob>>,
     forbidden_path: Option<Vc<FileSystemPath>>,
-    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let data = traced_module_data_for_graph(module_graph, traced_entries, hash_salt).await?;
-        Some((exclude_glob, data.idents.await?))
+        let idents = traced_module_idents_for_graph(module_graph, traced_entries).await?;
+        Some((exclude_glob, idents))
     } else {
         None
     };
@@ -388,13 +387,12 @@ pub struct TracedModuleData {
     pub hashes: ResolvedVc<TracedModuleDataHashes>,
 }
 
-/// This caches the paths for all modules in the graph so that we don't have to do it once per page.
+/// This caches the paths for all modules in the graph without eagerly hashing their contents.
 #[turbo_tasks::function]
-pub async fn traced_module_data_for_graph(
+async fn traced_module_idents_for_graph(
     module_graph: Vc<ModuleGraph>,
     traced_entries: Vc<Modules>,
-    hash_salt: Vc<RcStr>,
-) -> Result<Vc<TracedModuleData>> {
+) -> Result<Vc<TracedModuleDataIdents>> {
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
     let module_graph = module_graph.await?;
@@ -423,30 +421,51 @@ pub async fn traced_module_data_for_graph(
         true,
     )?;
 
-    let (idents, hashes): (FxHashMap<_, _>, FxHashMap<_, _>) = traced_modules
-        .into_iter()
+    Ok(Vc::cell(
+        traced_modules
+            .into_iter()
+            .map(async |module| Ok((module, module.ident().await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect(),
+    ))
+}
+
+/// This caches the paths and content hashes for all modules in the graph so that we don't have to
+/// compute them once per page.
+#[turbo_tasks::function]
+pub async fn traced_module_data_for_graph(
+    module_graph: Vc<ModuleGraph>,
+    traced_entries: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
+) -> Result<Vc<TracedModuleData>> {
+    let idents = traced_module_idents_for_graph(module_graph, traced_entries)
+        .to_resolved()
+        .await?;
+    let hashes = idents
+        .await?
+        .keys()
+        .copied()
         .map(async |module| {
             Ok((
-                (module, module.ident().await?),
-                (
-                    module,
-                    module
-                        .source()
-                        .await?
-                        .context("NFT module has no content")?
-                        .content()
-                        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                        .await?,
-                ),
+                module,
+                module
+                    .source()
+                    .await?
+                    .context("NFT module has no content")?
+                    .content()
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
             ))
         })
         .try_join()
         .await?
         .into_iter()
-        .unzip();
+        .collect();
 
     Ok(TracedModuleData {
-        idents: ResolvedVc::cell(idents),
+        idents,
         hashes: ResolvedVc::cell(hashes),
     }
     .cell())

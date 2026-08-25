@@ -128,7 +128,7 @@ impl CapturedEffect for TestEffectCaptured {
 
     async fn apply(&self) -> Result<(), ApplyError> {
         let body = if self.content {
-            Some(|| async {
+            Some(async || {
                 self.shared.total_applies.fetch_add(1, Ordering::Relaxed);
                 *self
                     .shared

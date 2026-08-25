@@ -50,6 +50,35 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
       expect(cleanupResult.length).toBe(0)
     }
   })
+
+  it('should only delete files older than maxAgeMs, and empty out dirs', async () => {
+    const dir = join(__dirname, 'isolated', 'ttl')
+    try {
+      await fs.outputFile(join(dir, 'stale', 'old.js'), 'old')
+      await fs.outputFile(join(dir, 'fresh', 'new.js'), 'new')
+      await fs.outputFile(join(dir, 'mixed', 'old.js'), 'old')
+      await fs.outputFile(join(dir, 'mixed', 'new.js'), 'new')
+      await fs.outputFile(join(dir, 'future.js'), 'future')
+
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      for (const p of ['stale/old.js', 'mixed/old.js']) {
+        await fs.utimes(join(dir, p), weekAgo, weekAgo)
+      }
+      const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000)
+      await fs.utimes(join(dir, 'future.js'), twoHoursFromNow, twoHoursFromNow)
+
+      await recursiveDeleteSyncWithAsyncRetries(dir, undefined, 60 * 60 * 1000)
+
+      expect((await recursiveReadDir(dir)).sort()).toEqual([
+        '/fresh/new.js',
+        '/mixed/new.js',
+      ])
+      // `stale` held nothing but stale files, so the directory goes too
+      expect(await fs.pathExists(join(dir, 'stale'))).toBe(false)
+    } finally {
+      await recursiveDeleteSyncWithAsyncRetries(dir)
+    }
+  })
 })
 
 describe('calcBackoffMs', () => {
