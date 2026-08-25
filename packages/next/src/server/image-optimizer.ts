@@ -85,7 +85,8 @@ async function initCacheEntries(
 
 export function getSharp(
   concurrency: number | null | undefined,
-  operationCache: boolean | null | undefined
+  operationCache: boolean | null | undefined,
+  dangerouslyAllowAVIF = false
 ) {
   if (_sharp) {
     return _sharp
@@ -95,7 +96,6 @@ export function getSharp(
     _sharp.block({ operation: ['VipsForeignLoad'] })
     _sharp.unblock({
       operation: [
-        'VipsForeignLoadHeif', // avif
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',
@@ -104,6 +104,9 @@ export function getSharp(
         'VipsForeignLoadWebp',
       ],
     })
+    if (dangerouslyAllowAVIF) {
+      _sharp.unblock({ operation: ['VipsForeignLoadHeif'] })
+    }
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -807,6 +810,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  dangerouslyAllowAVIF,
 }: {
   buffer: Buffer
   contentType: string
@@ -818,8 +822,9 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  dangerouslyAllowAVIF?: boolean
 }): Promise<Buffer> {
-  const sharp = getSharp(concurrency, operationCache)
+  const sharp = getSharp(concurrency, operationCache, dangerouslyAllowAVIF)
   const transformer = sharp(buffer, {
     limitInputPixels,
     sequentialRead: sequentialRead ?? undefined,
@@ -1056,6 +1061,7 @@ export async function imageOptimizer(
     experimental: Pick<
       NextConfigComplete['experimental'],
       | 'imgOptConcurrency'
+      | 'imgOptDangerouslyAllowAVIF'
       | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
@@ -1131,7 +1137,11 @@ export async function imageOptimizer(
       upstreamEtag,
     }
   }
-  if (BYPASS_TYPES.includes(upstreamType)) {
+  if (
+    BYPASS_TYPES.includes(upstreamType) ||
+    (upstreamType === AVIF &&
+      !nextConfig.experimental.imgOptDangerouslyAllowAVIF)
+  ) {
     return {
       buffer: upstreamBuffer,
       contentType: upstreamType,
@@ -1175,6 +1185,7 @@ export async function imageOptimizer(
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
+      dangerouslyAllowAVIF: nextConfig.experimental.imgOptDangerouslyAllowAVIF,
       operationCache: nextConfig.experimental.imgOptOperationCache,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,

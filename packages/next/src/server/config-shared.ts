@@ -597,6 +597,11 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  /**
+   * Re-enables AVIF input optimization and automatic blur generation.
+   * This may expose applications to security risks in native image decoders.
+   */
+  imgOptDangerouslyAllowAVIF?: boolean
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
@@ -2281,6 +2286,7 @@ export const defaultConfig = Object.freeze({
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
+    imgOptDangerouslyAllowAVIF: false,
     imgOptConcurrency: null,
     imgOptOperationCache: null,
     imgOptTimeoutInSeconds: 7,
@@ -2441,6 +2447,7 @@ export interface NextConfigRuntime {
     | 'preloadEntriesOnStart'
     | 'hideLogsAfterAbort'
     | 'removeUncaughtErrorAndRejectionListeners'
+    | 'imgOptDangerouslyAllowAVIF'
     | 'imgOptConcurrency'
     | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
@@ -2509,6 +2516,7 @@ export function getNextConfigRuntime(
     hideLogsAfterAbort: ex.hideLogsAfterAbort,
     removeUncaughtErrorAndRejectionListeners:
       ex.removeUncaughtErrorAndRejectionListeners,
+    imgOptDangerouslyAllowAVIF: ex.imgOptDangerouslyAllowAVIF,
     imgOptConcurrency: ex.imgOptConcurrency,
     imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
