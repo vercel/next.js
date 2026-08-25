@@ -243,7 +243,7 @@ pub struct EcmascriptOptions {
     pub cjs_tree_shaking: bool,
     /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
     /// reduce output size. Defaults to false. See
-    /// [`crate::references::esm::mangle::mangled_export_names`].
+    /// `references::esm::mangle::mangled_export_names`.
     pub mangle_export_names: bool,
     /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,

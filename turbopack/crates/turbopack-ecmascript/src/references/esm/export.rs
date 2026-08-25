@@ -536,7 +536,7 @@ pub struct EsmExports {
     /// Whether the keys these exports are emitted under may be shortened, i.e. whether the module
     /// they belong to has export mangling enabled. Carried with the exports so that a module which
     /// derives its exports from another one (a facade, a locals module, a part, a rename) inherits
-    /// it automatically. See [`crate::references::esm::mangle::mangled_export_names`], which is
+    /// it automatically. See `references::esm::mangle::mangled_export_names`, which is
     /// what decides whether the keys actually are shortened.
     ///
     /// `false` for exports built for a wrapper whose export names have to stay as written.

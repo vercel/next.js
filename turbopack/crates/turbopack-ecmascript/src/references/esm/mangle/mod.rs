@@ -20,7 +20,7 @@
 
 mod table;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -125,12 +125,20 @@ pub async fn mangled_export_names(
         return Ok(Vc::cell(FrozenMap::default()));
     }
 
-    // `mangling_eligible_for_module` already established that `module`'s exports are
+    // `mangling_eligible_for_module` established that `module`'s exports are
     // `EcmascriptExports::EsmExports` with `mangle_export_names` set and a known, non-dynamic,
-    // non-empty used-export set, so all of this is safe to recompute (and cheap: every one of
-    // these is itself a memoized turbo-tasks call).
+    // non-empty used-export set, so recomputing all of this is cheap — every one of these is
+    // itself a memoized turbo-tasks call.
+    //
+    // This is a `bail!` rather than an `unreachable!` because the two calls are separate tasks:
+    // under eventual consistency they can observe different revisions of the module's exports, so
+    // the shape can legitimately have changed in between. That is a transient inconsistency, not a
+    // broken invariant, so it must be an error rather than a panic.
     let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-        unreachable!("mangling_eligible_for_module already checked this");
+        bail!(
+            "expected EsmExports for a module that `mangling_eligible_for_module` accepted; the \
+             module's exports changed between the two reads"
+        );
     };
     let usage = chunking_context
         .module_export_usage(*ResolvedVc::upcast(module))
@@ -161,7 +169,7 @@ pub async fn mangled_export_names(
 /// **Every** piece of code generation that materializes an export access as a string has to get its
 /// key from here, or the access will miss when the module is mangled. That includes generated
 /// source text (`__turbopack_require__(id)["default"](…)` and friends) as well as AST built by
-/// hand. Code that goes through [`super::base::ReferencedAssetIdent`] is already covered.
+/// hand. Code that goes through `ReferencedAssetIdent` (see `super::base`) is already covered.
 ///
 /// `module` must be the module that actually *produces* the export. For a re-export, resolve to the
 /// producing module first (as `ReferencedAsset::get_ident_inner` does), because each module mangles
