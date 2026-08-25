@@ -40,8 +40,10 @@ test('the CMS listing is still consulted (prerendering kept when content exists)
 })
 
 test('the route was not opted out of validation', () => {
+  // Ban actual opt-out declarations, not mere mentions in comments.
   expect(docsSource()).not.toMatch(/export\s+const\s+instant\s*=\s*false/)
-  expect(docsSource()).not.toMatch(/force-dynamic|dynamicParams/)
+  expect(docsSource()).not.toMatch(/export\s+const\s+dynamicParams\b/)
+  expect(docsSource()).not.toMatch(/dynamic\s*=\s*['"]force-dynamic['"]/)
 })
 
 test('the flaky-CI symptom is handled in code, not by deleting the route', () => {

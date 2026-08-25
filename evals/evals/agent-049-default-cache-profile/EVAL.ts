@@ -24,8 +24,10 @@ function read(p: string) {
 
 test('config overrides the default cacheLife profile to be per-request', () => {
   const config = read('next.config.ts')
-  expect(config).toMatch(/cacheLife\s*:\s*\{[\s\S]{0,200}default\s*:/)
-  expect(config).toMatch(/expire\s*:\s*0\b/)
+  // Comments and formatting between keys are fine — assert the pieces
+  // independently rather than with a bounded window.
+  expect(config).toMatch(/cacheLife\s*:/)
+  expect(config).toMatch(/default\s*:\s*\{[^}]*expire\s*:\s*0\b/)
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
 })
 
