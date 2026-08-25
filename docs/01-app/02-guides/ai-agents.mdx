@@ -255,5 +255,5 @@ npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
 Then give the agent a prompt like:
 
 ```prompt
-When navigating to a product, make its title available immediately, but don't prefetch the rest of the product page. Use the next-partial-prefetching-optimizer Skill.
+Make the navigation from /products to /products/[id] prefetch the product title so it is part of the instant UI. Keep the rest of the product page streaming. Use the next-partial-prefetching-optimizer Skill.
 ```
