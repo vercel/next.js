@@ -19,6 +19,7 @@ import {
   writeRawHttpResponse,
 } from './websocket-http'
 import {
+  claimWebSocketHMRRequestOnce,
   classifyWebSocketUpgradeOwnership,
   createWebSocketUpgradeListenerOwnershipTracker,
   hasMatchingNextOwnedWebSocketHMRListener,
@@ -104,6 +105,16 @@ describe('WebSocket upgrade listener ownership', () => {
         '/bogus/_next/hmr'
       )
     ).toBe(false)
+  })
+
+  it('claims an HMR upgrade exactly once for overlapping sibling prefixes', () => {
+    const request = { url: '/assets/_next/hmr' }
+
+    // Two apps share one HMR path (e.g. one basePath overlapping another's
+    // assetPrefix). The first app to reach the claim owns the connection;
+    // the sibling defers instead of both answering.
+    expect(claimWebSocketHMRRequestOnce(request)).toBe(true)
+    expect(claimWebSocketHMRRequestOnce(request)).toBe(false)
   })
 
   it.each(['on', 'once', 'prependListener', 'prependOnceListener'] as const)(

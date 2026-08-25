@@ -95,7 +95,9 @@ import {
 } from '../websocket-connection-registry'
 import {
   armUnclaimedUpgradeSocketTimeout,
+  claimWebSocketHMRRequestOnce,
   isNextHMRUpgradeRequest,
+  UPGRADE_DELEGATION_MESSAGE,
 } from '../websocket-upgrade-listener'
 
 const debug = setupDebug('next:router-server:main')
@@ -1048,9 +1050,7 @@ export async function initialize(opts: {
       // dispatcher, a shared server must leave every non-HMR upgrade entirely
       // to its embedding listeners. Those listeners may already have accepted
       // the socket and are allowed to mutate the request headers.
-      Log.warnOnce(
-        'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
-      )
+      Log.warnOnce(UPGRADE_DELEGATION_MESSAGE)
       return
     }
 
@@ -1090,6 +1090,10 @@ export async function initialize(opts: {
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
+          // Two apps can share one HMR path (e.g. one app's basePath equals
+          // another's assetPrefix). The first app to reach this claims the
+          // connection; the sibling defers instead of both answering.
+          if (!claimWebSocketHMRRequestOnce(req)) return
           return development.bundler.hotReloader.onHMR(
             req,
             socket,

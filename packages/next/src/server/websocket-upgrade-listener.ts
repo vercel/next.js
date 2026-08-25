@@ -18,6 +18,10 @@ export type WebSocketUpgradeOwnership =
   | 'sibling'
   | 'shared'
 
+/** Shared guidance emitted by both dispatch layers when an upgrade is delegated. */
+export const UPGRADE_DELEGATION_MESSAGE =
+  'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
+
 type NextOwnedUpgradeListener = {
   isWebSocketRouteHandlersEnabled: () => boolean
   isHMRRequest: (url: string | undefined) => boolean
@@ -54,6 +58,20 @@ export function hasEnabledNextOwnedWebSocketUpgradeListener(
           ?.isWebSocketRouteHandlersEnabled()
     )
   )
+}
+
+const claimedHMRUpgradeRequests = new WeakSet<object>()
+
+/**
+ * Claims an HMR upgrade request for the first app to reach it. Two apps can
+ * share one live HMR path (e.g. one app's basePath overlapping another's
+ * assetPrefix); only the earliest-reaching app may run its HMR handler on the
+ * socket. Requests are single-use, so the claim never needs releasing.
+ */
+export function claimWebSocketHMRRequestOnce(req: object): boolean {
+  if (claimedHMRUpgradeRequests.has(req)) return false
+  claimedHMRUpgradeRequests.add(req)
+  return true
 }
 
 export function hasMatchingNextOwnedWebSocketHMRListener(

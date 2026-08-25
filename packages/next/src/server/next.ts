@@ -48,11 +48,16 @@ import {
   hasEnabledNextOwnedWebSocketUpgradeListener,
   hasMatchingNextOwnedWebSocketHMRListener,
   markNextOwnedWebSocketUpgradeListener,
+  UPGRADE_DELEGATION_MESSAGE,
   type WebSocketUpgradeListenerOwnershipTracker,
 } from './websocket-upgrade-listener'
 import { PREPARE_CLOSE_GRACE_PERIOD_MS } from './websocket-shutdown-budget'
 
 const rejectedSiblingUpgradeRequests = new WeakSet<IncomingMessage>()
+// Pins sole ownership across apps: an outer dispatcher which accidentally
+// invokes two apps' public handlers with the same request cannot double-own
+// it. Sibling HMR channels claim only per app and are tracked apart.
+const claimedUpgradeRequests = new WeakSet<IncomingMessage>()
 const SIBLING_UPGRADE_MESSAGE =
   'Multiple Next.js apps on one HTTP server require a single outer upgrade dispatcher for WebSocket Route Handlers. Select the app and call app.getUpgradeHandler().'
 
@@ -688,10 +693,24 @@ class NextCustomServer implements NextWrapperServer {
     customServer?: import('http').Server,
     _req?: IncomingMessage
   ) {
-    if (this.didWebSocketSetup || this.isClosing) return
+    if (this.isClosing) return
 
     customServer = customServer || (_req?.socket as any)?.server
     if (!customServer) return
+
+    // app.getUpgradeHandler() marks explicit custom-server wiring only when
+    // the returned listener is actually attached to this server. Merely
+    // calling the getter (probing, conditional wiring) must not permanently
+    // disable the automatic path.
+    if (
+      this.didWebSocketSetup &&
+      (this.webSocketServer === customServer ||
+        customServer
+          .listeners('upgrade')
+          .includes(this.getOrCreateWebSocketUpgradeListener()))
+    ) {
+      return
+    }
 
     const publicUpgradeListener = this.getOrCreateWebSocketUpgradeListener()
     const upgradeListener = this.webSocketAutomaticUpgradeListener!
@@ -808,10 +827,16 @@ class NextCustomServer implements NextWrapperServer {
           // Shared dispatch is intentionally left unclaimed so one outer
           // dispatcher can call the public handler with coordinated ownership.
           // Every Next-owned path claims synchronously before touching request
-          // metadata, upgrade admission, or the socket.
+          // metadata, upgrade admission, or the socket. Sibling deferral claims
+          // only within the app, so every sibling still processes its own HMR
+          // channel; sole ownership (coordinated through an outer dispatcher,
+          // or exclusive) is pinned across apps.
           if (ownership !== 'shared') {
-            if (claimedRequests.has(req)) return
+            if (claimedRequests.has(req) || claimedUpgradeRequests.has(req)) {
+              return
+            }
             claimedRequests.add(req)
+            if (ownership !== 'sibling') claimedUpgradeRequests.add(req)
           }
 
           if (this.isClosing) {
@@ -858,9 +883,15 @@ class NextCustomServer implements NextWrapperServer {
           // listener can make the ownership decision.
           if (ownership === 'shared') {
             if (this.getInit().webSocketRouteHandlersEnabled) {
-              log.warnOnce(
-                'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
-              )
+              // Warn only if no listener ultimately claims the request: a
+              // correctly configured outer dispatcher claims it during the
+              // same emit pass, so a next-tick check is what separates
+              // actionable guidance from noise.
+              setImmediate(() => {
+                if (!claimedUpgradeRequests.has(req) && !socket.destroyed) {
+                  log.warnOnce(UPGRADE_DELEGATION_MESSAGE)
+                }
+              })
             }
             return
           }
