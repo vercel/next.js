@@ -4,8 +4,7 @@ import {
   createOwnedListeners,
   isRawHttpResponseCommitted,
 } from './websocket-http'
-
-const UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS = 5_000
+import { UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS } from './websocket-shutdown-budget'
 
 interface PendingUpgrade {
   socket: Duplex

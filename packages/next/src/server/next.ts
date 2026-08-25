@@ -49,6 +49,7 @@ import {
   markNextOwnedWebSocketUpgradeListener,
   type WebSocketUpgradeListenerOwnershipTracker,
 } from './websocket-upgrade-listener'
+import { PREPARE_CLOSE_GRACE_PERIOD_MS } from './websocket-shutdown-budget'
 
 const rejectedSiblingUpgradeRequests = new WeakSet<IncomingMessage>()
 const SIBLING_UPGRADE_MESSAGE =
@@ -836,13 +837,17 @@ class NextCustomServer implements NextWrapperServer {
                 )
               }
             }
-            // Shared dispatchers may own this socket. A sibling HMR request may
-            // belong to another Next.js app, while sibling non-HMR protocols
-            // retain their legacy shutdown behavior.
+            // Shared dispatchers may own this socket. A closing app that just
+            // de-registered its own listeners must reap upgrade sockets
+            // matched only by its own HMR endpoint (no remaining listener
+            // will ever claim them); sibling-owned sockets are left for the
+            // sibling.
             if (
               ownership !== 'shared' &&
-              !isSiblingHMRRequest &&
-              !socket.destroyed
+              !socket.destroyed &&
+              (!isSiblingHMRRequest ||
+                (ownsServerRegistration &&
+                  Boolean(this.init?.isWebSocketHMRRequest?.(req.url))))
             ) {
               socket.destroy()
             }
@@ -861,6 +866,13 @@ class NextCustomServer implements NextWrapperServer {
             return
           }
 
+          // Track admitted sockets before any raw response write so the
+          // bounded pending-upgrade drain sees them (including the 501 path
+          // below, which can stall on a zero-window client).
+          if (!isSiblingHMRRequest) {
+            finishUpgrade = this.pendingUpgrades.track(socket)
+          }
+
           if (
             ownership === 'sibling' &&
             !isSiblingHMRRequest &&
@@ -877,10 +889,6 @@ class NextCustomServer implements NextWrapperServer {
           }
 
           addRequestMeta(req, 'webSocketUpgradeOwnership', ownership)
-
-          if (!isSiblingHMRRequest) {
-            finishUpgrade = this.pendingUpgrades.track(socket)
-          }
           if (
             this.isClosing ||
             socket.destroyed ||
@@ -1154,10 +1162,26 @@ class NextCustomServer implements NextWrapperServer {
 
       let prepareFailed = false
       if (!generation.init) {
+        // Bound the wait: a dev compile can take minutes while close() must
+        // return. Past the grace period proceed without the init stage; a
+        // later completing prepare never becomes closeable.
+        let prepareTimer: ReturnType<typeof setTimeout> | undefined
         try {
-          await generation.promise
+          await new Promise<void>((resolve, reject) => {
+            prepareTimer = setTimeout(() => {
+              prepareFailed = true
+              log.warnOnce(
+                'Custom server close() is proceeding without an in-flight prepare() settling.'
+              )
+              resolve()
+            }, PREPARE_CLOSE_GRACE_PERIOD_MS)
+            prepareTimer.unref?.()
+            generation.promise.then(() => resolve(), reject)
+          })
         } catch {
           prepareFailed = true
+        } finally {
+          if (prepareTimer !== undefined) clearTimeout(prepareTimer)
         }
       }
 

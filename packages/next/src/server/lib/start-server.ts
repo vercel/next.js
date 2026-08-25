@@ -46,6 +46,7 @@ import { durationToString } from '../../build/duration-to-string'
 import { addRequestMeta } from '../request-meta'
 import { PendingWebSocketUpgradeTracker } from '../websocket-lifecycle'
 import { isRawHttpResponseCommitted } from '../websocket-http'
+import { HTTP_SERVER_CLOSE_GRACE_PERIOD_MS } from '../websocket-shutdown-budget'
 import { createWebSocketUpgradeListenerOwnershipTracker } from '../websocket-upgrade-listener'
 import {
   latchServerCleanupExitCode,
@@ -414,6 +415,28 @@ export async function startServer(
         })
         void httpServerClosed.catch(() => {})
 
+        // server.close() waits for connections with in-flight requests; only
+        // idle keep-alives are closed on our behalf. Bound the wait so a slow
+        // or stalled client cannot keep process exit open indefinitely.
+        const httpServerCloseBounded = () => {
+          const abandonTimer = setTimeout(() => {
+            try {
+              server.closeAllConnections()
+            } catch {}
+          }, HTTP_SERVER_CLOSE_GRACE_PERIOD_MS)
+          abandonTimer.unref?.()
+          return httpServerClosed.finally(() => clearTimeout(abandonTimer))
+        }
+
+        // A termination signal that lands while a restart is already draining
+        // must still tell clients the process is going away (1001), not to
+        // reconnect immediately (1012). The exit-code latch carries signal
+        // precedence, so read the close code at phase execution time.
+        const shutdownCloseCode = () =>
+          cleanupExitCode === 130 || cleanupExitCode === 143
+            ? 1001
+            : webSocketCloseCode
+
         await runServerCleanupPhases([
           [
             () => {
@@ -425,9 +448,9 @@ export async function startServer(
           ],
           // Every admitted route has now either handed the connection to the
           // registry or completed, so one snapshot closes all upgraded peers.
-          [() => closeUpgraded?.(webSocketCloseCode)],
+          [() => closeUpgraded?.(shutdownCloseCode())],
           [
-            () => httpServerClosed,
+            httpServerCloseBounded,
             () => nextServer?.close(),
             () => cleanupListeners?.runAll(),
           ],

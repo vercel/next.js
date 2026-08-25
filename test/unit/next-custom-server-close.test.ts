@@ -63,6 +63,9 @@ function createCustomServer({
     isWebSocketHMRRequest,
   }
   app.pendingUpgrades = {
+    track() {
+      return () => {}
+    },
     closePending() {
       try {
         return Promise.resolve(closePending())
