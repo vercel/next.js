@@ -48,7 +48,7 @@ patchedDependencies:
     hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
     path: patches/postcss-scss.patch
   stacktrace-parser@0.1.10:
-    hash: 5e07adcb70fa52f969ea76c939668fd09762774a60ec849622e44e5362354dd5
+    hash: ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522
     path: patches/stacktrace-parser@0.1.10.patch
   taskr@1.1.0:
     hash: 1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c
@@ -1024,7 +1024,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1107,7 +1107,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.23
@@ -1228,19 +1228,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1715,7 +1715,7 @@ importers:
         version: source-map@0.8.0-beta.0
       stacktrace-parser:
         specifier: 0.1.10
-        version: 0.1.10(patch_hash=5e07adcb70fa52f969ea76c939668fd09762774a60ec849622e44e5362354dd5)
+        version: 0.1.10(patch_hash=ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522)
       storybook:
         specifier: 8.6.0
         version: 8.6.0(prettier@3.6.2)
@@ -1983,7 +1983,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.4.0-canary.6
+        specifier: 16.4.0-canary.7
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -36960,7 +36960,7 @@ snapshots:
     dependencies:
       escape-string-regexp: 2.0.0
 
-  stacktrace-parser@0.1.10(patch_hash=5e07adcb70fa52f969ea76c939668fd09762774a60ec849622e44e5362354dd5):
+  stacktrace-parser@0.1.10(patch_hash=ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522):
     dependencies:
       type-fest: 0.7.1
 

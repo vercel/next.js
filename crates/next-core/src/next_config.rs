@@ -923,7 +923,7 @@ pub enum ModuleIds {
 pub enum TurbopackPluginRuntimeStrategy {
     #[cfg(feature = "worker_pool")]
     WorkerThreads,
-    #[cfg(feature = "process_pool")]
+    #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
     ChildProcesses,
 }
 
@@ -2599,9 +2599,14 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
-        #[cfg(feature = "process_pool")]
+        // Child processes cannot be spawned from inside wasm, so worker threads are the only
+        // available runtime there.
+        #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
-        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        #[cfg(all(
+            feature = "worker_pool",
+            any(not(feature = "process_pool"), target_family = "wasm")
+        ))]
         let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
 
         self.experimental
