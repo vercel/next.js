@@ -39,13 +39,10 @@ module.exports = function (task) {
             },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
-          // Always downlevel static class initialization blocks. In loose
-          // mode SWC lowers static class properties (e.g. `static contextType
-          // = AppRouterContext`) into a `static { this.contextType = ... }`
-          // block when the targets support it, and these targets do (baseline
-          // since Safari 16.4). The blocks are emitted as
-          // `static #_ = this.contextType = ...` instead, matching what the
-          // server build (node 16.8 target) already produces.
+          // Support Safari 15 on a best-effort basis: it cannot parse static
+          // class initialization blocks (added in Safari 16.4), so always
+          // downlevel them (`static #_ = this.x = ...`) even though the
+          // browserslist targets support them.
           include: ['transform-class-static-block'],
         },
         jsc: {
