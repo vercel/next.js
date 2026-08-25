@@ -437,6 +437,14 @@ export async function getUser(id) {
 
 Like the `fetch` Data Cache, `unstable_cache` persists cached values across deployments and serverless instances, while `use cache` does not. See [`fetch` cache options](#fetch-cache-options) above for the storage details.
 
+## `React.cache`
+
+**Usually no change.** `React.cache` continues to deduplicate matching calls within a React render.
+
+With Cache Components, each Cache Function runs in its own React render scope. If the same `React.cache` helper is called from separate Cache Functions—for example, when one starts the work during preloading and another consumes it—those calls do not share the React memoization scope.
+
+When a helper reads request data and matching calls need to share work across Cache Function scopes, replace the React wrapper with [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private). If the function only needs request-scoped deduplication, use `cacheLife({ stale: Infinity })` so it does not lower the route's stale time. Private Cache Function results are not stored on the server across production requests.
+
 ## On-demand revalidation (`revalidateTag`, `revalidatePath`, `updateTag`)
 
 On-demand invalidation still works by tagging cached data and expiring it after an event. Tag data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) inside a `use cache` function instead of the `fetch` `next.tags` option, then choose the invalidation API by the behavior you want:
