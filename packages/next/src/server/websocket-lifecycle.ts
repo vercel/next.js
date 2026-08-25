@@ -68,6 +68,7 @@ export class PendingWebSocketUpgradeTracker {
     setSocketTimeout?.(PENDING_UPGRADE_IDLE_TIMEOUT_MS)
 
     let finished = false
+    // Install-phase deferral latch (see ownWebSocketUpgradeSocketErrors).
     let installing = true
     let finishRequested = false
     let endRemovalRequested = false
