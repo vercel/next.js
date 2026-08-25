@@ -2,6 +2,7 @@ import {
   RenderStage,
   type AdvanceableRenderStage,
 } from './app-render/staged-rendering'
+import { workAsyncStorage } from './app-render/work-async-storage.external'
 import type {
   RequestStore,
   WorkUnitStore,
@@ -146,7 +147,7 @@ export function makeRuntimeHangingPromise<T>(
   }
   return trackPromiseUsed(
     promise,
-    trackRuntimeDataAccessed.bind(null, workUnitStore)
+    trackRuntimeDataAccessed.bind(null, workUnitStore, expression)
   )
 }
 
@@ -180,7 +181,7 @@ export function makeFallbackParamsHangingPromise<T>(
   }
   return trackPromiseUsed(
     promise,
-    trackFallbackParamsAccessed.bind(null, workUnitStore)
+    trackFallbackParamsAccessed.bind(null, workUnitStore, expression)
   )
 }
 
@@ -209,7 +210,7 @@ export function makeStageHangingPromise<T>(
       signal,
       new HangingPromiseRejectionError(route, expression)
     ),
-    trackRuntimeDataAccessed.bind(null, workUnitStore)
+    trackRuntimeDataAccessed.bind(null, workUnitStore, expression)
   )
 }
 
@@ -225,8 +226,11 @@ export function makeStageHangingPromise<T>(
  * unsure, this is the conservative choice: it unconditionally clears the
  * static-prefetch hint.
  */
-export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, false)
+export function trackRuntimeDataAccessed(
+  workUnitStore: WorkUnitStore,
+  expression: string
+): void {
+  trackRuntimeDataAccessedImpl(workUnitStore, false, expression)
 }
 
 /**
@@ -238,14 +242,16 @@ export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
  * concrete prerender that resolves it.
  */
 export function trackFallbackParamsAccessed(
-  workUnitStore: WorkUnitStore
+  workUnitStore: WorkUnitStore,
+  expression: string
 ): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, true)
+  trackRuntimeDataAccessedImpl(workUnitStore, true, expression)
 }
 
 function trackRuntimeDataAccessedImpl(
   workUnitStore: WorkUnitStore,
-  isFallbackParamAccess: boolean
+  isFallbackParamAccess: boolean,
+  expression: string
 ): void {
   switch (workUnitStore.type) {
     case 'prerender': {
@@ -284,6 +290,13 @@ function trackRuntimeDataAccessedImpl(
         hintCell !== null &&
         (!isFallbackParamAccess || !workUnitStore.isFallbackUpgradeable)
       ) {
+        if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
+          const workStore = workAsyncStorage.getStore()
+          const route = workStore?.route ?? '<unknown route>'
+          console.log(
+            `Route '${route}' deopting to runtime requests because it used ${expression}`
+          )
+        }
         hintCell.current = false
       }
       break

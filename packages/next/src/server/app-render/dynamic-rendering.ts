@@ -355,7 +355,7 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   // promise (see makeRuntimeHangingPromise). Unlike
   // `abortOnSynchronousPlatformIOAccess`, which aborts a runtime prerender
   // all the same and therefore must not record anything.
-  trackRuntimeDataAccessed(prerenderStore)
+  trackRuntimeDataAccessed(prerenderStore, expression)
 
   const prerenderSignal = prerenderStore.controller.signal
   if (prerenderSignal.aborted === false) {

@@ -686,7 +686,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
           // rendering when it's finally awaited.
           const workUnitStore = workUnitAsyncStorage.getStore()
           if (workUnitStore !== undefined) {
-            trackFallbackParamsAccessed(workUnitStore)
+            trackFallbackParamsAccessed(workUnitStore, '`params`')
           }
 
           const store = dynamicAccessAsyncStorage.getStore()
