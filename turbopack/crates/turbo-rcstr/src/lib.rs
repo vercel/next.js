@@ -861,6 +861,8 @@ mod tests {
         let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
         assert_eq!(decoded.as_str(), STATIC_STR);
         // Decoded via peek_read path should find the static constant
+        // Miri does not populate the linker section used by scattered-collect.
+        #[cfg(not(miri))]
         assert_eq!(decoded.tag(), STATIC_TAG);
     }
 
