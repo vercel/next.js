@@ -509,6 +509,7 @@ fn full_cycle() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[test]
 fn persist_changes() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -1989,6 +1990,7 @@ fn count_blob_files(dir: &Path) -> usize {
 
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
+#[cfg(not(miri))]
 #[test]
 fn compaction_deletes_superseded_blob() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2049,6 +2051,7 @@ fn compaction_deletes_superseded_blob() -> Result<()> {
 
 /// Test that compaction deletes blob files when a key is deleted via tombstone
 /// (SingleValue family).
+#[cfg(not(miri))]
 #[test]
 fn compaction_deletes_blob_on_tombstone() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2101,6 +2104,7 @@ fn compaction_deletes_blob_on_tombstone() -> Result<()> {
 
 /// Test that compaction deletes blob files for MultiValue families when a
 /// tombstone prunes older blob entries.
+#[cfg(not(miri))]
 #[test]
 fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2159,6 +2163,7 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
 
 /// Test that compaction preserves blob files that are still referenced
 /// (not superseded).
+#[cfg(not(miri))]
 #[test]
 fn compaction_preserves_active_blob() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2311,6 +2316,7 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
 /// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
 /// matching value, and dropping the tombstone would resurrect it.
+#[cfg(not(miri))]
 #[test]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2489,6 +2495,7 @@ fn count_tombstones(
 
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
+#[cfg(not(miri))]
 #[test]
 fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2570,6 +2577,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
 
 /// When an older SST *outside* the compaction job still holds the key, the tombstone must be
 /// kept. Dropping it would resurrect the value.
+#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2651,6 +2659,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 ///
 /// This is the case a sequence-number threshold gets wrong — it would treat the skipped SST as
 /// part of the job and drop a tombstone that is still load-bearing.
+#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
