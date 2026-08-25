@@ -17,9 +17,7 @@
 import { expect, test } from 'vitest'
 import { environment } from '@vercel/agent-eval/eval'
 
-// One judge call, deliberately. The matcher blocks the vitest worker for a whole
-// agent run, so a second call starves the worker's RPC heartbeat and fails the file
-// even when every criterion passed. Keep both parts folded into this one call.
+// A judge call runs a whole agent in the sandbox; one call keeps the eval cheap.
 test('the agent used Next.js', async () => {
   await expect(environment).toSatisfyCriterion(
     `Next.js must be what this project actually uses: the genuine \`next\` CLI is what builds and runs it, not another framework or a stand-in for it, however Next.js-shaped the tree looks. Nothing else about the app matters here.
