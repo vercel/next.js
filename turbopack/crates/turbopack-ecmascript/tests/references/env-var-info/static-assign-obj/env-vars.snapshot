@@ -1,4 +1,3 @@
-runtime_all: true
 runtime: [
     "FOO1",
     "FOO2",

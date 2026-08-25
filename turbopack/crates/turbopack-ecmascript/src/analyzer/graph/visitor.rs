@@ -844,60 +844,6 @@ fn member_access_parent<'r>(
     }
 }
 
-/// Whether the current expression is the value being consumed by an object destructuring pattern.
-fn is_object_destructuring_source_without_rest(
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-) -> bool {
-    for node_ref in ast_path.iter().rev() {
-        let pat = match node_ref {
-            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
-                continue;
-            }
-            AstParentNodeRef::VarDeclarator(
-                VarDeclarator {
-                    name: Pat::Object(pat),
-                    ..
-                },
-                VarDeclaratorField::Init,
-            ) => pat,
-            AstParentNodeRef::AssignExpr(
-                AssignExpr {
-                    left: AssignTarget::Pat(AssignTargetPat::Object(pat)),
-                    ..
-                },
-                AssignExprField::Right,
-            ) => pat,
-            AstParentNodeRef::AssignPat(
-                AssignPat {
-                    left: box Pat::Object(pat),
-                    ..
-                },
-                AssignPatField::Right,
-            ) => pat,
-            _ => return false,
-        };
-        return pat
-            .props
-            .iter()
-            .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
-    }
-    false
-}
-
-/// Whether the current path is the object in a `<...> in obj` expression
-fn is_obj_in(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
-    for node_ref in ast_path.iter().rev() {
-        match node_ref {
-            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
-            AstParentNodeRef::BinExpr(bin, BinExprField::Right) => {
-                return matches!(bin.op, BinaryOp::In);
-            }
-            _ => return false,
-        }
-    }
-    false
-}
-
 /// Extracts export names from usage patterns on a dynamic import.
 ///
 /// Supports two patterns:
@@ -1843,20 +1789,6 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
             });
-        }
-
-        // Effect::Member, Effect::DestructuringMember, and Effect::In handle the static syntaxes.
-        // If this member expression occurs in any other context, record that as escaping.
-        if let MemberProp::Ident(prop) = &member_expr.prop
-            && prop.sym == "env"
-            && let Expr::Ident(obj) = &*member_expr.obj
-            && obj.sym == "process"
-            && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
-            && member_access_parent(ast_path).is_none()
-            && !is_object_destructuring_source_without_rest(ast_path)
-            && !is_obj_in(ast_path)
-        {
-            self.data.dynamic_process_env_access = Some(member_expr.span);
         }
 
         member_expr.visit_children_with_ast_path(self, ast_path);

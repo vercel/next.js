@@ -96,7 +96,6 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    issue::IssueSource,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
@@ -429,9 +428,10 @@ pub trait EcmascriptParsable {
 pub struct EnvVarInfo {
     /// List of environment variables that are referenced (but not inlined) in the module.
     pub runtime: Vec<RcStr>,
-    /// Whether the module potentially references all environment variables (because of a
-    /// non-statically analyzeable `process.env`).
-    pub runtime_all: Option<IssueSource>,
+    // TODO add this back once we can do it without regressing performance
+    // Whether the module potentially references all environment variables (because of a
+    // non-statically analyzeable `process.env`).
+    // pub runtime_all: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]

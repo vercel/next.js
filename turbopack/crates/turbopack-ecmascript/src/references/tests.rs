@@ -125,20 +125,16 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
 
     let env_var_info = analysis.env_var_info.await?;
 
-    NormalizedOutput::from(format!(
-        "runtime_all: {}\nruntime: {:#?}",
-        env_var_info.runtime_all.is_some(),
-        env_var_info.runtime
-    ))
-    .compare_to_file(input.with_file_name(format!(
-        "env-vars{}.snapshot",
-        match analyze_mode {
-            AnalyzeMode::CodeGenerationAndTracing => "",
-            AnalyzeMode::CodeGeneration => ".codegen",
-            AnalyzeMode::Tracing => ".tracing",
-        }
-    )))
-    .unwrap();
+    NormalizedOutput::from(format!("runtime: {:#?}", env_var_info.runtime))
+        .compare_to_file(input.with_file_name(format!(
+            "env-vars{}.snapshot",
+            match analyze_mode {
+                AnalyzeMode::CodeGenerationAndTracing => "",
+                AnalyzeMode::CodeGeneration => ".codegen",
+                AnalyzeMode::Tracing => ".tracing",
+            }
+        )))
+        .unwrap();
 
     Ok(())
 }
