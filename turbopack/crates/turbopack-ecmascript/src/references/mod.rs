@@ -443,6 +443,21 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 }
 
+enum Action<'a> {
+    Effect(Effect<'a>),
+    LeaveScope(u32),
+}
+
+/// Pushes `effects` onto the processing stack. They are appended in reverse order so that popping
+/// the stack yields them in their original order.
+fn add_effects<'a, I>(queue_stack: &mut Vec<Action<'a>>, effects: I)
+where
+    I: IntoIterator<Item = Effect<'a>>,
+    I::IntoIter: DoubleEndedIterator,
+{
+    queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
+}
+
 struct AnalysisState<'a> {
     handler: &'a Handler,
     module: ResolvedVc<EcmascriptModuleAsset>,
@@ -875,11 +890,6 @@ async fn analyze_ecmascript_module_internal(
             inner_assets,
         };
 
-        enum Action<'a> {
-            Effect(Effect<'a>),
-            LeaveScope(u32),
-        }
-
         fn unreachable_comment() -> RcStr {
             rcstr!("TURBOPACK unreachable")
         }
@@ -889,7 +899,7 @@ async fn analyze_ecmascript_module_internal(
         // processing. Using a stack where effects are appended in reverse
         // order allows us to do that. It's recursion implemented as Stack.
         let mut queue_stack = Vec::with_capacity(effects.len());
-        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
+        add_effects(&mut queue_stack, effects);
 
         while let Some(action) = queue_stack.pop() {
             let effect = match action {
@@ -948,12 +958,7 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack.extend(
-                                BumpVec::from($block.effects)
-                                    .into_iter()
-                                    .map(Action::Effect)
-                                    .rev(),
-                            )
+                            add_effects(&mut queue_stack, BumpVec::from($block.effects))
                         };
                     }
                     match BumpBox::into_inner(kind) {
@@ -1094,9 +1099,7 @@ async fn analyze_ecmascript_module_internal(
                         .cloned()
                         .unwrap_or(ExportUsage::All);
 
-                    let args = process_effect_args(args, |effects| {
-                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
-                    });
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_call(
                         &ast_path,
                         span,
@@ -1118,9 +1121,7 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
-                    let args = process_effect_args(args, |effects| {
-                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
-                    });
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_dynamic_import(
                         &ast_path,
                         span,
@@ -1184,22 +1185,18 @@ async fn analyze_ecmascript_module_internal(
                                 BumpVec::from_iter_in(arena.get_or_default(), [closure_arg]),
                             );
                             queue_stack.push(Action::LeaveScope(*func_ident));
-                            queue_stack.extend(
+                            add_effects(
+                                &mut queue_stack,
                                 BumpVec::from(replace(
                                     &mut block.effects,
                                     BumpVec::new().into_boxed_slice(),
-                                ))
-                                .into_iter()
-                                .map(Action::Effect)
-                                .rev(),
+                                )),
                             );
                             continue;
                         }
                     }
 
-                    let args = process_effect_args(args, |effects| {
-                        queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
-                    });
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_call(
                         &ast_path,
                         span,
@@ -1597,13 +1594,16 @@ async fn compile_time_info_for_module_options(
 // the Array.prototype.map handling above.
 fn process_effect_args<'a>(
     args: BumpVec<'a, EffectArg<'a>>,
-    mut add_effects: impl FnMut(BumpVec<'a, Effect<'a>>),
+    queue_stack: &mut Vec<Action<'a>>,
 ) -> Vec<JsValue<'a>> {
     args.into_iter()
         .map(|effect_arg| match effect_arg {
             EffectArg::Value(value) => value,
             EffectArg::Closure(value, block) => {
-                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
+                add_effects(
+                    queue_stack,
+                    BumpVec::from(BumpBox::into_inner(block).effects),
+                );
                 value
             }
             EffectArg::Spread => {
