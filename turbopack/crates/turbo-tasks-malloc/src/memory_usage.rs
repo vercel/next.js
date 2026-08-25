@@ -1,9 +1,6 @@
 //! Per-OS live-memory reporting.
 //!
-//! This asks the OS for the process's resident/committed memory rather than deriving it from a
-//! counter maintained at every allocation site. The query costs a few hundred nanoseconds, which
-//! only suits callers that sample it (eviction decisions, status lines, trace samples) rather than
-//! ones on an allocation hot path. Platforms that do not expose a figure return `None`.
+//! This asks the OS for the process's resident/committed memory.
 //!
 //! Each platform reports the closest thing it has to "what this process currently costs the
 //! system", so the figures are comparable in trend but not identical in what they include:

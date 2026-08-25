@@ -88,14 +88,6 @@ pub struct TurboMalloc;
 impl TurboMalloc {
     /// Returns the process's current live memory in bytes, as reported by the OS, or `0` on a
     /// platform that does not expose it.
-    ///
-    /// This is a syscall costing a few hundred nanoseconds, not a counter read, so sample it
-    /// (eviction decisions, status lines) rather than calling it per operation. Unlike a figure
-    /// derived from allocation counts it includes allocator overhead and fragmentation, and it
-    /// drops only once the allocator returns pages to the OS.
-    ///
-    /// Use [`Self::memory_usage_checked`] to distinguish "no memory in use" from "not available on
-    /// this platform".
     pub fn memory_usage() -> usize {
         memory_usage::memory_usage().unwrap_or(0)
     }

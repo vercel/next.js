@@ -3,11 +3,6 @@ use std::{cell::UnsafeCell, ptr::NonNull};
 use crate::AllocationCounters;
 
 /// Per-thread allocation and deallocation totals.
-///
-/// There is deliberately no process-wide byte counter here. Live memory is reported by
-/// [`crate::TurboMalloc::memory_usage`], which asks the OS; a global atomic maintained from every
-/// allocation site needed a thread-local buffer to amortize it, and that buffering was the bulk of
-/// this module.
 #[derive(Default)]
 struct ThreadLocalCounter {
     allocation_counters: AllocationCounters,
