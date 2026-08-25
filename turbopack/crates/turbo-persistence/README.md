@@ -93,6 +93,10 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 - **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
+Under Miri compression is skipped, because LZ4 is native code that Miri cannot execute. Every block
+is then written uncompressed, so a database written by a Miri build is only readable by a Miri build
+(the database has no cross-version compatibility guarantees anyway).
+
 #### Block Checksum
 
 Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
@@ -231,7 +235,7 @@ The checksum is verified on the compressed data **before** decompression when th
 
 Reading start from the current sequence number and goes downwards.
 
-- We have all SST files memory mapped
+- We have all SST files memory mapped (under Miri, which does not support file-backed memory mappings, each file is read into an owned buffer instead)
 - for i = CURRENT sequence number .. 0
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
@@ -355,7 +359,7 @@ Configuration options for compactions are:
 - Read the `CURRENT` file
 - Delete all files with a higher sequence number than the one in the `CURRENT` file.
 - Read all `*.del` files and delete the files that are listed in there.
-- Read all `*.sst` files and memory map them.
+- Read all `*.sst` files and memory map them (Miri builds read them into owned buffers instead).
 
 ## Closing
 

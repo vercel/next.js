@@ -9,6 +9,7 @@ mod compaction;
 mod compression;
 mod constants;
 mod db;
+mod file_content;
 mod key;
 mod lookup_entry;
 mod merge_iter;

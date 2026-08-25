@@ -109,11 +109,11 @@ impl TurboMalloc {
     /// force=true: do all the work of `process=false` and then process global shared structures and
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
     pub fn collect(force: bool) {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
         unsafe {
             libmimalloc_sys::mi_collect(force);
         }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
         }
@@ -148,17 +148,17 @@ impl TurboMalloc {
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
 #[inline]
 fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
     return &mimalloc::MiMalloc;
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     return &std::alloc::System;
 }
 
 #[allow(unused_variables)]
 unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
     return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     return layout.size();
 }
 
@@ -211,7 +211,7 @@ mod tests {
 
         // On all supported platforms the value must be reported.
         #[cfg(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         ))]
@@ -219,7 +219,7 @@ mod tests {
 
         // On unsupported platforms we expect None and have nothing further to assert.
         #[cfg(not(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         )))]

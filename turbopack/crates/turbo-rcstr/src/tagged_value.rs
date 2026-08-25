@@ -1,5 +1,12 @@
 #![allow(clippy::missing_transmute_annotations)]
 
+#[cfg(not(any(
+    target_pointer_width = "32",
+    target_pointer_width = "16",
+    feature = "atom_size_64",
+    feature = "atom_size_128"
+)))]
+use std::num::NonZeroUsize;
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
 use self::raw_types::*;
@@ -80,10 +87,30 @@ impl TaggedValue {
 
     #[inline(always)]
     pub const fn new_tag(value: NonZeroU8) -> Self {
-        let value = value.get() as RawTaggedValue;
-        Self {
-            #[allow(clippy::transmute_int_to_non_zero)]
-            value: unsafe { std::mem::transmute(value) },
+        #[cfg(any(
+            target_pointer_width = "32",
+            target_pointer_width = "16",
+            feature = "atom_size_64",
+            feature = "atom_size_128"
+        ))]
+        {
+            Self {
+                value: RawTaggedNonZeroValue::new(value.get() as RawTaggedValue).unwrap(),
+            }
+        }
+
+        #[cfg(not(any(
+            target_pointer_width = "32",
+            target_pointer_width = "16",
+            feature = "atom_size_64",
+            feature = "atom_size_128"
+        )))]
+        {
+            Self {
+                value: NonNull::without_provenance(
+                    NonZeroUsize::new(value.get() as usize).unwrap(),
+                ),
+            }
         }
     }
 
@@ -107,13 +134,35 @@ impl TaggedValue {
             feature = "atom_size_128"
         )))]
         {
-            (self.value.as_ptr() as usize & !(TAG_MASK as usize)) as _
+            self.value
+                .as_ptr()
+                .map_addr(|addr| addr & !(TAG_MASK as usize))
+                .cast_const()
+                .cast()
         }
     }
 
     #[inline(always)]
     fn get_value(&self) -> RawTaggedValue {
-        unsafe { std::mem::transmute(Some(self.value)) }
+        #[cfg(any(
+            target_pointer_width = "32",
+            target_pointer_width = "16",
+            feature = "atom_size_64",
+            feature = "atom_size_128"
+        ))]
+        {
+            self.value.get()
+        }
+
+        #[cfg(not(any(
+            target_pointer_width = "32",
+            target_pointer_width = "16",
+            feature = "atom_size_64",
+            feature = "atom_size_128"
+        )))]
+        {
+            self.value.addr().get()
+        }
     }
 
     #[inline(always)]

@@ -8,15 +8,13 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
-use fs_err::File;
-use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
     QueryKey,
+    file_content::FileContent,
     lookup_entry::LookupValue,
-    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -92,7 +90,7 @@ impl EntryHeader {
 /// # Safety
 ///
 /// `MetaEntry` stores a `FilterRef<'static>` with a transmuted lifetime that actually borrows
-/// from the parent [`MetaFile`]'s mmap. This is safe because entries are only accessed by
+/// from the parent [`MetaFile`]'s file contents. This is safe because entries are only accessed by
 /// reference through `MetaFile` and are never moved out.
 ///
 /// For this reason this type should not implement Clone or Copy.
@@ -109,19 +107,19 @@ pub struct MetaEntry {
     size: u64,
     /// The status flags for this entry.
     flags: MetaEntryFlags,
-    /// Byte offset range of the raw AMQF data within the mmap, used for carrying forward
+    /// Byte offset range of the raw AMQF data within the file contents, used for carrying forward
     /// serialized bytes during compaction without re-serializing.
     amqf_data_offset: std::ops::Range<u32>,
     /// The AMQF filter for this file, eagerly deserialized as a zero-copy [`qfilter::FilterRef`]
-    /// that borrows directly from the parent [`MetaFile`]'s memory-mapped file.
+    /// that borrows directly from the parent [`MetaFile`]'s file contents.
     ///
-    /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::mmap`.
+    /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::file_content`.
     amqf: qfilter::FilterRef<'static>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
 
-// Safety: FilterRef is a read-only view into the mmap which is Send+Sync.
+// Safety: FilterRef is a read-only view into the file contents which is Send+Sync.
 unsafe impl Send for MetaEntry {}
 unsafe impl Sync for MetaEntry {}
 
@@ -146,7 +144,7 @@ impl MetaEntry {
         &self.amqf
     }
 
-    /// Returns the raw serialized AMQF bytes from the mmap.
+    /// Returns the raw serialized AMQF bytes from the file contents.
     pub fn raw_amqf<'l>(&self, amqf_data: &'l [u8]) -> &'l [u8] {
         &amqf_data[self.amqf_data_offset.start as usize..self.amqf_data_offset.end as usize]
     }
@@ -184,7 +182,7 @@ impl MetaEntry {
     }
 
     /// Returns the SST metadata needed to open the file independently.
-    /// Used during compaction to avoid caching mmaps on the MetaEntry.
+    /// Used during compaction to avoid caching open file contents on the MetaEntry.
     pub fn sst_metadata(&self) -> StaticSortedFileMetaData {
         self.sst_data
     }
@@ -234,9 +232,9 @@ pub struct StaticSortedFileRange {
 
 /// # Safety
 ///
-/// `entries` **must** be declared before `mmap` so that Rust's field drop order (declaration
-/// order) drops all `FilterRef`s before the mmap is unmapped.  Reordering these fields would
-/// be unsound.
+/// `entries` **must** be declared before `file_content` so Rust's field drop order (declaration
+/// order) drops all `FilterRef`s before their backing bytes. Reordering these fields would be
+/// unsound.
 pub struct MetaFile {
     /// The database path
     db_path: PathBuf,
@@ -244,28 +242,27 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
-    /// The entries of the file. Dropped before `mmap` (field declaration order).
+    /// The entries of the file. Dropped before `file_content` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
     obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
     obsolete_sst_files: Vec<u32>,
-    /// Byte offset within the mmap where the AMQF data region starts (i.e. the header length).
-    /// Entry AMQF offsets and used-keys offsets are relative to this position.
+    /// Byte offset within the file contents where the AMQF data region starts (i.e. the header
+    /// length). Entry AMQF offsets and used-keys offsets are relative to this position.
     amqf_data_start: u32,
     /// The offset of the start of the "used keys" AMQF data relative to the AMQF data region.
     start_of_used_keys_amqf_data_offset: u32,
     /// The offset of the end of the "used keys" AMQF data relative to the AMQF data region.
     end_of_used_keys_amqf_data_offset: u32,
-    /// The memory mapped file.
-    /// The entire memory-mapped file. Must be the last field that matters for drop order —
-    /// `entries` contains `FilterRef`s that borrow from this mmap.
-    mmap: Mmap,
+    /// The entire file contents. Must be the last field that matters for drop order — `entries`
+    /// contains `FilterRef`s that borrow from these bytes.
+    file_content: FileContent,
 }
 
 impl MetaFile {
-    /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
-    /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
+    /// Opens a meta file and eagerly deserializes all AMQF filters as zero-copy
+    /// [`qfilter::FilterRef`]s that borrow from the file contents.
     pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
@@ -274,14 +271,13 @@ impl MetaFile {
     }
 
     fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let file = File::open(path)?;
-        let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Random)
-            .context("Failed to advise mmap")?;
-        advise_mmap_for_persistence(&mmap)?;
-        // Parse the header from the mmap via ReadBytesExt on &[u8].
-        let mut reader: &[u8] = &mmap;
+        let file_content = FileContent::open(path)?;
+        file_content
+            .advise_random()
+            .context("Failed to advise file contents")?;
+        file_content.advise_persistence()?;
+        // Parse the header via ReadBytesExt on &[u8].
+        let mut reader: &[u8] = &file_content;
         let magic = reader.read_u32::<BE>()?;
         if magic != META_FILE_MAGIC {
             bail!("Invalid magic number");
@@ -297,10 +293,10 @@ impl MetaFile {
 
         // Compute where the AMQF data region starts so we can deserialize filters inline.
         // Remaining header: count * ENTRY_HEADER_SIZE + used_keys_end_offset.
-        let header_so_far = (mmap.len() - reader.len()) as u32;
+        let header_so_far = (file_content.len() - reader.len()) as u32;
         let amqf_data_start =
             header_so_far + count * (size_of::<EntryHeader>() as u32) + size_of::<u32>() as u32;
-        let amqf_data = &mmap[amqf_data_start as usize..];
+        let amqf_data = &file_content[amqf_data_start as usize..];
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
         let mut entries = Vec::with_capacity(count as usize);
@@ -323,7 +319,7 @@ impl MetaFile {
             let amqf_bytes = amqf_data
                 .get(start_of_amqf_data_offset as usize..end_of_amqf_data_offset as usize)
                 .expect("AMQF data out of bounds");
-            // Deserialize the filter borrowing from the mmap, then erase the lifetime.
+            // Deserialize the filter borrowing from the file contents, then erase the lifetime.
             let amqf: qfilter::FilterRef<'_> =
                 postcard::from_bytes(amqf_bytes).with_context(|| {
                     format!(
@@ -331,8 +327,8 @@ impl MetaFile {
                         sequence_number, sst_data.sequence_number
                     )
                 })?;
-            // Safety: the mmap is kept alive by MetaFile and is dropped after entries (field
-            // declaration order), so the borrow remains valid for the lifetime of the MetaEntry.
+            // Safety: the file contents are kept alive by MetaFile and dropped after entries
+            // (field declaration order), so the borrow remains valid for the MetaEntry's lifetime.
             let amqf: qfilter::FilterRef<'static> = unsafe { std::mem::transmute(amqf) };
 
             entries.push(MetaEntry {
@@ -362,7 +358,7 @@ impl MetaFile {
             amqf_data_start,
             start_of_used_keys_amqf_data_offset,
             end_of_used_keys_amqf_data_offset,
-            mmap,
+            file_content,
         })
     }
 
@@ -386,9 +382,9 @@ impl MetaFile {
         self.family
     }
 
-    /// The on-disk size of this meta file in bytes (the length of its memory map).
+    /// The on-disk size of this meta file in bytes.
     pub fn byte_size(&self) -> u64 {
-        self.mmap.len() as u64
+        self.file_content.len() as u64
     }
 
     pub fn entries(&self) -> &[MetaEntry] {
@@ -401,7 +397,7 @@ impl MetaFile {
     }
 
     pub fn amqf_data(&self) -> &[u8] {
-        &self.mmap[self.amqf_data_start as usize..]
+        &self.file_content[self.amqf_data_start as usize..]
     }
 
     pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::FilterRef<'_>>> {

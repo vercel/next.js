@@ -6,10 +6,9 @@ use std::{
     rc::Rc,
 };
 
-use memmap2::Mmap;
-
 use crate::{
     compression::decompress_into_rc,
+    file_content::FileContent,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
 
@@ -19,10 +18,10 @@ use crate::{
 #[derive(Clone)]
 enum Backing {
     Rc { _backing: Rc<[u8]> },
-    Mmap { _backing: Rc<Mmap> },
+    FileContent { _backing: Rc<FileContent> },
 }
 
-/// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
+/// An owned byte slice backed by either an `Rc<[u8]>` or a persistence file's contents.
 ///
 /// Identical to `ArcBytes` but uses `Rc` instead of `Arc`, eliminating atomic
 /// refcount overhead. Use this in single-threaded contexts like SST iteration
@@ -83,7 +82,7 @@ impl Hash for RcBytes {
 }
 
 impl SharedBytes for RcBytes {
-    type MmapHandle = Rc<Mmap>;
+    type FileContentHandle = Rc<FileContent>;
 
     fn slice(self, range: Range<usize>) -> Self {
         let data = &*self;
@@ -100,7 +99,7 @@ impl SharedBytes for RcBytes {
                 subslice,
                 match &self.backing {
                     Backing::Rc { _backing } => _backing,
-                    Backing::Mmap { _backing } => _backing,
+                    Backing::FileContent { _backing } => _backing,
                 }
             ),
             "slice_from_subslice: subslice is not within the backing storage"
@@ -111,15 +110,15 @@ impl SharedBytes for RcBytes {
         }
     }
 
-    unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
+    unsafe fn from_file_content(file_content: &Rc<FileContent>, subslice: &[u8]) -> Self {
         debug_assert!(
-            is_subslice_of(subslice, mmap),
-            "from_mmap: subslice is not within the mmap"
+            is_subslice_of(subslice, file_content),
+            "from_file_content: subslice is not within the file contents"
         );
         RcBytes {
             data: subslice as *const [u8],
-            backing: Backing::Mmap {
-                _backing: mmap.clone(),
+            backing: Backing::FileContent {
+                _backing: file_content.clone(),
             },
         }
     }
