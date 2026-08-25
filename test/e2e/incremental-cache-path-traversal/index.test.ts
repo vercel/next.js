@@ -34,8 +34,8 @@ describeSkipCacheComponents('incremental-cache path traversal', () => {
         pageProps: {
           rest: isNextDeploy
             ? isAdapterTest
-              ? '../../server-reference-manifest'
-              : ['..', '..', 'server-reference-manifest']
+              ? ['..', '..', 'server-reference-manifest']
+              : ['../../server-reference-manifest']
             : [`..${sep}..${sep}server-reference-manifest`],
         },
         __N_SSG: true,
