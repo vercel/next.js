@@ -3081,15 +3081,8 @@ impl TurboTasksBackend {
                                     TurboMalloc::collect(true);
                                 }
 
-                                // Sample the post-eviction floor as the new baseline, after the
-                                // collect above. `memory_usage` reports what the allocator has
-                                // committed, and freed memory is only decommitted by
-                                // `mi_collect(true)` — sampling before it would read a floor that
-                                // still included everything the sweep just freed, so the next
-                                // cycle would see no growth and skip evicting. When the collect
-                                // was skipped (no longer idle) the floor is merely conservative:
-                                // it reads high, so the next cycle evicts later rather than
-                                // never.
+                                // Sample the new baseline after the collect above, which is what
+                                // makes the evicted memory show up in `memory_usage`.
                                 if ran_eviction {
                                     eviction_control.record_eviction();
                                 }

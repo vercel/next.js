@@ -3,34 +3,75 @@
 //! Every build tracks per-thread allocation totals, which the tracing layer reads through
 //! [`allocation_counters`] to attribute allocations to spans.
 //!
-//! Builds without the `custom_allocator` feature additionally maintain [`ALLOCATED`], a
-//! process-wide counter of live bytes that backs [`crate::TurboMalloc::memory_usage`]. With
-//! mimalloc that figure comes from the allocator instead, so none of this is compiled in: the
-//! atomic would otherwise be contended by every thread on every allocation, and the thread-local
-//! buffering that makes it affordable is inlined into every allocation site in the binary.
+//! Builds without the `custom_allocator` feature additionally maintain a process-wide counter of
+//! live bytes, which backs [`crate::TurboMalloc::memory_usage`]. With mimalloc that figure comes
+//! from the allocator instead, so [`global`] is not compiled in: the atomic would otherwise be
+//! contended by every thread on every allocation, and the thread-local buffering that makes it
+//! affordable is inlined into every allocation site in the binary.
 
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{cell::UnsafeCell, ptr::NonNull};
 
+#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+pub use self::global::get;
 use crate::AllocationCounters;
 
-/// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
-/// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
-/// to reduce the number of global synchronizations.  This means at any given time this might
-/// overcount by up to [MAX_BUFFER] bytes for each thread.
+/// The process-wide live-bytes counter, and the buffering that keeps updating it affordable.
+///
+/// Only compiled without the `custom_allocator` feature; see the module docs. Each thread holds
+/// its buffer in its own [`ThreadLocalCounter`] and passes it in, so the counter's state lives in
+/// exactly one place.
 #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-const KB: usize = 1024;
-/// When global counter is updates we will keep a thread-local buffer of this
-/// size.
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-const TARGET_BUFFER: usize = 100 * KB;
-/// When the thread-local buffer would exceed this size, we will update the
-/// global counter.
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-const MAX_BUFFER: usize = 200 * KB;
+mod global {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Tracks the current total amount of memory allocated through all the
+    /// [`super::ThreadLocalCounter`] instances.  This is an overestimate as individual threads
+    /// 'preallocate' a [TARGET_BUFFER] bytes to reduce the number of global synchronizations.
+    /// This means at any given time this might overcount by up to [MAX_BUFFER] bytes for each
+    /// thread.
+    static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
+    const KB: usize = 1024;
+    /// When global counter is updates we will keep a thread-local buffer of this
+    /// size.
+    pub const TARGET_BUFFER: usize = 100 * KB;
+    /// When the thread-local buffer would exceed this size, we will update the
+    /// global counter.
+    pub const MAX_BUFFER: usize = 200 * KB;
+
+    /// Live bytes (allocations minus deallocations) across all threads.
+    pub fn get() -> usize {
+        ALLOCATED.load(Ordering::Relaxed)
+    }
+
+    /// Takes `size` from the global counter, refilling `buffer` while it is there.
+    ///
+    /// Kept out of the allocator's inlined hot path: the buffer means this runs about once per
+    /// [`TARGET_BUFFER`] bytes rather than once per allocation.
+    #[inline(never)]
+    pub fn refill(buffer: &mut usize, size: usize) {
+        debug_assert!(*buffer < size);
+        let offset = size - *buffer + TARGET_BUFFER;
+        *buffer = TARGET_BUFFER;
+        ALLOCATED.fetch_add(offset, Ordering::Relaxed);
+    }
+
+    /// Returns everything buffered above [`TARGET_BUFFER`] to the global counter.
+    #[inline(never)]
+    pub fn flush_excess(buffer: &mut usize) {
+        debug_assert!(*buffer > MAX_BUFFER);
+        let offset = *buffer - TARGET_BUFFER;
+        *buffer = TARGET_BUFFER;
+        ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+    }
+
+    /// Returns everything buffered, for a thread that is going away.
+    pub fn flush_all(buffer: &mut usize) {
+        if *buffer > 0 {
+            ALLOCATED.fetch_sub(*buffer, Ordering::Relaxed);
+            *buffer = 0;
+        }
+    }
+}
 
 /// Per-thread allocation and deallocation totals.
 #[derive(Default)]
@@ -53,29 +94,47 @@ impl ThreadLocalCounter {
         }
     }
 
+    /// Charges `size` against this thread's buffer, refilling it from the global counter when it
+    /// runs dry. Does nothing with `custom_allocator`, where there is no global counter.
     #[inline(always)]
-    fn add(&mut self, size: usize) {
-        self.allocation_counters.allocations += size;
-        self.allocation_counters.allocation_count += 1;
+    fn buffered_add(&mut self, size: usize) {
         #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
         if self.buffer >= size {
             self.buffer -= size;
         } else {
-            add_slow(self, size);
+            global::refill(&mut self.buffer, size);
         }
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        let _ = size;
+    }
+
+    /// Returns `size` to this thread's buffer, flushing the excess to the global counter once the
+    /// buffer grows past [`global::MAX_BUFFER`]. Does nothing with `custom_allocator`.
+    #[inline(always)]
+    fn buffered_remove(&mut self, size: usize) {
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            self.buffer += size;
+            if self.buffer > global::MAX_BUFFER {
+                global::flush_excess(&mut self.buffer);
+            }
+        }
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        let _ = size;
+    }
+
+    #[inline(always)]
+    fn add(&mut self, size: usize) {
+        self.allocation_counters.allocations += size;
+        self.allocation_counters.allocation_count += 1;
+        self.buffered_add(size);
     }
 
     #[inline(always)]
     fn remove(&mut self, size: usize) {
         self.allocation_counters.deallocations += size;
         self.allocation_counters.deallocation_count += 1;
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-        {
-            self.buffer += size;
-            if self.buffer > MAX_BUFFER {
-                remove_slow(self);
-            }
-        }
+        self.buffered_remove(size);
     }
 
     #[inline(always)]
@@ -84,68 +143,22 @@ impl ThreadLocalCounter {
         self.allocation_counters.deallocation_count += 1;
         self.allocation_counters.allocations += new_size;
         self.allocation_counters.allocation_count += 1;
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
         match old_size.cmp(&new_size) {
             std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Less => {
-                let size = new_size - old_size;
-                if self.buffer >= size {
-                    self.buffer -= size;
-                } else {
-                    add_slow(self, size);
-                }
-            }
-            std::cmp::Ordering::Greater => {
-                let size = old_size - new_size;
-                self.buffer += size;
-                if self.buffer > MAX_BUFFER {
-                    remove_slow(self);
-                }
-            }
+            std::cmp::Ordering::Less => self.buffered_add(new_size - old_size),
+            std::cmp::Ordering::Greater => self.buffered_remove(old_size - new_size),
         }
     }
 
     fn unload(&mut self) {
         #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-        if self.buffer > 0 {
-            ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
-            self.buffer = 0;
-        }
+        global::flush_all(&mut self.buffer);
         self.allocation_counters = AllocationCounters::default();
     }
 }
 
-// Keep the uncommon atomic updates out of the allocator's inlined hot path.
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-#[cold]
-#[inline(never)]
-fn add_slow(local: &mut ThreadLocalCounter, size: usize) {
-    debug_assert!(local.buffer < size);
-    let offset = size - local.buffer + TARGET_BUFFER;
-    local.buffer = TARGET_BUFFER;
-    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
-}
-
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-#[cold]
-#[inline(never)]
-fn remove_slow(local: &mut ThreadLocalCounter) {
-    debug_assert!(local.buffer > MAX_BUFFER);
-    let offset = local.buffer - TARGET_BUFFER;
-    local.buffer = TARGET_BUFFER;
-    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
-}
-
 thread_local! {
   static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
-}
-
-/// Live bytes (allocations minus deallocations) across all threads.
-///
-/// Only maintained without the `custom_allocator` feature; see the module docs.
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-pub fn get() -> usize {
-    ALLOCATED.load(Ordering::Relaxed)
 }
 
 pub fn allocation_counters() -> AllocationCounters {
@@ -265,6 +278,8 @@ mod tests {
     #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
     #[test]
     fn counting() {
+        use super::global::{MAX_BUFFER, TARGET_BUFFER};
+
         let mut local = ThreadLocalCounter::new();
 
         // A fresh counter has nothing buffered, so the first allocation has to reach the global,

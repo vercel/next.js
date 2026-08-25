@@ -93,8 +93,9 @@ impl TurboMalloc {
     /// mmap'd files, and any memory allocated by the embedding process. It is a measure of what
     /// this allocator holds, not of the process's total footprint.
     ///
-    /// The figure only drops at a [`Self::collect`] point rather than falling continuously as
-    /// memory is freed, because that is when mimalloc returns pages to the OS.
+    /// It does not track frees in lock step. mimalloc reuses and purges pages on its own
+    /// schedule, so the figure lags a burst of frees, and memory abandoned by threads that have
+    /// since exited is only reclaimed by a forcing [`Self::collect`].
     ///
     /// Without the `custom_allocator` feature this is a process-wide counter of live bytes
     /// (allocations minus deallocations), maintained by [`self::counter`]. That figure is
