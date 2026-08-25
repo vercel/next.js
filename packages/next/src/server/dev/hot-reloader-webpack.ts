@@ -15,7 +15,7 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
-import { createHash, randomUUID } from 'crypto'
+import { randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -91,8 +91,8 @@ import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import {
-  closeWebSocketRoute,
   getActiveWebSocketRouteBundlePaths,
+  invalidateWebSocketRoutes,
   isWebSocketRouteActive,
   reloadWebSocketScope,
 } from '../websocket-connection-registry'
@@ -132,169 +132,6 @@ const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
-}
-
-function frameFingerprintValue(value: string): string {
-  return `${Buffer.byteLength(value)}:${value}`
-}
-
-type WebSocketRouteModule = webpack.Module & {
-  resource?: string
-  originalSource?: () => { buffer(): Buffer } | null
-}
-type WebpackRuntime = webpack.Chunk['runtime']
-
-function getWebSocketRouteFingerprints(
-  compilation: webpack.Compilation,
-  pageExtensionRegex: RegExp,
-  bundlePaths: ReadonlySet<string>
-): Map<string, string> {
-  const fingerprints = new Map<string, string>()
-  // A named vendor chunk can contain modules which are not reachable from
-  // every entrypoint that references it, so chunk hashes are too broad here.
-  // Keep exact ModuleGraph reachability while caching the expensive graph and
-  // hash lookups shared by routes during this compilation.
-  const normalizedResources = new Map<webpack.Module, string | undefined>()
-  const moduleIdentifiers = new Map<webpack.Module, string>()
-  const sourceHashes = new Map<webpack.Module, string>()
-  const moduleHashes = new Map<webpack.Module, Map<WebpackRuntime, string>>()
-  const outgoingModules = new Map<
-    webpack.Module,
-    Map<WebpackRuntime, webpack.Module[]>
-  >()
-
-  const getNormalizedResource = (module: webpack.Module) => {
-    if (normalizedResources.has(module)) {
-      return normalizedResources.get(module)
-    }
-
-    const resource = (module as WebSocketRouteModule).resource?.replaceAll(
-      '\\',
-      '/'
-    )
-    normalizedResources.set(module, resource)
-    return resource
-  }
-
-  const getModuleHash = (
-    module: webpack.Module,
-    runtime: WebpackRuntime,
-    useOriginalSource: boolean
-  ) => {
-    if (useOriginalSource) {
-      const cached = sourceHashes.get(module)
-      if (cached) return cached
-
-      const originalSource = (module as WebSocketRouteModule).originalSource?.()
-      if (originalSource) {
-        const hash = createHash('sha256')
-          .update(originalSource.buffer())
-          .digest('hex')
-        sourceHashes.set(module, hash)
-        return hash
-      }
-    }
-
-    let hashesByRuntime = moduleHashes.get(module)
-    if (!hashesByRuntime) {
-      hashesByRuntime = new Map()
-      moduleHashes.set(module, hashesByRuntime)
-    }
-
-    const cached = hashesByRuntime.get(runtime)
-    if (cached) return cached
-
-    const hash = compilation.chunkGraph.getModuleHash(module, runtime)
-    hashesByRuntime.set(runtime, hash)
-    return hash
-  }
-
-  const getOutgoingModules = (
-    module: webpack.Module,
-    runtime: WebpackRuntime
-  ) => {
-    let modulesByRuntime = outgoingModules.get(module)
-    if (!modulesByRuntime) {
-      modulesByRuntime = new Map()
-      outgoingModules.set(module, modulesByRuntime)
-    }
-
-    const cached = modulesByRuntime.get(runtime)
-    if (cached) return cached
-
-    const modules: webpack.Module[] = []
-    for (const connection of compilation.moduleGraph.getOutgoingConnections(
-      module
-    )) {
-      if (connection.getActiveState(runtime) !== false) {
-        modules.push(connection.module)
-      }
-    }
-    modulesByRuntime.set(runtime, modules)
-    return modules
-  }
-
-  for (const bundlePath of bundlePaths) {
-    const entrypoint = compilation.entrypoints.get(bundlePath)
-    if (!entrypoint) continue
-
-    const entry = compilation.entries.get(bundlePath)
-    if (!entry) {
-      throw new Error(`Missing Webpack entry data for ${bundlePath}`)
-    }
-
-    const runtime = entrypoint.getEntrypointChunk().runtime
-    const pendingModules: webpack.Module[] = []
-    for (const dependency of [
-      ...entry.dependencies,
-      ...entry.includeDependencies,
-    ]) {
-      const module = compilation.moduleGraph.getResolvedModule(dependency)
-      if (!module) {
-        throw new Error(`Unresolved Webpack entry dependency for ${bundlePath}`)
-      }
-      pendingModules.push(module)
-    }
-
-    // StringXor is Webpack's order-independent compilation hash primitive. A
-    // separate identity accumulator distinguishes module membership when two
-    // modules happen to have the same content hash, without sorting the full
-    // reachable module set for every route.
-    const contentFingerprint = new StringXor()
-    const identityFingerprint = new StringXor()
-    const visitedModules = new Set<webpack.Module>()
-    for (let index = 0; index < pendingModules.length; index++) {
-      const module = pendingModules[index]
-      if (visitedModules.has(module)) continue
-      visitedModules.add(module)
-
-      const resource = getNormalizedResource(module)
-      const isEntryModule =
-        resource?.includes(bundlePath) && pageExtensionRegex.test(resource)
-
-      contentFingerprint.add(
-        getModuleHash(module, runtime, Boolean(isEntryModule))
-      )
-      let identifier = moduleIdentifiers.get(module)
-      if (!identifier) {
-        identifier = module.identifier()
-        moduleIdentifiers.set(module, identifier)
-      }
-      identityFingerprint.add(identifier)
-
-      for (const outgoingModule of getOutgoingModules(module, runtime)) {
-        pendingModules.push(outgoingModule)
-      }
-    }
-
-    const fingerprint = createHash('sha256')
-      .update(frameFingerprintValue(contentFingerprint.toString()))
-      .update(frameFingerprintValue(identityFingerprint.toString()))
-      .digest('hex')
-    fingerprints.set(bundlePath, fingerprint)
-  }
-
-  return fingerprints
 }
 
 const wsServer = new ws.Server({ noServer: true })
@@ -1511,8 +1348,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
-    let previousWebSocketServerCompilation: webpack.Compilation | undefined
-    let previousWebSocketRouteFingerprints = new Map<string, string>()
+    let previousWebSocketRouteOwners = new Map<string, 'server' | 'edge'>()
 
     const pageExtensionRegex = new RegExp(
       `\\.(?:${this.config.pageExtensions.join('|')})$`
@@ -1751,58 +1587,56 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           serverStats.hasErrors() ||
           edgeServerStats?.hasErrors()
         ) {
-          void reloadWebSocketScope(webSocketRegistryScope)
+          // An unknown graph shape must not leave a route executing code from
+          // a generation which may have changed.
+          invalidateWebSocketRoutes(webSocketRegistryScope, 'unknown')
         } else {
           try {
+            // trackPageChanges fingerprints entrypoint content on both server
+            // compilers at emit time, so this covers Node-runtime routes
+            // (server compilation) and Edge-runtime routes (edge-server
+            // compilation) through one detector. A route absent from the
+            // previous compilation compares as unchanged, so a connection
+            // accepted during its first compile is not spuriously bumped.
             const activeBundlePaths = getActiveWebSocketRouteBundlePaths(
               webSocketRegistryScope
             )
             if (activeBundlePaths.size !== 0) {
-              const bundlePathsMissingPreviousFingerprint = new Set<string>()
-              for (const bundlePath of activeBundlePaths) {
-                if (!previousWebSocketRouteFingerprints.has(bundlePath)) {
-                  bundlePathsMissingPreviousFingerprint.add(bundlePath)
-                }
-              }
-              const missingPreviousFingerprints =
-                previousWebSocketServerCompilation &&
-                bundlePathsMissingPreviousFingerprint.size !== 0
-                  ? getWebSocketRouteFingerprints(
-                      previousWebSocketServerCompilation,
-                      pageExtensionRegex,
-                      bundlePathsMissingPreviousFingerprint
-                    )
-                  : undefined
-              const currentFingerprints = getWebSocketRouteFingerprints(
-                serverStats.compilation,
-                pageExtensionRegex,
-                activeBundlePaths
-              )
+              const serverEntrypoints = serverStats.compilation.entrypoints
+              const edgeEntrypoints = edgeServerStats?.compilation.entrypoints
+              const affected = new Set<string>()
+              const currentOwners = new Map<string, 'server' | 'edge'>()
 
               for (const bundlePath of activeBundlePaths) {
-                const currentFingerprint = currentFingerprints.get(bundlePath)
-                const previousFingerprint =
-                  previousWebSocketRouteFingerprints.get(bundlePath) ??
-                  missingPreviousFingerprints?.get(bundlePath)
+                const owner: 'server' | 'edge' | undefined =
+                  serverEntrypoints.has(bundlePath)
+                    ? 'server'
+                    : edgeEntrypoints?.has(bundlePath)
+                      ? 'edge'
+                      : undefined
+                if (owner !== undefined) currentOwners.set(bundlePath, owner)
+                const previousOwner =
+                  previousWebSocketRouteOwners.get(bundlePath)
+
                 if (
-                  currentFingerprint === undefined ||
-                  previousFingerprint === undefined ||
-                  currentFingerprint !== previousFingerprint
+                  owner === undefined ||
+                  (previousOwner !== undefined && previousOwner !== owner) ||
+                  changedServerPages.has(bundlePath) ||
+                  changedEdgeServerPages.has(bundlePath)
                 ) {
-                  void closeWebSocketRoute(webSocketRegistryScope, bundlePath)
+                  // Deleted, moved runtimes, or content-changed.
+                  affected.add(bundlePath)
                 }
               }
+              previousWebSocketRouteOwners = currentOwners
 
-              previousWebSocketRouteFingerprints = currentFingerprints
+              invalidateWebSocketRoutes(webSocketRegistryScope, affected)
             } else {
-              previousWebSocketRouteFingerprints = new Map()
+              previousWebSocketRouteOwners = new Map()
             }
-            previousWebSocketServerCompilation = serverStats.compilation
           } catch (error) {
-            // An unknown Webpack graph shape must not leave a route executing
-            // code from a generation which may have changed.
             console.error(error)
-            void reloadWebSocketScope(webSocketRegistryScope)
+            invalidateWebSocketRoutes(webSocketRegistryScope, 'unknown')
           }
         }
       }
