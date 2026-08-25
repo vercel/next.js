@@ -322,6 +322,9 @@ export function ownWebSocketUpgradeSocketErrors(
   if (ownedSocket[RAW_UPGRADE_ERROR_OWNER]) return
 
   const owner = {}
+  // Install-phase deferral latch (shared pattern with the other raw-socket
+  // sites): events arriving synchronously from hostile EventEmitter hooks
+  // during install() are deferred and replayed after installation completes.
   let installing = true
   let closeRequested = false
   let cleaned = false
@@ -476,6 +479,7 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
 
   await new Promise<void>((resolve) => {
     let settled = false
+    // Install-phase deferral latch (see ownWebSocketUpgradeSocketErrors).
     let installing = true
     let finishRequested = false
     const listeners = createOwnedListeners()
@@ -767,6 +771,7 @@ export async function writeRawHttpResponse(
   if (bodyAllowed) {
     const reader = responseReader!
     let bodyCancelled = false
+    // Install-phase deferral latch (see ownWebSocketUpgradeSocketErrors).
     let installingBodyListeners = true
     let pendingCancellation: unknown
     let closeListenerInstalled = false
