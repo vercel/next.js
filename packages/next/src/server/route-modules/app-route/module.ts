@@ -1206,6 +1206,7 @@ export class AppRouteRouteModule extends RouteModule<
       routerServerContext,
       clientReferenceManifest,
       serverActionsManifest,
+      previewProps,
     } = prepareResult
 
     // Register the reference manifests used by Server Actions at module scope.
@@ -1223,7 +1224,7 @@ export class AppRouteRouteModule extends RouteModule<
       (await this.getIncrementalCache(
         req,
         nextConfig,
-        prerenderManifest.preview,
+        previewProps,
         prerenderManifest,
         isMinimalMode
       ))
@@ -1233,7 +1234,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const context: AppRouteRouteHandlerContext = {
       params,
-      previewProps: prerenderManifest.preview,
+      previewProps,
       renderOpts: {
         experimental: {
           authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

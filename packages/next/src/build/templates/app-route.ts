@@ -411,6 +411,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
+        previewProps: prepareResult.previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,
