@@ -3,14 +3,12 @@
  *
  * The same request as agent-044-uses-nextjs with Next.js named in it. That eval
  * asks which framework an agent reaches for; this one asks whether an agent told
- * to use Next.js actually delivers it. A pass here alongside a fail there is the
- * result worth having.
+ * to use Next.js actually delivers it.
  *
  * The fixture is a blank slate on purpose: the agent sees only a package.json.
  *
- * The prompts must differ by nothing but the framework mention, and the criterion
- * is kept identical. The URL per book and the server-side data are load-bearing
- * for the sibling eval, so do not trim them here either.
+ * Keep the prompts identical apart from the framework mention, and the criterion
+ * in sync.
  */
 
 // @ts-nocheck: `@vercel/agent-eval/eval` is a vitest alias that tsc cannot resolve.

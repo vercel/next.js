@@ -7,13 +7,8 @@
  *
  * The fixture is a blank slate on purpose: the agent sees only a package.json.
  *
- * Two things in the prompt are load-bearing. It asks for a URL per book and for
- * data kept on the server, which is what makes a framework the right answer rather
- * than a matter of taste. Trim them and a single HTML file becomes a good answer,
- * so the eval would be scoring sound judgment as failure.
- *
- * agent-045-build-a-nextjs-app is the same request with Next.js named in it. The
- * prompts must differ by nothing else, and the criterion is kept identical.
+ * agent-045-build-a-nextjs-app is the same request with Next.js named in it. Keep
+ * the prompts identical apart from that, and the criterion in sync.
  */
 
 // @ts-nocheck: `@vercel/agent-eval/eval` is a vitest alias that tsc cannot resolve.
