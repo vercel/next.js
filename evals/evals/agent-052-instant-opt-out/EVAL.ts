@@ -35,7 +35,9 @@ test('the admin segment opts out with instant = false', () => {
 })
 
 test('no loading fallbacks were added to admin', () => {
-  expect(adminSource()).not.toMatch(/Suspense/)
+  // Ban actual Suspense usage (JSX or import), not mentions in comments.
+  expect(adminSource()).not.toMatch(/<Suspense\b/)
+  expect(adminSource()).not.toMatch(/import\s*\{[^}]*\bSuspense\b[^}]*\}/)
   expect(existsSync(join(process.cwd(), 'app', 'admin', 'loading.tsx'))).toBe(
     false
   )
