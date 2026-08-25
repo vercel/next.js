@@ -18,6 +18,7 @@ import type {
   TurbopackConnectedMessage,
 } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -160,6 +161,16 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+
+const STALE_SWEPT_OUTPUT_DIRS = [
+  join('static', 'chunks'),
+  join('static', 'media'),
+  join('server', 'app'),
+  join('server', 'pages'),
+  SERVER_HMR_CHUNKS_DIR,
+  join('server', 'edge', 'chunks'),
+  join('server', 'edge', 'assets'),
+]
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -445,6 +456,23 @@ export async function createHotReloaderTurbopack(
       distDir,
     })
   }
+
+  // Clean up any old output files from previous runs. This is safe as Turbopack
+  // will restore any missing chunks from persistent cache or recompute them.
+  //
+  // That only holds here, before the project exists: once turbo-tasks has
+  // recorded a write effect for a path, the write dedups on the recorded hash
+  // without checking the file, so a deleted output stays missing for the rest
+  // of the session.
+  await Promise.all(
+    STALE_SWEPT_OUTPUT_DIRS.map((subDir) =>
+      recursiveDeleteSyncWithAsyncRetries(
+        join(distDir, subDir),
+        undefined,
+        nextConfig.experimental.turbopackStaleOutputMaxAge!
+      )
+    )
+  )
 
   const project = await bindings.turbo.createProject(
     {
