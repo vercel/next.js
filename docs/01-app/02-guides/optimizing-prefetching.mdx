@@ -1,8 +1,7 @@
 ---
-title: Runtime prefetching
-description: Prefetch URL data alongside the App Shell using the prefetch segment config and per-session caching directives.
-nav_title: Runtime prefetching
-version: experimental
+title: Optimizing prefetching
+description: Resolve per-link URL data with the prefetch prop, or include session data in the App Shell.
+nav_title: Optimizing prefetching
 related:
   title: Learn more
   description: Validate your structure and review the caching primitives.
@@ -16,15 +15,11 @@ related:
     - app/guides/prefetching
 ---
 
-Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip.
+Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip. The [Prefetching guide](/docs/app/guides/prefetching) covers what the App Router prefetches by default.
 
-The regular App Router prefetches a route all or nothing: the full route when it's static, and nothing for a dynamic route without a [`loading.js`](/docs/app/api-reference/file-conventions/loading).
+With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a [`<Link>`](/docs/app/api-reference/components/link) prefetches one reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. The App Shell includes the route's static output. For routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), it also includes session-specific UI. Links to the same route reuse that App Shell.
 
-[Cache Components](/docs/app/getting-started/caching) with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled takes a different approach, prefetching one reusable [**App Shell**](/docs/app/glossary#app-shell) per route rather than a separate prefetch per link. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it also carries UI gated behind that session data.
-
-Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
-
-The shell cannot carry data that varies per link: [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), the route's [URL data](/docs/app/glossary#url-data). **Runtime prefetching** resolves that URL data at prefetch time, ready before the click rather than streaming in after it.
+The shared App Shell does not include URL data that varies by destination, such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional). Set `prefetch={true}` on a link to resolve cached content that depends on its [URL data](/docs/app/glossary#url-data) before navigation instead of streaming that content after navigation.
 
 This guide assumes [Cache Components](/docs/app/getting-started/caching) with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled:
 
@@ -41,9 +36,9 @@ export default nextConfig
 
 It also assumes your route is already structured for instant navigation. If it isn't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate its caching structure first.
 
-## What runtime prefetching does
+## Resolve URL data at prefetch time
 
-Runtime prefetching is opted into per link with `<Link prefetch={true}>`. Any destination with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled supports it, either globally via `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
+Set `<Link prefetch={true}>` to resolve URL data for that link before navigation. The destination must use [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), enabled globally with `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
 
 A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
 
@@ -97,21 +92,19 @@ async function search(q: string) {
 
 Without `prefetch={true}`, the App Shell renders `<h1>` and shows the `<Results>` fallback. The query resolves after the click and streams the results in.
 
-With `prefetch={true}` on the link, the router prefetches a prerender that resolves `<Results>` before the click. The `q` value comes from the link's URL, known at prefetch time, and the cached `search(q)` fills in from there. On the click, the results render immediately, with no fallback.
+With `prefetch={true}` on the link, the router prefetches a prerender that resolves `<Results>` before the click. The `q` value comes from the link's URL, known at prefetch time, and the cached `search(q)` provides the result. On the click, the results render immediately, with no fallback.
 
 The prerender advances through anything static or cached, then stops at uncached reads and falls back to the surrounding `<Suspense>` boundary. That boundary is already in place from [structuring the route for instant navigation](/docs/app/guides/instant-navigation).
 
-More of the page is rendered before the user clicks, with fewer loading states.
-
-Generating it costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is prefetched at runtime.
+Generating the per-link prefetch costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is generated per prefetch.
 
 > **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
 
-Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the values are predefined by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). A statically known param still belongs to one URL. Runtime prefetching resolves the values `generateStaticParams` does not cover.
+Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the values are predefined by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). A statically known param still belongs to one URL. A per-link prefetch with `prefetch={true}` resolves the values `generateStaticParams` does not cover.
 
-## Session data resolves in the shell
+## Include session data in the shell
 
-Runtime prefetching is for URL data. Session data is handled separately. A route that reads `cookies()` or `headers()`, including through `"use cache: private"`, gets an App Shell that includes its session data, cached per session on the client and ready on navigation without a per-link runtime prefetch.
+`prefetch={true}` resolves URL data. Session data is handled separately. A route that reads `cookies()` or `headers()`, including through `"use cache: private"`, gets an App Shell that includes its session data, cached per session on the client and ready on navigation without a per-link prefetch.
 
 A lookup based on session data needs a cache lifetime, the same way `search(q)` did for the URL. Take a dashboard nav that reads a cookie, then looks up content based on it:
 
@@ -191,9 +184,11 @@ Here `cookies()` lives inside the cached function, which only works under `"use 
 
 Everything inside the scope shares the same lifetime. Colocate `"use cache: private"` as close to the runtime data access as possible.
 
-## Per-link prefetching trade-offs
+{/* TODO(optimizing-prefetching): add an "Exclude content until navigation" section once `await navigation()` (ships as `unstable_navigation`, vercel/next.js#96069) merges. This is the second direction, gating content OUT of the prefetch rather than resolving URL data into it: the prefetch stops at `await navigation()` (code after it does not run at prefetch time), and on the actual navigation (or build/ISR) it runs and streams in. Unlike `await connection()`, content below the gate stays cacheable. It can't be called inside `use cache` / `use cache: private` yet, so the pattern is `await navigation()` in an uncached wrapper with the cache directive on an inner function below the gate. Do NOT publish until merged; validate empirically against the PR branch first. */}
 
-Use it on routes where:
+## Trade-offs
+
+Use `prefetch={true}` on routes where:
 
 - Part of the component tree depends on URL data: the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
@@ -205,16 +200,16 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 - The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
 - The route is rarely navigated to. You pay per visible link, regardless of click-through.
 
-A per-link runtime prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell. That shell is the reliable baseline, and runtime prefetching only layers on top when it arrives in time.
+A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell.
 
 When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
-|         | App Shell                                   | Per-link runtime prefetch with `prefetch={true}` |
-| ------- | ------------------------------------------- | ------------------------------------------------ |
-| Scope   | One per route                               | One per visible `<Link prefetch={true}>`         |
-| Content | Route's rendered output minus per-link data | Same, plus per-link URL data resolved            |
-| Cost    | Bounded by route count                      | Bounded by visible-link count                    |
-| Role    | Every route's instant floor                 | Upgrade: more rendered before click              |
+|         | App Shell                                   | Per-link prefetch with `prefetch={true}` |
+| ------- | ------------------------------------------- | ---------------------------------------- |
+| Scope   | One per route                               | One per visible `<Link prefetch={true}>` |
+| Content | Route's rendered output minus per-link data | Same, plus per-link URL data resolved    |
+| Cost    | Bounded by route count                      | Bounded by visible-link count            |
+| Role    | Default prefetch                            | More rendered before click               |
 
 ## Next steps
 
