@@ -1624,7 +1624,21 @@ const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
 // Normalize to forward slashes so it matches the virtual chunk paths in
 // `update.instruction.chunks`, which always use `/` regardless of OS.
 const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename)).replaceAll(path.sep, '/');
-const runtimeRoot = path.resolve(RUNTIME_ROOT);
+// The dispatcher compares runtime roots by string equality, so both sides
+// must share one filesystem identity for the same directory. The consumer
+// canonicalizes with fs.realpathSync(distDir), but __filename is only
+// canonicalized through symlinks by default (`--preserve-symlinks` would
+// diverge). Canonicalize once here too; fall back to RUNTIME_ROOT if
+// resolution fails.
+const fs = require('fs');
+let runtimeRoot;
+try {
+    runtimeRoot = fs.realpathSync(RUNTIME_ROOT);
+} catch  {
+    runtimeRoot = RUNTIME_ROOT;
+}
+// Dedupes the divergence warning issued by the dispatcher installed below.
+let didWarnRuntimeRootMismatch = false;
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (targetRuntimeRoot, update)=>{
@@ -1637,6 +1651,11 @@ if (handlers.size === 0) {
             ...Object.keys(update.instruction?.chunks ?? {}),
             ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
         ]);
+        // Mirrors the consumer's observable-changes check: only updates carrying
+        // runtime work are dispatched, so only those may trigger the fallback
+        // below.
+        const instruction = update.instruction;
+        const hasObservableChanges = updateChunkPaths.size > 0 || instruction != null && instruction.type === 'ChunkListUpdate' && (instruction.affectedEntries?.length ?? 0) > 0;
         const toCall = [];
         if (updateChunkPaths.size === 0) {
             for (const entry of registry.values()){
@@ -1654,9 +1673,27 @@ if (handlers.size === 0) {
                 }
             }
         }
-        // No matching runtime loaded (e.g. editing a route not required yet this
-        // session): nothing live to patch, so this is a no-op. A handler that
-        // throws propagates to the consumer, which evicts require.cache.
+        if (toCall.length === 0 && hasObservableChanges && registry.size > 0) {
+            // A non-empty update matching zero runtimes means the two sides'
+            // runtimeRoot normalization diverged. Broadcast to every runtime (the
+            // pre-routing behavior) rather than silently dropping the apply while
+            // the consumer still evicts the affected manifests.
+            if (!didWarnRuntimeRootMismatch) {
+                didWarnRuntimeRootMismatch = true;
+                const registeredRoots = [
+                    ...new Set([
+                        ...registry.values()
+                    ].map((entry)=>entry.runtimeRoot))
+                ];
+                console.warn(`[Server HMR] Update matched no runtime: target root "${targetRuntimeRoot}", ` + `registered roots: ${registeredRoots.map((root)=>`"${root}"`).join(', ')}. ` + `Falling back to broadcasting to all runtimes.`);
+            }
+            for (const entry of registry.values()){
+                toCall.push(entry);
+            }
+        }
+        // No runtimes loaded at all (e.g. no chunk required yet this session):
+        // nothing live to patch, so this is a no-op. A handler that throws
+        // propagates to the consumer, which evicts require.cache.
         for (const { handler } of toCall){
             handler(update);
         }

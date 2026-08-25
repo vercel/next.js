@@ -17,7 +17,7 @@ declare global {
    */
   // NodeJsHmrPayload is only in scope inside the concatenated runtime chunk, not
   // in this .d.ts file, so the handler parameter must use any here.
-
+  // Keep in sync with ServerHmrHandlerEntry in packages/next/src/server/dev/hot-reloader-turbopack.ts.
   var __turbopack_server_hmr_handlers__:
     | Map<
         string,
