@@ -292,7 +292,7 @@ struct TestOptions {
     side_effect_free_packages: Vec<RcStr>,
     /// Whether a request starting with `/` resolves from the test's directory. Set this to `false`
     /// to leave `ResolveOptions::server_relative_root` unset, as an embedder that doesn't support
-    /// such requests would.
+    /// such requests would, which makes them unresolvable.
     #[serde(default = "default_true")]
     server_relative_root: bool,
 }

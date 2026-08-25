@@ -1,9 +1,14 @@
 // Without a `server_relative_root` there is nothing to resolve a `/`-rooted
-// request from, so it keeps reporting that it isn't supported and resolves from
-// the root of the filesystem. The value of this test is the `issues/` snapshot.
+// request from, so it isn't supported: it reports an issue and doesn't resolve.
+//
+// `/package.json` exists at the root of the filesystem (the repository root), so
+// guessing at that root would resolve it. It must not: reporting the request as
+// unsupported and then resolving it anyway would contradict itself.
 
-it('should report that a `/`-rooted request is not supported', () => {
-  // `/input/dir/foo.js` only exists below this test's directory, so resolving it
-  // from the root of the filesystem can't find it.
+it('should not resolve a `/`-rooted request', () => {
+  expect(() => require('/package.json')).toThrow()
+})
+
+it('should not resolve one below the importing directory either', () => {
   expect(() => require('/input/dir/foo.js')).toThrow()
 })
