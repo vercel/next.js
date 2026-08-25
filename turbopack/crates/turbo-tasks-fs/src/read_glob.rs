@@ -89,12 +89,14 @@ async fn read_glob_internal(
                         // Skip links that leave the filesystem root.
                         let link_content = path.read_link().await?;
                         if let LinkContent::Link { target } = &*link_content {
-                            if matches!(
-                                target.resolved_type().await?,
-                                FileSystemEntryType::Directory
-                            ) {
+                            let Ok(realpath) = target.file_system_path().realpath().await? else {
+                                // same as if we got DirectoryEntry::Error in the main loop
+                                continue;
+                            };
+                            if matches!(*realpath.get_type().await?, FileSystemEntryType::Directory)
+                            {
                                 // Reject links that point to an ancestor before recursing.
-                                resolve_symlink_safely(entry.clone()).await?;
+                                check_symlink_directory_recursion(path, &realpath)?;
 
                                 // Add the directory to `results` if it is a whole match of the glob
                                 handle_file(&mut result, &entry_path, segment, entry);
@@ -126,12 +128,30 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // Recursion can only occur if the symlink is a directory and points to an
         // ancestor of the current path, which can be detected via a simple prefix
         // match.
-        let source_path = entry.path().unwrap();
-        if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
-        }
+        check_symlink_directory_recursion(
+            &entry.path().unwrap(),
+            &resolved_entry.clone().path().unwrap(),
+        )?;
     }
     Ok(resolved_entry)
+}
+
+fn check_symlink_directory_recursion(
+    source_path: &FileSystemPath,
+    realpath: &FileSystemPath,
+) -> Result<()> {
+    // We followed a symlink to a directory
+    // To prevent an infinite loop, which in the case of turbo-tasks would simply
+    // exhaust RAM or go into an infinite loop with the GC we need to check for a
+    // recursive symlink, we need to check for recursion.
+
+    // Recursion can only occur if the symlink is a directory and points to an
+    // ancestor of the current path, which can be detected via a simple prefix
+    // match.
+    if source_path.is_inside_or_equal(realpath) {
+        bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
+    }
+    Ok(())
 }
 
 /// Traverses all directories that match the given `glob`.
