@@ -244,7 +244,8 @@ The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/
 
 1. Agrees on the UI the navigation should prefetch and what should wait for navigation.
 2. Encodes that result in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
-3. Adjusts the route's prefetch stages and caching until the test passes, then keeps the test as regression coverage.
+3. Assigns content to the App Shell, full-prefetch, or navigation stage and adjusts caching until the test passes.
+4. Keeps the test as regression coverage.
 
 It needs Cache Components and Partial Prefetching already adopted.
 

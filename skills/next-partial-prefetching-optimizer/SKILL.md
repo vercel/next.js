@@ -369,11 +369,10 @@ change:
    a `stale` time of at least 30 seconds on current Next.js; verify that rule
    against the installed version's bundled
    [`use cache: private` docs](https://nextjs.org/docs/app/api-reference/directives/use-cache-private).
-3. When the selected contract needs an explicit stage, check that the installed
-   version documents [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/unstable_prefetch)
-   or [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/unstable_navigation),
-   then follow that API reference. If the matching reference is unavailable,
-   do not introduce the API or infer its behavior from this skill.
+3. When the selected contract needs an explicit stage, use `await prefetch()`
+   to keep content out of the App Shell but include it in an explicit full
+   prefetch, or `await navigation()` to leave content for the click. Follow the
+   placement and caching rules in `reference/patterns.md`.
 4. For a small set of high-intent links, use
    [`prefetch={true}` behavior](https://nextjs.org/docs/app/api-reference/components/link#prefetch).
 5. For many visible links, keep the default shell prefetch and upgrade only the

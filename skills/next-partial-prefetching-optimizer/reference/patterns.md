@@ -97,14 +97,48 @@ cost.
 See: [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
 and [`use cache: private`](https://nextjs.org/docs/app/guides/optimizing-prefetching#use-cache-private).
 
-## 5. Use documented stage boundaries
+## 5. Assign runtime content to a stage
 
-When the selected contract needs an explicit stage, follow the installed
-version's [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/unstable_prefetch)
-or [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/unstable_navigation)
-API reference. If the matching reference is unavailable, do not introduce the
-API or infer its behavior from this skill. Keep the `instant()` assertions as
-the product contract until the framework documentation lands.
+Use the stage boundaries exported from `next/cache` when cached content should
+be ready at a different point from the App Shell:
+
+- `await prefetch()` excludes the following content from the App Shell. An
+  explicit `<Link prefetch={true}>` can include it before the click.
+- `await navigation()` excludes the following content from runtime prefetches.
+  It renders after the click.
+
+Both boundaries leave the following work cacheable and do not change an
+initial page load. Put the boundary in an uncached Server Component beneath
+`<Suspense>`, then call the cached function below it. Neither API can run
+inside `use cache` or `use cache: private`.
+
+```tsx
+import {
+  unstable_navigation as navigation,
+  unstable_prefetch as prefetch,
+} from 'next/cache'
+
+async function PrefetchedProductTitle({ id }: { id: string }) {
+  await prefetch()
+  return <CachedProductTitle id={id} />
+}
+
+async function NavigationOnlyRecommendations({ id }: { id: string }) {
+  await navigation()
+  return <CachedRecommendations id={id} />
+}
+```
+
+Use `prefetch()` only when the exact link opts into full prefetching and the
+target should be part of its `instant()` result. Use `navigation()` when the
+locked test should keep the region absent even under `prefetch={true}`. Verify
+both decisions with the same exact-link test; do not use either boundary to
+compensate for a missing cache lifetime.
+
+These APIs are currently exported as
+[`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/unstable_prefetch)
+and
+[`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/unstable_navigation).
 
 ## 6. Know when to stop
 
