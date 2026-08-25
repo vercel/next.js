@@ -31,7 +31,30 @@ yarn add -D typescript@^7
 bun add -D typescript@^7
 ```
 
-Next.js uses the project-local `tsc` CLI by default, so no additional configuration is required. To use the JavaScript compiler API instead, set [`experimental.useTypeScriptCli`](/docs/app/api-reference/config/next-config-js/useTypeScriptCli) to `false`.
+If tools in your project require the TypeScript 6 JavaScript API, use the official [`@typescript/typescript6`](https://www.npmjs.com/package/@typescript/typescript6) compatibility package through an npm alias:
+
+```json filename="package.json"
+{
+  "devDependencies": {
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}
+```
+
+Next.js detects this official alias and runs its `tsc6` executable. You can also install TypeScript 7 under a separate alias to expose its `tsc` executable to other build tooling:
+
+```json filename="package.json"
+{
+  "devDependencies": {
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}
+```
+
+See the [TypeScript 7 migration guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-60) for more information.
+
+With a standard TypeScript installation, Next.js uses the project-local `tsc` CLI by default, so no additional configuration is required. To use the JavaScript compiler API instead, set [`experimental.useTypeScriptCli`](/docs/app/api-reference/config/next-config-js/useTypeScriptCli) to `false`.
 
 > **Good to know**:
 >

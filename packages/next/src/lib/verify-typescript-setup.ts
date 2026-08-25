@@ -118,7 +118,9 @@ export async function verifyAndRunTypeScript({
     }
 
     const requiredPackages: MissingDependency[] = [
-      useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage,
+      ...(!useTypeScriptCli || !installedTypeScript?.tscPath
+        ? [useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage]
+        : []),
       ...requiredTypePackages,
     ]
 

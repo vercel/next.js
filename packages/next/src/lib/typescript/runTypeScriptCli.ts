@@ -26,6 +26,7 @@ export function getTypeScriptPackageInfo(
   }
 
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+    name: string
     version: string
     type?: string
     bin?: string | Record<string, string>
@@ -33,7 +34,12 @@ export function getTypeScriptPackageInfo(
   const packageDir = path.dirname(packageJsonPath)
   const apiPath = path.join(packageDir, 'lib', 'typescript.js')
   const tscBin =
-    typeof packageJson.bin === 'string' ? packageJson.bin : packageJson.bin?.tsc
+    typeof packageJson.bin === 'string'
+      ? packageJson.bin
+      : (packageJson.bin?.tsc ??
+        (packageJson.name === '@typescript/typescript6'
+          ? packageJson.bin?.tsc6
+          : undefined))
   const tscBinPath = tscBin ? path.resolve(packageDir, tscBin) : undefined
   let tscPath = tscBinPath
 

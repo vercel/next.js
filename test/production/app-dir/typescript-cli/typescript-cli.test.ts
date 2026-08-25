@@ -169,4 +169,33 @@ describe('TypeScript CLI backend', () => {
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
   })
+
+  describe('TypeScript 6 compatibility package alias', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      // This verifies local dependency discovery during next build. The
+      // compiler package is not part of the deployed application runtime.
+      skipDeployment: true,
+      dependencies: {
+        typescript: 'npm:@typescript/typescript6@6.0.2',
+      },
+    })
+
+    if (skipped) return
+
+    it('loads path aliases and completes CLI type checking', async () => {
+      const result = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).toContain('NEXT_TYPE_CHECK_COMPLETED')
+      expect(result.cliOutput).toContain('"typeCheckMode": "typescript-cli"')
+      expect(result.cliOutput).not.toContain(
+        'do not have the required package(s) installed'
+      )
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+  })
 })
