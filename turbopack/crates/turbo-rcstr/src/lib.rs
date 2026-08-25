@@ -602,10 +602,7 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
-#[cfg(all(feature = "napi", target_family = "wasm"))]
-compile_error!("The napi feature cannot be enabled for wasm targets");
-
-#[cfg(all(feature = "napi", not(target_family = "wasm")))]
+#[cfg(feature = "napi")]
 mod napi_impl {
     use napi::{
         bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},

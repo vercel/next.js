@@ -1221,7 +1221,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        await flushAllTraces()
+        flushAllTraces()
         teardownTraceSubscriber()
         process.exit(0)
       }
@@ -3828,33 +3828,20 @@ export default async function build(
                   routeResult?.hasEmptyStaticShell
                 )
 
-                // The cache lifetime collected while prerendering this route's
-                // fallback. It's recorded for every PPR route, not just those
-                // that serve an HTML fallback: the fallback prerender runs
-                // either way, and the artifacts it produces — the per-segment
-                // prefetch payloads and the RSC template — are cached and
-                // served even when the HTML fallback itself is not
-                // (`fallback: null`, blocking). Cache layers use this value to
-                // decide when entries for URLs without their own prerender go
-                // stale, and they interpret a missing value as a 1-second
-                // lifetime, so it must be present whenever such entries can
-                // exist. When the export collected no cache control,
-                // `getCacheControl()` returns revalidate: `false` (keep until
-                // invalidated).
-                const fallbackCacheControl = isRoutePPREnabled
-                  ? cacheControl
-                  : undefined
+                // When the route is configured to serve a prerender, we should
+                // use the cache control from the export result. If it can't be
+                // found, mark that we should keep the shell forever
+                // (revalidate: `false` via `getCacheControl()`).
+                const fallbackCacheControl =
+                  isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
+                    ? cacheControl
+                    : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route.pathname
                 )
 
-                // Unlike the cache lifetime above, the status and headers
-                // describe the prerendered fallback response itself, so they
-                // only apply when a fallback is actually served (PRERENDER
-                // mode). A blocking route's on-demand renders produce their
-                // own status and headers per request.
                 const meta =
                   metadata &&
                   isRoutePPREnabled &&
@@ -4704,8 +4691,8 @@ export default async function build(
       await telemetry.flush()
     }
 
-    // Ensure all traces are flushed before finishing the command
-    await flushAllTraces()
+    // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
+    flushAllTraces()
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {

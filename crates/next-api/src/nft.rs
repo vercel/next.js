@@ -120,7 +120,8 @@ pub async fn trace_endpoint(
                     // where
                     // node_modules/.pnpm/node_modules/@libsql/client is a symlink
                     let parent_path = referenced_chunk_path.parent();
-                    if parent_path.realpath().await? != parent_path {
+                    let resolved_parent_path = parent_path.realpath().await??;
+                    if resolved_parent_path != parent_path {
                         turbo_tasks::turbobail!(
                             "Encountered file inside of symlink in NFT list: {parent_path} is a \
                              symlink, but {referenced_chunk_path} was created inside of it"
