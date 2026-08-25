@@ -543,6 +543,82 @@ export default async function Page({ params }) {
 
 > **Good to know:** If one request fails when using `Promise.all`, the entire operation will fail. To handle this, you can use the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) method instead.
 
+### Preloading data
+
+Preloading starts a data request before the component that needs it renders. Call the data-fetching function without `await` above blocking work, then call the same function when you render the component.
+
+Keep the preload function next to the component that consumes the data. This makes the dependency easier to find if you move or remove the component:
+
+```tsx filename="app/item/[id]/item.tsx" switcher
+async function getItem(id: string) {
+  const res = await fetch(`https://api.example.com/items/${id}`)
+  return res.json()
+}
+
+export const preload = (id: string) => {
+  void getItem(id)
+}
+
+export default async function Item({ id }: { id: string }) {
+  const item = await getItem(id)
+  return <div>{item.name}</div>
+}
+```
+
+```jsx filename="app/item/[id]/item.js" switcher
+async function getItem(id) {
+  const res = await fetch(`https://api.example.com/items/${id}`)
+  return res.json()
+}
+
+export const preload = (id) => {
+  void getItem(id)
+}
+
+export default async function Item({ id }) {
+  const item = await getItem(id)
+  return <div>{item.name}</div>
+}
+```
+
+Call `preload()` before another blocking request to start loading the item earlier:
+
+```tsx filename="app/item/[id]/page.tsx" switcher
+import Item, { preload } from './item'
+import { checkIsAvailable } from '@/app/lib/data'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  preload(id)
+  const isAvailable = await checkIsAvailable(id)
+
+  return isAvailable ? <Item id={id} /> : null
+}
+```
+
+```jsx filename="app/item/[id]/page.js" switcher
+import Item, { preload } from './item'
+import { checkIsAvailable } from '@/app/lib/data'
+
+export default async function Page({ params }) {
+  const { id } = await params
+
+  preload(id)
+  const isAvailable = await checkIsAvailable(id)
+
+  return isAvailable ? <Item id={id} /> : null
+}
+```
+
+The item request continues while `checkIsAvailable()` runs. If the page renders `<Item>`, the identical `fetch` call reuses the request that `preload()` started.
+
+For data access that is not based on `fetch` or a Cache Function, wrap the data-fetching function in [`React.cache`](#reusing-data-with-reactcache). With Cache Components, add [`'use cache'`](/docs/app/api-reference/directives/use-cache) to the data-fetching function instead of wrapping it in `React.cache`. Call the same Cache Function from the preload function and the component so matching calls reuse the result. For request-specific data that reads `cookies()` or `headers()`, [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private#deduplicating-calls-within-a-request) deduplicates matching calls within a server request without sharing the result across production requests.
+
 ### Reusing data with `React.cache`
 
 Wrap a data-fetching function in [`React.cache`](https://react.dev/reference/react/cache) so multiple components in the same request share one result instead of refetching:
