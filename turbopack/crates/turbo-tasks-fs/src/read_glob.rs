@@ -90,7 +90,8 @@ async fn read_glob_internal(
                         let link_content = path.read_link().await?;
                         if let LinkContent::Link { target } = &*link_content {
                             let Ok(realpath) = target.file_system_path().realpath().await? else {
-                                // same as if we got DirectoryEntry::Error in the main loop
+                                // Preserve unresolvable symlinks that match the glob.
+                                handle_file(&mut result, &entry_path, segment, entry);
                                 continue;
                             };
                             if matches!(*realpath.get_type().await?, FileSystemEntryType::Directory)
