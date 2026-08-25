@@ -2043,30 +2043,35 @@ async fn resolve_internal_inline(
                 new_pat.push_front(rcstr!(".").into());
                 let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
-                if !has_alias {
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
+                // A `/`-rooted request is resolved from `server_relative_root`. It is not resolved
+                // relative to the importing file, and it does not fall back to a wider directory,
+                // so it can't reach outside of that root.
+                if let Some(root) = &options_value.server_relative_root {
+                    Box::pin(resolve_internal_inline(root.clone(), relative, options)).await?
+                } else {
+                    // Without a root configured there is nothing to resolve this from, so it isn't
+                    // supported. Guessing at the root of the filesystem would silently resolve or
+                    // silently fail depending on what happens to live there.
+                    if !has_alias {
+                        ResolvingIssue {
+                            severity: resolve_error_severity(options).await?,
+                            request_type: "server relative import: not implemented yet".to_string(),
+                            request: relative.to_resolved().await?,
+                            file_path: lookup_path.clone(),
+                            resolve_options: options.to_resolved().await?,
+                            error_message: Some(
+                                "server relative imports are not implemented yet. Please try an \
+                                 import relative to the file you are importing from."
+                                    .to_string(),
+                            ),
+                            source: None,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
-                }
 
-                Box::pin(resolve_internal_inline(
-                    lookup_path.root().owned().await?,
-                    relative,
-                    options,
-                ))
-                .await?
+                    ResolveResult::unresolvable().cell()
+                }
             }
             Request::Windows {
                 path: _,
