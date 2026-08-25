@@ -87,8 +87,9 @@ describe('socket-io with webSocketRouteHandlers', () => {
     skipDeployment: true,
   })
 
-  describeSocketIoCompatibility(next)
-
+  // Run the delegation assertion before the shared socket.io traffic: the
+  // delegation guidance is a process-scoped warnOnce whose log must land in
+  // this test's cliOutput slice.
   it('preserves non-WebSocket custom upgrade listeners', async () => {
     await next.fetch('/api/socket')
     const outputIndex = next.cliOutput.length
@@ -122,4 +123,6 @@ describe('socket-io with webSocketRouteHandlers', () => {
     expect(output).toContain('delegated an upgrade event')
     expect(output).not.toContain('delegated a WebSocket upgrade')
   })
+
+  describeSocketIoCompatibility(next)
 })
