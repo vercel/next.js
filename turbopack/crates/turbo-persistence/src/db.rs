@@ -19,7 +19,6 @@ use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
-use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
@@ -37,12 +36,12 @@ use crate::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
+    file_content::FileContent,
     key::{StoreKey, hash_key},
     lookup_entry::{IterValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
-    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
     sst_filter::SstFilter,
@@ -655,20 +654,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
-        let file = File::open(&path)?;
-        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
-            format!(
-                "Failed to mmap blob file {} ({} bytes)",
-                path.display(),
-                file.metadata().map(|m| m.len()).unwrap_or(0)
-            )
-        })?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Sequential)?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::WillNeed)?;
-        advise_mmap_for_persistence(&mmap)?;
-        let mut reader = &mmap[..];
+        let file_content = FileContent::open(&path)?;
+        file_content.advise_sequential()?;
+        file_content.advise_will_need()?;
+        file_content.advise_persistence()?;
+        let mut reader = &file_content[..];
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;
@@ -1034,7 +1024,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             for i in (0..inner.meta_files.len()).rev() {
                 if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
                     meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
-                    // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
+                    // Deleted meta bytes, read from the open `MetaFile` length (no stat).
                     stats.bytes_deleted += inner.meta_files[i].byte_size();
                 }
             }

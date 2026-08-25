@@ -1,33 +1,56 @@
 use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
 
-use anyhow::{Context, Result};
+#[cfg(not(miri))]
+use anyhow::Context;
+use anyhow::Result;
+#[cfg(not(miri))]
 use lzzzz::lz4::{self, decompress};
 
 /// Decompresses `block` into `dest`, verifying the output length matches `expected_len`.
 fn decompress_block(block: &[u8], dest: &mut [u8], expected_len: u32) -> Result<()> {
     debug_assert!(
         expected_len > 0,
-        "decompress_block called with uncompressed_length=0; uncompressed blocks should use \
-         zero-copy mmap path"
+        "decompress_block called with uncompressed_length=0; uncompressed blocks should use the \
+         direct file-content path"
     );
-    let bytes_written = decompress(block, dest).with_context(|| {
-        format!(
-            "Failed to decompress block ({} bytes compressed, {} bytes uncompressed)",
+    #[cfg(not(miri))]
+    {
+        let bytes_written = decompress(block, dest).with_context(|| {
+            format!(
+                "Failed to decompress block ({} bytes compressed, {} bytes uncompressed)",
+                block.len(),
+                expected_len
+            )
+        })?;
+        assert_eq!(
+            bytes_written, expected_len as usize,
+            "Decompressed length does not match expected length"
+        );
+    }
+    #[cfg(miri)]
+    {
+        // Compression is skipped under Miri because lzzzz calls into native LZ4 code that Miri
+        // cannot execute, so a block written by a Miri build holds its bytes verbatim. SST blocks
+        // record a zero header in that case and never reach this function, but blob files always
+        // store the uncompressed length, so their payload is copied as-is here.
+        //
+        // A Miri build therefore cannot read genuinely LZ4-compressed data written by a normal
+        // build. That is fine for the Miri test job, which always creates its databases from
+        // scratch, and the database has no cross-version compatibility guarantees anyway.
+        assert_eq!(
             block.len(),
-            expected_len
-        )
-    })?;
-    assert_eq!(
-        bytes_written, expected_len as usize,
-        "Decompressed length does not match expected length"
-    );
+            expected_len as usize,
+            "Miri builds skip compression, so a compressed block cannot be read under Miri"
+        );
+        dest.copy_from_slice(block);
+    }
     Ok(())
 }
 
 /// Decompresses a block into an Arc allocation.
 ///
 /// The caller must ensure `uncompressed_length > 0` (i.e., the block is actually compressed).
-/// Uncompressed blocks should be handled via zero-copy mmap slices before calling this.
+/// Uncompressed blocks should be handled via direct file-content slices before calling this.
 pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc<[u8]>> {
     // Allocate directly into an Arc to avoid a copy. The buffer is uninitialized;
     // decompression will overwrite it completely (verified by decompress_block).
@@ -57,8 +80,16 @@ pub fn checksum_block(data: &[u8]) -> u32 {
     crc32fast::hash(data)
 }
 
+/// Compresses `block` into `buffer`.
+///
+/// Miri builds skip compression and copy `block` verbatim, because `lzzzz` calls into native LZ4
+/// code that Miri cannot execute. Callers compare the result's length against the input to decide
+/// whether to store the block compressed, so a Miri build always stores blocks uncompressed.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compress_into_buffer(block: &[u8], buffer: &mut Vec<u8>) -> Result<()> {
+    #[cfg(not(miri))]
     lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT).context("Compression failed")?;
+    #[cfg(miri)]
+    buffer.extend_from_slice(block);
     Ok(())
 }

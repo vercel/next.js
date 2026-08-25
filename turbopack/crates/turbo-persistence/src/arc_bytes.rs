@@ -6,10 +6,9 @@ use std::{
     sync::Arc,
 };
 
-use memmap2::Mmap;
-
 use crate::{
     compression::decompress_into_arc,
+    file_content::FileContent,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
 /// The backing storage for an `ArcBytes`.
@@ -19,10 +18,10 @@ use crate::{
 #[derive(Clone)]
 enum Backing {
     Arc { _backing: Arc<[u8]> },
-    Mmap { _backing: Arc<Mmap> },
+    FileContent { _backing: Arc<FileContent> },
 }
 
-/// An owned byte slice backed by either an `Arc<[u8]>` or a memory-mapped file.
+/// An owned byte slice backed by either an `Arc<[u8]>` or a persistence file's contents.
 #[derive(Clone)]
 pub struct ArcBytes {
     data: *const [u8],
@@ -85,25 +84,26 @@ impl Debug for ArcBytes {
 impl Eq for ArcBytes {}
 
 impl ArcBytes {
-    /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
-    pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.backing, Backing::Mmap { .. })
+    /// Returns `true` if this `ArcBytes` is backed directly by a persistence file's contents
+    /// (a memory map normally, an owned buffer under Miri).
+    pub fn is_file_backed(&self) -> bool {
+        matches!(self.backing, Backing::FileContent { .. })
     }
 
     /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
     /// are other `Arc` clones referencing the same data outside the cache).
-    /// Always returns `false` for mmap-backed bytes, since the mmap `Arc` is
-    /// shared across all slices from the same file and is not a useful signal.
+    /// Always returns `false` for file-backed bytes, since the file-content `Arc` is shared across
+    /// all slices from the same file and is not a useful signal.
     pub fn is_shared_arc(&self) -> bool {
         match &self.backing {
             Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
-            Backing::Mmap { .. } => false,
+            Backing::FileContent { .. } => false,
         }
     }
 }
 
 impl SharedBytes for ArcBytes {
-    type MmapHandle = Arc<Mmap>;
+    type FileContentHandle = Arc<FileContent>;
 
     fn slice(self, range: Range<usize>) -> Self {
         let data = &*self;
@@ -120,7 +120,7 @@ impl SharedBytes for ArcBytes {
                 subslice,
                 match &self.backing {
                     Backing::Arc { _backing } => _backing,
-                    Backing::Mmap { _backing } => _backing,
+                    Backing::FileContent { _backing } => _backing,
                 }
             ),
             "slice_from_subslice: subslice is not within the backing storage"
@@ -131,15 +131,15 @@ impl SharedBytes for ArcBytes {
         }
     }
 
-    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
+    unsafe fn from_file_content(file_content: &Arc<FileContent>, subslice: &[u8]) -> Self {
         debug_assert!(
-            is_subslice_of(subslice, mmap),
-            "from_mmap: subslice is not within the mmap"
+            is_subslice_of(subslice, file_content),
+            "from_file_content: subslice is not within the file contents"
         );
         ArcBytes {
             data: subslice as *const [u8],
-            backing: Backing::Mmap {
-                _backing: mmap.clone(),
+            backing: Backing::FileContent {
+                _backing: file_content.clone(),
             },
         }
     }
