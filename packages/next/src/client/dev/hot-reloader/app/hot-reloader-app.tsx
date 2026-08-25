@@ -265,6 +265,13 @@ export function processMessage(
         )
       }
       dispatcher.onBuildOk()
+
+      // A successful build can be a no-op after recovering from an error, so
+      // there may be no server component change to resolve the test callback.
+      if (process.env.__NEXT_TEST_MODE && self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB()
+        self.__NEXT_HMR_CB = null
+      }
     } else {
       tryApplyUpdatesWebpack(sendMessage)
     }
