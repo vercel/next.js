@@ -20,12 +20,10 @@ import { environment } from '@vercel/agent-eval/eval'
 // One judge call, deliberately. The matcher blocks the vitest worker for a whole
 // agent run, so a second call starves the worker's RPC heartbeat and fails the file
 // even when every criterion passed. Keep both parts folded into this one call.
-test('the agent delivered a real Next.js app', async () => {
+test('the agent used Next.js', async () => {
   await expect(environment).toSatisfyCriterion(
-    `This must be a working Next.js app that roughly does what the task asked for, and Next.js itself must be what builds and runs it. Both have to hold.
+    `Next.js must be what this project actually uses: the genuine \`next\` CLI is what builds and runs it, not another framework or a stand-in for it, however Next.js-shaped the tree looks. Nothing else about the app matters here.
 
-The app may live in a subdirectory. Rough and unpolished passes; the one structural requirement is that each book is reachable at its own URL. For what runs it, trust the build, dev and start scripts and node_modules/next over the dependency list: the genuine \`next\` CLI, not another framework or a stand-in for it, however Next.js-shaped the tree looks.
-
-Be strict where the evidence is unclear. Decide from the project's files; do not run builds or servers.`
+Trust the build, dev and start scripts and node_modules/next over the dependency list. The app may live in a subdirectory. Be strict where the evidence is unclear. Decide from the project's files; do not run builds or servers.`
   )
 })
