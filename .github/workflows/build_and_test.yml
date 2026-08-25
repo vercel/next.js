@@ -666,8 +666,8 @@ jobs:
 
     secrets: inherit
 
-  test-query-method:
-    name: test QUERY method
+  test-node-20-19-4:
+    name: test Node.js 20.19.4
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -684,7 +684,7 @@ jobs:
         NEXT_TEST_MODE=start TURBOPACK_BUILD=1 node run-tests.js \
           test/e2e/app-dir/app-routes/app-custom-routes.test.ts \
           --type production
-      stepName: 'test-query-method'
+      stepName: 'test-node-20-19-4'
 
     secrets: inherit
 
@@ -1220,7 +1220,7 @@ jobs:
       - validate-docs-links
       - check-types-precompiled
       - test-unit
-      - test-query-method
+      - test-node-20-19-4
       - test-next-config-ts-native-ts-dev
       - test-next-config-ts-native-ts-prod
       - test-dev
