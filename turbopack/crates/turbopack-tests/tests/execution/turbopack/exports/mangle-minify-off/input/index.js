@@ -1,6 +1,6 @@
-// `mangleExportNames` is on, but minification is off. Mangled export keys in readable output
-// would only make it harder to read, so nothing is renamed — the same reason `--no-mangling`
-// turns export mangling off.
+// `mangleExportNames` is on, but minification is off. Mangling and minification are independent
+// options — this fixture proves that mangling still happens without minification, the same way it
+// would with it (see `mangle-basic`).
 
 import {
   a,
@@ -23,9 +23,15 @@ it('should keep the values correct with minification disabled', () => {
   expect(thisIsAVeryLongFunctionName()).toBe('long-fn')
 })
 
-it('should not mangle anything with minification disabled', () => {
-  expect(exportsInfo.a.canMangle).toBe(false)
-  expect(exportsInfo.a.mangledName).toBe(null)
-  expect(exportsInfo.reallyLongExportName.canMangle).toBe(false)
-  expect(exportsInfo.reallyLongExportName.mangledName).toBe(null)
+it('should still mangle the exported names with minification disabled', () => {
+  expect(exportsInfo.reallyLongExportName.canMangle).toBe(true)
+  expect(exportsInfo.reallyLongExportName.mangledName).toEqual(
+    expect.any(String)
+  )
+  expect(
+    exportsInfo.reallyLongExportName.mangledName.length
+  ).toBeLessThanOrEqual(2)
+  expect(exportsInfo.thisIsAVeryLongFunctionName.mangledName).not.toBe(
+    'thisIsAVeryLongFunctionName'
+  )
 })

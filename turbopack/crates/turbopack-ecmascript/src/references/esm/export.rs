@@ -710,14 +710,10 @@ impl EsmExports {
         let mut getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
         // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
-        let mangled_names = match &*mangled_export_names(*module, chunking_context).await? {
-            Some(names) => Some(names.await?),
-            None => None,
-        };
+        let mangled_names = mangled_export_names(*module, chunking_context).await?;
         let export_key = |exported: &RcStr| -> RcStr {
             mangled_names
-                .as_ref()
-                .and_then(|names| names.get(exported))
+                .get(exported)
                 .cloned()
                 .unwrap_or_else(|| exported.clone())
         };

@@ -9,7 +9,9 @@
 //! [`mangled_export_names`] is the single source of truth for that mapping. Both the producer
 //! ([`super::export::EsmExports::code_generation`]) and the consumer
 //! ([`super::base::ReferencedAsset`]) ask it for the *target* module's map, so they cannot
-//! disagree. It returns `None` whenever the module has to keep its original names.
+//! disagree. It returns an empty map whenever the module has to keep its original names — the
+//! same effect as mangling every name to itself, so callers never need to branch on "did mangling
+//! even apply here", only look a name up and fall back to itself.
 //!
 //! Code generation that spells an export access out **as a string** — rather than going through
 //! `ReferencedAssetIdent`, which handles this automatically — must resolve its key through
@@ -23,8 +25,7 @@ use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{ChunkingContext, MinifyType},
-    module_graph::binding_usage_info::ModuleExportUsageInfo,
+    chunk::ChunkingContext, module_graph::binding_usage_info::ModuleExportUsageInfo,
 };
 
 use self::table::shorten_to_unique_names;
@@ -32,28 +33,28 @@ use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 /// A module's export name mapping: original export name -> the key actually used in the output.
 ///
-/// It covers every export the module emits, including the ones whose key is unchanged because the
-/// original name was already short enough to keep — which makes the map a complete description of
-/// the module's emitted keys. A name absent from the map keeps its original name.
+/// Only covers the exports that were actually renamed — an export that kept its own name (because
+/// it was already short enough, because it lost every hash collision, or because the whole module
+/// keeps its original names) is *not* a key here. A missing entry always means "keep the original
+/// name", whether that's because nothing changed or because mangling never applied to this module
+/// at all — a reader that only wants the correct output name never needs to tell those apart. (A
+/// reader that specifically wants to know *why* — like the `canMangle`/`mangledName` reporting in
+/// [`crate::references::exports_info`] — has to ask some other way; see that module.)
 #[turbo_tasks::value(transparent)]
 pub struct MangledExportNames(pub FrozenMap<RcStr, RcStr>);
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionMangledExportNames(pub Option<ResolvedVc<MangledExportNames>>);
-
-/// Computes the mangled export names of `module`, or `None` if the module's exports must keep
-/// their original names.
+/// Whether `module`'s exports are eligible for mangling *at all* — every condition that applies
+/// to the module as a whole, independent of which particular export is being asked about.
 ///
-/// Both the producing and the consuming side call this for the same `module`, which is what
-/// guarantees they agree. The mapping covers the module's *used* exports: unused exports are not
-/// emitted at all, so giving them names would only make the remaining names longer.
+/// [`mangled_export_names`] uses this to decide whether to attempt mangling; the
+/// `canMangle`/`mangledName` reporting in [`crate::references::exports_info`] uses it too, in
+/// combination with that export's own usedness, since "is `e` a candidate for mangling" is exactly
+/// "is the module eligible, and is `e` used" — the per-name step (hashing into a short identifier)
+/// never itself excludes a name.
 ///
-/// A module keeps its original names when any of these hold:
+/// A module is *not* eligible when any of these hold:
 ///
-/// 1. mangling is disabled for the module that owns these exports, or names are not being mangled
-///    at all — either we're not minifying, or minification was asked to keep names
-///    (`MinifyType::Minify` with no `MangleType`), in which case mangled export keys would only
-///    make the output harder to read,
+/// 1. mangling is disabled for the module that owns these exports,
 /// 2. its export usage is [`ModuleExportUsageInfo::All`] — a namespace import, a computed property
 ///    access, an unresolvable `export *`, or a module referenced from outside the module graph
 ///    (entries, which are seeded with `All`). This is what a plain `import * as ns` reaches in
@@ -66,27 +67,20 @@ pub struct OptionMangledExportNames(pub Option<ResolvedVc<MangledExportNames>>);
 ///    access, so an original name may still be read by user code,
 /// 4. its exports are not statically known ECMAScript exports, or contain dynamic re-exports.
 #[turbo_tasks::function]
-pub async fn mangled_export_names(
+pub async fn mangling_eligible_for_module(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<OptionMangledExportNames>> {
+) -> Result<Vc<bool>> {
     // (4) Only statically known ESM exports can be renamed.
     let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-        return Ok(Vc::cell(None));
+        return Ok(Vc::cell(false));
     };
 
-    // (1) Disabled for the module these exports belong to, or names aren't being mangled in this
-    // build at all.
-    if !exports.await?.mangle_export_names
-        || !matches!(
-            *chunking_context.minify_type().await?,
-            MinifyType::Minify {
-                mangle: Some(_),
-                ..
-            }
-        )
-    {
-        return Ok(Vc::cell(None));
+    // (1) Disabled for the module these exports belong to. Deliberately independent of whether
+    // this build minifies at all: mangling and minification are two separate concerns, and a
+    // caller may want either without the other.
+    if !exports.await?.mangle_export_names {
+        return Ok(Vc::cell(false));
     }
 
     let usage = chunking_context
@@ -95,25 +89,53 @@ pub async fn mangled_export_names(
 
     // (3) An original name may still be read through a namespace value.
     if usage.namespace_object_may_escape {
-        return Ok(Vc::cell(None));
+        return Ok(Vc::cell(false));
     }
 
     // (2) We don't know which exports are used, so we don't know that all uses are ours.
     let usage_info = usage.export_usage.await?;
     let ModuleExportUsageInfo::Exports(used) = &*usage_info else {
-        return Ok(Vc::cell(None));
+        return Ok(Vc::cell(false));
     };
     if used.is_empty() {
-        return Ok(Vc::cell(None));
+        return Ok(Vc::cell(false));
     }
-
-    let expanded = exports.expand_exports(*usage.export_usage).await?;
 
     // (4) `export * from "./some-dynamic-cjs"` is resolved at runtime by property access on the
-    // original names.
-    if !expanded.dynamic_exports.is_empty() {
-        return Ok(Vc::cell(None));
+    // original names, and a used set that resolves to no actual export at all leaves nothing to
+    // mangle.
+    let expanded = exports.expand_exports(*usage.export_usage).await?;
+    Ok(Vc::cell(
+        expanded.dynamic_exports.is_empty() && !expanded.exports.is_empty(),
+    ))
+}
+
+/// Computes the mangled export names of `module` — empty when the module's exports must keep
+/// their original names (see [`mangling_eligible_for_module`]).
+///
+/// Both the producing and the consuming side call this for the same `module`, which is what
+/// guarantees they agree. The mapping covers the module's *used* exports: unused exports are not
+/// emitted at all, so giving them names would only make the remaining names longer.
+#[turbo_tasks::function]
+pub async fn mangled_export_names(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<MangledExportNames>> {
+    if !*mangling_eligible_for_module(*module, chunking_context).await? {
+        return Ok(Vc::cell(FrozenMap::default()));
     }
+
+    // `mangling_eligible_for_module` already established that `module`'s exports are
+    // `EcmascriptExports::EsmExports` with `mangle_export_names` set and a known, non-dynamic,
+    // non-empty used-export set, so all of this is safe to recompute (and cheap: every one of
+    // these is itself a memoized turbo-tasks call).
+    let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
+        unreachable!("mangling_eligible_for_module already checked this");
+    };
+    let usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(module))
+        .await?;
+    let expanded = exports.expand_exports(*usage.export_usage).await?;
 
     // Every emitted export is mangled, `default` and `__esModule` included.
     //
@@ -130,25 +152,7 @@ pub async fn mangled_export_names(
         .map(|(name, _)| name)
         .collect::<Vec<_>>();
 
-    if names.is_empty() {
-        return Ok(Vc::cell(None));
-    }
-
-    let mangled = shorten_to_unique_names(names.iter().copied());
-
-    let map = names
-        .iter()
-        .map(|name| {
-            let mangled = mangled
-                .get(name)
-                .expect("every name passed in has a mangled name");
-            ((*name).clone(), mangled.clone())
-        })
-        .collect::<Vec<(RcStr, RcStr)>>();
-
-    Ok(Vc::cell(Some(
-        MangledExportNames(FrozenMap::from(map)).resolved_cell(),
-    )))
+    Ok(Vc::cell(shorten_to_unique_names(names.iter().copied())))
 }
 
 /// The key that generated code has to use to read `export` from `module` — the mangled key when
@@ -167,9 +171,6 @@ pub async fn generated_export_key(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     export: &RcStr,
 ) -> Result<RcStr> {
-    let Some(names) = *mangled_export_names(*module, chunking_context).await? else {
-        return Ok(export.clone());
-    };
-    let names = names.await?;
+    let names = mangled_export_names(*module, chunking_context).await?;
     Ok(names.get(export).cloned().unwrap_or_else(|| export.clone()))
 }

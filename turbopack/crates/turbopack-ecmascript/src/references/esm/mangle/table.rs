@@ -19,7 +19,8 @@
 //! downstream minifier that folds `ns["name"]` into the shorter `ns.name` typically only does so
 //! for a non-reserved identifier, so a keyword-shaped key never gets that benefit.
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -181,6 +182,11 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 
 /// Assigns a short, unique identifier to each of `names`, deterministically.
 ///
+/// The returned map only has an entry for a name that actually changed — a name that already fit
+/// and kept itself is simply absent, so a caller must treat a missing key as "keep the original
+/// name", not as "not eligible" (that distinction, when it matters, has to come from elsewhere;
+/// see the doc comment on [`super::MangledExportNames`]).
+///
 /// [`RESERVED_KEYS`] are never handed out, even though they are not themselves assigned a short
 /// name.
 ///
@@ -200,24 +206,24 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 /// the order they arrive in.
 pub fn shorten_to_unique_names<'a>(
     names: impl IntoIterator<Item = &'a RcStr>,
-) -> FxHashMap<&'a RcStr, RcStr> {
+) -> FrozenMap<RcStr, RcStr> {
     let mut names: Vec<&RcStr> = names.into_iter().collect();
     names.sort_unstable();
     names.dedup();
 
     if names.is_empty() {
-        return FxHashMap::default();
+        return FrozenMap::default();
     }
 
     // A lone export always gets the same name, which compresses better across modules than a
-    // hashed one would — unless it is already short enough to keep its own.
+    // hashed one would — unless it is already short enough to keep, in which case it is omitted
+    // entirely (see the doc comment on the return value below).
     if let [name] = names[..] {
-        let mangled = if bucket_of(name, 1).is_some() {
-            name.clone()
+        return if bucket_of(name, 1).is_some() {
+            FrozenMap::default()
         } else {
-            SINGLE_ITEM_IDENTIFIER
+            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER)])
         };
-        return FxHashMap::from_iter([(name, mangled)]);
     }
 
     // Grow the table until it can hold the names *and* the reserved buckets that fall inside it.
@@ -228,7 +234,10 @@ pub fn shorten_to_unique_names<'a>(
     }
     let capacity = capacity_for_len(len);
 
-    let mut result = FxHashMap::with_capacity_and_hasher(names.len(), Default::default());
+    // Only entries for names that actually changed are kept — see the doc comment on the return
+    // value below — so this is sized for the common case (most names get hashed) rather than for
+    // every name.
+    let mut result = Vec::with_capacity(names.len());
     let mut used =
         FxHashSet::with_capacity_and_hasher(names.len() + RESERVED_KEYS.len(), Default::default());
 
@@ -239,39 +248,51 @@ pub fn shorten_to_unique_names<'a>(
     }
 
     // Pass 1: names that are already valid short identifiers keep themselves and claim their
-    // bucket. This must complete before any hashing happens.
-    let mut to_mangle = Vec::new();
+    // bucket — nothing to record, since keeping a name is exactly what an absent entry means.
+    // This must complete before any hashing happens.
+    let mut to_mangle = Vec::with_capacity(names.len());
     for name in names {
         match bucket_of(name, len) {
             // A name that is also reserved can't keep itself; it gets a fresh bucket below.
-            Some(bucket) if used.insert(bucket) => {
-                result.insert(name, name.clone());
-            }
+            Some(bucket) if used.insert(bucket) => {}
             _ => to_mangle.push(name),
         }
     }
 
-    // Pass 2: hash the rest into the table, probing linearly on collision.
+    // Pass 2: hash the rest into the table, probing linearly on collision. The assigned identifier
+    // can never equal the original name here: either the name never encoded to a valid identifier
+    // at all (so it can't equal one now), or it did but lost its own bucket to something else in
+    // pass 1, and a different bucket always encodes to a different string.
     for name in to_mangle {
         let mut bucket = hash_xxh3_hash64(name.as_str()) % capacity;
         while !used.insert(bucket) {
             bucket = (bucket + 1) % capacity;
         }
-        result.insert(name, RcStr::from(encode_js_identifier(bucket)));
+        result.push((name.clone(), RcStr::from(encode_js_identifier(bucket))));
     }
 
-    result
+    FrozenMap::from_iter(result)
 }
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashMap;
+
     use super::*;
 
+    /// Test convenience wrapper: [`shorten_to_unique_names`] itself only returns entries for names
+    /// that actually changed (see its doc comment), but most of the tests below read more
+    /// naturally against a *complete* map — one entry per input name, with an absent one filled in
+    /// as identity — so this reconstructs that view.
     fn shorten(names: &[&str]) -> FxHashMap<RcStr, RcStr> {
         let names: Vec<RcStr> = names.iter().map(|name| RcStr::from(*name)).collect();
-        shorten_to_unique_names(names.iter())
-            .into_iter()
-            .map(|(name, mangled)| (name.clone(), mangled))
+        let mangled = shorten_to_unique_names(names.iter());
+        names
+            .iter()
+            .map(|name| {
+                let mangled = mangled.get(name).cloned().unwrap_or_else(|| name.clone());
+                (name.clone(), mangled)
+            })
             .collect()
     }
 
