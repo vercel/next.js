@@ -20,8 +20,7 @@ describe('transpile packages', () => {
     return
   }
 
-  // TODO: This test is failing in Turbopack
-  it.skip('should handle optional peer dependencies', async () => {
+  it('should handle optional peer dependencies', async () => {
     const browser = await next.browser('/peer-deps')
 
     expect(await browser.elementByCss('h1').text()).toBe('world')

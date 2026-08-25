@@ -2738,6 +2738,43 @@ enum FindSelfReferencePackageResult {
     NotFound,
 }
 
+/// Returns true when `module_name` is listed under `peerDependenciesMeta` with
+/// `optional: true` in the nearest `package.json` above `lookup_path`.
+async fn is_optional_peer_dependency(
+    lookup_path: FileSystemPath,
+    module_name: &str,
+    collect_affecting_sources: bool,
+) -> Result<bool> {
+    let FindContextFileResult::Found(package_json_path, _) = &*find_context_file(
+        lookup_path,
+        *package_json().to_resolved().await?,
+        collect_affecting_sources,
+    )
+    .await?
+    else {
+        return Ok(false);
+    };
+
+    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
+    let Some(package_json) = &*read else {
+        return Ok(false);
+    };
+
+    let Some(meta) = package_json
+        .get("peerDependenciesMeta")
+        .and_then(|value| value.as_object())
+    else {
+        return Ok(false);
+    };
+
+    Ok(meta
+        .get(module_name)
+        .and_then(|value| value.as_object())
+        .and_then(|entry| entry.get("optional"))
+        .and_then(|value| value.as_bool())
+        == Some(true))
+}
+
 #[turbo_tasks::function]
 /// Finds the nearest folder containing package.json that could be used for a
 /// self-reference (i.e. has an exports fields).
@@ -2821,6 +2858,26 @@ async fn resolve_module_request(
     .await?;
 
     if result.packages.is_empty() {
+        // Match webpack's OptionalPeerDependencyResolverPlugin: when a bare package
+        // request cannot be resolved but the nearest package.json marks it as an
+        // optional peerDependency, treat the reference as ignored instead of failing.
+        if path.is_match("")
+            && let Some(module_name) = module.as_constant_string()
+            && is_optional_peer_dependency(
+                lookup_path.clone(),
+                module_name,
+                options_value.collect_affecting_sources,
+            )
+            .await?
+        {
+            return Ok(ResolveResult::primary_with_affecting_sources(
+                RequestKey::new(module_name.clone()),
+                ResolveResultItem::Ignore,
+                result.affecting_sources.clone(),
+            )
+            .cell());
+        }
+
         return Ok(ResolveResult::unresolvable_with_affecting_sources(
             result.affecting_sources.clone(),
         )
