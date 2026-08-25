@@ -208,6 +208,7 @@ async fn base_resolve_options(
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
         collect_affecting_sources: opt.collect_affecting_sources,
+        server_relative_root: opt.server_relative_root.clone(),
         ..Default::default()
     }
     .cell())

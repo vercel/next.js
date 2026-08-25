@@ -294,6 +294,11 @@ struct TestOptions {
     /// package.json.
     #[serde(default)]
     side_effect_free_packages: Vec<RcStr>,
+    /// Whether a request starting with `/` resolves from the test's directory. Set this to `false`
+    /// to leave `ResolveOptions::server_relative_root` unset, as an embedder that doesn't support
+    /// such requests would, which makes them unresolvable.
+    #[serde(default = "default_true")]
+    server_relative_root: bool,
 }
 
 fn default_true() -> bool {
@@ -316,6 +321,7 @@ impl Default for TestOptions {
             minify: false,
             production_chunking: false,
             side_effect_free_packages: Vec::new(),
+            server_relative_root: default_true(),
         }
     }
 }
@@ -505,6 +511,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             enable_node_native_modules: true,
             enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
+            // A `/`-rooted request resolves from the test's own directory, which is not the root
+            // of the filesystem (that is the repository root), so the two are distinguishable.
+            server_relative_root: options.server_relative_root.then(|| project_path.clone()),
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ResolveOptionsContext {
