@@ -393,6 +393,7 @@ describe('request insights', () => {
     function getSettingsMenuState(): Promise<{
       open: boolean
       checked: string | null
+      diagnosisVisible: boolean
     }> {
       return browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -405,6 +406,9 @@ describe('request insights', () => {
             item
               ?.querySelector('.request-insights-settings-checkbox')
               ?.getAttribute('data-checked') ?? null,
+          diagnosisVisible: Boolean(
+            root?.querySelector('.request-insights-diagnosis')
+          ),
         }
       })
     }
@@ -437,6 +441,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: null,
+        diagnosisVisible: false,
       })
     })
 
@@ -456,6 +461,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: 'true',
+        diagnosisVisible: true,
       })
       expect(await getSpanRowCount()).toBeGreaterThan(defaultSpanRowCount)
     })
@@ -480,6 +486,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: 'true',
+        diagnosisVisible: true,
       })
     })
   })
