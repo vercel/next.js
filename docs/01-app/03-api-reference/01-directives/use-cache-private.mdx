@@ -11,14 +11,18 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. In production, Next.js keeps each result on the server for the current request so matching calls can reuse it, then discards it when the request finishes. The client router can keep the rendered output in browser memory according to its `stale` time, but this cache does not persist across page reloads.
+The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. In production, Next.js keeps a result on the server for the current request. Calls to the same private Cache Function with the same arguments can reuse the result. Next.js discards the result when the request finishes.
+
+The client router can keep the rendered output in browser memory according to its `stale` time. This client-side cache does not persist across page reloads.
 
 Reach for `'use cache: private'` when:
 
 - You want to cache a function that already accesses runtime data, and refactoring to [move the runtime access outside and pass values as arguments](/docs/app/getting-started/caching#working-with-runtime-apis) is not practical.
-- Compliance requirements prevent storing certain data in a server cache across requests
+- You need request-specific data to be excluded from server caches that persist across production requests.
 
-Because this directive accesses runtime data, the function runs at request time and is excluded from [static shell](/docs/app/getting-started/caching#prerendering) generation. Matching calls during that request share the same result.
+Private Cache Functions run at request time and are excluded from [static shell](/docs/app/getting-started/caching#prerendering) generation. Matching calls during the request share the same result.
+
+To start a private Cache Function before the component that uses it renders, see [Preloading data](/docs/app/getting-started/fetching-data#preloading-data).
 
 It is **not** possible to configure custom cache handlers for `'use cache: private'`.
 
@@ -150,12 +154,6 @@ async function getRecommendations(productId) {
 ```
 
 > **Good to know**: The `stale` time must be at least 30 seconds for per-link prefetching to work, and at least 5 minutes for the content to be included in the route's [App Shell](/docs/app/glossary#app-shell). See [`cacheLife` prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
-
-## Deduplicating calls within a request
-
-In production, matching calls to a private Cache Function share the same result within one server request. Next.js retains the result for that request, then discards it instead of reusing it across requests.
-
-This request-level deduplication is useful when multiple Server Components or Cache Functions need the same request-specific data. You can use the [preload pattern](/docs/app/getting-started/fetching-data#preloading-data) to call a private Cache Function before the component that needs its result renders. Call the same private Cache Function with the same arguments from both places.
 
 ## Request APIs allowed in private caches
 
