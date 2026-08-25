@@ -810,7 +810,8 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/metadata-edge/index.test.ts \
-          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts
+          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
+          test/e2e/incremental-cache-path-traversal/index.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
