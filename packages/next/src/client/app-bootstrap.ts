@@ -13,6 +13,7 @@ const version = process.env.__NEXT_VERSION
 window.next = {
   version,
   appDir: true,
+  cacheComponents: process.env.__NEXT_CACHE_COMPONENTS,
 }
 
 function loadScriptsInSequence(
