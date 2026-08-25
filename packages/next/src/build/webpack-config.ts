@@ -1822,6 +1822,8 @@ export default async function getBaseWebpackConfig(
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
                   outputHashSalt: config.outputHashSalt,
+                  imgOptDangerouslyAllowAVIF:
+                    config.experimental.imgOptDangerouslyAllowAVIF,
                 },
               },
             ]
