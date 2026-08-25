@@ -10,6 +10,8 @@
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
+// `std::os::wasi::fs::symlink_path`, used to create symlinks on wasi, is still unstable.
+#![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
