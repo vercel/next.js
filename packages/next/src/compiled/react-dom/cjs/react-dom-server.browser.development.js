@@ -4828,7 +4828,7 @@
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
       this.onShellError = void 0 === onShellError ? noop : onShellError;
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
-      this.renderLifetimeController = new AbortController();
+      this.renderLifetimeController = null;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
     }
@@ -5481,7 +5481,7 @@
         ? (shellComplete || debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
         : (shellComplete || errorInfo(error), onFatalError(error));
-      request.renderLifetimeController.abort(RENDER_ENDED);
+      endRenderLifetime(request);
       null !== request.destination
         ? ((request.status = CLOSED),
           closeWithError(request.destination, error))
@@ -9243,7 +9243,7 @@
                 console.error(
                   "There was still abortable task at the root when we closed. This is a bug in React."
                 ),
-              request.renderLifetimeController.abort(RENDER_ENDED),
+              endRenderLifetime(request),
               (request.status = CLOSED),
               destination.close(),
               (request.destination = null))
@@ -9308,22 +9308,29 @@
           fatalError(request, error$5, abortableTasks, null);
       }
     }
+    function endRenderLifetime(request) {
+      request = request.renderLifetimeController;
+      null !== request && request.abort(RENDER_ENDED);
+    }
     function attachAbortSignal(request, signal) {
-      signal.aborted
-        ? abort(request, signal.reason)
-        : signal.addEventListener(
-            "abort",
-            function () {
-              abort(request, signal.reason);
-            },
-            { signal: request.renderLifetimeController.signal }
-          );
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var renderLifetimeController = new AbortController();
+        request.renderLifetimeController = renderLifetimeController;
+        signal.addEventListener(
+          "abort",
+          function () {
+            abort(request, signal.reason);
+          },
+          { signal: renderLifetimeController.signal }
+        );
+      }
     }
     function abort(request, reason) {
       if (
         !(request.aborted || (11 !== request.status && 10 !== request.status))
       ) {
-        request.renderLifetimeController.abort(RENDER_ENDED);
+        endRenderLifetime(request);
         var isRecoverableReason =
           "object" === typeof reason &&
           null !== reason &&
@@ -9410,11 +9417,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-bd6ea412-20260824" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-f789f203-20260825" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-bd6ea412-20260824\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-f789f203-20260825\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -11194,5 +11201,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-bd6ea412-20260824";
+    exports.version = "19.3.0-canary-f789f203-20260825";
   })();
