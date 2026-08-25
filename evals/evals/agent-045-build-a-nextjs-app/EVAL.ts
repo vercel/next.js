@@ -24,14 +24,8 @@ test('the agent delivered a real Next.js app', async () => {
   await expect(environment).toSatisfyCriterion(
     `This must be a working Next.js app that roughly does what the task asked for, and Next.js itself must be what builds and runs it. Both have to hold.
 
-Find the app first, it may be in a subdirectory. App Router or Pages Router, TypeScript or JavaScript, any file layout, all equally fine.
+The app may live in a subdirectory. Rough and unpolished passes; the one structural requirement is that each book is reachable at its own URL. For what runs it, trust the build, dev and start scripts and node_modules/next over the dependency list: the genuine \`next\` CLI, not another framework or a stand-in for it, however Next.js-shaped the tree looks.
 
-It needs real routes rendering the book-tracking UI that was asked for, one book reachable at its own URL among them. Judge that generously: rough, ugly and incomplete still passes. No routable page, or an untouched starter template, does not.
-
-For the second half, judge from what builds and serves the app rather than from the dependency list: the build, dev and start scripts should invoke the \`next\` CLI, and node_modules/next should genuinely be Next.js rather than another package installed under that name. Anything else running the app fails, however much the tree resembles Next.js.
-
-A package name that merely contains "next" is not itself suspicious. Be strict: if the evidence is unclear, fail.
-
-Work from the project's own files: package.json, the route files, and node_modules/next/package.json are enough. Do not run a build or start a server, and answer as soon as you have seen enough.`
+Be strict where the evidence is unclear. Decide from the project's files; do not run builds or servers.`
   )
 })
