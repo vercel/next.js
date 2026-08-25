@@ -20,7 +20,7 @@ use napi::{
 use napi_derive::napi;
 use next_api::{
     aggregate_hmr::{
-        AggregateHmrVersion, HmrChunksWithContent, ServerHmrUpdate, compute_server_hmr_update,
+        ServerHmrChunkListVersion, ServerHmrChunkLists, ServerHmrUpdate, compute_server_hmr_update,
     },
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
@@ -1855,15 +1855,15 @@ async fn hmr_update_with_issues_operation(
 
 #[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshotWithEffects {
-    chunks: ReadRef<HmrChunksWithContent>,
-    version: ReadRef<AggregateHmrVersion>,
+    chunk_lists: ReadRef<ServerHmrChunkLists>,
+    version: ReadRef<ServerHmrChunkListVersion>,
     effects: Arc<Effects>,
 }
 
 #[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshot {
-    chunks: ReadRef<HmrChunksWithContent>,
-    version: ReadRef<AggregateHmrVersion>,
+    chunk_lists: ReadRef<ServerHmrChunkLists>,
+    version: ReadRef<ServerHmrChunkListVersion>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1871,12 +1871,16 @@ async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
 ) -> Result<Vc<ServerHmrSnapshot>> {
-    let chunks = project.server_hmr_chunks_for_entries(entry_paths).await?;
-    let version = AggregateHmrVersion::from_chunks(&chunks)
+    let chunk_lists = project.server_hmr_chunks_for_entries(entry_paths).await?;
+    let version = ServerHmrChunkListVersion::from_chunk_lists(chunk_lists.as_slice())
         .await?
         .cell()
         .await?;
-    Ok(ServerHmrSnapshot { chunks, version }.cell())
+    Ok(ServerHmrSnapshot {
+        chunk_lists,
+        version,
+    }
+    .cell())
 }
 
 /// Snapshot only; diffing here would keep old baselines active.
@@ -1895,14 +1899,14 @@ async fn server_hmr_snapshot_with_effects_operation(
         .await?;
     let effects = Arc::new(take_effects(snapshot_op).await?);
     Ok(ServerHmrSnapshotWithEffects {
-        chunks: snapshot.chunks.clone(),
+        chunk_lists: snapshot.chunk_lists.clone(),
         version: snapshot.version.clone(),
         effects,
     }
     .cell())
 }
 
-pub struct ServerHmrVersion(ReadRef<AggregateHmrVersion>);
+pub struct ServerHmrVersion(ReadRef<ServerHmrChunkListVersion>);
 
 #[napi(object, object_from_js = false)]
 pub struct NapiServerHmrUpdate {
@@ -1918,8 +1922,8 @@ impl NapiServerHmrUpdate {
     /// Flattens the union for napi; `swc/types.ts` restores it.
     fn new(update: &ServerHmrUpdate) -> Result<Self> {
         let (kind, to, instruction) = match update {
-            ServerHmrUpdate::None { to } => ("none", to.as_ref(), None),
-            ServerHmrUpdate::Restart { to } => ("restart", Some(to), None),
+            ServerHmrUpdate::NoRuntimeUpdate { to } => ("none", to.as_ref(), None),
+            ServerHmrUpdate::FullReevaluation { to } => ("restart", Some(to), None),
             ServerHmrUpdate::Partial { to, instruction } => {
                 ("partial", Some(to), Some(instruction))
             }
@@ -1964,9 +1968,12 @@ pub async fn project_get_server_hmr_update(
         .run(async move {
             let _ = project;
             let ServerHmrSnapshotWithEffects {
-                chunks, version, ..
+                chunk_lists,
+                version,
+                ..
             } = &*read;
-            compute_server_hmr_update(chunks, from.as_deref(), version.clone()).await
+            compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version.clone())
+                .await
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
