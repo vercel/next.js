@@ -40,9 +40,7 @@ mimalloc = { version = "0.1.48", features = [
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.60", features = [
-  "Win32_System_SystemInformation",
-] }
+windows-sys = { version = "0.60", features = ["Win32_System_SystemInformation"] }
 
 [features]
 custom_allocator = ["dep:mimalloc", "dep:libmimalloc-sys"]
