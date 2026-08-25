@@ -73,10 +73,6 @@ function readSourceFiles(dir: string): SourceFile[] {
 const sourceFiles = readSourceFiles(process.cwd())
 const source = sourceFiles.map((file) => file.content).join('\n')
 
-function fileWith(pattern: RegExp): SourceFile | undefined {
-  return sourceFiles.find((file) => pattern.test(file.content))
-}
-
 test('Catalog is cached, tagged, and revalidated by the sync action', async () => {
   // Cheap and style-independent: the directive itself must be present somewhere.
   expect(source).toMatch(/['"]use cache['"];?/)

@@ -32,9 +32,9 @@ function locate(base: string): string | undefined {
 /** Any export form binding `name`: declaration, const/let/var, default, or list. */
 function exportsBinding(source: string, name: string): boolean {
   return (
-    new RegExp(`export\\s+(default\\s+)?(async\\s+)?function\\s+${name}\\b`).test(
-      source
-    ) ||
+    new RegExp(
+      `export\\s+(default\\s+)?(async\\s+)?function\\s+${name}\\b`
+    ).test(source) ||
     new RegExp(`export\\s+(const|let|var)\\s+${name}\\b`).test(source) ||
     new RegExp(`export\\s+default\\s+${name}\\b`).test(source) ||
     new RegExp(`export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}`).test(source)
