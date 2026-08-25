@@ -4,7 +4,10 @@ import {
   createOwnedListeners,
   isRawHttpResponseCommitted,
 } from './websocket-http'
-import { UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS } from './websocket-shutdown-budget'
+import {
+  UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS,
+  PENDING_UPGRADE_IDLE_TIMEOUT_MS,
+} from './websocket-shutdown-budget'
 
 interface PendingUpgrade {
   socket: Duplex
@@ -67,6 +70,16 @@ export class PendingWebSocketUpgradeTracker {
     const done = new Promise<void>((complete) => {
       resolve = complete
     })
+    // Bound the pre-commit window: after Node emits `upgrade`, its HTTP
+    // request timeouts no longer govern the socket. Destroy connections that
+    // move no bytes for the whole budget so a client cannot pin a stalled
+    // handler or a backpressured raw response write indefinitely. Cleared on
+    // handoff to a committed response or the connection registry.
+    const setSocketTimeout = (
+      socket as { setTimeout?: (ms: number) => void }
+    ).setTimeout?.bind(socket)
+    setSocketTimeout?.(PENDING_UPGRADE_IDLE_TIMEOUT_MS)
+
     let finished = false
     let installing = true
     let finishRequested = false
@@ -83,6 +96,7 @@ export class PendingWebSocketUpgradeTracker {
         }
         finished = true
         try {
+          setSocketTimeout?.(0)
           return listeners.remove()
         } finally {
           this.pending.delete(pending)
@@ -112,10 +126,25 @@ export class PendingWebSocketUpgradeTracker {
       this.destroy(socket)
       this.record(pending.finish())
     }
+    // Total inactivity for the whole budget destroys the pinned connection and
+    // settles tracking through the ordinary finish path.
+    const onIdleTimeout = () => {
+      this.destroy(socket)
+      this.record(pending.finish())
+    }
     const endEntry = { target: socket, event: 'end', listener: onEnd }
     const closeEntry = { target: socket, event: 'close', listener: onClose }
+    const timeoutEntry = {
+      target: socket,
+      event: 'timeout',
+      listener: onIdleTimeout,
+    }
 
-    const installFailures = listeners.install([endEntry, closeEntry])
+    const installFailures = listeners.install([
+      endEntry,
+      closeEntry,
+      timeoutEntry,
+    ])
     installing = false
     if (installFailures.length > 0) {
       finished = true

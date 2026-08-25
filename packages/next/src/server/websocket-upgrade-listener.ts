@@ -1,4 +1,6 @@
 import type { EventEmitter } from 'node:events'
+import type { Duplex } from 'node:stream'
+import { PENDING_UPGRADE_IDLE_TIMEOUT_MS } from './websocket-shutdown-budget'
 
 type UpgradeListenerOwnershipState = {
   externalListenerSeen: boolean
@@ -231,4 +233,35 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
       }
     },
   }
+}
+
+/**
+ * Arms a bounded idle reap on an upgrade socket that no route, rewrite, or
+ * proxy target claimed. Once Node emits 'upgrade', its HTTP request timeouts
+ * no longer govern the socket, so returning without a claim would leak the
+ * descriptor forever. Another listener (e.g. a custom server's own WS server)
+ * may still own the socket: a claim is an attached data reader, re-checked
+ * when the budget lapses so asynchronous claimers are spared.
+ */
+export function armUnclaimedUpgradeSocketTimeout(socket: Duplex): void {
+  const withTimeout = (
+    socket as { setTimeout?: (ms: number) => void }
+  ).setTimeout?.bind(socket)
+  if (!withTimeout) return
+
+  const isClaimed = () =>
+    socket.destroyed ||
+    socket.writableEnded ||
+    socket.listenerCount('data') > 0 ||
+    socket.listenerCount('readable') > 0
+
+  if (isClaimed()) return
+  withTimeout(PENDING_UPGRADE_IDLE_TIMEOUT_MS)
+  socket.once('timeout', () => {
+    if (isClaimed()) {
+      withTimeout(0)
+      return
+    }
+    socket.destroy()
+  })
 }

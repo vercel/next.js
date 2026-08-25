@@ -47,7 +47,10 @@ import { addRequestMeta } from '../request-meta'
 import { PendingWebSocketUpgradeTracker } from '../websocket-lifecycle'
 import { isRawHttpResponseCommitted } from '../websocket-http'
 import { HTTP_SERVER_CLOSE_GRACE_PERIOD_MS } from '../websocket-shutdown-budget'
-import { createWebSocketUpgradeListenerOwnershipTracker } from '../websocket-upgrade-listener'
+import {
+  armUnclaimedUpgradeSocketTimeout,
+  createWebSocketUpgradeListenerOwnershipTracker,
+} from '../websocket-upgrade-listener'
 import {
   latchServerCleanupExitCode,
   runServerCleanupPhases,
@@ -341,6 +344,12 @@ export async function startServer(
       console.error(err)
     } finally {
       finishUpgrade?.()
+      // finishUpgrade clears the pre-commit idle timeout, so an upgrade no
+      // route, rewrite, or proxy claimed would leak its descriptor forever —
+      // Node's request timeouts stop applying once 'upgrade' fires. Re-arm a
+      // bounded idle reap; another listener that claimed the socket (an
+      // attached data reader, e.g. a custom WS server) is spared.
+      armUnclaimedUpgradeSocketTimeout(socket)
     }
   }
   const webSocketUpgradeOwnership =

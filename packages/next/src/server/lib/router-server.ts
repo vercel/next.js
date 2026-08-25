@@ -93,7 +93,10 @@ import {
   tryAcquireWebSocketScopeLease,
   type WebSocketScopeLease,
 } from '../websocket-connection-registry'
-import { isNextHMRUpgradeRequest } from '../websocket-upgrade-listener'
+import {
+  armUnclaimedUpgradeSocketTimeout,
+  isNextHMRUpgradeRequest,
+} from '../websocket-upgrade-listener'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -1172,6 +1175,13 @@ export async function initialize(opts: {
           }
           return socket.end()
         }
+        // If there's no matched output, we don't handle the request as user's
+        // custom WS server may be listening on the same path. An unclaimed
+        // upgrade socket escapes Node's request timeouts, so bound its idle
+        // lifetime; a listener that claimed it (has a data reader) is spared
+        // when the budget lapses. In production the start-server tracker
+        // re-arms after its pre-commit window instead.
+        armUnclaimedUpgradeSocketTimeout(socket)
         return
       }
 
