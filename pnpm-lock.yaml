@@ -242,8 +242,8 @@ importers:
         specifier: 16.0.11
         version: 16.0.11
       '@vercel/agent-eval':
-        specifier: 1.3.0
-        version: 1.3.0
+        specifier: 2.2.1
+        version: 2.2.1
       '@vercel/blob':
         specifier: 2.3.2
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
@@ -7674,8 +7674,8 @@ packages:
   '@upstash/redis@1.35.3':
     resolution: {integrity: sha512-hSjv66NOuahW3MisRGlSgoszU2uONAY2l5Qo3Sae8OT3/Tng9K+2/cBRuyPBX8egwEGcNNCF9+r0V6grNnhL+w==}
 
-  '@vercel/agent-eval@1.3.0':
-    resolution: {integrity: sha512-x8mxdvteWp7z4I5VuOm2mknlyMUTevbbp7RCiPg7gsVSknOcVxzJxBCaccenHoux2JKwK63svnzfoeIfB2dDWg==}
+  '@vercel/agent-eval@2.2.1':
+    resolution: {integrity: sha512-TVowf/Q60kw8anu4oAIhb1fc4y8k4jhwjCPwdfNoy9m9W1LHBHZYaIi81QZ+7w2S77hvBi4CAoOnohovjA2Mow==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -14159,11 +14159,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.11:
-    resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@3.3.16:
     resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -19032,7 +19027,7 @@ snapshots:
   '@ai-sdk/provider-utils@2.2.8(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 1.1.3
-      nanoid: 3.3.11
+      nanoid: 3.3.16
       secure-json-parse: 2.7.0
       zod: 3.25.76
 
@@ -25001,7 +24996,7 @@ snapshots:
     dependencies:
       uncrypto: 0.1.3
 
-  '@vercel/agent-eval@1.3.0':
+  '@vercel/agent-eval@2.2.1':
     dependencies:
       '@ai-sdk/anthropic': 1.2.12(zod@3.25.76)
       '@vercel/sandbox': 1.8.0
@@ -33434,8 +33429,6 @@ snapshots:
   nanoid@3.1.30: {}
 
   nanoid@3.1.32: {}
-
-  nanoid@3.3.11: {}
 
   nanoid@3.3.16: {}
 
