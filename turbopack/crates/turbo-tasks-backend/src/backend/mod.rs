@@ -3028,8 +3028,6 @@ impl TurboTasksBackend {
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
-                                    // Sample the post-eviction floor as the new baseline.
-                                    eviction_control.record_eviction();
                                     true
                                 } else {
                                     false
@@ -3081,6 +3079,19 @@ impl TurboTasksBackend {
                                     && (new_data || ran_compaction || ran_eviction)
                                 {
                                     TurboMalloc::collect(true);
+                                }
+
+                                // Sample the post-eviction floor as the new baseline, after the
+                                // collect above. `memory_usage` reports what the allocator has
+                                // committed, and freed memory is only decommitted by
+                                // `mi_collect(true)` — sampling before it would read a floor that
+                                // still included everything the sweep just freed, so the next
+                                // cycle would see no growth and skip evicting. When the collect
+                                // was skipped (no longer idle) the floor is merely conservative:
+                                // it reads high, so the next cycle evicts later rather than
+                                // never.
+                                if ran_eviction {
+                                    eviction_control.record_eviction();
                                 }
                             }
                         }
