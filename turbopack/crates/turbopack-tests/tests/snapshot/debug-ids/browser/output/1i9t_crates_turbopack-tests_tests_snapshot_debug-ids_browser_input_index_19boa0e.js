@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="64c9678c-f7a9-2121-4902-35dfa89f5d34")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="ee80707f-230b-76ad-c42e-fca99f56d165")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -15,6 +15,10 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 const SUPPORT_COMPONENT_CHUNKS = false;
+globalThis["TURBOPACK_CHUNK_UPDATE_LISTENERS"] ||= [];
+var CHUNK_UPDATE_LISTENERS = {
+    push: (registration) => globalThis["TURBOPACK_CHUNK_UPDATE_LISTENERS"].push(registration),
+};
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
@@ -2128,7 +2132,7 @@ function registerChunk(registration) {
     const chunkListPath = getPathFromScript(chunkListScript);
     // The "chunk" is also registered to finish the loading in the backend
     BACKEND.registerChunk(chunkListPath);
-    globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
+    CHUNK_UPDATE_LISTENERS.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)
     ]);
@@ -2150,7 +2154,6 @@ function registerChunk(registration) {
         markChunkListAsRuntime(chunkListPath);
     }
 }
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /**
  * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
@@ -2484,5 +2487,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=64c9678c-f7a9-2121-4902-35dfa89f5d34
+//# debugId=ee80707f-230b-76ad-c42e-fca99f56d165
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

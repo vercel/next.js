@@ -144,11 +144,6 @@ export function createCacheLifeOutsideUseCacheError(): Error {
   )
 }
 
-/**
- * Factories rather than exported strings so the error-code tool can
- * statically match the message at the `new Error(…)` call site. The
- * chained `NestedDynamicUseCacheError` is passed as `cause`.
- */
 export function createNestedCacheZeroRevalidateError(
   cause: Error | undefined
 ): Error {

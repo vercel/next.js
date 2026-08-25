@@ -10,7 +10,7 @@ title: Cannot call `cacheTag()` outside `"use cache"`
 import { cacheTag } from 'next/cache'
 
 export default async function Page() {
-  cacheTag('products') // ❌ no cache entry to tag
+  cacheTag('products') // No cache entry to tag
   return <p>...</p>
 }
 ```
@@ -24,7 +24,7 @@ import { cacheTag } from 'next/cache'
 
 async function getProducts() {
   'use cache'
-  cacheTag('products') // ✅ tags this cache entry
+  cacheTag('products') // Tags this cache entry
   return db.products.findMany()
 }
 

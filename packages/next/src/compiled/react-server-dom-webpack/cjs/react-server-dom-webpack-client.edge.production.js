@@ -164,9 +164,36 @@ function processReply(
   root,
   formFieldPrefix,
   temporaryReferences,
-  resolve,
-  reject
+  onResolve,
+  onReject,
+  signal
 ) {
+  function endReplyLifetime() {
+    null !== replyLifetimeController &&
+      replyLifetimeController.abort("The reply ended.");
+  }
+  function resolve(value) {
+    settled = !0;
+    endReplyLifetime();
+    onResolve(value);
+  }
+  function reject(error) {
+    settled = !0;
+    endReplyLifetime();
+    onReject(error);
+  }
+  function attachAbortSignal(abortSignal) {
+    abortSignal.aborted
+      ? abort()
+      : ((replyLifetimeController = new AbortController()),
+        abortSignal.addEventListener(
+          "abort",
+          function () {
+            abort();
+          },
+          { signal: replyLifetimeController.signal }
+        ));
+  }
   function serializeTypedArray(tag, typedArray) {
     typedArray = new Blob([
       new Uint8Array(
@@ -520,21 +547,25 @@ function processReply(
     modelRoot = model;
     return JSON.stringify(model, resolveToJSON);
   }
+  function abort() {
+    endReplyLifetime();
+    0 < pendingParts &&
+      ((pendingParts = 0),
+      null === formData ? resolve(json) : resolve(formData));
+  }
   var nextPartId = 1,
     pendingParts = 0,
     formData = null,
     writtenObjects = new WeakMap(),
     modelRoot = root,
+    settled = !1,
+    replyLifetimeController = null,
     json = serializeModel(root, 0);
   null === formData
     ? resolve(json)
     : (formData.set(formFieldPrefix + "0", json),
       0 === pendingParts && resolve(formData));
-  return function () {
-    0 < pendingParts &&
-      ((pendingParts = 0),
-      null === formData ? resolve(json) : resolve(formData));
-  };
+  void 0 === signal || settled || attachAbortSignal(signal);
 }
 var boundCache = new WeakMap();
 function encodeFormData(reference) {
@@ -1262,9 +1293,11 @@ function loadServerReference(response, metaData, parentObject, key) {
   );
   return null;
 }
+var EMPTY_REFERENCE_PATH = [];
 function getOutlinedModel(response, reference, parentObject, key, map) {
-  reference = reference.split(":");
-  var id = parseInt(reference[0], 16);
+  var id = parseInt(reference, 16);
+  reference =
+    -1 === reference.indexOf(":") ? EMPTY_REFERENCE_PATH : reference.split(":");
   id = getChunk(response, id);
   switch (id.status) {
     case "resolved_model":
@@ -1570,12 +1603,25 @@ function resolveBuffer(response, id, buffer) {
 }
 function resolveModule(response, id, model) {
   var chunks = response._chunks,
-    chunk = chunks.get(id);
-  model = parseModel(response, model);
-  var clientReference = resolveClientReference(response._bundlerConfig, model);
+    chunk = chunks.get(id),
+    prevHandler = initializingHandler;
+  initializingHandler = null;
+  try {
+    var clientReferenceMetadata = parseModel(response, model);
+    if (null !== initializingHandler)
+      throw Error(
+        "A client reference was blocked on a row that has not been received yet. This is a bug in React."
+      );
+  } finally {
+    initializingHandler = prevHandler;
+  }
+  var clientReference = resolveClientReference(
+    response._bundlerConfig,
+    clientReferenceMetadata
+  );
   prepareDestinationWithChunks(
     response._moduleLoading,
-    model[1],
+    clientReferenceMetadata[1],
     response._nonce
   );
   if ((model = preloadModule(clientReference))) {
@@ -2220,26 +2266,16 @@ exports.createTemporaryReferenceSet = function () {
 };
 exports.encodeReply = function (value, options) {
   return new Promise(function (resolve, reject) {
-    var abort = processReply(
+    processReply(
       value,
       "",
       options && options.temporaryReferences
         ? options.temporaryReferences
         : void 0,
       resolve,
-      reject
+      reject,
+      options ? options.signal : void 0
     );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(signal.reason);
-      else {
-        var listener = function () {
-          abort(signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
   });
 };
 exports.registerServerReference = function (reference, id, encodeFormAction) {

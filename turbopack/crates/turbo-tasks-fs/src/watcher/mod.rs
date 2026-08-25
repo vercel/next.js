@@ -5,6 +5,7 @@ mod mock_fs_api;
 
 use std::{
     any::Any,
+    borrow::Cow,
     collections::BTreeSet,
     env, fmt,
     path::{Path, PathBuf},
@@ -23,17 +24,18 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use bitflags::bitflags;
+use indexmap::map::{RawEntryApiV1, raw_entry_v1::RawEntryMut};
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc, TraitRef,
-    TurboTasksApi, spawn_thread, trace::TraceRawVcs, util::StaticOrArc,
+    FxIndexMap, FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc,
+    TraitRef, TurboTasksApi, spawn_thread, trace::TraceRawVcs, util::StaticOrArc,
 };
 
 use crate::{
@@ -607,7 +609,7 @@ impl DiskWatcher {
 
         'outer: loop {
             loop {
-                match schedule.recv_event(&rx, &*fs) {
+                match schedule.recv_event(&rx, &*fs, &batch) {
                     Ok(Ok(event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
@@ -675,15 +677,7 @@ impl DiskWatcher {
                     Ok(Err(notify::Error { kind, paths })) => {
                         println!("watch error ({paths:?}): {kind:?} ");
 
-                        let flags = InvalidationFlags::PATH_AND_CHILDREN
-                            | InvalidationFlags::PATH_AND_CHILDREN_DIR;
-                        if paths.is_empty() {
-                            batch.mark(Box::from(fs.root_path()), flags);
-                        } else {
-                            for path in paths {
-                                batch.mark(path.into_boxed_path(), flags);
-                            }
-                        }
+                        batch.add_error(paths, fs.root_path());
                         schedule.extend(config.batch_delay);
                     }
                     Err(RecvTimeoutError::Timeout) => {
@@ -781,9 +775,11 @@ bitflags! {
 /// needs to happen for each, rather than in several separate sets. This avoids cloning each
 /// `PathBuf` into multiple collections.
 struct BatchedInvalidations {
-    paths: FxHashMap<Box<Path>, InvalidationFlags>,
-    /// See [`Self::new_paths`]). Stored as [`None`] in non-recursive mode.
-    new_paths: Option<FxHashSet<Box<Path>>>,
+    paths: FxIndexMap<Box<Path>, InvalidationFlags>,
+    /// The most recently updated entry in [`Self::paths`].
+    last_updated_index: Option<usize>,
+    /// See [`Self::new_paths`]. Stored as [`None`] in recursive mode.
+    new_paths: Option<FxHashSet<usize>>,
     /// Whether events are coming from [`PollWatcher`] instead of [`RecommendedWatcher`], which
     /// changes how a file content change is reported. See [`Self::is_content_change`].
     polling: bool,
@@ -792,7 +788,8 @@ struct BatchedInvalidations {
 impl BatchedInvalidations {
     fn new(recursive_mode: DiskWatcherRecursiveMode, polling: bool) -> Self {
         Self {
-            paths: FxHashMap::default(),
+            paths: FxIndexMap::default(),
+            last_updated_index: None,
             new_paths: match recursive_mode {
                 DiskWatcherRecursiveMode::NonRecursive => Some(FxHashSet::default()),
                 DiskWatcherRecursiveMode::Recursive => None,
@@ -830,26 +827,44 @@ impl BatchedInvalidations {
 
     fn clear(&mut self) {
         self.paths.clear();
+        self.last_updated_index = None;
         if let Some(new_paths) = &mut self.new_paths {
             new_paths.clear();
         }
     }
 
-    /// Records `path` as newly-created so its watch can be (re-)established. No-op in recursive
+    /// Records `index` as newly-created so its watch can be (re-)established. No-op in recursive
     /// watching mode.
-    fn mark_new_path(&mut self, path: &Path) {
+    fn mark_new_path(&mut self, index: usize) {
         if let Some(new_paths) = &mut self.new_paths {
-            new_paths.insert(Box::from(path));
+            new_paths.insert(index);
         }
     }
 
-    fn mark(&mut self, path: Box<Path>, flags: InvalidationFlags) {
-        *self.paths.entry(path).or_insert(InvalidationFlags::empty()) |= flags;
+    /// Sets the `flags` for `path`. Returns the index that was modified.
+    fn mark(&mut self, path: Cow<'_, Path>, flags: InvalidationFlags) -> usize {
+        match self.paths.raw_entry_mut_v1().from_key(path.as_ref()) {
+            RawEntryMut::Occupied(mut entry) => {
+                *entry.get_mut() |= flags;
+                entry.index()
+            }
+            RawEntryMut::Vacant(entry) => {
+                let index = entry.index();
+                entry.insert(path.into_owned().into_boxed_path(), flags);
+                index
+            }
+        }
+    }
+
+    fn last_updated_path(&self) -> Option<&Path> {
+        self.last_updated_index
+            .and_then(|index| self.paths.get_index(index))
+            .map(|(path, _)| &**path)
     }
 
     fn mark_parent_dir(&mut self, path: &Path) {
         if let Some(parent) = path.parent() {
-            self.mark(Box::from(parent), InvalidationFlags::PATH_DIR);
+            self.mark(Cow::Borrowed(parent), InvalidationFlags::PATH_DIR);
         }
     }
 
@@ -857,72 +872,69 @@ impl BatchedInvalidations {
     /// must have their watches (re-)established before [`Self::execute`] is called (see the note
     /// there). Always empty in recursive mode.
     fn new_paths(&self) -> impl Iterator<Item = &Path> {
-        self.new_paths.iter().flatten().map(|path| &**path)
+        self.new_paths
+            .iter()
+            .flatten()
+            .map(|&index| self.paths.get_index(index).unwrap().0.as_ref())
     }
 
     /// Updates the batch to contain updated paths from the given event. Does not perform any
     /// invalidations.
     ///
-    /// Returns `true` if the event contained relevant events, or `false` if it was filtered out.
+    /// Returns whether the event contained relevant events.
     #[must_use]
     fn add_event(&mut self, event: notify::Event) -> bool {
         let paths: Vec<PathBuf> = event.paths;
-        if paths.is_empty() {
-            return false;
-        }
+        let mut last_updated_index = None;
         match event.kind {
             EventKind::Modify(ModifyKind::Data(_)) => {
                 for path in paths {
-                    self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
+                    last_updated_index = Some(self.mark(Cow::Owned(path), InvalidationFlags::PATH));
                 }
-                true
             }
             // Some backends (fsevents, polling) can report metadata events for file content changes
             EventKind::Modify(ModifyKind::Metadata(kind)) if self.is_content_change(kind) => {
                 for path in paths {
-                    self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
+                    last_updated_index = Some(self.mark(Cow::Owned(path), InvalidationFlags::PATH));
                 }
-                true
             }
             EventKind::Create(_) => {
                 for path in paths {
                     self.mark_parent_dir(&path);
-                    self.mark_new_path(&path);
-                    self.mark(
-                        path.into_boxed_path(),
+                    let index = self.mark(
+                        Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
+                    self.mark_new_path(index);
+                    last_updated_index = Some(index);
                 }
-                true
             }
             EventKind::Remove(_) => {
                 for path in paths {
                     self.mark_parent_dir(&path);
-                    self.mark(
-                        path.into_boxed_path(),
+                    last_updated_index = Some(self.mark(
+                        Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
-                    );
+                    ));
                 }
-                true
             }
             // A single event emitted with both the `From` and `To` paths.
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
                 let [source, destination] = <[PathBuf; 2]>::try_from(paths)
                     .expect("RenameMode::Both event must contain exactly two paths");
+
                 self.mark_parent_dir(&source);
-                self.mark(
-                    source.into_boxed_path(),
-                    InvalidationFlags::PATH_AND_CHILDREN,
-                );
+                self.mark(Cow::Owned(source), InvalidationFlags::PATH_AND_CHILDREN);
+
                 self.mark_parent_dir(&destination);
-                self.mark_new_path(&destination);
-                self.mark(
-                    destination.into_boxed_path(),
+                let index = self.mark(
+                    Cow::Owned(destination),
                     InvalidationFlags::PATH_AND_CHILDREN,
                 );
-                true
+                self.mark_new_path(index);
+                last_updated_index = Some(index);
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
             // but we also check other RenameModes to cover cases where notify couldn't match the
@@ -930,19 +942,33 @@ impl BatchedInvalidations {
             EventKind::Any | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
                 for path in paths {
                     self.mark_parent_dir(&path);
-                    self.mark(
-                        path.into_boxed_path(),
+                    last_updated_index = Some(self.mark(
+                        Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
-                    );
+                    ));
                 }
-                true
             }
             EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
             | EventKind::Access(_)
-            | EventKind::Other => {
-                // ignored
-                false
+            | EventKind::Other => {}
+        }
+        if let Some(index) = last_updated_index {
+            self.last_updated_index = Some(index);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Updates the batch to invalidate paths associated with a watcher error.
+    fn add_error(&mut self, paths: Vec<PathBuf>, root_path: &Path) {
+        let flags = InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR;
+        if paths.is_empty() {
+            self.last_updated_index = Some(self.mark(Cow::Borrowed(root_path), flags));
+        } else {
+            for path in paths {
+                self.last_updated_index = Some(self.mark(Cow::Owned(path), flags));
             }
         }
     }

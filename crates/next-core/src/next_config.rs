@@ -1883,12 +1883,11 @@ impl OutputFileTracingIncludesExcludes {
                             .iter()
                             .flat_map(|pattern| pattern.iter())
                             .filter_map(|pattern| pattern.as_str())
-                            .map(async |pattern_str| {
+                            .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
                             })
-                            .try_join()
-                            .await?;
+                            .collect::<Result<Vec<_>>>()?;
                         Ok((route_pattern, file_patterns))
                     })
                     .try_join()

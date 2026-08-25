@@ -197,6 +197,7 @@ export const experimentalSchema = {
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
+  collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
@@ -389,6 +390,7 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
+  turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
@@ -805,9 +807,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
-    partialPrefetching: z
-      .union([z.boolean(), z.literal('unstable_eager')])
-      .optional(),
+    partialPrefetching: z.boolean().optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

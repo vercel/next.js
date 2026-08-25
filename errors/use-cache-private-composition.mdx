@@ -17,7 +17,7 @@ async function PrivateSegment() {
 }
 
 export default async function Page() {
-  'use cache' // ❌ public cache can't contain a private one
+  'use cache' // A public cache cannot contain a private one
   return <PrivateSegment />
 }
 ```
@@ -33,7 +33,7 @@ async function PrivateSegment() {
 }
 
 export default async function Page() {
-  // ✅ no surrounding "use cache" — the private segment runs per request
+  // No surrounding "use cache". The private segment runs per request.
   return <PrivateSegment />
 }
 ```

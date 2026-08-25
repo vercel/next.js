@@ -421,6 +421,7 @@ export const metadata = {
 > **Good to know**:
 >
 > - `metadataBase` is typically set in root `app/layout.js` to apply to URL-based `metadata` fields across all routes.
+> - When `generateMetadata` uses `'use cache'`, its return value must be serializable. `URL` instances are not supported by Cache Functions, so values such as `metadataBase` should be returned as strings (for example, `url.toString()`). See [`use cache` serialization requirements](/docs/app/api-reference/directives/use-cache#serialization).
 > - All URL-based `metadata` fields that require absolute URLs can be configured with a `metadataBase` option.
 > - `metadataBase` can contain a subdomain e.g. `https://app.acme.com` or base path e.g. `https://acme.com/start/from/here`
 > - If a `metadata` field provides an absolute URL, `metadataBase` will be ignored.

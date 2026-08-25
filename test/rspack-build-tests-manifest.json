@@ -8031,7 +8031,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
-    "passed": ["turbopack-reports should render page importing sqlite3"],
+    "passed": [
+      "turbopack-reports should render page importing a package that loads a native binding"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -16098,17 +16100,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/firebase-grpc/test/index.test.ts": {
-    "passed": [
-      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
-    ],
-    "failed": [],
-    "pending": [
-      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads"
-    ],
     "flakey": [],
     "runtimeError": false
   },

@@ -10,7 +10,7 @@ title: Cannot call `cacheLife()` outside `"use cache"`
 import { cacheLife } from 'next/cache'
 
 export default async function Page() {
-  cacheLife('hours') // ❌ no cache entry to configure
+  cacheLife('hours') // No cache entry to configure
   return <p>...</p>
 }
 ```
@@ -24,7 +24,7 @@ import { cacheLife } from 'next/cache'
 
 async function getProducts() {
   'use cache'
-  cacheLife('hours') // ✅ configures this cache entry
+  cacheLife('hours') // Configures this cache entry
   return db.products.findMany()
 }
 

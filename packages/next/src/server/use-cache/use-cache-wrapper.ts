@@ -61,7 +61,6 @@ import {
   createReactServerErrorHandler,
   type DigestedError,
 } from '../app-render/create-error-handler'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   MIN_PRERENDERABLE_EXPIRE,
@@ -1524,10 +1523,9 @@ async function generateCacheEntryImpl(
                   // error actually surfaces (vs. being caught in userland) is
                   // the consumer's decision, so the "surfaced" mark is left to
                   // the outer handler.
-                  const digest = createDigestWithErrorCode(
-                    error,
-                    stringHash(error.message + (error.stack || '')).toString()
-                  )
+                  const digest = stringHash(
+                    error.message + (error.stack || '')
+                  ).toString()
 
                   workStore.reactServerErrorsByDigest.set(
                     digest,

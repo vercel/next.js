@@ -2743,7 +2743,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                atom!("use turbopack no side effects").into(),
+                                atom!("use turbopack: no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2752,7 +2752,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let mut module_items = vec![
                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                        atom!("use turbopack no side effects").into(),
+                                        atom!("use turbopack: no side effects").into(),
                                     ))),
                                     span: DUMMY_SP,
                                 })),
