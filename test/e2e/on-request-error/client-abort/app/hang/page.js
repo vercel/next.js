@@ -1,8 +1,8 @@
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const dynamic = 'force-dynamic'
-
 async function Hang() {
+  await connection()
   await new Promise(() => {})
   return null
 }

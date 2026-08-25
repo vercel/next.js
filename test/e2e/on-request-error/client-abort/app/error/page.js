@@ -1,5 +1,15 @@
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
+
+async function Boom() {
+  await connection()
+  throw new Error('server-side-error')
+}
 
 export default function Page() {
-  throw new Error('server-side-error')
+  return (
+    <Suspense fallback={<p>error-pending</p>}>
+      <Boom />
+    </Suspense>
+  )
 }
