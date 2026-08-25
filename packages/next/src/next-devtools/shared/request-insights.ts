@@ -4,6 +4,8 @@ import type {
   RequestInsightSource,
 } from '../../shared/lib/request-insights'
 
+export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 100
+
 export {
   getRequestInsightKey,
   getRequestInsightKind,
@@ -70,6 +72,7 @@ export type RequestInsight = {
   url?: string
   startTime: number
   durationMs?: number
+  completedAt?: number
   status: 'ok' | 'error' | 'pending'
   spans: RequestInsightSpan[]
   fetches: RequestInsightFetch[]

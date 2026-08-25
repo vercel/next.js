@@ -1,9 +1,14 @@
 import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
-import type {
-  RequestInsight,
-  RequestInsightFetch,
-  RequestInsightsSnapshot,
+import {
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  type RequestInsight,
+  type RequestInsightFetch,
+  type RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
+import type {
+  RequestInsightFilter,
+  RequestInsightsHistoryPage,
+} from '../../../next-devtools/shared/request-insights-summary'
 import type { RequestInsightKind } from '../../../shared/lib/request-insights'
 import {
   getRequestInsightKey,
@@ -21,12 +26,15 @@ import type {
 } from './span-store'
 import type { RequestInsightsIdentity } from './request-insights-identity'
 import { createLocalSpanId } from './local-span-recorder'
+import { AppRenderSpan } from './constants'
 export { isRequestInsightsEnabled } from './span-store'
 
-const MAX_REQUEST_INSIGHTS = 100
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
+const REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY = Symbol.for(
+  `@next/request-insights-history-provider@${process.env.__NEXT_VERSION}`
+)
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
@@ -40,6 +48,28 @@ type RequestInsightIdentity = Readonly<{
   route?: string
   url?: string
 }>
+
+export type RequestInsightsHistoryQuery = {
+  cursor?: string
+  filters?: readonly RequestInsightFilter[]
+  limit?: number
+  showInternal?: boolean
+}
+
+export type RequestInsightsJournalQuery = {
+  requestId?: string
+  htmlRequestId?: string
+  kind?: RequestInsight['kind']
+  limit?: number
+}
+
+export type RequestInsightsHistoryProvider = {
+  append(request: RequestInsight): void
+  getHistory(
+    query?: RequestInsightsHistoryQuery
+  ): Promise<RequestInsightsHistoryPage>
+  read(query?: RequestInsightsJournalQuery): Promise<RequestInsight[]>
+}
 
 const REDACTED_VALUE = 'redacted'
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
@@ -68,6 +98,7 @@ class InMemoryRequestInsightsStore {
     { startTime: number; durationMs: number }
   >()
   private readonly requestOrder: string[] = []
+  private readonly completedRequestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
 
   recordSpan(
@@ -104,12 +135,9 @@ class InMemoryRequestInsightsStore {
     )
     insight.route = insight.route ?? span.route
     insight.url = insight.url ?? sanitizeUrl(span.url)
-    this.updateTiming(
-      insight,
-      spanStartTime,
-      span.durationMs,
-      span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
-    )
+    const spanType = span.attributes?.['next.span_type']
+    const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
     insight.status =
       insight.status === 'error' || span.status === 'error'
         ? 'error'
@@ -134,6 +162,13 @@ class InMemoryRequestInsightsStore {
     const fetch = getFetchInsight(span)
     if (fetch) {
       this.recordFetchForInsight(insight, fetch)
+    }
+
+    if (
+      span.durationMs !== undefined &&
+      spanType === AppRenderSpan.instantInsights
+    ) {
+      this.complete(insight, spanStartTime + span.durationMs)
     }
 
     if (shouldNotify) {
@@ -186,6 +221,25 @@ class InMemoryRequestInsightsStore {
     this.notify(insight)
   }
 
+  completeRequest(identity: RequestInsightIdentity): void {
+    if (!identity.requestId) {
+      return
+    }
+
+    const insight = this.requests.get(
+      getRequestInsightKey({
+        requestId: identity.requestId,
+        kind: identity.kind,
+      })
+    )
+    if (!insight || insight.completedAt !== undefined) {
+      return
+    }
+
+    this.complete(insight, getCurrentTimestamp())
+    this.notify(insight)
+  }
+
   getSnapshot(): RequestInsightsSnapshot {
     return {
       requests: this.requestOrder
@@ -205,6 +259,7 @@ class InMemoryRequestInsightsStore {
     this.requests.clear()
     this.requestTimings.clear()
     this.requestOrder.length = 0
+    this.completedRequestOrder.length = 0
   }
 
   private updateTiming(
@@ -268,7 +323,6 @@ class InMemoryRequestInsightsStore {
       }
       this.requests.set(insightKey, insight)
       this.requestOrder.push(insightKey)
-      this.trim()
     }
 
     insight.htmlRequestId = identity.htmlRequestId ?? insight.htmlRequestId
@@ -309,15 +363,83 @@ class InMemoryRequestInsightsStore {
     insight.fetches.push(sanitizeFetchInsight(fetch))
   }
 
-  private trim(): void {
-    while (this.requestOrder.length > MAX_REQUEST_INSIGHTS) {
-      const insightKey = this.requestOrder.shift()
-      if (insightKey) {
-        this.requests.delete(insightKey)
-        this.requestTimings.delete(insightKey)
+  private complete(insight: RequestInsight, completedAt: number): void {
+    if (insight.completedAt !== undefined) {
+      return
+    }
+
+    const insightKey = getRequestInsightKey(insight)
+    insight.completedAt = completedAt
+    this.completedRequestOrder.push(insightKey)
+    appendCompletedRequestInsight(insight)
+
+    const requestIndex = this.requestOrder.indexOf(insightKey)
+    if (requestIndex !== -1) {
+      this.requestOrder.splice(requestIndex, 1)
+      this.requestOrder.push(insightKey)
+    }
+
+    while (
+      this.completedRequestOrder.length > MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      const completedInsightKey = this.completedRequestOrder.shift()
+      if (completedInsightKey) {
+        this.requests.delete(completedInsightKey)
+        this.requestTimings.delete(completedInsightKey)
+        const completedIndex = this.requestOrder.indexOf(completedInsightKey)
+        if (completedIndex !== -1) {
+          this.requestOrder.splice(completedIndex, 1)
+        }
       }
     }
   }
+}
+
+function appendCompletedRequestInsight(insight: RequestInsight): void {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (process.env.__NEXT_REQUEST_INSIGHTS) {
+      getRequestInsightsHistoryProvider()?.append(insight)
+    }
+  } else {
+    return
+  }
+}
+
+export function configureRequestInsightsHistoryProvider(
+  provider: RequestInsightsHistoryProvider
+): void {
+  const globalStore = globalThis as typeof globalThis & {
+    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
+  }
+  globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY] = provider
+}
+
+export function clearRequestInsightsHistoryProvider(): void {
+  const globalStore = globalThis as typeof globalThis & {
+    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
+  }
+  delete globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]
+}
+
+export async function getRequestInsightsHistory(
+  query: RequestInsightsHistoryQuery = {}
+): Promise<RequestInsightsHistoryPage | undefined> {
+  return getRequestInsightsHistoryProvider()?.getHistory(query)
+}
+
+export async function readRequestInsightsHistory(
+  query: RequestInsightsJournalQuery = {}
+): Promise<RequestInsight[]> {
+  return (await getRequestInsightsHistoryProvider()?.read(query)) ?? []
+}
+
+function getRequestInsightsHistoryProvider():
+  | RequestInsightsHistoryProvider
+  | undefined {
+  const globalStore = globalThis as typeof globalThis & {
+    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
+  }
+  return globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]
 }
 
 function refineSource(
@@ -430,6 +552,10 @@ export function recordRequestInsightSource(
   source: RequestInsightSource
 ): void {
   getRequestInsightsStore().recordClassification({ ...identity, source })
+}
+
+export function completeRequestInsight(identity: RequestInsightIdentity): void {
+  getRequestInsightsStore().completeRequest(identity)
 }
 
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {
