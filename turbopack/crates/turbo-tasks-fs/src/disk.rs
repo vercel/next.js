@@ -1960,6 +1960,67 @@ mod tests {
             tt.stop_and_wait().await;
         }
 
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_link_target_resolved_type_through_chain() {
+            use std::os::unix::fs::symlink;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+            create_dir_all(path.join("target-dir")).unwrap();
+            File::create_new(path.join("target-file")).unwrap();
+            symlink("target-dir", path.join("dir-inner")).unwrap();
+            symlink("dir-inner", path.join("dir-outer")).unwrap();
+            symlink("target-file", path.join("file-inner")).unwrap();
+            symlink("file-inner", path.join("file-outer")).unwrap();
+            symlink("../outside", path.join("invalid-inner")).unwrap();
+            symlink("invalid-inner", path.join("invalid-outer")).unwrap();
+
+            let root = canonicalize_to_rcstr(&path).unwrap();
+
+            #[turbo_tasks::function(operation, root)]
+            async fn assert_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+                root_path: FileSystemPath,
+            ) -> anyhow::Result<()> {
+                for (input_path, expected_output) in [
+                    ("dir-outer", FileSystemEntryType::Directory),
+                    ("file-outer", FileSystemEntryType::File),
+                    ("invalid-outer", FileSystemEntryType::Error),
+                ] {
+                    let link = fs.read_link(root_path.join(input_path)?).await?;
+                    let LinkContent::Link { target } = &*link else {
+                        anyhow::bail!("expected a valid link, got {link:?}");
+                    };
+                    assert_eq!(target.resolved_type().await?, expected_output);
+                }
+
+                Ok(())
+            }
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+
+                assert_operation(fs, disk_file_system_root(fs))
+                    .read_strongly_consistent()
+                    .await?;
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
+
         /// A relative target must stay inside the filesystem root at every step, not just at the
         /// end. Both of these step above the root; one comes back into it and one doesn't, but
         /// neither can be resolved against a root-relative [`FileSystemPath`], so `read_link`
