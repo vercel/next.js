@@ -69,8 +69,11 @@ import {
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 import {
+  completeRequestInsight,
+  getRequestInsightsHistory,
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
+  readRequestInsightsHistory,
   recordRequestInsightSource,
 } from './trace/request-insights'
 import {
@@ -80,6 +83,11 @@ import {
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
 import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
+import { waitForResponseToFinish } from '../app-render/wait-for-response'
+import {
+  REQUEST_INSIGHT_FILTERS,
+  type RequestInsightFilter,
+} from '../../next-devtools/shared/request-insights-summary'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -119,6 +127,11 @@ function getErrorMessage(error: unknown): string {
   }
 
   return deobfuscateText(String(error))
+}
+
+function parseRequestInsightsHistoryLimit(value: string | null): number {
+  const parsed = value === null ? NaN : Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 200) : 100
 }
 
 export type RenderServer = Pick<
@@ -288,7 +301,7 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+  const requestHandlerInner: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
 
     // internal headers should not be honored by the request handler
@@ -327,6 +340,7 @@ export async function initialize(opts: {
         }
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'private, no-store')
         if (
           !config.experimental.requestInsights &&
           !isRequestInsightsEnabled()
@@ -338,6 +352,110 @@ export async function initialize(opts: {
                 'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
             })
           )
+          return
+        }
+
+        const endpointUrl = new URL(req.url, 'http://next.local')
+        const view = endpointUrl.searchParams.get('view')
+        if (process.env.__NEXT_DEV_SERVER) {
+          if (view === 'history') {
+            const filterValues = endpointUrl.searchParams.getAll('filter')
+            const filters = filterValues.filter(
+              (filter): filter is RequestInsightFilter =>
+                REQUEST_INSIGHT_FILTERS.includes(filter as RequestInsightFilter)
+            )
+            if (filters.length !== filterValues.length) {
+              res.statusCode = 400
+              res.end(
+                JSON.stringify({ error: 'Invalid Request Insights filter' })
+              )
+              return
+            }
+            try {
+              const history = await getRequestInsightsHistory({
+                cursor: endpointUrl.searchParams.get('cursor') ?? undefined,
+                filters,
+                limit: parseRequestInsightsHistoryLimit(
+                  endpointUrl.searchParams.get('limit')
+                ),
+                showInternal:
+                  endpointUrl.searchParams.get('showInternal') === '1',
+              })
+              if (!history) {
+                res.statusCode = 503
+                res.end(
+                  JSON.stringify({
+                    error: 'Request Insights history is not ready',
+                  })
+                )
+                return
+              }
+              res.statusCode = 200
+              res.end(JSON.stringify(history))
+            } catch (error) {
+              if (
+                error instanceof Error &&
+                error.name === 'StaleRequestInsightsHistoryCursorError'
+              ) {
+                res.statusCode = 409
+                res.end(
+                  JSON.stringify({ error: 'Request Insights session changed' })
+                )
+                return
+              }
+              throw error
+            }
+            return
+          }
+
+          if (view === 'detail') {
+            const requestId = endpointUrl.searchParams.get('requestId')
+            const kindValue = endpointUrl.searchParams.get('kind')
+            if (
+              kindValue !== null &&
+              kindValue !== 'request' &&
+              kindValue !== 'instant-insights'
+            ) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Invalid request kind' }))
+              return
+            }
+            const kind =
+              kindValue === 'instant-insights' ? 'instant-insights' : undefined
+            if (!requestId || requestId.length > 256) {
+              res.statusCode = 400
+              res.end(
+                JSON.stringify({ error: 'A valid requestId is required' })
+              )
+              return
+            }
+
+            const memoryRequest = getRequestInsightsSnapshot().requests.find(
+              (request) =>
+                request.requestId === requestId && request.kind === kind
+            )
+            if (memoryRequest) {
+              res.statusCode = 200
+              res.end(JSON.stringify({ request: memoryRequest }))
+              return
+            }
+
+            const [request] = await readRequestInsightsHistory({
+              requestId,
+              kind,
+              limit: 1,
+            })
+            res.statusCode = request ? 200 : 404
+            res.end(
+              JSON.stringify(
+                request ? { request } : { error: 'Request insight not found' }
+              )
+            )
+            return
+          }
+        } else if (view === 'history' || view === 'detail') {
+          res.statusCode = 404
+          res.end(JSON.stringify({ error: 'Request Insights is dev-only' }))
           return
         }
 
@@ -900,6 +1018,21 @@ export async function initialize(opts: {
       }
       res.statusCode = 500
       res.end('Internal Server Error')
+    }
+  }
+
+  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    try {
+      return await requestHandlerInner(req, res)
+    } finally {
+      if (opts.dev && config.experimental.requestInsights) {
+        const identity = getRequestMeta(req, 'requestInsightsIdentity')
+        if (identity) {
+          void waitForResponseToFinish(res).then(() => {
+            completeRequestInsight(identity)
+          })
+        }
+      }
     }
   }
 

@@ -79,6 +79,7 @@ import {
   fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
+import { initializeRequestInsightsJournal } from '../trace/request-insights-journal'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -210,6 +211,9 @@ async function startWatcher(
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+  if (nextConfig.experimental.requestInsights) {
+    await initializeRequestInsightsJournal(distDir)
+  }
 
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {
