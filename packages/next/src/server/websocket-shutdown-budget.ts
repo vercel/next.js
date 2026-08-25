@@ -43,3 +43,15 @@ export const HTTP_SERVER_CLOSE_GRACE_PERIOD_MS = 5_000
  * best-effort and must return.
  */
 export const PREPARE_CLOSE_GRACE_PERIOD_MS = 10_000
+
+/**
+ * Inactivity budget for the pre-commit upgrade window. Once Node emits
+ * `upgrade`, its HTTP headers/request timeouts no longer govern the socket,
+ * so a client that sends a valid handshake and then stops moving bytes could
+ * otherwise pin a stalled handler or a backpressured raw response write
+ * indefinitely. The timer fires on total inactivity only and is cleared when
+ * ownership moves to a committed response or the connection registry. The
+ * value matches Node's headersTimeout class: a handler whose legitimate work
+ * takes longer is already pathological for a handshake phase.
+ */
+export const PENDING_UPGRADE_IDLE_TIMEOUT_MS = 60_000

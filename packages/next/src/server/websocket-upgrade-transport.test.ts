@@ -649,7 +649,9 @@ describe('Next-owned WebSocket upgrade transport', () => {
     invalidCodes.push({ valueOf, toString })
     for (const code of invalidCodes) {
       expect(() => close(code)).toThrow(
-        new TypeError('First argument must be a valid error code number')
+        new TypeError(
+          'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+        )
       )
       expect(connection.getReadyState()).toBe(ws.OPEN)
     }
@@ -674,7 +676,7 @@ describe('Next-owned WebSocket upgrade transport', () => {
     ]
     for (const reason of invalidReasons) {
       expect(() => close(4000, reason)).toThrow(
-        new TypeError('Second argument must be a string')
+        new TypeError('peer.close(): `reason` must be a string.')
       )
       expect(connection.getReadyState()).toBe(ws.OPEN)
     }
@@ -683,21 +685,25 @@ describe('Next-owned WebSocket upgrade transport', () => {
     const reason124 = `${'é'.repeat(61)}ab`
     expect(Buffer.byteLength(reason124)).toBe(124)
     expect(() => close(4000, reason124)).toThrow(
-      new RangeError('The message must not be greater than 123 bytes')
+      new RangeError('peer.close(): `reason` must be at most 123 UTF-8 bytes.')
     )
     expect(connection.getReadyState()).toBe(ws.OPEN)
     expect(() => close(4000, '𐍈'.repeat(31))).toThrow(
-      new RangeError('The message must not be greater than 123 bytes')
+      new RangeError('peer.close(): `reason` must be at most 123 UTF-8 bytes.')
     )
     expect(connection.getReadyState()).toBe(ws.OPEN)
     expect(() => close(1000.5, Buffer.from('reason'))).toThrow(
-      new TypeError('First argument must be a valid error code number')
+      new TypeError(
+        'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+      )
     )
 
     close(3000, 'ok')
     expect(connection.getReadyState()).toBe(ws.CLOSING)
     expect(() => close(1006.5)).toThrow(
-      new TypeError('First argument must be a valid error code number')
+      new TypeError(
+        'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+      )
     )
     expect(readClose(await bytes.readFrame())).toEqual({
       code: 3000,
@@ -1217,7 +1223,7 @@ describe('Next-owned WebSocket upgrade transport', () => {
     expect(await bytes.readToEnd()).toHaveLength(0)
   })
 
-  it('keeps wsClientError failures under Next raw-response ownership', async () => {
+  it('answers a wsClientError rejection as a Next-owned 400, not a server error', async () => {
     let keyReads = 0
     const instance = await harness({
       beforeUpgrade(request) {
@@ -1236,11 +1242,12 @@ describe('Next-owned WebSocket upgrade transport', () => {
     socket.write(rawHandshakeRequest(instance))
     const settlement = await instance.waitForUpgrade()
 
-    expect(settlement.error?.message).toBe(
+    expect(settlement.error).toBeUndefined()
+    expect(settlement.outcome).toEqual({ statusCode: 400, upgraded: false })
+    expect(getRawHttpResponseStatus(settlement.socket)).toBe(400)
+    expect((await bytes.readToEnd()).toString()).toContain(
       'Missing or invalid Sec-WebSocket-Key header'
     )
-    expect(getRawHttpResponseStatus(settlement.socket)).toBeUndefined()
-    expect(await bytes.readToEnd()).toHaveLength(0)
   })
 
   it('rejects malformed extension grammar as a Next-owned 400 response', async () => {

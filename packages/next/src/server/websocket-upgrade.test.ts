@@ -428,7 +428,9 @@ describe('WebSocket transport lifecycle', () => {
     for (const code of invalidCodes) {
       reset()
       expect(() => close(code)).toThrow(
-        new TypeError('First argument must be a valid error code number')
+        new TypeError(
+          'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+        )
       )
       expect(websocket.close).not.toHaveBeenCalled()
     }
@@ -452,7 +454,7 @@ describe('WebSocket transport lifecycle', () => {
     ]) {
       reset()
       expect(() => close(1000, reason)).toThrow(
-        new TypeError('Second argument must be a string')
+        new TypeError('peer.close(): `reason` must be a string.')
       )
       expect(websocket.close).not.toHaveBeenCalled()
     }
@@ -461,14 +463,18 @@ describe('WebSocket transport lifecycle', () => {
     for (const reason of ['x'.repeat(124), '𐍈'.repeat(31)]) {
       reset()
       expect(() => close(1000, reason)).toThrow(
-        new RangeError('The message must not be greater than 123 bytes')
+        new RangeError(
+          'peer.close(): `reason` must be at most 123 UTF-8 bytes.'
+        )
       )
       expect(websocket.close).not.toHaveBeenCalled()
     }
 
     reset()
     expect(() => close(1000.5, Buffer.from('x'))).toThrow(
-      new TypeError('First argument must be a valid error code number')
+      new TypeError(
+        'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+      )
     )
     expect(websocket.close).not.toHaveBeenCalled()
 
@@ -1020,18 +1026,21 @@ describe('WebSocket transport lifecycle', () => {
 
   it('owns ws client validation errors without allowing a hidden raw response', async () => {
     const clientError = new Error('ws rejected the handshake')
-    mockHandleUpgrade = (server) => {
-      server.emit('wsClientError', clientError)
+    mockHandleUpgrade = (server, request, socket) => {
+      // The vendored ws emits wsClientError(error, socket, req).
+      server.emit('wsClientError', clientError, socket, request)
     }
     const { result, server, socket } = beginUpgrade()
 
-    await expect(result).rejects.toBe(clientError)
+    await expect(result).resolves.toEqual({
+      statusCode: 400,
+      upgraded: false,
+    })
     const { getRawHttpResponseStatus } =
       require('./websocket-http') as typeof import('./websocket-http')
     expect(server.listenerCount('wsClientError')).toBe(1)
-    expect(getRawHttpResponseStatus(socket)).toBeUndefined()
-    expect(socket.destroyed).toBe(false)
-    socket.destroy()
+    expect(getRawHttpResponseStatus(socket)).toBe(400)
+    expect(socket.destroyed).toBe(true)
   })
 
   it('preserves a headers-phase exception and destroys an already-committed socket', async () => {

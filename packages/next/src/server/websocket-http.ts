@@ -100,11 +100,7 @@ function markRawSocketIoError(error: unknown): unknown {
 }
 
 export function isWebSocketClientDisconnectError(error: unknown): boolean {
-  try {
-    return error instanceof Error && rawSocketIoErrors.has(error)
-  } catch {
-    return false
-  }
+  return error instanceof Error && rawSocketIoErrors.has(error)
 }
 
 function isRawHttpErrorForbiddenHeader(name: string): boolean {
@@ -170,11 +166,6 @@ function getWebSocketRequestAuthority(req: IncomingMessage): URL | undefined {
   } catch {
     return undefined
   }
-}
-
-function validateResponseHeader(name: string, value: string): void {
-  validateHeaderName(name)
-  validateHeaderValue(name, value)
 }
 
 function isSocketDisconnected(socket: Duplex): boolean {
@@ -556,17 +547,18 @@ function getResponseHeaderLines(headers: Headers): string[] {
   const lines: string[] = []
 
   headers.forEach((value, name) => {
-    const lowerName = name.toLowerCase()
-    if (isInternalWebSocketResponseHeader(lowerName)) return
+    if (isInternalWebSocketResponseHeader(name)) return
 
     validateHeaderName(name)
-    if (lowerName === 'set-cookie') {
+    if (name.toLowerCase() === 'set-cookie') {
+      // A Headers instance folds repeated Set-Cookie fields into one line;
+      // restore the one-value-per-line wire format.
       for (const cookie of splitCookiesString(value)) {
         validateHeaderValue(name, cookie)
         lines.push(`${name}: ${cookie}`)
       }
     } else {
-      validateResponseHeader(name, value)
+      validateHeaderValue(name, value)
       lines.push(`${name}: ${value}`)
     }
   })
@@ -584,10 +576,7 @@ function isInternalWebSocketResponseHeader(name: string): boolean {
 }
 
 export function getUpgradeResponseHeaderLines(response: Response): string[] {
-  const headers = new Headers(response.headers)
-  for (const name of Array.from(headers.keys())) {
-    if (isInternalWebSocketResponseHeader(name)) headers.delete(name)
-  }
+  const headers = response.headers
 
   for (const name of headers.keys()) {
     if (isForbiddenWebSocketUpgradeResponseHeader(name)) {
@@ -598,6 +587,10 @@ export function getUpgradeResponseHeaderLines(response: Response): string[] {
   }
 
   headers.forEach((value, name) => {
+    // ws serializes the 101 head as raw latin1 bytes; obs-text (0x80-0xFF)
+    // would silently mojibake through the handshake. Application headers are
+    // therefore restricted to visible ASCII even though Node's latin1-based
+    // validateHeaderValue would permit them.
     if (!UPGRADE_RESPONSE_HEADER_VALUE.test(value)) {
       throw new TypeError(
         `WebSocket upgrade response header "${name.toLowerCase()}" must contain only visible ASCII characters, spaces, and tabs.`
@@ -961,6 +954,10 @@ export async function preflightWebSocketUpgrade(
   req: IncomingMessage,
   socket: Duplex
 ): Promise<WebSocketUpgradePreflightResult> {
+  // Internal headers carry routing state between Next.js processes; strip them
+  // from every upgrade request, not only WebSocket-protocol ones.
+  filterWebSocketUpgradeRequestHeaders(req)
+
   if (!isWebSocketUpgradeRequest(req)) {
     return { kind: 'not-websocket' }
   }
@@ -974,7 +971,6 @@ export async function preflightWebSocketUpgrade(
     )
   }
 
-  filterWebSocketUpgradeRequestHeaders(req)
   const framingError = validateWebSocketUpgradeFraming(req)
   if (!framingError) {
     return { kind: 'continue-routing' }
@@ -1037,7 +1033,13 @@ export function validateWebSocketHandshake(
     return { status: 400, message: 'Invalid WebSocket Origin header.' }
   }
 
-  if (req.headers.upgrade?.toLowerCase() !== 'websocket') {
+  // RFC 6455 defines Upgrade as a list-valued field; membership in it is the
+  // same predicate the routing classifier (isWebSocketUpgradeRequest) uses.
+  if (
+    !req.headers.upgrade
+      ?.split(',')
+      .some((value) => value.trim().toLowerCase() === 'websocket')
+  ) {
     return { status: 400, message: 'Invalid WebSocket Upgrade header.' }
   }
   const connection = req.headers.connection
@@ -1062,11 +1064,8 @@ export function validateWebSocketHandshake(
   }
 
   const key = req.headers['sec-websocket-key']
-  if (
-    typeof key !== 'string' ||
-    !/^[+/0-9A-Za-z]{22}==$/.test(key) ||
-    Buffer.from(key, 'base64').byteLength !== 16
-  ) {
+  // 16 bytes of base64 always encode to exactly this shape.
+  if (typeof key !== 'string' || !/^[+/0-9A-Za-z]{22}==$/.test(key)) {
     return { status: 400, message: 'Invalid Sec-WebSocket-Key header.' }
   }
 
@@ -1125,8 +1124,10 @@ export function validateWebSocketOrigin(
 ): WebSocketHandshakeError | undefined {
   const originValues = getRawHeaderValues(req, 'origin')
   if (originValues.length === 0) return undefined
+  // Duplicate Origin fields fail the handshake as malformed; the status
+  // matches validateWebSocketHandshake's framing rejection.
   if (originValues.length !== 1) {
-    return { status: 403, message: 'WebSocket origin is not allowed.' }
+    return { status: 400, message: 'Invalid WebSocket Origin header.' }
   }
   const originHeader = originValues[0]
 

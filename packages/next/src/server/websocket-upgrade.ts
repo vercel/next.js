@@ -194,6 +194,8 @@ interface PendingUpgrade {
   headerLines: string[]
   connection: ConnectionContext
   request: NextRequest
+  /** Set when ws rejects the handshake after Next's pre-validation accepted it. */
+  clientError?: Error
 }
 
 type MeasuredWebSocketData =
@@ -308,7 +310,7 @@ class NextWebSocketPeer implements WebSocketTransportPeer {
 
     const measured = measureWebSocketData(data)
     if (measured.byteLength > MAX_OUTBOUND_BUFFER_BYTES) {
-      closeWebSocketForOutboundFailure(
+      closeWebSocketAfterFailure(
         this.#websocket,
         1009,
         'WebSocket message is too large'
@@ -316,7 +318,7 @@ class NextWebSocketPeer implements WebSocketTransportPeer {
       return bufferedAmount
     }
     if (bufferedAmount > MAX_OUTBOUND_BUFFER_BYTES - measured.byteLength) {
-      closeWebSocketForOutboundFailure(
+      closeWebSocketAfterFailure(
         this.#websocket,
         1008,
         'WebSocket outbound buffer limit exceeded'
@@ -331,14 +333,18 @@ class NextWebSocketPeer implements WebSocketTransportPeer {
   close(code?: number, reason?: string): void {
     if (code !== undefined) {
       if (typeof code !== 'number' || !isValidCloseCode(code)) {
-        throw new TypeError('First argument must be a valid error code number')
+        throw new TypeError(
+          'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+        )
       }
       if (reason !== undefined) {
         if (typeof reason !== 'string') {
-          throw new TypeError('Second argument must be a string')
+          throw new TypeError('peer.close(): `reason` must be a string.')
         }
         if (Buffer.byteLength(reason) > 123) {
-          throw new RangeError('The message must not be greater than 123 bytes')
+          throw new RangeError(
+            'peer.close(): `reason` must be at most 123 UTF-8 bytes.'
+          )
         }
       }
     }
@@ -536,14 +542,6 @@ function isWebSocketOpen(websocket: VendoredWebSocket): boolean {
   return websocket.readyState === 1
 }
 
-function closeWebSocketForOutboundFailure(
-  websocket: VendoredWebSocket,
-  code: number,
-  reason: string
-): void {
-  closeWebSocketAfterFailure(websocket, code, reason)
-}
-
 function handleOpenEvent(
   owned: WebSocketConnection,
   connection: ConnectionContext,
@@ -556,7 +554,12 @@ function handleOpenEvent(
       connection.transportContext
     ) === false
   ) {
+    // Refusal after the 101 response must still dispose of the socket: leaving
+    // it open would blackhole the accepted connection until client timeout.
     connection.closed = true
+    closeAndResumeWebSocket(owned.websocket, () =>
+      owned.websocket.close(1013, 'Try Again Later')
+    )
     return
   }
 
@@ -695,7 +698,7 @@ function handlePingEvent(owned: WebSocketConnection, data: Buffer): void {
 
   const bufferedAmount = getWebSocketBufferedAmount(owned.websocket)
   if (bufferedAmount > MAX_OUTBOUND_BUFFER_BYTES - data.byteLength) {
-    closeWebSocketForOutboundFailure(
+    closeWebSocketAfterFailure(
       owned.websocket,
       1008,
       'WebSocket outbound buffer limit exceeded'
@@ -825,9 +828,17 @@ export function createWebSocketUpgradeTransport(
 
   // A listener prevents ws from writing its own raw HTTP rejection. Next
   // pre-validates a stricter handshake and owns every fallback response.
-  wss.on('wsClientError', (error: Error) => {
-    throw error
-  })
+  // If the two validators ever drift (e.g. a ws upgrade adds a check Next did
+  // not pre-validate), record the failure per request so handleUpgrade
+  // answers a 400-class client fault instead of surfacing a 500.
+  // The vendored ws emits wsClientError(error, socket, req).
+  wss.on(
+    'wsClientError',
+    (error: Error, _socket: Duplex, request: IncomingMessage) => {
+      const pending = pendingUpgrades.get(request)
+      if (pending) pending.clientError = error
+    }
+  )
   wss.on('headers', (headers, request) => {
     const pending = pendingUpgrades.get(request)
     if (!pending) {
@@ -925,6 +936,16 @@ export function createWebSocketUpgradeTransport(
         throw error
       } finally {
         pendingUpgrades.delete(req)
+      }
+
+      if (pending.clientError) {
+        // ws rejected a handshake that Next's pre-validation let through. This
+        // is a client protocol violation, not a server failure; ws guarantees
+        // an unwritten socket when a wsClientError listener exists.
+        if (getRawHttpResponseStatus(socket) === undefined) {
+          await writeRawHttpError(req, socket, 400, pending.clientError.message)
+        }
+        return { statusCode: 400, upgraded: false }
       }
 
       if (!callbackInvoked || getRawHttpResponseStatus(socket) !== 101) {
