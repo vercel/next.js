@@ -1,6 +1,6 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "15.5.23",
+  "version": "15.5.24",
   "main": "index.js",
   "types": "index.d.ts",
   "license": "MIT",
