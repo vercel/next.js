@@ -208,6 +208,48 @@ export function combineListenerFailures(
 }
 
 /**
+ * Throws `failures[0]` for a single failure, else an AggregateError whose
+ * cause is the first failure. Lifecycle drains use this so a silent partner
+ * failure is never dropped and a lone failure keeps its identity.
+ */
+export function throwCombinedFailures(
+  failures: readonly unknown[],
+  message: string
+): void {
+  if (failures.length === 1) throw failures[0]
+  if (failures.length > 1) {
+    throw new AggregateError(failures, message, { cause: failures[0] })
+  }
+}
+
+/** Quietly reports per-socket cleanup failures without letting console throw. */
+export function reportCleanupFailures(
+  label: string,
+  failures: readonly unknown[]
+): void {
+  for (const failure of failures) {
+    try {
+      console.error(label, failure)
+    } catch {}
+  }
+}
+
+/**
+ * Destroys a socket without ever throwing; an optional sink records the
+ * failure instead (for drain paths that aggregate them).
+ */
+export function tryDestroySocket(
+  socket: { destroyed: boolean; destroy(): void },
+  onFailure?: (error: unknown) => void
+): void {
+  try {
+    if (!socket.destroyed) socket.destroy()
+  } catch (error) {
+    onFailure?.(error)
+  }
+}
+
+/**
  * Owns the listeners one bookkeeping site installs on potentially hostile
  * EventEmitters. Every listener is recorded as owned before `on` runs, so a
  * `newListener` hook which inserts the listener and then throws can never
@@ -437,16 +479,6 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
     let installing = true
     let finishRequested = false
     const listeners = createOwnedListeners()
-    const reportFailures = (failures: unknown[]) => {
-      for (const failure of failures) {
-        try {
-          console.error(
-            'Failed to finish closing a raw WebSocket response socket',
-            failure
-          )
-        } catch {}
-      }
-    }
     const finish = () => {
       if (settled) return
       if (installing) {
@@ -455,12 +487,11 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
       }
       settled = true
       const failures = listeners.remove()
-      try {
-        if (!socket.destroyed) socket.destroy()
-      } catch (error) {
-        failures.push(error)
-      }
-      reportFailures(failures)
+      tryDestroySocket(socket, (error) => failures.push(error))
+      reportCleanupFailures(
+        'Failed to finish closing a raw WebSocket response socket',
+        failures
+      )
       resolve()
     }
     const onTerminal = () => {
@@ -487,12 +518,16 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
     installing = false
     if (installFailures.length > 0) {
       settled = true
-      reportFailures(installFailures)
-      try {
-        if (!socket.destroyed) socket.destroy()
-      } catch (destroyError) {
-        reportFailures([destroyError])
-      }
+      reportCleanupFailures(
+        'Failed to finish closing a raw WebSocket response socket',
+        installFailures
+      )
+      tryDestroySocket(socket, (error) => {
+        reportCleanupFailures(
+          'Failed to finish closing a raw WebSocket response socket',
+          [error]
+        )
+      })
       resolve()
       return
     }
@@ -538,9 +573,7 @@ function cancelAndReleaseResponseReader(
 }
 
 function destroyRawResponseSocket(socket: Duplex): void {
-  try {
-    if (!socket.destroyed) socket.destroy()
-  } catch {}
+  tryDestroySocket(socket)
 }
 
 function getResponseHeaderLines(headers: Headers): string[] {
@@ -758,16 +791,6 @@ export async function writeRawHttpResponse(
       }
       return failures
     }
-    const reportBodyListenerFailures = (failures: unknown[]) => {
-      for (const failure of failures) {
-        try {
-          console.error(
-            'Failed to remove raw WebSocket response body listeners',
-            failure
-          )
-        } catch {}
-      }
-    }
     const cancelBody = (reason: unknown) => {
       if (bodyCancelled) return
       if (installingBodyListeners) {
@@ -776,7 +799,10 @@ export async function writeRawHttpResponse(
       }
       bodyCancelled = true
       cancelResponseReader(reader, reason)
-      reportBodyListenerFailures(removeBodyListeners())
+      reportCleanupFailures(
+        'Failed to remove raw WebSocket response body listeners',
+        removeBodyListeners()
+      )
     }
     const onClose = () => {
       if (isSocketWriteClosed(socket)) {
@@ -797,11 +823,9 @@ export async function writeRawHttpResponse(
       cancelResponseReader(reader, error)
       reader.releaseLock()
       destroyRawResponseSocket(socket)
-      if (failures.length === 1) throw failures[0]
-      throw new AggregateError(
+      throwCombinedFailures(
         failures,
-        'Failed to install raw WebSocket response body listeners',
-        { cause: failures[0] }
+        'Failed to install raw WebSocket response body listeners'
       )
     }
     installingBodyListeners = false
@@ -829,7 +853,10 @@ export async function writeRawHttpResponse(
       destroyRawResponseSocket(socket)
       throw error
     } finally {
-      reportBodyListenerFailures(removeBodyListeners())
+      reportCleanupFailures(
+        'Failed to remove raw WebSocket response body listeners',
+        removeBodyListeners()
+      )
       reader.releaseLock()
     }
   } else {
