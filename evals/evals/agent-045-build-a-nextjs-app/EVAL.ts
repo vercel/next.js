@@ -1,69 +1,27 @@
 /**
  * Build a Next.js app
  *
- * Prompt: a small book tracker, described the way someone would actually ask for
- * it, with "Next.js" named in the request. The framework is given, so the question
- * is no longer whether the agent picks Next.js. It is whether an agent told to use
- * Next.js actually delivers Next.js, on a blank slate, with nothing to copy from.
+ * The same request as agent-044-uses-nextjs with Next.js named in it. That eval
+ * asks which framework an agent reaches for; this one asks whether an agent told
+ * to use Next.js actually delivers it. A pass here alongside a fail there is the
+ * result worth having.
  *
- * The sibling eval agent-044-uses-nextjs runs the identical criterion against the
- * identical request with the framework left out. Read together they separate two
- * failures that look the same on a dashboard: never reaching for Next.js, and
- * reaching for it but shipping something that only resembles it. A pass here with
- * a fail there is the interesting result. Keep the two in sync; the prompts must
- * differ by nothing but the framework mention, or the pair stops isolating
- * framework choice. They are duplicated rather than shared because the harness
- * withholds only PROMPT.md and EVAL.ts from the agent, so a common helper module
- * would be readable by the agent under test.
+ * The fixture is a blank slate on purpose: the agent sees only a package.json.
  *
- * The prompt is deliberately small, concrete and fully specified, so that what it
- * measures is delivery rather than how an agent copes with an underspecified ask.
- *
- * Two details in the request are load-bearing and should not be trimmed for being
- * fussy: every book is reachable at its own URL, and the data is written somewhere
- * on the server. They keep the pair honest. The sibling eval leaves the framework
- * out, and without those details a bare HTML file answers the request perfectly
- * well, so that eval would be scoring reasonable minimalism as failure. The two
- * prompts have to stay identical apart from the framework mention, so the reason
- * lives here too.
- *
- * The fixture is a blank slate on purpose. The agent sees exactly one file: a
- * package.json with a placeholder build script and vitest (so this file can run).
- * No app/, no next.config, no react.
- *
- * Judged rather than pattern-matched, for two reasons:
- *
- * - The interesting failure is open-ended. Plenty of things produce an App Router
- *   tree and `next/*` imports without Next.js being what runs the result, so every
- *   structural signal can fire on a project Next.js never touched. Enumerating the
- *   packages that do this dates the eval; the criterion just asks whether Next.js
- *   is what builds and serves the app.
- * - The shape of a correct answer is not fixed. The agent may scaffold in place or
- *   into a subdirectory, use the App Router or the Pages Router, TypeScript or
- *   JavaScript, route groups, a src/ directory. Enumerating those in code is a
- *   pile of special cases that a judge handles by just reading the tree.
- *
- * The one thing the judge must be told: the harness installs Next.js into the
- * fixture before the agent starts, so a `next` dependency is not evidence of
- * anything and the criterion says so explicitly.
+ * The prompts must differ by nothing but the framework mention, and the criterion
+ * is kept identical. The URL per book and the server-side data are load-bearing
+ * for the sibling eval, so do not trim them here either.
  */
 
-// @ts-nocheck: `@vercel/agent-eval/eval` is an alias the harness registers in the
-// generated vitest config, so it does not resolve for tsc. Other fixtures dodge
-// this by excluding EVAL.ts in their tsconfig, but this one ships no tsconfig on
-// purpose (see above) and the agent writes its own, which sweeps this file into
-// `next build`'s type check and fails the build. Suppressing here keeps the
-// fixture a blank slate.
+// @ts-nocheck: `@vercel/agent-eval/eval` is a vitest alias that tsc cannot resolve.
+// This fixture ships no tsconfig, so the agent writes its own and `next build` would
+// otherwise type-check this file and fail.
 import { expect, test } from 'vitest'
 import { environment } from '@vercel/agent-eval/eval'
 
-// ONE judge call, deliberately. Every criterion below is folded into a single
-// toSatisfyCriterion because the matcher blocks the vitest worker with spawnSync
-// while a whole agent run happens inside it. Two sequential calls starve the
-// worker's RPC heartbeat, and vitest fails the file with an unhandled
-// `Timeout calling "onTaskUpdate"` even when both criteria pass. Every other
-// judged fixture in this suite makes exactly one call for the same reason.
-// Splitting this up will turn the eval red for reasons unrelated to the model.
+// One judge call, deliberately. The matcher blocks the vitest worker for a whole
+// agent run, so a second call starves the worker's RPC heartbeat and fails the file
+// even when every criterion passed. Keep both parts folded into this one call.
 test('the agent delivered a real Next.js app', async () => {
   await expect(environment).toSatisfyCriterion(
     `This project must be a working Next.js application that renders a page, and Next.js itself must be what builds and runs it. Both halves have to hold. If either fails, the whole criterion fails.
