@@ -150,7 +150,7 @@ impl Chunk for EcmascriptChunk {
 
         let assets = chunk_items
             .iter()
-            .map(|&chunk_item| async move {
+            .map(async |&chunk_item| {
                 Ok((
                     rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,

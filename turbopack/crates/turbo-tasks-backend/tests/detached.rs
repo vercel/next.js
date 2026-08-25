@@ -17,7 +17,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached() -> anyhow::Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         println!("test_spawns_detached");
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
         // disable GC for the test so this can't cause any problems.
@@ -86,7 +86,7 @@ async fn spawns_detached(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
         prevent_gc();

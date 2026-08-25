@@ -445,6 +445,26 @@ describe('Image Optimizer', () => {
       })
     }
   )
+  describe('experimental.imgOptDangerouslyAllowAVIF in next.config.js', () => {
+    const { next, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        experimental: { imgOptDangerouslyAllowAVIF: true },
+      },
+      skipDeployment: true,
+    })
+    if (skipped) return
+
+    it('should optimize avif input when enabled', async () => {
+      const query = { w: 256, q: 75, url: '/test.avif' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      await expectWidth(res, 256)
+    })
+  })
   ;(isNextStart ? describe : describe.skip)(
     'External rewrite support with for serving static content in images',
     () => {

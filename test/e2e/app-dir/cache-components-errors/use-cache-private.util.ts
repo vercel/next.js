@@ -23,7 +23,6 @@ export function registerUseCachePrivateTests(
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": "Server",
                  "label": "Runtime Error",
@@ -39,7 +38,6 @@ export function registerUseCachePrivateTests(
           } else {
             await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": "Server",
                  "label": "Runtime Error",
@@ -149,7 +147,6 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1001",
              "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
              "environmentLabel": "Cache",
              "label": "Runtime Error",
@@ -277,7 +274,6 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1427",
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

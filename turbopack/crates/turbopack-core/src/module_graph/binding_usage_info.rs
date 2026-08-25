@@ -150,7 +150,7 @@ pub async fn compute_binding_usage_info(
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
             &mut (),
-            |parent, target, _| {
+            |parent, target, _, _| {
                 // Entries are always used
                 let Some((parent, ref_data, edge)) = parent else {
                     used_exports.insert(target, ModuleExportUsageInfo::All);

@@ -81,7 +81,7 @@ export async function walkTreeWithFlightRouterState({
     parsedRequestHeaders,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const partialPrefetching = ctx.renderOpts.partialPrefetching
+  const partialPrefetching = Boolean(ctx.renderOpts.partialPrefetching)
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 

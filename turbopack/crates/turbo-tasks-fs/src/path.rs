@@ -1,6 +1,6 @@
 //! [`FileSystemPath`] and the path-resolution operations built on top of it.
 
-use std::path::MAIN_SEPARATOR;
+use std::{error::Error, fmt, path::MAIN_SEPARATOR};
 
 use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
@@ -11,12 +11,13 @@ use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
     turbobail, turbofmt,
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta, FileSystem,
-    FileSystemEntryType, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
-    ReadGlobResult,
+    FileSystemEntryType, LinkContent, RawDirectoryContent, RawDirectoryEntry, ReadGlobResult,
+    WriteLinkContent,
     glob::Glob,
     read_glob::{read_glob, track_glob},
 };
@@ -390,12 +391,25 @@ impl FileSystemPath {
         self.fs().read_link(self.clone())
     }
 
+    pub fn is_junction_point(&self) -> Vc<bool> {
+        self.fs().is_junction_point(self.clone())
+    }
+
     pub fn read_json(&self) -> Vc<FileJsonContent> {
         self.fs().read(self.clone()).parse_json()
     }
 
     pub fn read_json5(&self) -> Vc<FileJsonContent> {
         self.fs().read(self.clone()).parse_json5()
+    }
+
+    /// Hashes the file content (but not as a byte-exact content hash). This does NOT follow
+    /// symlinks, so use this when you only want the hash of the file itself, not whatever it
+    /// might point to.
+    ///
+    /// This is basically `isSymlink ? self.read_link().hash() : self.read().hash()`.
+    pub fn hash_file(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        hash_file(self.clone(), salt, algorithm)
     }
 
     /// Reads content of a directory.
@@ -410,24 +424,20 @@ impl FileSystemPath {
         self.fs().write(self.clone(), content)
     }
 
-    /// Creates a symbolic link to a directory on *nix platforms, or a directory junction point on
-    /// Windows.
+    /// Creates a symbolic link on *nix platforms. On Windows, directory links are created as
+    /// junction points. Links to files on Windows are attempted to be created as symbolic links.
     ///
     /// [Windows supports symbolic links][windows-symlink], but they [can require elevated
     /// privileges][windows-privileges] if "developer mode" is not enabled, so we can't safely use
     /// them. Using junction points [matches the behavior of pnpm][pnpm-windows].
     ///
-    /// This only supports directories because Windows junction points are incompatible with files.
-    /// To ensure compatibility, this will return an error if the target is a file, even on
-    /// platforms with full symlink support.
-    ///
-    /// **We intentionally do not provide an API for symlinking a file**, as we cannot support that
-    /// on all Windows configurations.
+    /// It is not recommended to create non-directory links, as this is not portable and will likely
+    /// fail on Windows.
     ///
     /// [windows-symlink]: https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/
     /// [windows-privileges]: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links
     /// [pnpm-windows]: https://pnpm.io/faq#does-it-work-on-windows
-    pub fn write_symbolic_link_dir(&self, target: Vc<LinkContent>) -> Vc<()> {
+    pub fn write_link(&self, target: Vc<WriteLinkContent>) -> Vc<()> {
         self.fs().write_link(self.clone(), target)
     }
 
@@ -435,14 +445,12 @@ impl FileSystemPath {
         self.fs().metadata(self.clone())
     }
 
-    // Returns the realpath to the file, resolving all symlinks and reporting an error if the path
-    // is invalid.
-    pub async fn realpath(&self) -> Result<FileSystemPath> {
-        let result = &(*self.realpath_with_links().await?);
-        match &result.path_result {
-            Ok(path) => Ok(path.clone()),
-            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
-        }
+    /// Returns the realpath to the file, resolving all symlinks.
+    ///
+    /// The outer [`anyhow::Error`] represents an internal error in turbo-tasks. Any other error is
+    /// represented using a structured `RealPathError`.
+    pub async fn realpath(&self) -> Result<Result<FileSystemPath, RealPathError>> {
+        Ok(self.realpath_with_links().await?.path_result.clone())
     }
 
     pub fn rebase(
@@ -483,59 +491,81 @@ impl FileSystemPath {
         get_type(self.clone())
     }
 
-    pub fn realpath_with_links(&self) -> Vc<RealPathResult> {
+    pub fn realpath_with_links(&self) -> Vc<RealPathWithLinksResult> {
         realpath_with_links(self.clone())
     }
 }
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
-pub struct RealPathResult {
-    pub path_result: Result<FileSystemPath, RealPathResultError>,
-    pub symlinks: Vec<FileSystemPath>,
+pub struct RealPathWithLinksResult {
+    pub path_result: Result<FileSystemPath, RealPathError>,
+    pub symlinks: Box<[FileSystemPath]>,
 }
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
-pub enum RealPathResultError {
-    TooManySymlinks,
-    CycleDetected,
-    Invalid,
-    NotFound,
+pub struct RealPathError {
+    original_path: FileSystemPath,
+    kind: RealPathErrorType,
 }
 
-impl RealPathResultError {
-    /// Formats the error message
-    pub async fn as_error_message(
-        &self,
-        orig: &FileSystemPath,
-        result: &RealPathResult,
-    ) -> Result<RcStr> {
-        Ok(match self {
-            RealPathResultError::TooManySymlinks => {
-                let len = result.symlinks.len();
-                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
-            }
-            RealPathResultError::CycleDetected => {
-                // symlinks is Vec<FileSystemPath> — format with Debug since
-                // turbofmt can't resolve a whole Vec asynchronously.
-                let symlinks_dbg = format!(
-                    "{:?}",
-                    result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
-                );
-                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
-            }
-            RealPathResultError::Invalid => {
-                turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root").await?
-            }
-            RealPathResultError::NotFound => {
-                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
-                    .await?
-            }
-        })
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+pub enum RealPathErrorType {
+    TooManySymlinks {
+        symlinks: Box<[FileSystemPath]>,
+    },
+    CycleDetected {
+        symlinks: Box<[FileSystemPath]>,
+    },
+    /// A symlink or path component does not exist.
+    NotFound,
+    /// Resolution failed after finding a symlink, or the symlink was invalid to begin with.
+    Invalid {
+        reason: RcStr,
+    },
+}
+
+impl RealPathError {
+    pub fn kind(&self) -> &RealPathErrorType {
+        &self.kind
     }
 }
+
+impl fmt::Display for RealPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.kind {
+            RealPathErrorType::TooManySymlinks { symlinks } => write!(
+                f,
+                "Symlink {} leads to too many other symlinks ({} links)",
+                self.original_path,
+                symlinks.len()
+            ),
+            RealPathErrorType::CycleDetected { symlinks } => write!(
+                f,
+                "Symlink {} is in a symlink loop: {:?}",
+                self.original_path,
+                symlinks
+                    .iter()
+                    .map(|symlink| &symlink.path)
+                    .collect::<Vec<_>>()
+            ),
+            RealPathErrorType::Invalid { reason } => write!(
+                f,
+                "Symlink {} could not be resolved: {reason}",
+                self.original_path
+            ),
+            RealPathErrorType::NotFound => write!(
+                f,
+                "Path {} could not be resolved because a component does not exist",
+                self.original_path
+            ),
+        }
+    }
+}
+
+impl Error for RealPathError {}
 
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
@@ -590,17 +620,28 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
 }
 
 #[turbo_tasks::function]
-async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>> {
+async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLinksResult>> {
+    let error_result = |original_path, kind, symlinks| {
+        RealPathWithLinksResult {
+            path_result: Err(RealPathError {
+                original_path,
+                kind,
+            }),
+            symlinks,
+        }
+        .cell()
+    };
+
+    let original_path = path.clone();
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
     let mut visited: AutoSet<RcStr> = AutoSet::new();
-    let mut error = RealPathResultError::TooManySymlinks;
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
         if current_path.is_root() {
             // fast path
-            return Ok(RealPathResult {
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
             }
@@ -608,8 +649,14 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         }
 
         if !visited.insert(current_path.path.clone()) {
-            error = RealPathResultError::CycleDetected;
-            break; // we detected a cycle
+            let symlinks: Box<[_]> = symlinks.into_iter().collect();
+            return Ok(error_result(
+                original_path,
+                RealPathErrorType::CycleDetected {
+                    symlinks: symlinks.clone(),
+                },
+                symlinks,
+            ));
         }
 
         // see if a parent segment of the path is a symlink and resolve that first
@@ -620,65 +667,92 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .rsplit_once('/')
             .map_or(current_path.path.as_str(), |(_, name)| name);
         symlinks.extend(parent_result.symlinks);
-        let parent_path = match parent_result.path_result {
+        match parent_result.path_result {
             Ok(path) => {
                 if path != parent {
                     current_path = path.join(basename)?;
                 }
-                path
             }
             Err(parent_error) => {
-                error = parent_error;
-                break;
+                let symlinks: Box<[_]> = symlinks.into_iter().collect();
+                return Ok(error_result(original_path, parent_error.kind, symlinks));
             }
-        };
+        }
 
         // use `get_type` before trying `read_link`, as there's a good chance of a cache hit on
         // `get_type`, and `read_link` isn't the common codepath.
-        if !matches!(
-            *current_path.get_type().await?,
-            FileSystemEntryType::Symlink
-        ) {
-            return Ok(RealPathResult {
+        let entry_type = *current_path.get_type().await?;
+        if !matches!(entry_type, FileSystemEntryType::Symlink) {
+            if matches!(entry_type, FileSystemEntryType::NotFound) {
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::NotFound,
+                    symlinks.into_iter().collect(),
+                ));
+            }
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
-                symlinks: symlinks.into_iter().collect(), // convert set to vec
+                symlinks: symlinks.into_iter().collect(),
             }
             .cell());
         }
 
-        match &*current_path.read_link().await? {
-            LinkContent::Link { target, link_type } => {
-                symlinks.insert(current_path.clone());
-                current_path = if link_type.contains(LinkType::ABSOLUTE) {
-                    current_path.root().owned().await?
-                } else {
-                    parent_path
-                }
-                .join(target)?;
+        let link_content = current_path.read_link().await?;
+        match &*link_content {
+            LinkContent::Link { target } => {
+                let target_path = target.file_system_path().clone();
+                symlinks.insert(current_path);
+                current_path = target_path;
             }
             LinkContent::NotFound => {
-                error = RealPathResultError::NotFound;
-                break;
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::NotFound,
+                    symlinks.into_iter().collect(),
+                ));
             }
-            LinkContent::Invalid => {
-                error = RealPathResultError::Invalid;
-                break;
+            LinkContent::Invalid { reason } => {
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::Invalid {
+                        reason: reason.clone(),
+                    },
+                    symlinks.into_iter().collect(),
+                ));
             }
         }
     }
 
-    // Too many attempts or detected a cycle, we bailed out!
-    //
-    // TODO: There's no proper way to indicate an non-turbo-tasks error here, so just return the
-    // original path and all the symlinks we followed.
-    //
+    // Too many attempts, we bailed out!
     // Returning the followed symlinks is still important, even if there is an error! Otherwise
     // we may never notice if the symlink loop is fixed.
-    Ok(RealPathResult {
-        path_result: Err(error),
-        symlinks: symlinks.into_iter().collect(),
+    let symlinks: Box<[_]> = symlinks.into_iter().collect();
+    Ok(error_result(
+        original_path,
+        RealPathErrorType::TooManySymlinks {
+            symlinks: symlinks.clone(),
+        },
+        symlinks,
+    ))
+}
+
+#[turbo_tasks::function]
+async fn hash_file(
+    path: FileSystemPath,
+    salt: Vc<RcStr>,
+    algorithm: HashAlgorithm,
+) -> Result<Vc<RcStr>> {
+    match *path.get_type().await? {
+        FileSystemEntryType::File => Ok(path.read().hash(salt, algorithm)),
+        FileSystemEntryType::Symlink => Ok(path.read_link().hash(salt, algorithm)),
+        FileSystemEntryType::NotFound | FileSystemEntryType::Error => {
+            // Should this rather be `return None`?
+            turbobail!("Cannot hash content of missing path {path}")
+        }
+        FileSystemEntryType::Directory | FileSystemEntryType::Other => {
+            turbobail!("Cannot hash content of non-file path {path}")
+        }
     }
-    .cell())
 }
 
 #[cfg(test)]
@@ -775,5 +849,171 @@ mod tests {
         })
         .await
         .unwrap()
+    }
+
+    mod hash_file {
+        use std::{
+            fs::{create_dir_all, write},
+            path::Path,
+        };
+
+        use turbo_tasks::OperationVc;
+
+        use super::*;
+        use crate::DiskFileSystem;
+
+        /// Creates a symbolic link, mirroring the platform handling of the `read_glob` tests. On
+        /// Windows a link to a directory is created as a junction point, which requires an
+        /// absolute target.
+        fn symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(target, link)
+            }
+            #[cfg(windows)]
+            {
+                if std::fs::metadata(target).is_ok_and(|metadata| metadata.is_dir()) {
+                    assert!(
+                        target.is_absolute(),
+                        "a junction point needs an absolute target"
+                    );
+                    std::os::windows::fs::junction_point(target, link)
+                } else {
+                    std::os::windows::fs::symlink_file(target, link)
+                }
+            }
+        }
+
+        /// Two directories that hold a file of the *same name* but with *different content*, each
+        /// with a symlink pointing at it through the *same* relative target. Plus the entry types
+        /// that `hash_file` has to tell apart.
+        fn create_fixture(root: &Path, outside: &Path) {
+            write(outside.join("outside.txt"), b"outside").unwrap();
+
+            create_dir_all(root.join("data-a")).unwrap();
+            write(root.join("data-a/value.txt"), b"aaa").unwrap();
+            symlink(Path::new("value.txt"), &root.join("data-a/link")).unwrap();
+            symlink(
+                Path::new("../data-b/value.txt"),
+                &root.join("data-a/link-other"),
+            )
+            .unwrap();
+
+            create_dir_all(root.join("data-b")).unwrap();
+            write(root.join("data-b/value.txt"), b"bbbbbb").unwrap();
+            symlink(Path::new("value.txt"), &root.join("data-b/link")).unwrap();
+
+            create_dir_all(root.join("dir")).unwrap();
+            write(root.join("dir/inside.txt"), b"inside").unwrap();
+            // the regression from #97507: reading *through* this link hits the directory
+            symlink(&root.join("dir"), &root.join("link-dir")).unwrap();
+            // a link whose target doesn't exist
+            symlink(Path::new("nope.txt"), &root.join("dangling")).unwrap();
+            // a link whose target leaves the filesystem root
+            symlink(&outside.join("outside.txt"), &root.join("escaping")).unwrap();
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn hash_file_operation(disk_root: RcStr, entry: RcStr) -> Result<Vc<RcStr>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(disk_root));
+            let path = fs.root().await?.join(&entry)?;
+            Ok(path.hash_file(Vc::cell(rcstr!("salt")), HashAlgorithm::Xxh3Hash128Hex))
+        }
+
+        /// `Ok` with the hash, or `Err` with the (flattened) error message.
+        async fn hash_of(disk_root: &RcStr, entry: RcStr) -> Result<RcStr, String> {
+            let operation: OperationVc<RcStr> = hash_file_operation(disk_root.clone(), entry);
+            match operation.read_strongly_consistent().await {
+                Ok(hash) => Ok((*hash).clone()),
+                Err(err) => Err(format!("{err:#}")),
+            }
+        }
+
+        /// `hash_file` hashes a symlink *itself* rather than what it points at, so that a link to a
+        /// directory can be hashed at all and so that the hash matches what consumers write out
+        /// (they recreate a symlink as a symlink). See #97507.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn hashes_by_entry_type() {
+            let scratch = tempfile::tempdir().unwrap();
+            let outside = tempfile::tempdir().unwrap();
+            create_fixture(scratch.path(), outside.path());
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            let disk_root: RcStr = scratch.path().to_str().unwrap().into();
+            tt.run_once(async move {
+                let file_a = hash_of(&disk_root, rcstr!("data-a/value.txt")).await;
+                let file_b = hash_of(&disk_root, rcstr!("data-b/value.txt")).await;
+                let link_a = hash_of(&disk_root, rcstr!("data-a/link")).await;
+                let link_b = hash_of(&disk_root, rcstr!("data-b/link")).await;
+                let link_other = hash_of(&disk_root, rcstr!("data-a/link-other")).await;
+                let link_dir = hash_of(&disk_root, rcstr!("link-dir")).await;
+                let dangling = hash_of(&disk_root, rcstr!("dangling")).await;
+                let escaping = hash_of(&disk_root, rcstr!("escaping")).await;
+                let dir = hash_of(&disk_root, rcstr!("dir")).await;
+                let missing = hash_of(&disk_root, rcstr!("gone.txt")).await;
+
+                // A regular file hashes its content.
+                let file_a = file_a.expect("a file is hashable");
+                let file_b = file_b.expect("a file is hashable");
+                assert_ne!(file_a, file_b, "the two files have different content");
+
+                // A symlink is hashable, including one that points at a directory - reading
+                // through that link would fail with `Is a directory (os error 21)`.
+                let link_a = link_a.expect("a symlink to a file is hashable");
+                let link_b = link_b.expect("a symlink to a file is hashable");
+                let link_other = link_other.expect("a symlink to a file is hashable");
+                let link_dir = link_dir.expect("a symlink to a directory is hashable");
+                // A dangling link is still a link, and so is one that leaves the root (it is
+                // reported as `LinkContent::Invalid`).
+                let dangling = dangling.expect("a dangling symlink is hashable");
+                let escaping = escaping.expect("a symlink leaving the root is hashable");
+
+                // The link is hashed, not the file it points at: `data-a/link` and `data-b/link`
+                // point at files with *different content* through the *same* target, so they hash
+                // the same...
+                assert_eq!(
+                    link_a, link_b,
+                    "the content of the target must not affect the hash of the link"
+                );
+                // ...while a link with a different target hashes differently.
+                assert_ne!(
+                    link_a, link_other,
+                    "the target of the link must affect the hash of the link"
+                );
+                // ...and a link never hashes like the file it points at.
+                assert_ne!(link_a, file_a);
+
+                // All of the hashes above are distinct, i.e. nothing collapses into a shared
+                // "symlink" hash.
+                let hashes = [&link_a, &link_other, &link_dir, &dangling, &escaping];
+                for (index, hash) in hashes.iter().enumerate() {
+                    for other in &hashes[index + 1..] {
+                        assert_ne!(hash, other, "every distinct link hashes distinctly");
+                    }
+                }
+
+                // Entries that have no content to hash are errors today. `hash_file` carries an
+                // open question on whether these should return `None` instead - if that changes,
+                // these two assertions are the ones to revisit.
+                assert!(
+                    dir.as_ref()
+                        .is_err_and(|err| err.contains("Cannot hash content of non-file path")),
+                    "a directory is not hashable, got {dir:?}"
+                );
+                assert!(
+                    missing
+                        .as_ref()
+                        .is_err_and(|err| err.contains("Cannot hash content of missing path")),
+                    "a missing path is not hashable, got {missing:?}"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap()
+        }
     }
 }
