@@ -31,6 +31,8 @@ import {
  * bounded because the pending-upgrade tracker owns the raw socket until the
  * registry accepts the peer.
  */
+=======
+>>>>>>> 66863d63dd (Add the shared WebSocket route invalidation policy)
 
 export type WebSocketRegistryConnection = WebSocketTransportConnection
 
@@ -720,6 +722,32 @@ export function reloadWebSocketScope(
     takeWebSocketScopeConnections(scope),
     code
   )
+}
+
+/**
+ * Invalidates WebSocket routes after a development update: closes the given
+ * routes with 1012, or reloads the whole scope when the bundler could not
+ * prove the affected set (compile errors, unknown graph shape, full reload).
+ * Over-closing is the designed safe direction; never silently keep a route
+ * executing code from a generation which may have changed. Both bundlers
+ * supply their bundler-specific affected-set computation to this one policy.
+ */
+export function invalidateWebSocketRoutes(
+  scope: object | undefined,
+  affected: ReadonlySet<string> | 'unknown'
+): void {
+  if (!scope) return
+  if (affected !== 'unknown' && affected.size === 0) return
+  if (affected === 'unknown') {
+    void reloadWebSocketScope(scope)
+    return
+  }
+  const activeBundlePaths = getActiveWebSocketRouteBundlePaths(scope)
+  for (const bundlePath of affected) {
+    if (activeBundlePaths.has(bundlePath)) {
+      void closeWebSocketRoute(scope, bundlePath)
+    }
+  }
 }
 
 export function closeWebSocketScope(
