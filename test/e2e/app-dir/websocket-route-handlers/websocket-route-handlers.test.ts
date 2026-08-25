@@ -3,14 +3,8 @@ import path from 'node:path'
 
 import WebSocket from 'ws'
 import { retry } from 'next-test-utils'
+import { requestWebSocketUpgrade } from 'next-websocket-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-
-const webSocketHeaders = {
-  connection: 'Upgrade',
-  upgrade: 'websocket',
-  'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-  'sec-websocket-version': '13',
-}
 
 const describeWithoutCacheComponents =
   process.env.__NEXT_CACHE_COMPONENTS === 'true' ? describe.skip : describe
@@ -33,51 +27,13 @@ describe('WebSocket Route Handlers', () => {
     await next.start()
   })
 
-  function requestUpgrade(
-    requestPath: string,
-    headers: http.OutgoingHttpHeaders = webSocketHeaders
-  ) {
-    return new Promise<{
-      status: number
-      headers: http.IncomingHttpHeaders
-      body: string
-    }>((resolve, reject) => {
-      const request = http.request({
-        host: 'localhost',
-        port: next.appPort,
-        path: requestPath,
-        headers,
-      })
-      request.once('response', (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-        response.once('end', () => {
-          resolve({
-            status: response.statusCode!,
-            headers: response.headers,
-            body: Buffer.concat(chunks).toString(),
-          })
-        })
-      })
-      request.once('upgrade', (response, socket) => {
-        socket.destroy()
-        resolve({
-          status: response.statusCode!,
-          headers: response.headers,
-          body: '',
-        })
-      })
-      request.once('error', reject)
-      request.end()
-    })
-  }
-
   function connect(
     requestPath = '/ws',
     protocols?: string | string[],
     options: { headers?: Record<string, string>; origin?: string } = {}
   ) {
-    return new Promise<{
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    const connected = new Promise<{
       socket: WebSocket
       response: http.IncomingMessage
       firstMessage: string
@@ -102,6 +58,22 @@ describe('WebSocket Route Handlers', () => {
       })
       socket.once('error', reject)
     })
+    // Fail fast with diagnostics instead of hanging to the suite timeout when
+    // the first message never arrives.
+    const bounded = new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () =>
+          reject(
+            new Error(
+              `Timed out waiting for the first WebSocket message from ${requestPath}`
+            )
+          ),
+        10_000
+      )
+    })
+    return Promise.race([connected, bounded]).finally(() =>
+      clearTimeout(timeout)
+    )
   }
 
   function nextMessage(socket: WebSocket) {
@@ -172,9 +144,8 @@ describe('WebSocket Route Handlers', () => {
   })
 
   it('serializes an ordinary response when the handler declines', async () => {
-    const response = await requestUpgrade('/ws?decline=1', {
-      ...webSocketHeaders,
-      authorization: 'Bearer secret',
+    const response = await requestWebSocketUpgrade(next, '/ws?decline=1', {
+      headers: { authorization: 'Bearer secret' },
     })
     expect(response).toMatchObject({
       status: 401,
@@ -191,34 +162,40 @@ describe('WebSocket Route Handlers', () => {
 
   it('rejects malformed handshakes before the App Route and framing before proxy', async () => {
     const key = `malformed-${Date.now()}`
-    const invalidKey = await requestUpgrade(
+    const invalidKey = await requestWebSocketUpgrade(
+      next,
       `/ws?execution-key=${key}&reject-if-proxy-runs=1`,
       {
-        ...webSocketHeaders,
-        authorization: 'Bearer secret',
-        'sec-websocket-key': 'invalid',
+        headers: {
+          authorization: 'Bearer secret',
+          'sec-websocket-key': 'invalid',
+        },
       }
     )
     expect(invalidKey.status).toBe(400)
     expect(invalidKey.body).toContain('Invalid Sec-WebSocket-Key')
 
-    const invalidVersion = await requestUpgrade(
+    const invalidVersion = await requestWebSocketUpgrade(
+      next,
       `/ws?execution-key=${key}&reject-if-proxy-runs=1`,
       {
-        ...webSocketHeaders,
-        authorization: 'Bearer secret',
-        'sec-websocket-version': '12',
+        headers: {
+          authorization: 'Bearer secret',
+          'sec-websocket-version': '12',
+        },
       }
     )
     expect(invalidVersion.status).toBe(426)
     expect(invalidVersion.headers['sec-websocket-version']).toBe('13')
 
-    const framed = await requestUpgrade(
+    const framed = await requestWebSocketUpgrade(
+      next,
       `/ws?execution-key=${key}&reject-if-proxy-runs=1`,
       {
-        ...webSocketHeaders,
-        authorization: 'Bearer secret',
-        'content-length': '1',
+        headers: {
+          authorization: 'Bearer secret',
+          'content-length': '1',
+        },
       }
     )
     expect(framed.status).toBe(400)
@@ -230,7 +207,7 @@ describe('WebSocket Route Handlers', () => {
 
   it('returns 404 for WebSockets claimed by non-Node App Routes', async () => {
     for (const requestPath of ['/', '/missing-websocket']) {
-      const response = await requestUpgrade(requestPath)
+      const response = await requestWebSocketUpgrade(next, requestPath)
       expect(response).toMatchObject({ status: 404, body: 'Not Found' })
       expect(response.headers['cache-control']).toContain('no-store')
     }
@@ -264,12 +241,14 @@ describe('WebSocket Route Handlers', () => {
     await closeWebSocket(sameOrigin.socket)
 
     const key = `origin-${Date.now()}`
-    const rejected = await requestUpgrade(
+    const rejected = await requestWebSocketUpgrade(
+      next,
       `/ws?execution-key=${key}&strip-origin-in-proxy=1&reject-if-proxy-runs=1`,
       {
-        ...webSocketHeaders,
-        authorization: 'Bearer secret',
-        origin: 'https://attacker.example',
+        headers: {
+          authorization: 'Bearer secret',
+          origin: 'https://attacker.example',
+        },
       }
     )
     expect(rejected).toMatchObject({
@@ -288,19 +267,25 @@ describe('WebSocket Route Handlers', () => {
     expect(accepted.socket.protocol).toBe('chat')
     await closeWebSocket(accepted.socket)
 
-    const rejected = await requestUpgrade('/ws?protocol=required', {
-      ...webSocketHeaders,
-      authorization: 'Bearer secret',
-    })
+    const rejected = await requestWebSocketUpgrade(
+      next,
+      '/ws?protocol=required',
+      {
+        headers: { authorization: 'Bearer secret' },
+      }
+    )
     expect(rejected.status).toBe(400)
     expect(rejected.body).toContain('not offered by the client')
   })
 
   it('rejects NextResponse.upgrade() returned from proxy.ts', async () => {
-    const response = await requestUpgrade('/ws?proxy-upgrade=1', {
-      ...webSocketHeaders,
-      authorization: 'Bearer secret',
-    })
+    const response = await requestWebSocketUpgrade(
+      next,
+      '/ws?proxy-upgrade=1',
+      {
+        headers: { authorization: 'Bearer secret' },
+      }
+    )
     expect(response.status).toBe(500)
   })
 
@@ -348,7 +333,7 @@ describe('WebSocket Route Handlers', () => {
   })
 
   it('fails closed before proxying an external WebSocket rewrite', async () => {
-    const response = await requestUpgrade('/external-socket')
+    const response = await requestWebSocketUpgrade(next, '/external-socket')
     expect(response).toMatchObject({
       status: 501,
       body: 'External WebSocket rewrite targets are not proxied while experimental.webSocketRouteHandlers is enabled.',
@@ -356,7 +341,7 @@ describe('WebSocket Route Handlers', () => {
   })
 
   it('serializes config redirects when Next.js exclusively owns the socket', async () => {
-    const response = await requestUpgrade('/old-socket')
+    const response = await requestWebSocketUpgrade(next, '/old-socket')
     expect(response.status).toBe(307)
     expect(response.headers.location).toBe('/ws')
   })
@@ -413,7 +398,7 @@ describe('WebSocket Route Handlers', () => {
   })
   describeWithoutCacheComponents('Edge Route contract', () => {
     it('keeps the Edge route functional without claiming its upgrades', async () => {
-      const upgradeResponse = await requestUpgrade('/edge')
+      const upgradeResponse = await requestWebSocketUpgrade(next, '/edge')
       expect(upgradeResponse).toMatchObject({ status: 404, body: 'Not Found' })
 
       const response = await next.fetch('/edge')
@@ -445,21 +430,23 @@ describeWithoutCacheComponents(
     const { next, isNextDev, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/force-static'),
       skipStart: true,
+      // The force-static build contract is not verifiable when deployed.
       skipDeployment: true,
     })
 
-    if (skipped || isNextDev) {
-      it.skip('is a production build contract', () => {})
-      return
-    }
+    if (skipped) return
 
-    it('rejects NextResponse.upgrade() from a force-static route', async () => {
-      const { exitCode } = await next.build()
+    // These are production build contracts; there is no build in dev mode.
+    const describeProductionContract = isNextDev ? describe.skip : describe
+    describeProductionContract('production build contract', () => {
+      it('rejects NextResponse.upgrade() from a force-static route', async () => {
+        const { exitCode } = await next.build()
 
-      expect(exitCode).toBe(1)
-      expect(next.cliOutput).toContain(
-        'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
-      )
+        expect(exitCode).toBe(1)
+        expect(next.cliOutput).toContain(
+          'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
+        )
+      })
     })
   }
 )
@@ -468,34 +455,38 @@ describe('WebSocket Route Handler Cache Components contract', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/cache-components'),
     skipStart: true,
+    // The cache-components static contract is not verifiable when deployed.
     skipDeployment: true,
   })
 
-  if (skipped || isNextDev) {
-    it.skip('is a production build contract', () => {})
-    return
-  }
+  if (skipped) return
 
-  beforeAll(async () => {
-    await next.start()
-  })
-
-  it('does not cache an asynchronously returned upgrade marker', async () => {
-    const response = await next.fetch('/ws')
-    expect(response.status).toBe(426)
-    expect(await response.text()).toBe(
-      'This route only accepts WebSocket upgrade requests.'
-    )
-
-    const socket = new WebSocket(`ws://localhost:${next.appPort}/ws`)
-    const message = await new Promise<string>((resolve, reject) => {
-      socket.once('message', (data) => resolve(data.toString()))
-      socket.once('error', reject)
+  // These are production runtime contracts; dev mode has no static contract.
+  const describeProductionContract = isNextDev ? describe.skip : describe
+  describeProductionContract('production runtime contract', () => {
+    beforeAll(async () => {
+      await next.start()
     })
-    expect(message).toBe('cache-components')
 
-    const closed = new Promise<void>((resolve) => socket.once('close', resolve))
-    socket.close()
-    await closed
+    it('does not cache an asynchronously returned upgrade marker', async () => {
+      const response = await next.fetch('/ws')
+      expect(response.status).toBe(426)
+      expect(await response.text()).toBe(
+        'This route only accepts WebSocket upgrade requests.'
+      )
+
+      const socket = new WebSocket(`ws://localhost:${next.appPort}/ws`)
+      const message = await new Promise<string>((resolve, reject) => {
+        socket.once('message', (data) => resolve(data.toString()))
+        socket.once('error', reject)
+      })
+      expect(message).toBe('cache-components')
+
+      const closed = new Promise<void>((resolve) =>
+        socket.once('close', resolve)
+      )
+      socket.close()
+      await closed
+    })
   })
 })

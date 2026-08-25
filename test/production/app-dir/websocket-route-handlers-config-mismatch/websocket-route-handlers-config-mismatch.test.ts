@@ -1,6 +1,5 @@
-import http from 'node:http'
-
 import { nextTestSetup } from 'e2e-utils'
+import { requestWebSocketUpgrade } from 'next-websocket-test-utils'
 
 const enabledConfig = `
 /** @type {import('next').NextConfig} */
@@ -25,44 +24,11 @@ describe('WebSocket Route Handler build/runtime config mismatch', () => {
 
     try {
       await next.start({ skipBuild: true })
-      const response = await new Promise<{
-        status: number
-        headers: http.IncomingHttpHeaders
-        body: string
-      }>((resolve, reject) => {
-        const request = http.request({
-          host: 'localhost',
-          port: next.appPort,
-          path: '/ws',
-          headers: {
-            connection: 'Upgrade',
-            upgrade: 'websocket',
-            'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-            'sec-websocket-version': '13',
-          },
-        })
-        request.once('response', (incoming) => {
-          const chunks: Buffer[] = []
-          incoming.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-          incoming.once('end', () => {
-            resolve({
-              status: incoming.statusCode!,
-              headers: incoming.headers,
-              body: Buffer.concat(chunks).toString(),
-            })
-          })
-        })
-        request.once('upgrade', (_response, socket) => {
-          socket.destroy()
-          reject(new Error('build-disabled route unexpectedly upgraded'))
-        })
-        request.once('error', reject)
-        request.setTimeout(5_000, () => {
-          request.destroy(
-            new Error('build-disabled route did not return an HTTP response')
-          )
-        })
-        request.end()
+      const response = await requestWebSocketUpgrade(next, '/ws', {
+        // The build-disabled route must answer a complete HTTP response, not
+        // a 101 upgrade.
+        rejectOnUpgrade: true,
+        timeoutMs: 5_000,
       })
 
       expect(response).toEqual({
