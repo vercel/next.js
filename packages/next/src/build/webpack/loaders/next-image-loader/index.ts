@@ -11,21 +11,14 @@ interface Options {
   assetPrefix: string
   basePath: string
   outputHashSalt: string
-  imgOptDangerouslyAllowAVIF: boolean
 }
 
 function nextImageLoader(this: any, content: Buffer) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
     const options: Options = this.getOptions()
-    const {
-      compilerType,
-      isDev,
-      assetPrefix,
-      basePath,
-      outputHashSalt,
-      imgOptDangerouslyAllowAVIF,
-    } = options
+    const { compilerType, isDev, assetPrefix, basePath, outputHashSalt } =
+      options
     const context = this.rootContext
 
     // Prepend the hash salt to the content for filename hash computation, so
@@ -65,7 +58,6 @@ function nextImageLoader(this: any, content: Buffer) {
       basePath,
       outputPath,
       isDev,
-      imgOptDangerouslyAllowAVIF,
       tracing: imageLoaderSpan.traceChild.bind(imageLoaderSpan),
     })
 
