@@ -398,6 +398,7 @@ export function getImgProps(
   let heightInt = getInt(height)
   let blurWidth: number | undefined
   let blurHeight: number | undefined
+  let isStaticAvif = false
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -420,6 +421,7 @@ export function getImgProps(
     blurHeight = staticImageData.blurHeight
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
+    isStaticAvif = /\.avif(?:\?|$)/i.test(staticSrc)
 
     if (!fill) {
       if (!widthInt && !heightInt) {
@@ -435,6 +437,12 @@ export function getImgProps(
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  // Generating a blurDataURL requires decoding the source image, so static AVIF
+  // imports do not receive one while AVIF input optimization is disabled.
+  if (isStaticAvif && placeholder === 'blur' && !blurDataURL) {
+    placeholder = 'empty'
+  }
 
   let isLazy =
     !priority &&
@@ -586,7 +594,7 @@ export function getImgProps(
       )
     }
     if (placeholder === 'blur' && !blurDataURL) {
-      const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
+      const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
 
       throw new Error(
         `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.

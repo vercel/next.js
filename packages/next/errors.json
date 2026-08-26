@@ -1465,5 +1465,6 @@
   "1464": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly.",
   "1465": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
   "1466": "TypeScript %s does not provide the compiler API required by Next.js. Set %s to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
-  "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead."
+  "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1468": "Invalid file path: %s"
 }
