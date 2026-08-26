@@ -17,9 +17,40 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
-// Cache for fs.existsSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
+
+function getPageExtensions(rootDirs: string[]): string[] | undefined {
+  for (const rootDir of rootDirs) {
+    for (const configFile of ['next.config.js', 'next.config.mjs', 'next.config.ts']) {
+      const configPath = path.join(rootDir, configFile)
+      if (fsExistsSyncCache[configPath] === undefined) {
+        fsExistsSyncCache[configPath] = fs.existsSync(configPath)
+      }
+      if (fsExistsSyncCache[configPath]) {
+        try {
+          const rawContent = fs.readFileSync(configPath, 'utf8')
+          const strippedContent = rawContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
+          const match = strippedContent.match(
+            /pageExtensions\s*:\s*\[([^\]]+)\]/
+          )
+          if (match) {
+            const parsed = match[1]
+              .split(',')
+              .map((ext) => ext.trim().replace(/['"`]/g, ''))
+              .filter(Boolean)
+            if (parsed.length > 0) {
+              return parsed
+            }
+          }
+        } catch {
+          // Silently ignore config read errors
+        }
+        break
+      }
+    }
+  }
+  return undefined
+}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
@@ -32,6 +63,7 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
+const cachedGetPageExtensions = memoize(getPageExtensions)
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
@@ -107,40 +139,7 @@ export default defineRule({
       return {}
     }
 
-    // Try to read pageExtensions from next.config.js / .mjs / .ts
-    let pageExtensions: string[] | undefined
-    for (const rootDir of rootDirs) {
-      for (const configFile of ['next.config.js', 'next.config.mjs', 'next.config.ts']) {
-        const configPath = path.join(rootDir, configFile)
-        if (fsExistsSyncCache[configPath] === undefined) {
-          fsExistsSyncCache[configPath] = fs.existsSync(configPath)
-        }
-        if (fsExistsSyncCache[configPath]) {
-          try {
-            const rawContent = fs.readFileSync(configPath, 'utf8')
-            // Strip single-line (//...) and multi-line (/*...*/) comments to avoid matching commented-out configs
-            const strippedContent = rawContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
-            const match = strippedContent.match(
-              /pageExtensions\s*:\s*\[([^\]]+)\]/
-            )
-            if (match) {
-              const parsed = match[1]
-                .split(',')
-                .map((ext) => ext.trim().replace(/['"`]/g, ''))
-                .filter(Boolean)
-              // Only override if at least one valid extension is specified
-              if (parsed.length > 0) {
-                pageExtensions = parsed
-              }
-            }
-          } catch {
-            // Silently ignore config read errors
-          }
-          break
-        }
-      }
-      if (pageExtensions) break
-    }
+    const pageExtensions = cachedGetPageExtensions(rootDirs)
 
     const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, ...(pageExtensions ? [pageExtensions] : []))
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, ...(pageExtensions ? [pageExtensions] : []))
