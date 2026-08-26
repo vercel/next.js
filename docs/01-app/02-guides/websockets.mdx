@@ -318,6 +318,31 @@ For an application-level idle policy, track message activity in the connection h
 
 Next.js does not include a broadcast or pub/sub API. For broadcasting within one process, keep an application-owned collection of peers: add each peer in `open`, remove it in `close`, and iterate the collection with `peer.send()` when publishing an event.
 
+```ts filename="app/ws/route.ts"
+import { NextResponse, type WebSocketPeer } from 'next/server'
+
+// Module-scope state resets on HMR: in development, an edit to this file (or
+// one of its dependencies) closes its connections with code 1012 and clients
+// should reconnect.
+const peers = new Set<WebSocketPeer>()
+
+export function GET() {
+  return NextResponse.upgrade({
+    open(peer) {
+      peers.add(peer)
+    },
+    message(peer, message) {
+      for (const other of peers) {
+        other.send(message.text())
+      }
+    },
+    close(peer) {
+      peers.delete(peer)
+    },
+  })
+}
+```
+
 A process-local collection only reaches the clients connected to that process. When your deployment runs multiple processes or replicas, route events through an external message broker so every replica receives them, and define ordering, retries, duplicate suppression, and authorization in your application protocol.
 
 ## Deploy and shut down cleanly
