@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDev, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -8,11 +8,23 @@ describe('next/head', () => {
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),
       components: new FileRef(join(__dirname, 'app/components')),
+      'inject-readdir-delay.cjs': new FileRef(
+        join(__dirname, 'app/inject-readdir-delay.cjs')
+      ),
     },
+    env: isNextDev
+      ? { NODE_OPTIONS: '--require ./inject-readdir-delay.cjs' }
+      : undefined,
   })
 
   it(`should place charset element at the top of <head>`, async () => {
     const browser = await next.browser('/')
+
+    if (isNextDev) {
+      expect(next.cliOutput).toContain(
+        '[next-head] delaying initial Watchpack pages scan'
+      )
+    }
 
     const html = await browser.eval(() => {
       const head = document.querySelector('head')

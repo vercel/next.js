@@ -88,6 +88,7 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
@@ -384,24 +385,37 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
-  await new Promise<void>(async (resolve, reject) => {
-    if (pagesDir) {
-      // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir, (_, files) => {
-        if (files?.length) {
-          return
-        }
+  const pages = pagesDir ? [pagesDir] : []
+  const app = appDir ? [appDir] : []
+  const directories = [...pages, ...app]
 
-        if (!resolved) {
-          resolve()
-          resolved = true
+  // Snapshot the route directories before watching starts. Watchpack can report
+  // its first aggregation while a directory scan is still in flight, so route
+  // discovery needs this snapshot to avoid observing a partial filesystem.
+  const initialFiles = (
+    await Promise.all(
+      directories.map(async (directory) => {
+        try {
+          return await recursiveReadDir(directory, {
+            relativePathnames: false,
+          })
+        } catch (err: any) {
+          // The directory can be removed while the dev server boots. Watchpack
+          // reports that as a removal later on.
+          if (err.code !== 'ENOENT') throw err
+          return []
         }
       })
-    }
+    )
+  ).flat()
+  const initialPageFiles = initialFiles.filter(validFileMatcher.isPageFile)
 
-    const pages = pagesDir ? [pagesDir] : []
-    const app = appDir ? [appDir] : []
-    const directories = [...pages, ...app]
+  await new Promise<void>(async (resolve, reject) => {
+    if (initialFiles.length === 0) {
+      // Watchpack doesn't emit an event when all route directories are empty.
+      resolve()
+      resolved = true
+    }
 
     const rootDir = pagesDir || appDir
     const files = [
@@ -490,9 +504,15 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      // Watchpack can emit its first aggregation before a directory scan has
+      // completed. Include the startup snapshot in that first pass so route
+      // discovery cannot observe a partial filesystem.
+      const sortedKnownFiles: string[] = [
+        ...new Set([
+          ...(isInitialScan ? initialPageFiles : []),
+          ...knownFiles.keys(),
+        ]),
+      ].sort(sortByPageExts(nextConfig.pageExtensions))
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
