@@ -2320,6 +2320,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
+            Pat::Assign(assign) => {
+                let mut value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
+                value.add_alt(
+                    self.arena,
+                    self.eval_context.eval(self.arena, &assign.right),
+                );
+                self.with_pat_value(Some(value), |this| {
+                    pat.visit_children_with_ast_path(this, ast_path);
+                });
+            }
+
             _ => pat.visit_children_with_ast_path(self, ast_path),
         }
     }
