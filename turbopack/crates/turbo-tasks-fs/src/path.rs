@@ -383,8 +383,20 @@ pub async fn rebase(
 
 // Not turbo-tasks functions, only delegating
 impl FileSystemPath {
+    /// Reads the content of a file.
+    ///
+    /// In debug builds this goes through an extra task that enforces the path is already resolved
+    /// (see [`ensure_path_is_realpath`]). Release builds call the filesystem directly, so they do
+    /// not pay for the extra task or the `realpath` lookup.
     pub fn read(&self) -> Vc<FileContent> {
-        self.fs().read(self.clone())
+        #[cfg(debug_assertions)]
+        {
+            read_file(self.clone())
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            self.fs().read(self.clone())
+        }
     }
 
     pub fn read_link(&self) -> Vc<LinkContent> {
@@ -396,11 +408,11 @@ impl FileSystemPath {
     }
 
     pub fn read_json(&self) -> Vc<FileJsonContent> {
-        self.fs().read(self.clone()).parse_json()
+        self.read().parse_json()
     }
 
     pub fn read_json5(&self) -> Vc<FileJsonContent> {
-        self.fs().read(self.clone()).parse_json5()
+        self.read().parse_json5()
     }
 
     /// Hashes the file content (but not as a byte-exact content hash). This does NOT follow
@@ -568,22 +580,31 @@ impl fmt::Display for RealPathError {
 impl Error for RealPathError {}
 
 #[cfg(debug_assertions)]
-pub(crate) fn assert_read_dir_is_realpath(
+pub(crate) fn ensure_path_is_realpath(
+    operation: &str,
     path: &FileSystemPath,
     realpath_result: &Result<FileSystemPath, RealPathError>,
-) {
-    if let Ok(realpath) = realpath_result {
-        debug_assert_eq!(
-            path, realpath,
-            "read_dir called with unresolved path {path:?}; resolve it to {realpath:?} first"
-        );
+) -> Result<()> {
+    if let Ok(realpath) = realpath_result
+        && path != realpath
+    {
+        bail!("{operation} called with unresolved path {path:?}; resolve it to {realpath:?} first");
     }
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+#[turbo_tasks::function]
+async fn read_file(path: FileSystemPath) -> Result<Vc<FileContent>> {
+    ensure_path_is_realpath("read_file", &path, &path.realpath().await?)?;
+
+    Ok(path.fs().read(path))
 }
 
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
     #[cfg(debug_assertions)]
-    assert_read_dir_is_realpath(&path, &path.realpath().await?);
+    ensure_path_is_realpath("read_dir", &path, &path.realpath().await?)?;
 
     let fs = path.fs().to_resolved().await?;
     match &*fs.raw_read_dir(path.clone()).await? {

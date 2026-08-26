@@ -1720,7 +1720,7 @@ mod tests {
 
         use super::extract_effects_operation;
         #[cfg(all(unix, debug_assertions))]
-        use crate::{DirectoryContent, path::assert_read_dir_is_realpath};
+        use crate::{DirectoryContent, FileContent, path::ensure_path_is_realpath};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
             LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
@@ -1869,26 +1869,40 @@ mod tests {
 
         #[cfg(all(unix, debug_assertions))]
         #[turbo_tasks::function(operation, root)]
-        async fn assert_read_dir_realpath_operation(
-            root_path: FileSystemPath,
-        ) -> anyhow::Result<()> {
-            let unresolved = root_path.join("alias/child")?;
-            let resolved = unresolved
+        async fn assert_read_realpath_operation(root_path: FileSystemPath) -> anyhow::Result<()> {
+            let unresolved_dir = root_path.join("alias/child")?;
+            let resolved_dir = unresolved_dir
                 .realpath()
                 .await?
                 .expect("the linked directory should resolve");
 
-            assert_ne!(unresolved, resolved);
-            assert!(
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    assert_read_dir_is_realpath(&unresolved, &Ok(resolved.clone()))
-                }))
-                .is_err(),
-                "a directory read through a symlinked parent must be rejected"
-            );
+            assert_ne!(unresolved_dir, resolved_dir);
+            let error =
+                ensure_path_is_realpath("read_dir", &unresolved_dir, &Ok(resolved_dir.clone()))
+                    .expect_err("a directory read through a symlinked parent must be rejected");
+            let message = error.to_string();
+            assert!(message.contains("alias/child"));
+            assert!(message.contains("real/child"));
             assert!(matches!(
-                &*resolved.read_dir().await?,
+                &*resolved_dir.read_dir().await?,
                 DirectoryContent::Entries(entries) if entries.contains_key(&rcstr!("data.txt"))
+            ));
+
+            let unresolved_file = unresolved_dir.join("data.txt")?;
+            let resolved_file = unresolved_file
+                .realpath()
+                .await?
+                .expect("the linked file should resolve");
+            assert_ne!(unresolved_file, resolved_file);
+            let error =
+                ensure_path_is_realpath("read_file", &unresolved_file, &Ok(resolved_file.clone()))
+                    .expect_err("a file read through a symlinked parent must be rejected");
+            let message = error.to_string();
+            assert!(message.contains("alias/child/data.txt"));
+            assert!(message.contains("real/child/data.txt"));
+            assert!(matches!(
+                &*resolved_file.read().await?,
+                FileContent::Content(_)
             ));
 
             Ok(())
@@ -1896,7 +1910,7 @@ mod tests {
 
         #[cfg(all(unix, debug_assertions))]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn test_read_dir_requires_realpath() {
+        async fn test_reads_require_realpath() {
             use std::os::unix::fs::symlink;
 
             let scratch = tempfile::tempdir().unwrap();
@@ -1917,7 +1931,7 @@ mod tests {
                     .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
-                assert_read_dir_realpath_operation(root_path)
+                assert_read_realpath_operation(root_path)
                     .read_strongly_consistent()
                     .await?;
                 anyhow::Ok(())
