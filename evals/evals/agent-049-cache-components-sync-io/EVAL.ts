@@ -26,13 +26,13 @@ test('enables Cache Components without opt-outs', () => {
   expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
 })
 
-test('uses an explicit request-time boundary', () => {
-  expect(source).toMatch(/\bconnection\s*\(/)
+test('uses an explicit synchronous I/O boundary', () => {
+  expect(source).toMatch(/\b(?:io|connection)\s*\(/)
   expect(source).toMatch(/<Suspense[\s>]/)
 })
 
 test('preserves fresh metadata without sacrificing the shared frame', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The stable Operations navigation and page frame remain outside the request-time Suspense boundary. The request metadata is rendered in a focused async child that awaits connection() before calling new Date or Date.now, Math.random, and randomUUID, so those values remain request-specific. That metadata subtree is not cached or evaluated at module scope, and it has meaningful loading UI.`
+    `The stable Operations navigation and page frame remain outside the Suspense boundary. The request metadata is rendered in a focused async child that awaits io() or connection() before calling new Date or Date.now, Math.random, and randomUUID, so those values remain request-specific. The metadata subtree is not cached or evaluated at module scope, and it has meaningful loading UI. Prefer io() unless the implementation specifically needs to wait for a real user request.`
   )
 })

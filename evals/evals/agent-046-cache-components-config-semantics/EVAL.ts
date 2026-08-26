@@ -41,6 +41,6 @@ test('removes route opt-outs and incompatible segment config', () => {
 
 test('preserves the hourly feed and request-specific preview', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The newsroom query is cached in a small async data function with an explicit approximately-hourly cache lifetime. The editor preview still reads its cookie at request time outside any public cache, is placed below Suspense or equivalent meaningful loading UI, and leaves useful stable preview framing in the static shell. Page components are not cached.`
+    `The newsroom feed is cached with an explicit approximately-hourly cache lifetime. A focused data-level cache is valid, and a page-level cache is also valid because the Newsroom page contains only the feed and stable framing with the same lifetime. The editor preview still reads its cookie at request time outside any public cache, is placed below Suspense or equivalent meaningful loading UI, and leaves useful stable preview framing in the static shell.`
   )
 })
