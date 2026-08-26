@@ -38,6 +38,7 @@ minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
   # sharp 0.35.4 and its @img/* binaries fix a security vulnerability, so they
   # are exempt from the 48h release age gate.
+  # These exemptions should be removed on 2026-08-28
   - '@img/sharp-darwin-arm64@0.35.4'
   - '@img/sharp-darwin-x64@0.35.4'
   - '@img/sharp-freebsd-wasm32@0.35.4'
