@@ -3,7 +3,7 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - add-deploy-stack-example
+      - main
 
 env:
   AWS_REGION: <YOUR_AWS_REGION>
