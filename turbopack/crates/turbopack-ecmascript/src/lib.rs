@@ -1,6 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]

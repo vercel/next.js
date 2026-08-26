@@ -271,18 +271,14 @@ impl UrlAssetReferenceCodeGen {
                                     args: Some(args), ..
                                 }) = new_expr
                                 {
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(0)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(0)
                                     {
                                         *expr = url_segment_resolver.clone();
                                     }
 
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(1)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(1)
                                     {
                                         if let Some(rewrite) = &rewrite_url_base {
                                             *expr = rewrite.clone();
@@ -308,19 +304,15 @@ impl UrlAssetReferenceCodeGen {
                                     args: Some(args), ..
                                 }) = new_expr
                                 {
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(0)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(0)
                                     {
                                         *expr = request.as_str().into()
                                     }
 
                                     if let Some(rewrite) = &rewrite_url_base
-                                        && let Some(ExprOrSpread {
-                                            box expr,
-                                            spread: None,
-                                        }) = args.get_mut(1)
+                                        && let Some(ExprOrSpread { expr, spread: None }) =
+                                            args.get_mut(1)
                                     {
                                         *expr = rewrite.clone();
                                     }
