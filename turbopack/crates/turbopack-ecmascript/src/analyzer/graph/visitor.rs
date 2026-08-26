@@ -1769,28 +1769,26 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            let obj_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &member_expr.obj),
+        let obj_value = BumpBox::new_in(
+            self.eval_context.eval(self.arena, &member_expr.obj),
+            self.arena,
+        );
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+            MemberProp::PrivateName(_) => None,
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                self.eval_context.eval(self.arena, expr),
                 self.arena,
-            );
-            let prop_value = match &member_expr.prop {
-                // TODO avoid clone
-                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
-                MemberProp::PrivateName(_) => None,
-                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
-                    self.eval_context.eval(self.arena, expr),
-                    self.arena,
-                )),
-            };
-            if let Some(prop_value) = prop_value {
-                self.add_effect(Effect::Member {
-                    obj: obj_value,
-                    prop: prop_value,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
-                    span: member_expr.span(),
-                });
-            }
+            )),
+        };
+        if let Some(prop_value) = prop_value {
+            self.add_effect(Effect::Member {
+                obj: obj_value,
+                prop: prop_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: member_expr.span(),
+            });
         }
 
         member_expr.visit_children_with_ast_path(self, ast_path);
@@ -1801,7 +1799,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         bin_expr: &'ast BinExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+        if bin_expr.op == BinaryOp::In {
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
                 self.arena,
@@ -3075,6 +3073,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -3094,7 +3099,7 @@ impl<'a> Analyzer<'a, '_> {
                         ObjectPatPropField::Assign,
                     ));
                     let AssignPatProp { key, value, .. } = assign;
-                    let key_value = key.sym.clone().into();
+                    let key_value = JsValue::from(key.sym.clone());
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
@@ -3102,6 +3107,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     self.add_value(
                         key.to_id(),
                         if let Some(box value) = value {
