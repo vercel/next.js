@@ -515,6 +515,10 @@ function assignDefaultsAndValidate(
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
   if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+    if (!process.env.TURBOPACK) {
+      result.experimental.durableUseCacheEntries = false
+    }
+
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
