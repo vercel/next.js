@@ -14,6 +14,7 @@ pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
 pub mod code_gen;
+mod collect_module;
 mod directive;
 pub mod embed_js;
 mod errors;

@@ -63,12 +63,10 @@ function requestInternalDevMiddleware(
 ) {
   return fetchViaHTTP(
     appPort,
-    withBasePath(
-      basePath,
-      '/__nextjs_error_feedback?errorCode=0&wasHelpful=true'
-    ),
+    withBasePath(basePath, '/__nextjs_disable_dev_indicator'),
     undefined,
     {
+      method: 'POST',
       headers: {
         origin,
       },
@@ -241,7 +239,10 @@ describe.each(['', '/docs'])(
         expect(differentHostRes.status).toBe(403)
 
         await expectBlockedDevResourceMessage(next, {
-          resourcePath: withBasePath(basePath, '/__nextjs_error_feedback'),
+          resourcePath: withBasePath(
+            basePath,
+            '/__nextjs_disable_dev_indicator'
+          ),
           source: 'example.vercel.sh',
         })
       })
