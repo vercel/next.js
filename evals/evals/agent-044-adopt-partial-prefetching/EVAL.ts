@@ -61,9 +61,9 @@ test('preserves the selected eager-link contract without broadening it', async (
   )
 })
 
-test('uses a targeted cache boundary with safe session scope', async () => {
+test('uses a targeted cache boundary without leaking session data', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The Aurora title and artist are available to Partial Prefetching through a small cacheable data boundary rather than caching the route page component. The listener cookie is read outside the public cached function and its resolved value is passed into the cache key, so cached results cannot leak between listeners. Recommendations remain outside the selected prefetched contract and may stream.`
+    `The Aurora title and artist are available to Partial Prefetching through a small public cacheable data boundary rather than by caching the route page component. The public cached function does not call cookies() or headers(), and it never reuses a listener-specific result for a different listener. Either remove the unused listener variation and key the public data by slug, or resolve the listener outside the public cache and pass it as an explicit function argument so it participates in the cache key. Both outcomes are valid; removing the unused field is not required. Recommendations remain outside the selected prefetched contract and may stream.`
   )
 })
 

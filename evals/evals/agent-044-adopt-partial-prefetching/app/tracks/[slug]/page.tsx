@@ -2,26 +2,25 @@ import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { getRecommendations, getTrack } from '@/lib/tracks'
 
-export default async function TrackPage({
+export default function TrackPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
-  const { slug } = await params
-
   return (
     <main>
       <Suspense fallback={<p>Loading track…</p>}>
-        <TrackDetails slug={slug} />
+        <TrackDetails params={params} />
       </Suspense>
       <Suspense fallback={<p>Loading recommendations…</p>}>
-        <Recommendations slug={slug} />
+        <Recommendations params={params} />
       </Suspense>
     </main>
   )
 }
 
-async function TrackDetails({ slug }: { slug: string }) {
+async function TrackDetails({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   const track = await getTrack(slug)
   if (!track) notFound()
 
@@ -33,7 +32,12 @@ async function TrackDetails({ slug }: { slug: string }) {
   )
 }
 
-async function Recommendations({ slug }: { slug: string }) {
+async function Recommendations({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
   const recommendations = await getRecommendations(slug)
 
   return (
