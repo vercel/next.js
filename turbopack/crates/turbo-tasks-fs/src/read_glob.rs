@@ -103,7 +103,7 @@ async fn read_glob_internal(
                         if let LinkContent::Link { target } = &*link_content {
                             let Ok(realpath) = target.file_system_path().realpath().await? else {
                                 // Preserve unresolvable symlinks that match the glob.
-                                handle_file(&mut result, &entry_path, segment, entry);
+                                handle_file(&mut result, &entry_path, segment, &output_entry);
                                 continue;
                             };
                             if matches!(*realpath.get_type().await?, FileSystemEntryType::Directory)
@@ -390,10 +390,16 @@ pub mod tests {
         let inner_sub_dir = &*inner_sub.inner.get("dir").unwrap().await?;
         assert_eq!(
             inner_sub_dir.results,
-            HashMap::from_iter([(
-                "index.js".into(),
-                DirectoryEntry::File(root.join("sub/dir/index.js")?),
-            )])
+            HashMap::from_iter([
+                (
+                    "index.js".into(),
+                    DirectoryEntry::File(root.join("sub/dir/index.js")?),
+                ),
+                (
+                    "dead.js".into(),
+                    DirectoryEntry::Symlink(root.join("sub/dir/dead.js")?),
+                ),
+            ])
         );
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
@@ -408,10 +414,16 @@ pub mod tests {
         let inner_sub_dir = &*inner_sub.inner.get("dir-chain").unwrap().await?;
         assert_eq!(
             inner_sub_dir.results,
-            HashMap::from_iter([(
-                "index.js".into(),
-                DirectoryEntry::File(root.join("sub/dir-chain/index.js")?),
-            )])
+            HashMap::from_iter([
+                (
+                    "index.js".into(),
+                    DirectoryEntry::File(root.join("sub/dir-chain/index.js")?),
+                ),
+                (
+                    "dead.js".into(),
+                    DirectoryEntry::Symlink(root.join("sub/dir-chain/dead.js")?),
+                ),
+            ])
         );
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
@@ -503,6 +515,7 @@ pub mod tests {
                 .unwrap()
                 .write_all(b"dir index")
                 .unwrap();
+            symlink(dir.join("missing.js"), dir.join("dead.js")).unwrap();
             symlink(&dir, path.join("sub/dir")).unwrap();
             let dir_link = path.join("dir-link");
             symlink(&dir, &dir_link).unwrap();
