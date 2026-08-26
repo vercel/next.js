@@ -77,6 +77,9 @@ thiserror = { workspace = true }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }
+# The read-outcome tests assert on the counters, so they need them compiled in. Only for tests —
+# normal builds of this crate get the default (disabled) turbo-tasks.
+turbo-tasks = { workspace = true, features = ["inline_execution_stats"] }
 
 
 [[bench]]

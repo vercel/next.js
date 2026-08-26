@@ -375,7 +375,7 @@ async fn get_all_export_names(
     let star_export_names = exports
         .star_exports
         .iter()
-        .map(|esm_ref| async {
+        .map(async |esm_ref| {
             Ok(
                 if let ReferencedAsset::Some(m) =
                     ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?

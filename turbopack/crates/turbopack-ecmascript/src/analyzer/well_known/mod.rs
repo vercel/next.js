@@ -696,7 +696,9 @@ async fn well_known_object_member<'a>(
         }
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
-        | WellKnownObjectKind::FsModulePromises => {
+        | WellKnownObjectKind::FsModulePromises
+        | WellKnownObjectKind::GracefulFsModule
+        | WellKnownObjectKind::GracefulFsModuleDefault => {
             fs_module_member(arena.get_or_default(), kind, prop)
         }
         WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
@@ -934,6 +936,9 @@ fn fs_extra_module_member<'a>(
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
                     word.into(),
                 ));
+            }
+            (.., "readdir" | "readdirSync") => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadDir);
             }
             // fs-extra specific
             (

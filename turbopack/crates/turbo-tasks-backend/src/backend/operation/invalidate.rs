@@ -132,7 +132,7 @@ pub fn make_task_dirty_internal(
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
     if make_stale
-        && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+        && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
         && !*stale
     {

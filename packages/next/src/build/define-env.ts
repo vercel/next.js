@@ -172,6 +172,9 @@ export function getDefineEnv({
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
       config.experimental.turbopackSharedRuntime
     ),
+    'process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL': `${
+      config.turbopack?.chunkLoadingGlobal ?? 'TURBOPACK'
+    }_CHUNK_UPDATE_LISTENERS`,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations

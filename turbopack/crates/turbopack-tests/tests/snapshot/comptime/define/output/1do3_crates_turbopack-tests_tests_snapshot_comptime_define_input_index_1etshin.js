@@ -66,6 +66,11 @@ if (("TURBOPACK compile-time value", "replacement") === 'replacement') {
 if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 console.log(("TURBOPACK compile-time value", true));
+const { NODE_ENV: foo } = p.env;
+if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+;
+// TODO ideally this would also be inlined
+console.log(foo);
 }),
 ]);
 

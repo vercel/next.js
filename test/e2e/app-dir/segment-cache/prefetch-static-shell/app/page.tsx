@@ -36,6 +36,16 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/uses-runtime-after-prefetch">
+            Uses runtime APIs after prefetch()
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/uses-prefetch-static">
+            Uses prefetch() on a static page
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/dynamic-param/one">
             Dynamic param one
           </LinkAccordion>

@@ -1,6 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
@@ -14,6 +14,7 @@ pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
 pub mod code_gen;
+mod collect_module;
 mod directive;
 pub mod embed_js;
 mod errors;
@@ -422,10 +423,32 @@ pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Default, Debug)]
+pub struct EnvVarInfo {
+    /// List of environment variables that are referenced (but not inlined) in the module.
+    pub runtime: Vec<RcStr>,
+    // TODO add this back once we can do it without regressing performance
+    // Whether the module potentially references all environment variables (because of a
+    // non-statically analyzeable `process.env`).
+    // pub runtime_all: Option<IssueSource>,
+}
+
+#[turbo_tasks::value_impl]
+impl EnvVarInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
@@ -587,6 +610,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
+    }
+
+    #[turbo_tasks::function]
+    async fn env_var_info(self: Vc<Self>) -> Result<Vc<EnvVarInfo>> {
+        Ok(*self.analyze().await?.env_var_info)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
