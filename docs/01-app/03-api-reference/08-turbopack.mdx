@@ -305,11 +305,54 @@ const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
 
 > **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query` together with a matching rule instead, as shown in [Query strings](#query-strings). The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
-## Known gaps with webpack
+## Migrating from Webpack
+
+### Webpack loaders
+
+Turbopack can run many webpack loaders through [`turbopack.rules`](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders), so most loader-based setups keep working. However, a lot of Webpack loader behavior is built directly into Turbopack, either as a [module type](/docs/app/api-reference/config/next-config-js/turbopack#module-types) or as zero-config behavior. In those cases, the loader can be removed instead of ported.
+
+| Loader                                      | Replacement                                                                                                                                                 |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `raw-loader`                                | `type: 'text'` (or `type: 'raw'`)                                                                                                                           |
+| `file-loader`                               | `type: 'asset'`. Extensions Next.js already treats as assets need no rule at all.                                                                           |
+| `json-loader`                               | `type: 'json'`. `.json` imports work without a rule.                                                                                                        |
+| `node-loader`                               | `type: 'node'`                                                                                                                                              |
+| `css-loader`, `style-loader`                | Built-in [CSS and CSS Modules](/docs/app/getting-started/css). Import `.css` and `.module.css` directly.                                                    |
+| `mini-css-extract-plugin`'s loader          | Built-in CSS extraction and chunking. Remove the loader and the plugin together.                                                                            |
+| `postcss-loader`                            | `postcss.config.*` is picked up automatically. Move plugins and options there.                                                                              |
+| `sass-loader`                               | Sass is supported out of the box. Install `sass` and move supported settings to [`sassOptions`](/docs/app/api-reference/config/next-config-js/sassOptions). |
+| `babel-loader`                              | Babel config files are detected automatically. Keep `.babelrc` or `babel.config.*` and drop the rule.                                                       |
+| `ts-loader`, `swc-loader`, `esbuild-loader` | TypeScript and modern JavaScript are compiled by SWC. Run `tsc --noEmit` separately if you relied on `ts-loader` for type checking.                         |
+| `cache-loader`                              | The [filesystem cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default.                                       |
+| `thread-loader`                             | Turbopack parallelizes work across cores automatically.                                                                                                     |
+
+For example, a `raw-loader` rule becomes a module type:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      '*.txt': { type: 'text' },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+For CSS, Sass, PostCSS, and Babel the migration is usually to remove the rule entirely and keep the conventional file extension and tool config file.
+
+> **Good to know:** these replacements cover the common, default usage of each loader. Loader options that change output — `file-loader`'s `name` and `outputPath`, `css-loader`'s custom class name generation, `style-loader`'s `injectType`, custom SWC or esbuild transforms — have no equivalent, so review them before removing a rule. Loaders like `url-loader`, `html-loader`, `@svgr/webpack`, `less-loader`, and `yaml-loader` have no built-in equivalent and should stay configured as [webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders).
+
+Explicit `type` rules require Next.js 16.2 or newer.
+
+### Behavior differences
 
 There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally, these are less of a concern for new applications.
 
-### Filesystem Root
+#### Filesystem Root
 
 Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
 
@@ -317,7 +360,7 @@ For example, when linking dependencies outside the project root (via `npm link`,
 
 You can configure the filesystem root using [turbopack.root](/docs/app/api-reference/config/next-config-js/turbopack#root-directory) option in `next.config.js`.
 
-### CSS Module Ordering
+#### CSS Module Ordering
 
 Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example:
 
@@ -339,7 +382,7 @@ Webpack generally does this as well, but there are cases where it will ignore JS
 
 This can lead to subtle rendering changes when adopting Turbopack, if applications have come to rely on an arbitrary ordering. Generally, the solution is easy, e.g. have `button.module.css` `@import utils.module.css` to force the ordering, or identify the conflicting rules and change them to not target the same properties.
 
-### Sass node_modules imports
+#### Sass node_modules imports
 
 Turbopack supports importing `node_modules` Sass files out of the box. Webpack supports a legacy tilde `~` syntax for this, which is not supported by Turbopack.
 
@@ -367,7 +410,7 @@ module.exports = {
 }
 ```
 
-### CSS / Sass / SCSS decimal precision
+#### CSS / Sass / SCSS decimal precision
 
 Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightning CSS uses 5 digits of decimal precision for numeric CSS values, while webpack uses 10 digits. This applies to both plain CSS and Sass/SCSS output. For example, a value that evaluates to `25/17` produces:
 
@@ -376,7 +419,7 @@ Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightn
 
 This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
 
-### Webpack plugins
+#### Webpack plugins
 
 Turbopack does not support webpack plugins. This affects third-party tools that rely on webpack's plugin system for integration. We do support [webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders). If you depend on webpack plugins, you'll need to find Turbopack-compatible alternatives or continue using webpack until equivalent functionality is available.
 
