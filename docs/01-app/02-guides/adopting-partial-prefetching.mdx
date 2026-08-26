@@ -40,7 +40,10 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 
 Adopting an existing app by hand follows the two [instant navigation](/docs/app/guides/instant-navigation) insights Next.js surfaces in `next dev`:
 
-1. Before you enable the global flag, [audit every `<Link prefetch={true}>`](#auditing-link-prefetchtrue-calls) and choose which prefetched UI to preserve. You can use [`instant()` tests](#preserve-existing-prefetched-ui) to add regression coverage. When the adoption is large enough that reviewers need smaller diffs, or adopted routes should reach users before the rest, [adopt incrementally](#adopting-incrementally) with the flag off, guided by the [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight.
+1. Before you enable the global flag:
+   1. [Audit every `<Link prefetch={true}>`](#auditing-link-prefetchtrue-calls) and choose which prefetched UI to preserve.
+   2. Optionally, use [`instant()` tests](#preserve-existing-prefetched-ui) to add regression coverage.
+   3. When reviewers need smaller diffs, or adopted routes should reach users before the rest, [adopt incrementally](#adopting-incrementally) with the flag off, guided by the [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight.
 2. [Enable `partialPrefetching`](#enable-partial-prefetching), then [audit routes for URL data](#auditing-routes-for-url-data), resolving the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight.
 3. Optionally, [prefetch URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
 
@@ -48,7 +51,7 @@ Both insights are development-only and never block the build. They appear in the
 
 ## Enable Partial Prefetching
 
-For an existing app, complete the [`prefetch={true}` audit](#auditing-link-prefetchtrue-calls) before enabling Partial Prefetching.
+> **Good to know**: In an existing app, [audit your `<Link prefetch={true}>` calls](#auditing-link-prefetchtrue-calls) first. The flag-off state is what those links deliver today.
 
 Enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`:
 
@@ -93,15 +96,9 @@ A legacy full prefetch can include more UI than the navigation needs. Preserve t
 
 ### Preserve existing prefetched UI
 
-To add regression coverage, use [`instant()` tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to verify that the migration preserves the prefetched UI you selected. A preservation test can cover any subset of the legacy full prefetch. If you defer these tests, record the expected UI before enabling Partial Prefetching.
+An [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test locks in what a navigation shows immediately. With `partialPrefetching` off, write a client-navigation test for each audited `<Link prefetch={true}>` that asserts the UI you chose to preserve, and confirm it passes. If you don't add tests, record the expected UI before enabling Partial Prefetching.
 
-1. With `partialPrefetching` disabled, write a client-navigation `instant()` test for each audited `<Link prefetch={true}>`. Use positive assertions for the selected UI already present in the legacy full prefetch. You don't need to assert other prefetched UI. Confirm the test passes before migrating.
-2. Adopt the destinations with `prefetch = 'partial'`, or enable Partial Prefetching globally, and rerun the tests without changing the assertions. Use failures to identify prefetched UI that the migration removed, then cache only the data or rendered subtree needed to restore it.
-3. After removing the temporary route exports, rerun the tests under the final global configuration and keep them as regression coverage.
-
-The `instant()` helper holds back dynamic content while assertions run against the prefetched UI. It doesn't measure navigation duration. Add new prefetched UI as a separate optimization, and verify any deliberate removals after migration.
-
-These tests verify which UI is available from the prefetch. When preserving that UI changes caching or invalidation, follow the project's existing verification approach. Extend an applicable test suite to cover behavior such as fresh data after a mutation or cache isolation between users. If the project doesn't test this type of behavior, verify it manually and record the expected result.
+Then adopt the destination and rerun the same test unchanged. A failure identifies UI the App Shell no longer carries, so you can cache the data or subtree that restores it. A passing test stays as regression coverage.
 
 ### Static or cached content
 
