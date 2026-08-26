@@ -3,7 +3,7 @@ import { optimizeImage } from '../../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match other usages
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match other usages
 
 export async function getBlurImage(
   content: Buffer,
@@ -13,7 +13,6 @@ export async function getBlurImage(
     basePath,
     outputPath,
     isDev,
-    imgOptDangerouslyAllowAVIF = false,
     tracing = () => ({
       traceFn:
         (fn) =>
@@ -28,7 +27,6 @@ export async function getBlurImage(
     basePath: string
     outputPath: string
     isDev: boolean
-    imgOptDangerouslyAllowAVIF?: boolean
     tracing: (name?: string) => {
       traceFn(fn: Function): any
       traceAsyncFn(fn: Function): any
@@ -39,11 +37,7 @@ export async function getBlurImage(
   let blurWidth: number = 0
   let blurHeight: number = 0
 
-  const isValidBlurExtension =
-    VALID_BLUR_EXT.includes(extension) ||
-    (extension === 'avif' && imgOptDangerouslyAllowAVIF)
-
-  if (isValidBlurExtension && !isAnimated(content)) {
+  if (VALID_BLUR_EXT.includes(extension) && !isAnimated(content)) {
     // Shrink the image's largest dimension
     if (imageSize.width >= imageSize.height) {
       blurWidth = BLUR_IMG_SIZE
@@ -78,7 +72,6 @@ export async function getBlurImage(
           height: blurHeight,
           contentType: `image/${extension}`,
           quality: BLUR_QUALITY,
-          dangerouslyAllowAVIF: imgOptDangerouslyAllowAVIF,
         })
       )
       const blurDataURLSpan = tracing('image-base64-tostring')
