@@ -191,10 +191,8 @@ const RETAINED_OUTPUT_PATHS = new Set([
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
-declare const __turbopack_server_hmr_apply__:
-  | ((runtimeRoot: string, update: NodeJsPartialHmrUpdate) => void)
-  | undefined
-
+// __turbopack_server_hmr_apply__ is declared once as a global in
+// app-render/entry-base.ts, which owns the runtime side.
 interface ServerHmrHandlerEntry {
   handler: (update: NodeJsPartialHmrUpdate) => void
   clearChunkCache: () => void

@@ -232,9 +232,8 @@ async function registerAdditionalClientReferenceManifests(
   )
 }
 
-declare const __turbopack_server_hmr_apply__:
-  | ((runtimeRoot: string, update: NodeJsPartialHmrUpdate) => void)
-  | undefined
+// __turbopack_server_hmr_apply__ is declared once as a global in
+// app-render/entry-base.ts, which owns the runtime side.
 
 /**
  * What this thread did with a forwarded HMR update.
