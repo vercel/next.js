@@ -25,8 +25,9 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, EvictionMode, GitVersionInfo, StartupCacheState, TurboTasksBackend,
-    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StartupCacheState,
+    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
+    turbo_backing_storage,
 };
 
 pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
@@ -289,20 +290,21 @@ pub fn create_turbo_tasks(
     next_version: &str,
     persistent_caching: bool,
     dependency_tracking: bool,
-    is_ci: bool,
-    is_short_session: bool,
-    skip_compaction: bool,
+    storage_options: BackingStorageOptions,
     turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
+    let BackingStorageOptions {
+        is_ci,
+        is_short_session,
+        ..
+    } = storage_options;
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
         let (backing_storage, cache_state) = turbo_backing_storage(
             &output_path.join("cache").join("turbopack"),
             &version_info,
-            is_ci,
-            is_short_session,
-            skip_compaction,
+            storage_options,
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {

@@ -276,6 +276,8 @@ struct TestOptions {
     remove_unused_exports: bool,
     #[serde(default = "default_true")]
     scope_hoisting: bool,
+    #[serde(default = "default_true")]
+    infer_module_side_effects: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
     #[serde(default = "default_true")]
@@ -290,6 +292,11 @@ struct TestOptions {
     /// package.json.
     #[serde(default)]
     side_effect_free_packages: Vec<RcStr>,
+    /// Whether a request starting with `/` resolves from the test's directory. Set this to `false`
+    /// to leave `ResolveOptions::server_relative_root` unset, as an embedder that doesn't support
+    /// such requests would, which makes them unresolvable.
+    #[serde(default = "default_true")]
+    server_relative_root: bool,
 }
 
 fn default_true() -> bool {
@@ -307,9 +314,11 @@ impl Default for TestOptions {
             cjs_tree_shaking: false,
             cjs_scope_hoisting: false,
             cross_module_constants: true,
+            infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
             side_effect_free_packages: Vec::new(),
+            server_relative_root: default_true(),
         }
     }
 }
@@ -469,10 +478,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
-                infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
+                infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },
             environment: Some(env),
@@ -498,6 +507,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             enable_node_native_modules: true,
             enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
+            // A `/`-rooted request resolves from the test's own directory, which is not the root
+            // of the filesystem (that is the repository root), so the two are distinguishable.
+            server_relative_root: options.server_relative_root.then(|| project_path.clone()),
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ResolveOptionsContext {

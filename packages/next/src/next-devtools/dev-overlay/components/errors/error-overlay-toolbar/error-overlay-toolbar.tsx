@@ -6,20 +6,16 @@ import { DocsLinkButton } from './docs-link-button'
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
-  feedbackButton?: React.ReactNode
   generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayToolbar({
   error,
   debugInfo,
-  feedbackButton,
   generateErrorInfo,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
-      {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
-      {feedbackButton}
       <CopyErrorButton error={error} generateErrorInfo={generateErrorInfo} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
