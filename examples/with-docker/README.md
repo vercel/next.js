@@ -66,6 +66,34 @@ docker run -p 3000:3000 nextjs-standalone-bun-image
 
 **Open your browser:** Navigate to [http://localhost:3000](http://localhost:3000)
 
+### Environment variables
+
+The included `.dockerignore` excludes `.env` from the Docker build context, so it is not copied into the production image. For server-side values read at runtime, such as during dynamic rendering, pass environment variables when the container starts:
+
+```bash
+docker run --env-file .env -p 3000:3000 nextjs-standalone-image
+```
+
+In production, use your deployment platform's environment variable or secrets configuration. If server-side code needs a sensitive value during `next build`, such as while prerendering, [mount a Docker build secret as an environment variable](https://docs.docker.com/build/building/secrets/#target), not as `/app/.env` or `/app/.env.production`. Next.js copies loaded `.env` and `.env.production` files into the standalone output.
+
+Variables prefixed with `NEXT_PUBLIC_` are inlined into the browser bundle during `next build`. To set one, declare it as a non-secret build argument in the `builder` stage:
+
+```dockerfile
+FROM node:${NODE_VERSION} AS builder
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+```
+
+Then pass the value when building the image:
+
+```bash
+docker build --build-arg NEXT_PUBLIC_API_URL="https://api.example.com" \
+  -t nextjs-standalone-image .
+```
+
+`NEXT_PUBLIC_` values cannot be changed after the image is built. Never pass secrets with build arguments. Keep secrets server-side and provide them at runtime. Learn more about [runtime environment variables in Next.js](https://nextjs.org/docs/app/guides/self-hosting#environment-variables) and [setting environment variables when running a container](https://docs.docker.com/reference/cli/docker/container/run/#env).
+
 ### In existing projects
 
 To add Docker support to your existing Next.js project:
