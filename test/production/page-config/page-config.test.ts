@@ -24,8 +24,9 @@ describe('Page Config', () => {
       if (isTurbopack) {
         // Turbopack rejects the config in its own transform, and the build
         // stops there. It never reads the value with the segment config schema.
+        expect(cliOutput).toContain('./pages/invalid/string-config.js')
         expect(cliOutput).toContain(
-          "Next.js can't recognize the exported `config` field"
+          "Next.js can't recognize the exported `config` field in route. It needs to be a static object."
         )
       } else {
         // Webpack reads the value with the segment config schema, and the
