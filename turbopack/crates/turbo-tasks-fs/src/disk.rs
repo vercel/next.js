@@ -807,17 +807,18 @@ impl FileSystem for DiskFileSystem {
 
         self.inner.register_read_invalidator(&full_path).await?;
 
-        #[cfg(debug_assertions)]
-        self.ensure_path_is_realpath("read_file", &full_path)
-            .await?;
-
         let _lock = self.inner.lock_path(full_path.clone()).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
             .instrument(tracing::info_span!("read file", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
-            Ok(file) => FileContent::new(file),
+            Ok(file) => {
+                #[cfg(debug_assertions)]
+                self.ensure_path_is_realpath("read_file", &full_path)
+                    .await?;
+                FileContent::new(file)
+            }
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
             }
@@ -837,16 +838,17 @@ impl FileSystem for DiskFileSystem {
 
         self.inner.register_dir_invalidator(&full_path).await?;
 
-        #[cfg(debug_assertions)]
-        self.ensure_path_is_realpath("read_dir", &full_path).await?;
-
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&*full_path))
             .instrument(tracing::info_span!("read directory", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
-            Ok(dir) => dir,
+            Ok(dir) => {
+                #[cfg(debug_assertions)]
+                self.ensure_path_is_realpath("read_dir", &full_path).await?;
+                dir
+            }
             Err(e)
                 if e.kind() == ErrorKind::NotFound
                     || e.kind() == ErrorKind::NotADirectory
@@ -1743,7 +1745,7 @@ mod tests {
 
         use super::extract_effects_operation;
         #[cfg(all(unix, debug_assertions))]
-        use crate::{DirectoryContent, FileContent};
+        use crate::{DirectoryContent, FileContent, RawDirectoryContent};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
             LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
@@ -1912,6 +1914,11 @@ mod tests {
                 DirectoryContent::Entries(entries) if entries.contains_key(&rcstr!("data.txt"))
             ));
 
+            assert!(matches!(
+                &*root_path.join("file-alias")?.raw_read_dir().await?,
+                RawDirectoryContent::NotFound
+            ));
+
             let unresolved_file = unresolved_dir.join("data.txt")?;
             let resolved_file = unresolved_file
                 .realpath()
@@ -1943,6 +1950,7 @@ mod tests {
             create_dir_all(path.join("real/child")).unwrap();
             File::create_new(path.join("real/child/data.txt")).unwrap();
             symlink("real", path.join("alias")).unwrap();
+            symlink("real/child/data.txt", path.join("file-alias")).unwrap();
 
             let root = canonicalize_to_rcstr(&path).unwrap();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
