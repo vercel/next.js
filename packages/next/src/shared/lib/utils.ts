@@ -31,7 +31,11 @@ export type DocumentType = NextComponentType<
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
   P,
-  AppPropsType<any, P>
+  // The generic `P` describes the props returned from a custom `App`'s
+  // `getInitialProps`, which Next.js spreads at the top level of the
+  // component's runtime props (sibling to `pageProps`, not nested inside
+  // it). Spreading `P` into `pageProps` was the root cause of #42846.
+  AppPropsType<any, any> & P
 >
 
 export type AppTreeType = ComponentType<
