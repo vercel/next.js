@@ -201,12 +201,17 @@ Called when tags are revalidated or expired.
 updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
 ```
 
-| Parameter   | Type                  | Description                              |
-| ----------- | --------------------- | ---------------------------------------- |
-| `tags`      | `string[]`            | Array of tags to update.                 |
-| `durations` | `{ expire?: number }` | Optional expiration duration in seconds. |
+| Parameter   | Type                  | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                                                        |
+| `durations` | `{ expire?: number }` | Present for profile-based revalidation; carries the profile's `expire` seconds. |
 
 Your handler should update its internal state to mark these tags as invalidated.
+
+Whether `durations` is present tells you which kind of invalidation this is:
+
+- **Absent** — invalidate immediately. Entries carrying these tags should not be served again. `updateTag()` and a single-argument `revalidateTag()` take this path, and the caller expects its own next read to miss.
+- **Present** — the tags go stale now, but entries carrying them may still be served while they refresh in the background, until `durations.expire` seconds have passed. `revalidateTag(tag, 'max')` takes this path.
 
 Returns `Promise<void>`.
 
@@ -458,45 +463,32 @@ module.exports = {
   // ... get() and set() methods ...
 
   async refreshTags() {
-    // Sync tag invalidation markers from Redis
+    // Sync tag invalidation timestamps from Redis
     // Using a dedicated set to track tag keys avoids scanning the keyspace
     const tagKeys = await client.sMembers('revalidated-tags')
     if (tagKeys.length > 0) {
       const values = await client.mGet(tagKeys.map((k) => `tag:${k}`))
       for (let i = 0; i < tagKeys.length; i++) {
-        localTagTimestamps.set(tagKeys[i], JSON.parse(values[i]))
+        localTagTimestamps.set(tagKeys[i], Number(values[i]))
       }
     }
   },
 
   async getExpiration(tags) {
-    // Report the hard-expiration stamps; Next.js discards entries older
-    // than the returned value. Stale stamps are consumed in `get()`
-    // instead: serve the entry, but return it with `revalidate: -1` to
-    // force a background refresh (this mirrors the built-in handler).
-    const stamps = tags.map((tag) => localTagTimestamps.get(tag)?.expired ?? 0)
-    return Math.max(...stamps, 0)
+    const timestamps = tags.map((tag) => localTagTimestamps.get(tag) || 0)
+    return Math.max(...timestamps, 0)
   },
 
   async updateTags(tags, durations) {
+    // This example invalidates immediately in both cases. See
+    // [`updateTags()`](#updatetags) for how `durations` separates immediate
+    // invalidation from stale-while-revalidate.
     const now = Date.now()
-    // Without `durations` (for example `updateTag()`), the tag expires
-    // immediately: entries carrying it must not be served again. With
-    // `durations` (profile-based, for example `revalidateTag(tag, 'max')`),
-    // entries turn stale now — keep serving them while they refresh in the
-    // background — and only hard-expire `durations.expire` seconds later.
-    const expired =
-      durations === undefined
-        ? now
-        : Number.isFinite(durations.expire)
-          ? now + durations.expire * 1000
-          : 0 // `expire: Infinity` — never hard-expire
-    const marker = JSON.stringify({ stale: now, expired })
     const pipeline = client.multi()
     for (const tag of tags) {
-      pipeline.set(`tag:${tag}`, marker)
+      pipeline.set(`tag:${tag}`, String(now))
       pipeline.sAdd('revalidated-tags', tag)
-      localTagTimestamps.set(tag, { stale: now, expired })
+      localTagTimestamps.set(tag, now)
     }
     await pipeline.exec()
   },
