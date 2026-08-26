@@ -1,4 +1,4 @@
-import { getNamedRouteRegex } from './route-regex'
+import { getNamedRouteRegex, getRouteRegex } from './route-regex'
 import { parseParameter } from './get-dynamic-param'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
@@ -851,6 +851,20 @@ describe('getNamedRouteRegex - Edge Cases', () => {
     // Should match multiple segments after the static segment
     expect(regex.re.test('/photos/(.)images/a')).toBe(true)
     expect(regex.re.test('/photos/(.)images/a/b/c')).toBe(true)
+  })
+
+  it('should match multi-segment paths for catchall adjacent to interception marker', () => {
+    // getParametrizedRoute previously ignored `repeat` in this branch.
+    const regex = getRouteRegex('/photos/(.)[...slug]')
+
+    expect(regex.groups.slug).toEqual({
+      pos: 1,
+      repeat: true,
+      optional: false,
+    })
+    expect(regex.re.test('/photos/(.)a')).toBe(true)
+    expect(regex.re.test('/photos/(.)a/b/c')).toBe(true)
+    expect(regex.re.exec('/photos/(.)a/b/c')?.[1]).toBe('a/b/c')
   })
 
   it('should handle dynamic segment with interception marker prefix', () => {
