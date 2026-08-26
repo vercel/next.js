@@ -3658,18 +3658,18 @@ async function computeCacheKeyImplementationPart(
     // TODO replace this with more granular tracking: a list of all client components imported
     serverModuleMapEntry?.referencesClientComponent !== true
   ) {
-    let runtimeEnvVarsWithValues: string[] = await Promise.all(
-      serverModuleMapEntry?.runtimeEnvVars?.map(async (v) => {
-        // Hash the env var values, to not leak secrets into the cache key.
-        let hash = process.env[v] ? await hashString(process.env[v]) : undefined
-        return `${v}=${hash}`
-      }) ?? []
+    // Hash the env var values, to not leak secrets into the cache key.
+    let runtimeEnvVarStateHash = await hashString(
+      serverModuleMapEntry.runtimeEnvVars
+        .map((k) => {
+          // Make sure not to stringify `undefined` and `"undefined"` to the same value.
+          return process.env[k] != null ? `${k}=${process.env[k]}` : k
+        })
+        .join('\0') ?? ''
     )
 
     // When more accurate analysis information is available, use codeHash + runtimeEnvVars
-    return [serverModuleMapEntry?.codeHash, nextVersion].concat(
-      runtimeEnvVarsWithValues
-    )
+    return [serverModuleMapEntry.codeHash, nextVersion, runtimeEnvVarStateHash]
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't
     // safely reuse the results across builds yet. In the meantime we add the buildId to the
