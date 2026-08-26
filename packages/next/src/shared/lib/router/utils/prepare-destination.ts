@@ -231,8 +231,38 @@ export function prepareDestination(args: {
   // The following code assumes that the pathname here includes the hash if it's
   // present.
   let destPath = parsedDestination.pathname
+  let markerAdjacentRepeatingParam: string | undefined
+  if (isInterceptionRouteAppPath(destPath)) {
+    // path-to-regexp cannot repeat a param that has no prefix or suffix. An
+    // intercepted catchall is adjacent to its marker, so compile its captured
+    // segments as one slash-delimited value instead.
+    destPath = destPath
+      .split('/')
+      .map((segment) => {
+        const marker = INTERCEPTION_ROUTE_MARKERS.find((candidate) =>
+          segment.startsWith(candidate)
+        )
+        if (!marker) return segment
+
+        const param = segment.slice(marker.length).match(/^:(\w+)([+*])(.*)$/)
+        if (!param) return segment
+
+        markerAdjacentRepeatingParam = param[1]
+        return `${marker}:${param[1]}${param[2] === '*' ? '?' : ''}${param[3]}`
+      })
+      .join('/')
+  }
+
   if (parsedDestination.hash) {
     destPath = `${destPath}${parsedDestination.hash}`
+  }
+
+  const compileParams = { ...args.params }
+  if (markerAdjacentRepeatingParam) {
+    const value = compileParams[markerAdjacentRepeatingParam]
+    if (Array.isArray(value)) {
+      compileParams[markerAdjacentRepeatingParam] = value.join('/')
+    }
   }
 
   const destParams: (string | number)[] = []
@@ -276,10 +306,13 @@ export function prepareDestination(args: {
     // correctly
     if (Array.isArray(strOrArray)) {
       destQuery[key] = strOrArray.map((value) =>
-        compileNonPath(unescapeSegments(value), args.params)
+        compileNonPath(unescapeSegments(value), compileParams)
       )
     } else if (typeof strOrArray === 'string') {
-      destQuery[key] = compileNonPath(unescapeSegments(strOrArray), args.params)
+      destQuery[key] = compileNonPath(
+        unescapeSegments(strOrArray),
+        compileParams
+      )
     }
   }
 
@@ -311,10 +344,10 @@ export function prepareDestination(args: {
       )
       if (marker) {
         if (marker === '(..)(..)') {
-          args.params['0'] = '(..)'
-          args.params['1'] = '(..)'
+          compileParams['0'] = '(..)'
+          compileParams['1'] = '(..)'
         } else {
-          args.params['0'] = marker
+          compileParams['0'] = marker
         }
         break
       }
@@ -322,16 +355,16 @@ export function prepareDestination(args: {
   }
 
   try {
-    newUrl = destPathCompiler(args.params)
+    newUrl = destPathCompiler(compileParams)
 
     const [pathname, hash] = newUrl.split('#', 2)
     if (destHostnameCompiler) {
-      parsedDestination.hostname = destHostnameCompiler(args.params)
+      parsedDestination.hostname = destHostnameCompiler(compileParams)
     }
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     parsedDestination.search = destSearch
-      ? compileNonPath(destSearch, args.params)
+      ? compileNonPath(destSearch, compileParams)
       : ''
   } catch (err: any) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {

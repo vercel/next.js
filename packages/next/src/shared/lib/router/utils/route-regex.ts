@@ -7,6 +7,8 @@ import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 import { PARAMETER_PATTERN, parseMatchedParameter } from './get-dynamic-param'
 
+const INTERCEPTED_REPEAT_PARAM_PATTERN = '[^/]+?(?:/[^/]+?)*?'
+
 export interface Group {
   pos: number
   repeat: boolean
@@ -108,7 +110,18 @@ function getParametrizedRoute(
     if (markerMatch && paramMatches && paramMatches[2]) {
       const { key, optional, repeat } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
-      segments.push(`/${escapeStringRegexp(markerMatch)}([^/]+?)`)
+      // Must honor `repeat` here. Hardcoding `([^/]+?)` makes
+      // routes like `/(.)[...slug]` fail to match multi-segment paths.
+      // Each repeated segment must remain non-empty so that the route's
+      // optional trailing slash cannot satisfy a required catch-all.
+      const paramPattern = repeat
+        ? `(${INTERCEPTED_REPEAT_PARAM_PATTERN})`
+        : '([^/]+?)'
+      segments.push(
+        `/${escapeStringRegexp(markerMatch)}${
+          optional && repeat ? `(?:${paramPattern})?` : paramPattern
+        }`
+      )
     } else if (paramMatches && paramMatches[2]) {
       const { key, repeat, optional } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
@@ -249,16 +262,21 @@ function getSafeKeyFromSegment({
     // in each of the placeholders.
     pattern = `\\k<${cleanedKey}>`
   } else if (repeat) {
-    pattern = `(?<${cleanedKey}>.+?)`
+    pattern = `(?<${cleanedKey}>${
+      interceptionMarker ? INTERCEPTED_REPEAT_PARAM_PATTERN : '.+?'
+    })`
   } else {
     pattern = `(?<${cleanedKey}>[^/]+?)`
   }
 
   return {
     key,
-    pattern: optional
-      ? `(?:/${interceptionPrefix}${pattern})?`
-      : `/${interceptionPrefix}${pattern}`,
+    pattern:
+      optional && repeat && interceptionMarker
+        ? `/${interceptionPrefix}(?:${pattern})?`
+        : optional
+          ? `(?:/${interceptionPrefix}${pattern})?`
+          : `/${interceptionPrefix}${pattern}`,
     cleanedKey: cleanedKey,
     optional,
     repeat,
