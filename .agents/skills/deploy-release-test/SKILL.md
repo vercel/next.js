@@ -9,6 +9,8 @@ description: >
   locally with pnpm test-deploy instead. Covers resolving the latest branch SHA,
   waiting for vercel-packages, preserving default workflow inputs, dispatching
   the workflow, and verifying the run.
+metadata:
+  internal: true
 ---
 
 # Deploy Release Test
