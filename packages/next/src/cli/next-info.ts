@@ -78,7 +78,7 @@ async function getNextConfig() {
 function getBinaryVersion(binaryName: string) {
   try {
     return childProcess
-      .execFileSync(binaryName, ['--version'])
+      .execFileSync(binaryName, ['--version'], { stdio: 'pipe' })
       .toString()
       .trim()
   } catch {

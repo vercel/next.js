@@ -1148,7 +1148,7 @@ Next.js Config:
       const info = await next.runCommand(['info'])
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')
-      expect(info.stderr).not.toContain('command not found')
+      expect(info.stderr).not.toMatch(/not found/i)
       matchInfoOutput(info.stdout)
     })
 
