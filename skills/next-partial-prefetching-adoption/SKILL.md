@@ -16,6 +16,10 @@ Enable Partial Prefetching and walk the app until every link reuses a shared App
 
 The development insights and the preservation tests are two different paths. Insights surface only in `next dev`, in the dev overlay's Insights tab. Test-backed preservation runs against a production-like build with `instant()` and does not need a development server. After the flag is enabled, the separate URL-data insight sweep still uses `next dev`.
 
+## preservation gate
+
+When the audit finds an effective legacy `prefetch={true}`, the first implementation milestone is a passing flag-off `instant()` suite. Set up the production test rig, write the selected assertions, run them with `partialPrefetching` disabled, and record the command and exit status. Test-only configuration required by the rig is allowed, but until that baseline passes, do not enable `partialPrefetching` or edit the destination, cache boundaries, or Link props. Installing missing test dependencies is part of reaching the baseline, not a reason to adopt first.
+
 Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: links to a route prefetch one shared App Shell, and `prefetch={true}` can also resolve cached URL-specific content. The audit determines which UI from the legacy full prefetch to preserve.
 
 ## requires
@@ -81,9 +85,9 @@ This workflow is specific to a clicked `<Link>`. A direct call such as `router.p
 
 ## step 2: capture the legacy baseline
 
-Do not edit `next.config`, route exports, Link props, or cache boundaries during this step.
+Do not enable `partialPrefetching` or edit route behavior, Link props, or cache boundaries during this step. Test-only configuration required to run `instant()` is allowed.
 
-For test-backed preservation, write the complete `instant()` suite and **run it** against the production-like rig with Partial Prefetching disabled. Record the exact command and its passing exit status. A test file, build, completed navigation, or command printed for the user is not a baseline. Do not continue to step 3 until the suite has actually passed.
+For test-backed preservation, complete the [preservation gate](#preservation-gate): write the complete `instant()` suite and **run it** against the production-like rig with Partial Prefetching disabled. A test file, build, completed navigation, or command printed for the user is not a baseline. Do not continue to step 3 until the suite has actually passed.
 
 For manual preservation, finish the before/target inventory before editing any destination. Fall back to this path only for a concrete rig blocker identified through `rig-template.md`, and record the blocker and deferred tests.
 
