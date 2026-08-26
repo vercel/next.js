@@ -1,5 +1,5 @@
 import type { WebSocketTransportConnection } from './websocket-upgrade'
-import { throwCombinedFailures } from './websocket-http'
+import { isSocketDisconnected, throwCombinedFailures } from './websocket-http'
 import {
   CLOSE_GRACE_PERIOD_MS,
   TERMINATE_CLOSE_EVENT_GRACE_PERIOD_MS,
@@ -376,7 +376,7 @@ export function ownWebSocketRouteLease(
   let ownershipReleased = false
   const ownership: WebSocketRouteLeaseOwnership = {
     isSocketEnded() {
-      return socket.destroyed || socket.readableEnded || socket.writableEnded
+      return isSocketDisconnected(socket)
     },
     release() {
       if (ownershipReleased) return []
