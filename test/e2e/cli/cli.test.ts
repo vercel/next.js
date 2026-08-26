@@ -1155,6 +1155,9 @@ Next.js Config:
     test('should not leak package manager command errors', async () => {
       const marker = 'next-info-yarn-command-not-found'
       const binDir = await fs.mkdtemp(join(next.testDir, 'next-info-bin-'))
+      const pathKey =
+        Object.keys(process.env).find((key) => key.toLowerCase() === 'path') ??
+        'PATH'
       const yarnPath = join(
         binDir,
         process.platform === 'win32' ? 'yarn.cmd' : 'yarn'
@@ -1173,7 +1176,9 @@ Next.js Config:
 
         const info = await next.runCommand(['info'], {
           env: {
-            PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+            [pathKey]: `${binDir}${path.delimiter}${process.env[pathKey] ?? ''}`,
+            // Match issue #97932's npm project so the fake Yarn only exercises
+            // binary version detection, not registry discovery.
             npm_config_user_agent: 'npm',
           },
         })
