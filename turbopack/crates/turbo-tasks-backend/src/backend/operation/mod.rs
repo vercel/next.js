@@ -1270,6 +1270,30 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
+    /// Adjust the count of persistent parents referencing this task by `delta`
+    ///
+    /// Panics on underflow/overflow
+    fn update_and_get_parent_count(&mut self, delta: i32) -> u32 {
+        let current = self.get_parent_count().copied().unwrap_or(0);
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("parent_count underflow: decremented below the number of persistent parents");
+        self.set_parent_count(new_value);
+        new_value
+    }
+
+    /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
+    /// reference count
+    /// Panics on underflow/overflow.
+    fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
+        let current = self.get_transient_ref_count().copied().unwrap_or(0);
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("transient_ref_count underflow");
+        self.set_transient_ref_count(new_value);
+        new_value
+    }
+
     fn invalidate_serialization(&mut self);
     /// Determine which tasks to prefetch for a task.
     /// Only returns Some once per task.
@@ -1657,6 +1681,7 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
         self.task.undo_track_modification(outcome);
     }
 
+    #[track_caller]
     fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
         self.check_access(category);
     }
