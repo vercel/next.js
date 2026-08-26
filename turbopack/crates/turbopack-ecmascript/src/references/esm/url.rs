@@ -274,14 +274,14 @@ impl UrlAssetReferenceCodeGen {
                                     if let Some(ExprOrSpread { expr, spread: None }) =
                                         args.get_mut(0)
                                     {
-                                        *expr = url_segment_resolver.clone();
+                                        **expr = url_segment_resolver.clone();
                                     }
 
                                     if let Some(ExprOrSpread { expr, spread: None }) =
                                         args.get_mut(1)
                                     {
                                         if let Some(rewrite) = &rewrite_url_base {
-                                            *expr = rewrite.clone();
+                                            **expr = rewrite.clone();
                                         } else {
                                             // If rewrite for the base doesn't exists, means
                                             // __turbopack_resolve_module_id_path__
@@ -314,7 +314,7 @@ impl UrlAssetReferenceCodeGen {
                                         && let Some(ExprOrSpread { expr, spread: None }) =
                                             args.get_mut(1)
                                     {
-                                        *expr = rewrite.clone();
+                                        **expr = rewrite.clone();
                                     }
                                 }
                             }

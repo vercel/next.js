@@ -74,7 +74,7 @@ impl EsmModuleItem {
                                         Default::default(),
                                     )
                                     .into(),
-                                    init: Some(Box::new(expr)),
+                                    init: Some(expr),
                                     definite: false,
                                 }],
                             }));
