@@ -319,10 +319,15 @@ export const publicAppRouterInstance: AppRouterInstance = {
   back: () => window.history.back(),
   forward: () => window.history.forward(),
   prefetch: prefetchRoute,
-  replace: replace,
-  push: push,
-  refresh: refresh,
-  hmrRefresh: hmrRefresh,
+  // These wrappers must not be simplified to bare references (e.g.
+  // `replace: replace`). This module is part of an import cycle with the
+  // navigator module, so reading one of its exports during module evaluation
+  // can crash, depending on which module in the cycle is evaluated first.
+  // Wrapping defers the reads until the method is called.
+  replace: (href, options) => replace(href, options),
+  push: (href, options) => push(href, options),
+  refresh: () => refresh(),
+  hmrRefresh: () => hmrRefresh(),
   // Default value. Each route segment provides its own value at runtime. Refer
   // to `useRouter()`.
   bfcacheId: '0',
