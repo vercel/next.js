@@ -1,4 +1,5 @@
 import type { Segment } from '../../shared/lib/app-router-types'
+import { canonicalizeURLPart } from '../route-params'
 
 export const matchSegment = (
   existingSegment: Segment,
@@ -16,5 +17,8 @@ export const matchSegment = (
   if (typeof segment === 'string') {
     return false
   }
-  return existingSegment[0] === segment[0] && existingSegment[1] === segment[1]
+  return (
+    existingSegment[0] === segment[0] &&
+    canonicalizeURLPart(existingSegment[1]) === canonicalizeURLPart(segment[1])
+  )
 }
