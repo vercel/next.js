@@ -11,9 +11,11 @@ async function execute(next: NextInstance, envKey: string, id: string) {
     let keyRoot: string,
       keyPrerender: string,
       keyClient: string,
+      keyRoute: string,
       dataRoot: string,
       dataPrerender: string,
-      dataClient: string
+      dataClient: string,
+      dataRoute: string
     {
       const match = next.cliOutput.match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/prerender\/layout","_N_T_\/prerender\/page","_N_T_\/prerender"\]\]$/m
@@ -43,6 +45,17 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     {
       const logs = next.getCliOutputFromHere()
+      const response = await next.fetch(`/route`)
+      dataRoute = await response.text()
+      const match = logs().match(
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/route","_N_T_\/route\/route"\]\]$/m
+      )
+      expect(match).toBeArray()
+      keyRoute = match[0]
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/`)
       dataRoot = await browser.elementById('data').text()
       const match = logs().match(
@@ -55,9 +68,11 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyRoot,
       keyPrerender,
       keyClient,
+      keyRoute,
       dataRoot,
       dataPrerender,
       dataClient,
+      dataRoute,
     }
   } finally {
     if (envKey !== 'default') {
@@ -91,6 +106,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       expect(key1.keyClient).not.toBe(key2.keyClient)
       expect(key1.dataClient).not.toBe(key2.dataClient)
+
+      expect(key1.keyRoute).not.toBe(key2.keyRoute)
+      expect(key1.dataRoute).not.toBe(key2.dataRoute)
     })
   }
 )
@@ -122,6 +140,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(key1.keyPrerender).toBe(key2.keyPrerender)
       expect(key1.dataPrerender).toBe(key2.dataPrerender)
 
+      expect(key1.keyRoute).toBe(key2.keyRoute)
+      expect(key1.dataRoute).toBe(key2.dataRoute)
+
       // TODO needs more granular client reference tracking
       // expect(key1.keyClient).toBe(key2.keyClient)
       // expect(key1.dataClient).toBe(key2.dataClient)
@@ -150,6 +171,10 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.keyClient).not.toBe(key2.keyClient)
           expect(key1.dataClient).not.toBe(key2.dataClient)
           expect(key2.dataClient).toBe(value)
+
+          expect(key1.keyRoute).not.toBe(key2.keyRoute)
+          expect(key1.dataRoute).not.toBe(key2.dataRoute)
+          expect(key2.dataRoute).toBe(value)
         }
       )
     })
@@ -182,6 +207,12 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key2.dataClient).toEndWith(`:${foobar2}`)
         expect(key1.keyClient).not.toContain(foobar1)
         expect(key2.keyClient).not.toContain(foobar2)
+
+        expect(key1.keyRoute).not.toBe(key2.keyRoute)
+        expect(key1.dataRoute).toEndWith(`:${foobar1}`)
+        expect(key2.dataRoute).toEndWith(`:${foobar2}`)
+        expect(key1.keyRoute).not.toContain(foobar1)
+        expect(key2.keyRoute).not.toContain(foobar2)
       } finally {
         delete next.env['FOOBAR']
       }
@@ -204,6 +235,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
           expect(key1.keyPrerender).toBe(key2.keyPrerender)
           expect(key1.dataPrerender).toBe(key2.dataPrerender)
+
+          expect(key1.keyRoute).toBe(key2.keyRoute)
+          expect(key1.dataRoute).toBe(key2.dataRoute)
 
           // Is different, the client code and async:false->true
           expect(key1.keyClient).not.toBe(key2.keyClient)
