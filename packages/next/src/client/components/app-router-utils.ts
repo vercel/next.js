@@ -29,8 +29,8 @@ export function createPrefetchURL(href: string): URL | null {
     )
   }
 
-  // Don't prefetch during development (improves compilation performance)
-  if (process.env.NODE_ENV === 'development') {
+  // Don't prefetch in dev unless experimental.turbopackPrefetchInDev is enabled.
+  if (!process.env.__NEXT_PREFETCH) {
     return null
   }
 
