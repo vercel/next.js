@@ -1,5 +1,0 @@
-name: Allow issue participants to reopen issues
-description: Reopens maintainer-closed issues when eligible participants ask
-runs:
-  using: node24
-  main: index.js

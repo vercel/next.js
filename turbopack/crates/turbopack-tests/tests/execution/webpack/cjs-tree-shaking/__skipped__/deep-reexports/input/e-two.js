@@ -1,1 +1,0 @@
-exports.second = 2

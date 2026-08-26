@@ -1,7 +1,0 @@
-{
-  "sideEffectFreePackages": [
-    "package-declared-glob",
-    "package-declared-side-effectful",
-    "package-undeclared"
-  ]
-}

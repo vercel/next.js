@@ -1,9 +1,0 @@
-{
-  "private": true,
-  "type": "module",
-  "workspaces": {
-    "packages": [
-      "packages/*"
-    ]
-  }
-}

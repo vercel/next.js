@@ -1,5 +1,0 @@
-{
-  "dependencies": {
-    "foo": "file:./foo"
-  }
-}

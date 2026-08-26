@@ -1,1 +1,0 @@
-Create a server component that reads a "theme" cookie and displays the current theme preference. If no theme cookie exists, default to "light". The component should also show the user's preferred language from the Accept-Language header.

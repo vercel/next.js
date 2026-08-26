@@ -1,7 +1,0 @@
-.module-style {
-  color: magenta;
-  > h1,
-  + .inner {
-    background: purple;
-  }
-}

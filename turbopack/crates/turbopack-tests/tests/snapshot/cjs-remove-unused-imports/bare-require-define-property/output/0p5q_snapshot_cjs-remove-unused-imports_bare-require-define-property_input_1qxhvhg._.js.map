@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-imports/bare-require-define-property/input/defineprop-foreign.js"],"sourcesContent":["// A foreign target is observable, so this require is kept.\nObject.defineProperty(globalThis, 'x', { value: 1 })\n"],"names":["Object","defineProperty","globalThis","value"],"mappings":"AAAA,2DAA2D;AAC3DA,OAAOC,cAAc,CAACC,YAAY,KAAK;IAAEC,OAAO;AAAE"}},
-    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-imports/bare-require-define-property/input/index.js"],"sourcesContent":["// A discarded require becomes `0` when its target is side-effect free.\nrequire('./defineprop.js')\nrequire('./assign.js')\nrequire('./barrel.js')\nrequire('./defineprop-foreign.js')\n\nconsole.log('kept')\n"],"names":["console","log"],"mappings":"AAAA,uEAAuE;;;;;AAMvEA,QAAQC,GAAG,CAAC"}}]
-}

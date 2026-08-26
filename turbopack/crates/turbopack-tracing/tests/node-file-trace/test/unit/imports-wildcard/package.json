@@ -1,7 +1,0 @@
-{
-  "name": "imports-wildcard",
-  "type": "module",
-  "imports": {
-    "#*.js": "./dist/*.js"
-  }
-}

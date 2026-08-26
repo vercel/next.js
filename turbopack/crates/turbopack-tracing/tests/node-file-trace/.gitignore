@@ -1,9 +1,0 @@
-/node_modules
-dist
-integration/**/dist
-
-!integration/**/node_modules
-!integration/**/.pnpm
-
-# Some unit cases need a checked-in node_modules to model a package layout
-!test/unit/**/node_modules

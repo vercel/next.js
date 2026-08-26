@@ -1,1 +1,0 @@
-Update app/page.tsx to create a blog posts page that fetches posts using getPosts() from lib/api. Use Next.js's modern caching approach with a 1 hour cache duration and tag it with "posts" so it can be invalidated on-demand.

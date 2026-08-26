@@ -1,6 +1,0 @@
-{
-  "src": "./pages",
-  "artifactDirectory": "./types",
-  "schema": "./main.graphql",
-  "language": "typescript"
-}

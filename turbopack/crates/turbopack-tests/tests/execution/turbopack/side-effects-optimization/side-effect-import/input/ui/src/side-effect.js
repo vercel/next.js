@@ -1,1 +1,0 @@
-globalThis.sideEffectExecuted = true

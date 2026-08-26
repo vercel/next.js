@@ -1,4 +1,0 @@
-.name {
-  composes: base from '../base.module.css';
-  color: blue;
-}

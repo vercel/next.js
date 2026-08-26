@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-alias/input/index.js"],"sourcesContent":["// `require` is aliased, so the require-usage analysis can't recognize the call.\n// No usage is recorded for it, which must fail open: lib.js keeps *all* its\n// exports (including `unused`) rather than being narrowed to just `.used`.\nconst myRequire = require\nconsole.log(myRequire('./lib.js').used)\n"],"names":["myRequire","console","log","used"],"mappings":"AAAA,gFAAgF;AAChF,4EAA4E;AAC5E,2EAA2E;AAC3E,MAAMA;AACNC,QAAQC,GAAG,CAAC,8JAAsBC,IAAI"}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-alias/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used","unused"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACfD,QAAQE,MAAM,GAAG"}}]
-}

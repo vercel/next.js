@@ -1,7 +1,0 @@
-{
-  "About": {
-    "title": "About",
-    "description": "This page uses messages from <code>./messages/about/{locale}.json</code> and <code>./messages/shared/{locale}.json</code>. Messages from the start page and other locales are not loaded.",
-    "lastUpdated": "This example was updated {lastUpdatedRelative} ({lastUpdated, date, short})."
-  }
-}

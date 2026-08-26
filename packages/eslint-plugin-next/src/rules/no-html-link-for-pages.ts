@@ -107,8 +107,37 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Try to read pageExtensions from next.config.js
+    let pageExtensions: string[] | undefined
+    for (const rootDir of rootDirs) {
+      for (const configFile of ['next.config.js', 'next.config.mjs', 'next.config.ts']) {
+        const configPath = path.join(rootDir, configFile)
+        if (fsExistsSyncCache[configPath] === undefined) {
+          fsExistsSyncCache[configPath] = fs.existsSync(configPath)
+        }
+        if (fsExistsSyncCache[configPath]) {
+          try {
+            const configContent = fs.readFileSync(configPath, 'utf8')
+            const match = configContent.match(
+              /pageExtensions\s*:\s*\[([^\]]+)\]/
+            )
+            if (match) {
+              pageExtensions = match[1]
+                .split(',')
+                .map((ext) => ext.trim().replace(/['"]/g, ''))
+                .filter(Boolean)
+            }
+          } catch {
+            // Silently ignore config read errors
+          }
+          break
+        }
+      }
+      if (pageExtensions) break
+    }
+
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, ...(pageExtensions ? [pageExtensions] : []))
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, ...(pageExtensions ? [pageExtensions] : []))
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {

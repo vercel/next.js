@@ -1,1 +1,0 @@
-self.postMessage('unbundled-worker')

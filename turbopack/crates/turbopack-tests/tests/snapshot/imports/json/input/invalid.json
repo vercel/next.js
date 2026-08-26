@@ -1,5 +1,0 @@
-{
-  "nested": {
-    "this-is": "invalid" // lint-staged will remove trailing commas, so here's a comment
-  }
-}

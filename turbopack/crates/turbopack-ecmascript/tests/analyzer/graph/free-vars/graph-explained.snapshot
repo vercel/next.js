@@ -1,1 +1,0 @@
-buf (const after eval) = FreeVar(Buffer)["from"]("Hello World")

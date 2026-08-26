@@ -1,6 +1,0 @@
-{
-  "name": "subpath-imports-slash",
-  "imports": {
-    "#/*": "./src/*"
-  }
-}

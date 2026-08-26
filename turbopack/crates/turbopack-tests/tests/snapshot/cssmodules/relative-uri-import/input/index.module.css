@@ -1,3 +1,0 @@
-.bar {
-  composes: foo from 'other.module.css';
-}
