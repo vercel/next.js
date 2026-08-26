@@ -1003,8 +1003,16 @@ export async function fetchInternalImage(
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
 
-    if (!mocked.res.statusCode) {
-      Log.error('image response failed for', href, mocked.res.statusCode)
+    if (
+      !mocked.res.statusCode ||
+      mocked.res.statusCode < 200 ||
+      mocked.res.statusCode > 299
+    ) {
+      Log.error(
+        'internal image response failed for',
+        href,
+        mocked.res.statusCode
+      )
       throw new ImageError(
         mocked.res.statusCode,
         '"url" parameter is valid but internal response is invalid'
