@@ -243,7 +243,7 @@ async function runTest(
         // We use NEXT_TEST_PREFER_OFFLINE, so just declaring `vercel: latest` as a dependency still
         // doesn't force the latest version.
         // TODO: Go back to integration testing with latest once breakage in 59.6.2 is resolved.
-        buildCommand: 'pnpm dlx vercel@59.6.1 build',
+        buildCommand: 'pnpm dlx vercel@59.5.0 build',
         env:
           mode === 'adapter'
             ? {
