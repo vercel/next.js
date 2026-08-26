@@ -71,6 +71,31 @@ mod global {
             *buffer = 0;
         }
     }
+
+    impl super::ThreadLocalCounter {
+        /// Charges `size` against this thread's buffer, refilling it from the global counter when
+        /// it runs dry. Does nothing with `custom_allocator`, where there is no global
+        /// counter.
+        #[inline(always)]
+        pub(super) fn buffered_add(&mut self, size: usize) {
+            if self.buffer >= size {
+                self.buffer -= size;
+            } else {
+                refill(&mut self.buffer, size);
+            }
+        }
+
+        /// Returns `size` to this thread's buffer, flushing the excess to the global counter once
+        /// the buffer grows past [`global::MAX_BUFFER`]. Does nothing with
+        /// `custom_allocator`.
+        #[inline(always)]
+        pub(super) fn buffered_remove(&mut self, size: usize) {
+            self.buffer += size;
+            if self.buffer > MAX_BUFFER {
+                flush_excess(&mut self.buffer);
+            }
+        }
+    }
 }
 
 /// Per-thread allocation and deallocation totals.
@@ -94,39 +119,12 @@ impl ThreadLocalCounter {
         }
     }
 
-    /// Charges `size` against this thread's buffer, refilling it from the global counter when it
-    /// runs dry. Does nothing with `custom_allocator`, where there is no global counter.
-    #[inline(always)]
-    fn buffered_add(&mut self, size: usize) {
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-        if self.buffer >= size {
-            self.buffer -= size;
-        } else {
-            global::refill(&mut self.buffer, size);
-        }
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
-        let _ = size;
-    }
-
-    /// Returns `size` to this thread's buffer, flushing the excess to the global counter once the
-    /// buffer grows past [`global::MAX_BUFFER`]. Does nothing with `custom_allocator`.
-    #[inline(always)]
-    fn buffered_remove(&mut self, size: usize) {
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-        {
-            self.buffer += size;
-            if self.buffer > global::MAX_BUFFER {
-                global::flush_excess(&mut self.buffer);
-            }
-        }
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
-        let _ = size;
-    }
-
     #[inline(always)]
     fn add(&mut self, size: usize) {
         self.allocation_counters.allocations += size;
         self.allocation_counters.allocation_count += 1;
+
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
         self.buffered_add(size);
     }
 
@@ -134,6 +132,8 @@ impl ThreadLocalCounter {
     fn remove(&mut self, size: usize) {
         self.allocation_counters.deallocations += size;
         self.allocation_counters.deallocation_count += 1;
+
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
         self.buffered_remove(size);
     }
 
@@ -143,10 +143,14 @@ impl ThreadLocalCounter {
         self.allocation_counters.deallocation_count += 1;
         self.allocation_counters.allocations += new_size;
         self.allocation_counters.allocation_count += 1;
-        match old_size.cmp(&new_size) {
-            std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Less => self.buffered_add(new_size - old_size),
-            std::cmp::Ordering::Greater => self.buffered_remove(old_size - new_size),
+
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            match old_size.cmp(&new_size) {
+                std::cmp::Ordering::Equal => {}
+                std::cmp::Ordering::Less => self.buffered_add(new_size - old_size),
+                std::cmp::Ordering::Greater => self.buffered_remove(old_size - new_size),
+            }
         }
     }
 
