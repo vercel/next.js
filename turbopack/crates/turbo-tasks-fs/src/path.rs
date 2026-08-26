@@ -567,8 +567,24 @@ impl fmt::Display for RealPathError {
 
 impl Error for RealPathError {}
 
+#[cfg(debug_assertions)]
+pub(crate) fn assert_read_dir_is_realpath(
+    path: &FileSystemPath,
+    realpath_result: &Result<FileSystemPath, RealPathError>,
+) {
+    if let Ok(realpath) = realpath_result {
+        debug_assert_eq!(
+            path, realpath,
+            "read_dir called with unresolved path {path:?}; resolve it to {realpath:?} first"
+        );
+    }
+}
+
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
+    #[cfg(debug_assertions)]
+    assert_read_dir_is_realpath(&path, &path.realpath().await?);
+
     let fs = path.fs().to_resolved().await?;
     match &*fs.raw_read_dir(path.clone()).await? {
         RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),

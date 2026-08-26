@@ -22,21 +22,24 @@ pub struct ReadGlobResult {
 /// on the order.
 #[turbo_tasks::function(fs)]
 pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal("", directory, glob).await
+    let root = directory.clone();
+    read_glob_internal("", &root, directory, glob).await
 }
 
 #[turbo_tasks::function(fs)]
 async fn read_glob_inner(
     prefix: RcStr,
+    root: FileSystemPath,
     directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal(&prefix, directory, glob).await
+    read_glob_internal(&prefix, &root, directory, glob).await
 }
 
-// The `prefix` represents the relative directory path where symlinks are not resolve.
+// The `prefix` represents the relative directory path where symlinks are not resolved.
 async fn read_glob_internal(
     prefix: &str,
+    root: &FileSystemPath,
     directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
@@ -58,7 +61,7 @@ async fn read_glob_internal(
         if glob_value.can_match_in_directory(&entry_path) {
             result.inner.insert(
                 segment.clone(),
-                read_glob_inner(entry_path, path.clone(), glob)
+                read_glob_inner(entry_path, root.clone(), path.clone(), glob)
                     .to_resolved()
                     .await?,
             );
@@ -75,13 +78,22 @@ async fn read_glob_internal(
                     format!("{prefix}/{segment}").into()
                 };
 
+                let output_path = root.join(&entry_path)?;
+                let output_entry = match entry {
+                    DirectoryEntry::File(_) => DirectoryEntry::File(output_path),
+                    DirectoryEntry::Directory(_) => DirectoryEntry::Directory(output_path),
+                    DirectoryEntry::Symlink(_) => DirectoryEntry::Symlink(output_path),
+                    DirectoryEntry::Other(_) => DirectoryEntry::Other(output_path),
+                    DirectoryEntry::Error(error) => DirectoryEntry::Error(error.clone()),
+                };
+
                 match entry {
                     DirectoryEntry::File(_) => {
-                        handle_file(&mut result, &entry_path, segment, entry);
+                        handle_file(&mut result, &entry_path, segment, &output_entry);
                     }
                     DirectoryEntry::Directory(path) => {
                         // Add the directory to `results` if it is a whole match of the glob
-                        handle_file(&mut result, &entry_path, segment, entry);
+                        handle_file(&mut result, &entry_path, segment, &output_entry);
                         // Recursively handle the directory
                         handle_dir(&mut result, entry_path, segment, path).await?;
                     }
@@ -100,11 +112,12 @@ async fn read_glob_internal(
                                 check_symlink_directory_recursion(path, &realpath)?;
 
                                 // Add the directory to `results` if it is a whole match of the glob
-                                handle_file(&mut result, &entry_path, segment, entry);
-                                // Recursively handle the directory
-                                handle_dir(&mut result, entry_path, segment, path).await?;
+                                handle_file(&mut result, &entry_path, segment, &output_entry);
+                                // Enumerate the resolved target while preserving logical paths in
+                                // the glob result.
+                                handle_dir(&mut result, entry_path, segment, &realpath).await?;
                             } else {
-                                handle_file(&mut result, &entry_path, segment, entry);
+                                handle_file(&mut result, &entry_path, segment, &output_entry);
                             }
                         }
                     }

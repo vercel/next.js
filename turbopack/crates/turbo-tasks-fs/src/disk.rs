@@ -1719,6 +1719,8 @@ mod tests {
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use super::extract_effects_operation;
+        #[cfg(all(unix, debug_assertions))]
+        use crate::{DirectoryContent, path::assert_read_dir_is_realpath};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
             LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
@@ -1863,6 +1865,65 @@ mod tests {
             );
 
             Ok(())
+        }
+
+        #[cfg(all(unix, debug_assertions))]
+        #[turbo_tasks::function(operation, root)]
+        async fn assert_read_dir_realpath_operation(
+            root_path: FileSystemPath,
+        ) -> anyhow::Result<()> {
+            let unresolved = root_path.join("alias/child")?;
+            let resolved = unresolved
+                .realpath()
+                .await?
+                .expect("the linked directory should resolve");
+
+            assert_ne!(unresolved, resolved);
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    assert_read_dir_is_realpath(&unresolved, &Ok(resolved.clone()))
+                }))
+                .is_err(),
+                "a directory read through a symlinked parent must be rejected"
+            );
+            assert!(matches!(
+                &*resolved.read_dir().await?,
+                DirectoryContent::Entries(entries) if entries.contains_key(&rcstr!("data.txt"))
+            ));
+
+            Ok(())
+        }
+
+        #[cfg(all(unix, debug_assertions))]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_read_dir_requires_realpath() {
+            use std::os::unix::fs::symlink;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+            create_dir_all(path.join("real/child")).unwrap();
+            File::create_new(path.join("real/child/data.txt")).unwrap();
+            symlink("real", path.join("alias")).unwrap();
+
+            let root = canonicalize_to_rcstr(&path).unwrap();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root(fs);
+                assert_read_dir_realpath_operation(root_path)
+                    .read_strongly_consistent()
+                    .await?;
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
         }
 
         /// `read_link` never looks at the target, so a dangling link still reads back as a valid
