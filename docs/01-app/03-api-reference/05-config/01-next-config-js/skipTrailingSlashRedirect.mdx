@@ -1,0 +1,125 @@
+---
+title: skipTrailingSlashRedirect
+description: Disable the automatic trailing slash redirects so you can handle trailing slashes yourself in Proxy.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Enabling `skipTrailingSlashRedirect` stops Next.js from redirecting to add or remove trailing slashes. Requests keep the trailing slash you sent, and you handle any redirecting you still want in [Proxy](/docs/app/api-reference/file-conventions/proxy).
+
+**Most projects don't need this option.** It is one of the [advanced Proxy flags](/docs/app/api-reference/file-conventions/proxy#advanced-proxy-flags), meant for specific routing cases and debugging.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  skipTrailingSlashRedirect: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  skipTrailingSlashRedirect: true,
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+By default, Next.js redirects every request so the trailing slash matches your [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) setting.
+
+| [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) | Request   | Default response            |
+| ------------------------------------------------------------------------------ | --------- | --------------------------- |
+| `false`                                                                        | `/about`  | `200`                       |
+| `false`                                                                        | `/about/` | `308` redirect to `/about`  |
+| `true`                                                                         | `/about`  | `308` redirect to `/about/` |
+| `true`                                                                         | `/about/` | `200`                       |
+
+Enabling the option affects both server responses and client-side navigation:
+
+- Both `/about` and `/about/` return `200`. Neither redirects to the other.
+- Next.js stops changing trailing slashes during client-side navigation. [`<Link>`](/docs/app/api-reference/components/link) and router URLs keep the path exactly as written.
+
+Your own `redirects` and `rewrites` from `next.config.js` still apply.
+
+### Paths that contain a dot
+
+The default redirects treat any path whose last segment contains a dot as a file. Under [`trailingSlash: true`](/docs/app/api-reference/config/next-config-js/trailingSlash) those paths have their trailing slash removed rather than added, which also catches routes that are not files:
+
+| Request           | `trailingSlash: true`              | `trailingSlash: false`             |
+| ----------------- | ---------------------------------- | ---------------------------------- |
+| `/about`          | `308` redirect to `/about/`        | `200`                              |
+| `/about/`         | `200`                              | `308` redirect to `/about`         |
+| `/gcc.git/`       | `308` redirect to `/gcc.git`       | `308` redirect to `/gcc.git`       |
+| `/version/1.2.3/` | `308` redirect to `/version/1.2.3` | `308` redirect to `/version/1.2.3` |
+
+A dot is the only signal, so a repository path like `/gcc.git` or a versioned docs path like `/version/1.2.3` never keeps a trailing slash, even with `trailingSlash: true`. Enabling `skipTrailingSlashRedirect` removes the redirect and both spellings of those paths return `200`.
+
+Paths under `.well-known/` are exempt from the default redirects when `trailingSlash` is `true`. When it is `false` they are redirected like any other path.
+
+## Good to know
+
+- Keep setting [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) as you did before. It still controls the URLs Next.js generates and the output filenames for [`output: 'export'`](/docs/app/guides/static-exports).
+- With `output: 'export'`, this preserves the `href` you wrote instead of resolving `/me` to `/me/`. See [Static Exports](/docs/app/guides/static-exports).
+- Serving one page at both `/about` and `/about/` gives search engines two URLs for it. Set a [canonical URL](/docs/app/api-reference/functions/generate-metadata#alternates) in your metadata, or redirect in [Proxy](/docs/app/api-reference/file-conventions/proxy).
+
+## Examples
+
+### Handling trailing slashes in Proxy
+
+Add trailing slashes to your own routes while leaving a set of legacy prefixes untouched, which makes an incremental migration easier.
+
+```ts filename="proxy.ts" switcher
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+const legacyPrefixes = ['/docs', '/blog']
+
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  if (legacyPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
+
+  // Apply trailing slash handling, skipping files and `.well-known` paths
+  if (
+    !pathname.endsWith('/') &&
+    !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
+  ) {
+    return NextResponse.redirect(new URL(`${pathname}/`, request.nextUrl))
+  }
+}
+```
+
+```js filename="proxy.js" switcher
+import { NextResponse } from 'next/server'
+
+const legacyPrefixes = ['/docs', '/blog']
+
+export default function proxy(request) {
+  const { pathname } = request.nextUrl
+
+  if (legacyPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
+
+  // Apply trailing slash handling, skipping files and `.well-known` paths
+  if (
+    !pathname.endsWith('/') &&
+    !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
+  ) {
+    return NextResponse.redirect(new URL(`${pathname}/`, request.nextUrl))
+  }
+}
+```
+
+## Version History
+
+| Version   | Changes                            |
+| --------- | ---------------------------------- |
+| `v13.1.0` | `skipTrailingSlashRedirect` added. |

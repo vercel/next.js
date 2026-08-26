@@ -1,0 +1,136 @@
+---
+title: skipProxyUrlNormalize
+description: Let Proxy see the original request instead of Next.js's normalized version. Formerly skipMiddlewareUrlNormalize.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Enabling `skipProxyUrlNormalize` lets [Proxy](/docs/app/api-reference/file-conventions/proxy) see the original request instead of Next.js's normalized version. This includes internal URLs, query parameters, and headers used during client-side navigation.
+
+**Most projects don't need this option.** It is one of the [advanced Proxy flags](/docs/app/api-reference/file-conventions/proxy#advanced-proxy-flags), meant for specific routing cases and debugging.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  skipProxyUrlNormalize: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  skipProxyUrlNormalize: true,
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+During client-side navigation, Next.js uses an internal request rather than requesting the destination URL as a full document load. By default, Next.js normalizes that request before it reaches Proxy, so Proxy sees the same destination URL for both client-side navigation and a full page load.
+
+Next.js also normalizes what Proxy returns, so any URL you rewrite or redirect to is rewritten to match.
+
+Enabling the option turns off both, and Proxy sees and sends the original request:
+
+| Default                                                                                                                                                                              | With `skipProxyUrlNormalize: true`        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| `request.nextUrl` resolves the internal data URL back to the route path and extracts the locale                                                                                      | Holds the requested pathname as sent      |
+| `request.url` is the normalized URL                                                                                                                                                  | Is the original request URL               |
+| The internal `_rsc` query parameter is stripped                                                                                                                                      | Preserved                                 |
+| Next.js internal navigation headers (`rsc`, `next-router-state-tree`, `next-router-prefetch`, `next-router-segment-prefetch`, `next-hmr-refresh`) are removed from `request.headers` | Preserved                                 |
+| `NextResponse.rewrite()` destinations are re-serialized with the build ID                                                                                                            | Sent as written                           |
+| `NextResponse.redirect()` `Location` is rewritten to a relative URL                                                                                                                  | Sent as written, trailing slash preserved |
+| With [`trailingSlash: true`](/docs/app/api-reference/config/next-config-js/trailingSlash), a trailing slash is appended before Proxy runs                                            | Pathname passed through unchanged         |
+
+### Deprecated alias
+
+The former name of this option is `skipMiddlewareUrlNormalize`, from when Proxy was called Middleware. It still works and logs a deprecation warning. Setting both at once throws:
+
+```bash filename="Terminal"
+Config options `skipProxyUrlNormalize` and `skipMiddlewareUrlNormalize` cannot be set at the same time. Please use `skipProxyUrlNormalize` instead.
+```
+
+The [version 16 codemod](/docs/app/guides/upgrading/codemods#160) renames it for you.
+
+## Good to know
+
+- Avoid using the internal navigation headers to return different content for client-side navigation and full page loads.
+- You do not need this option to limit which routes Proxy runs on. The [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher) config still matches the destination URL either way.
+- Only the request and response Proxy sees change. Filesystem routing, `redirects`, and `rewrites` from `next.config.js` behave the same.
+
+## Examples
+
+### Reading the URL as the client sent it
+
+<AppOnly>
+
+During client-side navigation, Next.js adds an `_rsc` query parameter and its internal navigation headers to the request. With the option enabled, Proxy can read both.
+
+```ts filename="proxy.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export default function proxy(request: NextRequest) {
+  console.log(request.nextUrl.searchParams.get('_rsc'))
+  // Enabled: the value Next.js added to the request
+  // Disabled: null
+
+  console.log(request.headers.get('rsc'))
+  // Enabled: '1' during client-side navigation
+  // Disabled: null
+}
+```
+
+```js filename="proxy.js" switcher
+export default function proxy(request) {
+  console.log(request.nextUrl.searchParams.get('_rsc'))
+  // Enabled: the value Next.js added to the request
+  // Disabled: null
+
+  console.log(request.headers.get('rsc'))
+  // Enabled: '1' during client-side navigation
+  // Disabled: null
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+During client-side navigation, Next.js requests a `/_next/data` URL instead of the destination URL. With the option enabled, Proxy sees that URL as sent.
+
+```ts filename="proxy.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Request: GET /_next/data/build-id/hello.json
+  console.log(pathname)
+  // Enabled: /_next/data/build-id/hello.json
+  // Disabled: /hello
+}
+```
+
+```js filename="proxy.js" switcher
+export default function proxy(request) {
+  const { pathname } = request.nextUrl
+
+  // Request: GET /_next/data/build-id/hello.json
+  console.log(pathname)
+  // Enabled: /_next/data/build-id/hello.json
+  // Disabled: /hello
+}
+```
+
+</PagesOnly>
+
+## Version History
+
+| Version   | Changes                                                               |
+| --------- | --------------------------------------------------------------------- |
+| `v16.0.0` | Renamed from `skipMiddlewareUrlNormalize` to `skipProxyUrlNormalize`. |
+| `v13.1.0` | `skipMiddlewareUrlNormalize` added.                                   |
