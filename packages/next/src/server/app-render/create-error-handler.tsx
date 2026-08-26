@@ -12,7 +12,7 @@ import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
-import { isReactBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -173,7 +173,7 @@ export function createHTMLErrorHandler(
     // React turns a browser bailout outside Suspense into a fatal error. This
     // is a framework signal handled by the prerender caller, so don't report it
     // as a userland render error here.
-    if (reactBrowserBailout && isReactBrowserBailoutError(thrownValue)) {
+    if (reactBrowserBailout && isNextBrowserBailoutError(thrownValue)) {
       return
     }
 
@@ -245,7 +245,7 @@ export function isUserLandError(
   return (
     !isAbortError(err) &&
     !isBailoutToCSRError(err) &&
-    !(reactBrowserBailout && isReactBrowserBailoutError(err)) &&
+    !(reactBrowserBailout && isNextBrowserBailoutError(err)) &&
     !isNextRouterError(err)
   )
 }

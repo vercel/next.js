@@ -27,6 +27,6 @@ export function getReactBrowserBailoutReason(
     : undefined
 }
 
-export function isReactBrowserBailoutError(error: unknown): boolean {
+export function isNextBrowserBailoutError(error: unknown): boolean {
   return getReactBrowserBailoutReason(error) !== undefined
 }
