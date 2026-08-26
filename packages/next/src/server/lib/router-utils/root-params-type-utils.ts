@@ -12,6 +12,21 @@ const ROOT_PARAM_VALUE_TYPES: RootParamValueType[] = [
   'undefined',
 ]
 
+const VALID_IDENTIFIER_REGEX = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+export function isValidIdentifier(name: string): boolean {
+  return VALID_IDENTIFIER_REGEX.test(name)
+}
+
+/**
+ * Returns a valid identifier that a root param whose name is not a valid
+ * identifier (e.g. `lang-country`) can be declared under, before being
+ * re-exported under its original name via a string module export name.
+ */
+export function safeRootParamIdentifier(paramName: string): string {
+  return '_' + paramName.replace(/[^A-Za-z0-9_$]/g, '_')
+}
+
 /**
  * Generates TypeScript type definitions for root params.
  * Creates a `declare module 'next/root-params'` block with async getter functions
@@ -22,10 +37,17 @@ export function generateRootParamsTypes(
 ): string {
   const exports = Array.from(rootParams.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(
-      ([paramName, info]) =>
-        `  export function ${paramName}(): ${getRootParamReturnType(info)}`
-    )
+    .map(([paramName, info]) => {
+      if (isValidIdentifier(paramName)) {
+        return `  export function ${paramName}(): ${getRootParamReturnType(info)}`
+      }
+      // Param names like `lang-country` are not valid JS identifiers, so they
+      // cannot be named function exports. Declare a safely-named function and
+      // re-export it under the original param name via a string module export
+      // name (arbitrary module namespace identifier).
+      const safeName = safeRootParamIdentifier(paramName)
+      return `  function ${safeName}(): ${getRootParamReturnType(info)}\n  export { ${safeName} as ${JSON.stringify(paramName)} }`
+    })
 
   return `// Type definitions for Next.js root params (next/root-params)
 

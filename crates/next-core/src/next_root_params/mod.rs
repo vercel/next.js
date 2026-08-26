@@ -149,14 +149,32 @@ impl NextRootParamsMapper {
                     "#,
                 ))
                 .chain(collected_root_params.iter().map(|param_name| {
-                    formatdoc!(
-                        r#"
-                            export function {PARAM_NAME}() {{
-                                return getRootParam('{PARAM_NAME}');
-                            }}
-                        "#,
-                        PARAM_NAME = param_name,
-                    )
+                    if is_valid_identifier(param_name) {
+                        formatdoc!(
+                            r#"
+                                export function {PARAM_NAME}() {{
+                                    return getRootParam('{PARAM_NAME}');
+                                }}
+                            "#,
+                            PARAM_NAME = param_name,
+                        )
+                    } else {
+                        // Param names like `lang-country` are not valid JS
+                        // identifiers, so they cannot be named function
+                        // exports. Declare a safely-named function and
+                        // re-export it under the original param name via a
+                        // string module export name.
+                        formatdoc!(
+                            r#"
+                                function {SAFE_NAME}() {{
+                                    return getRootParam("{PARAM_NAME}");
+                                }}
+                                export {{ {SAFE_NAME} as "{PARAM_NAME}" }};
+                            "#,
+                            SAFE_NAME = safe_identifier(param_name),
+                            PARAM_NAME = param_name,
+                        )
+                    }
                 }))
                 .join("\n")
             };
@@ -224,4 +242,27 @@ impl ImportMappingReplacement for NextRootParamsMapper {
         // we want to return the same cell regardless of the arguments we received here.
         self.import_map_result()
     }
+}
+
+fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+fn safe_identifier(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("_{sanitized}")
 }

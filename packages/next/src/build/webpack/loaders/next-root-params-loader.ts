@@ -4,6 +4,10 @@ import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
+import {
+  isValidIdentifier,
+  safeRootParamIdentifier,
+} from '../../../server/lib/router-utils/root-params-type-utils'
 
 export type RootParamsLoaderOpts = {
   appDir: string
@@ -34,7 +38,15 @@ const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
     const content = [
       `import { getRootParam } from 'next/dist/server/request/root-params';`,
       ...sortedRootParamNames.map((paramName) => {
-        return `export function ${paramName}() { return getRootParam('${paramName}'); }`
+        if (isValidIdentifier(paramName)) {
+          return `export function ${paramName}() { return getRootParam('${paramName}'); }`
+        }
+        // Param names like `lang-country` are not valid JS identifiers, so
+        // they cannot be named function exports. Declare a safely-named
+        // function and re-export it under the original param name via a
+        // string module export name (arbitrary module namespace identifier).
+        const safeName = safeRootParamIdentifier(paramName)
+        return `function ${safeName}() { return getRootParam(${JSON.stringify(paramName)}); }\nexport { ${safeName} as ${JSON.stringify(paramName)} };`
       }),
     ].join('\n')
 
