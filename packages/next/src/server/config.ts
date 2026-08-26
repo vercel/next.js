@@ -57,12 +57,14 @@ import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
+import { getAgentName } from '../telemetry/agent-name'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 function normalizeNextConfigZodErrors(
-  error: ZodError<NextConfig>
+  error: ZodError<NextConfig>,
+  isAgent: boolean
 ): [warnings: string[], fatalErrors: string[]] {
   const warnings: string[] = []
   const fatalErrors: string[] = []
@@ -71,6 +73,7 @@ function normalizeNextConfigZodErrors(
   for (const { issue, message: originalMessage } of issues) {
     let message = originalMessage
     let shouldExit = false
+    let hasSpecificInstruction = false
 
     if (issue.path[0] === 'images') {
       // We exit the build when encountering an error in the images config
@@ -83,6 +86,7 @@ function normalizeNextConfigZodErrors(
       if (message.includes('turbopackPersistentCachingForBuild')) {
         // We exit the build when encountering an error in the turbopackPersistentCaching config
         shouldExit = true
+        hasSpecificInstruction = true
         message +=
           "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
         message +=
@@ -90,17 +94,31 @@ function normalizeNextConfigZodErrors(
       } else if (message.includes('turbopackPersistentCaching')) {
         // We exit the build when encountering an error in the turbopackPersistentCaching config
         shouldExit = true
+        hasSpecificInstruction = true
         message +=
           "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
       } else if (message.includes('dynamicIO')) {
         shouldExit = true
+        hasSpecificInstruction = true
         message +=
           '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
       }
+    }
+
+    if (
+      isAgent &&
+      issue.code === 'unrecognized_keys' &&
+      !hasSpecificInstruction
+    ) {
+      shouldExit = true
+      message +=
+        '\nInspect the version-matched configuration options in `node_modules/next/dist/`.'
+      message +=
+        '\nDetermine the intended option from the repository context, replace the unknown key, and rerun validation. Do not remove the option solely to bypass this error; if the intent is ambiguous, ask the user.'
     }
 
     if (shouldExit) {
@@ -2533,7 +2551,10 @@ async function validateConfigSchema(
   const state = configSchema.safeParse(userConfig)
 
   if (!state.success) {
-    const [warnings, fatalErrors] = normalizeNextConfigZodErrors(state.error)
+    const [warnings, fatalErrors] = normalizeNextConfigZodErrors(
+      state.error,
+      (await getAgentName()) !== null
+    )
     const hasFatalErrors = fatalErrors.length > 0
 
     // Group warnings first
