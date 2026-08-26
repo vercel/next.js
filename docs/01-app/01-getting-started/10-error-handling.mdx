@@ -1,18 +1,33 @@
 ---
 title: Error Handling
-description: Learn how to display expected errors and handle uncaught exceptions.
+description: Learn how to display expected errors, render 404 and auth UI, and recover from uncaught exceptions.
 related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
     - app/api-reference/functions/redirect
+    - app/api-reference/config/next-config-js/authInterrupts
+    - app/api-reference/functions/unauthorized
+    - app/api-reference/functions/forbidden
     - app/api-reference/file-conventions/error
     - app/api-reference/functions/catchError
     - app/api-reference/functions/not-found
     - app/api-reference/file-conventions/not-found
 ---
 
-Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how you can handle these errors in your Next.js application.
+Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how to handle these errors in your Next.js application.
+
+Use the smallest boundary that matches what happened. Expected errors should stay in the UI that caused them. Framework interrupts should change the route response. Uncaught exceptions should render an error boundary.
+
+| What happened                                     | Handle it with                                                                                                                                                                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A form field failed validation                    | Return an error value from the Server Function and show an inline message with [`useActionState`](https://react.dev/reference/react/useActionState).                                                                                   |
+| A mutation failed but the user can keep working   | Return an error value and show a toast or local message from the Client Component that invoked the action.                                                                                                                             |
+| A resource does not exist                         | Call [`notFound()`](/docs/app/api-reference/functions/not-found) and render a [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.                                                                               |
+| A user is not signed in or does not have access   | Enable [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts), then call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden). |
+| A route segment throws an unexpected error        | Throw the error and recover with [`error.js`](/docs/app/api-reference/file-conventions/error).                                                                                                                                         |
+| A smaller Server Component subtree needs recovery | Wrap that subtree with [`catchError`](/docs/app/api-reference/functions/catchError).                                                                                                                                                   |
+| The root layout throws an unexpected error        | Recover with [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error).                                                                                                                                         |
 
 ## Handling expected errors
 
@@ -22,7 +37,7 @@ Expected errors are those that can occur during the normal operation of the appl
 
 You can use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to handle expected errors in [Server Functions](https://react.dev/reference/rsc/server-functions).
 
-For these errors, avoid using `try`/`catch` blocks and throw errors. Instead, model expected errors as return values.
+For these errors, avoid using `try`/`catch` blocks to throw errors. Instead, model expected errors as return values.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -116,6 +131,108 @@ export function Form() {
 }
 ```
 
+Use an inline message when the error blocks the current interaction, such as a missing required field or invalid input. Use a toast or another local notification when the action failed but the user can keep working, such as a save failure in a toolbar button.
+
+For example, a Client Component can call a Server Function from an event handler and show a toast from the returned value:
+
+```tsx filename="app/ui/save-button.tsx" switcher
+'use client'
+
+import { useTransition } from 'react'
+import { savePost } from '@/app/actions'
+import { toast } from '@/app/ui/toast'
+
+export function SaveButton({ postId }: { postId: string }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          const result = await savePost(postId)
+
+          if (result?.error) {
+            toast.error(result.error)
+            return
+          }
+
+          toast.success('Post saved')
+        })
+      }}
+    >
+      Save
+    </button>
+  )
+}
+```
+
+```jsx filename="app/ui/save-button.js" switcher
+'use client'
+
+import { useTransition } from 'react'
+import { savePost } from '@/app/actions'
+import { toast } from '@/app/ui/toast'
+
+export function SaveButton({ postId }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          const result = await savePost(postId)
+
+          if (result?.error) {
+            toast.error(result.error)
+            return
+          }
+
+          toast.success('Post saved')
+        })
+      }}
+    >
+      Save
+    </button>
+  )
+}
+```
+
+The Server Function still returns a value instead of throwing:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+export async function savePost(postId: string) {
+  const res = await fetch(`https://api.vercel.app/posts/${postId}`, {
+    method: 'PATCH',
+  })
+
+  if (!res.ok) {
+    return { error: 'Failed to save post' }
+  }
+
+  return { error: null }
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function savePost(postId) {
+  const res = await fetch(`https://api.vercel.app/posts/${postId}`, {
+    method: 'PATCH',
+  })
+
+  if (!res.ok) {
+    return { error: 'Failed to save post' }
+  }
+
+  return { error: null }
+}
+```
+
 ### Server Components
 
 When fetching data inside of a Server Component, you can use the response to conditionally render an error message or [`redirect`](/docs/app/api-reference/functions/redirect).
@@ -198,6 +315,98 @@ export default function NotFound() {
 }
 ```
 
+### Auth interrupts
+
+When a route should render login or access-denied UI, use the `unauthorized()` and `forbidden()` functions instead of returning a local error message. These functions require the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) option:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+```
+
+Then call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when the user needs to sign in, or [`forbidden()`](/docs/app/api-reference/functions/forbidden) when the user is signed in but lacks permission:
+
+```tsx filename="app/admin/page.tsx" switcher
+import { forbidden, unauthorized } from 'next/navigation'
+import { verifySession } from '@/app/lib/dal'
+
+export default async function AdminPage() {
+  const session = await verifySession()
+
+  if (!session) {
+    unauthorized()
+  }
+
+  if (session.role !== 'admin') {
+    forbidden()
+  }
+
+  return <h1>Admin</h1>
+}
+```
+
+```jsx filename="app/admin/page.js" switcher
+import { forbidden, unauthorized } from 'next/navigation'
+import { verifySession } from '@/app/lib/dal'
+
+export default async function AdminPage() {
+  const session = await verifySession()
+
+  if (!session) {
+    unauthorized()
+  }
+
+  if (session.role !== 'admin') {
+    forbidden()
+  }
+
+  return <h1>Admin</h1>
+}
+```
+
+Create the matching UI files for the route:
+
+```tsx filename="app/admin/unauthorized.tsx" switcher
+export default function Unauthorized() {
+  return <h1>Please sign in to continue</h1>
+}
+```
+
+```jsx filename="app/admin/unauthorized.js" switcher
+export default function Unauthorized() {
+  return <h1>Please sign in to continue</h1>
+}
+```
+
+```tsx filename="app/admin/forbidden.tsx" switcher
+export default function Forbidden() {
+  return <h1>You do not have access to this page</h1>
+}
+```
+
+```jsx filename="app/admin/forbidden.js" switcher
+export default function Forbidden() {
+  return <h1>You do not have access to this page</h1>
+}
+```
+
+Use auth interrupts when authentication or authorization should change the route UI and status. Use a returned value or toast when the user can stay in the same workflow.
+
 ## Handling uncaught exceptions
 
 Uncaught exceptions are unexpected errors that indicate bugs or issues that should not occur during the normal flow of your application. These should be handled by throwing errors, which will then be caught by error boundaries.
@@ -278,7 +487,7 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
   height="687"
 />
 
-For component-level error recovery, the [`catchError`](/docs/app/api-reference/functions/catchError) function lets you create error boundaries that can wrap any part of your component tree:
+For component-level error recovery, the [`catchError`](/docs/app/api-reference/functions/catchError) function lets you create error boundaries that can wrap any part of your component tree. Use `catchError` when a smaller Server Component subtree can fail and recover without replacing the whole route segment.
 
 ```tsx filename="app/custom-error-boundary.tsx" switcher
 'use client'
@@ -333,6 +542,8 @@ export default function Component({ children }) {
   return <ErrorBoundary title="Dashboard Error">{children}</ErrorBoundary>
 }
 ```
+
+Both `error.js` and `catchError` receive a `retry()` function. When called, `retry()` re-fetches and re-renders the boundary's children. If the render succeeds, the fallback is replaced with the recovered UI.
 
 Error boundaries don't catch errors inside event handlers. They're designed to catch errors [during rendering](https://react.dev/reference/react/Component#static-getderivedstatefromerror) to show a **fallback UI** instead of crashing the whole app.
 

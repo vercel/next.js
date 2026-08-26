@@ -1,6 +1,7 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   extractBuildValidationError,
+  getDevCliValidationOutput,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForRedbox } from '../../../lib/next-test-utils'
@@ -184,6 +185,64 @@ describe('instant validation - server errors', () => {
       }
     })
   })
+
+  // Bug witness: a navigation signal — notFound(), redirect(), forbidden(),
+  // unauthorized() — in a parent layout intentionally prevents the target
+  // segment from rendering. That is control flow, not a failure to validate
+  // instant UI, so it should NOT surface a "Could not validate `instant`"
+  // error. Today it does: the target boundary never renders, so validation
+  // reports the segment as unrendered / prevented-from-rendering.
+  //
+  // The correct fix (Josh Story) gates validation on the segments the *real*
+  // render actually produced, so a signalled bail is never "required" and no
+  // false positive is raised. Detecting the signal inside the validation pass
+  // is not enough — the validation render is separate from the real render and
+  // can't reliably tell an intentional bail from a divergent render. When the
+  // rendered-segment-set fix lands, `it.failing` will itself fail — flip to
+  // `it`.
+  const navigationSignals = [
+    {
+      name: 'notFound',
+      path: '/suspense-in-root/static/not-found-blocks-children',
+    },
+    {
+      name: 'redirect',
+      path: '/suspense-in-root/static/redirect-blocks-children',
+    },
+    {
+      name: 'forbidden',
+      path: '/suspense-in-root/static/forbidden-blocks-children',
+    },
+    {
+      name: 'unauthorized',
+      path: '/suspense-in-root/static/unauthorized-blocks-children',
+    },
+  ]
+
+  describe.each(cases)(
+    '$description - navigation signals',
+    ({ isClientNav }) => {
+      /* eslint-disable jest/no-standalone-expect */
+      for (const { name, path } of navigationSignals) {
+        // Only dev initial load reproduces the false positive deterministically;
+        // client nav to a redirect changes the URL, and build handles the signal
+        // as a normal response.
+        ;(isNextDev && !isClientNav ? it.failing : it)(
+          `${name}() in a parent layout is control flow, not a validation failure`,
+          async () => {
+            if (!isNextDev || isClientNav) return
+            await next.browser(path)
+            const output = await getDevCliValidationOutput(
+              next.url + path,
+              getCliOutputSinceMark
+            )
+            expect(output).not.toContain('Could not validate')
+          }
+        )
+      }
+      /* eslint-enable jest/no-standalone-expect */
+    }
+  )
 
   async function navigateViaClientNav(href: string): Promise<Playwright> {
     const browser = await next.browser('/suspense-in-root')
