@@ -482,6 +482,22 @@ impl DiskFileSystem {
         &self.inner.root
     }
 
+    #[cfg(debug_assertions)]
+    async fn ensure_path_is_realpath(&self, operation: &str, path: &Path) -> Result<()> {
+        if let Ok(realpath) = retry_blocking(|| fs_err::canonicalize(path))
+            .instrument(tracing::info_span!("realpath for filesystem read", name = ?path))
+            .concurrency_limited(&self.inner.read_semaphore)
+            .await
+            && realpath != path
+        {
+            anyhow::bail!(
+                "{operation} called with unresolved path {path:?}; resolve it to {realpath:?} \
+                 first"
+            );
+        }
+        Ok(())
+    }
+
     pub fn invalidate(&self) {
         self.inner.invalidate();
     }
@@ -791,6 +807,10 @@ impl FileSystem for DiskFileSystem {
 
         self.inner.register_read_invalidator(&full_path).await?;
 
+        #[cfg(debug_assertions)]
+        self.ensure_path_is_realpath("read_file", &full_path)
+            .await?;
+
         let _lock = self.inner.lock_path(full_path.clone()).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
             .instrument(tracing::info_span!("read file", name = ?full_path))
@@ -816,6 +836,9 @@ impl FileSystem for DiskFileSystem {
         let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
 
         self.inner.register_dir_invalidator(&full_path).await?;
+
+        #[cfg(debug_assertions)]
+        self.ensure_path_is_realpath("read_dir", &full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&*full_path))
@@ -1720,7 +1743,7 @@ mod tests {
 
         use super::extract_effects_operation;
         #[cfg(all(unix, debug_assertions))]
-        use crate::{DirectoryContent, FileContent, path::ensure_path_is_realpath};
+        use crate::{DirectoryContent, FileContent};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
             LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
@@ -1877,10 +1900,11 @@ mod tests {
                 .expect("the linked directory should resolve");
 
             assert_ne!(unresolved_dir, resolved_dir);
-            let error =
-                ensure_path_is_realpath("read_dir", &unresolved_dir, &Ok(resolved_dir.clone()))
-                    .expect_err("a directory read through a symlinked parent must be rejected");
-            let message = error.to_string();
+            let error = unresolved_dir
+                .read_dir()
+                .await
+                .expect_err("a directory read through a symlinked parent must be rejected");
+            let message = format!("{error:#}");
             assert!(message.contains("alias/child"));
             assert!(message.contains("real/child"));
             assert!(matches!(
@@ -1894,10 +1918,11 @@ mod tests {
                 .await?
                 .expect("the linked file should resolve");
             assert_ne!(unresolved_file, resolved_file);
-            let error =
-                ensure_path_is_realpath("read_file", &unresolved_file, &Ok(resolved_file.clone()))
-                    .expect_err("a file read through a symlinked parent must be rejected");
-            let message = error.to_string();
+            let error = unresolved_file
+                .read()
+                .await
+                .expect_err("a file read through a symlinked parent must be rejected");
+            let message = format!("{error:#}");
             assert!(message.contains("alias/child/data.txt"));
             assert!(message.contains("real/child/data.txt"));
             assert!(matches!(
