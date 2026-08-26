@@ -1,9 +1,12 @@
 import isAnimated from 'next/dist/compiled/is-animated'
-import { optimizeImage } from '../../../../server/image-optimizer'
+import {
+  canDecodeAvif,
+  optimizeImage,
+} from '../../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match other usages
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match other usages
 
 export async function getBlurImage(
   content: Buffer,
@@ -37,7 +40,13 @@ export async function getBlurImage(
   let blurWidth: number = 0
   let blurHeight: number = 0
 
-  if (VALID_BLUR_EXT.includes(extension) && !isAnimated(content)) {
+  // AVIF blur placeholders decode the source image, so they are only
+  // generated when the installed sharp bundles a patched libheif.
+  const isValidBlurExtension =
+    VALID_BLUR_EXT.includes(extension) ||
+    (extension === 'avif' && canDecodeAvif(null))
+
+  if (isValidBlurExtension && !isAnimated(content)) {
     // Shrink the image's largest dimension
     if (imageSize.width >= imageSize.height) {
       blurWidth = BLUR_IMG_SIZE
