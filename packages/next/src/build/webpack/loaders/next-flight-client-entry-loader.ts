@@ -14,6 +14,8 @@ export type CssImports = Record<string, string[]>
 
 export type NextFlightClientEntryLoaderOptions = {
   modules: string[] | string
+  /** Modules from dynamic import boundaries — imported lazily for code splitting */
+  dynamicModules?: string[] | string
   /** This is transmitted as a string to `getOptions` */
   server: boolean | 'true' | 'false'
 }
@@ -25,39 +27,71 @@ export type FlightClientEntryModuleItem = {
   ids: string[]
 }
 
+function generateImportCode(
+  item: FlightClientEntryModuleItem,
+  eager: boolean
+): string {
+  const importPath = JSON.stringify(
+    item.request.startsWith(BARREL_OPTIMIZATION_PREFIX)
+      ? item.request.replace(':', '!=!')
+      : item.request
+  )
+
+  if (eager) {
+    // Eager mode: include in the current chunk (no code splitting)
+    if (item.ids.length === 0 || item.ids.includes('*')) {
+      return `import(/* webpackMode: "eager" */ ${importPath});\n`
+    } else {
+      return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
+        item.ids
+      )} */ ${importPath});\n`
+    }
+  } else {
+    // Lazy mode: webpack creates a separate async chunk for this module,
+    // enabling per-component code splitting for client components reached
+    // through dynamic server component imports.
+    if (item.ids.length === 0 || item.ids.includes('*')) {
+      return `import(${importPath});\n`
+    } else {
+      return `import(/* webpackExports: ${JSON.stringify(
+        item.ids
+      )} */ ${importPath});\n`
+    }
+  }
+}
+
 export default function transformSource(
   this: webpack.LoaderContext<NextFlightClientEntryLoaderOptions>
 ) {
-  let { modules, server } = this.getOptions()
+  let { modules, dynamicModules, server } = this.getOptions()
   const isServer = server === 'true'
 
   if (!Array.isArray(modules)) {
     modules = modules ? [modules] : []
   }
+  if (!Array.isArray(dynamicModules)) {
+    dynamicModules = dynamicModules ? [dynamicModules] : []
+  }
 
-  const code = modules
+  // Eager imports: client components reachable through static imports only
+  const eagerCode = modules
     .map((x) => JSON.parse(x) as FlightClientEntryModuleItem)
-    // Filter out CSS files in the SSR compilation
     .filter(({ request }) => (isServer ? !regexCSS.test(request) : true))
-    .map(({ request, ids }: FlightClientEntryModuleItem) => {
-      const importPath = JSON.stringify(
-        request.startsWith(BARREL_OPTIMIZATION_PREFIX)
-          ? request.replace(':', '!=!')
-          : request
-      )
-
-      // When we cannot determine the export names, we use eager mode to include the whole module.
-      // Otherwise, we use eager mode with webpackExports to only include the necessary exports.
-      // If we have '*' in the ids, we include all the imports
-      if (ids.length === 0 || ids.includes('*')) {
-        return `import(/* webpackMode: "eager" */ ${importPath});\n`
-      } else {
-        return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
-          ids
-        )} */ ${importPath});\n`
-      }
-    })
+    .map((item) => generateImportCode(item, true))
     .join(';\n')
+
+  // Lazy imports: client components reachable through dynamic import boundaries
+  // in the server component tree. Only for browser compilation — SSR gets all
+  // modules as eager via the `modules` param (they're merged there).
+  const lazyCode = isServer
+    ? ''
+    : dynamicModules
+        .map((x) => JSON.parse(x) as FlightClientEntryModuleItem)
+        .filter(({ request }) => !regexCSS.test(request))
+        .map((item) => generateImportCode(item, false))
+        .join(';\n')
+
+  const code = eagerCode + lazyCode
 
   const buildInfo = getModuleBuildInfo(this._module!)
 

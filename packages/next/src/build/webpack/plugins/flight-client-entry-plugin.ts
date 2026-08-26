@@ -356,12 +356,16 @@ export class FlightClientEntryPlugin {
           }
         }
 
-        const { clientComponentImports, actionImports, cssImports } =
-          this.collectComponentInfoFromServerEntryDependency({
-            entryRequest,
-            compilation,
-            resolvedModule: connection.resolvedModule,
-          })
+        const {
+          clientComponentImports,
+          dynamicClientComponentImports,
+          actionImports,
+          cssImports,
+        } = this.collectComponentInfoFromServerEntryDependency({
+          entryRequest,
+          compilation,
+          resolvedModule: connection.resolvedModule,
+        })
 
         actionImports.forEach(([dep, actions]) =>
           actionEntryImports.set(dep, actions)
@@ -422,6 +426,7 @@ export class FlightClientEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports,
+          dynamicClientComponentImports,
           bundlePath,
           absolutePagePath: entryRequest,
         })
@@ -484,6 +489,8 @@ export class FlightClientEntryPlugin {
               return res
             }, {}),
           },
+          dynamicClientImports:
+            clientEntryToInject.dynamicClientComponentImports || {},
         })
 
         // Track all created SSR dependencies for each entry from the server layer.
@@ -737,6 +744,7 @@ export class FlightClientEntryPlugin {
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
+    dynamicClientComponentImports: ClientComponentImports
     actionImports: [string, ActionIdNamePair[]][]
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
@@ -744,12 +752,14 @@ export class FlightClientEntryPlugin {
 
     // Info to collect.
     const clientComponentImports: ClientComponentImports = {}
+    const dynamicClientComponentImports: ClientComponentImports = {}
     const actionImports: [string, ActionIdNamePair[]][] = []
     const CSSImports = new Set<string>()
 
     const filterClientComponents = (
       mod: webpack.NormalModule,
-      importedIdentifiers: string[]
+      importedIdentifiers: string[],
+      isFromDynamicImport: boolean = false
     ): void => {
       if (!mod) return
 
@@ -757,11 +767,31 @@ export class FlightClientEntryPlugin {
 
       if (!modResource) return
       if (visitedOfClientComponentsTraverse.has(modResource)) {
+        // If the module was previously classified as dynamic but we now reach it
+        // via a static path, upgrade it to eager (conservative — ensures it loads
+        // with the main entry rather than as a separate async chunk).
+        if (
+          dynamicClientComponentImports[modResource] &&
+          !isFromDynamicImport
+        ) {
+          clientComponentImports[modResource] =
+            dynamicClientComponentImports[modResource]
+          delete dynamicClientComponentImports[modResource]
+        }
+
         if (clientComponentImports[modResource]) {
           addClientImport(
             mod,
             modResource,
             clientComponentImports,
+            importedIdentifiers,
+            false
+          )
+        } else if (dynamicClientComponentImports[modResource]) {
+          addClientImport(
+            mod,
+            modResource,
+            dynamicClientComponentImports,
             importedIdentifiers,
             false
           )
@@ -803,13 +833,19 @@ export class FlightClientEntryPlugin {
 
         CSSImports.add(modResource)
       } else if (isClientComponentEntryModule(mod)) {
-        if (!clientComponentImports[modResource]) {
-          clientComponentImports[modResource] = new Set()
+        // Route to the correct collection based on whether we reached this
+        // module through a dynamic import boundary in the server component tree.
+        const targetImports = isFromDynamicImport
+          ? dynamicClientComponentImports
+          : clientComponentImports
+
+        if (!targetImports[modResource]) {
+          targetImports[modResource] = new Set()
         }
         addClientImport(
           mod,
           modResource,
-          clientComponentImports,
+          targetImports,
           importedIdentifiers,
           true
         )
@@ -829,16 +865,27 @@ export class FlightClientEntryPlugin {
             dependencyIds = ['*']
           }
 
-          filterClientComponents(connection.resolvedModule, dependencyIds)
+          // Detect dynamic import boundary: when the dependency type starts
+          // with 'import()', we've crossed into a dynamically-imported subtree.
+          // This pattern is consistent with react-loadable-plugin.ts.
+          const isDynamicImportConnection =
+            connection.dependency?.type?.startsWith('import()')
+
+          filterClientComponents(
+            connection.resolvedModule,
+            dependencyIds,
+            isFromDynamicImport || isDynamicImportConnection
+          )
         }
       )
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(resolvedModule, [])
+    filterClientComponents(resolvedModule, [], false)
 
     return {
       clientComponentImports,
+      dynamicClientComponentImports,
       cssImports: CSSImports.size
         ? {
             [entryRequest]: Array.from(CSSImports),
@@ -853,6 +900,7 @@ export class FlightClientEntryPlugin {
     compilation,
     entryName,
     clientImports,
+    dynamicClientImports,
     bundlePath,
     absolutePagePath,
   }: {
@@ -860,6 +908,7 @@ export class FlightClientEntryPlugin {
     compilation: webpack.Compilation
     entryName: string
     clientImports: ClientComponentImports
+    dynamicClientImports?: ClientComponentImports
     bundlePath: string
     absolutePagePath?: string
   }): [
@@ -878,25 +927,47 @@ export class FlightClientEntryPlugin {
         ids: [...clientImports[clientImportPath]],
       }))
 
-    // For the client entry, we always use the CJS build of Next.js. If the
-    // server is using the ESM build (when using the Edge runtime), we need to
-    // replace them.
-    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
-      modules: (this.isEdgeServer
-        ? modules.map(({ request, ids }) => ({
+    // Modules from dynamic import boundaries — these will be loaded lazily
+    // (without webpackMode: "eager") in the browser entry, creating separate
+    // async chunks for better code splitting.
+    const dynamicModules = Object.keys(dynamicClientImports || {})
+      .sort((a, b) => a.localeCompare(b))
+      .map((clientImportPath) => ({
+        request: clientImportPath,
+        ids: [...(dynamicClientImports || {})[clientImportPath]],
+      }))
+
+    const edgeTransform = (mods: typeof modules) =>
+      this.isEdgeServer
+        ? mods.map(({ request, ids }) => ({
             request: request.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             ),
             ids,
           }))
-        : modules
-      ).map((x) => JSON.stringify(x)),
+        : mods
+
+    // For the client entry, we always use the CJS build of Next.js. If the
+    // server is using the ESM build (when using the Edge runtime), we need to
+    // replace them.
+    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
+      modules: edgeTransform(modules).map((x) => JSON.stringify(x)),
+      // Dynamic modules create separate async chunks (no webpackMode: "eager")
+      ...(dynamicModules.length > 0
+        ? {
+            dynamicModules: edgeTransform(dynamicModules).map((x) =>
+              JSON.stringify(x)
+            ),
+          }
+        : {}),
       server: false,
     })}!`
 
+    // SSR loader gets ALL modules as eager — no code splitting needed server-side
+    const allModules = [...modules, ...dynamicModules]
     const clientServerLoader = `next-flight-client-entry-loader?${stringify({
-      modules: modules.map((x) => JSON.stringify(x)),
+      modules: allModules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
 

@@ -314,8 +314,75 @@ export class ClientReferenceManifestPlugin {
           }
         })
 
-      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
-      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
+      const entryRequiredChunks = getAppPathRequiredChunks(
+        entrypoint,
+        rootMainFiles
+      )
+
+      // Collect ALL chunks reachable from this entrypoint (including async
+      // children from dynamic imports). Used to scope per-module chunk
+      // lookups so we don't leak chunks from other routes.
+      const entrypointReachableChunks = new Set<webpack.Chunk>()
+      function collectReachableChunks(
+        chunkGroup: ChunkGroup,
+        visited = new Set<ChunkGroup>()
+      ) {
+        if (visited.has(chunkGroup)) return
+        visited.add(chunkGroup)
+        for (const chunk of chunkGroup.chunks) {
+          entrypointReachableChunks.add(chunk)
+        }
+        for (const child of chunkGroup.childrenIterable) {
+          collectReachableChunks(child, visited)
+        }
+      }
+      collectReachableChunks(entrypoint)
+
+      // Determine which chunks to list in the manifest for a given module.
+      // Uses webpack's chunk.canBeInitial() to distinguish:
+      // - Initial chunks (from eager imports): use entryRequiredChunks,
+      //   identical to original behavior.
+      // - Async chunks (from lazy imports for dynamic server component
+      //   boundaries): list the specific async chunk(s) scoped to this
+      //   entrypoint. This enables per-component code splitting.
+      function getModuleChunks(mod: webpack.Module): ManifestChunks {
+        const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
+        const asyncChunks: string[] = []
+
+        for (const chunk of compilation.chunkGraph.getModuleChunksIterable(
+          mod
+        )) {
+          // If the module is in any initial chunk (loaded with the page HTML),
+          // use the standard entry chunks — same behavior as original code.
+          if (chunk.canBeInitial()) {
+            return entryRequiredChunks
+          }
+
+          // Accumulate async chunk references, scoped to this entrypoint
+          if (!entrypointReachableChunks.has(chunk)) continue
+          if (SYSTEM_ENTRYPOINTS.has(chunk.name || '')) continue
+          if (chunk.id == null) continue
+          const chunkId = '' + chunk.id
+          chunk.files.forEach((file) => {
+            if (!file.endsWith('.js')) return
+            if (file.endsWith('.hot-update.js')) return
+            if (rootMainFiles.has(file)) return
+            asyncChunks.push(
+              chunkId,
+              encodeURIPath(file) + deploymentIdChunkQuery
+            )
+          })
+        }
+
+        // Module is only in async chunks — return those, or fall back
+        return asyncChunks.length > 0 ? asyncChunks : entryRequiredChunks
+      }
+
+      const recordModule = (
+        modId: ModuleId,
+        mod: webpack.NormalModule,
+        chunks?: ManifestChunks
+      ) => {
         let resource =
           mod.type === 'css/mini-extract'
             ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
@@ -376,11 +443,17 @@ export class ClientReferenceManifestPlugin {
               pluginState.edgeSsrModules[ssrNamedModuleId]?.async
           )
 
+          // Use per-chunk-group chunks if available, otherwise fall back to
+          // the entry's chunks. This enables granular code splitting for client
+          // components reached through dynamic server component imports.
+          const moduleChunks =
+            chunks && chunks.length > 0 ? chunks : entryRequiredChunks
+
           const exportName = resource
           manifest.clientModules[exportName] = {
             id: modId,
             name: '*',
-            chunks: requiredChunks,
+            chunks: moduleChunks,
             async: isAsync,
           }
           if (esmResource) {
@@ -474,6 +547,7 @@ export class ClientReferenceManifestPlugin {
         // Ensure recursion is stopped if we've already checked this chunk group.
         if (checkedChunkGroups.has(chunkGroup)) return
         checkedChunkGroups.add(chunkGroup)
+
         // Only apply following logic to client module requests from client entry,
         // or if the module is marked as client module. That's because other
         // client modules don't need to be in the manifest at all as they're
@@ -514,9 +588,16 @@ export class ClientReferenceManifestPlugin {
               ) as string | number | null
 
               if (modId !== null) {
-                recordModule(modId, clientEntryMod)
+                // Compute the actual chunks this module resides in.
+                // For eager imports, the module is in the entry chunks.
+                // For lazy imports (dynamic server component boundaries),
+                // webpack puts the module in a separate async chunk.
+                const moduleChunks = getModuleChunks(clientEntryMod)
+                recordModule(modId, clientEntryMod, moduleChunks)
               } else {
                 // If this is a concatenation, register each child to the parent ID.
+                // Use the concatenated module for chunk lookup since inner modules
+                // aren't independently tracked in the chunk graph.
                 if (
                   connection.module?.constructor.name === 'ConcatenatedModule'
                 ) {
@@ -524,7 +605,12 @@ export class ClientReferenceManifestPlugin {
                   const concatenatedModId =
                     compilation.chunkGraph.getModuleId(concatenatedMod)
                   if (concatenatedModId) {
-                    recordModule(concatenatedModId, clientEntryMod)
+                    const moduleChunks = getModuleChunks(concatenatedMod)
+                    recordModule(
+                      concatenatedModId,
+                      clientEntryMod,
+                      moduleChunks
+                    )
                   }
                 }
               }
