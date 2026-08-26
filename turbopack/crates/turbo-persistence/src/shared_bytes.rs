@@ -2,7 +2,7 @@ use std::ops::{Deref, Range};
 
 use memmap2::Mmap;
 
-use crate::{Compression, compression::DecompressionContext};
+use crate::Compression;
 
 /// Trait abstracting over `ArcBytes` and `RcBytes`.
 ///
@@ -39,7 +39,6 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
 
     /// Creates an instance from a decompressed block.
     fn from_decompressed(
-        decompression_context: &DecompressionContext,
         compression: Compression,
         uncompressed_length: u32,
         block: &[u8],

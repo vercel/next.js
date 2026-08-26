@@ -312,7 +312,7 @@ pub fn write_static_stored_file<E: Entry>(
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
-    write_static_stored_file_with_compression(entries, file, flags, Compression::lz4())
+    write_static_stored_file_with_compression(entries, file, flags, Compression::Lz4)
 }
 
 pub(crate) fn write_static_stored_file_with_compression<E: Entry>(
@@ -594,7 +594,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// `max_entry_count` is used to pre-allocate buffers and estimate block counts. Databases with
     /// per-family compression use the configuration-aware internal constructor instead.
     pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
-        Self::new_with_compression(file, flags, max_entry_count, Compression::lz4())
+        Self::new_with_compression(file, flags, max_entry_count, Compression::Lz4)
     }
 
     pub(crate) fn new_with_compression(

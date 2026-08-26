@@ -38,18 +38,18 @@ impl KeySpace {
             KeySpace::Infra | KeySpace::TaskMeta => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
-                compression: Compression::lz4_hc4(),
+                compression: Compression::Lz4Hc4,
             },
             KeySpace::TaskData => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
-                compression: Compression::zstd_3(),
+                compression: Compression::Zstd3,
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
-                compression: Compression::lz4_hc4(),
+                compression: Compression::Lz4Hc4,
             },
         }
     }

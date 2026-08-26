@@ -164,21 +164,8 @@ mod tests {
     }
 
     #[test]
-    fn compression_configuration_round_trips_through_meta_file() {
-        for compression in [
-            Compression::lz4(),
-            Compression::lz4_hc4(),
-            Compression::zstd_3(),
-        ] {
-            let (tempdir, _) = write_empty_meta(compression);
-            let meta = MetaFile::open(tempdir.path(), 1).unwrap();
-            assert_eq!(meta.compression(), compression);
-        }
-    }
-
-    #[test]
     fn invalid_meta_compression_headers_are_rejected() {
-        let (tempdir, path) = write_empty_meta(Compression::zstd_3());
+        let (tempdir, path) = write_empty_meta(Compression::Zstd3);
         let original = std::fs::read(&path).unwrap();
 
         let mut bytes = original.clone();

@@ -73,7 +73,7 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
             family_configs: [FamilyConfig {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
-                compression: Compression::lz4(),
+                compression: Compression::Lz4,
             }; FAMILIES],
         }
     }

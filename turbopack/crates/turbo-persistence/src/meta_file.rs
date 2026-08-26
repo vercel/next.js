@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     fmt::Display,
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail, ensure};
@@ -15,7 +15,6 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 
 use crate::{
     Compression, FamilyConfig, QueryKey,
-    compression::DecompressionContext,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -51,7 +50,7 @@ impl Display for MetaEntryFlags {
 }
 
 /// Magic number identifying a `.meta` file.
-pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4B;
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -120,8 +119,6 @@ pub struct MetaEntry {
     amqf: qfilter::FilterRef<'static>,
     /// Compression recorded in this entry's meta file.
     compression: Compression,
-    /// Database-owned decompression context pool.
-    decompression_context: Arc<DecompressionContext>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -158,18 +155,13 @@ impl MetaEntry {
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open_with_compression(
-                &meta.db_path,
-                self.sst_data,
-                self.compression,
-                self.decompression_context.clone(),
-            )
-            .with_context(|| {
-                format!(
-                    "Unable to open static sorted file referenced from {:08}.meta",
-                    meta.sequence_number()
-                )
-            })
+            StaticSortedFile::open_with_compression(&meta.db_path, self.sst_data, self.compression)
+                .with_context(|| {
+                    format!(
+                        "Unable to open static sorted file referenced from {:08}.meta",
+                        meta.sequence_number()
+                    )
+                })
         })
     }
 
@@ -282,19 +274,13 @@ impl MetaFile {
     /// [`qfilter::FilterRef`]s that borrow from the mmap. Database opens use the internal
     /// constructor to also validate the marker against the runtime family configuration.
     pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
-        Self::open_with_family_configs(
-            db_path,
-            sequence_number,
-            None,
-            Arc::new(DecompressionContext::default()),
-        )
+        Self::open_with_family_configs(db_path, sequence_number, None)
     }
 
     pub(crate) fn open_with_family_configs(
         db_path: &Path,
         sequence_number: u32,
         family_configs: Option<&[FamilyConfig]>,
-        decompression_context: Arc<DecompressionContext>,
     ) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
@@ -303,7 +289,6 @@ impl MetaFile {
             sequence_number,
             &path,
             family_configs,
-            decompression_context,
         )
         .with_context(|| format!("Unable to open meta file {filename}"))
     }
@@ -313,7 +298,6 @@ impl MetaFile {
         sequence_number: u32,
         path: &Path,
         family_configs: Option<&[FamilyConfig]>,
-        decompression_context: Arc<DecompressionContext>,
     ) -> Result<Self> {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
@@ -404,7 +388,6 @@ impl MetaFile {
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
-                decompression_context: decompression_context.clone(),
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;

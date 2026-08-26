@@ -535,11 +535,9 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         #[cfg(feature = "verify_sst_content")]
         {
             use core::panic;
-            use std::sync::Arc;
 
             use crate::{
                 collector_entry::CollectorEntryValue,
-                compression::DecompressionContext,
                 key::hash_key,
                 lookup_entry::LookupValue,
                 static_sorted_file::{
@@ -556,7 +554,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     block_count: meta.block_count,
                 },
                 self.family_configs[usize_from_u32(family)].compression,
-                Arc::new(DecompressionContext::default()),
             )?;
             let cache2 = BlockCache::with(
                 10,
