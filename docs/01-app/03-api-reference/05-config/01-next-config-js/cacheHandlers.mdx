@@ -479,10 +479,10 @@ module.exports = {
     return Math.max(...timestamps, 0)
   },
 
-  async updateTags(tags, durations) {
-    // This example invalidates immediately in both cases. See
-    // [`updateTags()`](#updatetags) for how `durations` separates immediate
-    // invalidation from stale-while-revalidate.
+  async updateTags(tags) {
+    // This example invalidates immediately in every case. See
+    // [`updateTags()`](#updatetags) for how the `durations` argument
+    // separates immediate invalidation from stale-while-revalidate.
     const now = Date.now()
     const pipeline = client.multi()
     for (const tag of tags) {
