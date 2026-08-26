@@ -167,14 +167,21 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key1.keyRoot).not.toBe(key2.keyRoot)
         expect(key1.dataRoot).toEndWith(`:${foobar1}`)
         expect(key2.dataRoot).toEndWith(`:${foobar2}`)
+        // The env var value should not be leaked into the cache key, only hashes of it.
+        expect(key1.keyRoot).not.toContain(foobar1)
+        expect(key2.keyRoot).not.toContain(foobar2)
 
         expect(key1.keyPrerender).not.toBe(key2.keyPrerender)
         expect(key1.dataPrerender).toEndWith(`:${foobar1}`)
         expect(key2.dataPrerender).toEndWith(`:${foobar2}`)
+        expect(key1.keyPrerender).not.toContain(foobar1)
+        expect(key2.keyPrerender).not.toContain(foobar2)
 
         expect(key1.keyClient).not.toBe(key2.keyClient)
         expect(key1.dataClient).toEndWith(`:${foobar1}`)
         expect(key2.dataClient).toEndWith(`:${foobar2}`)
+        expect(key1.keyClient).not.toContain(foobar1)
+        expect(key2.keyClient).not.toContain(foobar2)
       } finally {
         delete next.env['FOOBAR']
       }
