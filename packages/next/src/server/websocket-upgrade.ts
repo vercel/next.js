@@ -30,6 +30,8 @@ import {
 
 type WebSocketServerConstructor = typeof WebSocketServer
 
+// @types/ws (8.18.1) does not yet declare the options the vendored ws 8.21
+// exposes; drop this interface when the published types catch up.
 interface VendoredWebSocketServerOptions extends WebSocketServerOptions {
   closeTimeout: number
   maxBufferedChunks: number
@@ -613,36 +615,32 @@ function handleMessageEvent(
   connection.pendingMessages++
   connection.pendingMessageBytes += messageBytes
   pauseConnection(owned)
-  connection.hookQueue = connection.runInHookContext(() =>
-    connection.hookQueue
-      .then(() => {
-        if (
-          connection.closed ||
-          connection.hookFailed ||
-          !isWebSocketOpen(owned.websocket)
-        ) {
-          return
-        }
-        return invokeHook(
-          owned,
-          connection,
-          () => hook(owned.peer, message),
-          true
-        )
-      })
-      .finally(() => {
-        connection.pendingMessages--
-        connection.pendingMessageBytes -= messageBytes
-        if (
-          connection.pendingMessages === 0 &&
-          !connection.closed &&
-          !connection.hookFailed &&
-          isWebSocketOpen(owned.websocket)
-        ) {
-          resumeConnection(owned)
-        }
-      })
-  )
+  queueHook(
+    owned,
+    connection,
+    () => {
+      if (
+        connection.closed ||
+        connection.hookFailed ||
+        !isWebSocketOpen(owned.websocket)
+      ) {
+        return
+      }
+      return hook(owned.peer, message)
+    },
+    true
+  ).finally(() => {
+    connection.pendingMessages--
+    connection.pendingMessageBytes -= messageBytes
+    if (
+      connection.pendingMessages === 0 &&
+      !connection.closed &&
+      !connection.hookFailed &&
+      isWebSocketOpen(owned.websocket)
+    ) {
+      resumeConnection(owned)
+    }
+  })
 }
 
 function handleCloseEvent(
