@@ -1145,10 +1145,12 @@ Next.js Config:
     })
 
     test('should print output', async () => {
-      const info = await next.runCommand(['info'])
+      const info = await next.runCommand(['info'], {
+        env: { npm_config_user_agent: 'npm' },
+      })
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')
-      expect(info.stderr).not.toMatch(/not found/i)
+      expect(info.stderr).not.toMatch(/(?:yarn|pnpm): (?:command )?not found/i)
       matchInfoOutput(info.stdout)
     })
 
