@@ -50,7 +50,7 @@ const BMP = 'image/bmp'
 const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC, AVIF]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -92,17 +92,6 @@ export function getSharp(concurrency: number | null | undefined) {
   try {
     // eslint-disable-next-line @next/internal/typechecked-require -- sharp 0.34 and 0.35 type the module differently, see SharpModule
     _sharp = require('sharp') as SharpModule
-    _sharp.block({ operation: ['VipsForeignLoad'] })
-    _sharp.unblock({
-      operation: [
-        'VipsForeignLoadJpeg',
-        'VipsForeignLoadNsgif',
-        'VipsForeignLoadPng',
-        'VipsForeignLoadSvg',
-        'VipsForeignLoadTiff',
-        'VipsForeignLoadWebp',
-      ],
-    })
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.

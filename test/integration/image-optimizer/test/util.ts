@@ -100,15 +100,6 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
-async function expectUnoptimizedImage(res, filename: string) {
-  const buffer = Buffer.from(await res.arrayBuffer())
-  const source = await fs.readFile(join(__dirname, '../app/public', filename))
-  expect(buffer).toEqual(source)
-  expect(res.headers.get('Content-Length')).toBe(
-    Buffer.byteLength(source).toString()
-  )
-}
-
 export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
   console.warn('Cleaning', ctx.imagesDir)
   await fs.remove(ctx.imagesDir)
@@ -532,23 +523,23 @@ export function runTests(ctx: RunTestsCtx) {
     await expectWidth(res, ctx.w)
   })
 
-  it('should bypass avif input for old Safari', async () => {
+  it('should downlevel avif format to jpeg for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
     const query = { w: ctx.w, q: 74, url: '/test.avif' }
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toContain('image/avif')
+    expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="test.avif"`
+      `${contentDispositionType}; filename="test.jpeg"`
     )
-    await expectUnoptimizedImage(res, 'test.avif')
+    await expectWidth(res, ctx.w)
   })
 
   it('should fail when url is missing', async () => {
@@ -814,21 +805,21 @@ export function runTests(ctx: RunTestsCtx) {
     await expectWidth(res, ctx.w)
   })
 
-  it('should bypass optimization for avif input', async () => {
-    const query = { url: '/test.avif', w: ctx.w, q: ctx.q }
+  it('should resize avif', async () => {
+    const query = { url: '/test.avif', w: ctx.w, q: 75 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/avif')
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="test.avif"`
+      `${contentDispositionType}; filename="test.webp"`
     )
-    await expectUnoptimizedImage(res, 'test.avif')
+    await expectWidth(res, ctx.w)
   })
 
   it('should resize relative url and old Chrome accept header as webp', async () => {
@@ -872,8 +863,8 @@ export function runTests(ctx: RunTestsCtx) {
       await expectWidth(res, ctx.w)
     })
 
-    it('should bypass avif input when avif output is enabled', async () => {
-      const query = { url: '/test.avif', w: ctx.w, q: ctx.q }
+    it('should resize avif and maintain format', async () => {
+      const query = { url: '/test.avif', w: ctx.w, q: 75 }
       const opts = { headers: { accept: 'image/avif' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
@@ -886,7 +877,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(res.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.avif"`
       )
-      await expectUnoptimizedImage(res, 'test.avif')
+      await expectWidth(res, ctx.w)
     })
 
     it('should compress avif smaller than webp at q=100', async () => {
