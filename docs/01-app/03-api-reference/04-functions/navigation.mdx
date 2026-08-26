@@ -10,9 +10,9 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-Awaiting `unstable_navigation()` interrupts a prefetch prerender. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary is sent in place of the rest of the component, and the interrupted content renders when the user navigates.
+Awaiting `unstable_navigation()` defers the code below it to the navigation, instead of rendering it when a link to the route is prefetched. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the prefetch, and the deferred content renders when the user navigates.
 
-It is for content that a prefetch would otherwise include, which in practice means a tree gated by a runtime API. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_navigation()` is prerendered as usual.
+It is for content that a prefetch would otherwise render, which in practice means a tree gated by a runtime API. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_navigation()` is prerendered as usual.
 
 ## Usage
 
@@ -24,7 +24,7 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
 3. The navigation itself, which covers everything left.
 
-Calling `unstable_navigation()` keeps content out of the App Shell and out of per-link prefetches, so it renders only on the navigation. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) covers everything a per-link prefetch can, and it still does not reach the deferred content.
+Calling `unstable_navigation()` keeps content out of the App Shell and out of per-link prefetches, so it renders on the navigation. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) is a navigation issued early rather than a prefetch, so it renders the deferred content the way a navigation does.
 
 Enable Partial Prefetching globally with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial). Without that opt-in a route is prefetched in a single step that already includes what would otherwise be deferred.
 
@@ -32,7 +32,7 @@ To keep content out of the App Shell while still including it in a per-link pref
 
 Everything above `unstable_navigation()` renders in the prefetch, and everything below renders on the navigation. Place it above the code to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
-```tsx filename="app/post/[slug]/page.tsx" highlight={18} switcher
+```tsx filename="app/post/[slug]/page.tsx" highlight={20} switcher
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { cacheLife, unstable_navigation } from 'next/cache'
@@ -40,7 +40,9 @@ import { cacheLife, unstable_navigation } from 'next/cache'
 export default function Page({ params }: PageProps<'/post/[slug]'>) {
   return (
     <>
-      <PostBody params={params} /> {/* in a per-link prefetch */}
+      <Suspense fallback={<p>Loading post...</p>}>
+        <PostBody params={params} /> {/* in a per-link prefetch */}
+      </Suspense>
       <Suspense fallback={<p>Loading comments...</p>}>
         {/* the fallback is in the prefetch, the comments are not */}
         <Comments params={params} />
@@ -64,7 +66,7 @@ async function getComments(slug: string, sort: string) {
 }
 ```
 
-```jsx filename="app/post/[slug]/page.js" highlight={18} switcher
+```jsx filename="app/post/[slug]/page.js" highlight={20} switcher
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { cacheLife, unstable_navigation } from 'next/cache'
@@ -72,7 +74,9 @@ import { cacheLife, unstable_navigation } from 'next/cache'
 export default function Page({ params }) {
   return (
     <>
-      <PostBody params={params} /> {/* in a per-link prefetch */}
+      <Suspense fallback={<p>Loading post...</p>}>
+        <PostBody params={params} /> {/* in a per-link prefetch */}
+      </Suspense>
       <Suspense fallback={<p>Loading comments...</p>}>
         {/* the fallback is in the prefetch, the comments are not */}
         <Comments params={params} />
@@ -96,17 +100,21 @@ async function getComments(slug, sort) {
 }
 ```
 
-The comments depend on the URL, so on their own they belong to a per-link prefetch: a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) pointing at a post would carry its comments in that prefetch. `unstable_navigation()` keeps them out of it, so they arrive on the navigation instead.
+The comments depend on the URL, so on their own they belong to a per-link prefetch. `unstable_navigation()` keeps them out of it, so they arrive on the navigation instead.
 
 The slug and the cookie are both read below `unstable_navigation()` and passed as arguments, so `getComments` caches per post and sort order rather than per visitor. Reading `params` there is safe, because it resolves after the stage that supplies it.
+
+Placement relative to a runtime API decides how the route is prefetched. A `cookies()` or `headers()` read above the call resolves when the route is prefetched, and only what depends on it is deferred. A read below the call is not treated as a reason to render the prefetch per request, so it can be served from static output.
 
 It cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private). Put the directive on a function called below it, as `getComments` does here.
 
 ## When to use it
 
-Most routes do not need this. It changes what a prefetch response carries: content below the call is left out of the prefetch payload and arrives on the navigation instead.
+Most routes do not need this. A prefetch that depends on session data is rendered for each visitor and each link, and this keeps the code below it from running in those renders, which is worth doing when that code reaches an upstream service.
 
-Without `unstable_navigation()`, keeping that content out of a prefetch would mean leaving it uncached. With it, the content can carry [`use cache`](/docs/app/api-reference/directives/use-cache) and a lifetime and still be excluded.
+Without `unstable_navigation()`, keeping that content out of a prefetch would mean leaving it uncached. With it, the content can carry [`use cache`](/docs/app/api-reference/directives/use-cache) and a lifetime and still be deferred.
+
+A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) is the exception. It is a navigation issued early, so the deferred content renders then, and nothing is saved.
 
 Leave it out when the content should already be on screen the moment the route commits.
 
@@ -114,7 +122,7 @@ Leave it out when the content should already be on screen the moment the route c
 
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_navigation()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache). The navigation that renders it seeds the client's route cache rather than discarding it.
-- Reading `cookies()` or `headers()` below `unstable_navigation()` does not affect how the route is prefetched. Those accesses are ignored, because they would not have resolved in a prefetch either.
+- Reading `cookies()` or `headers()` below `unstable_navigation()` does not make the route's prefetches render per request, so they can still be served from static output. Those accesses are ignored, because they would not have resolved in a prefetch either.
 - A call outside a `<Suspense>` boundary surfaces a validation insight in development, reported even on a page that is currently prerendered in full, because the same page starts excluding content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 
