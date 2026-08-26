@@ -10,7 +10,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
-    DirectoryEntry, FileSystemPath,
+    DirectoryEntry, FileSystemEntryType, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbo_tasks_hash::HashAlgorithm;
@@ -193,19 +193,26 @@ async fn get_glob_includes(
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
-    // Use a BTreeSet to get deterministic order (return value of `read_glob` has random order).
-    let mut result = vec![];
+    // Deduplicate symlinks shared by many matches. The return value of `read_glob` has random
+    // order, so the result is sorted below.
+    let mut result = FxIndexSet::default();
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
-        // Process direct results (files and directories at this level)
+        // Process direct results (files and directories at this level).
         for entry in glob_result.results.values() {
             let (DirectoryEntry::File(file_path) | DirectoryEntry::Symlink(file_path)) = entry
             else {
                 continue;
             };
 
-            result.push(file_path.clone());
+            let realpath = file_path.realpath_with_links().await?;
+            result.extend(realpath.symlinks.iter().cloned());
+            if let Ok(resolved_path) = &realpath.path_result
+                && matches!(*resolved_path.get_type().await?, FileSystemEntryType::File)
+            {
+                result.insert(resolved_path.clone());
+            }
         }
 
         for nested_result in glob_result.inner.values() {
@@ -216,8 +223,8 @@ async fn get_glob_includes(
 
     // All paths were matched from project_root_path, so they must all have the same `fs`. So it's
     // enough to sort by path.
+    let mut result: Vec<_> = result.into_iter().collect();
     result.sort_by(|a, b| a.path.cmp(&b.path));
-
     Ok(result)
 }
 
@@ -562,5 +569,83 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!("- remove them.")),
         ];
         Ok(Some(StyledString::Stack(stack)))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{
+        fs::{create_dir_all, write},
+        os::unix::fs::symlink,
+    };
+
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{
+        DiskFileSystem, FileSystem,
+        glob::{Glob, GlobOptions},
+    };
+
+    use crate::nft::get_glob_includes;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn get_glob_includes_operation(disk_root: RcStr) -> anyhow::Result<()> {
+        let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+            .root()
+            .owned()
+            .await?;
+        let includes = get_glob_includes(
+            root,
+            Glob::new(
+                rcstr!("**"),
+                GlobOptions {
+                    contains: true,
+                    ..Default::default()
+                },
+            ),
+        )
+        .await?;
+
+        assert_eq!(
+            includes
+                .iter()
+                .map(|path| path.path.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "alias",
+                "alias-chain",
+                "dangling",
+                "file-link",
+                "real/file.txt",
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn glob_includes_resolve_files_and_retain_symlinks() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        create_dir_all(root.join("real")).unwrap();
+        write(root.join("real/file.txt"), "content").unwrap();
+        symlink("real", root.join("alias")).unwrap();
+        symlink("alias", root.join("alias-chain")).unwrap();
+        symlink("real/file.txt", root.join("file-link")).unwrap();
+        symlink("missing", root.join("dangling")).unwrap();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = root.to_str().unwrap().into();
+        tt.run_once(async move {
+            get_glob_includes_operation(disk_root)
+                .read_strongly_consistent()
+                .await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }
