@@ -83,7 +83,10 @@ function getBinaryVersion(binaryName: string) {
       .trim()
   } catch {
     try {
-      return childProcess.execSync(`${binaryName} --version`).toString().trim()
+      return childProcess
+        .execSync(`${binaryName} --version`, { stdio: 'pipe' })
+        .toString()
+        .trim()
     } catch {
       return 'N/A'
     }
