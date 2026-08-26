@@ -266,7 +266,6 @@ export const experimentalSchema = {
   forceSwcTransforms: z.boolean().optional(),
   fullySpecified: z.boolean().optional(),
   gzipSize: z.boolean().optional(),
-  imgOptDangerouslyAllowAVIF: z.boolean().optional(),
   imgOptConcurrency: z.number().int().optional().nullable(),
   imgOptOperationCache: z.boolean().optional().nullable(),
   imgOptTimeoutInSeconds: z.number().int().optional(),
