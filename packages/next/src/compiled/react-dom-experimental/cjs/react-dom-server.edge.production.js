@@ -4522,7 +4522,7 @@ function RequestInstance(
   this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
   this.onShellError = void 0 === onShellError ? noop : onShellError;
   this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
-  this.renderLifetimeController = new AbortController();
+  this.renderLifetimeController = null;
   this.formState = void 0 === formState ? null : formState;
 }
 function createRequest(
@@ -4965,7 +4965,7 @@ function fatalError(request, error) {
     onFatalError = request.onFatalError;
   0 !== request.pendingRootTasks && onShellError(error);
   onFatalError(error);
-  request.renderLifetimeController.abort("The render ended.");
+  endRenderLifetime(request);
   null !== request.destination
     ? ((request.status = 13), closeWithError(request.destination, error))
     : ((request.status = 12), request.aborted || (request.fatalError = error));
@@ -7911,7 +7911,7 @@ function flushCompletedQueues(request, destination) {
           i.hasBody && writeChunk(destination, endChunkForTag("body")),
           i.hasHtml && writeChunk(destination, endChunkForTag("html")),
           completeWriting(destination),
-          request.renderLifetimeController.abort("The render ended."),
+          endRenderLifetime(request),
           (request.status = 13),
           destination.close(),
           (request.destination = null))
@@ -7985,20 +7985,27 @@ function finishAbort(request, abortableTasks) {
     logRecoverableError(request, error$81, {}), fatalError(request, error$81);
   }
 }
+function endRenderLifetime(request) {
+  request = request.renderLifetimeController;
+  null !== request && request.abort("The render ended.");
+}
 function attachAbortSignal(request, signal) {
-  signal.aborted
-    ? abort(request, signal.reason)
-    : signal.addEventListener(
-        "abort",
-        function () {
-          abort(request, signal.reason);
-        },
-        { signal: request.renderLifetimeController.signal }
-      );
+  if (signal.aborted) abort(request, signal.reason);
+  else {
+    var renderLifetimeController = new AbortController();
+    request.renderLifetimeController = renderLifetimeController;
+    signal.addEventListener(
+      "abort",
+      function () {
+        abort(request, signal.reason);
+      },
+      { signal: renderLifetimeController.signal }
+    );
+  }
 }
 function abort(request, reason) {
   if (!(request.aborted || (11 !== request.status && 10 !== request.status))) {
-    request.renderLifetimeController.abort("The render ended.");
+    endRenderLifetime(request);
     var isRecoverableReason =
       "object" === typeof reason &&
       null !== reason &&
@@ -8085,11 +8092,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-bd6ea412-20260824" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-f789f203-20260825" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-bd6ea412-20260824\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-f789f203-20260825\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8303,4 +8310,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-experimental-bd6ea412-20260824";
+exports.version = "19.3.0-experimental-f789f203-20260825";
