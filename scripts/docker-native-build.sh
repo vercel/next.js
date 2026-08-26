@@ -20,6 +20,7 @@ set -xeo pipefail
 # container's root user; mark it safe so vergen's `git rev-parse` works.
 git config --global --add safe.directory /build
 
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
 BUILD_TASK="${BUILD_TASK:-build-native-release}"
 
 # Node.js (installed via nodesource) is used only as a build tool (runs
@@ -115,6 +116,10 @@ case "$TARGET" in
     export "CFLAGS_${TARGET_US}=--target=aarch64-linux-musl --sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl --gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
 esac
 
+export LLVM_BIN_DIR="${NATIVE_LLVM_BIN:-/opt/llvm-18.1.8/bin}"
+# shellcheck source=configure-native-lto.sh
+source scripts/configure-native-lto.sh
+
 # aarch64 needs larger page size for jemalloc
 if [ "$ARCH" = "aarch64" ]; then
   export JEMALLOC_SYS_WITH_LG_PAGE=16
@@ -132,12 +137,18 @@ node -v
 rustc --version
 echo "Target: $TARGET"
 echo "RUSTFLAGS: $RUSTFLAGS"
+if native_lto_is_enabled; then
+  "${LLVM_BIN_DIR}/clang" --version | head -1
+fi
 echo "RUSTC_WRAPPER: ${RUSTC_WRAPPER:-<unset>}"
 echo "-------------------------"
 
 rustup target add "$TARGET"
 cd packages/next-swc
 npm run "$BUILD_TASK" -- --target "$TARGET"
+if native_lto_is_enabled; then
+  ../../scripts/verify-native-lto.sh
+fi
 llvm-strip -x native/next-swc.*.node
 
 # Show sccache stats if available

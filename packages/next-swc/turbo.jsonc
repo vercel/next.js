@@ -2,8 +2,9 @@
   "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
   "tasks": {
-    // Fingerprint all Rust inputs into a single stamp file so other tasks
-    // only need inputs: [stamp file] instead of repeating the full glob list.
+    // Fingerprint all Rust and native toolchain inputs into a single stamp file
+    // so other tasks only need inputs: [stamp file] instead of repeating the
+    // full list.
     "rust-fingerprint": {
       "inputs": [
         "../../.cargo/**",
@@ -14,6 +15,12 @@
         "../../**/Cargo.toml",
         "../../Cargo.lock",
         "../../rust-toolchain.toml",
+        "../../scripts/configure-native-lto.sh",
+        "../../scripts/docker-native-build.sh",
+        "../../scripts/install-native-llvm.sh",
+        "../../scripts/native-builder.Dockerfile",
+        "../../scripts/verify-native-lto.sh",
+        "../../.github/workflows/build_and_deploy.yml",
       ],
       "outputs": ["../../target/.rust-fingerprint"],
       "cache": false,

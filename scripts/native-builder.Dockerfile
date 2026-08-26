@@ -51,9 +51,20 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
 # works on either host architecture.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
-    clang lld llvm pkg-config wget git xz-utils libssl-dev \
+    clang lld llvm file pkg-config wget git xz-utils libssl-dev libtinfo5 \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
+
+# Primary release targets compile C/C++ dependencies with pinned upstream LLVM.
+# Extract only the compiler, archive tools, and resource headers (~237 MB), not
+# the full 7.5 GB SDK. Target libc and headers still come from the GNU sysroots.
+# Excluded targets skip the large download and keep using the distro toolchain.
+ARG INSTALL_NATIVE_LLVM=1
+COPY scripts/install-native-llvm.sh /tmp/install-native-llvm.sh
+RUN if [ "$INSTALL_NATIVE_LLVM" = "1" ]; then \
+      /tmp/install-native-llvm.sh /opt/llvm-18.1.8; \
+    fi && \
+    rm /tmp/install-native-llvm.sh
 
 # Node.js 20 (glibc-linked, used as a build tool for all targets).
 # Installed from the official nodejs.org static tarball rather than via
@@ -99,6 +110,7 @@ RUN TOOLCHAIN=$(grep 'channel' /tmp/rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1
     rm /tmp/rust-toolchain.toml
 
 ENV PATH="/root/.cargo/bin:${PATH}"
+ENV NATIVE_LLVM_BIN="/opt/llvm-18.1.8/bin"
 
 # Add all 4 Linux rustup targets
 RUN rustup target add \

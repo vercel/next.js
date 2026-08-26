@@ -305,6 +305,24 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Restore upstream LLVM for native LTO
+        if: ${{ matrix.target == 'aarch64-apple-darwin' && matrix.build_task == 'build-native-release' }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/llvm-18.1.8
+          key: native-llvm-18.1.8-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install upstream LLVM and cargo-rustflags
+        if: ${{ matrix.target == 'aarch64-apple-darwin' && matrix.build_task == 'build-native-release' }}
+        env:
+          LLVM_BIN_DIR: ${{ runner.temp }}/llvm-18.1.8/bin
+          LLVM_ROOT: ${{ runner.temp }}/llvm-18.1.8
+        run: |
+          if [[ ! -x "${LLVM_BIN_DIR}/clang" ]]; then
+            scripts/install-native-llvm.sh "${LLVM_ROOT}"
+          fi
+          cargo binstall --no-confirm cargo-rustflags@0.4.0
+
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
 
@@ -347,13 +365,25 @@ jobs:
       - name: Build Docker builder image
         if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' }}
         env:
+          BUILD_TASK: ${{ matrix.build_task }}
           IMAGE_NAME: ${{ matrix.docker }}
+          TARGET: ${{ matrix.target }}
         run: |
           docker buildx create --use --name next-swc-builder-buildx
 
-          # Minimal context: the Dockerfile only COPYs rust-toolchain.toml.
+          export NATIVE_LTO_DETECT_ONLY=1
+          source scripts/configure-native-lto.sh
+          unset NATIVE_LTO_DETECT_ONLY
+          INSTALL_NATIVE_LLVM=0
+          if native_lto_is_enabled; then
+            INSTALL_NATIVE_LLVM=1
+          fi
+
+          # Minimal context: include only files copied by the builder Dockerfile.
           CTX_DIR="$(mktemp -d)"
+          mkdir -p "$CTX_DIR/scripts"
           cp rust-toolchain.toml "$CTX_DIR/"
+          cp scripts/install-native-llvm.sh "$CTX_DIR/scripts/"
 
           CACHE_ARGS=()
           if [ -z "${NEXT_SKIP_BUILD_CACHE:-}" ]; then
@@ -369,6 +399,7 @@ jobs:
           docker buildx build \
             --load \
             --provenance=false \
+            --build-arg "INSTALL_NATIVE_LLVM=${INSTALL_NATIVE_LLVM}" \
             -t "$IMAGE_NAME" \
             -f scripts/native-builder.Dockerfile \
             "${CACHE_ARGS[@]}" \
@@ -425,6 +456,11 @@ jobs:
 
       - name: 'Build'
         if: ${{ !matrix.docker }}
+        env:
+          BUILD_TASK: ${{ matrix.build_task }}
+          MATRIX_OS: ${{ matrix.os }}
+          TARGET: ${{ matrix.target }}
+          LLVM_BIN_DIR: ${{ runner.temp }}/llvm-18.1.8/bin
         run: |
           echo "Host arch: $(uname -m)"
           echo "Node arch: $(node -e 'console.log(process.arch)')"
@@ -433,9 +469,27 @@ jobs:
           rustc --version --verbose || true
           node -v
           npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+
+          if [[ "${TARGET}" == "aarch64-apple-darwin" && "${BUILD_TASK}" == "build-native-release" ]]; then
+            RUSTFLAGS=$(cargo rustflags --target "${TARGET}")
+            export RUSTFLAGS
+            source scripts/configure-native-lto.sh
+            "${LLVM_BIN_DIR}/clang" --version | head -1
+          fi
+
           TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
-          pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} ${TURBO_CACHE_FLAG} -- --target ${{ matrix.target }}
-          if [ "${{ matrix.os }}" != "windows" ]; then
+          pnpm dlx turbo@${TURBO_VERSION} run "${BUILD_TASK}" ${TURBO_ARGS} ${TURBO_CACHE_FLAG} -- --target "${TARGET}"
+
+          if [[ "${TARGET}" == "aarch64-apple-darwin" && "${BUILD_TASK}" == "build-native-release" ]]; then
+            scripts/verify-native-lto.sh
+            MIN_OS=$(otool -l packages/next-swc/native/next-swc.*.node | awk '$1 == "minos" { print $2; exit }')
+            if [[ "${MIN_OS}" != "${MACOSX_DEPLOYMENT_TARGET}" ]]; then
+              echo "Expected macOS ${MACOSX_DEPLOYMENT_TARGET}, found ${MIN_OS:-unknown}" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${MATRIX_OS}" != "windows" ]]; then
             strip -x packages/next-swc/native/next-swc.*.node
           fi
 
