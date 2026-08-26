@@ -29,10 +29,6 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 const FIRST_CHARS: &[u8; 54] = b"_$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 /// Characters that may appear in an identifier after the first character.
 const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-/// The character that encodes the value zero. Because it is a legal *leading* character, a value
-/// whose encoding would end in it is degenerate (`a` and `a_` would both decode to the same value),
-/// so such encodings are never produced and never accepted.
-const ZERO_CHAR: char = '_';
 
 /// The name assigned when a module has exactly one export to mangle.
 ///
@@ -90,14 +86,18 @@ const fn reserved_in_table(len: u32) -> u64 {
 /// The number of distinct values encodable in at most `len` characters, i.e. the capacity of the
 /// table for that length.
 ///
-/// This counts *values*, not strings: [`encode_js_identifier`] never emits a trailing
-/// [`ZERO_CHAR`], so a value whose last digit would be zero encodes to a shorter string instead,
-/// and every value below the returned bound really does fit in `len` characters.
+/// There are `54 * 64^(i-1)` strings of length `i` — the first character comes from the 54 that may
+/// start an identifier, every later one from all 64 — so this is that summed over `1..=len`:
 ///
-/// Precomputed for `len <= 10` — [`CAPACITY_FOR_LEN`] is kept in step with the formula by a test.
-/// Beyond 10 characters the formula itself overflows `u64` (`len == 11` alone would need
-/// `54 * 64^10 ≈ 6.2e19`, past `u64::MAX`'s `≈ 1.8e19`), and no real export table gets remotely
-/// close to needing this many characters, so those lengths saturate.
+/// ```text
+/// capacity(len) = 54 * (64^len - 1) / 63
+/// ```
+///
+/// Precomputed rather than evaluated on the fly, because [`decode_js_identifier`] needs it for
+/// every name it decodes and the formula costs a `pow` and a multiply.
+/// [`capacity_for_len_matches_the_formula`] keeps the table honest. From `len == 11` the true value
+/// exceeds `u64::MAX` (`54 * 64^10` alone is ≈ 6.2e19 against `u64::MAX`'s ≈ 1.8e19), so it
+/// saturates there; no real export table comes anywhere near needing that many characters.
 fn capacity_for_len(len: u32) -> u64 {
     CAPACITY_FOR_LEN
         .get(len as usize)
@@ -109,34 +109,40 @@ fn capacity_for_len(len: u32) -> u64 {
 const CAPACITY_FOR_LEN: [u64; 11] = [
     0,
     54,
-    3_456,
-    221_184,
-    14_155_776,
-    905_969_664,
-    57_982_058_496,
-    3_710_851_743_744,
-    237_494_511_599_616,
-    15_199_648_742_375_424,
-    972_777_519_512_027_136,
+    3_510,
+    224_694,
+    14_380_470,
+    920_350_134,
+    58_902_408_630,
+    3_769_754_152_374,
+    241_264_265_751_990,
+    15_440_913_008_127_414,
+    988_218_432_520_154_550,
 ];
 
-/// Encodes a value to a valid JS identifier. Always returns at least one character, and never
-/// returns an encoding with a trailing [`ZERO_CHAR`] (those values are the degenerate ones, see
-/// [`ZERO_CHAR`]).
+/// Encodes a value to a valid JS identifier. Always returns at least one character.
+///
+/// Values are partitioned by the length of their encoding: the lowest [`FIRST_CHARS`]`.len()`
+/// values are the one-character strings, the next `54 * 64` are the two-character ones, and so on.
+/// Peeling those groups off in order turns `value` into a plain index within its own length, which
+/// is then written out most-significant character first.
 fn encode_js_identifier(mut value: u64) -> String {
-    if value < FIRST_CHARS.len() as u64 {
-        // Single character case
-        return String::from(FIRST_CHARS[value as usize] as char);
+    let mut len = 1usize;
+    let mut in_this_len = FIRST_CHARS.len() as u64;
+    while value >= in_this_len {
+        value -= in_this_len;
+        len += 1;
+        in_this_len = in_this_len.saturating_mul(REST_CHARS.len() as u64);
     }
 
-    let mut result = Vec::with_capacity(8);
-    result.push(FIRST_CHARS[(value % FIRST_CHARS.len() as u64) as usize]);
-    value /= FIRST_CHARS.len() as u64;
-
-    while value > 0 {
-        result.push(REST_CHARS[(value % REST_CHARS.len() as u64) as usize]);
+    let mut result = vec![0u8; len];
+    // Fill from the tail, so the last character is the least significant digit.
+    for slot in result[1..].iter_mut().rev() {
+        *slot = REST_CHARS[(value % REST_CHARS.len() as u64) as usize];
         value /= REST_CHARS.len() as u64;
     }
+    // Whatever is left is below `FIRST_CHARS.len()`, by construction of the length groups above.
+    result[0] = FIRST_CHARS[value as usize];
 
     // SAFETY: FIRST_CHARS and REST_CHARS only contain ASCII
     unsafe { String::from_utf8_unchecked(result) }
@@ -144,31 +150,31 @@ fn encode_js_identifier(mut value: u64) -> String {
 
 /// Decodes an identifier back to the value [`encode_js_identifier`] would encode.
 ///
-/// Returns `None` when the string is not in the image of [`encode_js_identifier`] — it contains a
-/// character outside the alphabet, or it is a degenerate encoding with trailing zeros. This is what
-/// makes the encoding a bijection, which in turn is what lets an existing short name keep its own
-/// name without ever colliding with an assigned one.
+/// Returns `None` only when the string contains a character outside the alphabets, or is too long
+/// to be a `u64`. Every other non-empty string is the encoding of exactly one value: accumulating
+/// `value * base + digit` and then adding the values taken by all shorter strings means a trailing
+/// `_` is a digit like any other rather than a leading zero, so there are no degenerate encodings
+/// to reject. That bijection is what lets an existing short export name keep itself without ever
+/// colliding with a name assigned to something else.
+///
+/// Panics on an empty string: export names are never empty, so that would be a caller bug rather
+/// than an un-decodable name.
 fn decode_js_identifier(s: &str) -> Option<u64> {
-    if s.is_empty() {
-        return None;
-    }
-    // Degenerate name: trailing "zeroes"
-    if s.ends_with(ZERO_CHAR) && s.len() > 1 {
-        return None;
-    }
     let bytes = s.as_bytes();
+    let (&first, rest) = bytes
+        .split_first()
+        .expect("identifiers are never empty, so neither are export names");
 
-    let first_idx = FIRST_CHARS.iter().position(|&c| c == bytes[0])?;
-    let mut value = first_idx as u64;
-
-    let mut multiplier = FIRST_CHARS.len() as u64;
-    for &b in &bytes[1..] {
-        let idx = REST_CHARS.iter().position(|&c| c == b)?;
-        value += idx as u64 * multiplier;
-        multiplier = multiplier.checked_mul(REST_CHARS.len() as u64)?;
+    let mut value = FIRST_CHARS.iter().position(|&c| c == first)? as u64;
+    for &b in rest {
+        let digit = REST_CHARS.iter().position(|&c| c == b)? as u64;
+        value = value
+            .checked_mul(REST_CHARS.len() as u64)?
+            .checked_add(digit)?;
     }
 
-    Some(value)
+    // Shift past every value that belongs to a shorter encoding.
+    value.checked_add(capacity_for_len(s.len() as u32 - 1))
 }
 
 /// The bucket `name` occupies in a table of `len`-character identifiers, if it occupies one: the
@@ -326,6 +332,7 @@ mod tests {
             10_000,
             100_000,
             u32::MAX as u64,
+            u64::MAX,
         ] {
             let encoded = encode_js_identifier(value);
             assert_eq!(
@@ -337,32 +344,49 @@ mod tests {
     }
 
     #[test]
-    fn encoding_never_produces_trailing_zero() {
-        for value in 0..20_000u64 {
+    fn encoding_is_injective() {
+        // The property the assignment relies on: distinct buckets never render to the same name, so
+        // a name preserved in pass 1 can never be handed out again in pass 2. A trailing `_` is an
+        // ordinary digit here, so there is nothing to exclude.
+        let mut seen = FxHashMap::default();
+        for value in 0..30_000u64 {
             let encoded = encode_js_identifier(value);
-            assert!(
-                encoded.len() == 1 || !encoded.ends_with(ZERO_CHAR),
-                "{value} encoded to the degenerate name {encoded}"
-            );
+            if let Some(previous) = seen.insert(encoded.clone(), value) {
+                panic!("{value} and {previous} both encode to {encoded}");
+            }
         }
     }
 
     #[test]
-    fn degenerate_names_do_not_decode() {
-        assert_eq!(decode_js_identifier(""), None);
-        assert_eq!(decode_js_identifier("a_"), None);
-        assert_eq!(decode_js_identifier("__"), None);
-        // Not in the alphabet.
+    fn every_name_in_the_alphabet_decodes() {
+        // A trailing `_` is no longer degenerate: it is a digit like any other, and these are
+        // distinct values rather than aliases of a shorter name.
+        assert_eq!(decode_js_identifier("_"), Some(0));
+        assert_ne!(decode_js_identifier("__"), decode_js_identifier("_"));
+        assert_ne!(decode_js_identifier("a_"), decode_js_identifier("a"));
+        for name in ["_", "__", "a_", "a", "if", "__esModule"] {
+            let value = decode_js_identifier(name).expect("in the alphabet");
+            assert_eq!(encode_js_identifier(value), name, "roundtrip via {name}");
+        }
+
+        // Only characters outside the alphabets fail to decode.
         assert_eq!(decode_js_identifier("a-b"), None);
         assert_eq!(decode_js_identifier("é"), None);
-        // A single zero character is fine.
-        assert_eq!(decode_js_identifier("_"), Some(0));
+        // Digits may not lead an identifier.
+        assert_eq!(decode_js_identifier("0a"), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "identifiers are never empty")]
+    fn empty_name_panics() {
+        // An empty export name is a caller bug, not an un-decodable name.
+        decode_js_identifier("");
     }
 
     #[test]
     fn table_length_follows_capacity() {
         assert_eq!(capacity_for_len(1), 54);
-        assert_eq!(capacity_for_len(2), 54 * 64);
+        assert_eq!(capacity_for_len(2), 54 + 54 * 64);
 
         // The worked example: 15 exports fit in one character.
         let names = numbered(15);
@@ -572,15 +596,13 @@ mod tests {
 
     #[test]
     fn capacity_for_len_matches_the_formula() {
-        // `CAPACITY_FOR_LEN` is a precomputed table; keep it honest against the formula it
-        // replaces (`FIRST_CHARS.len() * REST_CHARS.len()^(len - 1)`, computed with `u128` here so
-        // this check doesn't itself rely on the saturation it's verifying).
+        // `CAPACITY_FOR_LEN` is precomputed to keep it off `decode_js_identifier`'s hot path; keep
+        // it honest against the closed form it stands in for, `54 * (64^len - 1) / 63`. Computed in
+        // `u128` so this check doesn't itself rely on the saturation it is verifying.
         for len in 0..CAPACITY_FOR_LEN.len() as u32 {
-            let expected: u128 = if len == 0 {
-                0
-            } else {
-                (FIRST_CHARS.len() as u128) * (REST_CHARS.len() as u128).pow(len - 1)
-            };
+            let first = FIRST_CHARS.len() as u128;
+            let rest = REST_CHARS.len() as u128;
+            let expected = first * (rest.pow(len) - 1) / (rest - 1);
             assert_eq!(
                 capacity_for_len(len) as u128,
                 expected,
