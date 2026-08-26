@@ -107,8 +107,43 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Try to read pageExtensions from next.config.js / .mjs / .ts
+    let pageExtensions: string[] | undefined
+    for (const rootDir of rootDirs) {
+      for (const configFile of ['next.config.js', 'next.config.mjs', 'next.config.ts']) {
+        const configPath = path.join(rootDir, configFile)
+        if (fsExistsSyncCache[configPath] === undefined) {
+          fsExistsSyncCache[configPath] = fs.existsSync(configPath)
+        }
+        if (fsExistsSyncCache[configPath]) {
+          try {
+            const rawContent = fs.readFileSync(configPath, 'utf8')
+            // Strip single-line (//...) and multi-line (/*...*/) comments to avoid matching commented-out configs
+            const strippedContent = rawContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
+            const match = strippedContent.match(
+              /pageExtensions\s*:\s*\[([^\]]+)\]/
+            )
+            if (match) {
+              const parsed = match[1]
+                .split(',')
+                .map((ext) => ext.trim().replace(/['"`]/g, ''))
+                .filter(Boolean)
+              // Only override if at least one valid extension is specified
+              if (parsed.length > 0) {
+                pageExtensions = parsed
+              }
+            }
+          } catch {
+            // Silently ignore config read errors
+          }
+          break
+        }
+      }
+      if (pageExtensions) break
+    }
+
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, ...(pageExtensions ? [pageExtensions] : []))
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, ...(pageExtensions ? [pageExtensions] : []))
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
