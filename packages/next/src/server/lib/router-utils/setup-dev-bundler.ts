@@ -469,14 +469,32 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
+    // Startup only waits this long for Watchpack to observe the files found by
+    // the snapshot above, so a file it never reports cannot stall the server.
+    const initialScanDeadline = initialWatchTime + 30_000
     wp.on('aggregated', async () => {
       const isInitialScan = !hadInitialScan
-      hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
+
+      // Watchpack can emit an aggregation while its initial directory scan is
+      // still in flight. Ignore partial startup passes so route definitions and
+      // errors are not published until every initial page file is observable.
+      // Bounded by a deadline so an unwatchable file can never block startup.
+      if (
+        !resolved &&
+        performance.now() + performance.timeOrigin < initialScanDeadline &&
+        initialPageFiles.some(
+          (file) => fs.existsSync(file) && !knownFiles.has(file)
+        )
+      ) {
+        return
+      }
+      hadInitialScan = true
+
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
@@ -504,15 +522,9 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      // Watchpack can emit its first aggregation before a directory scan has
-      // completed. Include the startup snapshot in that first pass so route
-      // discovery cannot observe a partial filesystem.
-      const sortedKnownFiles: string[] = [
-        ...new Set([
-          ...(isInitialScan ? initialPageFiles : []),
-          ...knownFiles.keys(),
-        ]),
-      ].sort(sortByPageExts(nextConfig.pageExtensions))
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
+        sortByPageExts(nextConfig.pageExtensions)
+      )
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
