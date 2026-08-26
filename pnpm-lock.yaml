@@ -1780,8 +1780,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       web-vitals:
-        specifier: 6.0.1
-        version: 6.0.1
+        specifier: 6.2.0
+        version: 6.2.0
       webpack:
         specifier: 5.98.0
         version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9)
@@ -17933,8 +17933,8 @@ packages:
   web-namespaces@1.1.4:
     resolution: {integrity: sha512-wYxSGajtmoP4WxfejAPIr4l0fVh+jeMXZb08wNc0tMg6xsfZXj3cECqIK0G7ZAqUq0PP8WlMDtaOGVBTAWztNw==}
 
-  web-vitals@6.0.1:
-    resolution: {integrity: sha512-iF3+kno3Anlqi5fPVTQk9gYLfsCiL8P69Hof+AmZyVVx00E3e/BiGVvu+EsOy6jvTLqTKuiaRloPyw0JtdKbSw==}
+  web-vitals@6.2.0:
+    resolution: {integrity: sha512-i2jhLkq6eB38jgJX5OIjEkyzQKgsG7FR56v7GphJNjzKAySgbRbwAfsFC0dDfHROWmCycf912SJpU2QoYIcMVg==}
 
   web-worker@1.3.0:
     resolution: {integrity: sha512-BSR9wyRsy/KOValMgd5kMyr3JzpdeoR9KVId8u5GVlTTAtNChlsE4yTxeY7zMdNSyOmoKBv8NH2qeRY9Tg+IaA==}
@@ -37421,7 +37421,7 @@ snapshots:
 
   web-namespaces@1.1.4: {}
 
-  web-vitals@6.0.1: {}
+  web-vitals@6.2.0: {}
 
   web-worker@1.3.0: {}
 
