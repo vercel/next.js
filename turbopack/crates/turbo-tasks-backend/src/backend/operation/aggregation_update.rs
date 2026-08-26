@@ -1431,7 +1431,7 @@ impl AggregationUpdateQueue {
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                     }
                 }
-                AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
+                AggregationUpdateJob::AggregatedDataUpdate(AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {

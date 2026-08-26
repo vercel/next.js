@@ -1259,7 +1259,7 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            body: BlockStmtOrExpr::BlockStmt(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
@@ -1272,7 +1272,7 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::Expr(_),
+                            body: BlockStmtOrExpr::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
@@ -1343,7 +1343,7 @@ impl<'a> Analyzer<'a, '_> {
                     export_usage,
                 });
             }
-            Callee::Expr(box expr) => {
+            Callee::Expr(expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
                     let obj_value =
                         BumpBox::new_in(self.eval_context.eval(self.arena, obj), self.arena);
@@ -3116,7 +3116,7 @@ impl<'a> Analyzer<'a, '_> {
 
                     self.add_value(
                         key.to_id(),
-                        if let Some(box value) = value {
+                        if let Some(value) = value {
                             let value = self.eval_context.eval(self.arena, value);
                             JsValue::alternatives(BumpVec::from_iter_in(
                                 self.arena,

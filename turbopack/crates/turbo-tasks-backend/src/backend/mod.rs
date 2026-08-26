@@ -551,13 +551,13 @@ impl TurboTasksBackend {
                         done_event,
                     ))))
                 }
-                Some(InProgressState::InProgress(box InProgressStateInner {
-                    done_event, ..
-                })) => Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
-                    reader_description,
-                    tracking,
-                    done_event,
-                )))),
+                Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) => {
+                    Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
+                        reader_description,
+                        tracking,
+                        done_event,
+                    ))))
+                }
                 Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
                     "{} was canceled",
                     task.get_task_description()
@@ -1869,7 +1869,7 @@ impl TurboTasksBackend {
                     done_event,
                     reason: _,
                 } => done_event.notify(usize::MAX),
-                InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
+                InProgressState::InProgress(InProgressStateInner { done_event, .. }) => {
                     done_event.notify(usize::MAX)
                 }
                 InProgressState::Canceled => {}
@@ -2210,7 +2210,7 @@ impl TurboTasksBackend {
                 is_session_dependent,
             });
         }
-        let &mut InProgressState::InProgress(box InProgressStateInner {
+        let &mut InProgressState::InProgress(InProgressStateInner {
             stale,
             ref mut new_children,
             once_task: is_once_task,
@@ -2224,7 +2224,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner {
+            let Some(InProgressState::InProgress(InProgressStateInner {
                 done_event,
                 mut new_children,
                 ..
@@ -2609,7 +2609,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't connect the children
             return None;
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
             stale,
             once_task: is_once_task,
@@ -2623,7 +2623,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
+            let Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) =
                 task.take_in_progress()
             else {
                 unreachable!();
@@ -2685,7 +2685,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't finish it
             return (None, None);
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             done_event,
             once_task: is_once_task,
             stale,
@@ -3250,7 +3250,7 @@ impl TurboTasksBackend {
     fn mark_own_task_as_finished(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress(box InProgressStateInner {
+        if let Some(InProgressState::InProgress(InProgressStateInner {
             marked_as_completed,
             ..
         })) = task.get_in_progress_mut()
