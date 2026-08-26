@@ -148,46 +148,6 @@ describe('prepareDestination interception repeating params', () => {
     expect(parsedDestination.pathname).toBe('/photos/(.)a/b')
   })
 
-  it('should preserve optional catchall behavior', () => {
-    const withValue = prepareDestination({
-      appendParamsToQuery: false,
-      destination: '/photos/(.):nxtIslug*',
-      params: {
-        nxtIslug: ['a', 'b'],
-      },
-      query: {},
-    })
-    const withoutValue = prepareDestination({
-      appendParamsToQuery: false,
-      destination: '/photos/(.):nxtIslug*',
-      params: {},
-      query: {},
-    })
-
-    expect(withValue.parsedDestination.pathname).toBe('/photos/(.)a/b')
-    expect(withoutValue.parsedDestination.pathname).toBe('/photos/(.)')
-  })
-
-  it('should preserve suffixes for optional catchalls', () => {
-    const withValue = prepareDestination({
-      appendParamsToQuery: false,
-      destination: '/photos/(.):nxtIslug*.json',
-      params: {
-        nxtIslug: ['a', 'b'],
-      },
-      query: {},
-    })
-    const withoutValue = prepareDestination({
-      appendParamsToQuery: false,
-      destination: '/photos/(.):nxtIslug*.json',
-      params: {},
-      query: {},
-    })
-
-    expect(withValue.parsedDestination.pathname).toBe('/photos/(.)a/b.json')
-    expect(withoutValue.parsedDestination.pathname).toBe('/photos/(.).json')
-  })
-
   it('should only join the marker-adjacent param', () => {
     const params = {
       nxtIslug: ['a', 'b'],
@@ -204,5 +164,19 @@ describe('prepareDestination interception repeating params', () => {
     expect(parsedDestination.query.copy).toBe('a/b')
     expect(params.nxtIslug).toEqual(['a', 'b'])
     expect(params.unrelated).toEqual(['x', 'y'])
+  })
+
+  it('should not append a compiled catchall param to the query', () => {
+    const { parsedDestination } = prepareDestination({
+      appendParamsToQuery: true,
+      destination: '/photos/(.):nxtIslug+',
+      params: {
+        nxtIslug: ['a', 'b'],
+      },
+      query: {},
+    })
+
+    expect(parsedDestination.pathname).toBe('/photos/(.)a/b')
+    expect(parsedDestination.query).not.toHaveProperty('nxtIslug')
   })
 })

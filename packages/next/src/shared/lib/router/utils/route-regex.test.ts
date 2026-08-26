@@ -883,28 +883,6 @@ describe('getNamedRouteRegex - Edge Cases', () => {
     }
   )
 
-  it.each(['(.)', '(..)', '(...)', '(..)(..)'])(
-    'should keep %s required while allowing an optional catchall value',
-    (marker) => {
-      const regex = getRouteRegex(`/photos/${marker}[[...slug]]`)
-      const namedRouteRegex = getNamedRouteRegex(
-        `/photos/${marker}[[...slug]]`,
-        { prefixRouteKeys: true }
-      )
-      const namedRegex = new RegExp(namedRouteRegex.namedRegex)
-
-      for (const matcher of [regex.re, namedRegex]) {
-        expect(matcher.test('/photos')).toBe(false)
-        expect(matcher.test(`/photos/${marker}`)).toBe(true)
-        expect(matcher.test(`/photos/${marker}/`)).toBe(true)
-        expect(matcher.test(`/photos/${marker}a/b`)).toBe(true)
-      }
-      expect(namedRouteRegex.pathToRegexpPattern).toBe(
-        `/photos/${marker}:nxtIslug*`
-      )
-    }
-  )
-
   it('should handle dynamic segment with interception marker prefix', () => {
     // Interception marker can be adjacent to dynamic segment
     const regex = getNamedRouteRegex('/photos/(.)[id]', {

@@ -114,14 +114,13 @@ function getParametrizedRoute(
       // routes like `/(.)[...slug]` fail to match multi-segment paths.
       // Each repeated segment must remain non-empty so that the route's
       // optional trailing slash cannot satisfy a required catch-all.
-      const paramPattern = repeat
-        ? `(${INTERCEPTED_REPEAT_PARAM_PATTERN})`
-        : '([^/]+?)'
-      segments.push(
-        `/${escapeStringRegexp(markerMatch)}${
-          optional && repeat ? `(?:${paramPattern})?` : paramPattern
-        }`
-      )
+      // Optional intercepted catch-alls do not have a marker-aware dynamic
+      // param type, so keep their existing behavior unchanged.
+      const paramPattern =
+        repeat && !optional
+          ? `(${INTERCEPTED_REPEAT_PARAM_PATTERN})`
+          : '([^/]+?)'
+      segments.push(`/${escapeStringRegexp(markerMatch)}${paramPattern}`)
     } else if (paramMatches && paramMatches[2]) {
       const { key, repeat, optional } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
@@ -262,8 +261,10 @@ function getSafeKeyFromSegment({
     // in each of the placeholders.
     pattern = `\\k<${cleanedKey}>`
   } else if (repeat) {
+    // Optional intercepted catch-alls do not have a marker-aware dynamic
+    // param type, so only required catch-alls use the marker-aware pattern.
     pattern = `(?<${cleanedKey}>${
-      interceptionMarker ? INTERCEPTED_REPEAT_PARAM_PATTERN : '.+?'
+      interceptionMarker && !optional ? INTERCEPTED_REPEAT_PARAM_PATTERN : '.+?'
     })`
   } else {
     pattern = `(?<${cleanedKey}>[^/]+?)`
@@ -271,12 +272,9 @@ function getSafeKeyFromSegment({
 
   return {
     key,
-    pattern:
-      optional && repeat && interceptionMarker
-        ? `/${interceptionPrefix}(?:${pattern})?`
-        : optional
-          ? `(?:/${interceptionPrefix}${pattern})?`
-          : `/${interceptionPrefix}${pattern}`,
+    pattern: optional
+      ? `(?:/${interceptionPrefix}${pattern})?`
+      : `/${interceptionPrefix}${pattern}`,
     cleanedKey: cleanedKey,
     optional,
     repeat,

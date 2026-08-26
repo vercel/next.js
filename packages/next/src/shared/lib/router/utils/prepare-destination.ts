@@ -231,7 +231,7 @@ export function prepareDestination(args: {
   // The following code assumes that the pathname here includes the hash if it's
   // present.
   let destPath = parsedDestination.pathname
-  let markerAdjacentRepeatingParam: string | undefined
+  let markerAdjacentCatchAllParam: string | undefined
   if (isInterceptionRouteAppPath(destPath)) {
     // path-to-regexp cannot repeat a param that has no prefix or suffix. An
     // intercepted catchall is adjacent to its marker, so compile its captured
@@ -244,11 +244,14 @@ export function prepareDestination(args: {
         )
         if (!marker) return segment
 
-        const param = segment.slice(marker.length).match(/^:(\w+)([+*])(.*)$/)
+        // `+` is the generated form of a required catch-all. Optional
+        // intercepted catch-alls are not supported end-to-end, so leave their
+        // `*` tokens unchanged.
+        const param = segment.slice(marker.length).match(/^:(\w+)\+(.*)$/)
         if (!param) return segment
 
-        markerAdjacentRepeatingParam = param[1]
-        return `${marker}:${param[1]}${param[2] === '*' ? '?' : ''}${param[3]}`
+        markerAdjacentCatchAllParam = param[1]
+        return `${marker}:${param[1]}${param[2]}`
       })
       .join('/')
   }
@@ -258,10 +261,10 @@ export function prepareDestination(args: {
   }
 
   const compileParams = { ...args.params }
-  if (markerAdjacentRepeatingParam) {
-    const value = compileParams[markerAdjacentRepeatingParam]
+  if (markerAdjacentCatchAllParam) {
+    const value = compileParams[markerAdjacentCatchAllParam]
     if (Array.isArray(value)) {
-      compileParams[markerAdjacentRepeatingParam] = value.join('/')
+      compileParams[markerAdjacentCatchAllParam] = value.join('/')
     }
   }
 
