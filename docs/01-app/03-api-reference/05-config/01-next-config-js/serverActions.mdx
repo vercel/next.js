@@ -35,7 +35,7 @@ Entries can also expand, through two wildcards: a `*` stands in for exactly one 
 | `**.my-proxy.com`   | `app.my-proxy.com`, `app.eu.my-proxy.com` | `my-proxy.com`                          |
 | `my-proxy.com:8443` | `my-proxy.com:8443`                       | `my-proxy.com`                          |
 
-Partial replacement is not supported. Write `*.my-proxy.com`, rather than `app-*.my-proxy.com`. Using `**` is only supported at the start of the pattern. A port cannot be wildcarded at all, so a host reached on a custom port has to be listed in full.
+Partial replacement is not supported. Write `*.my-proxy.com`, rather than `app-*.my-proxy.com`. Using `**` is only supported at the start of the pattern. A port cannot be wildcarded, so write it out in full: `my-proxy.com:8443`, or `*.my-proxy.com:8443` for its subdomains.
 
 Behind a reverse proxy, no entry is needed as long as the proxy forwards the public host in `x-forwarded-host`. When it forwards its own host instead, the browser sends `my-proxy.com` while the server reports something like `localhost:3000`, and that mismatch is what this list is for: the host visible in the browser's address bar is the one to add, not the internal one the server reports.
 
