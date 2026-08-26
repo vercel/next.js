@@ -2430,6 +2430,7 @@ export interface NextConfigRuntime {
     | 'authInterrupts'
     | 'reactBrowserBailout'
     | 'useCacheTimeout'
+    | 'durableUseCacheEntries'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
@@ -2498,6 +2499,7 @@ export function getNextConfigRuntime(
     authInterrupts: ex.authInterrupts,
     reactBrowserBailout: ex.reactBrowserBailout,
     useCacheTimeout: ex.useCacheTimeout,
+    durableUseCacheEntries: ex.durableUseCacheEntries,
     clientTraceMetadata: ex.clientTraceMetadata,
     clientParamParsingOrigins: ex.clientParamParsingOrigins,
     allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
