@@ -643,7 +643,7 @@ pub mod tests {
             .write_all(b"initial")
             .unwrap();
         std::fs::create_dir_all(path.join("path/to")).unwrap();
-        symlink(&path.join("target"), path.join("path/to/symlink")).unwrap();
+        symlink(path.join("target"), path.join("path/to/symlink")).unwrap();
 
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
