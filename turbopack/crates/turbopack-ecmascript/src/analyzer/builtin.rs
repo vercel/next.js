@@ -26,17 +26,30 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> Modified {
                     value.make_unknown(has_side_effects, rcstr!("unknown callee"));
                     Modified::Yes
                 }
-                // We known that these callee will lead to an error at runtime, so we can skip
+                // We know that these callees will lead to an error at runtime, so we can skip
                 // processing them
                 JsValue::Constant(_)
                 | JsValue::Url(_, _)
                 | JsValue::WellKnownObject(_)
                 | JsValue::Array { .. }
                 | JsValue::Object { .. }
-                | JsValue::Alternatives { .. }
                 | JsValue::Concat(_, _)
                 | JsValue::Add(_, _)
                 | JsValue::Not(_, _) => {
+                    let has_side_effects = args_have_side_effects();
+                    value.make_unknown(has_side_effects, rcstr!("non-function callee"));
+                    Modified::Yes
+                }
+                // Alternatives are only certainly not callable when none of them is a function.
+                // If one of them is, `replace_builtin` later expands the call into a call per
+                // alternative, which is what makes e.g. TypeScript's `esModuleInterop` helpers
+                // (`__importDefault(require('fs'))`, which is an alternative between an unknown
+                // value and the helper function) analyzable.
+                JsValue::Alternatives { values, .. }
+                    if !values.iter().any(|value| {
+                        matches!(value, JsValue::Function(..) | JsValue::WellKnownFunction(_))
+                    }) =>
+                {
                     let has_side_effects = args_have_side_effects();
                     value.make_unknown(has_side_effects, rcstr!("non-function callee"));
                     Modified::Yes

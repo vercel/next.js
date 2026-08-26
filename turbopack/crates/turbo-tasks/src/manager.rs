@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
@@ -12,6 +13,7 @@ use std::{
         Arc, Mutex, RwLock, Weak,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
+    task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
 
@@ -29,8 +31,8 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
-    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
+    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -43,7 +45,7 @@ use crate::{
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
-    priority_runner::{Executor, PriorityRunner},
+    priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
@@ -130,14 +132,14 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>>;
+    ) -> Result<ReadOutcome<RawVc>>;
 
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
+    ) -> Result<ReadOutcome<TypedCellContent>>;
 
     /// Reads a [`RawVc::LocalOutput`]. If the task has completed, returns the [`RawVc`] the local
     /// task points to.
@@ -160,6 +162,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
+
+    /// Executes a task that is scheduled but not started yet inline on the current thread, so that
+    /// a read doesn't have to wait for a worker to pick the task up. Returns whether the task's
+    /// execution completed.
+    ///
+    /// Used by the read paths; see `TurboTasks::try_execute_scheduled_task_inline` for the details.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool;
+
+    /// Records that a read waited for a task that a worker was already executing, so it did not try
+    /// to claim it. Diagnostics only, see `TurboTasks::inline_execution_stats`.
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
@@ -465,10 +479,191 @@ enum ScheduledTask {
     LocalTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
+        execution_id: ExecutionId,
         local_task_id: LocalTaskId,
         global_task_state: CurrentTaskStateHandle,
         span: Span,
     },
+}
+
+/// Identifies a scheduled task, so that a read which is about to wait for it can take it out of the
+/// scheduler queue and execute it inline instead (see `PriorityRunner::claim` and
+/// `execute_read_target_inline`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ScheduleKey {
+    /// A cached (non-local) task.
+    Task(TaskId),
+    /// A local task, which is only known within the execution that created it.
+    LocalTask(ExecutionId, LocalTaskId),
+}
+
+impl Claimable for ScheduledTask {
+    type Key = ScheduleKey;
+
+    fn claim_key(&self) -> Option<ScheduleKey> {
+        Some(match self {
+            ScheduledTask::Task { task_id, .. } => ScheduleKey::Task(*task_id),
+            ScheduledTask::LocalTask {
+                execution_id,
+                local_task_id,
+                ..
+            } => ScheduleKey::LocalTask(*execution_id, *local_task_id),
+        })
+    }
+}
+
+#[cfg(feature = "inline_execution_stats")]
+use std::sync::atomic::AtomicU64;
+
+/// Counters describing how reads and inline execution interacted, see
+/// [`TurboTasks::inline_execution_stats`]. Diagnostics only.
+#[cfg(feature = "inline_execution_stats")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InlineExecutionStats {
+    /// Tasks that were put into the scheduler queue.
+    pub queued: u64,
+    /// Reads that tried to take a queued task out of the queue.
+    pub claim_attempted: u64,
+    /// Claims that succeeded and whose execution finished on the reading thread.
+    pub claim_completed: u64,
+    /// Claims that succeeded but whose execution yielded, so it was handed to the runtime.
+    pub claim_yielded: u64,
+    /// Claims that found nothing to take, because a worker had already picked the task up.
+    pub claim_failed: u64,
+    /// Reads that waited without attempting a claim, because the task was already being executed.
+    pub waited_in_progress: u64,
+}
+
+/// The counters behind [`InlineExecutionStats`].
+///
+/// Without the `inline_execution_stats` feature this is zero-sized and every method is an empty
+/// `#[inline]` no-op, so the counting compiles away: the counters sit on the read-miss path, and a
+/// build that doesn't want the numbers shouldn't pay for them.
+#[derive(Default)]
+struct InlineExecutionCounters {
+    #[cfg(feature = "inline_execution_stats")]
+    claim_attempted: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_completed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_yielded: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_failed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    waited_in_progress: AtomicU64,
+}
+
+impl InlineExecutionCounters {
+    /// A read found its task queued and tried to take it over.
+    #[inline]
+    fn claim_attempted(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_attempted.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded and the execution finished on the reading thread.
+    #[inline]
+    fn claim_completed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_completed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded but the execution yielded, so it was handed to the runtime.
+    #[inline]
+    fn claim_yielded(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_yielded.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim found nothing to take, because a worker had already picked the task up.
+    #[inline]
+    fn claim_failed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_failed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A read waited without attempting a claim, because the task was already being executed.
+    #[cfg(feature = "inline_execution_stats")]
+    #[inline]
+    fn waited_in_progress(&self) {
+        self.waited_in_progress.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Whether a dump of [`InlineExecutionStats`] was requested via `TURBO_ENGINE_INLINE_STATS=1`.
+#[cfg(feature = "inline_execution_stats")]
+pub(crate) fn inline_stats_requested() -> bool {
+    static REQUESTED: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_ENGINE_INLINE_STATS").is_ok_and(|value| value != "0")
+    });
+    *REQUESTED
+}
+
+/// Maximum number of task executions that may be nested inline on a single thread, to conserve
+/// stack space. (The alternative would be growing the stack on demand, the way SWC does.)
+const MAX_INLINE_EXECUTION_DEPTH: usize = 16;
+
+thread_local! {
+    /// How many task executions are currently nested inline on this thread.
+    static INLINE_EXECUTION_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Whether the current thread may execute another task inline, see [`MAX_INLINE_EXECUTION_DEPTH`].
+fn inline_execution_allowed() -> bool {
+    INLINE_EXECUTION_DEPTH.get() < MAX_INLINE_EXECUTION_DEPTH
+}
+
+/// Counts one level of inline task execution on this thread, see [`MAX_INLINE_EXECUTION_DEPTH`].
+struct InlineExecutionDepthGuard;
+
+impl InlineExecutionDepthGuard {
+    fn enter() -> Self {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() + 1);
+        Self
+    }
+}
+
+impl Drop for InlineExecutionDepthGuard {
+    fn drop(&mut self) {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() - 1);
+    }
+}
+
+/// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
+/// whether it completed.
+fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
+    let _depth_guard = InlineExecutionDepthGuard::enter();
+    let span_slot = InlineExecutionSpanSlot::default();
+    let mut future = Box::pin(INLINE_EXECUTION_SPAN.scope(span_slot.clone(), future));
+    // A waker that never wakes anything is fine here: if this poll doesn't complete the future we
+    // spawn it, and a spawned task is always polled at least once, which is the poll that registers
+    // the real waker.
+    match future
+        .as_mut()
+        .poll(&mut Context::from_waker(Waker::noop()))
+    {
+        Poll::Ready(()) => {
+            span_slot.record("complete");
+            true
+        }
+        Poll::Pending => {
+            span_slot.record("partial");
+            tokio::task::spawn(future);
+            false
+        }
+    }
+}
+
+/// Executes the task inline if possible, returns true if it executed to completion.
+pub(crate) fn execute_read_target_inline(
+    turbo_tasks: &dyn TurboTasksApi,
+    key: ScheduleKey,
+) -> bool {
+    if !inline_execution_allowed() {
+        // Nested too deeply; a worker will pick the task up, as it always did.
+        return false;
+    }
+    turbo_tasks.try_execute_scheduled_task_inline(key)
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -479,6 +674,9 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
+    /// Diagnostics for reads and inline execution, see `TurboTasks::inline_execution_stats`.
+    /// Zero-sized without the `inline_execution_stats` feature.
+    inline_counters: InlineExecutionCounters,
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
@@ -625,6 +823,41 @@ task_local! {
     /// This is NOT shared across local tasks (unlike CURRENT_TASK_STATE), so it's safe
     /// to set/unset without race conditions.
     pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
+
+    /// Set only while a reader polls a task it claimed, so that the outcome of that poll can be
+    /// recorded on the *task's* span rather than the reader's, see [`InlineExecutionSpanSlot`].
+    static INLINE_EXECUTION_SPAN: InlineExecutionSpanSlot;
+}
+
+/// Lets a reader that executes a claimed task inline record the outcome on the span of the task it
+/// executed.
+///
+/// The reader only sees the outer execution future, whose instrumented span has already been exited
+/// by the time its `poll` returns — `Span::current()` there is the reader's own span. So the
+/// executor puts the span it is about to instrument the task body with in here, and the reader
+/// records the outcome on it afterwards.
+///
+/// Only present while a claimed task is being polled inline: a task started by a worker doesn't
+/// have this task-local set, and leaves the field unset.
+#[derive(Clone, Default)]
+struct InlineExecutionSpanSlot(Arc<Mutex<Option<Span>>>);
+
+impl InlineExecutionSpanSlot {
+    /// Called by the executor with the span it instruments the task body with.
+    fn set(span: &Span) {
+        let _ = INLINE_EXECUTION_SPAN.try_with(|slot| {
+            *slot.0.lock().unwrap() = Some(span.clone());
+        });
+    }
+
+    /// Records the outcome of the inline poll on the executed task's span, if the executor got far
+    /// enough to register one (it doesn't when the task was already claimed by someone else and the
+    /// execution turns into a no-op).
+    fn record(&self, outcome: &'static str) {
+        if let Some(span) = self.0.lock().unwrap().as_ref() {
+            span.record("inline_execution", outcome);
+        }
+    }
 }
 
 impl<B: Backend + 'static> TurboTasks<B> {
@@ -643,6 +876,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            inline_counters: InlineExecutionCounters::default(),
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
             aggregated_update: Default::default(),
@@ -871,14 +1105,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
-        self.priority_runner.schedule(
-            &self.pin(),
-            ScheduledTask::Task {
-                task_id,
-                span: Span::current(),
-            },
-            priority,
-        );
+        let task = ScheduledTask::Task {
+            task_id,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
     }
 
     fn schedule_local_task(
@@ -900,19 +1131,39 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 )
             });
 
-        self.priority_runner.schedule(
-            &self.pin(),
-            ScheduledTask::LocalTask {
-                ty,
-                persistence,
-                local_task_id,
-                global_task_state,
-                span: Span::current(),
-            },
-            priority,
-        );
+        let task = ScheduledTask::LocalTask {
+            ty,
+            persistence,
+            execution_id,
+            local_task_id,
+            global_task_state,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
 
         RawVc::local_output(execution_id, local_task_id, persistence)
+    }
+
+    /// Executes the task inline if possible, returns true if it executed to completion.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        let this = self.pin();
+        self.inline_counters.claim_attempted();
+        if let Some(future) = self.priority_runner.claim(&this, &key) {
+            let completed = poll_once_or_spawn(future);
+            if completed {
+                self.inline_counters.claim_completed();
+            } else {
+                self.inline_counters.claim_yielded();
+            }
+            return completed;
+        }
+        self.inline_counters.claim_failed();
+        false
+    }
+
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self) {
+        self.inline_counters.waited_in_progress();
     }
 
     fn begin_foreground_job(&self) {
@@ -969,6 +1220,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
     pub fn get_in_progress_count(&self) -> usize {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
+    }
+
+    /// Counters describing how reads and inline execution interacted. Diagnostics only; a dump of
+    /// these can be requested with `TURBO_ENGINE_INLINE_STATS=1`.
+    #[cfg(feature = "inline_execution_stats")]
+    #[doc(hidden)]
+    pub fn inline_execution_stats(&self) -> InlineExecutionStats {
+        let counters = &self.inline_counters;
+        InlineExecutionStats {
+            queued: self.priority_runner.total_queued(),
+            claim_attempted: counters.claim_attempted.load(Ordering::Relaxed),
+            claim_completed: counters.claim_completed.load(Ordering::Relaxed),
+            claim_yielded: counters.claim_yielded.load(Ordering::Relaxed),
+            claim_failed: counters.claim_failed.load(Ordering::Relaxed),
+            waited_in_progress: counters.waited_in_progress.load(Ordering::Relaxed),
+        }
     }
 
     /// Waits for the given task to finish executing. This works by performing an untracked read,
@@ -1097,6 +1364,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        if inline_stats_requested() {
+            // Requested with `TURBO_ENGINE_INLINE_STATS=1`; printed rather than traced so it shows
+            // up without a tracing subscriber configured.
+            eprintln!(
+                "turbo-tasks inline execution stats: {:#?}",
+                self.inline_execution_stats()
+            );
+        }
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
@@ -1239,6 +1515,10 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)?;
 
+                            // When a reader claimed this task and is polling it inline, let it
+                            // record the outcome on this span rather than its own.
+                            InlineExecutionSpanSlot::set(&span);
+
                             async {
                                 let result = CaptureFuture::new(future).await;
 
@@ -1291,6 +1571,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
             ScheduledTask::LocalTask {
                 ty,
                 persistence,
+                execution_id: _,
                 local_task_id,
                 global_task_state,
                 span,
@@ -1307,6 +1588,9 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             trait_method.resolve_span(priority)
                         }
                     };
+                    // See the cached-task arm: lets a reader that claimed this local task record
+                    // the outcome of its inline poll on this span.
+                    InlineExecutionSpanSlot::set(&span);
                     abort_on_panic(
                         async move {
                             let result = match ty.task_type {
@@ -1472,7 +1756,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         if options.consistency == ReadConsistency::Eventual {
             debug_assert_not_in_top_level_task("read_task_output");
         }
@@ -1490,7 +1774,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
@@ -1537,6 +1821,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             current_task_if_available("reading collectibles"),
             self,
         )
+    }
+
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        self.try_execute_scheduled_task_inline(key)
+    }
+
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self) {
+        self.note_waited_for_in_progress_task()
     }
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
@@ -1947,8 +2240,20 @@ pub(crate) async fn read_task_output(
 ) -> Result<RawVc> {
     loop {
         match this.try_read_task_output(id, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
+            ReadOutcome::Value(result) => return Ok(result),
+            ReadOutcome::Scheduled(listener) => {
+                // Nobody has started it yet, so take it over instead of waiting for a worker.
+                if execute_read_target_inline(this, ScheduleKey::Task(id)) {
+                    continue;
+                }
+                listener.await
+            }
+            ReadOutcome::InProgress(listener) => {
+                // A worker is on it — there is nothing to take over, so don't touch the queue.
+                #[cfg(feature = "inline_execution_stats")]
+                this.note_waited_for_in_progress_task();
+                listener.await
+            }
         }
     }
 }
@@ -1966,6 +2271,18 @@ pub struct CurrentCellRef {
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
+/// What a conditional cell update returns: the new content, the key hashes that changed, and an
+/// optional hash of the value.
+type CellUpdate = (
+    SharedReference,
+    Option<SmallVec<[u64; 2]>>,
+    Option<CellHash>,
+);
+
+/// The callback [`CurrentCellRef::conditional_update_with_shared_reference`] takes. It is a `dyn`
+/// trait object so that the function's body is compiled once rather than once per cell type.
+type CellUpdateFn<'l> = dyn FnMut(Option<&SharedReference>) -> Option<CellUpdate> + 'l;
+
 impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
@@ -1974,7 +2291,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType,
     {
-        self.conditional_update_with_shared_reference(|old_shared_reference| {
+        // `FnMut` cannot move out of its captures, and the callee calls this at most once, so
+        // the `FnOnce` is handed over through an `Option`.
+        let mut functor = Some(functor);
+        self.conditional_update_with_shared_reference(&mut |old_shared_reference| {
+            let functor = functor.take().expect("functor is called at most once");
             let old_ref = old_shared_reference.and_then(|sr| sr.0.downcast_ref::<T>());
             let (new_value, updated_key_hashes, content_hash) = functor(old_ref)?;
             Some((
@@ -1986,16 +2307,12 @@ impl CurrentCellRef {
     }
 
     /// Updates the cell if the given `functor` returns a `SharedReference`.
-    fn conditional_update_with_shared_reference(
-        &self,
-        functor: impl FnOnce(
-            Option<&SharedReference>,
-        ) -> Option<(
-            SharedReference,
-            Option<SmallVec<[u64; 2]>>,
-            Option<CellHash>,
-        )>,
-    ) {
+    ///
+    /// `functor` is a `dyn` trait object rather than a generic parameter on purpose. This body is
+    /// identical for every cell type, so making it generic monomorphized it once per
+    /// `VcValueType` in the dependency graph — over a thousand copies of the same code. The
+    /// indirect call it costs instead is negligible next to the cell read and update it wraps.
+    fn conditional_update_with_shared_reference(&self, functor: &mut CellUpdateFn<'_>) {
         let tt = turbo_tasks();
         let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
@@ -2070,7 +2387,11 @@ impl CurrentCellRef {
     where
         T: VcValueType + PartialEq,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2117,7 +2438,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq + DeterministicHash,
     {
-        self.conditional_update_with_shared_reference(move |old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut move |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2167,7 +2492,11 @@ impl CurrentCellRef {
         VcReadTarget<T>: KeyedEq,
         <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             let Some(old_sr) = old_sr else {
                 return Some((new_shared_reference, None, None));
             };
@@ -2284,7 +2613,83 @@ pub(crate) async fn read_local_output(
     loop {
         match this.try_read_local_output(execution_id, local_task_id)? {
             Ok(raw_vc) => return Ok(raw_vc),
-            Err(event_listener) => event_listener.await,
+            Err(event_listener) => {
+                // The local task is not done yet. If it is only scheduled, execute it right here
+                // instead of waiting for a worker to pick it up.
+                if execute_read_target_inline(
+                    this,
+                    ScheduleKey::LocalTask(execution_id, local_task_id),
+                ) {
+                    continue;
+                }
+                event_listener.await
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inline_execution_depth_guard_restores_depth() {
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+        {
+            let _outer = InlineExecutionDepthGuard::enter();
+            {
+                let _inner = InlineExecutionDepthGuard::enter();
+                assert_eq!(INLINE_EXECUTION_DEPTH.get(), 2);
+            }
+            assert_eq!(INLINE_EXECUTION_DEPTH.get(), 1);
+        }
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[test]
+    fn test_inline_depth_cap() {
+        assert!(inline_execution_allowed(), "nothing is nested yet");
+        let mut guards = (0..MAX_INLINE_EXECUTION_DEPTH)
+            .map(|_| InlineExecutionDepthGuard::enter())
+            .collect::<Vec<_>>();
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), MAX_INLINE_EXECUTION_DEPTH);
+        assert!(
+            !inline_execution_allowed(),
+            "at the nesting cap reads wait for a worker instead of executing inline"
+        );
+
+        // One level below the cap inline execution is allowed again.
+        guards.pop();
+        assert!(inline_execution_allowed());
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_completed_execution() {
+        assert!(
+            poll_once_or_spawn(async {}),
+            "a future that completes on the first poll is executed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_pending_execution() {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let done = Arc::new(AtomicBool::new(false));
+        let done_in_task = done.clone();
+        assert!(
+            !poll_once_or_spawn(async move {
+                // Yields on the first poll, so it cannot be executed inline.
+                tokio::task::yield_now().await;
+                done_in_task.store(true, Ordering::SeqCst);
+                let _ = tx.send(());
+            }),
+            "a future that yields is not completed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+
+        // ...but it was spawned, so it still runs to completion.
+        rx.await.unwrap();
+        assert!(done.load(Ordering::SeqCst));
     }
 }

@@ -5,6 +5,7 @@ pub mod constant_condition;
 pub mod constant_value;
 pub mod cross_module_constants;
 pub mod dynamic_expression;
+pub mod emit_collect;
 pub mod esm;
 pub mod exports;
 pub mod exports_info;
@@ -31,7 +32,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
@@ -130,6 +131,7 @@ use crate::{
             is_import_name_eligible_for_exports, module_value_to_constants_module,
         },
         dynamic_expression::DynamicExpression,
+        emit_collect::{CollectReference, EmitReference},
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
@@ -441,6 +443,21 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             },
         ))
     }
+}
+
+enum Action<'a> {
+    Effect(Effect<'a>),
+    LeaveScope(u32),
+}
+
+/// Pushes `effects` onto the processing stack. They are appended in reverse order so that popping
+/// the stack yields them in their original order.
+fn add_effects<'a, I>(queue_stack: &mut Vec<Action<'a>>, effects: I)
+where
+    I: IntoIterator<Item = Effect<'a>>,
+    I::IntoIter: DoubleEndedIterator,
+{
+    queue_stack.extend(effects.into_iter().map(Action::Effect).rev());
 }
 
 struct AnalysisState<'a> {
@@ -875,11 +892,6 @@ async fn analyze_ecmascript_module_internal(
             inner_assets,
         };
 
-        enum Action<'a> {
-            Effect(Effect<'a>),
-            LeaveScope(u32),
-        }
-
         fn unreachable_comment() -> RcStr {
             rcstr!("TURBOPACK unreachable")
         }
@@ -888,24 +900,16 @@ async fn analyze_ecmascript_module_internal(
         // of an effect we might want to add more effects into the middle of the
         // processing. Using a stack where effects are appended in reverse
         // order allows us to do that. It's recursion implemented as Stack.
-        let mut queue_stack = Mutex::new(Vec::new());
-        queue_stack
-            .get_mut()
-            .extend(effects.into_iter().map(Action::Effect).rev());
+        let mut queue_stack = Vec::with_capacity(effects.len());
+        add_effects(&mut queue_stack, effects);
 
-        while let Some(action) = queue_stack.get_mut().pop() {
+        while let Some(action) = queue_stack.pop() {
             let effect = match action {
                 Action::LeaveScope(func_ident) => {
                     analysis_state.fun_args_values.get_mut().remove(&func_ident);
                     continue;
                 }
                 Action::Effect(effect) => effect,
-            };
-
-            let add_effects = |effects: BumpVec<'_, _>| {
-                queue_stack
-                    .lock()
-                    .extend(effects.into_iter().map(Action::Effect).rev())
             };
 
             match effect {
@@ -956,12 +960,7 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack.get_mut().extend(
-                                BumpVec::from($block.effects)
-                                    .into_iter()
-                                    .map(Action::Effect)
-                                    .rev(),
-                            )
+                            add_effects(&mut queue_stack, BumpVec::from($block.effects))
                         };
                     }
                     match BumpBox::into_inner(kind) {
@@ -1102,13 +1101,13 @@ async fn analyze_ecmascript_module_internal(
                         .cloned()
                         .unwrap_or(ExportUsage::All);
 
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         new,
@@ -1124,12 +1123,12 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_dynamic_import(
                         &ast_path,
                         span,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         eval_context.imports.get_attributes(span),
@@ -1187,27 +1186,25 @@ async fn analyze_ecmascript_module_internal(
                                 *func_ident,
                                 BumpVec::from_iter_in(arena.get_or_default(), [closure_arg]),
                             );
-                            queue_stack.get_mut().push(Action::LeaveScope(*func_ident));
-                            queue_stack.get_mut().extend(
+                            queue_stack.push(Action::LeaveScope(*func_ident));
+                            add_effects(
+                                &mut queue_stack,
                                 BumpVec::from(replace(
                                     &mut block.effects,
                                     BumpVec::new().into_boxed_slice(),
-                                ))
-                                .into_iter()
-                                .map(Action::Effect)
-                                .rev(),
+                                )),
                             );
                             continue;
                         }
                     }
 
+                    let args = process_effect_args(args, &mut queue_stack);
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
                         &analysis_state,
-                        &add_effects,
                         &mut analysis,
                         in_try,
                         new,
@@ -1594,13 +1591,36 @@ async fn compile_time_info_for_module_options(
     .cell())
 }
 
-async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+// Process all argument effects first so they happen exactly once. If we model the behavior of
+// closures passed to more functions, their effects need to be inlined at the appropriate spot like
+// the Array.prototype.map handling above.
+fn process_effect_args<'a>(
+    args: BumpVec<'a, EffectArg<'a>>,
+    queue_stack: &mut Vec<Action<'a>>,
+) -> Vec<JsValue<'a>> {
+    args.into_iter()
+        .map(|effect_arg| match effect_arg {
+            EffectArg::Value(value) => value,
+            EffectArg::Closure(value, block) => {
+                add_effects(
+                    queue_stack,
+                    BumpVec::from(BumpBox::into_inner(block).effects),
+                );
+                value
+            }
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
+        })
+        .collect()
+}
+
+async fn handle_call<'a>(
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue<'a>,
-    args: BumpVec<'a, EffectArg<'a>>,
+    unlinked_args: Vec<JsValue<'a>>,
     state: &AnalysisState<'a>,
-    add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     new: bool,
@@ -1610,6 +1630,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     let &AnalysisState {
         handler,
         origin,
+        module,
         source,
         compile_time_info,
         ignore_dynamic_requests,
@@ -1618,23 +1639,6 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
         tracing_only,
         ..
     } = state;
-
-    // Process all effects first so they happen exactly once.
-    // If we end up modeling the behavior of the closures passed to any of these functions then we
-    // will need to inline this into the appropriate spot just like Array.prototype.map support.
-    let unlinked_args = args
-        .into_iter()
-        .map(|effect_arg| match effect_arg {
-            EffectArg::Value(value) => value,
-            EffectArg::Closure(value, block) => {
-                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
-                value
-            }
-            EffectArg::Spread => {
-                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
-            }
-        })
-        .collect::<Vec<_>>();
 
     // Create a OnceCell to cache linked args across multiple calls
     let linked_args_cache = OnceCell::new();
@@ -1667,6 +1671,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         ignore_dynamic_requests,
                         analysis,
                         origin,
+                        ResolvedVc::upcast(module),
                         compile_time_info,
                         url_rewrite_behavior,
                         source,
@@ -1692,6 +1697,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 ignore_dynamic_requests,
                 analysis,
                 origin,
+                ResolvedVc::upcast(module),
                 compile_time_info,
                 url_rewrite_behavior,
                 source,
@@ -1711,12 +1717,11 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     Ok(())
 }
 
-async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+async fn handle_dynamic_import<'a>(
     ast_path: &[AstParentKind],
     span: Span,
-    args: BumpVec<'a, EffectArg<'a>>,
+    unlinked_args: Vec<JsValue<'a>>,
     state: &AnalysisState<'a>,
-    add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     attributes: &ImportAttributes,
@@ -1743,21 +1748,6 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
     } else {
         ResolveErrorMode::Error
     };
-
-    // Process all effects (closures) from args
-    let unlinked_args: Vec<JsValue> = args
-        .into_iter()
-        .map(|effect_arg| match effect_arg {
-            EffectArg::Value(value) => value,
-            EffectArg::Closure(value, block) => {
-                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
-                value
-            }
-            EffectArg::Spread => {
-                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
-            }
-        })
-        .collect();
 
     let linked_args = unlinked_args
         .iter()
@@ -1879,6 +1869,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    parent_module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -3196,6 +3187,194 @@ where
             }
             return Ok(());
         }
+        WellKnownFunctionKind::TurbopackEmit => {
+            let args = linked_args().await?;
+            let (specifier, options) = match &args[..] {
+                [
+                    JsValue::Constant(JsConstantValue::Str(specifier)),
+                    JsValue::Object { parts: options, .. },
+                ] => (Some(specifier), Some(options)),
+                [JsValue::Object { parts: options, .. }] => (None, Some(options)),
+                _ => (None, None),
+            };
+
+            if let Some(options) = options {
+                let invalid_args = |key: &str| {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "Unsupported property \"{key}\" for __turbopack_emit__({args}) \
+                             call{hints}",
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::TURBOPACK_EMIT.to_string(),
+                        ),
+                    );
+                    Ok(())
+                };
+
+                let mut namespace = None;
+                let mut data = None;
+                let mut emit_scope = None;
+                let mut with = None;
+                let mut exports = None;
+
+                for part in options {
+                    if let ObjectPart::KeyValue(
+                        JsValue::Constant(JsConstantValue::Str(key)),
+                        value,
+                    ) = part
+                    {
+                        match key.as_str() {
+                            "namespace" => namespace = Some(value),
+                            "data" => data = Some(value),
+                            "scope" => emit_scope = Some(value),
+                            "with" => with = Some(value),
+                            "exports" => exports = Some(value),
+                            v => return invalid_args(v),
+                        }
+                    }
+                }
+
+                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                    return invalid_args("namespace");
+                };
+                let Some(annotations) = with.map_or_else(
+                    || Some(ImportAnnotations::default()),
+                    |v| ImportAnnotations::parse_dynamic(v),
+                ) else {
+                    return invalid_args("with");
+                };
+                let emit_to_all_entries = match emit_scope {
+                    Some(JsValue::Constant(JsConstantValue::Str(emit_scope))) => {
+                        match emit_scope.as_str() {
+                            "app" => true,
+                            "entry" => false,
+                            _ => return invalid_args("scope"),
+                        }
+                    }
+                    None => false,
+                    _ => return invalid_args("scope"),
+                };
+                let exports = match exports {
+                    Some(JsValue::Constant(JsConstantValue::Str(export))) => {
+                        ExportUsage::Named(export.as_rcstr())
+                    }
+                    Some(JsValue::Array { items, .. }) => {
+                        let mut result = vec![];
+                        for item in items {
+                            if let JsValue::Constant(JsConstantValue::Str(export)) = item {
+                                result.push(export.as_rcstr());
+                            } else {
+                                return invalid_args("exports");
+                            }
+                        }
+                        match result.len() {
+                            0 => ExportUsage::Evaluation,
+                            1 => ExportUsage::Named(result.into_iter().next().unwrap()),
+                            _ => ExportUsage::PartialNamespaceObject(result.into()),
+                        }
+                    }
+                    None => ExportUsage::All,
+                    _ => return invalid_args("exports"),
+                };
+
+                analysis.add_reference_code_gen(
+                    EmitReference::new(
+                        origin,
+                        Request::parse_string(
+                            specifier
+                                // TODO support data-only emit
+                                .context("Data-only emit is currently not implemented")?
+                                .as_rcstr(),
+                        )
+                        .to_resolved()
+                        .await?,
+                        issue_source(source, span),
+                        annotations,
+                        ResolveErrorMode::Error,
+                        exports,
+                        namespace.as_rcstr(),
+                        match data {
+                            Some(value) => match CompileTimeDefineValue::try_from(value) {
+                                Ok(v) => Some(v),
+                                Err(e) => {
+                                    bail!(
+                                        "The data for __turbopack_emit__ is not a compile-time \
+                                         constant: {value:?}: {e}"
+                                    );
+                                }
+                            },
+                            None => None,
+                        },
+                        emit_to_all_entries,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("Unsupported arguments for __turbopack_emit__({args}) call{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::TURBOPACK_EMIT.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::TurbopackCollect => {
+            let args = linked_args().await?;
+            if let [JsValue::Object { parts: options, .. }] = &args[..] {
+                let invalid_args = |key: &str| {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "Unsupported property \"{key}\" for __turbopack_collect__({args}) \
+                             call{hints}",
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
+                        ),
+                    );
+                    Ok(())
+                };
+
+                let mut namespace = None;
+
+                for part in options {
+                    if let ObjectPart::KeyValue(
+                        JsValue::Constant(JsConstantValue::Str(key)),
+                        value,
+                    ) = part
+                    {
+                        match key.as_str() {
+                            "namespace" => namespace = Some(value),
+                            v => return invalid_args(v),
+                        }
+                    }
+                }
+
+                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                    return invalid_args("namespace");
+                };
+
+                analysis.add_reference_code_gen(
+                    CollectReference::new(origin, parent_module, namespace.as_rcstr()),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("Unsupported arguments for __turbopack_collect__({args}) call{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
+                ),
+            )
+        }
         _ => {}
     };
     Ok(())
@@ -3929,6 +4108,12 @@ async fn value_visitor_inner<'a>(
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
+            "__turbopack_emit__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackEmit)
+            }
+            "__turbopack_collect__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackCollect)
+            }
             _ => return Ok((v, Modified::No)),
         },
 

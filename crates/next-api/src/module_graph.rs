@@ -300,11 +300,10 @@ impl ServerActionsGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(async |graph| {
+                    .map(|graph| {
                         graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await
                     })
                     .try_flat_join()
                     .await?;

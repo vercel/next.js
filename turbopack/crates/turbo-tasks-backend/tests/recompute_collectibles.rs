@@ -14,7 +14,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = *ChangingInput::new(1).to_resolved().await?;
         let input2 = *ChangingInput::new(2).to_resolved().await?;
