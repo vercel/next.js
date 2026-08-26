@@ -206,6 +206,8 @@ async fn get_glob_includes(
                 continue;
             };
 
+            // ReadGlobResult paths are logical by contract. Resolve each match here so the NFT
+            // includes both the physical file and every symlink needed to reach it.
             let realpath = file_path.realpath_with_links().await?;
             result.extend(realpath.symlinks.iter().cloned());
             if let Ok(resolved_path) = &realpath.path_result

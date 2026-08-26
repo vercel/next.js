@@ -16,13 +16,25 @@ pub struct ReadGlobResult {
     pub inner: FxHashMap<RcStr, ResolvedVc<ReadGlobResult>>,
 }
 
-/// Reads matches of a glob pattern. Symlinks are not resolved (and returned as-is)
+async fn resolve_glob_root(directory: FileSystemPath) -> Result<FileSystemPath> {
+    Ok(directory
+        .realpath()
+        .await?
+        .unwrap_or_else(|_| directory.clone()))
+}
+
+/// Reads matches of a glob pattern.
+///
+/// Directories are resolved before physical enumeration, but [`DirectoryEntry`] paths in the
+/// result remain logical paths rooted at the supplied `directory`. Consumers must resolve returned
+/// paths before filesystem access when they need the physical path or its symlink chain.
 ///
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
 #[turbo_tasks::function(fs)]
 pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
     let root = directory.clone();
+    let directory = resolve_glob_root(directory).await?;
     read_glob_internal("", &root, directory, glob).await
 }
 
@@ -170,15 +182,17 @@ fn check_symlink_directory_recursion(
 
 /// Traverses all directories that match the given `glob`.
 ///
-/// This ensures that the calling task will be invalidated
-/// whenever the directories or contents of the directories change,
-///  but unlike read_glob doesn't accumulate data.
+/// This ensures that the calling task will be invalidated whenever the directories or contents of
+/// the directories change, but unlike [`read_glob`] doesn't accumulate data. Directories are
+/// resolved before physical enumeration, including the initial `directory` and symlinks discovered
+/// during traversal.
 #[turbo_tasks::function(fs)]
 pub async fn track_glob(
     directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
+    let directory = resolve_glob_root(directory).await?;
     track_glob_internal("", directory, glob, include_dot_files).await
 }
 
@@ -279,7 +293,7 @@ pub mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
-        DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+        DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, ReadGlobResult,
         glob::{Glob, GlobOptions},
     };
 
@@ -588,6 +602,134 @@ pub mod tests {
         root.read_glob(Glob::new(glob, GlobOptions::default()))
             .await?;
         Ok(())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_glob_from_operation(
+        path: RcStr,
+        directory: RcStr,
+        glob: RcStr,
+    ) -> anyhow::Result<Vc<ReadGlobResult>> {
+        let root = disk_file_system_root_operation(path)
+            .read_strongly_consistent()
+            .await?;
+        Ok(root
+            .join(&directory)?
+            .read_glob(Glob::new(glob, GlobOptions::default())))
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn track_glob_from_operation(
+        path: RcStr,
+        directory: RcStr,
+        glob: RcStr,
+    ) -> anyhow::Result<Vc<Completion>> {
+        let root = disk_file_system_root_operation(path)
+            .read_strongly_consistent()
+            .await?;
+        Ok(root
+            .join(&directory)?
+            .track_glob(Glob::new(glob, GlobOptions::default()), false))
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn glob_roots_resolve_symlink_parents() {
+        let scratch = tempfile::tempdir().unwrap();
+        let path = scratch.path();
+        let target = path.join("target/inner/path");
+        std::fs::create_dir_all(&target).unwrap();
+        File::create_new(target.join("file.txt"))
+            .unwrap()
+            .write_all(b"initial")
+            .unwrap();
+        std::fs::create_dir_all(path.join("path/to")).unwrap();
+        symlink(&path.join("target"), path.join("path/to/symlink")).unwrap();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = path.to_str().unwrap().into();
+        tt.run_once(async move {
+            let root = disk_file_system_root_operation(disk_root.clone())
+                .read_strongly_consistent()
+                .await?;
+            let logical_base = root.join("path/to/symlink/inner/path")?;
+
+            let initial = read_glob_from_operation(
+                disk_root.clone(),
+                rcstr!("path/to/symlink/inner/path"),
+                rcstr!("*"),
+            )
+            .read_strongly_consistent()
+            .await?;
+            assert_eq!(
+                initial.results.get("file.txt"),
+                Some(&DirectoryEntry::File(logical_base.join("file.txt")?))
+            );
+
+            let wildcard = read_glob_from_operation(
+                disk_root.clone(),
+                rcstr!(""),
+                rcstr!("path/to/*/inner/path/*"),
+            )
+            .read_strongly_consistent()
+            .await?;
+            let path_result = wildcard.inner.get("path").unwrap().await?;
+            let to_result = path_result.inner.get("to").unwrap().await?;
+            let symlink_result = to_result.inner.get("symlink").unwrap().await?;
+            let inner_result = symlink_result.inner.get("inner").unwrap().await?;
+            let final_result = inner_result.inner.get("path").unwrap().await?;
+            assert_eq!(
+                final_result.results.get("file.txt"),
+                Some(&DirectoryEntry::File(logical_base.join("file.txt")?))
+            );
+
+            let initial_tracking = track_glob_from_operation(
+                disk_root.clone(),
+                rcstr!("path/to/symlink/inner/path"),
+                rcstr!("*"),
+            )
+            .read_strongly_consistent()
+            .await?;
+            let wildcard_tracking = track_glob_from_operation(
+                disk_root.clone(),
+                rcstr!(""),
+                rcstr!("path/to/*/inner/path/*"),
+            )
+            .read_strongly_consistent()
+            .await?;
+
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(write(
+                    root.join("target/inner/path/file.txt")?,
+                    rcstr!("updated"),
+                )),
+                |e| e,
+            )
+            .await?;
+
+            let initial_tracking_after = track_glob_from_operation(
+                disk_root.clone(),
+                rcstr!("path/to/symlink/inner/path"),
+                rcstr!("*"),
+            )
+            .read_strongly_consistent()
+            .await?;
+            let wildcard_tracking_after =
+                track_glob_from_operation(disk_root, rcstr!(""), rcstr!("path/to/*/inner/path/*"))
+                    .read_strongly_consistent()
+                    .await?;
+
+            assert!(!ReadRef::ptr_eq(&initial_tracking, &initial_tracking_after));
+            assert!(!ReadRef::ptr_eq(
+                &wildcard_tracking,
+                &wildcard_tracking_after
+            ));
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
