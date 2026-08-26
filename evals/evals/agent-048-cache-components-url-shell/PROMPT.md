@@ -1,1 +1,1 @@
-Enable Cache Components for this shop. Product URLs and their currency query must keep rendering the correct details, the shop frame should remain useful while product data loads, and related products may stream afterward. Finish with a production build without route opt-outs.
+Enable Cache Components for this shop. Product URLs and their currency query must keep rendering the correct details, the shop frame should stay useful while product data loads, and related products may stream afterward. Finish with a production build without route opt-outs.
