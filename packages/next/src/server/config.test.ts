@@ -73,6 +73,17 @@ describe('loadConfig', () => {
     })
   })
 
+  it('does not mirror cacheComponents into experimental config', async () => {
+    const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+      customConfig: {
+        cacheComponents: true,
+      },
+    })
+
+    expect(result.cacheComponents).toBe(true)
+    expect(result.experimental.cacheComponents).toBeUndefined()
+  })
+
   describe('canary-only features', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '14.2.0'
