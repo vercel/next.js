@@ -66,6 +66,7 @@ const sharedExternals = [
   'next/dist/compiled/edge-runtime',
   'next/dist/compiled/@edge-runtime/ponyfill',
   'next/dist/compiled/undici',
+  'undici',
   'next/dist/compiled/raw-body',
   'next/dist/server/capsize-font-metrics.json',
   'critters',

@@ -1133,6 +1133,9 @@ importers:
       styled-jsx:
         specifier: 5.1.6
         version: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.3.0-canary-f789f203-20260825)
+      undici:
+        specifier: 6.24.1
+        version: 6.24.1
     devDependencies:
       '@babel/core':
         specifier: 7.26.10

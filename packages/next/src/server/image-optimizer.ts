@@ -35,6 +35,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
 import { isIP } from 'net'
 import { ALL } from 'dns'
+import { Agent, fetch as undiciFetch } from 'undici'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -862,24 +863,97 @@ function isRedirect(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
 }
 
+type ResolvedAddress = {
+  address: string
+  family: number
+}
+
+function createPinnedDispatcher(
+  hostname: string,
+  addresses: ResolvedAddress[]
+) {
+  return new Agent({
+    autoSelectFamily: true,
+    connect: {
+      lookup: (lookupHostname, options, callback) => {
+        if (lookupHostname !== hostname) {
+          const error = new Error(
+            `Unexpected hostname during image fetch: ${lookupHostname}`
+          ) as NodeJS.ErrnoException
+          error.code = 'ENOTFOUND'
+          callback(error, '', 0)
+          return
+        }
+
+        const matchingAddresses =
+          options.family === 4 || options.family === 6
+            ? addresses.filter((record) => record.family === options.family)
+            : addresses
+
+        if (matchingAddresses.length === 0) {
+          const error = new Error(
+            `No validated address for image hostname: ${hostname}`
+          ) as NodeJS.ErrnoException
+          error.code = 'ENOTFOUND'
+          callback(error, '', 0)
+          return
+        }
+
+        if (options.all) {
+          callback(null, matchingAddresses)
+          return
+        }
+
+        const record = matchingAddresses[0]
+        callback(null, record.address, record.family)
+      },
+    },
+  })
+}
+
 export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
   maximumResponseBody: number,
   count = 3
 ): Promise<ImageUpstream> {
+  const parsedUrl = new URL(href)
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  let dispatcher: Agent | undefined
+  let cancelResponseBody: (() => Promise<void>) | undefined
+
   if (!dangerouslyAllowLocalIP) {
-    const { hostname } = new URL(href)
-    let ips = [hostname]
-    if (!isIP(hostname)) {
-      const records = await lookup(hostname, {
-        family: 0,
-        all: true,
-        hints: ALL,
-      }).catch((_) => [{ address: hostname }])
-      ips = records.map((record) => record.address)
+    const hostname = parsedUrl.hostname.replace(/^\[|\]$/g, '')
+    const addressFamily = isIP(hostname)
+    let records: ResolvedAddress[]
+
+    if (addressFamily) {
+      records = [{ address: hostname, family: addressFamily }]
+    } else {
+      try {
+        records = await lookup(hostname, {
+          family: 0,
+          all: true,
+          hints: ALL,
+        })
+      } catch {
+        throw new ImageError(400, '"url" parameter is not allowed')
+      }
     }
-    const privateIps = ips.filter((ip) => isPrivateIp(ip))
+
+    if (records.length === 0) {
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+
+    const privateIps = records
+      .map((record) => record.address)
+      .filter((ip) => isPrivateIp(ip))
     if (privateIps.length > 0) {
       Log.error(
         'upstream image',
@@ -890,87 +964,110 @@ export async function fetchExternalImage(
       )
       throw new ImageError(400, '"url" parameter is not allowed')
     }
-  }
-  const res = await fetch(href, {
-    signal: AbortSignal.timeout(7_000),
-    redirect: 'manual',
-  }).catch((err) => err as Error)
 
-  if (res instanceof Error) {
-    const err = res as Error
-    if (err.name === 'TimeoutError') {
-      Log.error('upstream image response timed out for', href)
-      throw new ImageError(
-        504,
-        '"url" parameter is valid but upstream response timed out'
+    if (!addressFamily) {
+      dispatcher = createPinnedDispatcher(hostname, records)
+    }
+  }
+
+  try {
+    const signal = AbortSignal.timeout(7_000)
+    const res = await (
+      dispatcher
+        ? undiciFetch(href, {
+            signal,
+            redirect: 'manual',
+            dispatcher,
+          })
+        : fetch(href, {
+            signal,
+            redirect: 'manual',
+          })
+    ).catch((err) => err as Error)
+
+    if (res instanceof Error) {
+      const err = res as Error
+      if (err.name === 'TimeoutError') {
+        Log.error('upstream image response timed out for', href)
+        throw new ImageError(
+          504,
+          '"url" parameter is valid but upstream response timed out'
+        )
+      }
+      throw err
+    }
+
+    const responseBody = res.body
+    cancelResponseBody = () => responseBody?.cancel() ?? Promise.resolve()
+
+    const locationHeader = res.headers.get('Location')
+    if (
+      isRedirect(res.status) &&
+      locationHeader &&
+      URL.canParse(locationHeader, href)
+    ) {
+      if (count === 0) {
+        Log.error('upstream image response had too many redirects', href)
+        throw new ImageError(
+          508,
+          '"url" parameter is valid but upstream response is invalid'
+        )
+      }
+      await res.body?.cancel()
+      const redirect = new URL(locationHeader, href).href
+      return fetchExternalImage(
+        redirect,
+        dangerouslyAllowLocalIP,
+        maximumResponseBody,
+        count - 1
       )
     }
-    throw err
-  }
 
-  const locationHeader = res.headers.get('Location')
-  if (
-    isRedirect(res.status) &&
-    locationHeader &&
-    URL.canParse(locationHeader, href)
-  ) {
-    if (count === 0) {
-      Log.error('upstream image response had too many redirects', href)
+    if (!res.ok) {
+      Log.error('upstream image response failed for', href, res.status)
       throw new ImageError(
-        508,
+        res.status,
         '"url" parameter is valid but upstream response is invalid'
       )
     }
-    const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(
-      redirect,
-      dangerouslyAllowLocalIP,
-      maximumResponseBody,
-      count - 1
-    )
-  }
 
-  if (!res.ok) {
-    Log.error('upstream image response failed for', href, res.status)
-    throw new ImageError(
-      res.status,
-      '"url" parameter is valid but upstream response is invalid'
-    )
-  }
-
-  if (!res.body) {
-    Log.error('upstream image response is empty for', href)
-    throw new ImageError(
-      400,
-      '"url" parameter is valid but upstream response is invalid'
-    )
-  }
-
-  const chunks: Buffer[] = []
-  let totalSize = 0
-
-  for await (const c of res.body) {
-    const chunk = Buffer.from(c)
-    totalSize += chunk.byteLength
-    if (totalSize > maximumResponseBody) {
-      Log.error(
-        'upstream image response exceeded maximum size for',
-        href,
-        totalSize
-      )
+    if (!res.body) {
+      Log.error('upstream image response is empty for', href)
       throw new ImageError(
-        413,
+        400,
         '"url" parameter is valid but upstream response is invalid'
       )
     }
-    chunks.push(chunk)
-  }
 
-  const buffer = Buffer.concat(chunks)
-  const contentType = res.headers.get('Content-Type')
-  const cacheControl = res.headers.get('Cache-Control')
-  const etag = extractEtag(res.headers.get('ETag'), buffer)
-  return { buffer, contentType, cacheControl, etag }
+    const chunks: Buffer[] = []
+    let totalSize = 0
+
+    for await (const c of res.body) {
+      const chunk = Buffer.from(c)
+      totalSize += chunk.byteLength
+      if (totalSize > maximumResponseBody) {
+        Log.error(
+          'upstream image response exceeded maximum size for',
+          href,
+          totalSize
+        )
+        throw new ImageError(
+          413,
+          '"url" parameter is valid but upstream response is invalid'
+        )
+      }
+      chunks.push(chunk)
+    }
+
+    const buffer = Buffer.concat(chunks)
+    const contentType = res.headers.get('Content-Type')
+    const cacheControl = res.headers.get('Cache-Control')
+    const etag = extractEtag(res.headers.get('ETag'), buffer)
+    return { buffer, contentType, cacheControl, etag }
+  } finally {
+    await cancelResponseBody?.().catch(() => {})
+    await dispatcher?.close()
+  }
 }
 
 export async function fetchInternalImage(
