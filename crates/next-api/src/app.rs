@@ -1090,18 +1090,23 @@ pub fn app_entry_point_to_route(
                 }
                 .resolved_cell(),
             ),
+            has_action_manifest: true,
         },
-        AppEntrypoint::AppMetadata { page, metadata, .. } => Route::AppRoute {
-            original_name: page.to_string().into(),
-            endpoint: ResolvedVc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Metadata { metadata },
-                    app_project,
-                    page,
-                }
-                .resolved_cell(),
-            ),
-        },
+        AppEntrypoint::AppMetadata { page, metadata, .. } => {
+            let has_action_manifest = matches!(metadata, MetadataItem::Dynamic { .. });
+            Route::AppRoute {
+                original_name: page.to_string().into(),
+                endpoint: ResolvedVc::upcast(
+                    AppEndpoint {
+                        ty: AppEndpointType::Metadata { metadata },
+                        app_project,
+                        page,
+                    }
+                    .resolved_cell(),
+                ),
+                has_action_manifest,
+            }
+        }
     }
     .cell()
 }
