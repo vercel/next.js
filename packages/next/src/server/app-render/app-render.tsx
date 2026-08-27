@@ -618,6 +618,63 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 }
 
 /**
+ * Like `createNotFoundLoaderTree`, but keeps the root layout so the root
+ * `not-found` renders inside it — the same shape the unmatched-URL 404 route
+ * uses. Used by `getErrorRSCPayload` when `notFound()` escapes to error
+ * recovery (e.g. called in a Server Component during the RSC render), so the
+ * 404 response carries the root layout (and its `lang`, styles, etc.) instead
+ * of an empty shell.
+ */
+function createRootNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+  const components = loaderTree[2]
+
+  // With `global-not-found`, that route replaces the whole document, so there
+  // is no root layout to preserve — defer to the standard not-found tree.
+  if (components['global-not-found']) {
+    return createNotFoundLoaderTree(loaderTree)
+  }
+
+  return [
+    '',
+    {
+      children: [PAGE_SEGMENT_KEY, {}, { page: components['not-found'] }, null],
+    },
+    components,
+    null, // staticSiblings
+  ]
+}
+
+/**
+ * Whether the given work unit store is one of the prerender stores, i.e. the
+ * render is a prerender rather than a live request. Mirrors the `isPrerendering`
+ * flag the render paths thread into `getRSCPayload`.
+ */
+function isPrerenderingWorkUnitStore(
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'prerender-legacy':
+      return true
+    case 'request':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'generate-static-params':
+      return false
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
+/**
  * Returns a function that parses the dynamic segment and return the associated value.
  */
 function makeGetDynamicParamFromSegment(
@@ -2319,6 +2376,38 @@ async function getErrorRSCPayload(
     componentMod: { createMetadataComponents, createElement, Fragment },
     url,
   } = ctx
+
+  // For a 404 triggered by `notFound()` in a Server Component, render the
+  // actual not-found page on the server instead of an empty
+  // `<html id="__next_error__">` shell that only becomes visible after the
+  // client hydrates. This mirrors the unmatched-URL path, which renders the
+  // root `not-found` inside the root layout via `getRSCPayload` (`is404`).
+  //
+  // Only done when the error payload head is being rendered
+  // (`shouldRenderMetadataAndViewport`). The Cache Components recovery shell
+  // passes `false` and intentionally only bootstraps the original Flight
+  // data, so it keeps the empty-shell behavior below.
+  if (errorType === 'not-found' && shouldRenderMetadataAndViewport) {
+    try {
+      return await getRSCPayload(createRootNotFoundLoaderTree(tree), ctx, {
+        is404: true,
+        isPrerendering: isPrerenderingWorkUnitStore(
+          workUnitAsyncStorage.getStore()
+        ),
+      })
+    } catch (notFoundPayloadError) {
+      // Redirects and nested access-fallbacks thrown while rendering the
+      // not-found page must still propagate. Anything else falls through to
+      // the empty error shell below, so this never regresses the previous
+      // behavior.
+      if (
+        isRedirectError(notFoundPayloadError) ||
+        isHTTPAccessFallbackError(notFoundPayloadError)
+      ) {
+        throw notFoundPayloadError
+      }
+    }
+  }
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
