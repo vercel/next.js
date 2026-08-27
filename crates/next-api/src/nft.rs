@@ -195,7 +195,7 @@ async fn get_glob_includes(
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
     // Deduplicate symlinks shared by many matches. The return value of `read_glob` has random
     // order, so the result is sorted below.
-    let mut result = FxIndexSet::default();
+    let mut result = FxHashSet::default();
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
@@ -592,7 +592,7 @@ mod tests {
     use crate::nft::get_glob_includes;
 
     #[turbo_tasks::function(operation, root)]
-    async fn get_glob_includes_operation(disk_root: RcStr) -> anyhow::Result<()> {
+    async fn assert_glob_includes_operation(disk_root: RcStr) -> anyhow::Result<()> {
         let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
             .root()
             .owned()
@@ -642,7 +642,7 @@ mod tests {
         ));
         let disk_root: RcStr = root.to_str().unwrap().into();
         tt.run_once(async move {
-            get_glob_includes_operation(disk_root)
+            assert_glob_includes_operation(disk_root)
                 .read_strongly_consistent()
                 .await?;
             anyhow::Ok(())
