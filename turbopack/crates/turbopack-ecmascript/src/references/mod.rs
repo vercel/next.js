@@ -1299,15 +1299,20 @@ async fn analyze_ecmascript_module_internal(
                             .link_value(take(&mut *obj), ImportAttributes::empty_ref())
                             .await?;
 
-                        if let Some((name, false)) =
-                            obj.get_definable_name(Some(&analysis_state.var_graph))
-                            && matches!(
-                                name.0.as_slice(),
-                                [
-                                    DefinableNameSegmentRef::Name("process"),
-                                    DefinableNameSegmentRef::Name("env")
-                                ]
-                            )
+                        if obj
+                            .get_definable_name(Some(&analysis_state.var_graph))
+                            .iter()
+                            .flatten()
+                            .any(|(name, reassigned)| {
+                                !reassigned
+                                    && matches!(
+                                        name.0.as_slice(),
+                                        [
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env")
+                                        ]
+                                    )
+                            })
                         {
                             analysis.add_runtime_env_var_reference(RcStr::from(prop));
                         }
@@ -3443,68 +3448,73 @@ async fn handle_membership<'a>(
         let obj = link_obj.await?;
         let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
-        if has_member && let Some((mut name, false)) = obj_name.clone() {
-            name.0.push(DefinableNameSegmentRef::Name(prop));
-            match ty {
-                MembershipType::Member => {
-                    if let Some(value) = state
-                        .compile_time_info_ref
-                        .free_var_references
-                        .get(&name)
-                        .await?
-                    {
-                        // Inline env var
-                        handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
-                        return Ok(());
+        if let [obj_name] = &*obj_name {
+            // Exactly one name. We can potentially inline
+            if has_member && let Some((mut name, false)) = obj_name.clone() {
+                name.0.push(DefinableNameSegmentRef::Name(prop));
+                match ty {
+                    MembershipType::Member => {
+                        if let Some(value) = state
+                            .compile_time_info_ref
+                            .free_var_references
+                            .get(&name)
+                            .await?
+                        {
+                            // Inline env var
+                            handle_free_var_reference(ast_path, &value, span, state, analysis)
+                                .await?;
+                            return Ok(());
+                        }
                     }
-                }
-                MembershipType::In => {
-                    if state
-                        .compile_time_info_ref
-                        .free_var_references
-                        .get(&name)
-                        .await?
-                        .is_some()
-                    {
-                        analysis.add_code_gen(ConstantValueCodeGen::new(
-                            CompileTimeDefineValue::Bool(true),
-                            ast_path.to_vec().into(),
-                        ));
-                        return Ok(());
+                    MembershipType::In => {
+                        if state
+                            .compile_time_info_ref
+                            .free_var_references
+                            .get(&name)
+                            .await?
+                            .is_some()
+                        {
+                            analysis.add_code_gen(ConstantValueCodeGen::new(
+                                CompileTimeDefineValue::Bool(true),
+                                ast_path.to_vec().into(),
+                            ));
+                            return Ok(());
+                        }
                     }
                 }
             }
+            if is_prop_cache
+                && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
+            {
+                analysis.add_code_gen::<CodeGen>(match ty {
+                    MembershipType::Member => {
+                        CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
+                    }
+                    MembershipType::In => ConstantValueCodeGen::new(
+                        CompileTimeDefineValue::Bool(true),
+                        ast_path.to_vec().into(),
+                    )
+                    .into(),
+                });
+                return Ok(());
+            }
         }
 
-        if is_prop_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj {
-            analysis.add_code_gen::<CodeGen>(match ty {
-                MembershipType::Member => {
-                    CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
-                }
-                MembershipType::In => ConstantValueCodeGen::new(
-                    CompileTimeDefineValue::Bool(true),
-                    ast_path.to_vec().into(),
+        // Not inlined, potentially register as runtime env var.
+        if obj_name.iter().flatten().any(|(name, reassigned)| {
+            !reassigned
+                && matches!(
+                    name.0.as_slice(),
+                    [
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ]
                 )
-                .into(),
-            });
-            return Ok(());
-        }
-
-        if let Some((name, false)) = &obj_name
-            && matches!(
-                name.0.as_slice(),
-                [
-                    DefinableNameSegmentRef::Name("process"),
-                    DefinableNameSegmentRef::Name("env")
-                ]
-            )
-        {
-            // non-inlined env var
+        }) {
             analysis.add_runtime_env_var_reference(RcStr::from(prop));
             return Ok(());
         }
     }
-
     Ok(())
 }
 
@@ -3515,7 +3525,11 @@ async fn handle_typeof<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some((mut name, false)) = arg.get_definable_name(Some(&state.var_graph)) {
+    let arg_name = arg.get_definable_name(Some(&state.var_graph));
+    if arg_name.len() == 1
+        && let Some((mut name, false)) = arg_name.into_iter().next().unwrap()
+    {
+        // Exactly one name. We can potentially inline
         name.0.push(DefinableNameSegmentRef::TypeOf);
         if let Some(value) = state
             .compile_time_info_ref
@@ -3538,11 +3552,12 @@ async fn handle_free_var<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some((name, _)) = var.get_definable_name(None)
+    // Exactly one name. We can potentially inline
+    if let [Some((name, _))] = &*var.get_definable_name(None)
         && let Some(value) = state
             .compile_time_info_ref
             .free_var_references
-            .get(&name)
+            .get(name)
             .await?
     {
         handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
@@ -3960,16 +3975,22 @@ async fn value_visitor_inner<'a>(
 ) -> Result<(JsValue<'a>, Modified)> {
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
-        && let Some((mut name, _)) = right.get_definable_name(Some(var_graph))
+        && let right_name = right.get_definable_name(Some(var_graph))
+        && right_name.len() == 1
+        && let Some((mut right_name, _)) = right_name.into_iter().next().unwrap()
     {
-        name.0.push(DefinableNameSegmentRef::Name(left));
-        if compile_time_info_ref.defines.contains_key(&name).await? {
+        right_name.0.push(DefinableNameSegmentRef::Name(left));
+        if compile_time_info_ref
+            .defines
+            .contains_key(&right_name)
+            .await?
+        {
             return Ok((JsValue::Constant(JsConstantValue::True), Modified::Yes));
         }
     }
 
-    if let Some((name, _)) = v.get_definable_name(Some(var_graph))
-        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+    if let [Some((name, _))] = &*v.get_definable_name(Some(var_graph))
+        && let Some(value) = compile_time_info_ref.defines.get(name).await?
     {
         return Ok((
             JsValue::from_compile_time_define_value_in(arena.get_or_default(), &value)?,
