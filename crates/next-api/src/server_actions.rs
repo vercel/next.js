@@ -5,7 +5,8 @@ use bincode::{Decode, Encode};
 use next_core::{
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
+        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
+        ActionManifestWorkerEntryDurability, ServerReferenceManifest,
     },
     util::NextRuntime,
 };
@@ -315,12 +316,11 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    code_hash: data.as_ref().map(|d| d.ident_code_hash.as_str()),
-                    runtime_env_vars: data.as_ref().map(|d| d.runtime_env_vars.as_slice()),
-                    references_client_component: data
-                        .as_ref()
-                        .map(|d| d.references_client_component)
-                        .unwrap_or(false),
+                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
+                        code_hash: d.ident_code_hash.as_str(),
+                        runtime_env_vars: d.runtime_env_vars.as_slice(),
+                        references_client_component: d.references_client_component,
+                    }),
                 },
             );
 

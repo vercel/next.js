@@ -3630,24 +3630,23 @@ async function computeCacheKeyImplementationPart(
   workUnitStore: WorkUnitStore,
   id: string
 ): Promise<unknown> {
-  let serverModuleMapEntry = workStore.durableUseCacheEntries
+  let durability = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id].workers?.[
         normalizeWorkerPageName(workStore.page)
-      ]
+      ]?.durability
     : undefined
   if (
-    typeof serverModuleMapEntry?.codeHash === 'string' &&
-    serverModuleMapEntry?.runtimeEnvVars &&
-    // TODO replace this with more granular tracking: a list of all client components imported
-    serverModuleMapEntry?.referencesClientComponent !== true
+    durability &&
+    // TODO replace this with more granular tracking: a list of all imported client components
+    durability.referencesClientComponent !== true
   ) {
-    // Hash the env var values, to not leak secrets into the cache key.
-    // use cache is only suppored in Node.js runtime. So we can use the Node.js crypto module here.
+    // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto
+      // Hash the env var values, to not leak secrets into the cache key.
       .createHash('sha256')
       .update(
-        serverModuleMapEntry.runtimeEnvVars
+        durability.runtimeEnvVars
           .map((k) => {
             // Make sure not to stringify `undefined` and `"undefined"` to the same value.
             return process.env[k] != null ? `${k}=${process.env[k]}` : k
@@ -3657,7 +3656,7 @@ async function computeCacheKeyImplementationPart(
       .digest('hex')
 
     // When more accurate analysis information is available, use codeHash + runtimeEnvVars
-    return [serverModuleMapEntry.codeHash, nextVersion, runtimeEnvVarStateHash]
+    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't
     // safely reuse the results across builds yet. In the meantime we add the buildId to the

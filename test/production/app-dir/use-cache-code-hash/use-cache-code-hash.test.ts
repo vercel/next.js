@@ -22,8 +22,8 @@ async function getCodeHashes(
         hashes.push({
           id: actionId,
           page: workerKey,
-          codeHash: worker?.codeHash,
-          runtimeEnvVars: worker?.runtimeEnvVars,
+          codeHash: worker?.durability?.codeHash,
+          runtimeEnvVars: worker?.durability?.runtimeEnvVars,
         })
       }
     }

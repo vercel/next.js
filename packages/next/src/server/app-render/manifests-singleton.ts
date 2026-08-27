@@ -265,9 +265,11 @@ function createServerModuleMap(): ServerModuleMap {
         | {
             moduleId: string | number
             async: boolean
-            codeHash?: string
-            runtimeEnvVars?: readonly string[]
-            referencesClientComponent?: boolean
+            durability?: {
+              codeHash: string
+              runtimeEnvVars: readonly string[]
+              referencesClientComponent?: boolean
+            }
           }
         | undefined
 
@@ -288,22 +290,14 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const {
-        moduleId,
-        async,
-        codeHash,
-        runtimeEnvVars,
-        referencesClientComponent,
-      } = workerEntry
+      const { moduleId, async, durability } = workerEntry
 
       return {
         id: moduleId,
         name: id,
         chunks: [],
         async,
-        codeHash,
-        runtimeEnvVars,
-        referencesClientComponent,
+        durability,
       }
     },
   })

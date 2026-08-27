@@ -465,9 +465,14 @@ pub struct ActionManifestWorkerEntry<'a> {
     #[serde(rename = "async")]
     pub is_async: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub code_hash: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_env_vars: Option<&'a [RcStr]>,
+    pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntryDurability<'a> {
+    pub code_hash: &'a str,
+    pub runtime_env_vars: &'a [RcStr],
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub references_client_component: bool,
 }
