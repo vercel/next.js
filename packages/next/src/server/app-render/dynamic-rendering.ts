@@ -46,7 +46,6 @@ import {
   ROOT_LAYOUT_BOUNDARY_NAME,
 } from '../../lib/framework/boundary-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
-import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
   createRuntimeBodyError,
   createDynamicBodyError,
@@ -458,12 +457,6 @@ export function formatDynamicAPIAccesses(
         .join('\n')
       return `Dynamic API Usage Debug - ${expression}:\n${stack}`
     })
-}
-
-export function createRenderInBrowserAbortSignal(): AbortSignal {
-  const controller = new AbortController()
-  controller.abort(new BailoutToCSRError('Render in Browser'))
-  return controller.signal
 }
 
 /**
