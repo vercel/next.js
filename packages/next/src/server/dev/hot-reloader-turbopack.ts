@@ -399,6 +399,18 @@ export async function createHotReloaderTurbopack(
 
   const bindings = getBindingsSync()
 
+  // Turbopack requires native bindings and cannot run with WASM bindings.
+  // Detect this early and give a clear, actionable error message.
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `To use Next.js on this platform, use Webpack instead:\n` +
+        `  next dev --webpack\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   // This must finish before Turbopack records any writes. Once turbo-tasks has
   // recorded a write effect, it dedups by hash without checking the file.
   await recursiveDeleteSyncWithAsyncRetries(distDir, RETAINED_OUTPUT_PATHS)
@@ -411,18 +423,6 @@ export async function createHotReloaderTurbopack(
       )
     )
   )
-
-  // Turbopack requires native bindings and cannot run with WASM bindings.
-  // Detect this early and give a clear, actionable error message.
-  if (bindings.isWasm) {
-    throw new Error(
-      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
-        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
-        `To use Next.js on this platform, use Webpack instead:\n` +
-        `  next dev --webpack\n\n` +
-        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
-    )
-  }
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
