@@ -7,6 +7,7 @@ import {
   TRACE_IGNORES,
   type BuildTraceContext,
   getFilesMapFromReasons,
+  expandPackageTraces,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
@@ -377,6 +378,7 @@ export async function collectBuildTraces({
         for (const file of result.esmFileList) {
           fileList.add(file)
         }
+        await expandPackageTraces(outputFileTracingRoot, fileList, reasons)
 
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
         const cachedLookupIgnore = new Map<string, boolean>()
