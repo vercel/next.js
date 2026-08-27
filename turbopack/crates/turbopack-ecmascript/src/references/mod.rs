@@ -3977,7 +3977,7 @@ async fn value_visitor_inner<'a>(
         && let Some(left) = left.as_str()
         && let right_name = right.get_definable_name(Some(var_graph))
         && right_name.len() == 1
-        && let Some((mut right_name, _)) = right_name.into_iter().next().unwrap()
+        && let Some((mut right_name, false)) = right_name.into_iter().next().unwrap()
     {
         right_name.0.push(DefinableNameSegmentRef::Name(left));
         if compile_time_info_ref
@@ -3989,7 +3989,7 @@ async fn value_visitor_inner<'a>(
         }
     }
 
-    if let [Some((name, _))] = &*v.get_definable_name(Some(var_graph))
+    if let [Some((name, false))] = &*v.get_definable_name(Some(var_graph))
         && let Some(value) = compile_time_info_ref.defines.get(name).await?
     {
         return Ok((
