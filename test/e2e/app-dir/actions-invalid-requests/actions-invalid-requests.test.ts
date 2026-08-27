@@ -248,15 +248,17 @@ describe('server actions - invalid requests', () => {
     const submitForm = async (
       browser: Awaited<ReturnType<typeof next.browser>>
     ) => {
-      expect(await browser.elementByCss('#submitted').text()).toBe('no')
+      expect(await browser.elementByCss('#state').text()).toBe('not-submitted')
 
       await browser
         .elementByCss('form#action-form button[type="submit"]')
         .click()
 
-      // The action sets a cookie that the page reads back on re-render.
+      // The action redirects, so landing on /submitted is what proves the
+      // action body actually ran on the server.
       await retry(async () => {
-        expect(await browser.elementByCss('#submitted').text()).toBe('yes')
+        expect(await browser.elementByCss('#state').text()).toBe('submitted')
+        expect(await browser.url()).toEndWith('/submitted')
       })
 
       // Neither rejection path should have been taken.
