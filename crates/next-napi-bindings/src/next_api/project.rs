@@ -1974,7 +1974,8 @@ pub async fn project_get_server_hmr_update(
     // Diffing must not remain active after the pull completes.
     let (update, issues) = turbo_tasks
         .run(async move {
-            let _ = project;
+            // The snapshot's chunk-list `Vc`s are only valid while the project is held.
+            let _project_keep_alive = project;
             let ServerHmrSnapshotWithEffects {
                 chunk_lists,
                 version,

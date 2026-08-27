@@ -1,4 +1,7 @@
-use std::{fmt::Display, sync::Arc};
+use std::{
+    fmt::Display,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::Result;
 use serde::Serialize;
@@ -74,19 +77,14 @@ impl ServerHmrChunkListVersion {
     pub async fn from_chunk_lists(chunk_lists: &[ServerHmrChunkList]) -> Result<Self> {
         let versions_by_chunk_list_path = chunk_lists
             .iter()
-            .map(
-                |ServerHmrChunkList {
-                     relative_path,
-                     versioned_content,
-                 }| {
-                    let relative_path = relative_path.clone();
-                    let versioned_content = *versioned_content;
-                    async move {
-                        let version = versioned_content.version().await?;
-                        Ok::<_, anyhow::Error>((relative_path, version))
-                    }
-                },
-            )
+            .map(|chunk_list| {
+                let relative_path = chunk_list.relative_path.clone();
+                let versioned_content = chunk_list.versioned_content;
+                async move {
+                    let version = versioned_content.version().await?;
+                    anyhow::Ok((relative_path, version))
+                }
+            })
             .try_join()
             .await?
             .into_iter()
@@ -115,22 +113,22 @@ impl ChunkListUpdateBuilder {
                     self.chunks.insert(chunk_path.clone(), update.clone());
                 }
                 for update in &update.merged {
-                    self.add_merged_update(update);
+                    self.push_merged(update);
                 }
             }
-            EcmascriptUpdateInstruction::Merged(update) => self.add_merged_update(update),
+            EcmascriptUpdateInstruction::Merged(update) => self.push_merged(update),
         }
     }
 
-    fn add_merged_update(&mut self, update: &EcmascriptMergedUpdate) {
+    fn push_merged(&mut self, update: &EcmascriptMergedUpdate) {
         self.merged.insert(update.clone());
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.chunks.is_empty() && self.merged.is_empty()
     }
 
-    fn build(self) -> UpdateInstruction {
+    pub fn build(self) -> UpdateInstruction {
         ChunkListUpdate {
             chunks: self.chunks,
             merged: self.merged.into_iter().collect(),
@@ -158,8 +156,18 @@ pub enum ServerHmrUpdate {
 
 struct DiffResult {
     chunk_updates: Vec<ReadRef<Update>>,
-    has_new_chunk_lists: bool,
+    membership: ChunkListMembershipChange,
 }
+
+/// Chunk lists that appeared or vanished relative to the pull baseline.
+#[derive(Default, Clone, Copy)]
+struct ChunkListMembershipChange {
+    has_new: bool,
+    has_removed: bool,
+}
+
+static TRACE_DIFFING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("NEXT_TEST_SERVER_HMR_DIFFING").is_some());
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -196,6 +204,14 @@ async fn diff_chunks_against(
     chunk_lists: &[ServerHmrChunkList],
     from: &ServerHmrChunkListVersion,
 ) -> Result<DiffResult> {
+    let current_chunk_list_paths = chunk_lists
+        .iter()
+        .map(|chunk_list| &chunk_list.relative_path)
+        .collect::<FxIndexSet<_>>();
+    let has_removed_chunk_lists = from
+        .versions_by_chunk_list_path
+        .keys()
+        .any(|path| !current_chunk_list_paths.contains(path));
     let mut has_new_chunk_lists = false;
     let chunk_updates = chunk_lists
         .iter()
@@ -204,7 +220,7 @@ async fn diff_chunks_against(
                  relative_path,
                  versioned_content,
              }| {
-                if std::env::var_os("NEXT_TEST_SERVER_HMR_DIFFING").is_some() {
+                if *TRACE_DIFFING {
                     turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
                         chunk_list_path: relative_path.clone(),
                     }));
@@ -229,7 +245,10 @@ async fn diff_chunks_against(
         .await?;
     Ok(DiffResult {
         chunk_updates,
-        has_new_chunk_lists,
+        membership: ChunkListMembershipChange {
+            has_new: has_new_chunk_lists,
+            has_removed: has_removed_chunk_lists,
+        },
     })
 }
 
@@ -253,9 +272,13 @@ impl<'a> From<&'a Update> for ServerHmrChunkUpdate<'a> {
 
 fn classify_server_hmr_update<'a>(
     chunk_updates: impl IntoIterator<Item = ServerHmrChunkUpdate<'a>>,
-    has_new_chunk_lists: bool,
+    membership: ChunkListMembershipChange,
     to: ReadRef<ServerHmrChunkListVersion>,
 ) -> ServerHmrUpdate {
+    if membership.has_removed {
+        return ServerHmrUpdate::FullReevaluation { to };
+    }
+
     let mut builder = ChunkListUpdateBuilder::default();
     for update in chunk_updates {
         match update {
@@ -270,7 +293,7 @@ fn classify_server_hmr_update<'a>(
     // New chunks load on demand but must advance the baseline.
     if builder.is_empty() {
         return ServerHmrUpdate::NoRuntimeUpdate {
-            to: has_new_chunk_lists.then_some(to),
+            to: membership.has_new.then_some(to),
         };
     }
 
@@ -296,14 +319,14 @@ pub async fn compute_server_hmr_update(
 
     let DiffResult {
         chunk_updates,
-        has_new_chunk_lists,
+        membership,
     } = diff_chunks_against(chunk_lists, from).await?;
 
     Ok(classify_server_hmr_update(
         chunk_updates
             .iter()
             .map(|update| ServerHmrChunkUpdate::from(&**update)),
-        has_new_chunk_lists,
+        membership,
         to,
     ))
 }
@@ -320,14 +343,32 @@ mod tests {
     };
 
     use super::{
-        ChunkListUpdateBuilder, ServerHmrChunkListVersion, ServerHmrChunkUpdate, ServerHmrUpdate,
-        classify_server_hmr_update,
+        ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
+        ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
     };
 
     fn version() -> ReadRef<ServerHmrChunkListVersion> {
         ReadRef::new_owned(ServerHmrChunkListVersion {
             versions_by_chunk_list_path: Default::default(),
         })
+    }
+
+    fn unchanged_membership() -> ChunkListMembershipChange {
+        ChunkListMembershipChange::default()
+    }
+
+    fn added_chunk_lists() -> ChunkListMembershipChange {
+        ChunkListMembershipChange {
+            has_new: true,
+            has_removed: false,
+        }
+    }
+
+    fn removed_chunk_lists() -> ChunkListMembershipChange {
+        ChunkListMembershipChange {
+            has_new: false,
+            has_removed: true,
+        }
     }
 
     fn merged(chunk_path: &str) -> EcmascriptMergedUpdate {
@@ -347,7 +388,11 @@ mod tests {
     #[test]
     fn unchanged_chunks_produce_no_runtime_update() {
         assert!(matches!(
-            classify_server_hmr_update([ServerHmrChunkUpdate::None], false, version()),
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::None],
+                unchanged_membership(),
+                version()
+            ),
             ServerHmrUpdate::NoRuntimeUpdate { to: None }
         ));
     }
@@ -355,7 +400,11 @@ mod tests {
     #[test]
     fn missing_chunk_produces_full_reevaluation() {
         assert!(matches!(
-            classify_server_hmr_update([ServerHmrChunkUpdate::Missing], false, version()),
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::Missing],
+                unchanged_membership(),
+                version()
+            ),
             ServerHmrUpdate::FullReevaluation { .. }
         ));
     }
@@ -363,7 +412,11 @@ mod tests {
     #[test]
     fn total_update_produces_full_reevaluation() {
         assert!(matches!(
-            classify_server_hmr_update([ServerHmrChunkUpdate::Total], false, version()),
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::Total],
+                unchanged_membership(),
+                version()
+            ),
             ServerHmrUpdate::FullReevaluation { .. }
         ));
     }
@@ -383,7 +436,7 @@ mod tests {
                 ServerHmrChunkUpdate::Partial(&chunk_list),
                 ServerHmrChunkUpdate::Partial(&merged_instruction),
             ],
-            false,
+            unchanged_membership(),
             version(),
         ) else {
             panic!("partial instructions should produce a partial aggregate update");
@@ -401,8 +454,16 @@ mod tests {
     #[test]
     fn new_chunk_lists_advance_baseline_without_runtime_update() {
         assert!(matches!(
-            classify_server_hmr_update([], true, version()),
+            classify_server_hmr_update([], added_chunk_lists(), version()),
             ServerHmrUpdate::NoRuntimeUpdate { to: Some(_) }
+        ));
+    }
+
+    #[test]
+    fn removed_chunk_lists_produce_full_reevaluation() {
+        assert!(matches!(
+            classify_server_hmr_update([], removed_chunk_lists(), version()),
+            ServerHmrUpdate::FullReevaluation { .. }
         ));
     }
 

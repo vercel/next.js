@@ -159,6 +159,7 @@ const isTestMode = !!(
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
+/** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
 
 const TURBOPACK_OUTPUT_DIRS = [
@@ -182,6 +183,7 @@ const RETAINED_OUTPUT_PATHS = new Set([
 ])
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
+
 declare const __turbopack_server_hmr_apply__:
   | ((update: NodeJsPartialHmrUpdate) => void)
   | undefined
@@ -229,11 +231,9 @@ function setupServerHmr(
   {
     reEvaluateAllModulesExpensive,
     onApplied,
-    onIssues,
   }: {
-    reEvaluateAllModulesExpensive: () => Promise<void>
+    reEvaluateAllModulesExpensive: () => void | Promise<void>
     onApplied: (chunkPaths: string[]) => void | Promise<void>
-    onIssues: (key: EntryKey, result: TurbopackResult) => void
   }
 ) {
   let pending = Promise.resolve()
@@ -252,7 +252,7 @@ function setupServerHmr(
     }
   }
 
-  function apply(key: EntryKey, entryPaths: string[]): Promise<void> {
+  function apply(entryPaths: string[]): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -261,12 +261,13 @@ function setupServerHmr(
 
       try {
         const versionKey = [...entryPaths].sort().join('\0')
-        const result = await project.getServerHmrUpdate(
+        // `issues` is intentionally dropped: this pull scans project-wide chunk
+        // lists, so its issues may belong to an unrelated or removed route, and
+        // endpoint writes already report route-scoped issues.
+        const update = await project.getServerHmrUpdate(
           versions.get(versionKey),
           entryPaths
         )
-        onIssues(key, result)
-        const update = result
         if (update.version) {
           versions.set(versionKey, update.version)
         }
@@ -746,6 +747,7 @@ export async function createHotReloaderTurbopack(
       }
     }
 
+    // Edge does not participate in server HMR.
     if (writtenEndpoint.type === 'edge') {
       void clearAllModuleContexts()
     }
@@ -763,7 +765,10 @@ export async function createHotReloaderTurbopack(
 
       const relativePath = relative(distDir, file)
       if (
-        // Non-HMR entries still use cache invalidation.
+        // For Pages Router, edge routes, middleware, and any entry not
+        // participating in server HMR: clear the sharedCache in
+        // evalManifest(), Node.js require.cache, and edge runtime module
+        // contexts.
         force ||
         !usesServerHmr ||
         !relativePath.startsWith(serverChunksPrefix)
@@ -778,7 +783,12 @@ export async function createHotReloaderTurbopack(
       resetFetch()
     }
 
-    // HMR patches chunks in place unless a full invalidation is forced.
+    // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
+    // the next request.
+    //
+    // For App Router with server HMR, this is normally skipped as server HMR
+    // manages module updates in-place. However, it *is* required when force is `true`
+    // (like for .env file or tsconfig changes).
     if (
       (!usesServerHmr || force) &&
       typeof __next__clear_chunk_cache__ === 'function'
@@ -788,51 +798,6 @@ export async function createHotReloaderTurbopack(
 
     return true
   }
-
-  async function reEvaluateAllModulesExpensive() {
-    const serverChunksDir = join(distDir, SERVER_HMR_CHUNKS_DIR) + sep
-    deleteCache(
-      Object.keys(require.cache).filter((path) =>
-        path.startsWith(serverChunksDir)
-      )
-    )
-
-    if (typeof __next__clear_chunk_cache__ === 'function') {
-      __next__clear_chunk_cache__()
-    }
-
-    globalThis.__turbopack_server_hmr_handlers__ = new Map()
-    await clearAllModuleContexts()
-    resetFetch()
-
-    // The validation worker must reload the same unrecoverable graph.
-    dropDevValidationWorker()
-  }
-
-  const serverHmr = setupServerHmr(project, {
-    reEvaluateAllModulesExpensive,
-    onApplied: (chunkPaths: string[]) => {
-      // The runtime patched these chunks in place, so keep require.cache but
-      // clear evalManifest()'s shared cache before this request renders.
-      const manifestPaths = chunkPaths.map((chunkPath) =>
-        join(distDir, chunkPath)
-      )
-      for (const manifestPath of manifestPaths) {
-        clearManifestCache(manifestPath)
-      }
-
-      // The validation worker maintains its own manifest cache and must observe
-      // the same non-evicting invalidation as the request-serving runtime.
-      mirrorModuleStateToDevValidationWorker({
-        type: 'invalidate',
-        filePaths: manifestPaths,
-        evictModules: false,
-      })
-    },
-    onIssues: (key, result) => {
-      processIssues(currentEntryIssues, key, result, false, true)
-    },
-  })
 
   const buildingIds = new Set()
 
@@ -879,9 +844,8 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
-
-  // Undefined until entrypoints have been handled once. That first set has
-  // nothing to compare against, so every route it lists would look added.
+  // Undefined until the first entrypoints emission. That one has nothing to
+  // compare against, so every route it lists would look added.
   let previousRouteKeys: Set<string> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
@@ -907,7 +871,11 @@ export async function createHotReloaderTurbopack(
   let updateInProgress = false
   let pendingServerComponentChanges = false
 
-  // Compile events catch byte-for-byte restores; errors defer the failing refetch.
+  // Tell browsers to refetch RSC (soft refresh, not full page reload).
+  // Skip while there are outstanding compilation errors: an RSC refetch would
+  // 500 and force a full-page navigation, losing client state (e.g. recovering
+  // from a syntax error). A subsequent successful compile/apply fires this
+  // again to refresh.
   function notifyServerComponentChanges() {
     if (hasCompilationErrors()) return
     sendHmr('server-component-changes', {
@@ -915,7 +883,8 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  // Announce once per update to avoid duplicate refetches.
+  // Each announcement makes every client refetch its page, so an update's
+  // changes are announced once, on the update's end.
   function handleServerComponentChanges() {
     if (updateInProgress) {
       pendingServerComponentChanges = true
@@ -1854,7 +1823,7 @@ export async function createHotReloaderTurbopack(
     },
     async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
-        await serverHmr.reset()
+        await serverHmr?.reset()
 
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
@@ -2020,7 +1989,6 @@ export async function createHotReloaderTurbopack(
           // coarser reading of `route.type`.
           let shouldPullServerHmr = false
           let serverHmrEntryPaths: string[] = []
-          let serverHmrEntryKey: EntryKey | undefined
           try {
             await handleRouteType({
               dev,
@@ -2048,7 +2016,6 @@ export async function createHotReloaderTurbopack(
                   shouldPullServerHmr ||= participatesInServerHmr(id, result)
                   if (result.serverHmrEntryPaths.length > 0) {
                     serverHmrEntryPaths = result.serverHmrEntryPaths
-                    serverHmrEntryKey = id
                   }
                   return clearRequireCache(id, result, {
                     force: forceDeleteCache,
@@ -2059,12 +2026,8 @@ export async function createHotReloaderTurbopack(
 
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
-            if (
-              shouldPullServerHmr &&
-              serverHmrEntryKey &&
-              serverHmrEntryPaths.length > 0
-            ) {
-              await serverHmr.apply(serverHmrEntryKey, serverHmrEntryPaths)
+            if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
+              await serverHmr?.apply(serverHmrEntryPaths)
             }
           } finally {
             finishBuilding()
@@ -2211,6 +2174,63 @@ export async function createHotReloaderTurbopack(
     console.error(err)
     process.exit(1)
   })
+
+  let serverHmr: ReturnType<typeof setupServerHmr> | undefined
+  if (serverFastRefresh) {
+    serverHmr = setupServerHmr(project, {
+      reEvaluateAllModulesExpensive: async () => {
+        // Evict every server-HMR-managed chunk from `require.cache`.
+        // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
+        const serverChunksDir = join(distDir, SERVER_HMR_CHUNKS_DIR) + sep
+        const chunkPaths = Object.keys(require.cache).filter((p) =>
+          p.startsWith(serverChunksDir)
+        )
+        deleteCache(chunkPaths)
+
+        // Clear Turbopack's runtime caches
+        if (typeof __next__clear_chunk_cache__ === 'function') {
+          __next__clear_chunk_cache__()
+        }
+
+        // Reset the server HMR handler registry. All server runtime chunks are
+        // cleared from require.cache above; when they're next required they'll
+        // re-register into this Map and reinstall the routing dispatcher.
+        globalThis.__turbopack_server_hmr_handlers__ = new Map()
+
+        // Clear all edge contexts
+        await clearAllModuleContexts()
+
+        resetFetch()
+
+        // This thread gave up on repairing its module graph in place. The
+        // validation worker cannot repair its own either, so it is dropped and
+        // the next validation loads the build output afresh.
+        dropDevValidationWorker()
+      },
+      onApplied: (chunkPaths: string[]) => {
+        // Clear the evalManifest() shared cache for each updated chunk so the
+        // next RSC render picks up the HMR-applied module changes. Unlike
+        // a full restart, this does NOT clear require.cache — the HMR-applied
+        // modules in devModuleCache must persist for dep preservation.
+        const manifestPaths = chunkPaths.map((chunkPath) =>
+          join(distDir, chunkPath)
+        )
+
+        for (const manifestPath of manifestPaths) {
+          clearManifestCache(manifestPath)
+        }
+
+        // This path clears the manifest cache without going through
+        // `deleteCache`, so `onCacheInvalidation` does not report it to the
+        // validation worker. Report it here instead.
+        mirrorModuleStateToDevValidationWorker({
+          type: 'invalidate',
+          filePaths: manifestPaths,
+          evictModules: false,
+        })
+      },
+    })
+  }
 
   return hotReloader
 }
