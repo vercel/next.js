@@ -149,8 +149,8 @@ function getExperimentSettings(evalName) {
       ...BASE_VARIANTS,
       {
         suffix: 'skills',
-        imports: `import { installLocalSkills, installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-        setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skillNames)})`,
+        imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
+        setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skillNames)})`,
         evals: configuredSkillEvals.map(({ name }) => name),
       },
     ],

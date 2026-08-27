@@ -78,7 +78,7 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 }
 ```
 
-The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
+The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
 
 A run takes ~2–5 min. To validate a fixture without executing:
 

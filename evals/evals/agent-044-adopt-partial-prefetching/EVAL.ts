@@ -63,7 +63,7 @@ test('preserves the selected eager-link contract without broadening it', async (
 
 test('uses a targeted cache boundary without leaking session data', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The Aurora title and artist are available to Partial Prefetching through a small public cacheable data boundary rather than by caching the route page component. The public cached function does not call cookies() or headers(), and it never reuses a listener-specific result for a different listener. Either remove the unused listener variation and key the public data by slug, or resolve the listener outside the public cache and pass it as an explicit function argument so it participates in the cache key. Both outcomes are valid; removing the unused field is not required. Recommendations remain outside the selected prefetched contract and may stream.`
+    `The Aurora title and artist are available to Partial Prefetching through a small use-cache data function rather than by caching the route page component. The cached function does not call cookies() or headers(). Either of these implementations must pass: (1) remove the unused listener variation and cache by slug, or (2) read the listener cookie outside the cached function and pass listener as an explicit argument, which safely keys the cache by both slug and listener. In particular, queryTrack(slug, listener) with 'use cache' is correct when getTrack reads cookies() and passes listener into it; that does not leak data between listeners. Recommendations remain outside this cache and may stream.`
   )
 })
 
