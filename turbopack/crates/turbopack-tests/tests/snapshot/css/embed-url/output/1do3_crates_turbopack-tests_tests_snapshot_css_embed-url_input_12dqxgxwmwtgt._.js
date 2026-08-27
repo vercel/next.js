@@ -11,7 +11,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "module-style": "style-module__3oVw9q__module-style",
+  "module-style": "_3oVw9q_module-style",
 });
 }),
 ]);

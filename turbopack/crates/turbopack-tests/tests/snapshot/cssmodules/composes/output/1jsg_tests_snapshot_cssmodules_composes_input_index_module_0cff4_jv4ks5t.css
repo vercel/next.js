@@ -1,10 +1,10 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css) */
-.index-module__H6xp9G__className {
+.H6xp9G_className {
   color: #ff0;
   background: red;
 }
 
-.index-module__H6xp9G__subClass {
+.H6xp9G_subClass {
   background: #00f;
 }
 

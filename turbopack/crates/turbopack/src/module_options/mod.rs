@@ -260,6 +260,7 @@ impl ModuleOptions {
                     source_maps: css_source_maps,
                     ref module_css_condition,
                     lightningcss_features,
+                    module_css_debuggable_idents,
                     ..
                 },
             ref static_url_tag,
@@ -861,6 +862,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 ModuleRule::new(
@@ -872,6 +874,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
             ]);
@@ -936,6 +939,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
@@ -950,6 +954,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -964,6 +969,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 ModuleRule::new(
@@ -979,6 +985,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
             ]);
