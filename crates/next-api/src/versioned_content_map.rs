@@ -14,8 +14,9 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
-use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists, is_entry_chunk_list_content};
+use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists};
 
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
@@ -91,11 +92,10 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
-    /// Lists the aggregate-HMR *entry* chunks under `root` with their
-    /// [`VersionedContent`], sorted by path. Only entry-chunk-list content is
-    /// returned (see [`is_entry_chunk_list_content`]). Callers scope which
-    /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
-    /// subscription passes `server/app` to include App Router entries only).
+    /// Lists the aggregate-HMR Node.js entry chunks under `root`, sorted by path.
+    /// Unsupported versioned content is excluded here so callers can rely on a concrete chunk-list
+    /// content type. Callers scope which entries are included by narrowing `root` (e.g. the
+    /// aggregate server-HMR subscription passes `server/app` to include App Router entries only).
     ///
     /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
     /// bucket layout rather than insertion order, so the same set of paths can
@@ -133,16 +133,18 @@ impl VersionedContentMap {
                 }
                 let content = asset.versioned_content().to_resolved().await?;
 
-                // *Important*: only chunk lists are subscribed to. Individual chunks are already
-                // covered by the chunk list that owns them, so including them here
-                // would produce duplicate updates for the same change.
-                if !is_entry_chunk_list_content(content) {
+                // *Important*: only Node.js chunk lists are subscribed to. Individual chunks are
+                // already covered by the chunk list that owns them, so including them here would
+                // produce duplicate updates for the same change.
+                let Some(versioned_content) =
+                    ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
+                else {
                     return Ok(None);
-                }
+                };
 
                 Ok(Some(ServerHmrChunkList {
                     relative_path: name,
-                    versioned_content: content,
+                    versioned_content,
                 }))
             })
             .try_flat_join()
