@@ -10145,6 +10145,7 @@ dependencies = [
  "mockito",
  "quick_cache",
  "reqwest",
+ "rustc-hash 2.1.1",
  "rustls",
  "serde",
  "tokio",
