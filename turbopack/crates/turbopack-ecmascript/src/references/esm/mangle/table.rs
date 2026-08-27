@@ -24,8 +24,7 @@ use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
-/// Characters that may start an identifier. Digits are excluded, so this is one character shorter
-/// than [`REST_CHARS`].
+/// Characters that may start an identifier (i.e. no digits).
 const FIRST_CHARS: &[u8; 54] = b"_$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 /// Characters that may appear in an identifier after the first character.
 const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
