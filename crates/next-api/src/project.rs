@@ -1370,6 +1370,7 @@ impl Project {
                 Route::AppRoute {
                     original_name: _,
                     endpoint,
+                    ..
                 } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),

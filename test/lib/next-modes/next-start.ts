@@ -130,7 +130,9 @@ export class NextStartInstance extends NextInstance {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
-          this.childProcess.on('exit', (code, signal) => {
+          // Unlike `exit`, `close` fires after the stdio streams have closed.
+          // Wait for it so trailing build output is not lost before starting.
+          this.childProcess.on('close', (code, signal) => {
             this.childProcess = undefined
             if (code || signal)
               reject(
