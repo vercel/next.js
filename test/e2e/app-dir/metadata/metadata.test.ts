@@ -688,18 +688,23 @@ describe('app dir - metadata', () => {
 
       expect(resAppleIcon.status).toBe(200)
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
-      expect(resAppleIcon.headers.get('cache-control')).toBe(
-        isNextDev
-          ? 'no-cache, no-store'
+      // FIXME: When deployed to Vercel, prerendered metadata routes are
+      // served as static files with the platform's default cache-control
+      // instead of the immutable one recorded in the prerender manifest's
+      // initialHeaders. The expectations can be unified again once #83215
+      // is backported, which changes the cache header to max-age=0
+      // everywhere.
+      const expectedCacheControl = isNextDev
+        ? 'no-cache, no-store'
+        : isNextDeploy
+          ? 'public, max-age=0, must-revalidate'
           : 'public, immutable, no-transform, max-age=31536000'
+      expect(resAppleIcon.headers.get('cache-control')).toBe(
+        expectedCacheControl
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
-      expect(resIcon.headers.get('cache-control')).toBe(
-        isNextDev
-          ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000'
-      )
+      expect(resIcon.headers.get('cache-control')).toBe(expectedCacheControl)
     })
 
     it('should support root dir robots.txt', async () => {
