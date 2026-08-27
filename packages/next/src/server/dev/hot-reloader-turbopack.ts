@@ -39,6 +39,7 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
+import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
 import {
   dropDevValidationWorker,
@@ -192,24 +193,69 @@ declare global {
   var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
 }
 
+/**
+ * Collects the output chunk paths touched by a partial HMR update. Both
+ * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
+ * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
+ * invalidated for every affected chunk after a successful apply.
+ */
+function collectUpdatedChunkPaths(
+  instruction: NodeJsPartialHmrUpdate['instruction']
+): string[] {
+  const paths = new Set<string>()
+  if (instruction.type === 'EcmascriptMergedUpdate') {
+    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
+      paths.add(chunkPath)
+    }
+  } else if (instruction.type === 'ChunkListUpdate') {
+    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
+      paths.add(chunkPath)
+    }
+    for (const merged of instruction.merged ?? []) {
+      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
+        paths.add(chunkPath)
+      }
+    }
+  } else {
+    throw new Error(
+      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
+    )
+  }
+  return Array.from(paths)
+}
+
 function setupServerHmr(
   project: Project,
-  reEvaluateAllModulesExpensive: () => Promise<void>
+  {
+    reEvaluateAllModulesExpensive,
+    onApplied,
+    onIssues,
+  }: {
+    reEvaluateAllModulesExpensive: () => Promise<void>
+    onApplied: (chunkPaths: string[]) => void | Promise<void>
+    onIssues: (key: EntryKey, result: TurbopackResult) => void
+  }
 ) {
   let pending = Promise.resolve()
-  let version: ServerHmrVersion | undefined
+  // Each pull snapshots only the requested endpoint's entries. Keep independent
+  // baselines so building one route does not discard another route's version.
+  const versions = new Map<string, ServerHmrVersion>()
   let needsReEvaluation = false
 
   async function recover() {
     try {
       await reEvaluateAllModulesExpensive()
+      versions.clear()
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
     }
   }
 
-  return function applyServerHmrUpdate(entryPaths: string[]): Promise<void> {
+  return function applyServerHmrUpdate(
+    key: EntryKey,
+    entryPaths: string[]
+  ): Promise<void> {
     const apply = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
@@ -217,8 +263,16 @@ function setupServerHmr(
       }
 
       try {
-        const update = await project.getServerHmrUpdate(version, entryPaths)
-        version = update.version ?? version
+        const versionKey = [...entryPaths].sort().join('\0')
+        const result = await project.getServerHmrUpdate(
+          versions.get(versionKey),
+          entryPaths
+        )
+        onIssues(key, result)
+        const update = result
+        if (update.version) {
+          versions.set(versionKey, update.version)
+        }
         switch (update.kind) {
           case 'none':
             return
@@ -237,6 +291,13 @@ function setupServerHmr(
                   type: 'apply',
                   update: payload,
                 })
+
+                const updatedChunkPaths = collectUpdatedChunkPaths(
+                  update.instruction
+                )
+                if (updatedChunkPaths.length > 0) {
+                  await onApplied(updatedChunkPaths)
+                }
                 return
               } catch {}
             }
@@ -739,10 +800,30 @@ export async function createHotReloaderTurbopack(
     dropDevValidationWorker()
   }
 
-  const applyServerHmrUpdate = setupServerHmr(
-    project,
-    reEvaluateAllModulesExpensive
-  )
+  const applyServerHmrUpdate = setupServerHmr(project, {
+    reEvaluateAllModulesExpensive,
+    onApplied: (chunkPaths: string[]) => {
+      // The runtime patched these chunks in place, so keep require.cache but
+      // clear evalManifest()'s shared cache before this request renders.
+      const manifestPaths = chunkPaths.map((chunkPath) =>
+        join(distDir, chunkPath)
+      )
+      for (const manifestPath of manifestPaths) {
+        clearManifestCache(manifestPath)
+      }
+
+      // The validation worker maintains its own manifest cache and must observe
+      // the same non-evicting invalidation as the request-serving runtime.
+      mirrorModuleStateToDevValidationWorker({
+        type: 'invalidate',
+        filePaths: manifestPaths,
+        evictModules: false,
+      })
+    },
+    onIssues: (key, result) => {
+      processIssues(currentEntryIssues, key, result, false, true)
+    },
+  })
 
   const buildingIds = new Set()
 
@@ -1928,6 +2009,7 @@ export async function createHotReloaderTurbopack(
           // coarser reading of `route.type`.
           let shouldPullServerHmr = false
           let serverHmrEntryPaths: string[] = []
+          let serverHmrEntryKey: EntryKey | undefined
           try {
             await handleRouteType({
               dev,
@@ -1955,6 +2037,7 @@ export async function createHotReloaderTurbopack(
                   shouldPullServerHmr ||= participatesInServerHmr(id, result)
                   if (result.serverHmrEntryPaths.length > 0) {
                     serverHmrEntryPaths = result.serverHmrEntryPaths
+                    serverHmrEntryKey = id
                   }
                   return clearRequireCache(id, result, {
                     force: forceDeleteCache,
@@ -1965,8 +2048,12 @@ export async function createHotReloaderTurbopack(
 
             // The only server HMR pull, driven by the request being built — which
             // is what makes evaluating a changed module lazy.
-            if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await applyServerHmrUpdate(serverHmrEntryPaths)
+            if (
+              shouldPullServerHmr &&
+              serverHmrEntryKey &&
+              serverHmrEntryPaths.length > 0
+            ) {
+              await applyServerHmrUpdate(serverHmrEntryKey, serverHmrEntryPaths)
             }
           } finally {
             finishBuilding()

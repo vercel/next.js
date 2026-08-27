@@ -71,7 +71,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 entry_path: Some(server_entry_path.into_owned()),
                 server_hmr_entry_paths: server_hmr_entry_paths
                     .into_iter()
-                    .map(From::from)
+                    .map(String::from)
                     .collect(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
