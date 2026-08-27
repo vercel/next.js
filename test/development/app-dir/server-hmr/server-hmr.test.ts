@@ -13,6 +13,51 @@ describe('server-hmr', () => {
 
   describe('module preservation', () => {
     itTurbopackDev(
+      'does not compile a changed server module until the next request',
+      async () => {
+        await next.deleteFile('lazy-rebuild-probe.log').catch(() => {})
+
+        const browser = await next.browser('/lazy-rebuild')
+        await retry(async () => {
+          expect(await browser.elementByCss('#value').text()).toBe('initial')
+        })
+
+        await browser.eval(() => {
+          const originalFetch = window.fetch
+          window.fetch = (input, init) => {
+            const headers = new Headers(init?.headers)
+            if (headers.get('next-hmr-refresh') === '1') {
+              return new Promise(() => {})
+            }
+            return originalFetch(input, init)
+          }
+        })
+
+        const initialCompileLog = await next.readFile('lazy-rebuild-probe.log')
+
+        await next.patchFile('app/lazy-rebuild/probe.js', (content) =>
+          content.replace(
+            "export const value = 'initial'",
+            "export const value = 'updated'"
+          )
+        )
+
+        await retry(async () => {
+          expect(await next.readFile('lazy-rebuild-probe.log')).toBe(
+            initialCompileLog
+          )
+        })
+
+        expect(await (await next.fetch('/lazy-rebuild')).text()).toContain(
+          'updated'
+        )
+        expect(await next.readFile('lazy-rebuild-probe.log')).not.toBe(
+          initialCompileLog
+        )
+      }
+    )
+
+    itTurbopackDev(
       'does not re-evaluate an unmodified module when page module changes',
       async () => {
         const browser = await next.browser('/module-preservation')
