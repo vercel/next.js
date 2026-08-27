@@ -531,6 +531,10 @@ export async function createEntrypoints(
               isGlobalNotFoundEnabled: config.experimental.globalNotFound
                 ? true
                 : undefined,
+              explicitParallelRouteChildren: config.experimental
+                .explicitParallelRouteChildren
+                ? true
+                : undefined,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -612,6 +616,10 @@ export async function createEntrypoints(
                   JSON.stringify(staticInfo.middleware || {})
                 ).toString('base64'),
                 isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                  ? true
+                  : undefined,
+                explicitParallelRouteChildren: config.experimental
+                  .explicitParallelRouteChildren
                   ? true
                   : undefined,
               }).import
