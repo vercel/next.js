@@ -58,11 +58,11 @@ the project's other experimental options.
 
 Set the condition while running `next build`. Setting it only for `next start`
 is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, `instant()` may not acquire the
-testing cookie before Playwright times out. Treat that symptom as a rig
-configuration failure and rebuild with the condition enabled. Use the
-project's existing environment naming when it already distinguishes test,
-staging, preview, and production builds.
+When the artifact was built without it, Next.js does not activate the
+navigation lock, so the test cannot distinguish prefetched UI from streamed
+dynamic content. Rebuild with the condition enabled before interpreting the
+results. Use the project's existing environment naming when it already
+distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
