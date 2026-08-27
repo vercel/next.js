@@ -10472,6 +10472,7 @@ dependencies = [
  "data-encoding",
  "either",
  "erased-serde",
+ "futures",
  "indexmap 2.14.0",
  "num-bigint",
  "patricia_tree",

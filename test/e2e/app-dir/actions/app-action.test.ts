@@ -1003,28 +1003,58 @@ describe('app-dir action handling', () => {
     describe('"use server" export values', () => {
       it('should error when exporting non async functions at build time', async () => {
         const filePath = 'app/server/actions.js'
-        const origContent = await next.readFile(filePath)
 
-        try {
-          const browser = await next.browser('/server')
+        const browser = await next.browser('/server')
 
-          const cnt = await browser.elementByCss('h1').text()
-          expect(cnt).toBe('0')
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
 
+        await next.patchFile(
+          filePath,
           // This can be caught by SWC directly
-          await next.patchFile(
-            filePath,
-            origContent + '\n\nexport const foo = 1'
-          )
-
-          await waitForRedbox(browser)
-          expect(await getRedboxSource(browser)).toContain(
-            'Only async functions are allowed to be exported in a "use server" file.'
-          )
-        } finally {
-          await next.patchFile(filePath, origContent)
-        }
+          (origContent) => origContent + '\n\nexport const foo = 1',
+          async () => {
+            await waitForRedbox(browser)
+            expect(await getRedboxSource(browser)).toContain(
+              'Only async functions are allowed to be exported in a "use server" file.'
+            )
+          }
+        )
       })
+    })
+
+    it('should show the import trace through an action imported by a client component', async () => {
+      const browser = await next.browser('/client-error')
+      await next.patchFile(
+        'app/client-error/actions-lib.js',
+        (origContent) => origContent + `\n}}}`,
+        async () => {
+          await waitForRedbox(browser)
+          const source = await getRedboxSource(browser)
+          if (isTurbopack) {
+            // The import trace for the other bundlers is truncated and not particularly interesting
+            expect(source).toMatchInlineSnapshot(`
+             "./app/client-error/actions-lib.js (7:1)
+             Error: Expression expected
+               5 | export const value = 123
+               6 |
+             > 7 | }}}
+                 | ^
+
+             Parsing ecmascript source code failed
+
+             Import trace:
+               Server Component:
+                 ./app/client-error/actions-lib.js [Server Component]
+                 ./app/client-error/actions.js [Server Component]
+                 ./app/client-error/actions.js [Client Component SSR]
+                 ./app/client-error/client.js [Client Component SSR]
+                 ./app/client-error/client.js [Server Component]
+                 ./app/client-error/page.js [Server Component]"
+            `)
+          }
+        }
+      )
     })
 
     describe('HMR', () => {
@@ -1858,21 +1888,24 @@ describe('app-dir action handling', () => {
       })
     })
 
-    // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported yet.
-    describe.skip('client component imported action', () => {
-      it('should support importing client components from actions', async () => {
-        const browser = await next.browser(
-          '/client/action-return-client-component'
-        )
-        expect(
-          await browser
-            .elementByCss('#trigger-component-load')
-            .click()
-            .waitForElementByCss('#client-component')
-            .text()
-        ).toBe('Hello World')
-      })
-    })
+    // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported by Webpack
+    ;(isTurbopack ? describe : describe.skip)(
+      'client component imported action',
+      () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/client/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      }
+    )
   })
 
   describe('caching disabled by default', () => {

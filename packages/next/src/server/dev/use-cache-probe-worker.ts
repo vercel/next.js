@@ -106,7 +106,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
     const actionMod = (await ComponentMod.__next_app__.require(
       entry.id
     )) as Record<string, (...args: unknown[]) => Promise<unknown>>
-    const wrappedFn = actionMod[msg.id]
+    const wrappedFn = actionMod[entry.name]
     if (typeof wrappedFn !== 'function') {
       return false
     }

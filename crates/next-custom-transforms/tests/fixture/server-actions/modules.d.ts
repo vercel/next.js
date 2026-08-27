@@ -52,3 +52,21 @@ declare module 'navigation' {
 
 // Some tests generate `data:text/javascript,...` imports
 declare module 'data:text/*'
+
+declare function __turbopack_emit__(opts: {
+  namespace: string
+  data?: any
+  with?: {
+    'turbopack-transition'?: 'next-rsc' | 'next-edge-rsc'
+  }
+}): void
+declare function __turbopack_emit__(
+  req: string,
+  opts: {
+    namespace: string
+    data: any
+    with?: {
+      'turbopack-transition'?: 'next-rsc' | 'next-edge-rsc'
+    }
+  }
+): void
