@@ -170,7 +170,10 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import {
+  getIsPossibleServerAction,
+  getServerActionRequestMetadata,
+} from '../lib/server-action-request-meta'
 import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -221,7 +224,6 @@ import {
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -3321,12 +3323,15 @@ function prepareAppPage(
     fallbackRouteParams
   )
 
-  // If provided, the postpone state should be parsed so it can be provided to
-  // React.
+  // If provided, parse the postponed state so its RDC is available to the
+  // render. Keep the React state only for requests that can resume it.
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
+    const { isFetchAction, isPossibleMPAAction } =
+      getServerActionRequestMetadata(req)
+
     if (fallbackRouteParams) {
-      if (!getServerActionRequestMetadata(req).isFetchAction) {
+      if (!isFetchAction) {
         throw new InvariantError(
           'postponed state should not be provided when fallback params are provided'
         )
@@ -3335,6 +3340,18 @@ function prepareAppPage(
       // A fetch action with fallback params cannot render this page, so its
       // React postponed state cannot be resumed. The RDC is still useful while
       // executing cached functions in the action.
+      postponedState = {
+        type: DynamicState.DATA,
+        renderResumeDataCache: parseResumeDataCacheFromPostponedState(
+          renderOpts.postponed,
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
+        ),
+      }
+    } else if (isPossibleMPAAction) {
+      // An MPA action needs a complete HTML document, so it cannot resume the
+      // React render. Its RDC is still needed to keep cached values consistent
+      // with the static shell when the action did not invalidate them.
       postponedState = {
         type: DynamicState.DATA,
         renderResumeDataCache: parseResumeDataCacheFromPostponedState(
@@ -3531,6 +3548,8 @@ async function renderToStream(
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
+  const { isPossibleMPAAction } = getServerActionRequestMetadata(req)
+
   const {
     assetPrefix,
     htmlRequestId,
@@ -3540,6 +3559,10 @@ async function renderToStream(
     requestId,
     workStore,
   } = ctx
+  // MPA actions reuse the RDC from the postponed state, but their response
+  // must come from a complete server render rather than a postponed response.
+  const shouldUsePostponedResponse =
+    typeof renderOpts.postponed === 'string' && !isPossibleMPAAction
 
   const {
     basePath,
@@ -4068,7 +4091,7 @@ async function renderToStream(
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
-        if (typeof renderOpts.postponed === 'string') {
+        if (shouldUsePostponedResponse) {
           if (postponedState?.type === DynamicState.DATA) {
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
@@ -4209,7 +4232,7 @@ async function renderToStream(
         // MARK: webStreams HTML
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
-        if (typeof renderOpts.postponed === 'string') {
+        if (shouldUsePostponedResponse) {
           if (postponedState?.type === DynamicState.DATA) {
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included

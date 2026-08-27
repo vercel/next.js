@@ -41,7 +41,7 @@ import {
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
-import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -291,8 +291,7 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const { isFetchAction, isPossibleServerAction } =
-      getServerActionRequestMetadata(req)
+    const isPossibleServerAction = getIsPossibleServerAction(req)
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -319,9 +318,8 @@ export function createAppPageEntrypoint({
      */
     const couldSupportPPR: boolean = Boolean(nextConfig.cacheComponents)
 
-    // Split postponed state from Server Action bodies in minimal mode. Fetch
-    // actions resume with that state, while MPA actions only reuse the extracted
-    // action body because their response must include the complete page.
+    // Stash postponed state for server actions when in minimal mode.
+    // We extract it here so the RDC is available for the re-render after the action completes.
     const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
     if (
       !getRequestMeta(req, 'postponed') &&
@@ -372,12 +370,10 @@ export function createAppPageEntrypoint({
 
         if (fullBody.length >= stateLength) {
           // Extract postponed state from the beginning
-          if (isFetchAction) {
-            const postponedState = fullBody
-              .subarray(0, stateLength)
-              .toString('utf8')
-            addRequestMeta(req, 'postponed', postponedState)
-          }
+          const postponedState = fullBody
+            .subarray(0, stateLength)
+            .toString('utf8')
+          addRequestMeta(req, 'postponed', postponedState)
 
           // Store the remaining action body for the action handler
           const actionBody = fullBody.subarray(stateLength)
@@ -1352,16 +1348,19 @@ export function createAppPageEntrypoint({
               : undefined
 
           if (
-            // Dynamic RSC requests and fetch actions should use the postponed data
-            // from the static render (if available). This keeps the resume data
-            // cache consistent between the static and dynamic renders. MPA actions
-            // need a complete HTML document, so they must not resume here.
+            // If this is a dynamic RSC request or a server action request, we should
+            // use the postponed data from the static render (if available). This
+            // ensures that we can utilize the resume data cache (RDC) from the static
+            // render to ensure that the data is consistent between the static and
+            // dynamic renders (for navigations) or when re-rendering after a server
+            // action.
             // Only enable RDC for Navigations if the feature is enabled.
             supportsRDCForNavigations &&
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
             incrementalCache &&
-            (isDynamicRSCRequest || isFetchAction) &&
+            // Include both dynamic RSC requests (navigations) and server actions
+            (isDynamicRSCRequest || isPossibleServerAction) &&
             // We don't typically trigger an on-demand revalidation for dynamic RSC
             // requests, as we're typically revalidating the page in the background
             // instead. However, if the cache entry is stale, we should trigger a
