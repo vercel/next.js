@@ -4,20 +4,16 @@ use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
+    FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
-use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
-
-use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists};
-
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
 )]
@@ -92,68 +88,6 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
-    /// Lists the aggregate-HMR *entry* chunks under `root` with their
-    /// [`VersionedContent`], sorted by path. Only Node.js chunk-list content is
-    /// returned. Callers scope which
-    /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
-    /// subscription passes `server/app` to include App Router entries only).
-    ///
-    /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
-    /// bucket layout rather than insertion order, so the same set of paths can
-    /// come out in a different order across calls. Since this map contains
-    /// entries that span server and client contexts, changes for one context
-    /// can shift the internals of the map, making iteration order different
-    /// for the same set of paths.
-    #[turbo_tasks::function(session_dependent)]
-    pub async fn server_hmr_chunks_in_path(
-        self: Vc<Self>,
-        root: FileSystemPath,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let this = self.await?;
-        // `State::get` returns a lock guard, which can't be held across the
-        // awaits below, so snapshot the keys and release it.
-        let paths: Vec<FileSystemPath> = {
-            let map = &this.map_path_to_op.get().0;
-            map.keys().cloned().collect()
-        };
-
-        let mut chunks = paths
-            .into_iter()
-            .filter_map(|path| {
-                let rel = root.get_path_to(&path)?;
-                Some((RcStr::from(rel), path))
-            })
-            .map(async |(name, path)| {
-                // Skip Redirect assets: they're symlinks with no file content,
-                // so versioning them would bail with "not a file".
-                let Some(asset) = *self.get_asset(path).await? else {
-                    return Ok::<_, anyhow::Error>(None);
-                };
-                if !matches!(*asset.content().await?, AssetContent::File(_)) {
-                    return Ok(None);
-                }
-                let content = asset.versioned_content().to_resolved().await?;
-
-                // *Important*: only chunk lists are subscribed to. Individual chunks are already
-                // covered by the chunk list that owns them, so including them here
-                // would produce duplicate updates for the same change.
-                let Some(versioned_content) =
-                    ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
-                else {
-                    return Ok(None);
-                };
-
-                Ok(Some(ServerHmrChunkList {
-                    relative_path: name,
-                    versioned_content,
-                }))
-            })
-            .try_flat_join()
-            .await?;
-        chunks.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
-        Ok(Vc::cell(chunks))
-    }
-
     /// Inserts output assets into the map and returns a completion that when
     /// awaited will emit the assets that were inserted.
     #[turbo_tasks::function(session_dependent)]

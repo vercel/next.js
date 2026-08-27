@@ -52,7 +52,6 @@ impl From<AssetPath> for NapiAssetPath {
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
-    pub server_hmr_entry_paths: Vec<String>,
     pub client_paths: Vec<String>,
     pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
@@ -63,16 +62,11 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
         match written_endpoint {
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
-                server_hmr_entry_paths,
                 server_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
-                server_hmr_entry_paths: server_hmr_entry_paths
-                    .into_iter()
-                    .map(String::from)
-                    .collect(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
@@ -158,6 +152,7 @@ async fn get_written_endpoint_with_issues_operation(
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    entry_key: Option<RcStr>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ****endpoint;
@@ -174,6 +169,15 @@ pub async fn endpoint_write_to_disk(
             let WrittenEndpointWithIssues {
                 written, issues, ..
             } = &*read;
+
+            if let Some(entry_key) = entry_key {
+                next_api::route::register_server_hmr_entry_operation(
+                    endpoint_op,
+                    next_api::aggregate_hmr::ServerHmrEntryKey::new(entry_key),
+                )
+                .read_strongly_consistent()
+                .await?;
+            }
 
             Ok((written.clone(), issues.clone()))
         })

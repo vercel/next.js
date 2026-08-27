@@ -13,7 +13,12 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
+use crate::{
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrEntryKey},
+    operation::OptionEndpoint,
+    paths::AssetPath,
+    project::Project,
+};
 
 #[derive(
     TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
@@ -235,6 +240,26 @@ pub async fn endpoint_write_to_disk(
     Ok(*output_paths)
 }
 
+#[turbo_tasks::function(operation, root)]
+pub async fn register_server_hmr_entry_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+    entry_key: ServerHmrEntryKey,
+) -> Result<Vc<Completion>> {
+    let Some(endpoint) = *endpoint.connect().await? else {
+        return Ok(Completion::new());
+    };
+    let output_op = output_assets_operation(endpoint);
+    let EndpointOutput {
+        project,
+        server_hmr_chunks,
+        ..
+    } = *output_op.connect().await?;
+    project
+        .await?
+        .register_server_hmr_entry(entry_key, server_hmr_chunks);
+    Ok(Completion::new())
+}
+
 #[turbo_tasks::function(operation)]
 fn output_assets_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutput> {
     endpoint.output()
@@ -286,6 +311,7 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    pub server_hmr_chunks: Option<ResolvedVc<ServerHmrChunkLists>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -294,7 +320,6 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
