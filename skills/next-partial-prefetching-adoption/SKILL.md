@@ -174,7 +174,7 @@ The audit marked candidates beyond the already-preserved legacy contract instead
 Where the answer is no, delete the marker and leave the route on the App Shell default. Where the answer is yes, choose one of these paths:
 
 - **Manual:** follow the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching), confirm the opted-in link against a production run, and delete the marker when the selected result is verified.
-- **Test-backed:** hand the source link, destination, selected UI, and viewport-or-intent decision to the experimental [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471). It turns the accepted candidate into a failing `instant()` test, works it to GREEN, and removes the marker only after the differential proves the additional UI comes from that exact link's prefetch.
+- **Test-backed:** hand the source link, destination, selected UI, navigation-only UI, and viewport-or-intent decision to the [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471). It reuses or creates the same `instant()` rig, turns the accepted contract into a failing exact-link test, works it to GREEN, and removes the marker only after the differential proves that exact link produces the selected result.
 
 Keep accepted markers until their manual verification or optimizer test is complete. No `TODO(per-link-prefetch)` marker survives the finished step. Per-link optimization remains a separate commit or PR from adoption.
 
