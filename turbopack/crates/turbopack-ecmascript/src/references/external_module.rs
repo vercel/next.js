@@ -39,7 +39,7 @@ use crate::{
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXTERNAL_IMPORT,
-        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_BY_URL,
+        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_SCRIPT,
     },
     utils::StringifyJs,
 };
@@ -190,7 +190,7 @@ impl CachedExternalModule {
                     // First load the URL
                     writeln!(
                         code,
-                        "  await {TURBOPACK_LOAD_BY_URL}({});",
+                        "  await {TURBOPACK_LOAD_SCRIPT}({});",
                         StringifyJs(url)
                     )?;
 
