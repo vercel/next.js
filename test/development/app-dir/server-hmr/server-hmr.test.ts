@@ -91,7 +91,7 @@ describe('server-hmr', () => {
         expect(new Set(evaluatedPages)).toEqual(new Set([2]))
         const diffedPages = Array.from(
           outputAfterPatch.matchAll(
-            /Diffing server HMR entry lazy-pages\/(\d+)\/page/g
+            /Diffing server HMR entry \.next\/dev\/server\/app\/lazy-pages\/(\d+)\/page/g
           ),
           (match) => Number(match[1])
         )
