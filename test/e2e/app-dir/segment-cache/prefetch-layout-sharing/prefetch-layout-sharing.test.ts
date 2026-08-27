@@ -5,7 +5,7 @@ import { createRouterAct } from '../router-act'
 describe('layout sharing in non-static prefetches', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // clientSegmentCache is experimental-only on 15.x; skip deploy tests.
+    // Skip deploy tests due to flakiness.
     skipDeployment: true,
   })
   if (isNextDev) {

@@ -5,6 +5,8 @@ import { retry } from '../../../../lib/next-test-utils'
 describe('segment cache (search params)', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('ppr is disabled', () => {})

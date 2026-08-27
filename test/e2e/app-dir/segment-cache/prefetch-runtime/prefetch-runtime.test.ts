@@ -3,8 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('<Link prefetch={true}> (runtime prefetch)', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     it('disabled in development', () => {})
@@ -25,6 +27,9 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
   }
 
   const resetCliOutput = () => {
+    if (skipped) {
+      return
+    }
     currentCliOutputIndex = next.cliOutput.length
   }
 

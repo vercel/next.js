@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('segment cache (MPA navigations)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('ppr is disabled', () => {})
