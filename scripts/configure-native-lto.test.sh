@@ -146,4 +146,34 @@ if (
   exit 1
 fi
 
-echo 'native LTO target matrix passed'
+assert_installer_config() {
+  local host=$1
+  local expected_archive=$2
+  local expected_sha=$3
+  local output
+  output=$(NATIVE_LLVM_HOST="${host}" NATIVE_LLVM_PRINT_CONFIG=1 \
+    "${REPO_ROOT}/scripts/install-native-llvm.sh" /unused)
+  [[ "${output}" == *"archive=${expected_archive}"* ]]
+  [[ "${output}" == *"sha256=${expected_sha}"* ]]
+}
+
+assert_installer_config \
+  Linux-x86_64 \
+  clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz \
+  54ec30358afcc9fb8aa74307db3046f5187f9fb89fb37064cdde906e062ebf36
+assert_installer_config \
+  Linux-aarch64 \
+  clang+llvm-18.1.8-aarch64-linux-gnu.tar.xz \
+  dcaa1bebbfbb86953fdfbdc7f938800229f75ad26c5c9375ef242edad737d999
+assert_installer_config \
+  Darwin-arm64 \
+  clang+llvm-18.1.8-arm64-apple-macos11.tar.xz \
+  4573b7f25f46d2a9c8882993f091c52f416c83271db6f5b213c93f0bd0346a10
+
+if NATIVE_LLVM_HOST=Linux-ppc64le NATIVE_LLVM_PRINT_CONFIG=1 \
+  "${REPO_ROOT}/scripts/install-native-llvm.sh" /unused >/dev/null 2>&1; then
+  echo 'Expected unsupported LLVM build host to fail' >&2
+  exit 1
+fi
+
+echo 'native LTO target and installer matrix passed'

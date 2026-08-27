@@ -51,7 +51,7 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
 # works on either host architecture.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
-    clang lld llvm file pkg-config wget git xz-utils libssl-dev libtinfo5 \
+    clang lld llvm file pkg-config wget git xz-utils libssl-dev libtinfo5 libtinfo6 \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 

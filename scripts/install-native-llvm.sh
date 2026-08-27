@@ -8,10 +8,17 @@ set -euo pipefail
 readonly LLVM_VERSION=18.1.8
 readonly DESTINATION=${1:?usage: install-native-llvm.sh <destination>}
 
-case "$(uname -s)-$(uname -m)" in
+readonly BUILD_HOST=${NATIVE_LLVM_HOST:-"$(uname -s)-$(uname -m)"}
+
+case "${BUILD_HOST}" in
   Linux-x86_64)
     readonly ARCHIVE_NAME="clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
     readonly ARCHIVE_SHA256=54ec30358afcc9fb8aa74307db3046f5187f9fb89fb37064cdde906e062ebf36
+    readonly RESOURCE_LIB=""
+    ;;
+  Linux-aarch64 | Linux-arm64)
+    readonly ARCHIVE_NAME="clang+llvm-${LLVM_VERSION}-aarch64-linux-gnu.tar.xz"
+    readonly ARCHIVE_SHA256=dcaa1bebbfbb86953fdfbdc7f938800229f75ad26c5c9375ef242edad737d999
     readonly RESOURCE_LIB=""
     ;;
   Darwin-arm64)
@@ -20,10 +27,15 @@ case "$(uname -s)-$(uname -m)" in
     readonly RESOURCE_LIB="clang+llvm-${LLVM_VERSION}-arm64-apple-macos11/lib/clang/18/lib/darwin"
     ;;
   *)
-    echo "Unsupported LLVM build host: $(uname -s)-$(uname -m)" >&2
+    echo "Unsupported LLVM build host: ${BUILD_HOST}" >&2
     exit 1
     ;;
 esac
+
+if [[ "${NATIVE_LLVM_PRINT_CONFIG:-}" == "1" ]]; then
+  printf 'archive=%s\nsha256=%s\n' "${ARCHIVE_NAME}" "${ARCHIVE_SHA256}"
+  exit 0
+fi
 
 if [[ -x "${DESTINATION}/bin/clang" ]]; then
   installed_version=$("${DESTINATION}/bin/clang" --version | sed -n 's/^.*clang version \([0-9][0-9.]*\).*$/\1/p' | head -1)
@@ -73,5 +85,7 @@ fi
 
 tar -xJf "${ARCHIVE_PATH}" -C "${DESTINATION}" --strip-components=1 "${paths[@]}"
 
-"${DESTINATION}/bin/clang" --version
-"${DESTINATION}/bin/llvm-ar" --version | head -1
+if [[ "${NATIVE_LLVM_SKIP_EXECUTION_CHECK:-}" != "1" ]]; then
+  "${DESTINATION}/bin/clang" --version
+  "${DESTINATION}/bin/llvm-ar" --version | head -1
+fi

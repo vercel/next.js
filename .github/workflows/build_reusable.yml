@@ -196,7 +196,7 @@ jobs:
         id: install-rust
         uses: ./.github/actions/setup-rust
         background: true
-        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' || (inputs.rustBuildProfile == 'release' && inputs.skipNativeBuild != 'yes') }}
 
       - name: Install fnm
         run: |
@@ -289,11 +289,11 @@ jobs:
         run: cargo binstall --no-confirm --locked cargo-nextest@0.9.133
 
       - run: rustc --version
-        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' || (inputs.rustBuildProfile == 'release' && inputs.skipNativeBuild != 'yes') }}
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ runner.os != 'Windows' && (inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
+        if: ${{ runner.os != 'Windows' && (inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' || (inputs.rustBuildProfile == 'release' && inputs.skipNativeBuild != 'yes')) }}
 
       # Infer the Rust target triple from the runner's OS/arch. napi would build
       # for the host target if `--target` were omitted, but Turborepo does not
@@ -322,12 +322,66 @@ jobs:
           name: next-swc-${{ steps.native-target.outputs.target }}
           path: packages/next-swc/native/
 
+      - name: Restore upstream LLVM for release native LTO
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact || steps.native-download.outcome != 'success') && inputs.rustBuildProfile == 'release' && contains(fromJSON('["x86_64-unknown-linux-gnu","aarch64-unknown-linux-gnu","aarch64-apple-darwin"]'), steps.native-target.outputs.target) }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/llvm-18.1.8
+          key: native-llvm-18.1.8-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install upstream LLVM for release native LTO
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact || steps.native-download.outcome != 'success') && inputs.rustBuildProfile == 'release' && contains(fromJSON('["x86_64-unknown-linux-gnu","aarch64-unknown-linux-gnu","aarch64-apple-darwin"]'), steps.native-target.outputs.target) }}
+        env:
+          LLVM_BIN_DIR: ${{ runner.temp }}/llvm-18.1.8/bin
+          LLVM_ROOT: ${{ runner.temp }}/llvm-18.1.8
+        run: |
+          if [[ ! -x "${LLVM_BIN_DIR}/clang" ]]; then
+            if [[ "${RUNNER_OS}" == "Linux" ]]; then
+              case "${RUNNER_ARCH}" in
+                X64) TINFO_PACKAGE=libtinfo5 ;;
+                ARM64) TINFO_PACKAGE=libtinfo6 ;;
+                *) echo "Unsupported Linux architecture: ${RUNNER_ARCH}" >&2; exit 1 ;;
+              esac
+              sudo apt-get update
+              sudo apt-get install -y "${TINFO_PACKAGE}" xz-utils
+            fi
+            scripts/install-native-llvm.sh "${LLVM_ROOT}"
+          fi
+          cargo binstall --no-confirm cargo-rustflags@0.4.0
+
       - name: Build native binary
         if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact || steps.native-download.outcome != 'success') }}
         env:
+          LLVM_BIN_DIR: ${{ runner.temp }}/llvm-18.1.8/bin
           RUST_BUILD_PROFILE: ${{ inputs.rustBuildProfile }}
           NATIVE_TARGET: ${{ steps.native-target.outputs.target }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run "build-native-${RUST_BUILD_PROFILE}" ${TURBO_ARGS} --summarize -- --target "${NATIVE_TARGET}"
+        run: |
+          export TARGET="${NATIVE_TARGET}"
+          export BUILD_TASK="build-native-${RUST_BUILD_PROFILE}"
+          export NATIVE_LTO_DETECT_ONLY=1
+          source scripts/configure-native-lto.sh
+          unset NATIVE_LTO_DETECT_ONLY
+          if native_lto_is_enabled; then
+            RUSTFLAGS=$(cargo rustflags --target "${TARGET}")
+            export RUSTFLAGS
+            if [[ "${TARGET}" == "aarch64-apple-darwin" ]]; then
+              export MACOSX_DEPLOYMENT_TARGET=11.0
+            fi
+            source scripts/configure-native-lto.sh
+          fi
+
+          pnpm dlx turbo@${TURBO_VERSION} run "${BUILD_TASK}" ${TURBO_ARGS} --summarize -- --target "${TARGET}"
+
+          if native_lto_is_enabled; then
+            scripts/verify-native-lto.sh
+            if [[ "${TARGET}" == "aarch64-apple-darwin" ]]; then
+              MIN_OS=$(otool -l packages/next-swc/native/next-swc.*.node | awk '$1 == "minos" { print $2; exit }')
+              if [[ "${MIN_OS}" != "${MACOSX_DEPLOYMENT_TARGET}" ]]; then
+                echo "Expected macOS ${MACOSX_DEPLOYMENT_TARGET}, found ${MIN_OS:-unknown}" >&2
+                exit 1
+              fi
+            fi
+          fi
 
       - name: Upload native artifact
         if: ${{ inputs.uploadNativeArtifact && inputs.skipNativeBuild != 'yes' }}
