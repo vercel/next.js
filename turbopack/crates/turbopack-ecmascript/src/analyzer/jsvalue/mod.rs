@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bumpalo::boxed::Box as BumpBox;
 use num_bigint::BigInt;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use swc_core::ecma::{ast::Id, atoms::Atom};
 use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::compile_time_info::{
@@ -1268,7 +1268,7 @@ impl JsValue<'_> {
     pub fn get_definable_name(
         &self,
         var_graph: Option<&VarGraph<'_>>,
-    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
+    ) -> SmallVec<[(DefinableNameSegmentRefs<'_>, bool); 1]> {
         let mut current = self;
         let mut segments = SmallVec::new();
         let mut potentially_reassigned = false;
@@ -1288,12 +1288,18 @@ impl JsValue<'_> {
                     break;
                 }
                 JsValue::Member(_, obj, prop) => {
-                    segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
+                    let Some(prop) = prop.as_str() else {
+                        return Default::default();
+                    };
+                    segments.push(DefinableNameSegmentRef::Name(prop));
                     current = obj;
                 }
                 JsValue::WellKnownObject(obj) => {
+                    let Some(obj_name) = obj.as_define_name() else {
+                        return Default::default();
+                    };
                     segments.extend(
-                        obj.as_define_name()?
+                        obj_name
                             .iter()
                             .rev()
                             .copied()
@@ -1302,8 +1308,11 @@ impl JsValue<'_> {
                     break;
                 }
                 JsValue::WellKnownFunction(func) => {
+                    let Some(func_name) = func.as_define_name() else {
+                        return Default::default();
+                    };
                     segments.extend(
-                        func.as_define_name()?
+                        func_name
                             .iter()
                             .rev()
                             .copied()
@@ -1312,18 +1321,27 @@ impl JsValue<'_> {
                     break;
                 }
                 JsValue::MemberCall(_, call) if call.args().is_empty() => {
-                    segments.push(DefinableNameSegmentRef::Call(call.prop().as_str()?));
+                    let Some(call_prop) = call.prop().as_str() else {
+                        return Default::default();
+                    };
+                    segments.push(DefinableNameSegmentRef::Call(call_prop));
                     current = call.obj();
                 }
                 JsValue::TypeOf(_, arg) => {
                     segments.push(DefinableNameSegmentRef::TypeOf);
                     current = arg;
                 }
-                _ => return None,
+                JsValue::Alternatives { values, .. } => {
+                    return values
+                        .iter()
+                        .flat_map(|v| v.get_definable_name(var_graph))
+                        .collect();
+                }
+                _ => return Default::default(),
             }
         }
         segments.reverse();
-        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
+        smallvec![(DefinableNameSegmentRefs(segments), potentially_reassigned)]
     }
 }
 
