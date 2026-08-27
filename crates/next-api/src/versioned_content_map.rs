@@ -92,10 +92,11 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
-    /// Lists the aggregate-HMR Node.js entry chunks under `root`, sorted by path.
-    /// Unsupported versioned content is excluded here so callers can rely on a concrete chunk-list
-    /// content type. Callers scope which entries are included by narrowing `root` (e.g. the
-    /// aggregate server-HMR subscription passes `server/app` to include App Router entries only).
+    /// Lists the aggregate-HMR *entry* chunks under `root` with their
+    /// [`VersionedContent`], sorted by path. Only Node.js chunk-list content is
+    /// returned. Callers scope which
+    /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
+    /// subscription passes `server/app` to include App Router entries only).
     ///
     /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
     /// bucket layout rather than insertion order, so the same set of paths can
@@ -104,7 +105,7 @@ impl VersionedContentMap {
     /// can shift the internals of the map, making iteration order different
     /// for the same set of paths.
     #[turbo_tasks::function(session_dependent)]
-    pub async fn hmr_chunks_in_path(
+    pub async fn server_hmr_chunks_in_path(
         self: Vc<Self>,
         root: FileSystemPath,
     ) -> Result<Vc<ServerHmrChunkLists>> {
@@ -133,9 +134,9 @@ impl VersionedContentMap {
                 }
                 let content = asset.versioned_content().to_resolved().await?;
 
-                // *Important*: only Node.js chunk lists are subscribed to. Individual chunks are
-                // already covered by the chunk list that owns them, so including them here would
-                // produce duplicate updates for the same change.
+                // *Important*: only chunk lists are subscribed to. Individual chunks are already
+                // covered by the chunk list that owns them, so including them here
+                // would produce duplicate updates for the same change.
                 let Some(versioned_content) =
                     ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
                 else {

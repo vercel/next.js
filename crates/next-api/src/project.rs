@@ -2544,7 +2544,7 @@ impl Project {
             bail!("must be in dev mode to hmr")
         };
         let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.hmr_chunks_in_path(root))
+        Ok(map.server_hmr_chunks_in_path(root))
     }
 
     #[turbo_tasks::function]

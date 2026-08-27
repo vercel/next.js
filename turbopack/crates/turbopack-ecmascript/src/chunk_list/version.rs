@@ -31,6 +31,8 @@ pub struct ChunkListVersion {
     pub by_merger: FxIndexMap<ResolvedVc<Box<dyn VersionedContentMerger>>, VersionTraitRef>,
 }
 
+// `id` is a hash over every tracked chunk version, so comparing it is equivalent to comparing
+// the maps, which hold `VersionTraitRef`s that are not structurally comparable.
 impl PartialEq for ChunkListVersion {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -55,7 +57,7 @@ async fn chunk_list_version_id(
         let mut by_path = by_path
             .iter()
             .map(|(path, version)| (path, TraitRef::cell(version.clone())))
-            .map(|(path, version)| async move {
+            .map(async |(path, version)| {
                 let id = version.id().owned().await?;
                 Ok((path, id))
             })
@@ -83,7 +85,9 @@ async fn chunk_list_version_id(
     for id in by_merger {
         hasher.write_value(id);
     }
-    Ok(encode_base64(hasher.finish()).into())
+    let hash = hasher.finish();
+    let hash = encode_base64(hash);
+    Ok(hash.into())
 }
 
 /// Computes a [`ChunkListVersion`] from a map of chunk paths to their
