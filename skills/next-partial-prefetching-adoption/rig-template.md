@@ -143,11 +143,10 @@ Place this file at the repository root or next to the end-to-end configuration:
 ```md
 # instant-nav rig: <project>
 
-- BUILD: <command or platform that produces the measured production build>
+- BUILD: <commands or platform that builds and serves the measured production artifact>
 - EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build>
-- START: <local start command, or remote artifact URL discovery>
 - RUN: <focused Playwright command and how it receives BASE_URL>
-- TEST CONTEXT: <public/no auth, or account and login>; state: <flags, role, data, locale>
+- TEST USER: <public/no auth, or account and login>; state: <flags, role, data, locale>
 - DRIFT: <differences that could change the asserted UI>
 - LOOP: <local build → start → test, or push → deploy → test>; agent limits: <...>
 - LIVENESS: <deployed SHA check, or n/a for a local build and start>
@@ -155,7 +154,7 @@ Place this file at the repository root or next to the end-to-end configuration:
 ```
 
 Every field needs a concrete value. `n/a` is valid only with a reason, such as
-`TEST CONTEXT: public; no authentication` or `LIVENESS: n/a; local build and
+`TEST USER: public; no authentication` or `LIVENESS: n/a; local build and
 start`.
 
 ## Check the rig before writing the baseline
