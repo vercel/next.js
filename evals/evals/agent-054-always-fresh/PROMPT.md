@@ -1,0 +1,1 @@
+We turned on the new caching architecture and the diagnostics page broke the build. It must keep showing a fresh request id and the current server time on every single request — never a cached value. Fix the build without opting the route out of validation.

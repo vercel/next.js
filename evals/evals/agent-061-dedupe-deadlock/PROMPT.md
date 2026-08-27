@@ -1,0 +1,1 @@
+Since we adopted cached helpers, production builds hang for a minute and then die with a 'Filling a cache during prerender timed out' error pointing at the deals page. Our data layer routes everything through an in-flight dedupe helper. Fix the builds — the caching must stay, and identical concurrent calls must still hit the data source only once.

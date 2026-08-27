@@ -1,0 +1,1 @@
+GET /api/quote is getting hammered and the upstream lookup is slow — serve it from a server-side cache that refreshes every five minutes. POST on the same route must keep behaving exactly as it does now.
