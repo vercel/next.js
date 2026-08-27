@@ -13,6 +13,7 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  ServerHmrVersion as NativeServerHmrVersion,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
@@ -254,19 +255,24 @@ export interface NodeJsChunkListUpdate {
   chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
 }
 
-export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+/** In-process update; unlike wire updates, it has no resource or issues. */
+export interface NodeJsPartialHmrUpdate {
   type: 'partial'
   instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
-export interface NodeJsRestartHmrUpdate {
-  type: 'restart'
-}
+/** Opaque baseline for the next pull. */
+export type ServerHmrVersion = ExternalObject<NativeServerHmrVersion>
 
-export type NodeJsHmrUpdate =
-  | IssuesUpdate
-  | NodeJsPartialHmrUpdate
-  | NodeJsRestartHmrUpdate
+/** Restores the union flattened by napi. */
+export type ServerHmrUpdate =
+  | { kind: 'none'; version?: ServerHmrVersion }
+  | { kind: 'restart'; version: ServerHmrVersion }
+  | {
+      kind: 'partial'
+      version: ServerHmrVersion
+      instruction: NodeJsPartialHmrUpdate['instruction']
+    }
 
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
@@ -334,7 +340,10 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  getServerHmrUpdate(
+    from: ServerHmrVersion | undefined,
+    entryPaths: string[]
+  ): Promise<ServerHmrUpdate>
 
   clientHmrEvents(
     identifier: string
@@ -444,6 +453,8 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
+      /** Server HMR entry chunk lists owned by this endpoint. */
+      serverHmrEntryPaths: string[]
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -452,6 +463,7 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
+      serverHmrEntryPaths: []
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -460,6 +472,7 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
+      serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []
       config: EndpointConfig

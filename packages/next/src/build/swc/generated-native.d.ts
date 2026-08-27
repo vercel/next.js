@@ -2,7 +2,6 @@
 
 import type {
   CompilationEvent,
-  NodeJsHmrUpdate,
   TurbopackResult,
   Update,
   UpdateMessage,
@@ -10,6 +9,7 @@ import type {
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
+export type ServerHmrVersion = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell<_T = unknown> = { readonly __tag: unique symbol }
 export type FlushGuard = { readonly __tag: unique symbol }
@@ -494,6 +494,13 @@ export interface NapiRoute {
   dataEndpoint?: ExternalObject<ExternalEndpoint>
 }
 
+export interface NapiServerHmrUpdate {
+  kind: 'none' | 'partial' | 'restart'
+  /** `unknown` forces the TypeScript boundary to narrow the payload. */
+  instruction?: unknown
+  version?: ExternalObject<ServerHmrVersion>
+}
+
 export interface NapiSource {
   ident: RcStr
   filePath: RcStr
@@ -552,6 +559,7 @@ export interface NapiWatchOptions {
 export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
+  serverHmrEntryPaths: Array<string>
   clientPaths: Array<string>
   serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
@@ -625,6 +633,12 @@ export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<undefined>>
 
+export declare function projectGetServerHmrUpdate(
+  project: { __napiType: 'Project' },
+  from: ExternalObject<ServerHmrVersion> | undefined | null,
+  entryPaths: Array<RcStr>
+): Promise<NapiServerHmrUpdate>
+
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
   filePath: RcStr
@@ -663,11 +677,6 @@ export declare function projectNew(
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
-
-export declare function projectServerHmrEvents(
-  project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void
-): { __napiType: 'RootTask' }
 
 /**
  * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.

@@ -19,6 +19,9 @@ use napi::{
 };
 use napi_derive::napi;
 use next_api::{
+    aggregate_hmr::{
+        AggregateHmrVersion, HmrChunksWithContent, ServerHmrUpdate, compute_server_hmr_update,
+    },
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
     operation::{
@@ -1854,124 +1857,126 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-/// Aggregate counterpart to [`project_hmr_update_operation`].
-#[turbo_tasks::function(operation, root)]
-fn project_server_hmr_update_operation(
-    project: ResolvedVc<Project>,
-    state: ResolvedVc<VersionState>,
-) -> Vc<Update> {
-    project.server_hmr_update(*state)
+#[turbo_tasks::value(serialization = "skip")]
+struct ServerHmrSnapshotWithEffects {
+    chunks: ReadRef<HmrChunksWithContent>,
+    version: ReadRef<AggregateHmrVersion>,
+    effects: Arc<Effects>,
 }
 
-/// Aggregate counterpart to [`hmr_update_with_issues_operation`].
-#[tracing::instrument(level = "info", name = "server hmr subscription", skip_all)]
+#[turbo_tasks::value(serialization = "skip")]
+struct ServerHmrSnapshot {
+    chunks: ReadRef<HmrChunksWithContent>,
+    version: ReadRef<AggregateHmrVersion>,
+}
+
 #[turbo_tasks::function(operation, root)]
-async fn server_hmr_update_with_issues_operation(
+async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
-    state: ResolvedVc<VersionState>,
-) -> Result<Vc<HmrUpdateWithIssues>> {
-    tracing::info!("server hmr subscription");
-    let update_op = project_server_hmr_update_operation(project, state);
-    // See `hmr_update_with_issues_operation`: the JS consumer relies on this
-    // read *throwing* on build-graph failures; don't swallow errors.
-    let update = update_op
+    entry_paths: Vec<RcStr>,
+) -> Result<Vc<ServerHmrSnapshot>> {
+    let chunks = project.server_hmr_chunks_for_entries(entry_paths).await?;
+    let version = AggregateHmrVersion::from_chunks(&chunks)
+        .await?
+        .cell()
+        .await?;
+    Ok(ServerHmrSnapshot { chunks, version }.cell())
+}
+
+/// Snapshot only; diffing here would keep old baselines active.
+#[tracing::instrument(level = "info", name = "server hmr snapshot", skip_all)]
+#[turbo_tasks::function(operation, root)]
+async fn server_hmr_snapshot_with_effects_operation(
+    project: ResolvedVc<Project>,
+    entry_paths: Vec<RcStr>,
+) -> Result<Vc<ServerHmrSnapshotWithEffects>> {
+    tracing::info!("server hmr snapshot");
+    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths);
+    // Build-graph failures must reach the JS recovery path.
+    let snapshot = snapshot_op
         .read_strongly_consistent()
         .final_read_hint()
         .await?;
-    let filter = project.issue_filter().await?;
-    let issues = get_issues(update_op, &filter).await?;
-    let effects = Arc::new(take_effects(update_op).await?);
-    Ok(HmrUpdateWithIssues {
-        update,
-        issues,
+    let effects = Arc::new(take_effects(snapshot_op).await?);
+    Ok(ServerHmrSnapshotWithEffects {
+        chunks: snapshot.chunks.clone(),
+        version: snapshot.version.clone(),
         effects,
     }
     .cell())
 }
 
-#[tracing::instrument(
-    level = "info",
-    name = "get server HMR events",
-    skip(env, project, func)
-)]
-#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_server_hmr_events(
-    env: Env,
+pub struct ServerHmrVersion(ReadRef<AggregateHmrVersion>);
+
+#[napi(object, object_from_js = false)]
+pub struct NapiServerHmrUpdate {
+    #[napi(ts_type = "\"none\" | \"partial\" | \"restart\"")]
+    pub kind: String,
+    /// `unknown` forces the TypeScript boundary to narrow the payload.
+    #[napi(ts_type = "unknown")]
+    pub instruction: Option<serde_json::Value>,
+    pub version: Option<External<ServerHmrVersion>>,
+}
+
+impl NapiServerHmrUpdate {
+    /// Flattens the union for napi; `swc/types.ts` restores it.
+    fn new(update: &ServerHmrUpdate) -> Result<Self> {
+        let (kind, to, instruction) = match update {
+            ServerHmrUpdate::None { to } => ("none", to.as_ref(), None),
+            ServerHmrUpdate::Restart { to } => ("restart", Some(to), None),
+            ServerHmrUpdate::Partial { to, instruction } => {
+                ("partial", Some(to), Some(instruction))
+            }
+        };
+
+        Ok(Self {
+            kind: kind.into(),
+            instruction: instruction.map(serde_json::to_value).transpose()?,
+            version: to.map(|to| External::new(ServerHmrVersion(to.clone()))),
+        })
+    }
+}
+
+#[tracing::instrument(level = "info", name = "get server HMR update", skip_all)]
+#[napi]
+pub async fn project_get_server_hmr_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<NodeJsHmrUpdate>) => void")]
-    func: FunctionRef<TurbopackResult<Unknown<'static>>, ()>,
-) -> napi::Result<External<RootTask>> {
+    from: Option<&External<ServerHmrVersion>>,
+    entry_paths: Vec<RcStr>,
+) -> napi::Result<NapiServerHmrUpdate> {
     let container = project.container;
-    // Sentinel resource id for the aggregated stream (no real chunk path).
-    let identifier_path: RcStr = rcstr!("__next_all_hmr__");
-    subscribe(
-        project.turbopack_ctx.clone(),
-        &env,
-        &func,
-        move || async move {
+    let turbo_tasks = project.turbopack_ctx.turbo_tasks();
+    let from = from.map(|from| from.0.clone());
+
+    let (project, read) = turbo_tasks
+        .run(async move {
             // HACK(bgw): Remove this unmark call
             unmark_top_level_task_may_leak_eventually_consistent_state();
-
             let project = container.project().to_resolved().await?;
-            let state = project.server_hmr_version_state().to_resolved().await?;
-
-            let update_op = server_hmr_update_with_issues_operation(project, state);
-
             // HACK(bgw): Remove this mark call
             mark_top_level_task();
-
+            let snapshot_op = server_hmr_snapshot_with_effects_operation(project, entry_paths);
             let read =
-                read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+                read_strongly_consistent_and_apply_effects(snapshot_op, |v| &v.effects).await?;
+            Ok((project, read))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
 
-            // HACK(bgw): Remove this unmark call
-            unmark_top_level_task_may_leak_eventually_consistent_state();
+    // Diffing must not remain active after the pull completes.
+    let update = turbo_tasks
+        .run(async move {
+            let _ = project;
+            let ServerHmrSnapshotWithEffects {
+                chunks, version, ..
+            } = &*read;
+            compute_server_hmr_update(chunks, from.as_deref(), version.clone()).await
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
 
-            let HmrUpdateWithIssues { update, issues, .. } = &*read;
-            match &**update {
-                Update::Missing | Update::None => {}
-                Update::Total(TotalUpdate { to }) => {
-                    state.set(to.clone()).await?;
-                }
-                Update::Partial(PartialUpdate { to, .. }) => {
-                    state.set(to.clone()).await?;
-                }
-            }
-            Ok((Some(update.clone()), issues.clone()))
-        },
-        move |ctx| {
-            let (update, issues) = ctx.value;
-
-            let napi_issues = issues
-                .iter()
-                .map(|issue| NapiIssue::from(&**issue))
-                .collect();
-            let update_issues = issues
-                .iter()
-                .map(|issue| Issue::from(&**issue))
-                .collect::<Vec<_>>();
-
-            let identifier = ResourceIdentifier {
-                path: identifier_path.clone(),
-                headers: None,
-            };
-            let update = match update.as_deref() {
-                None | Some(Update::Missing) | Some(Update::Total(_)) => {
-                    ClientUpdateInstruction::restart(&identifier, &update_issues)
-                }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
-                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
-            };
-
-            Ok(TurbopackResult {
-                result: ctx.env.to_js_value(&update)?,
-                issues: napi_issues,
-            })
-        },
-    )
+    NapiServerHmrUpdate::new(&update)
+        .map_err(|error| napi::Error::from_reason(PrettyPrintError(&error).to_string()))
 }
 
 #[tracing::instrument(level = "info", name = "get client HMR events", skip(env, project, func), fields(chunk_name = %chunk_name))]
