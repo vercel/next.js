@@ -67,7 +67,7 @@ const CHANGE_ITEM_GROUPS = {
 }
 
 async function main() {
-  const { branchName, remoteUrl, isCanary } = await getGitInfo()
+  const { branchName, remoteUrl } = await getGitInfo()
   const diffRevision = await getDiffRevision()
 
   const changesResult = await exec(
@@ -77,7 +77,7 @@ async function main() {
     return { stdout: '' }
   })
 
-  console.error({ branchName, remoteUrl, isCanary, changesResult })
+  console.error({ branchName, remoteUrl, changesResult })
   const changedFilesOutput = changesResult.stdout
 
   const typeIndex = process.argv.indexOf('--type')
