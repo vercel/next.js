@@ -1,7 +1,82 @@
-import path from 'path'
+import path from 'node:path'
 
-const native =
-  require('../native/turbopack-nft.darwin-arm64.node') as typeof import('../native/index.d.ts')
+interface NativeNftResult {
+  files: string[]
+  issues: string[]
+}
+
+interface NativeBinding {
+  nodeFileTrace(
+    projectRoot: string,
+    cwd: string,
+    outputBase: string,
+    input: string[],
+    graph: boolean,
+    showIssues: boolean,
+    maxDepth?: number | null
+  ): Promise<NativeNftResult>
+}
+
+function isMusl(): boolean {
+  const report = process.report?.getReport() as
+    | { header?: { glibcVersionRuntime?: string } }
+    | undefined
+  return !report?.header?.glibcVersionRuntime
+}
+
+function nativePlatform(): string {
+  switch (process.platform) {
+    case 'darwin':
+      if (process.arch === 'arm64') return 'darwin-arm64'
+      if (process.arch === 'x64') return 'darwin-x64'
+      break
+    case 'linux':
+      if (process.arch === 'arm64')
+        return isMusl() ? 'linux-arm64-musl' : 'linux-arm64-gnu'
+      if (process.arch === 'x64')
+        return isMusl() ? 'linux-x64-musl' : 'linux-x64-gnu'
+      break
+    case 'win32':
+      if (process.arch === 'x64') return 'win32-x64-msvc'
+      break
+  }
+
+  throw new Error(
+    `@turbopack/nft does not provide a native binding for ${process.platform}-${process.arch}`
+  )
+}
+
+const native = require(
+  path.join(__dirname, '..', 'native', `turbopack-nft.${nativePlatform()}.node`)
+) as NativeBinding
+
+export interface Stats {
+  isFile(): boolean
+  isDirectory(): boolean
+  isBlockDevice(): boolean
+  isCharacterDevice(): boolean
+  isSymbolicLink(): boolean
+  isFIFO(): boolean
+  isSocket(): boolean
+  dev: number
+  ino: number
+  mode: number
+  nlink: number
+  uid: number
+  gid: number
+  rdev: number
+  size: number
+  blksize: number
+  blocks: number
+  atimeMs: number
+  mtimeMs: number
+  ctimeMs: number
+  birthtimeMs: number
+  atime: Date
+  mtime: Date
+  ctime: Date
+  birthtime: Date
+}
 
 export interface NodeFileTraceOptions {
   base?: string
@@ -9,6 +84,7 @@ export interface NodeFileTraceOptions {
   exports?: string[]
   conditions?: string[]
   exportsOnly?: boolean
+  moduleSyncCatchall?: boolean
   ignore?: string | string[] | ((path: string) => boolean)
   analysis?:
     | boolean
@@ -22,15 +98,15 @@ export interface NodeFileTraceOptions {
   ts?: boolean
   log?: boolean
   mixedModules?: boolean
-  // readFile?: (path: string) => Promise<Buffer | string | null>
-  // stat?: (path: string) => Promise<Stats | null>
-  // readlink?: (path: string) => Promise<string | null>
-  // resolve?: (
-  //   id: string,
-  //   parent: string,
-  //   job: Job,
-  //   cjsResolve: boolean
-  // ) => Promise<string | string[]>
+  readFile?: (path: string) => Promise<Buffer | string | null>
+  stat?: (path: string) => Promise<Stats | null>
+  readlink?: (path: string) => Promise<string | null>
+  resolve?: (
+    id: string,
+    parent: string,
+    job: unknown,
+    cjsResolve: boolean
+  ) => Promise<string | string[]>
   fileIOConcurrency?: number
   depth?: number
 }
@@ -42,15 +118,14 @@ export type NodeFileTraceReasonType =
   | 'asset'
   | 'sharedlib'
 
+export interface NodeFileTraceReason {
+  type: NodeFileTraceReasonType[]
+  ignored: boolean
+  parents: Set<string>
+}
+
 export interface NodeFileTraceReasons
-  extends Map<
-    string,
-    {
-      type: NodeFileTraceReasonType[]
-      ignored: boolean
-      parents: Set<string>
-    }
-  > {}
+  extends Map<string, NodeFileTraceReason> {}
 
 export interface NodeFileTraceResult {
   fileList: Set<string>
@@ -59,34 +134,73 @@ export interface NodeFileTraceResult {
   warnings: Set<Error>
 }
 
+function commonAncestor(paths: string[]): string {
+  const resolved = paths.map((value) => path.resolve(value))
+  const root = path.parse(resolved[0]).root
+  if (resolved.some((value) => path.parse(value).root !== root)) return root
+
+  const parts = resolved.map((value) =>
+    value.slice(root.length).split(path.sep)
+  )
+  const shared: string[] = []
+  for (let index = 0; index < parts[0].length; index++) {
+    const candidate = parts[0][index]
+    if (parts.every((value) => value[index] === candidate)) {
+      shared.push(candidate)
+    } else {
+      break
+    }
+  }
+  return path.join(root, ...shared)
+}
+
+function normalizePath(value: string): string {
+  return value.split(path.sep).join('/')
+}
+
 export async function nodeFileTrace(
   files: string[],
   opts: NodeFileTraceOptions = {}
 ): Promise<NodeFileTraceResult> {
-  let base = path.resolve(opts.base || process.cwd())
-  let processCwd = path.resolve(opts.processCwd || base)
-  let root = base.length < processCwd.length ? base : processCwd
-  let x = await native.nodeFileTrace(
-    root,
-    path.relative(root, processCwd),
-    path.relative(root, base),
-    files.map((f) => path.relative(root, path.resolve(f))),
+  const base = path.resolve(opts.base || process.cwd())
+  const processCwd = path.resolve(opts.processCwd || base)
+  const absoluteFiles = files.map((file) => path.resolve(file))
+  const projectRoot = commonAncestor([base, processCwd, ...absoluteFiles])
+
+  const result = await native.nodeFileTrace(
+    projectRoot,
+    path.relative(projectRoot, processCwd) || '.',
+    path.relative(projectRoot, base) || '.',
+    absoluteFiles.map((file) => path.relative(projectRoot, file)),
     false,
-    false,
-    0
-    // TODO pass along ignore globs
+    Boolean(opts.log),
+    opts.depth
   )
 
-  let ignoreFn: Function | undefined =
-    typeof opts.ignore === 'function'
-      ? // @ts-ignore
-        opts.ignore
-      : undefined
+  const initialFiles = new Set(
+    absoluteFiles.map((file) => normalizePath(path.relative(base, file)))
+  )
+  const normalizedFiles = result.files.map(normalizePath)
+  const ignore = opts.ignore
+  const ignored =
+    typeof ignore === 'function'
+      ? normalizedFiles.filter((file) => !ignore(file))
+      : normalizedFiles
+
+  const fileList = new Set(ignored)
+  const reasons: NodeFileTraceReasons = new Map()
+  for (const file of normalizedFiles) {
+    reasons.set(file, {
+      type: [initialFiles.has(file) ? 'initial' : 'dependency'],
+      ignored: !fileList.has(file),
+      parents: new Set(),
+    })
+  }
 
   return {
-    fileList: new Set(ignoreFn ? x.files.filter((f) => !ignoreFn(f)) : x.files),
+    fileList,
     esmFileList: new Set(),
-    warnings: new Set(),
-    reasons: new Map(),
+    reasons,
+    warnings: new Set(result.issues.map((issue) => new Error(issue))),
   }
 }

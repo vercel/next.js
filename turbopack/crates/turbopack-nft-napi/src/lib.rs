@@ -2,7 +2,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use napi_derive::napi;
-use turbo_rcstr::RcStr;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -11,15 +10,15 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 #[napi(object)]
 pub struct NapiNftResult {
-    pub files: Vec<RcStr>,
-    pub issues: Vec<RcStr>,
+    pub files: Vec<String>,
+    pub issues: Vec<String>,
 }
 
 #[napi]
 pub async fn node_file_trace(
-    project_root: RcStr,
-    cwd: RcStr,
-    output_base: RcStr,
+    project_root: String,
+    cwd: String,
+    output_base: String,
     input: Vec<String>,
     graph: bool,
     show_issues: bool,
@@ -37,9 +36,9 @@ pub async fn node_file_trace(
     let result = tt
         .run_once(async move {
             turbopack_nft::nft::node_file_trace(
-                project_root,
-                cwd,
-                output_base,
+                project_root.into(),
+                cwd.into(),
+                output_base.into(),
                 input.into_iter().map(Into::into).collect(),
                 graph,
                 show_issues,
@@ -51,7 +50,7 @@ pub async fn node_file_trace(
         .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
 
     Ok(NapiNftResult {
-        files: result.files,
-        issues: result.issues,
+        files: result.files.into_iter().map(Into::into).collect(),
+        issues: result.issues.into_iter().map(Into::into).collect(),
     })
 }
