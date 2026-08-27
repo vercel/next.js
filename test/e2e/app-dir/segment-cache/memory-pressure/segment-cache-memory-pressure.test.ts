@@ -4,6 +4,8 @@ import { createRouterAct } from '../router-act'
 describe('segment cache memory pressure', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // clientSegmentCache is experimental-only on 15.x; skip deploy tests.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('disabled in development / deployment', () => {})
