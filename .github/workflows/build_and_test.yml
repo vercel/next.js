@@ -313,6 +313,26 @@ jobs:
       runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
+  test-turbopack-nft:
+    name: test Turbopack NFT compatibility
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipBuild: 'yes'
+      skipNativeBuild: 'yes'
+      needsPlaywright: 'no'
+      nodeVersion: '24'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      afterBuild: pnpm --filter @turbopack/nft test:unit
+      stepName: 'test-turbopack-nft'
+    secrets: inherit
+
   test-bench:
     name: test cargo benches
     needs: ['optimize-ci', 'changes', 'build-next']
