@@ -85,8 +85,7 @@ async function initCacheEntries(
 
 export function getSharp(
   concurrency: number | null | undefined,
-  operationCache: boolean | null | undefined,
-  dangerouslyAllowAVIF = false
+  operationCache: boolean | null | undefined
 ) {
   if (_sharp) {
     return _sharp
@@ -96,6 +95,7 @@ export function getSharp(
     _sharp.block({ operation: ['VipsForeignLoad'] })
     _sharp.unblock({
       operation: [
+        'VipsForeignLoadHeif', // avif
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',
@@ -104,9 +104,6 @@ export function getSharp(
         'VipsForeignLoadWebp',
       ],
     })
-    if (dangerouslyAllowAVIF) {
-      _sharp.unblock({ operation: ['VipsForeignLoadHeif'] })
-    }
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -810,7 +807,6 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
-  dangerouslyAllowAVIF,
 }: {
   buffer: Buffer
   contentType: string
@@ -822,9 +818,8 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
-  dangerouslyAllowAVIF?: boolean
 }): Promise<Buffer> {
-  const sharp = getSharp(concurrency, operationCache, dangerouslyAllowAVIF)
+  const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
     limitInputPixels,
     sequentialRead: sequentialRead ?? undefined,
@@ -1003,8 +998,16 @@ export async function fetchInternalImage(
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
 
-    if (!mocked.res.statusCode) {
-      Log.error('image response failed for', href, mocked.res.statusCode)
+    if (
+      !mocked.res.statusCode ||
+      mocked.res.statusCode < 200 ||
+      mocked.res.statusCode > 299
+    ) {
+      Log.error(
+        'internal image response failed for',
+        href,
+        mocked.res.statusCode
+      )
       throw new ImageError(
         mocked.res.statusCode,
         '"url" parameter is valid but internal response is invalid'
@@ -1061,7 +1064,6 @@ export async function imageOptimizer(
     experimental: Pick<
       NextConfigComplete['experimental'],
       | 'imgOptConcurrency'
-      | 'imgOptDangerouslyAllowAVIF'
       | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
@@ -1137,11 +1139,7 @@ export async function imageOptimizer(
       upstreamEtag,
     }
   }
-  if (
-    BYPASS_TYPES.includes(upstreamType) ||
-    (upstreamType === AVIF &&
-      !nextConfig.experimental.imgOptDangerouslyAllowAVIF)
-  ) {
+  if (BYPASS_TYPES.includes(upstreamType)) {
     return {
       buffer: upstreamBuffer,
       contentType: upstreamType,
@@ -1185,7 +1183,6 @@ export async function imageOptimizer(
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
-      dangerouslyAllowAVIF: nextConfig.experimental.imgOptDangerouslyAllowAVIF,
       operationCache: nextConfig.experimental.imgOptOperationCache,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,

@@ -80,7 +80,7 @@ use turbopack_core::{
     },
     environment::Rendering,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
-    module::{Module, ModuleSideEffects},
+    module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
@@ -109,13 +109,12 @@ use crate::{
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
-        parse_require_context, side_effects,
+        parse_require_context,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
     chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
-    directive::parse_module_turbopack_directives,
     errors,
     module_fragments::{part_of_module, split_module},
     parse::ParseResult,
@@ -170,7 +169,6 @@ pub struct AnalyzeEcmascriptModuleResult {
 
     pub code_generation: ResolvedVc<CodeGens>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
-    pub side_effects: ModuleSideEffects,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -235,7 +233,6 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    side_effects: ModuleSideEffects,
     cjs_static_exports: Option<CjsStaticExports>,
 
     env_var_info_runtime: FxIndexSet<RcStr>,
@@ -258,7 +255,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            side_effects: ModuleSideEffects::SideEffectful,
             cjs_static_exports: None,
             env_var_info_runtime: Default::default(),
             #[cfg(debug_assertions)]
@@ -330,11 +326,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
-    }
-
-    /// Set whether this module is side-effect free according to a user-provided directive.
-    pub fn set_side_effects_mode(&mut self, value: ModuleSideEffects) {
-        self.side_effects = value;
     }
 
     /// Sets whether the analysis was successful.
@@ -449,7 +440,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 ),
                 code_generation: ResolvedVc::cell(code_generation),
                 async_module: self.async_module,
-                side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
@@ -709,28 +699,6 @@ async fn analyze_ecmascript_module_internal(
     for i in esm_evaluation_reference_idxs {
         analysis.add_esm_evaluation_reference(*i);
     }
-
-    let directives = parse_module_turbopack_directives(program);
-    analysis.set_side_effects_mode(if directives.no_side_effects {
-        ModuleSideEffects::SideEffectFree
-    } else if directives.constants_module && options.cross_module_constants {
-        // If the module is marked as a constants module, it must be side effect free, otherwise
-        // the constant folding would not be safe. This makes a difference when doing `import *
-        // as foo from 'constants-module'`
-        ModuleSideEffects::SideEffectFree
-    } else if options.infer_module_side_effects {
-        // Analyze the AST to infer side effects
-        GLOBALS.set(globals, || {
-            side_effects::compute_module_evaluation_side_effects(
-                program,
-                comments,
-                eval_context.unresolved_mark,
-            )
-        })
-    } else {
-        // If inference is disabled, assume side effects
-        ModuleSideEffects::SideEffectful
-    });
 
     let is_esm = eval_context.is_esm(specified_type);
 
