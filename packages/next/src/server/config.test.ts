@@ -254,16 +254,16 @@ describe('loadConfig', () => {
       }
     })
 
-    it('is forced to false when using webpack', async () => {
+    it('throws when using webpack', async () => {
       delete process.env.TURBOPACK
 
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: { durableUseCacheEntries: true },
-        },
-      })
-
-      expect(result.experimental.durableUseCacheEntries).toBe(false)
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { durableUseCacheEntries: true },
+          },
+        })
+      ).rejects.toThrow(/only supported with Turbopack/)
     })
 
     it('is preserved when using Turbopack', async () => {
