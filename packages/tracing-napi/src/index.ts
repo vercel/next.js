@@ -39,7 +39,14 @@ function nativePlatform(): string {
     case 'win32':
       if (process.arch === 'x64') return 'win32-x64-msvc'
       break
-    default:
+    case 'aix':
+    case 'android':
+    case 'freebsd':
+    case 'haiku':
+    case 'openbsd':
+    case 'sunos':
+    case 'cygwin':
+    case 'netbsd':
       break
   }
 

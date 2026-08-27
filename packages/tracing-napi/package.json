@@ -7,8 +7,8 @@
   "scripts": {
     "build": "pnpm run build-native && pnpm run build-js",
     "build-js": "tsc -p tsconfig.json",
-    "build-native": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --no-js -o native",
-    "build-native-release": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --release --no-js -o native",
+    "build-native": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --no-js --no-dts-header -o native",
+    "build-native-release": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --release --no-js --no-dts-header -o native",
     "test:unit": "pnpm run build && node --test test/unit.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
