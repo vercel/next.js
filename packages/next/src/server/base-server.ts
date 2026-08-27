@@ -609,6 +609,8 @@ export default abstract class Server<
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
