@@ -133,9 +133,10 @@ scaffold before the PR.
 
 **The baseline must mirror the navigation type of the test you are shipping.** Drive a `<Link>`
 click when guarding the soft-nav shell; drive `page.goto()` when guarding the initial-load shell.
-The two shells can differ (`reference/real-app-patterns.md`): a click-driven baseline run against a
-shipped `goto` test would confirm a marker that the `goto` path never shows, which produces exactly
-the false RED the C-gate exists to prevent.
+The two shells can differ, as described in the
+[initial-load and client-navigation section](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests). A click-driven
+baseline run against a shipped `goto` test would confirm a marker that the `goto` path never shows,
+which produces exactly the false RED the C-gate exists to prevent.
 
 ```ts
 // soft-nav baseline: mirror the soft-nav instant() test

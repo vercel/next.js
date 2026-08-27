@@ -237,3 +237,24 @@ Then give the agent this prompt:
 ```prompt
 Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
 ```
+
+### `next-partial-prefetching-optimizer`
+
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill tunes what one client navigation prepares before the click:
+
+1. Agrees on the UI the navigation should prefetch and what should wait for navigation.
+2. Encodes that result in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+3. Assigns content to the App Shell, full-prefetch, or navigation stage and adjusts caching until the test passes.
+4. Keeps the test as regression coverage.
+
+It needs Cache Components and Partial Prefetching already adopted.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
+```
+
+Then give the agent a prompt like:
+
+```prompt
+Make the navigation from /products to /products/[id] prefetch the product title so it is part of the instant UI. Keep the rest of the product page streaming. Use the next-partial-prefetching-optimizer Skill.
+```
