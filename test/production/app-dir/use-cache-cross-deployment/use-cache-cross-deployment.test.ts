@@ -11,6 +11,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
     let keyRoot: string,
       keyNested: string,
       keyArgumentUseCache: string,
+      keyArgumentUseClient: string,
       keyArgumentUseServer: string,
       keyPrerender: string,
       keyClient: string,
@@ -18,6 +19,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataRoot: string,
       dataNested: string,
       dataArgumentUseCache: string,
+      dataArgumentUseClient: string,
       dataArgumentUseServer: string,
       dataPrerender: string,
       dataClient: string,
@@ -84,6 +86,17 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     {
       const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/argument-use-client`)
+      dataArgumentUseClient = await browser.elementById('data').text()
+      const match = logs().match(
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-client\/layout","_N_T_\/argument-use-client\/page","_N_T_\/argument-use-client"\]\]$/m
+      )
+      expect(match).toBeArray()
+      keyArgumentUseClient = match[0]
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/argument-use-server`)
       dataArgumentUseServer = await browser.elementById('data').text()
       const match = logs().match(
@@ -107,6 +120,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyRoot,
       keyNested,
       keyArgumentUseCache,
+      keyArgumentUseClient,
       keyArgumentUseServer,
       keyPrerender,
       keyClient,
@@ -114,6 +128,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataRoot,
       dataNested,
       dataArgumentUseCache,
+      dataArgumentUseClient,
       dataArgumentUseServer,
       dataPrerender,
       dataClient,
@@ -306,7 +321,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       }
     })
 
-    it('should recompute when client reference changes', async () => {
+    it('should recompute when client reference import changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
       await next.patchFile(
         'app/client/client.tsx',
@@ -330,6 +345,27 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           // Is different, the client code and async:false->true
           expect(key1.keyClient).not.toBe(key2.keyClient)
           expect(key1.dataClient).not.toBe(key2.dataClient)
+        }
+      )
+    })
+
+    // TODO this seems like a preexisting bug? The reference gets serialized into the cache key as just "$T"
+    it.skip('should recompute when a client reference argument changes', async () => {
+      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+      await next.patchFile(
+        'app/argument-use-client/client.tsx',
+        (oldContent) =>
+          oldContent.replace(
+            "'use client'",
+            "'use client'\n\nawait Promise.resolve()"
+          ),
+        async () => {
+          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+
+          expect(key1.keyArgumentUseClient).not.toBe(key2.keyArgumentUseClient)
+          expect(key1.dataArgumentUseClient).not.toBe(
+            key2.dataArgumentUseClient
+          )
         }
       )
     })
