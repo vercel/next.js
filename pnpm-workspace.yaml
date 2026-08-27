@@ -36,6 +36,35 @@ ignoredBuiltDependencies:
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
+  # sharp 0.35.4 and its @img/* binaries fix a security vulnerability, so they
+  # are exempt from the 48h release age gate.
+  # These exemptions should be removed on 2026-08-28
+  - '@img/sharp-darwin-arm64@0.35.4'
+  - '@img/sharp-darwin-x64@0.35.4'
+  - '@img/sharp-freebsd-wasm32@0.35.4'
+  - '@img/sharp-libvips-darwin-arm64@1.3.3'
+  - '@img/sharp-libvips-darwin-x64@1.3.3'
+  - '@img/sharp-libvips-linux-arm64@1.3.3'
+  - '@img/sharp-libvips-linux-arm@1.3.3'
+  - '@img/sharp-libvips-linux-ppc64@1.3.3'
+  - '@img/sharp-libvips-linux-riscv64@1.3.3'
+  - '@img/sharp-libvips-linux-s390x@1.3.3'
+  - '@img/sharp-libvips-linux-x64@1.3.3'
+  - '@img/sharp-libvips-linuxmusl-arm64@1.3.3'
+  - '@img/sharp-libvips-linuxmusl-x64@1.3.3'
+  - '@img/sharp-linux-arm64@0.35.4'
+  - '@img/sharp-linux-arm@0.35.4'
+  - '@img/sharp-linux-ppc64@0.35.4'
+  - '@img/sharp-linux-riscv64@0.35.4'
+  - '@img/sharp-linux-s390x@0.35.4'
+  - '@img/sharp-linux-x64@0.35.4'
+  - '@img/sharp-linuxmusl-arm64@0.35.4'
+  - '@img/sharp-linuxmusl-x64@0.35.4'
+  - '@img/sharp-wasm32@0.35.4'
+  - '@img/sharp-webcontainers-wasm32@0.35.4'
+  - '@img/sharp-win32-arm64@0.35.4'
+  - '@img/sharp-win32-ia32@0.35.4'
+  - '@img/sharp-win32-x64@0.35.4'
   - '@mswjs/interceptors@0.42.0'
   - '@next/*'
   - '@turbo/*'
@@ -51,4 +80,5 @@ minimumReleaseAgeExclude:
   - react-is
   - react-server-dom-*
   - scheduler
+  - sharp@0.35.4
   - turbo

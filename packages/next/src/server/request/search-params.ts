@@ -393,7 +393,7 @@ function makeHangingSearchParams(
     // created while the RSC payload is constructed, but typically accessed
     // later, during the render, under a different store.
     const workUnitStore = workUnitAsyncStorage.getStore()
-    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore)
+    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
   }
 
   const proxyHandler: ProxyHandler<Promise<SearchParams>> = {

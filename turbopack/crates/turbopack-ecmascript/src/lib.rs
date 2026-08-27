@@ -106,13 +106,14 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -773,6 +774,45 @@ impl EcmascriptModuleAsset {
     }
 }
 
+/// Computes a module's side effects from parse data only.
+///
+/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
+/// information is needed while resolving references during analysis.
+#[turbo_tasks::function]
+async fn compute_ecmascript_module_side_effects(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<ModuleSideEffects>> {
+    let options = module.options().await?;
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        globals,
+        eval_context,
+        comments,
+        ..
+    } = &*parsed
+    else {
+        return Ok(ModuleSideEffects::SideEffectful.cell());
+    };
+
+    let directives = parse_module_turbopack_directives(program);
+    let side_effects = if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // constant folding would not be safe.
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        GLOBALS.set(globals, || {
+            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
+        })
+    } else {
+        ModuleSideEffects::SideEffectful
+    };
+
+    Ok(side_effects.cell())
+}
+
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -864,7 +904,7 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
+            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
         })
         .cell())
     }
