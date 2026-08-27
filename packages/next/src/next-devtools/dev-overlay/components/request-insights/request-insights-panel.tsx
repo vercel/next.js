@@ -62,6 +62,17 @@ export function RequestInsightsPanel() {
     })
     saveDevToolsConfig({ requestInsights: patch })
   }
+  const toggleFilter = (filter: RequestInsightFilter) => {
+    if (
+      filter === 'activity:instant-insights' &&
+      !activeFilters.includes(filter) &&
+      !showInternal
+    ) {
+      setRequestInsightsConfig({ showInternal: true })
+    }
+
+    setActiveFilters((filters) => toggleRequestInsightFilter(filters, filter))
+  }
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
     [activeFilters, requests, showInternal]
@@ -126,11 +137,7 @@ export function RequestInsightsPanel() {
             <RequestFiltersMenu
               activeFilters={activeFilters}
               onReset={() => setActiveFilters([])}
-              onToggle={(filter) =>
-                setActiveFilters((filters) =>
-                  toggleRequestInsightFilter(filters, filter)
-                )
-              }
+              onToggle={toggleFilter}
               optionCounts={filterResult.optionCounts}
               shadowRoot={shadowRoot}
             />
