@@ -26,7 +26,7 @@ impl<T, F: Future<Output = T>> CaptureFuture<T, F> {
     }
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub struct TurboTasksPanic {
     pub message: TurboTasksExecutionErrorMessage,
     pub location: Option<String>,

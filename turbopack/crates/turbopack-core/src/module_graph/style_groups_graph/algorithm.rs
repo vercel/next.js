@@ -20,7 +20,7 @@ use crate::module::StyleType;
 // ---------------------------------------------------------------------------
 
 /// The index of a chunk group, as ordered by the caller of [`create_graph`].
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(super) struct ChunkGroupIndex(pub(super) usize);
 
 /// Per-module chunk-group membership: for each module id, the **ascending** list of chunk groups
@@ -219,7 +219,7 @@ where
 // find_short_cycle (bidirectional Dijkstra)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Direction2 {
     Forward,
     Backward,

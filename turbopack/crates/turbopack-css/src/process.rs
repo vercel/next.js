@@ -667,7 +667,7 @@ struct CssValidator {
     errors: Vec<CssError>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 enum CssError {
     CssSelectorInModuleNotPure { selector: String },
 }

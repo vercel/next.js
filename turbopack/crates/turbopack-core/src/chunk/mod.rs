@@ -49,9 +49,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, DeterministicHash, Encode, Decode,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
     /// Benefit: No hash manifest needed.
@@ -64,7 +62,7 @@ pub enum ContentHashing {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOrigin {
     #[default]
@@ -100,7 +98,7 @@ impl TryFrom<Option<&str>> for CrossOrigin {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ChunkLoadRetry {
     /// Number of retry attempts after the initial load fails. `0` disables retries.
     pub max_retry_attempts: u32,

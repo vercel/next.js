@@ -177,7 +177,7 @@ impl Debug for NodeJsPoolStats {
 }
 
 /// A snapshot of pool statistics, useful for testing and diagnostics.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct PoolStatsSnapshot {
     /// Total number of processes ever successfully booted.
     pub bootup_count: u32,

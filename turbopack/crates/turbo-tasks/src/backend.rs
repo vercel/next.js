@@ -277,9 +277,9 @@ pub struct TaskExecutionSpec<'a> {
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Debug)]
 pub struct CellContent(pub Option<SharedReference>);
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub struct TypedCellContent(pub ValueTypeId, pub CellContent);
 
 impl Display for CellContent {
@@ -414,7 +414,7 @@ pub type CellHash = [u8; 16];
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub enum TurboTasksExecutionErrorMessage {
     PIISafe(#[bincode(with = "turbo_bincode::owned_cow")] Cow<'static, str>),
     NonPIISafe(String),
@@ -429,7 +429,7 @@ impl Display for TurboTasksExecutionErrorMessage {
     }
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub struct TurboTasksError {
     pub message: TurboTasksExecutionErrorMessage,
     pub source: Option<TurboTasksExecutionError>,
@@ -486,13 +486,13 @@ impl Debug for TurboTaskContextError {
 
 /// Error context for a local task that failed. Unlike [`TurboTaskContextError`],
 /// this stores the task name directly since local tasks don't have a [`TaskId`].
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub struct TurboTaskLocalContextError {
     pub name: RcStr,
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub enum TurboTasksExecutionError {
     Panic(Arc<TurboTasksPanic>),
     Error(Arc<TurboTasksError>),

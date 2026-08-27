@@ -496,7 +496,7 @@ mod tests {
     }
 
     /// An item that is never claimable, to check that `None` keys are queued and executed as usual.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, PartialEq)]
     struct Unkeyed(u32);
 
     impl Claimable for Unkeyed {

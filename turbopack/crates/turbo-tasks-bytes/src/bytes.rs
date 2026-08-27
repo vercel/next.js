@@ -15,7 +15,7 @@ use bytes::Bytes as CBytes;
 
 /// Bytes is a thin wrapper around [bytes::Bytes], implementing easy
 /// conversion to/from, bincode support, and Vc containers.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[turbo_tasks::value(transparent, serialization = "custom")]
 pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
 

@@ -133,7 +133,7 @@ impl CompilationEventQueue {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Severity {
     Info,
     Trace,

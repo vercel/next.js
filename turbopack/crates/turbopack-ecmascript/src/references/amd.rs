@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("AMD define dependency {request}")]
 pub struct AmdDefineAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

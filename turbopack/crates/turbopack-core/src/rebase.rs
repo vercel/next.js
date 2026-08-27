@@ -14,7 +14,7 @@ use crate::{
 /// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
 /// different directory.
 #[turbo_tasks::value]
-#[derive(Hash)]
+
 pub struct RebasedAsset {
     module: ResolvedVc<Box<dyn Module>>,
     input_dir: FileSystemPath,

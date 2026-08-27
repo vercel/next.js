@@ -4,7 +4,7 @@ use turbo_tasks::NonLocalValue;
 
 struct UnannotatedValue<T>(PhantomData<T>);
 
-#[derive(NonLocalValue)]
+
 struct ContainsIgnore<T> {
     #[turbo_tasks(trace_ignore)]
     a: UnannotatedValue<T>,

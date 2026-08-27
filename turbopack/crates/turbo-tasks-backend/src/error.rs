@@ -18,14 +18,14 @@ use turbo_tasks::{
 };
 
 /// An error with a message and an optional cause.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub struct TaskErrorItem {
     pub message: TurboTasksExecutionErrorMessage,
     pub source: Option<TaskError>,
 }
 
 /// Context for a local task that failed.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub struct LocalTaskContext {
     pub name: RcStr,
     pub source: Option<TaskError>,
@@ -36,7 +36,7 @@ pub struct LocalTaskContext {
 /// `TaskContext` chains are collapsed into a flat [`TaskChain`](TaskError::TaskChain) of
 /// [`TaskId`]s. The source error is not stored in the chain; it is recovered by looking up the
 /// output of the last task in the chain.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub enum TaskError {
     Panic(Arc<TurboTasksPanic>),
     Error(Box<TaskErrorItem>),

@@ -1367,7 +1367,7 @@ impl InNodeModules {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 enum MatchResult<'a> {
     /// No match
     None,
@@ -1447,7 +1447,7 @@ impl MatchResult<'_> {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 enum NextConstantUntilResult<'a, 'b> {
     NoMatch,
     PartialDynamic,

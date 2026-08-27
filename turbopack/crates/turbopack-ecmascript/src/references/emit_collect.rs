@@ -39,7 +39,7 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("emit {request} {namespace}")]
 pub struct EmitReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -158,7 +158,7 @@ impl IntoCodeGenReference for EmitReference {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("collect {namespace}")]
 pub struct CollectReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

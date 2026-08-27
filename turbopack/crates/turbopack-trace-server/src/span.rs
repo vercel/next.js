@@ -50,7 +50,6 @@ pub struct Span {
     pub names: OnceLock<SpanNames>,
 }
 
-#[derive(Default)]
 pub struct SpanTotals {
     pub max_depth: u32,
     pub allocations: u64,

@@ -41,7 +41,7 @@ pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error
 /// Whether an [`ExecuteContext`] task open may create the task or requires it to already exist.
 /// A private impl detail behind the two public methods ([`ExecuteContext::task`] = `MustExist`,
 /// [`ExecuteContext::open_or_create_task_storage`] = `MaybeCreate`).
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum TaskAccess {
     /// Open the task, creating it if it does not exist: `access_mut` inserts a blank entry, then
     /// the requested category is restored from disk (staying empty if there is nothing on disk).

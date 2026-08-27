@@ -42,7 +42,7 @@ use crate::{
 
 /// Generic CommonJS reference that doesn't perform any codegen. Used for tracing
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("generic commonjs {request}")]
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -95,7 +95,7 @@ impl ModuleReference for CjsAssetReference {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -250,7 +250,7 @@ impl CjsRequireAssetReferenceCodeGen {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("require.resolve {request}")]
 pub struct CjsRequireResolveAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

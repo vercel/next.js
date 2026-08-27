@@ -58,7 +58,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq)]
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
@@ -413,7 +413,7 @@ impl EsmAssetReferences {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("import {request}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
@@ -441,7 +441,6 @@ pub struct EsmAssetReference {
     Default,
     PartialEq,
     Eq,
-    Hash,
     Debug,
     TraceRawVcs,
     ValueDebugFormat,

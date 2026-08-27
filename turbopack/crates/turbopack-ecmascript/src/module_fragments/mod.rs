@@ -59,7 +59,7 @@ struct VarState {
     last_op: Option<VarOp>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum VarOp {
     Read,
     Write,

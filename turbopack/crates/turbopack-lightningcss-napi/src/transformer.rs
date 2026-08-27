@@ -65,7 +65,7 @@ pub struct JsVisitor {
 // We ensure that we only call JsVisitor from the main JS thread.
 unsafe impl Send for JsVisitor {}
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum VisitStage {
     Enter,
     Exit,

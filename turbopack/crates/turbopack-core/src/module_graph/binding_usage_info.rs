@@ -24,7 +24,7 @@ pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsa
 pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value]
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
     #[turbo_tasks(trace_ignore)]

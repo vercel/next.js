@@ -8,7 +8,7 @@ use std::{
 /// For instance, for `P = 10_000` (10 microseconds), this allows a for a total
 /// duration of 11.9 hours. Values smaller than 10 microseconds are stored as 10
 /// microseconds.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct SmallDuration<const P: u64>(u32);
 
 impl<const P: u64> SmallDuration<P> {

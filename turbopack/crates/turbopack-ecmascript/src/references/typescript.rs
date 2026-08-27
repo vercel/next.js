@@ -15,7 +15,7 @@ use turbopack_resolve::typescript::type_resolve;
 use crate::typescript::TsConfigModuleAsset;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, ValueToString)]
+#[derive(Clone, Debug, ValueToString)]
 #[value_to_string("tsconfig {tsconfig}")]
 pub struct TsConfigReference {
     pub tsconfig: FileSystemPath,
@@ -52,7 +52,7 @@ impl ModuleReference for TsConfigReference {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("typescript reference path comment {path}")]
 pub struct TsReferencePathAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -98,7 +98,7 @@ impl ModuleReference for TsReferencePathAssetReference {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("typescript reference type comment {module}")]
 pub struct TsReferenceTypeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,

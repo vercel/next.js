@@ -19,7 +19,7 @@ use turbopack_core::{
 use crate::references::util::check_and_emit_too_many_matches_warning;
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("raw asset {path}")]
 pub struct FileSourceReference {
     context_dir: FileSystemPath,
@@ -102,7 +102,7 @@ impl DynamicTraceReference for FileSourceReference {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("directory assets {path}")]
 pub struct DirAssetReference {
     context_dir: FileSystemPath,

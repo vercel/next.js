@@ -403,7 +403,7 @@ impl FieldInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum StorageType {
     Direct,
     AutoSet,
@@ -412,7 +412,7 @@ enum StorageType {
     Flag,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Category {
     Data,
     Meta,
@@ -1084,7 +1084,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             #[doc = ""]
             #[doc = "Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]"]
             #[doc = "This ordering allows separate masks for per-category serialization."]
-            #[derive(Clone, Default, PartialEq, Eq)]
+            #[derive(Clone, Default)]
             pub struct TaskFlags(u16);
             impl Debug;
 
@@ -1287,7 +1287,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "All lazily-allocated fields stored in a single Vec."]
         #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
         #[automatically_derived]
-        #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[derive(Debug, Clone, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub enum LazyField {
             #(#variants),*

@@ -1,13 +1,13 @@
 use turbo_tasks::NonLocalValue;
 
-#[derive(NonLocalValue)]
+
 // use an inline type constraint here
 struct LinkedList<T: NonLocalValue> {
     // LinkedListNode is also a NonLocalValue
     head: Option<Box<LinkedListNode<T>>>,
 }
 
-#[derive(NonLocalValue)]
+
 struct LinkedListNode<T>
 where
     T: NonLocalValue, // use a where type constraint here

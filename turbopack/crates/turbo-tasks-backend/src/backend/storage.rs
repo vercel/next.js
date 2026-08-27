@@ -29,7 +29,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TaskDataCategory {
     Meta,
     Data,
@@ -100,7 +100,7 @@ impl TaskDataCategory {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub enum SpecificTaskDataCategory {
     Meta,
     Data,

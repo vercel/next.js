@@ -323,7 +323,7 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     Ok(Effects::new(captured, unique_keys, invalidator))
 }
 
-#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(thiserror::Error, Debug, TraceRawVcs)]
 #[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
 struct ConflictingEffectError {
     key_len: usize,

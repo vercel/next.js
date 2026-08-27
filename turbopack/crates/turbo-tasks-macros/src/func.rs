@@ -656,7 +656,7 @@ impl TurboFn<'_> {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq)]
 pub enum ReceiverStyle {
     // A reference like &self or self: &Self
     Reference,
@@ -1085,7 +1085,7 @@ fn replace_self_in_tt(tt: TokenTree, self_ident: &Ident) -> TokenTree {
 }
 
 /// The context in which the function is being defined.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum DefinitionContext {
     // The function is defined as a naked #[turbo_tasks::function].
     NakedFn,

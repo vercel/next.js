@@ -35,7 +35,7 @@ type InnerMap = AutoMap<CellId, SharedReference, BuildHasherDefault<FxHasher>, 1
 
 /// Map of cell id → shared reference, with bincode that filters out entries
 /// whose value type has no bincode function.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct CellData(InnerMap);
 
 impl CellData {

@@ -2,7 +2,7 @@
 
 use turbo_tasks::{NonLocalValue, Vc};
 
-#[derive(NonLocalValue)]
+
 struct ContainsOnlyVc {
     a: Vc<i32>,
 }

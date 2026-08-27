@@ -102,16 +102,7 @@ pub struct ChunkGroupInfo {
 /// chunk-group index (same length and order as [`ChunkGroupInfo::chunk_groups`]); `priority_routes`
 /// is a set of those indices.
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkingHeuristicsInfo {
     /// For each chunk group (by index), the set of cluster IDs it belongs to. A cluster ID is the

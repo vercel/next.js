@@ -490,7 +490,7 @@ impl TaskFlags {
 // Eviction
 // =============================================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum UnevictableReason {
     // Either in progress or soon to be inprogress
@@ -535,7 +535,7 @@ impl UnevictableReason {
 }
 
 /// Eviction level for a task after a snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum ValueEvictability {
     /// Task cannot be evicted.
     Unevictable(UnevictableReason),
@@ -545,7 +545,7 @@ pub enum ValueEvictability {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum KeyEvictability {
     Evictable,
     /// The task was already removed from `task_cache` in a prior eviction cycle.
@@ -857,7 +857,7 @@ impl TaskStorage {
 
 /// Counts for aggregation tree and collectibles fields.
 #[cfg(feature = "print_cache_item_size")]
-#[derive(Default)]
+
 pub struct MetaCounts {
     pub upper: usize,
     pub collectibles: usize,
@@ -941,7 +941,7 @@ where
 /// Outcome of a `drop_partial` call: did residue (transient entries that
 /// can't be reconstructed from disk) survive the drop?
 #[must_use]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum DropPartialOutcome {
     /// Field is fully empty after the drop
     Empty,

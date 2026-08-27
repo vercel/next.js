@@ -102,7 +102,7 @@ pub struct Statistics {
 }
 
 #[cfg(feature = "stats")]
-#[derive(Default)]
+
 struct TrackedStats {
     hits_deleted: std::sync::atomic::AtomicU64,
     hits_small: std::sync::atomic::AtomicU64,
@@ -180,7 +180,7 @@ impl WriteOperationGuard<'_> {
 ///
 /// Field names are also parsed outside this crate (next.js reads `CURRENT` directly, in
 /// `turbopack-cache-seed.ts`), so a rename would have to move in lockstep there too.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
     /// The highest sequence number that is part of the committed database.
     pub max_sequence_number: u32,

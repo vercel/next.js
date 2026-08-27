@@ -147,7 +147,7 @@ impl Display for CellId {
 pub struct RawVc(NonZeroU64);
 
 /// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RawVcUnpacked {
     /// The synchronous return value of a task (after argument resolution). This is the
     /// representation used by [`OperationVc`][crate::OperationVc].

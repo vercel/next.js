@@ -7,7 +7,7 @@ use rustc_hash::FxHashSet;
 use super::{Visit, VisitControlFlow, graph_store::GraphStore, with_future::With};
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct VisitedNodes<T>(pub FxHashSet<T>);
 
 /// [`GraphTraversal`] is a utility type that can be used to traverse a graph of

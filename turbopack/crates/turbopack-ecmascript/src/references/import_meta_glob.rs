@@ -935,7 +935,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 // ---------------------------------------------------------------------------
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 pub struct ImportMetaGlobAssetReference {
     pub inner: ResolvedVc<ImportMetaGlobAsset>,
     pub patterns: Vec<RcStr>,

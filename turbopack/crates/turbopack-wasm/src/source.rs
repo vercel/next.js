@@ -10,7 +10,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, TraceRawVcs, Encode, Decode)]
+#[derive(PartialOrd, Eq, PartialEq, Hash, Debug, Copy, Clone, TraceRawVcs, Encode, Decode)]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
     Binary,

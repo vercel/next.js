@@ -90,7 +90,7 @@ pub enum ModuleRuleEffect {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum ModuleType {
     Ecmascript {
         /// Transforms to run first: transpile TypeScript, decorators, ...
@@ -182,7 +182,7 @@ impl Display for ModuleType {
 /// This enum represents the semantic module types that users can specify in their config
 /// (e.g., next.config.js turbopack rules). Some of these map directly to internal `ModuleType`
 /// variants, while others (like `Bytes`) are implemented via source transforms.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ConfiguredModuleType {
     Asset,
     Ecmascript,

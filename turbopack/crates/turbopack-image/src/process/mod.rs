@@ -52,7 +52,6 @@ impl BlurPlaceholder {
 /// Gathered meta information about an image.
 #[allow(clippy::manual_non_exhaustive)]
 #[turbo_tasks::value]
-#[derive(Default)]
 #[non_exhaustive]
 pub struct ImageMetaData {
     pub width: u32,

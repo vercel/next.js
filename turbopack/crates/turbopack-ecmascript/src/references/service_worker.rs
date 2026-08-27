@@ -131,7 +131,7 @@ impl EcmascriptChunkPlaceable for ServiceWorkerEntryModule {
 /// the URL to the service-worker source and wraps it in a [`ServiceWorkerEntryModule`] (carrying
 /// the `scope`) so the source is discoverable in the page's module graph (but not bundled into it).
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct ServiceWorkerAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,

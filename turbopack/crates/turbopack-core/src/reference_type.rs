@@ -84,7 +84,7 @@ impl ImportAttributes {
 
 /// The accumulated list of conditions that should be applied to this module
 /// through its import path
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[turbo_tasks::value]
 pub struct ImportContext {
     pub layers: Vec<RcStr>,

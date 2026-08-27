@@ -40,7 +40,7 @@ pub struct LoaderRuleItem {
 ///
 /// This is not a map, since multiple rules can be configured for the same glob, and since execution
 /// order matters.
-#[derive(Default)]
+
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 

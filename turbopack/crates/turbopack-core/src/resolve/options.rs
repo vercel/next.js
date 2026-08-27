@@ -26,7 +26,7 @@ pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub F
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
+    TraceRawVcs, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
@@ -40,7 +40,7 @@ pub enum ResolveModules {
 }
 
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
+    TraceRawVcs, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
 )]
 pub enum ConditionValue {
     Set,
@@ -62,7 +62,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(TraceRawVcs, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -80,7 +80,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request within a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(TraceRawVcs, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -400,7 +400,7 @@ impl ImportMap {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ResolvedMap {
     pub by_glob: Vec<(FileSystemPath, ResolvedVc<Glob>, ResolvedVc<ImportMapping>)>,
 }
@@ -741,7 +741,7 @@ impl ResolveOptions {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,
     pub extensions: Vec<RcStr>,

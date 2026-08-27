@@ -38,7 +38,7 @@ use crate::{
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
 /// for the worker module.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct WorkerAssetReference {
     pub worker_type: WorkerType,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -52,7 +52,7 @@ pub struct WorkerAssetReference {
 
 /// The request type varies between web and Node.js workers
 #[turbo_tasks::value]
-#[derive(Hash, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum WorkerRequest {
     /// Web workers use Request (URLs)
     Url(ResolvedVc<Request>),

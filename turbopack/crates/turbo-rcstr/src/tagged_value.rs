@@ -74,14 +74,14 @@ mod raw_types {
     // unaligned 64-bit load with `RuntimeError: operation does not support unaligned accesses`.
     // Aligning to the width of the integer view keeps that read legal without adding padding.
     #[repr(C, align(8))]
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug)]
     pub struct RawLittle {
         pub ptr: NonNull<()>,
         pub pad: Payload,
     }
 
     #[repr(C, align(8))]
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug)]
     pub struct RawBig {
         pub pad: Payload,
         pub ptr: NonNull<()>,
@@ -149,7 +149,7 @@ const _: () = assert!(
     "atom_size_128 must stay a 16-byte value with 15 inline bytes"
 );
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct TaggedValue {
     value: RawTaggedNonZeroValue,

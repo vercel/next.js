@@ -587,7 +587,7 @@ where
 /// Typescript's tsconfig file][tsconfig].
 ///
 /// [tsconfig]: https://www.typescriptlang.org/tsconfig/#paths
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AliasPattern {
     /// Will match an exact string.
     Exact(RcStr),
@@ -643,7 +643,7 @@ impl AliasPattern {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 pub enum AliasKey {
     Exact,
     Wildcard { suffix: RcStr },

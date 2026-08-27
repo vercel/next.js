@@ -21,7 +21,7 @@ mod ser;
 /// Uses a u8 representation, which is slightly more efficient than bincode's default u32 varint
 /// approach for enum discriminants:
 /// https://docs.rs/bincode/latest/bincode/spec/index.html#discriminant-representation
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq)]
 #[repr(u8)]
 enum TypeTag {
     BoolTrue = 1,

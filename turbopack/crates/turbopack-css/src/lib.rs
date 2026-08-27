@@ -19,7 +19,7 @@ pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*}
 
 #[turbo_tasks::task_input]
 #[derive(
-    PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, Default, TraceRawVcs, Encode, Decode,
+    PartialOrd, Eq, PartialEq, Hash, Debug, Copy, Clone, Default, TraceRawVcs, Encode, Decode,
 )]
 pub enum CssModuleType {
     /// Default parsing mode.
@@ -34,7 +34,7 @@ pub enum CssModuleType {
 /// Both fields are raw `Features` bitmasks. `include` bits are OR-ed into the
 /// default feature set; `exclude` bits are masked off.
 #[turbo_tasks::value(shared, serialization = "auto", task_input)]
-#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default)]
+#[derive(PartialOrd, Hash, Copy, Clone, Debug, Default)]
 pub struct LightningCssFeatureFlags {
     pub include: u32,
     pub exclude: u32,

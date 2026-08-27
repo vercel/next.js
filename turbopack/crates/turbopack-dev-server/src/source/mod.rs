@@ -188,7 +188,7 @@ pub type BodyChunk = Result<Bytes, SharedError>;
 
 /// A request body.
 #[turbo_tasks::value(shared)]
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Body {
     #[turbo_tasks(trace_ignore)]
     chunks: Stream<BodyChunk>,
@@ -223,7 +223,7 @@ impl<T: Into<Bytes>> From<T> for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -289,7 +289,7 @@ impl ContentSourceDataFilter {
 /// sending these information [`ContentSource`] responses are cached-keyed by them and they can
 /// access them.
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(Debug, Default, Clone)]
 pub struct ContentSourceDataVary {
     pub method: bool,
     pub url: bool,

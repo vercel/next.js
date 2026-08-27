@@ -41,7 +41,7 @@ use crate::{
 /// Models the 'liveness' of an esm export
 /// All ESM exports are technically live but many never change and we can optimize representation to
 /// support that, this enum tracks the actual behavior of the export binding.
-#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum Liveness {
     // The binding never changes after module evaluation
     Constant,
@@ -53,7 +53,7 @@ pub enum Liveness {
     Mutable,
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -527,7 +527,7 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct EsmExports {
     /// Explicit exports
     pub exports: FrozenMap<RcStr, EsmExport>,
@@ -540,7 +540,7 @@ pub struct EsmExports {
 ///
 /// [`EsmExports::star_exports`] that could not be (fully) expanded end up in `dynamic_exports`.
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct ExpandedExports {
     pub exports: FrozenMap<RcStr, EsmExport>,
     /// Modules we couldn't analyze all exports of.
@@ -688,7 +688,7 @@ impl EsmExports {
             }
         }
 
-        #[derive(Eq, PartialEq)]
+        #[derive(PartialEq)]
         enum ExportBinding {
             Getter(Expr),
             GetterSetter(Expr, Expr),

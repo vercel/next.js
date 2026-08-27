@@ -259,7 +259,7 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
@@ -284,7 +284,7 @@ impl Display for TaskPersistence {
 
 /// Whether a task call's inputs are already resolved, decided on the concrete input tuple at the
 /// call site. Travels alongside [`TaskPersistence`] through [`dynamic_call`] / [`trait_call`].
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug)]
 pub enum InputResolution {
     /// All inputs (and `this`, where applicable) are resolved — eligible for the synchronous fast
     /// path with no async resolution task.
@@ -309,7 +309,7 @@ impl InputResolution {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
@@ -322,7 +322,7 @@ pub enum ReadConsistency {
     Strong,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum ReadCellTracking {
     /// Reads are tracked as dependencies of the current task.
     Tracked {
@@ -376,7 +376,7 @@ impl Display for ReadCellTracking {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum ReadTracking {
     /// Reads are tracked as dependencies of the current task.
     #[default]
@@ -518,7 +518,7 @@ use std::sync::atomic::AtomicU64;
 /// Counters describing how reads and inline execution interacted, see
 /// [`TurboTasks::inline_execution_stats`]. Diagnostics only.
 #[cfg(feature = "inline_execution_stats")]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct InlineExecutionStats {
     /// Tasks that were put into the scheduler queue.
     pub queued: u64,

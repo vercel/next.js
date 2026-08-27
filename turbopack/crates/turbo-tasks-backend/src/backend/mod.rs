@@ -166,7 +166,7 @@ pub enum TurboTasksBackendJob {
 }
 
 /// Why a snapshot/persist is being performed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 enum SnapshotReason {
     Test,
     Stop,
@@ -1050,7 +1050,7 @@ impl TurboTasksBackend {
         }
 
         #[cfg(feature = "print_cache_item_size")]
-        #[derive(Default)]
+
         struct TaskCacheStats {
             data: usize,
             #[cfg(feature = "print_cache_item_size_with_compressed")]

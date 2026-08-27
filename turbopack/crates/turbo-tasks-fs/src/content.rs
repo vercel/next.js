@@ -94,7 +94,7 @@ impl From<File> for FileContent {
 /// the actual data is not available. `PersistedFileContent` provides the full data so that
 /// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd)]
 pub enum PersistedFileContent {
     Content(File),
     NotFound,
@@ -156,7 +156,7 @@ impl PersistedFileContent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum FileComparison {
     Create,
     Equal,
@@ -168,7 +168,7 @@ pub(crate) enum FileComparison {
 /// Every variant carries the `resolved` path the link points at, computed once by
 /// [`crate::FileSystem::read_link`], which is also what guarantees the target stays inside the
 /// filesystem root — a link whose target leaves the root is [`LinkContent::Invalid`] instead.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
     Absolute { resolved: FileSystemPath },
@@ -280,7 +280,7 @@ impl LinkContent {
 /// Unlike [`LinkTarget`] this carries only the raw path: the write side never needs the target
 /// resolved, and the link being created may not even exist yet.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
+    Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
 )]
 pub enum WriteLinkTarget {
     /// Normalized and relative to the *filesystem root*.
@@ -291,7 +291,7 @@ pub enum WriteLinkTarget {
 
 /// The file type of the target of a newly written link. This value is only used on Windows.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
+    Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
 )]
 pub enum WriteLinkTargetType {
     /// Represents a link to a file or a symbolic link that is not a junction point. This is likely

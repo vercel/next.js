@@ -79,7 +79,7 @@ impl CollectiblesRef {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
@@ -214,7 +214,7 @@ impl Display for TransientTask {
 
 transient_traits!(TransientTask);
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq)]
 pub enum Dirtyness {
     Dirty {
         parent_priority: TaskPriority,
@@ -287,7 +287,7 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
@@ -306,7 +306,7 @@ pub struct AggregationNumber {
 /// - `distance` > `max_distance_in_buffer`: `distance` is increased to the `max_distance_in_buffer`
 ///   value of the dependency + 1 and `max_distance_in_buffer` is increased to `distance` + buffer
 ///   zone.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode)]
 pub struct LeafDistance {
     /// This is the strictly monotonic increasing minimum leaf distance.
     pub distance: u32,

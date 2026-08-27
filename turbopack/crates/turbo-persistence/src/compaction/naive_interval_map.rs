@@ -9,7 +9,7 @@ use crate::compaction::interval_map::IntervalBound;
 
 /// An integer with a very limited range to allow for exhaustive unit tests of
 /// all possible values.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TinyInt(pub u8);
 
 impl TinyInt {

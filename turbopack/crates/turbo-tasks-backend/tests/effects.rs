@@ -154,7 +154,7 @@ enum TestError {}
 /// Spec for what the producer should emit: a list of `(key, value_hash)`
 /// pairs. Stored inside `State<EmitSpec>` so mutating it invalidates the
 /// producer.
-#[derive(Clone, Default, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Clone, Default, PartialEq, Debug, TraceRawVcs, OperationValue)]
 struct EmitSpec {
     pairs: Vec<(RcStr, u128)>,
 }

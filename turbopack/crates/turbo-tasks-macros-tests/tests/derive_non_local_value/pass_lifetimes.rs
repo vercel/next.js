@@ -1,6 +1,6 @@
 use turbo_tasks::NonLocalValue;
 
-#[derive(NonLocalValue)]
+
 struct ContainsBorrowedData<'a> {
     borrowed: &'a Option<&'a [&'a str]>,
 }

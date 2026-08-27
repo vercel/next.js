@@ -59,7 +59,7 @@ impl Error {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct StatusCode(u16);
 
 impl StatusCode {
@@ -72,7 +72,7 @@ impl StatusCode {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Client;
 
 impl Client {
@@ -151,7 +151,7 @@ pub mod header {
 
     pub const CACHE_CONTROL: &str = "cache-control";
 
-    #[derive(Clone, Debug, Default)]
+    #[derive(Clone, Debug)]
     pub struct HeaderValue(String);
 
     impl HeaderValue {
@@ -164,7 +164,7 @@ pub mod header {
         }
     }
 
-    #[derive(Clone, Debug, Default)]
+    #[derive(Clone, Debug)]
     pub struct HeaderMap(FxHashMap<String, HeaderValue>);
 
     impl HeaderMap {

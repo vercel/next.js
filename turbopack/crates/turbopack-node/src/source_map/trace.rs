@@ -14,7 +14,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 /// An individual stack frame, as parsed by the stacktrace-parser npm module.
 ///
 /// Line and column can be None if the frame is anonymous.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StackFrame<'a> {
     pub file: Cow<'a, str>,
     #[serde(rename = "lineNumber")]

@@ -35,7 +35,7 @@ pub use db::{
     TurboPersistence, read_current_version,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FamilyKind {
     /// Each key maps to a single value (default LSM behavior).
     /// When multiple entries have the same key, only the newest is retained during compaction or

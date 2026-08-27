@@ -42,7 +42,7 @@ use serde::{
 ///
 /// Overlapping keys encountered during construction preserve the last overlapping entry, matching
 /// similar behavior for other maps in the standard library.
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Encode, Decode)]
 #[rustfmt::skip] // rustfmt breaks bincode's proc macro string processing
 #[bincode(
     decode_bounds = "K: Decode<__Context> + 'static, V: Decode<__Context> + 'static",

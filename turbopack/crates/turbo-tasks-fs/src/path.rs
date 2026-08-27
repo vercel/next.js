@@ -505,13 +505,13 @@ pub struct RealPathWithLinksResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 pub struct RealPathError {
     original_path: FileSystemPath,
     kind: RealPathErrorType,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 pub enum RealPathErrorType {
     TooManySymlinks {
         symlinks: Box<[FileSystemPath]>,

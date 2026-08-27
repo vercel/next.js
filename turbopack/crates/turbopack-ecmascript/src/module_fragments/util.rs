@@ -22,7 +22,6 @@ enum Mode {
     Write,
 }
 
-#[derive(Default)]
 struct Target {
     direct: bool,
     eventual: bool,

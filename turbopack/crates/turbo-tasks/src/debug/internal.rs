@@ -109,7 +109,7 @@ impl std::fmt::Debug for FormattingStruct<'_> {
 }
 
 /// Debug implementation that prints an unquoted, unescaped string.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Hash)]
 pub struct PassthroughDebug<'a>(Cow<'a, str>);
 
 impl<'a> PassthroughDebug<'a> {

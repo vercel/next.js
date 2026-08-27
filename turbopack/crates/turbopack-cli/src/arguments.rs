@@ -159,7 +159,7 @@ pub struct BuildArguments {
     pub force_memory_cleanup: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct IssueSeverityCliOption(pub IssueSeverity);
 
 impl ValueEnum for IssueSeverityCliOption {

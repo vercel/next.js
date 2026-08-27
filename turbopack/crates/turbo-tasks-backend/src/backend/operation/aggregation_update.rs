@@ -351,7 +351,7 @@ impl AggregationUpdateJob {
     }
 }
 
-#[derive(Default, Encode, Decode, Clone, Copy, Debug)]
+#[derive(Encode, Decode, Clone, Copy, Debug)]
 #[bincode(decode_bounds = "T: Default", borrow_decode_bounds = "T: Default")]
 pub struct SessionDependent<T> {
     #[bincode(skip)]
@@ -846,7 +846,7 @@ impl PartialEq for FindAndScheduleJob {
 impl Eq for FindAndScheduleJob {}
 
 #[cfg(feature = "trace_aggregation_update_stats")]
-#[derive(Default, Encode, Decode, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct AggregationUpdateQueueStats {
     new_followers: usize,
     inner_of_upper_has_new_follower: usize,

@@ -84,7 +84,7 @@ async fn apply_side_effects_operation(
     Ok(Completion::new())
 }
 
-#[derive(TraceRawVcs, Debug, NonLocalValue)]
+#[derive(TraceRawVcs, Debug)]
 pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
@@ -92,7 +92,7 @@ pub struct DevServerBuilder {
     server: Builder<AddrIncoming>,
 }
 
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(TraceRawVcs)]
 pub struct DevServer {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,

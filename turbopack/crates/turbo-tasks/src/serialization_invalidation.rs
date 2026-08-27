@@ -14,7 +14,7 @@ use crate::{TaskId, manager::with_turbo_tasks, trace::TraceRawVcs};
 /// context (i.e. inside a `#[turbo_tasks::function]` body or a `State`
 /// mutation triggered from one), so `TURBO_TASKS` task-local is always
 /// available and we do not need to capture handles at construction time.
-#[derive(Clone, Hash, Eq, PartialEq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Encode, Decode, TraceRawVcs, NonLocalValue)]
 pub struct SerializationInvalidator {
     task: TaskId,
 }

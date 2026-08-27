@@ -313,7 +313,7 @@ impl EcmascriptExports {
 
 /// A statically-analyzable CommonJS module's named exports, for scope hoisting.
 /// See the analyzer's `CjsExportsCollector`.
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct CjsStaticExports {
     /// Recognized `exports.NAME` / `module.exports.NAME` names, in source order.

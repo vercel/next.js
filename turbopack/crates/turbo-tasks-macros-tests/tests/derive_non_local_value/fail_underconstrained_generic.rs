@@ -2,7 +2,7 @@
 
 use turbo_tasks::NonLocalValue;
 
-#[derive(NonLocalValue)]
+
 struct ContainsUnderconstrainedGeneric<T> {
     value: T,
 }

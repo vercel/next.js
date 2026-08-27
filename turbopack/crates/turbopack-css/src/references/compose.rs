@@ -15,7 +15,7 @@ use crate::{module_asset::EcmascriptCssModule, references::css_resolve};
 
 /// A `composes: ... from ...` CSS module reference.
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("compose(url) {request}")]
 pub struct CssModuleComposeReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,

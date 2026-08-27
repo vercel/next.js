@@ -33,7 +33,7 @@ struct NodePreGypConfig {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, ValueToString)]
+#[derive(Clone, Debug, ValueToString)]
 #[value_to_string("node-gyp in {context_dir} with {config_file_pattern} for {compile_target}")]
 pub struct NodePreGypConfigReference {
     pub context_dir: FileSystemPath,
@@ -221,7 +221,7 @@ async fn resolve_node_pre_gyp_files(
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, ValueToString)]
+#[derive(Clone, Debug, ValueToString)]
 #[value_to_string("node-gyp in {context_dir} for {compile_target}")]
 pub struct NodeGypBuildReference {
     pub context_dir: FileSystemPath,
@@ -350,7 +350,7 @@ async fn resolve_node_gyp_build_files(
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, ValueToString)]
+#[derive(Clone, Debug, ValueToString)]
 #[value_to_string("bindings in {context_dir}")]
 pub struct NodeBindingsReference {
     pub context_dir: FileSystemPath,

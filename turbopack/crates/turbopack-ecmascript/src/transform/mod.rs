@@ -67,7 +67,7 @@ pub struct PresetEnvConfig {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>, ResolvedVc<PresetEnvConfig>),
@@ -98,7 +98,7 @@ pub enum EcmascriptInputTransform {
 }
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReactCompilerCompilationMode {
     #[default]
@@ -121,7 +121,7 @@ impl ReactCompilerCompilationMode {
 pub struct OptionReactCompilerCompilationMode(Option<ReactCompilerCompilationMode>);
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ReactCompilerTarget {
     #[default]
     #[serde(rename = "19")]
@@ -160,7 +160,7 @@ impl CustomTransformer for TransformPlugin {
 }
 
 #[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value_impl]

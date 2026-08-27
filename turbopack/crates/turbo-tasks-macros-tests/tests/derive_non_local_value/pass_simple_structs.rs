@@ -4,10 +4,10 @@ use std::marker::PhantomData;
 
 use turbo_tasks::NonLocalValue;
 
-#[derive(NonLocalValue)]
+
 struct UnitStruct;
 
-#[derive(NonLocalValue)]
+
 struct ContainsSimpleValuesNamed {
     a: i32,
     b: String,
@@ -17,7 +17,7 @@ struct ContainsSimpleValuesNamed {
     f: PhantomData<u8>,
 }
 
-#[derive(NonLocalValue)]
+
 struct ContainsSimpleValuesUnnamed(i32, String, ());
 
 fn main() {}

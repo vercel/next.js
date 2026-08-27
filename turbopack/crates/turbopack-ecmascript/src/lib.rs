@@ -151,7 +151,6 @@ pub enum SpecifiedModuleType {
 #[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
-    Ord,
     PartialEq,
     Eq,
     Hash,
@@ -1022,7 +1021,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,

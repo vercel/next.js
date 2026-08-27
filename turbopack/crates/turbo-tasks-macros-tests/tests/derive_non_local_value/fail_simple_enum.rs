@@ -4,7 +4,7 @@ use turbo_tasks::NonLocalValue;
 
 struct UnresolvedValue;
 
-#[derive(NonLocalValue)]
+
 enum ContainsUnresolvedValue {
     Unit,
     Unnamed(UnresolvedValue),

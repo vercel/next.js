@@ -48,7 +48,7 @@ use crate::ecmascript::{
 };
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub enum CurrentChunkMethod {
     StringLiteral,
     DocumentCurrentScript,

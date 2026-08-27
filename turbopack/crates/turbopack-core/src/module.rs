@@ -3,14 +3,14 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use crate::{ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum StyleType {
     IsolatedStyle,
     GlobalStyle,
 }
 
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[turbo_tasks::value(shared)]
 pub enum ModuleSideEffects {
     /// Analysis determined that the module evaluation is free of side effects. The module may still

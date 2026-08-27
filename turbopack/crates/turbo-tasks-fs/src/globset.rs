@@ -31,7 +31,7 @@ use anyhow::Error;
 use crate::glob::GlobOptions;
 
 /// The parsed tokens of a glob pattern.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[repr(transparent)]
 struct Tokens(Vec<Token>);
 
@@ -48,7 +48,7 @@ impl std::ops::DerefMut for Tokens {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Token {
     Literal(char),
     /// Any Single non path separator character
@@ -314,7 +314,7 @@ fn char_to_escaped_literal(c: char) -> String {
 }
 
 /// The kind of error that can occur when parsing a glob pattern.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 enum ErrorKind {
     /// Occurs when a character class (e.g., `[abc]`) is not closed.
     UnclosedClass,

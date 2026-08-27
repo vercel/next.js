@@ -4,7 +4,7 @@ use quote::{format_ident, quote};
 use syn::{Expr, ExprLit, Lit, Token, punctuated::Punctuated};
 
 /// Parts of a format string, yielded by [`FormatIter`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum FormatPart<'a> {
     /// Raw text between format specifiers.
     RawString(&'a str),

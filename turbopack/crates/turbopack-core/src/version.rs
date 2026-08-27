@@ -249,7 +249,7 @@ impl Version for FileHashVersion {
 
 /// This is a dummy wrapper type to (incorrectly) implement [`OperationValue`] (required by
 /// [`State`]), because the [`Version`] trait is not (yet?) a subtype of [`OperationValue`].
-#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Debug, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
 struct VersionRef(
     // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC.
     // It also allows to `Version`s that don't implement `OperationValue`, which could lead to

@@ -69,7 +69,6 @@ pub use self::module_batches::BatchingConfig;
     Clone,
     Eq,
     PartialOrd,
-    Ord,
     Hash,
     PartialEq,
     Serialize,
@@ -96,20 +95,7 @@ impl GraphNodeIndex {
 
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
-#[derive(
-    Debug,
-    Copy,
-    Clone,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, Hash, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct GraphEdgeIndex {
     graph_idx: u32,
     #[turbo_tasks(trace_ignore)]
@@ -292,7 +278,7 @@ impl GraphEntries {
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct SingleModuleGraph {
     pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
 
@@ -1755,7 +1741,7 @@ impl SingleModuleGraphNode {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub enum GraphTraversalAction {
     /// Continue visiting children
     Continue,

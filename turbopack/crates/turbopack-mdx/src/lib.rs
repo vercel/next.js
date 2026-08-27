@@ -20,7 +20,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
     Commonmark,
@@ -31,7 +31,7 @@ pub enum MdxParseConstructs {
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
     pub development: Option<bool>,

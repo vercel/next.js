@@ -40,7 +40,7 @@ use crate::{
 /// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
 /// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("module.hot.accept/decline {request}")]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

@@ -34,7 +34,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 /// changed the `JsValue` it was given. Returned alongside the (possibly
 /// rewritten) value. [`Modified::Yes`] makes the linker re-enter the value for
 /// further processing; [`Modified::No`] means it is final.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum Modified {
     Yes,
     No,

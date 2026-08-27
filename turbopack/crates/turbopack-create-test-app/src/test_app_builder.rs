@@ -41,7 +41,7 @@ fn write_file<P: AsRef<Path>>(name: &str, path: P, content: &[u8]) -> Result<()>
 }
 
 /// How to run effects in components.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum EffectMode {
     /// No effects at all.
     #[default]

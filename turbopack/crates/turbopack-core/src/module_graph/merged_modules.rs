@@ -258,7 +258,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         span.record("visit_count", visit_count);
 
-        #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[derive(Debug, PartialEq, Eq, Hash, PartialOrd)]
         struct ListOccurrence {
             // The field order here is important, these structs will get ordered by the entry
             // index.

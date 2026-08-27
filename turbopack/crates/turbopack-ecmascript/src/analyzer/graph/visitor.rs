@@ -180,7 +180,7 @@ impl FunctionLike for SetterProp {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 enum LexicalContext {
     // In the root of a function scope
     Function { id: u32, binds_this: bool },

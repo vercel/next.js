@@ -319,7 +319,7 @@ impl ModuleReferenceIndex {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum LogicalOperator {
     And,
     Or,
@@ -343,7 +343,7 @@ impl LogicalOperator {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum BinaryOperator {
     Equal,
     NotEqual,
@@ -371,13 +371,13 @@ impl BinaryOperator {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum PositiveBinaryOperator {
     Equal,
     StrictEqual,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum JsValueUrlKind {
     Absolute,
     Relative,
@@ -406,7 +406,7 @@ pub(super) enum JsValueMetaKind {
     Placeholder,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum LogicalProperty {
     Truthy,
     Falsy,

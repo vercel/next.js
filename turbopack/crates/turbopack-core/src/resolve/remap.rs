@@ -33,7 +33,7 @@ impl Display for ExportImport {
 /// The result an "exports"/"imports" field describes. Can represent multiple
 /// alternatives, conditional result, ignored result (null mapping) and a plain
 /// result.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum SubpathValue {
     /// Alternative subpaths, defined with `"path": ["other1", "other2"]`,
     /// allows for specifying multiple possible remappings to be tried. This
@@ -62,7 +62,7 @@ pub enum SubpathValue {
 
 /// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
 /// more details on the variants.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Debug)]
 pub enum ReplacedSubpathValue {
     Alternatives(Vec<ReplacedSubpathValue>),
     Conditional(Vec<(RcStr, ReplacedSubpathValue)>),

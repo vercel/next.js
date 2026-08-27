@@ -65,7 +65,7 @@ impl Default for MinifyType {
 }
 
 #[turbo_tasks::value(shared, task_input)]
-#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
+#[derive(Debug, Default, Clone, Copy, Hash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
@@ -104,18 +104,7 @@ pub struct UrlBehavior {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
 )]
 pub enum ChunkGroupType {
     Entry,
@@ -294,7 +283,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

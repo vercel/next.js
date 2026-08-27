@@ -185,7 +185,7 @@ impl<'a> Into<PseudoClasses<'a>> for &'a OwnedPseudoClasses {
     }
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Drafts {
     #[serde(default)]
@@ -194,7 +194,7 @@ struct Drafts {
     scroll_navigation_controls: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NonStandard {
     #[serde(default)]

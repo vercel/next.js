@@ -420,7 +420,7 @@ impl Issue for NonConstantIssue {
     }
 }
 
-#[derive(Debug, Clone, Default, TraceRawVcs, Encode, Decode, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct ConstantValueBitEquality(ConstantValue);
 
 impl PartialEq for ConstantValueBitEquality {

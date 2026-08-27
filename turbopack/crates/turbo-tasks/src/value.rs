@@ -11,7 +11,7 @@ use crate::{
 ///
 /// Doesn't require serialization, and won't be stored in the filesystem cache
 /// in the future.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Hash)]
 pub struct TransientValue<T> {
     inner: T,
 }

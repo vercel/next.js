@@ -60,7 +60,7 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 const PAGE_SIZE: usize = 20;
 
 /// How spans should be sorted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum SortMode {
     /// No sorting — spans appear in execution/natural order.
     #[default]

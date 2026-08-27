@@ -275,7 +275,7 @@ pub enum AssignmentScope {
 
 /// Tracks the locations where this was assigned to:
 /// This is used to track the _liveness_ of exports.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignmentScopes {
     /// assigned only in the root scope
     AllInModuleEvalScope,

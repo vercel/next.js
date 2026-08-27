@@ -10,7 +10,6 @@ const U8_CR: u8 = 0x0D;
 
 #[turbo_tasks::task_input]
 #[derive(
-    Default,
     Debug,
     PartialEq,
     Eq,

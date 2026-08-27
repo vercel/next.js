@@ -19,7 +19,7 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{chunk::ModuleId, code_builder::Code, source_map::GenerateSourceMap};
 
 /// A merged update covering one or more ecmascript chunks that share a merger.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
 #[serde(
     tag = "type",
     rename = "EcmascriptMergedUpdate",
@@ -50,7 +50,7 @@ pub enum EcmascriptMergedChunkUpdate {
 }
 
 /// A chunk that was newly added in this version.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EcmascriptMergedChunkAdded {
     #[serde(skip_serializing_if = "FrozenSet::is_empty")]
@@ -58,7 +58,7 @@ pub struct EcmascriptMergedChunkAdded {
 }
 
 /// A chunk that was removed in this version.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EcmascriptMergedChunkDeleted {
     // Technically, this is redundant, since the client will already know all
@@ -70,7 +70,7 @@ pub struct EcmascriptMergedChunkDeleted {
 
 /// A chunk that was present in both versions and whose module membership
 /// changed.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EcmascriptMergedChunkPartial {
     #[serde(skip_serializing_if = "FrozenSet::is_empty")]

@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::{FunctionId, TraitTypeId, ValueTypeId, registry};
 
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub enum TaskDirtyCause {
     InitialDirty,
     CellChange {

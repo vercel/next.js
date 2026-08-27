@@ -188,7 +188,7 @@ fn value_over_time(value: u64, time: Timestamp) -> u64 {
     value.checked_div(*time).unwrap_or(0)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub enum SortMode {
     ExecutionOrder,
     Value,
@@ -324,7 +324,7 @@ impl QueueItem<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 enum FilterMode {
     SelectedItem,
     Parent,

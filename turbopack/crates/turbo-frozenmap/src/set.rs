@@ -41,7 +41,7 @@ use crate::map::{self, FrozenMap};
 /// [`Vec`] or boxed slice. Because of limitations of the internal representation and Rust's memory
 /// layout rules, the most efficient way to convert from these data structures is via an
 /// [`Iterator`].
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Encode, Decode)]
 #[bincode(
     decode_bounds = "T: Decode<__Context> + 'static",
     borrow_decode_bounds = "T: BorrowDecode<'__de, __Context> + '__de"

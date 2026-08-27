@@ -19,7 +19,6 @@ const TARGET_BUFFER: usize = 100 * KB;
 /// global counter.
 const MAX_BUFFER: usize = 200 * KB;
 
-#[derive(Default)]
 struct ThreadLocalCounter {
     /// Thread-local buffer of allocated bytes that have been added to the
     /// global counter desprite not being allocated yet. It is unsigned so that

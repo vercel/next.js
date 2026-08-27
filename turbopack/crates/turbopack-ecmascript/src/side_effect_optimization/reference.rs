@@ -26,7 +26,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,

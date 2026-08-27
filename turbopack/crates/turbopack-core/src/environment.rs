@@ -16,7 +16,7 @@ use crate::target::CompileTarget;
 static DEFAULT_NODEJS_VERSION: &str = "18.0.0";
 
 #[turbo_tasks::value]
-#[derive(Clone, Copy, Default, Hash, Debug)]
+#[derive(Clone, Copy, Default, Debug)]
 pub enum Rendering {
     #[default]
     None,

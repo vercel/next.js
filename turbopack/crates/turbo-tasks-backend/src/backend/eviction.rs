@@ -12,7 +12,7 @@ use turbo_tasks_malloc::TurboMalloc;
 
 /// Strategy for evicting evictable tasks from in-memory storage after a
 /// snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum EvictionMode {
     /// Never evict.
     Off,

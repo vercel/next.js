@@ -77,7 +77,7 @@ async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
 }
 
 #[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 struct MyTransparentValue(u32);
 
 #[turbo_tasks::value(shared, task_input)]

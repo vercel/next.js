@@ -2359,7 +2359,7 @@ async fn resolve_relative_request(
 
     // A small tree to 'undo' the set of modifications we make to patterns, ensuring that we produce
     // correct request keys
-    #[derive(Eq, PartialEq, Clone, Hash, Debug)]
+    #[derive(Clone, Debug)]
     enum RequestKeyTransform {
         /// A leaf node for 'no change'
         None,

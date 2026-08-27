@@ -77,7 +77,7 @@ const MAX_FIXED_VAL_SIZE: usize = u8::MAX as usize;
 ///
 /// This encodes what kind of value reference an entry has (small, medium, blob, deleted, or
 /// inline with embedded length). See `KEY_BLOCK_ENTRY_TYPE_*` constants.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 struct EntryType(u8);
 
 /// Tracks whether a key block's entries are uniform enough for fixed-size layout.

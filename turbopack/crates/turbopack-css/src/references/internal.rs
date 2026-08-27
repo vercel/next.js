@@ -5,7 +5,7 @@ use turbopack_core::{
 
 /// A reference to an internal CSS asset.
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
+#[derive(Debug, ValueToString)]
 #[value_to_string("internal css {}", self.module.ident())]
 pub struct InternalCssAssetReference {
     module: ResolvedVc<Box<dyn Module>>,

@@ -33,7 +33,7 @@ impl SharedReference {
 }
 
 /// A reference to a piece of data with type information
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct TypedSharedReference {
     pub type_id: ValueTypeId,
     pub reference: SharedReference,

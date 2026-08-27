@@ -68,7 +68,7 @@ pub fn parse_require_context(args: &[JsValue<'_>]) -> Result<RequireContextOptio
     })
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RequireContextValue(pub(crate) FxIndexMap<RcStr, RcStr>);
 
 impl RequireContextValue {
