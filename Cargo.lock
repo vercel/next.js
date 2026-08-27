@@ -405,7 +405,7 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
  "codspeed-criterion-compat",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.4",
  "rustc-hash 2.1.1",
  "serde",
  "shrink-to-fit",
@@ -2124,6 +2124,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "7.0.0-rc2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4a1e35a65fe0538a60167f0ada6e195ad5d477f6ddae273943596d4a1a5730b"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "equivalent",
+ "hashbrown 0.15.4",
+ "lock_api",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2529,7 +2543,7 @@ checksum = "d4029edd3e734da6fe05b6cd7bd2960760a616bd2ddd0d59a0124746d6272af0"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.3.5",
  "windows-sys 0.48.0",
 ]
 
@@ -3147,7 +3161,6 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash 0.8.12",
  "allocator-api2",
- "serde",
 ]
 
 [[package]]
@@ -4389,11 +4402,10 @@ checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"
-version = "0.4.10"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1cc9717a20b1bb222f333e6a92fd32f7d8a18ddc5a3191a11af45dcbf4dcd16"
+checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
 dependencies = [
- "autocfg",
  "scopeguard",
  "serde",
 ]
@@ -5552,15 +5564,15 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.8"
+version = "0.9.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93f00c865fe7cabf650081affecd3871070f26767e7b2070a3ffae14c654b447"
+checksum = "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.18",
  "smallvec",
- "windows-targets 0.48.5",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -6467,6 +6479,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567664f262709473930a4bf9e51bf2ebf3348f2e748ccc50dea20646858f8f29"
 dependencies = [
  "bitflags 1.3.2",
+]
+
+[[package]]
+name = "redox_syscall"
+version = "0.5.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
+dependencies = [
+ "bitflags 2.9.1",
 ]
 
 [[package]]
@@ -9948,7 +9969,7 @@ dependencies = [
  "byteorder",
  "codspeed-criterion-compat",
  "crc32fast",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "either",
  "fs-err",
  "jiff",
@@ -10020,7 +10041,7 @@ dependencies = [
  "bincode 2.0.1",
  "codspeed-criterion-compat",
  "concurrent-queue",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "either",
  "erased-serde",
  "event-listener",
@@ -10063,10 +10084,10 @@ dependencies = [
  "bitfield",
  "codspeed-criterion-compat",
  "crossbeam-utils",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "fs-err",
  "futures",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.4",
  "indexmap 2.14.0",
  "indoc",
  "jiff",
@@ -10170,7 +10191,7 @@ dependencies = [
  "bytes",
  "codspeed-criterion-compat",
  "concurrent-queue",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "fs-err",
  "futures",
  "include_dir",
@@ -10596,7 +10617,7 @@ dependencies = [
  "bumpalo",
  "bytes-str",
  "codspeed-criterion-compat",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "data-encoding",
  "either",
  "forked_react_compiler",
@@ -10796,7 +10817,7 @@ dependencies = [
  "bincode 2.0.1",
  "bytes",
  "const_format",
- "dashmap 6.1.0",
+ "dashmap 7.0.0-rc2",
  "either",
  "futures",
  "futures-retry",
@@ -10954,7 +10975,7 @@ dependencies = [
  "anyhow",
  "either",
  "flate2",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.4",
  "indexmap 2.14.0",
  "itertools 0.10.5",
  "postcard",
