@@ -31,6 +31,7 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -102,7 +103,6 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
@@ -378,6 +378,7 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
     | undefined
@@ -571,7 +572,7 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
-      previewProps: this.getPrerenderManifest().preview,
+      previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -608,6 +609,8 @@ export default abstract class Server<
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
@@ -2140,21 +2143,14 @@ export default abstract class Server<
     if (!res.sent) {
       const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // Dev responses use `no-cache` so the browser can restore them from the
-      // HTTP cache on back/forward instead of reloading. HMR refresh responses
-      // opt out into `no-store` because a superseded refresh's fetch is aborted
-      // mid-write: under `no-cache` the response is stored, so the abort leaves
-      // the cache entry shared with the superseding refresh (same URL)
-      // half-written; Chromium then discards it and reissues the superseding
-      // refresh on a second connection as a duplicate request. `no-store` keeps
-      // that entry from being created.
+      // Documents and data responses must not be stored in development.
+      // Browsers reuse a stored response for a history navigation without
+      // revalidating it, so a back navigation would restore a page from before
+      // the latest edit. Static assets never reach this code. They keep a
+      // revalidatable `Cache-Control`, so the browser caches them between page
+      // loads.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-            ? 'no-store'
-            : 'no-cache, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-store')
         cacheControl = undefined
       }
 

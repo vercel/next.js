@@ -208,7 +208,6 @@ impl Asset for ServerNftJsonAsset {
             self.entries(),
             Some(self.ignores()),
             None,
-            hash_salt,
         )
         .await?
         .iter()
@@ -237,8 +236,7 @@ impl Asset for ServerNftJsonAsset {
                     .get_relative_path_to(&module_path)
                     .context("failed to compute relative path for server NFT JSON")?,
                 module_path
-                    .read()
-                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                     .await?,
             ));
 
@@ -258,8 +256,7 @@ impl Asset for ServerNftJsonAsset {
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        file.read()
-                            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                        file.hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                             .await?,
                     ))
                 }

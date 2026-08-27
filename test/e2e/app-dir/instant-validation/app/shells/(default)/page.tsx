@@ -38,6 +38,18 @@ export default async function Page() {
         <li>
           <DebugLinks href="/shells/invalid-static-with-gsp-metadata/123" />
         </li>
+        <li>
+          <DebugLinks href="/shells/invalid-navigation-without-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-navigation-with-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/invalid-prefetch-without-suspense" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-prefetch-with-suspense" />
+        </li>
       </ul>
     </main>
   )

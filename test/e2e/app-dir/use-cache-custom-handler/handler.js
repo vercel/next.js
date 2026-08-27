@@ -6,7 +6,7 @@ const { AsyncLocalStorage } = require('node:async_hooks')
 const snapshot = AsyncLocalStorage.snapshot()
 
 /**
- * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
+ * @type {import('next/cache').CacheHandler}
  */
 const cacheHandler = {
   async get(cacheKey, softTags) {

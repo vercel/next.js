@@ -1,7 +1,4 @@
-use std::sync::Arc;
-
 use anyhow::Result;
-use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc,
@@ -10,7 +7,14 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent;
-use turbopack_core::version::{PartialUpdate, Update, Version, VersionState, VersionedContent};
+use turbopack_core::{
+    update_instruction::UpdateInstruction,
+    version::{PartialUpdate, Update, Version, VersionState, VersionedContent},
+};
+use turbopack_ecmascript::chunk_list::{
+    merged_update::EcmascriptMergedUpdate,
+    update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
+};
 use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
 use crate::versioned_content_map::VersionedContentMap;
@@ -54,7 +58,7 @@ impl Version for AggregateHmrVersion {
                 let version = TraitRef::cell(version.clone());
                 async move {
                     let id = version.id().owned().await?;
-                    Ok::<_, anyhow::Error>((path, id))
+                    anyhow::Ok((path, id))
                 }
             })
             .try_join()
@@ -89,7 +93,7 @@ impl AggregateHmrVersion {
                 let content = *content;
                 async move {
                     let version = content.version().into_trait_ref().await?;
-                    Ok::<_, anyhow::Error>((path, version))
+                    anyhow::Ok((path, version))
                 }
             })
             .try_join()
@@ -103,38 +107,30 @@ impl AggregateHmrVersion {
 /// Aggregates per-entry HMR instructions into a single combined `ChunkListUpdate`.
 #[derive(Default)]
 pub struct ChunkListUpdateBuilder {
-    chunks: FxHashMap<String, serde_json::Value>,
-    merged: FxIndexSet<serde_json::Value>,
+    chunks: FxIndexMap<RcStr, ChunkUpdate>,
+    merged: FxIndexSet<EcmascriptMergedUpdate>,
 }
 
 impl ChunkListUpdateBuilder {
-    pub fn add_instruction(&mut self, instruction: &serde_json::Value) {
-        let Some(obj) = instruction.as_object() else {
-            return;
-        };
-        match obj.get("type").and_then(|v| v.as_str()) {
-            Some("ChunkListUpdate") => {
-                if let Some(chunks) = obj.get("chunks").and_then(|v| v.as_object()) {
-                    for (k, v) in chunks {
-                        self.chunks.insert(k.clone(), v.clone());
-                    }
+    pub fn add_instruction(&mut self, instruction: &UpdateInstruction) {
+        let instruction = instruction
+            .downcast_ref::<EcmascriptUpdateInstruction>()
+            .expect("aggregate HMR only accepts ECMAScript update instructions");
+
+        match instruction {
+            EcmascriptUpdateInstruction::ChunkList(update) => {
+                for (chunk_path, update) in &update.chunks {
+                    self.chunks.insert(chunk_path.clone(), update.clone());
                 }
-                if let Some(merged) = obj.get("merged").and_then(|v| v.as_array()) {
-                    for update in merged {
-                        self.push_merged(update);
-                    }
+                for update in &update.merged {
+                    self.push_merged(update);
                 }
             }
-            Some("EcmascriptMergedUpdate") => {
-                self.push_merged(instruction);
-            }
-            // Unknown instruction shapes are ignored; the caller already
-            // escalates `Total`/`Missing` updates to a full restart.
-            _ => {}
+            EcmascriptUpdateInstruction::Merged(update) => self.push_merged(update),
         }
     }
 
-    fn push_merged(&mut self, update: &serde_json::Value) {
+    fn push_merged(&mut self, update: &EcmascriptMergedUpdate) {
         self.merged.insert(update.clone());
     }
 
@@ -143,26 +139,13 @@ impl ChunkListUpdateBuilder {
     }
 
     pub fn build(self, to: TraitRef<Box<dyn Version>>) -> Update {
-        let mut instruction = serde_json::Map::new();
-        instruction.insert(
-            "type".to_string(),
-            serde_json::Value::String("ChunkListUpdate".to_string()),
-        );
-        if !self.chunks.is_empty() {
-            instruction.insert(
-                "chunks".to_string(),
-                serde_json::Value::Object(self.chunks.into_iter().collect()),
-            );
-        }
-        if !self.merged.is_empty() {
-            instruction.insert(
-                "merged".to_string(),
-                serde_json::Value::Array(self.merged.into_iter().collect()),
-            );
-        }
         Update::Partial(PartialUpdate {
             to,
-            instruction: Arc::new(serde_json::Value::Object(instruction)),
+            instruction: ChunkListUpdate {
+                chunks: self.chunks,
+                merged: self.merged.into_iter().collect(),
+            }
+            .into_instruction(),
         })
     }
 }
@@ -211,9 +194,9 @@ pub async fn diff_chunks_against(
             };
             Some((path.clone(), *content, TraitRef::cell(prev)))
         })
-        .map(|(path, content, prev)| async move {
+        .map(async |(path, content, prev)| {
             let update = content.update(prev).await?;
-            Ok::<_, anyhow::Error>((path, update))
+            anyhow::Ok((path, update))
         })
         .try_join()
         .await?;
@@ -221,4 +204,83 @@ pub async fn diff_chunks_against(
         chunk_updates,
         has_new_chunks,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_tasks::{FxIndexMap, FxIndexSet};
+    use turbopack_core::update_instruction::UpdateInstruction;
+    use turbopack_ecmascript::chunk_list::{
+        merged_update::{
+            EcmascriptMergedChunkDeleted, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+        },
+        update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
+    };
+
+    use super::ChunkListUpdateBuilder;
+
+    fn merged(chunk_path: &str) -> EcmascriptMergedUpdate {
+        EcmascriptMergedUpdate {
+            entries: Default::default(),
+            chunks: [(
+                chunk_path.into(),
+                EcmascriptMergedChunkUpdate::Deleted(EcmascriptMergedChunkDeleted {
+                    modules: Default::default(),
+                }),
+            )]
+            .into_iter()
+            .collect(),
+        }
+    }
+
+    #[test]
+    fn deduplicates_merged_updates_in_first_seen_order() {
+        let first = merged("first.js");
+        let second = merged("second.js");
+        let mut builder = ChunkListUpdateBuilder::default();
+
+        builder.add_instruction(&UpdateInstruction::new(
+            EcmascriptUpdateInstruction::Merged(first.clone()),
+        ));
+        builder.add_instruction(&UpdateInstruction::new(
+            EcmascriptUpdateInstruction::Merged(second.clone()),
+        ));
+        builder.add_instruction(&UpdateInstruction::new(
+            EcmascriptUpdateInstruction::Merged(first.clone()),
+        ));
+
+        assert_eq!(builder.merged, FxIndexSet::from_iter([first, second]));
+    }
+
+    #[test]
+    fn chunk_updates_use_last_writer_and_stable_order() {
+        let mut builder = ChunkListUpdateBuilder::default();
+        let first = ChunkListUpdate {
+            chunks: FxIndexMap::from_iter([
+                ("a.js".into(), ChunkUpdate::Total),
+                ("b.js".into(), ChunkUpdate::Added),
+            ]),
+            merged: vec![],
+        };
+        let second = ChunkListUpdate {
+            chunks: FxIndexMap::from_iter([
+                ("a.js".into(), ChunkUpdate::Deleted),
+                ("c.js".into(), ChunkUpdate::Total),
+            ]),
+            merged: vec![],
+        };
+
+        builder.add_instruction(&first.into_instruction());
+        builder.add_instruction(&second.into_instruction());
+
+        assert_eq!(
+            builder
+                .chunks
+                .keys()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            ["a.js", "b.js", "c.js"]
+        );
+        assert_eq!(builder.chunks["a.js"], ChunkUpdate::Deleted);
+    }
 }

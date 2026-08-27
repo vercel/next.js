@@ -1,4 +1,18 @@
 [
+    DestructuredMember {
+        obj: Argument(
+            24,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "variable",
+                ),
+            ),
+        ),
+        span: 27..35,
+    },
     Member {
         obj: FreeVar(
             "Math",
@@ -702,7 +716,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -829,7 +843,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],

@@ -334,24 +334,15 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  // Note: only the Server target is implemented in the native binding;
-  // add a Client overload once `all_hmr_update` supports it.
-  allHmrEvents(
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Client
+  clientHmrEvents(
+    identifier: string
   ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  clientHmrChunkNamesSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrChunkNames>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
@@ -393,6 +384,7 @@ export type Route =
   | {
       type: 'app-route'
       originalName: string
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
   | {
@@ -537,6 +529,7 @@ export type AppRoute =
     }
   | {
       type: 'app-route'
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
 

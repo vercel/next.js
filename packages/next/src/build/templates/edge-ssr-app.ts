@@ -83,6 +83,7 @@ async function requestHandler(
     nextConfig,
     buildManifest,
     prerenderManifest,
+    previewProps,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
@@ -102,7 +103,7 @@ async function requestHandler(
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
-    prerenderManifest.preview
+    previewProps
   )
 
   const closeController = new CloseController()
@@ -149,7 +150,7 @@ async function requestHandler(
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
-      previewProps: prerenderManifest.preview,
+      previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
@@ -172,6 +173,9 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        reactBrowserBailout: Boolean(
+          nextConfig.experimental.reactBrowserBailout
+        ),
         // Edge has no Node response-close signal, so HMR cancellation is a
         // no-op.
         serverComponentsHmrCancellation: false,
@@ -195,6 +199,7 @@ async function requestHandler(
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
+        previewProps,
         prerenderManifest,
         true
       ),

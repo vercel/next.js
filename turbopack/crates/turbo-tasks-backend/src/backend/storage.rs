@@ -518,6 +518,14 @@ impl Storage {
         }
     }
 
+    /// Read-only access to an already resident task. Returns `None` if the task isnt in memory
+    /// resident. The closure runs while a shard read lock is held, so it must be cheap and must
+    /// not re-enter the map.
+    pub fn with_task<R>(&self, key: TaskId, f: impl FnOnce(&TaskStorage) -> R) -> Option<R> {
+        let task = self.map.get(&key)?;
+        Some(f(task.value()))
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,

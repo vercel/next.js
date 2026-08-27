@@ -5,7 +5,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
-    DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, LinkContent, LinkType, glob::Glob,
+    DirectoryContent, DirectoryEntry, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
+    glob::Glob,
 };
 
 #[turbo_tasks::value]
@@ -85,10 +86,18 @@ async fn read_glob_internal(
                         handle_dir(&mut result, entry_path, segment, path).await?;
                     }
                     DirectoryEntry::Symlink(path) => {
-                        if let LinkContent::Link { link_type, .. } = &*path.read_link().await? {
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                // Ensure that there are no infinite link loops, but don't resolve
-                                resolve_symlink_safely(entry.clone()).await?;
+                        // Skip links that leave the filesystem root.
+                        let link_content = path.read_link().await?;
+                        if let LinkContent::Link { target } = &*link_content {
+                            let Ok(realpath) = target.file_system_path().realpath().await? else {
+                                // Preserve unresolvable symlinks that match the glob.
+                                handle_file(&mut result, &entry_path, segment, entry);
+                                continue;
+                            };
+                            if matches!(*realpath.get_type().await?, FileSystemEntryType::Directory)
+                            {
+                                // Reject links that point to an ancestor before recursing.
+                                check_symlink_directory_recursion(path, &realpath)?;
 
                                 // Add the directory to `results` if it is a whole match of the glob
                                 handle_file(&mut result, &entry_path, segment, entry);
@@ -120,12 +129,30 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // Recursion can only occur if the symlink is a directory and points to an
         // ancestor of the current path, which can be detected via a simple prefix
         // match.
-        let source_path = entry.path().unwrap();
-        if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
-        }
+        check_symlink_directory_recursion(
+            &entry.path().unwrap(),
+            &resolved_entry.clone().path().unwrap(),
+        )?;
     }
     Ok(resolved_entry)
+}
+
+fn check_symlink_directory_recursion(
+    source_path: &FileSystemPath,
+    realpath: &FileSystemPath,
+) -> Result<()> {
+    // We followed a symlink to a directory
+    // To prevent an infinite loop, which in the case of turbo-tasks would simply
+    // exhaust RAM or go into an infinite loop with the GC we need to check for a
+    // recursive symlink, we need to check for recursion.
+
+    // Recursion can only occur if the symlink is a directory and points to an
+    // ancestor of the current path, which can be detected via a simple prefix
+    // match.
+    if source_path.is_inside_or_equal(realpath) {
+        bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
+    }
+    Ok(())
 }
 
 /// Traverses all directories that match the given `glob`.
@@ -357,6 +384,24 @@ pub mod tests {
         );
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
+        // A folder behind a symlink-to-symlink chain
+        let read_dir = root
+            .read_glob(Glob::new(rcstr!("sub/dir-chain/*"), GlobOptions::default()))
+            .await
+            .unwrap();
+        assert_eq!(read_dir.results.len(), 0);
+        let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
+        assert_eq!(inner_sub.results.len(), 0);
+        let inner_sub_dir = &*inner_sub.inner.get("dir-chain").unwrap().await?;
+        assert_eq!(
+            inner_sub_dir.results,
+            HashMap::from_iter([(
+                "index.js".into(),
+                DirectoryEntry::File(root.join("sub/dir-chain/index.js")?),
+            )])
+        );
+        assert_eq!(inner_sub_dir.inner.len(), 0);
+
         Ok(())
     }
 
@@ -446,6 +491,9 @@ pub mod tests {
                 .write_all(b"dir index")
                 .unwrap();
             symlink(&dir, path.join("sub/dir")).unwrap();
+            let dir_link = path.join("dir-link");
+            symlink(&dir, &dir_link).unwrap();
+            symlink(dir_link, path.join("sub/dir-chain")).unwrap();
         }
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),

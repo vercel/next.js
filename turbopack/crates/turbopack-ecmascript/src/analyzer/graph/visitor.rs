@@ -1259,7 +1259,7 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            body: BlockStmtOrExpr::BlockStmt(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
@@ -1272,7 +1272,7 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::Expr(_),
+                            body: BlockStmtOrExpr::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
@@ -1343,7 +1343,7 @@ impl<'a> Analyzer<'a, '_> {
                     export_usage,
                 });
             }
-            Callee::Expr(box expr) => {
+            Callee::Expr(expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
                     let obj_value =
                         BumpBox::new_in(self.eval_context.eval(self.arena, obj), self.arena);
@@ -1769,28 +1769,26 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            let obj_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &member_expr.obj),
+        let obj_value = BumpBox::new_in(
+            self.eval_context.eval(self.arena, &member_expr.obj),
+            self.arena,
+        );
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+            MemberProp::PrivateName(_) => None,
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                self.eval_context.eval(self.arena, expr),
                 self.arena,
-            );
-            let prop_value = match &member_expr.prop {
-                // TODO avoid clone
-                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
-                MemberProp::PrivateName(_) => None,
-                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
-                    self.eval_context.eval(self.arena, expr),
-                    self.arena,
-                )),
-            };
-            if let Some(prop_value) = prop_value {
-                self.add_effect(Effect::Member {
-                    obj: obj_value,
-                    prop: prop_value,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
-                    span: member_expr.span(),
-                });
-            }
+            )),
+        };
+        if let Some(prop_value) = prop_value {
+            self.add_effect(Effect::Member {
+                obj: obj_value,
+                prop: prop_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: member_expr.span(),
+            });
         }
 
         member_expr.visit_children_with_ast_path(self, ast_path);
@@ -1801,7 +1799,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         bin_expr: &'ast BinExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+        if bin_expr.op == BinaryOp::In {
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
                 self.arena,
@@ -2320,6 +2318,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
+            Pat::Assign(assign) => {
+                let mut value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
+                value.add_alt(
+                    self.arena,
+                    self.eval_context.eval(self.arena, &assign.right),
+                );
+                self.with_pat_value(Some(value), |this| {
+                    pat.visit_children_with_ast_path(this, ast_path);
+                });
+            }
+
             _ => pat.visit_children_with_ast_path(self, ast_path),
         }
     }
@@ -2425,7 +2436,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
         // If this identifier is free, produce an effect so we can potentially replace it later.
         if self.analyze_mode.is_code_gen()
-            && let JsValue::FreeVar(var) = self.eval_context.eval_ident(self.arena, ident)
+            && let JsValue::FreeVar(var) = self.eval_context.eval_id(self.arena, ident.to_id())
         {
             // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
             // benefit in an Effect for `window` or `Math`
@@ -3062,6 +3073,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -3081,7 +3099,7 @@ impl<'a> Analyzer<'a, '_> {
                         ObjectPatPropField::Assign,
                     ));
                     let AssignPatProp { key, value, .. } = assign;
-                    let key_value = key.sym.clone().into();
+                    let key_value = JsValue::from(key.sym.clone());
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
@@ -3089,9 +3107,16 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     self.add_value(
                         key.to_id(),
-                        if let Some(box value) = value {
+                        if let Some(value) = value {
                             let value = self.eval_context.eval(self.arena, value);
                             JsValue::alternatives(BumpVec::from_iter_in(
                                 self.arena,
