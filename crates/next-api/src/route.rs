@@ -13,7 +13,10 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
+use crate::{
+    aggregate_hmr::ServerHmrChunkLists, operation::OptionEndpoint, paths::AssetPath,
+    project::Project,
+};
 
 #[derive(
     TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
@@ -219,11 +222,13 @@ pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
 #[turbo_tasks::function]
 pub async fn endpoint_write_to_disk(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    entry_key: Option<RcStr>,
 ) -> Result<Vc<EndpointOutputPaths>> {
     let output_op = output_assets_operation(endpoint);
     let EndpointOutput {
         project,
         output_paths,
+        server_hmr_chunks,
         ..
     } = *output_op.connect().await?;
 
@@ -231,6 +236,12 @@ pub async fn endpoint_write_to_disk(
         .emit_all_output_assets(endpoint_output_assets_operation(output_op))
         .as_side_effect()
         .await?;
+
+    if let Some(entry_key) = entry_key {
+        project
+            .await?
+            .register_server_hmr_entry(entry_key, server_hmr_chunks);
+    }
 
     Ok(*output_paths)
 }
@@ -250,9 +261,10 @@ async fn endpoint_output_assets_operation(
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
+    entry_key: Option<RcStr>,
 ) -> Result<Vc<EndpointOutputPaths>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint_write_to_disk(*endpoint)
+        endpoint_write_to_disk(*endpoint, entry_key)
     } else {
         EndpointOutputPaths::NotFound.cell()
     })
@@ -286,6 +298,7 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    pub server_hmr_chunks: Option<ResolvedVc<ServerHmrChunkLists>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -294,7 +307,6 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },

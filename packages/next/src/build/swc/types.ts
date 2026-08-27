@@ -1,4 +1,5 @@
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { EntryKey } from '../../shared/lib/turbopack/entry-key'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import type {
   ExternalObject,
@@ -341,8 +342,8 @@ export interface Project {
   >
 
   getServerHmrUpdate(
-    from: ServerHmrVersion | undefined,
-    entryPaths: string[]
+    entryKey: EntryKey,
+    from: ServerHmrVersion | undefined
   ): Promise<TurbopackResult<ServerHmrUpdate>>
 
   clientHmrEvents(
@@ -408,7 +409,7 @@ export type Route =
 
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
-  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+  writeToDisk(entryKey?: EntryKey): Promise<TurbopackResult<WrittenEndpoint>>
 
   /**
    * Listen to client-side changes to the endpoint.
@@ -453,8 +454,6 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
-      /** Server HMR entry chunk lists owned by this endpoint. */
-      serverHmrEntryPaths: string[]
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -463,7 +462,6 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
-      serverHmrEntryPaths: []
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -472,7 +470,6 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
-      serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []
       config: EndpointConfig

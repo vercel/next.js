@@ -52,7 +52,6 @@ impl From<AssetPath> for NapiAssetPath {
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
-    pub server_hmr_entry_paths: Vec<String>,
     pub client_paths: Vec<String>,
     pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
@@ -63,16 +62,11 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
         match written_endpoint {
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
-                server_hmr_entry_paths,
                 server_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
-                server_hmr_entry_paths: server_hmr_entry_paths
-                    .into_iter()
-                    .map(String::from)
-                    .collect(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
@@ -141,8 +135,9 @@ struct WrittenEndpointWithIssues {
 #[turbo_tasks::function(operation, root)]
 async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
+    entry_key: Option<RcStr>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
+    let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op, entry_key);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
         strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
@@ -158,6 +153,7 @@ async fn get_written_endpoint_with_issues_operation(
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    entry_key: Option<RcStr>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ****endpoint;
@@ -165,7 +161,7 @@ pub async fn endpoint_write_to_disk(
         .turbo_tasks()
         .run(async move {
             let written_entrypoint_with_issues_op =
-                get_written_endpoint_with_issues_operation(endpoint_op);
+                get_written_endpoint_with_issues_operation(endpoint_op, entry_key);
             let read = read_strongly_consistent_and_apply_effects(
                 written_entrypoint_with_issues_op,
                 |v| &v.effects,

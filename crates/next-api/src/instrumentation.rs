@@ -237,6 +237,7 @@ impl Endpoint for InstrumentationEndpoint {
                 }
                 .resolved_cell(),
                 project: this.project,
+                server_hmr_chunks: None,
             }
             .cell())
         }
