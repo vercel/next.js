@@ -1,11 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "dev": "run-p dev:backend dev:frontend",
+    "dev": "convex dev --start \"next dev\"",
     "build": "tsc && next build",
-    "dev:backend": "convex dev",
-    "dev:frontend": "next dev",
-    "predev": "convex dev --until-success",
     "start": "next start"
   },
   "dependencies": {
@@ -18,7 +15,6 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "npm-run-all2": "^8.0.4",
     "typescript": "^5.9.3"
   }
 }
