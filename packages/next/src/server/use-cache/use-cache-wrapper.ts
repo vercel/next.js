@@ -51,7 +51,9 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getServerActionsManifest,
   getServerModuleMap,
+  normalizeWorkerPageName,
 } from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
@@ -3629,7 +3631,9 @@ async function computeCacheKeyImplementationPart(
   id: string
 ): Promise<unknown> {
   let serverModuleMapEntry = workStore.durableUseCacheEntries
-    ? getServerModuleMap()?.[id]
+    ? getServerActionsManifest().node[id].workers?.[
+        normalizeWorkerPageName(workStore.page)
+      ]
     : undefined
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&

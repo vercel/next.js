@@ -15,9 +15,6 @@ export interface ServerModuleMap {
     readonly name: string
     readonly chunks: Readonly<Array<string>> // currently not used
     readonly async?: boolean
-    readonly codeHash?: string
-    readonly runtimeEnvVars?: string[]
-    readonly referencesClientComponent?: boolean
   }
 }
 
@@ -316,7 +313,7 @@ function createServerModuleMap(): ServerModuleMap {
  * The flight entry loader keys actions by bundlePath. bundlePath corresponds
  * with the relative path (including 'app') to the page entrypoint.
  */
-function normalizeWorkerPageName(pageName: string) {
+export function normalizeWorkerPageName(pageName: string) {
   if (pathHasPrefix(pageName, 'app')) {
     return pageName
   }
