@@ -637,7 +637,7 @@ export declare function projectGetServerHmrUpdate(
   project: { __napiType: 'Project' },
   from: ExternalObject<ServerHmrVersion> | undefined | null,
   entryPaths: Array<RcStr>
-): Promise<NapiServerHmrUpdate>
+): Promise<TurbopackResult<NapiServerHmrUpdate>>
 
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },

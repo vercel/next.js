@@ -1861,6 +1861,7 @@ async fn hmr_update_with_issues_operation(
 struct ServerHmrSnapshotWithEffects {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
     version: ReadRef<ServerHmrChunkListVersion>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
 
@@ -1901,10 +1902,13 @@ async fn server_hmr_snapshot_with_effects_operation(
         .read_strongly_consistent()
         .final_read_hint()
         .await?;
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(snapshot_op, &filter).await?;
     let effects = Arc::new(take_effects(snapshot_op).await?);
     Ok(ServerHmrSnapshotWithEffects {
         chunk_lists: snapshot.chunk_lists.clone(),
         version: snapshot.version.clone(),
+        issues,
         effects,
     }
     .cell())
@@ -1947,7 +1951,7 @@ pub async fn project_get_server_hmr_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     from: Option<&External<ServerHmrVersion>>,
     entry_paths: Vec<RcStr>,
-) -> napi::Result<NapiServerHmrUpdate> {
+) -> napi::Result<TurbopackResult<NapiServerHmrUpdate>> {
     let container = project.container;
     let turbo_tasks = project.turbopack_ctx.turbo_tasks();
     let from = from.map(|from| from.0.clone());
@@ -1968,22 +1972,31 @@ pub async fn project_get_server_hmr_update(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
 
     // Diffing must not remain active after the pull completes.
-    let update = turbo_tasks
+    let (update, issues) = turbo_tasks
         .run(async move {
             let _ = project;
             let ServerHmrSnapshotWithEffects {
                 chunk_lists,
                 version,
+                issues,
                 ..
             } = &*read;
-            compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version.clone())
-                .await
+            let update =
+                compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version.clone())
+                    .await?;
+            Ok::<_, anyhow::Error>((update, issues.clone()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
 
-    NapiServerHmrUpdate::new(&update)
-        .map_err(|error| napi::Error::from_reason(PrettyPrintError(&error).to_string()))
+    Ok(TurbopackResult {
+        result: NapiServerHmrUpdate::new(&update)
+            .map_err(|error| napi::Error::from_reason(PrettyPrintError(&error).to_string()))?,
+        issues: issues
+            .iter()
+            .map(|issue| NapiIssue::from(&**issue))
+            .collect(),
+    })
 }
 
 #[tracing::instrument(level = "info", name = "get client HMR events", skip(env, project, func), fields(chunk_name = %chunk_name))]

@@ -762,13 +762,13 @@ function bindingToApi(
     async getServerHmrUpdate(
       from: ServerHmrVersion | undefined,
       entryPaths: string[]
-    ): Promise<ServerHmrUpdate> {
+    ): Promise<TurbopackResult<ServerHmrUpdate>> {
       // napi cannot express the field correlation.
       return binding.projectGetServerHmrUpdate(
         this._nativeProject,
         from,
         entryPaths
-      ) as Promise<ServerHmrUpdate>
+      ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
     clientHmrEvents(

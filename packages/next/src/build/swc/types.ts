@@ -343,7 +343,7 @@ export interface Project {
   getServerHmrUpdate(
     from: ServerHmrVersion | undefined,
     entryPaths: string[]
-  ): Promise<ServerHmrUpdate>
+  ): Promise<TurbopackResult<ServerHmrUpdate>>
 
   clientHmrEvents(
     identifier: string
