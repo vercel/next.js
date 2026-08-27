@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -60,6 +61,38 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
+
+const REACT_18_DEPRECATION_WARNING =
+  'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
+
+function getInstalledPackageVersion(dir: string, name: 'react' | 'react-dom') {
+  try {
+    const projectRequire = createRequire(join(dir, 'package.json'))
+    return (projectRequire(name) as { version?: string }).version
+  } catch {
+    return undefined
+  }
+}
+
+function warnIfReact18IsInstalled(
+  phase: PHASE_TYPE,
+  dir: string,
+  silent: boolean | undefined
+) {
+  if (
+    silent !== false ||
+    (phase !== PHASE_DEVELOPMENT_SERVER && phase !== PHASE_PRODUCTION_BUILD)
+  ) {
+    return
+  }
+
+  const reactVersion = getInstalledPackageVersion(dir, 'react')
+  const reactDomVersion = getInstalledPackageVersion(dir, 'react-dom')
+
+  if (reactVersion?.startsWith('18.') || reactDomVersion?.startsWith('18.')) {
+    Log.warnOnce(REACT_18_DEPRECATION_WARNING)
+  }
+}
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
@@ -1813,6 +1846,8 @@ export default async function loadConfig(
   const logTiming = opts.silent === false
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
+
+  warnIfReact18IsInstalled(phase, dir, opts.silent)
 
   if (!meta.cacheHit && logTiming) {
     const durationNanos = process.hrtime.bigint() - startTimeNanos!
