@@ -195,6 +195,13 @@ type NextAttributeNames =
   | 'next.span_type'
   | 'next.server_action.name'
   | 'next.server_action.file'
+  | 'next.cache.kind'
+  | 'next.cache.outcome'
+  | 'next.cache.source'
+  | 'next.cache.joined'
+  | 'next.cache.handler'
+  | 'next.cache.reason'
+  | 'next.cache.background_refresh'
   | 'next.clientComponentLoadCount'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames

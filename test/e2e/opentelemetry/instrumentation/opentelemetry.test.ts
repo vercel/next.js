@@ -69,6 +69,12 @@ function setup({
             'fixtures/use-cache-server-action/app/server-action/page.tsx'
           )
         ),
+        'app/api/cache/route.ts': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/app/api/cache/route.ts'
+          )
+        ),
         'constants.ts': new FileRef(path.join(__dirname, 'constants.ts')),
         'instrumentation-node.ts': new FileRef(
           path.join(__dirname, 'instrumentation-node.ts')
@@ -1771,6 +1777,155 @@ describe('opentelemetry use cache Server Functions', () => {
     return
   }
 
+  async function getNewUseCacheSpans(
+    previousSpanIds: ReadonlySet<string>,
+    predicate: (spans: SavedSpan[]) => boolean = (spans) => spans.length > 0
+  ): Promise<SavedSpan[]> {
+    return retry(() => {
+      const spans = getCollector()
+        .getSpans()
+        .filter(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'UseCache.execute' &&
+            !previousSpanIds.has(span.id)
+        )
+      if (!predicate(spans)) {
+        throw new Error('Missing use cache span')
+      }
+      return spans
+    })
+  }
+
+  function currentSpanIds(): Set<string> {
+    return new Set(
+      getCollector()
+        .getSpans()
+        .map((span) => span.id)
+    )
+  }
+
+  it('traces use cache misses, hits, and joined invocations', async () => {
+    const cacheKey = `private-${Date.now()}`
+    let previousSpanIds = currentSpanIds()
+
+    expect(
+      await next.fetch(`/api/cache?key=${cacheKey}`).then((res) => res.status)
+    ).toBe(200)
+    const missSpans = await getNewUseCacheSpans(previousSpanIds)
+    expect(missSpans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'use cache',
+          attributes: expect.objectContaining({
+            'next.span_name': 'use cache',
+            'next.span_type': 'UseCache.execute',
+            'next.span_category': 'application',
+            'next.cache.kind': 'public',
+            'next.cache.outcome': 'miss',
+            'next.cache.source': 'generated',
+            'next.cache.handler': 'default',
+          }),
+          status: { code: 0 },
+        }),
+      ])
+    )
+
+    previousSpanIds = currentSpanIds()
+    expect(
+      await next.fetch(`/api/cache?key=${cacheKey}`).then((res) => res.status)
+    ).toBe(200)
+    const hitSpans = await getNewUseCacheSpans(previousSpanIds)
+    expect(hitSpans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            'next.cache.outcome': 'hit',
+            'next.cache.source': 'handler',
+          }),
+          status: { code: 0 },
+        }),
+      ])
+    )
+
+    const joinedKey = `joined-${Date.now()}`
+    previousSpanIds = currentSpanIds()
+    expect(
+      await next
+        .fetch(`/api/cache?key=${joinedKey}&join=1`)
+        .then((res) => res.status)
+    ).toBe(200)
+    const joinedSpans = await getNewUseCacheSpans(previousSpanIds, (spans) =>
+      spans.some(
+        (span) => span.attributes?.['next.cache.joined'] === 'intra-request'
+      )
+    )
+    const joinedSpan = joinedSpans.find(
+      (span) => span.attributes?.['next.cache.joined'] === 'intra-request'
+    )
+    expect(joinedSpan).toEqual(
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          'next.cache.outcome': 'wait',
+          'next.cache.joined': 'intra-request',
+        }),
+        status: { code: 0 },
+      })
+    )
+    expect(joinedSpan?.attributes?.['next.cache.source']).toBeUndefined()
+
+    expect(
+      JSON.stringify([...missSpans, ...hitSpans, ...joinedSpans])
+    ).not.toContain(cacheKey)
+    expect(JSON.stringify(joinedSpans)).not.toContain(joinedKey)
+  })
+
+  it('parents spans inside a cached function to the use cache span', async () => {
+    const previousSpanIds = currentSpanIds()
+    expect(
+      await next
+        .fetch(`/api/cache?key=nested-${Date.now()}&nested=1`)
+        .then((res) => res.status)
+    ).toBe(200)
+
+    const spans = await getNewUseCacheSpans(previousSpanIds, (newSpans) =>
+      newSpans.some((span) =>
+        newSpans.some((candidate) => candidate.parentId === span.id)
+      )
+    )
+    expect(
+      spans.some((span) =>
+        spans.some(
+          (candidate) =>
+            candidate.parentId === span.id && candidate.traceId === span.traceId
+        )
+      )
+    ).toBe(true)
+  })
+
+  it('records use cache failures without exposing arguments', async () => {
+    const secret = `secret-${Date.now()}`
+    const previousSpanIds = currentSpanIds()
+    expect(
+      await next
+        .fetch(`/api/cache?key=${secret}&fail=1`)
+        .then((res) => res.status)
+    ).toBe(500)
+
+    const spans = await getNewUseCacheSpans(previousSpanIds)
+    expect(spans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'use cache',
+          attributes: expect.objectContaining({
+            'next.cache.source': 'generated',
+          }),
+          status: expect.objectContaining({ code: 2 }),
+        }),
+      ])
+    )
+    expect(JSON.stringify(spans)).not.toContain(secret)
+  })
+
   it.each([
     { label: 'JavaScript', disableJavaScript: false },
     { label: 'progressive enhancement', disableJavaScript: true },
@@ -1780,7 +1935,21 @@ describe('opentelemetry use cache Server Functions', () => {
       const browser = await next.browser('/server-action', {
         disableJavaScript,
       })
+      const previousSpanIds = currentSpanIds()
       await browser.elementById('run-cached-server-function').click()
+
+      const cacheSpans = await getNewUseCacheSpans(previousSpanIds)
+      expect(cacheSpans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'UseCache.execute',
+              'next.cache.kind': 'public',
+            }),
+            status: { code: 0 },
+          }),
+        ])
+      )
 
       await retry(() => {
         expect(
