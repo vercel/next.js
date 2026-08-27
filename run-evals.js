@@ -27,9 +27,14 @@ const ROOT = __dirname
 
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
+const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
+
+/** @typedef {{ skills?: string[], timeout?: number }} EvalConfig */
+/** @type {Record<string, EvalConfig>} */
+const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
 // The two variants we always compare. Order matters for output readability:
 // baseline first so a contributor sees "does the agent fail without docs?"
@@ -106,22 +111,23 @@ function listEvals() {
 }
 
 function readFixtureConfig(evalName) {
-  const configPath = path.join(FIXTURES_DIR, evalName, 'eval.config.json')
-  if (!fs.existsSync(configPath)) return { skills: [], timeout: 720 }
-
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+  const config = EVAL_CONFIG[evalName] ?? {}
   const skillNames = config.skills ?? []
   if (
     !Array.isArray(skillNames) ||
     skillNames.some((name) => typeof name !== 'string')
   ) {
-    throw new Error(`${configPath} skills must be an array of skill names`)
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.skills must be an array of skill names`
+    )
   }
   if (
     config.timeout !== undefined &&
     (typeof config.timeout !== 'number' || config.timeout <= 0)
   ) {
-    throw new Error(`${configPath} timeout must be a positive number`)
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.timeout must be a positive number`
+    )
   }
   return { skills: skillNames, timeout: config.timeout ?? 720 }
 }
@@ -140,20 +146,27 @@ function getExperimentSettings(evalName) {
     return { variants: BASE_VARIANTS, timeout }
   }
 
-  const skillNames = [
-    ...new Set(configuredSkillEvals.flatMap(({ skills }) => skills)),
-  ]
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const skillGroups = new Map()
+  for (const { name, skills } of configuredSkillEvals) {
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = skillGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    skillGroups.set(key, group)
+  }
+
+  const multipleSkillGroups = skillGroups.size > 1
+  const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
+    suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
+    imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    evals,
+  }))
+
   return {
     timeout,
-    variants: [
-      ...BASE_VARIANTS,
-      {
-        suffix: 'skills',
-        imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
-        setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skillNames)})`,
-        evals: configuredSkillEvals.map(({ name }) => name),
-      },
-    ],
+    variants: [...BASE_VARIANTS, ...skillVariants],
   }
 }
 

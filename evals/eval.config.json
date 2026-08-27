@@ -1,0 +1,26 @@
+{
+  "agent-046-adopt-partial-prefetching": {
+    "skills": ["next-partial-prefetching-adoption"],
+    "timeout": 1800
+  },
+  "agent-047-adopt-cache-components": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  },
+  "agent-048-cache-components-config-semantics": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  },
+  "agent-049-cache-components-session-isolation": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  },
+  "agent-050-cache-components-url-shell": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  },
+  "agent-051-cache-components-sync-io": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  }
+}

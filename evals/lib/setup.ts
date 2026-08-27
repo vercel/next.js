@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, posix, relative } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
 
 const REPO_ROOT = join(process.cwd(), '..')
@@ -113,13 +113,13 @@ export async function installLocalSkills(
     }
 
     for (const file of listFiles(skillDir)) {
-      const skillPath = relative(skillDir, file)
+      const skillPath = relative(skillDir, file).replaceAll('\\', '/')
       const content = readFileSync(file, 'utf-8')
 
       // Claude Code reads .claude/skills. Keep the agent-neutral path in sync
       // so the same treatment can support additional coding agents later.
-      files[join('.claude', 'skills', skillName, skillPath)] = content
-      files[join('.agents', 'skills', skillName, skillPath)] = content
+      files[posix.join('.claude', 'skills', skillName, skillPath)] = content
+      files[posix.join('.agents', 'skills', skillName, skillPath)] = content
     }
   }
 
