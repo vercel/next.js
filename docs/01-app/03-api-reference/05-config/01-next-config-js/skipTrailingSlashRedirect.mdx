@@ -48,18 +48,20 @@ Your own `redirects` and `rewrites` from `next.config.js` still apply.
 
 ### Paths that contain a dot
 
-The default redirects treat any path whose last segment contains a dot as a file. Under [`trailingSlash: true`](/docs/app/api-reference/config/next-config-js/trailingSlash) those paths have their trailing slash removed rather than added, which also catches routes that are not files:
+The default redirects decide by looking at the last path segment. If it contains a dot, Next.js treats the path as a file and removes the trailing slash instead of adding one, so a route that happens to contain a dot in its last path segment behaves as if [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) were `false`. A dot in an earlier segment has no effect.
 
-| Request           | `trailingSlash: true`              | `trailingSlash: false`             |
-| ----------------- | ---------------------------------- | ---------------------------------- |
-| `/about`          | `308` redirect to `/about/`        | `200`                              |
-| `/about/`         | `200`                              | `308` redirect to `/about`         |
-| `/gcc.git/`       | `308` redirect to `/gcc.git`       | `308` redirect to `/gcc.git`       |
-| `/version/1.2.3/` | `308` redirect to `/version/1.2.3` | `308` redirect to `/version/1.2.3` |
+| Request                   | `trailingSlash: true`              | `trailingSlash: false`                     | `skipTrailingSlashRedirect: true` |
+| ------------------------- | ---------------------------------- | ------------------------------------------ | --------------------------------- |
+| `/about`                  | `308` redirect to `/about/`        | `200`                                      | `200`                             |
+| `/about/`                 | `200`                              | `308` redirect to `/about`                 | `200`                             |
+| `/gcc.git/`               | `308` redirect to `/gcc.git`       | `308` redirect to `/gcc.git`               | `200`                             |
+| `/version/1.2.3/`         | `308` redirect to `/version/1.2.3` | `308` redirect to `/version/1.2.3`         | `200`                             |
+| `/version/1.2.3/my-page/` | `200`                              | `308` redirect to `/version/1.2.3/my-page` | `200`                             |
+| `/.well-known/x/`         | `200`                              | `308` redirect to `/.well-known/x`         | `200`                             |
 
-A dot is the only signal, so a repository path like `/gcc.git` or a versioned docs path like `/version/1.2.3` never keeps a trailing slash, even with `trailingSlash: true`. Enabling `skipTrailingSlashRedirect` removes the redirect and both spellings of those paths return `200`.
+Paths under `.well-known/` are exempt from the default redirects when `trailingSlash` is `true`. When it is `false` there is no exemption and they redirect like any other path.
 
-Paths under `.well-known/` are exempt from the default redirects when `trailingSlash` is `true`. When it is `false` they are redirected like any other path.
+With the option enabled, none of these redirects are generated and every path is served at whichever form was requested.
 
 ## Good to know
 
