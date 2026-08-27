@@ -3324,11 +3324,10 @@ function prepareAppPage(
   )
 
   // If provided, parse the postponed state so its RDC is available to the
-  // render. Keep the React state only for requests that can resume it.
+  // render.
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
-    const { isFetchAction, isPossibleMPAAction } =
-      getServerActionRequestMetadata(req)
+    const { isFetchAction } = getServerActionRequestMetadata(req)
 
     if (fallbackRouteParams) {
       if (!isFetchAction) {
@@ -3340,18 +3339,6 @@ function prepareAppPage(
       // A fetch action with fallback params cannot render this page, so its
       // React postponed state cannot be resumed. The RDC is still useful while
       // executing cached functions in the action.
-      postponedState = {
-        type: DynamicState.DATA,
-        renderResumeDataCache: parseResumeDataCacheFromPostponedState(
-          renderOpts.postponed,
-          renderOpts.experimental.maxPostponedStateSizeBytes,
-          renderOpts.experimental.disableResumeDataCacheCompression
-        ),
-      }
-    } else if (isPossibleMPAAction) {
-      // An MPA action needs a complete HTML document, so it cannot resume the
-      // React render. Its RDC is still needed to keep cached values consistent
-      // with the static shell when the action did not invalidate them.
       postponedState = {
         type: DynamicState.DATA,
         renderResumeDataCache: parseResumeDataCacheFromPostponedState(
@@ -3548,8 +3535,6 @@ async function renderToStream(
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
-  const { isPossibleMPAAction } = getServerActionRequestMetadata(req)
-
   const {
     assetPrefix,
     htmlRequestId,
@@ -3559,10 +3544,9 @@ async function renderToStream(
     requestId,
     workStore,
   } = ctx
-  // MPA actions reuse the RDC from the postponed state, but their response
-  // must come from a complete server render rather than a postponed response.
   const shouldUsePostponedResponse =
-    typeof renderOpts.postponed === 'string' && !isPossibleMPAAction
+    typeof renderOpts.postponed === 'string' &&
+    renderOpts.renderOperation === 'resume'
 
   const {
     basePath,

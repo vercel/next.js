@@ -55,6 +55,22 @@ describe('cache-components', () => {
     })
   })
 
+  it('should return complete HTML for an unrelated urlencoded POST', async () => {
+    const response = await next.fetch('/server-action-mpa-partial', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'foo=bar',
+    })
+    const html = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(html).toStartWith('<!DOCTYPE html>')
+    expect(html).toContain('id="cached-timestamp"')
+    expect(html).toEndWith('</body></html>')
+  })
+
   it('should not have cache components errors when encoding bound args for inline server actions', async () => {
     const browser = await next.browser('/server-action-inline')
     expect(await browser.elementByCss('p').text()).toBe('initial')
