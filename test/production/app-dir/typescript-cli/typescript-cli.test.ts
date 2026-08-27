@@ -169,4 +169,28 @@ describe('TypeScript CLI backend', () => {
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
   })
+
+  describe('aliased TypeScript 6 compatibility package', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      skipDeployment: true,
+      dependencies: {
+        typescript: 'npm:@typescript/typescript6@6.0.2',
+      },
+    })
+
+    if (skipped) return
+
+    it("uses the package's sole CLI entry point", async () => {
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).not.toContain(
+        'do not have the required package(s) installed'
+      )
+      expect(result.cliOutput).not.toContain('Installing dependencies')
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+  })
 })

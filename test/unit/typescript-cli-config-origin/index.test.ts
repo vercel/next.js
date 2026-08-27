@@ -90,4 +90,21 @@ describe('TypeScript CLI config metadata', () => {
       ),
     })
   })
+
+  it('uses the sole CLI entry from an aliased TypeScript package', () => {
+    const packageDir = path.join(testDir, 'node_modules/typescript')
+    rmSync(packageDir, { force: true, recursive: true })
+    cpSync(
+      path.join(__dirname, 'fixture/typescript-aliased-package'),
+      packageDir,
+      { recursive: true }
+    )
+
+    const packageInfo = getTypeScriptPackageInfo(testDir)
+
+    expect(packageInfo).toMatchObject({
+      version: '6.0.2-test',
+      tscPath: realpathSync(path.join(packageDir, 'bin/tsc6')),
+    })
+  })
 })
