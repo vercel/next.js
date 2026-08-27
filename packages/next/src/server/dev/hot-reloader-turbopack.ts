@@ -252,11 +252,8 @@ function setupServerHmr(
     }
   }
 
-  return function applyServerHmrUpdate(
-    key: EntryKey,
-    entryPaths: string[]
-  ): Promise<void> {
-    const apply = pending.then(async () => {
+  function apply(key: EntryKey, entryPaths: string[]): Promise<void> {
+    const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
         await recover()
         return
@@ -320,9 +317,21 @@ function setupServerHmr(
       needsReEvaluation = true
       await recover()
     })
-    pending = apply
-    return apply
+    pending = applyPromise
+    return applyPromise
   }
+
+  function reset(): Promise<void> {
+    const resetState = () => {
+      versions.clear()
+      needsReEvaluation = false
+    }
+    const resetPromise = pending.then(resetState, resetState)
+    pending = resetPromise
+    return resetPromise
+  }
+
+  return { apply, reset }
 }
 
 function getSourceMapFromTurbopack(
@@ -800,7 +809,7 @@ export async function createHotReloaderTurbopack(
     dropDevValidationWorker()
   }
 
-  const applyServerHmrUpdate = setupServerHmr(project, {
+  const serverHmr = setupServerHmr(project, {
     reEvaluateAllModulesExpensive,
     onApplied: (chunkPaths: string[]) => {
       // The runtime patched these chunks in place, so keep require.cache but
@@ -1845,6 +1854,8 @@ export async function createHotReloaderTurbopack(
     },
     async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
+        await serverHmr.reset()
+
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
         }
@@ -2053,7 +2064,7 @@ export async function createHotReloaderTurbopack(
               serverHmrEntryKey &&
               serverHmrEntryPaths.length > 0
             ) {
-              await applyServerHmrUpdate(serverHmrEntryKey, serverHmrEntryPaths)
+              await serverHmr.apply(serverHmrEntryKey, serverHmrEntryPaths)
             }
           } finally {
             finishBuilding()
