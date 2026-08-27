@@ -15,16 +15,16 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "foo-module-style": "style-module__CEkn7G__foo-module-style",
+  "foo-module-style": "CEkn7G_foo-module-style",
 });
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "another-composed-module-style": "style-module__Iu_hLa__another-composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
-  "composed-module-style": "style-module__Iu_hLa__composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
-  "inner": "style-module__Iu_hLa__inner",
-  "module-style": "style-module__Iu_hLa__module-style",
+  "another-composed-module-style": "Iu_hLa_another-composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
+  "composed-module-style": "Iu_hLa_composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
+  "inner": "Iu_hLa_inner",
+  "module-style": "Iu_hLa_module-style",
 });
 }),
 ]);

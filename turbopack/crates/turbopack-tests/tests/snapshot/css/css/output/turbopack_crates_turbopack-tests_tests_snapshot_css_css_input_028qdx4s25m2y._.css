@@ -24,24 +24,24 @@
 }
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css) */
-.style-module__CEkn7G__foo-module-style {
+.CEkn7G_foo-module-style {
   color: #00f;
 }
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css) */
-.style-module__Iu_hLa__module-style {
+.Iu_hLa_module-style {
   color: #f0f;
 }
 
-.style-module__Iu_hLa__module-style > h1, .style-module__Iu_hLa__module-style + .style-module__Iu_hLa__inner {
+.Iu_hLa_module-style > h1, .Iu_hLa_module-style + .Iu_hLa_inner {
   background: purple;
 }
 
-.style-module__Iu_hLa__composed-module-style {
+.Iu_hLa_composed-module-style {
   color: green;
 }
 
-.style-module__Iu_hLa__another-composed-module-style {
+.Iu_hLa_another-composed-module-style {
   color: #ff0;
 }
 

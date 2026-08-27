@@ -9,13 +9,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/index.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "bar": "index-module__jZ0vmq__bar" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/other.module.css [test] (css module)")["foo"],
+  "bar": "jZ0vmq_bar" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/other.module.css [test] (css module)")["foo"],
 });
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/other.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "foo": "other-module__NjlEuq__foo",
+  "foo": "NjlEuq_foo",
 });
 }),
 ]);

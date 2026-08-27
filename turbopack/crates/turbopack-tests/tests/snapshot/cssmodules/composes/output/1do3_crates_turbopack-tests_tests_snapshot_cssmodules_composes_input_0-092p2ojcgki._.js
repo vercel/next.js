@@ -9,8 +9,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "className": "index-module__H6xp9G__className",
-  "subClass": "index-module__H6xp9G__subClass" + " " + "index-module__H6xp9G__className",
+  "className": "H6xp9G_className",
+  "subClass": "H6xp9G_subClass" + " " + "H6xp9G_className",
 });
 }),
 ]);
