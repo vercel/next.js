@@ -280,7 +280,7 @@ struct TestOptions {
     infer_module_side_effects: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     mangle_export_names: bool,
     #[serde(default = "default_true")]
     cross_module_constants: bool,
@@ -314,7 +314,7 @@ impl Default for TestOptions {
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
             cjs_tree_shaking: false,
-            mangle_export_names: false,
+            mangle_export_names: default_true(),
             cjs_scope_hoisting: false,
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
