@@ -79,8 +79,52 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { isUseCacheFunction } from '../../lib/client-and-server-references'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+
+type ServerActionInfo = {
+  name: string
+  file?: string
+}
+
+type ServerActionTracing = {
+  enabled: boolean
+  info: ServerActionInfo | null
+}
+
+function getServerActionInfo(
+  actionId: string,
+  ctx: AppRenderContext
+): ServerActionInfo | null {
+  const serverActionsManifest = getServerActionsManifest()
+  const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+  const actionInfo = serverActionsManifest[runtime]?.[actionId]
+
+  if (!actionInfo) {
+    return null
+  }
+
+  const isInlineAction =
+    actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+
+  return {
+    name: isInlineAction
+      ? '<inline action>'
+      : actionInfo.exportedName === 'default'
+        ? 'default'
+        : actionInfo.exportedName || '<action>',
+    file: process.env.__NEXT_DEV_SERVER
+      ? normalizeFilePath(
+          ctx.renderOpts.dir ||
+            (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()),
+          actionInfo.filename
+        )
+      : undefined,
+  }
+}
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -887,6 +931,7 @@ export async function handleAction({
                 )
               }
 
+              const mpaActionId = getMPAActionIdForTracing(formData)
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -899,7 +944,13 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  {
+                    enabled: !isUseCacheFunction(action),
+                    info: mpaActionId
+                      ? getServerActionInfo(mpaActionId, ctx)
+                      : null,
+                  }
                 )
 
                 const formState = await decodeFormState(
@@ -1094,6 +1145,7 @@ export async function handleAction({
                 )
               }
 
+              const mpaActionId = getMPAActionIdForTracing(formData)
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
               // action referred to is available.
               const action = await decodeAction(formData, serverModuleMap)
@@ -1108,7 +1160,13 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  {
+                    enabled: !isUseCacheFunction(action),
+                    info: mpaActionId
+                      ? getServerActionInfo(mpaActionId, ctx)
+                      : null,
+                  }
                 )
 
                 const formState = await decodeFormState(
@@ -1196,6 +1254,10 @@ export async function handleAction({
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
         const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
+        const serverActionInfo =
+          actionType === 'use-cache'
+            ? null
+            : getServerActionInfo(actionId!, ctx)
         if (
           process.env.NODE_ENV === 'development' &&
           ctx.renderOpts.logServerFunctions &&
@@ -1237,7 +1299,11 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            shouldSkipPageRendering
+            shouldSkipPageRendering,
+            {
+              enabled: actionType !== 'use-cache',
+              info: serverActionInfo,
+            }
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1401,7 +1467,8 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  shouldSkipPageRendering: boolean
+  shouldSkipPageRendering: boolean,
+  tracing: ServerActionTracing
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
@@ -1416,9 +1483,38 @@ async function executeActionAndPrepareForRender<
   }
 
   try {
-    const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
-      action.apply(null, args)
-    )
+    const executeAction = () =>
+      workUnitAsyncStorage.run(requestStore, () => action.apply(null, args))
+    const actionName = tracing.info?.name ?? '<action>'
+    const actionResult = tracing.enabled
+      ? await getTracer().trace(
+          AppRenderSpan.executeServerAction,
+          {
+            spanName: `run Server Action ${actionName}`,
+            attributes: {
+              'next.span_category': 'application',
+              'next.server_action.name': actionName,
+              'next.server_action.file': tracing.info?.file,
+            },
+          },
+          async (_span, done) => {
+            try {
+              const result = await executeAction()
+              done?.()
+              return result
+            } catch (error) {
+              done?.(
+                isRedirectError(error) || isHTTPAccessFallbackError(error)
+                  ? undefined
+                  : error instanceof Error
+                    ? error
+                    : new Error('Server Action threw a non-Error value')
+              )
+              throw error
+            }
+          }
+        )
+      : await executeAction()
 
     // If the page was not revalidated, or if this is an action-only request,
     // we can skip rendering the page.
@@ -1542,6 +1638,34 @@ function areAllActionIdsValid(
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
+
+function getMPAActionIdForTracing(mpaFormData: FormData): string | null {
+  let actionId: string | null = null
+
+  for (const key of mpaFormData.keys()) {
+    if (key.startsWith($ACTION_ID_)) {
+      actionId = key.slice($ACTION_ID_.length)
+    } else if (key.startsWith($ACTION_REF_)) {
+      const actionDescriptorField =
+        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
+      const actionDescriptor = mpaFormData.get(actionDescriptorField)
+
+      if (
+        typeof actionDescriptor === 'string' &&
+        actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX)
+      ) {
+        const from = ACTION_DESCRIPTOR_ID_PREFIX.length
+        const to = actionDescriptor.indexOf('"', from)
+        if (to !== -1) {
+          actionId = actionDescriptor.slice(from, to)
+        }
+      }
+    }
+  }
+
+  return actionId
+}
+
 function isInvalidStringActionDescriptor(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap

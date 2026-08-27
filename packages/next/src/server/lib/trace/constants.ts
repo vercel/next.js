@@ -98,6 +98,7 @@ enum AppRenderSpan {
   instantInsights = 'AppRender.instantInsights',
   instantInsightsPrepareValidation = 'AppRender.instantInsights.prepareValidation',
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
+  executeServerAction = 'AppRender.executeServerAction',
 }
 
 enum DevBundlerServiceSpan {
@@ -159,6 +160,7 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  AppRenderSpan.executeServerAction,
   LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
