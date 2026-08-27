@@ -9,10 +9,12 @@ async function execute(next: NextInstance, envKey: string, id: string) {
     await next.start()
 
     let keyRoot: string,
+      keyNested: string,
       keyPrerender: string,
       keyClient: string,
       keyRoute: string,
       dataRoot: string,
+      dataNested: string,
       dataPrerender: string,
       dataClient: string,
       dataRoute: string
@@ -56,6 +58,17 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     {
       const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/nested`)
+      dataNested = await browser.elementById('data').text()
+      const match = logs().match(
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/nested\/layout","_N_T_\/nested\/page","_N_T_\/nested"\]\]$/m
+      )
+      expect(match).toBeArray()
+      keyNested = match[0]
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/`)
       dataRoot = await browser.elementById('data').text()
       const match = logs().match(
@@ -66,10 +79,12 @@ async function execute(next: NextInstance, envKey: string, id: string) {
     }
     return {
       keyRoot,
+      keyNested,
       keyPrerender,
       keyClient,
       keyRoute,
       dataRoot,
+      dataNested,
       dataPrerender,
       dataClient,
       dataRoute,
@@ -195,6 +210,12 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         // The env var value should not be leaked into the cache key, only hashes of it.
         expect(key1.keyRoot).not.toContain(foobar1)
         expect(key2.keyRoot).not.toContain(foobar2)
+
+        expect(key1.keyNested).not.toBe(key2.keyNested)
+        expect(key1.dataNested).toEndWith(`:${foobar1}`)
+        expect(key2.dataNested).toEndWith(`:${foobar2}`)
+        expect(key1.keyNested).not.toContain(foobar1)
+        expect(key2.keyNested).not.toContain(foobar2)
 
         expect(key1.keyPrerender).not.toBe(key2.keyPrerender)
         expect(key1.dataPrerender).toEndWith(`:${foobar1}`)
