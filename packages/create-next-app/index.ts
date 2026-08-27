@@ -51,10 +51,7 @@ const program = new Command(packageJson.name)
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
-  .option(
-    '--cache-components',
-    'Initialize with Cache Components enabled. (default)'
-  )
+  .option('--cache-components', 'Initialize with Cache Components enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
@@ -249,7 +246,7 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
-      cacheComponents: true,
+      cacheComponents: false,
       agentsMd: true,
     }
 
@@ -608,7 +605,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'cacheComponents',
-          message: `Would you like to use ${styledCacheComponents}? (recommended)`,
+          message: `Would you like to use ${styledCacheComponents}?`,
           initial: getPrefOrDefault('cacheComponents'),
           active: 'Yes',
           inactive: 'No',

@@ -187,7 +187,7 @@ describe('create-next-app', () => {
         "  --eslint                ESLint (use --biome for Biome, --no-eslint for None)
           --no-react-compiler     No React Compiler (use --react-compiler for React Compiler)
           --no-src-dir            No src/ directory (use --src-dir for src/ directory)
-          --cache-components      Cache Components (use --no-cache-components for No Cache Components)
+          --no-cache-components   No Cache Components (use --cache-components for Cache Components)
           --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
           --import-alias          "@/*""
       `)
