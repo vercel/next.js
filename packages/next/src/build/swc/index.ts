@@ -13,6 +13,7 @@ import type {
   TurbopackRuleConfigItem,
 } from '../../server/config-shared'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
+import type { EntryKey } from '../../shared/lib/turbopack/entry-key'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -760,14 +761,14 @@ function bindingToApi(
     }
 
     async getServerHmrUpdate(
-      from: ServerHmrVersion | undefined,
-      entryPaths: string[]
+      entryKey: EntryKey,
+      from: ServerHmrVersion | undefined
     ): Promise<TurbopackResult<ServerHmrUpdate>> {
       // napi cannot express the field correlation.
       return binding.projectGetServerHmrUpdate(
         this._nativeProject,
-        from,
-        entryPaths
+        entryKey,
+        from
       ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
@@ -857,9 +858,12 @@ function bindingToApi(
       this._nativeEndpoint = nativeEndpoint
     }
 
-    async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
+    async writeToDisk(
+      entryKey?: EntryKey
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
       return (await binding.endpointWriteToDisk(
-        this._nativeEndpoint
+        this._nativeEndpoint,
+        entryKey
       )) as TurbopackResult<WrittenEndpoint>
     }
 

@@ -88,9 +88,10 @@ export declare function endpointServerChangedSubscribe(
   func: (err: Error, value: TurbopackResult) => void
 ): { __napiType: 'RootTask' }
 
-export declare function endpointWriteToDisk(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult<NapiWrittenEndpoint>>
+export declare function endpointWriteToDisk(
+  endpoint: { __napiType: 'Endpoint' },
+  entryKey?: RcStr | undefined | null
+): Promise<TurbopackResult<NapiWrittenEndpoint>>
 
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -559,7 +560,6 @@ export interface NapiWatchOptions {
 export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
-  serverHmrEntryPaths: Array<string>
   clientPaths: Array<string>
   serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
@@ -635,8 +635,8 @@ export declare function projectGetAllCompilationIssues(project: {
 
 export declare function projectGetServerHmrUpdate(
   project: { __napiType: 'Project' },
-  from: ExternalObject<ServerHmrVersion> | undefined | null,
-  entryPaths: Array<RcStr>
+  entryKey: RcStr,
+  from?: ExternalObject<ServerHmrVersion> | undefined | null
 ): Promise<TurbopackResult<NapiServerHmrUpdate>>
 
 export declare function projectGetSourceForAsset(

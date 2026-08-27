@@ -1736,7 +1736,6 @@ impl Endpoint for PageEndpoint {
 
                     EndpointOutputPaths::NodeJs {
                         server_entry_path,
-                        server_hmr_entry_paths: vec![],
                         server_paths,
                         client_paths,
                     }
@@ -1752,6 +1751,7 @@ impl Endpoint for PageEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    server_hmr_chunks: None,
                 }
                 .cell(),
             )
