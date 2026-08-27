@@ -9,7 +9,10 @@ import {
 } from '../utils'
 import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
-import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  RequireStatic,
+} from '../../../build/segment-config/app/app-segment-config'
 
 const API_DOCS: Record<
   string,
@@ -168,6 +171,31 @@ const API_DOCS: Record<
     },
     insertText: `prefetch = 'partial';`,
   },
+  unstable_requireStatic: {
+    description: `Controls which rendering phases require static output for this segment. This option is experimental and may change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "shell" | "prefetch" | "navigation" | false`,
+    options: {
+      '"auto"':
+        'Default. The shell, prefetch, or entire page will automatically be prerendered statically if possible.',
+      '"shell"': 'Force the shell for the route to be prerendered statically.',
+      '"prefetch"':
+        'Force both the shell and the prefetch (`<Link prefetch={true}>`) for the route to be prerendered statically.',
+      '"navigation"': 'Require the route to be fully static.',
+      false: 'Prevent this route from being statically optimized.',
+    } satisfies DocsOptionsObject<
+      FullAppSegmentConfig['unstable_requireStatic']
+    >,
+    insertText: `unstable_requireStatic = 'shell';`,
+    isValid: (value) => {
+      try {
+        const parsed: unknown = JSON.parse(value)
+        return (VALID_REQUIRE_STATIC_VALUES as unknown[]).includes(parsed)
+      } catch {
+        return false
+      }
+    },
+  },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`instant\`.`,
     link: '(docs coming soon)',
@@ -180,6 +208,14 @@ const API_DOCS: Record<
     },
   },
 }
+
+const VALID_REQUIRE_STATIC_VALUES: RequireStatic[] = [
+  'auto',
+  'shell',
+  'prefetch',
+  'navigation',
+  false,
+]
 
 type FullAppSegmentConfig = Required<AppSegmentConfig>
 
