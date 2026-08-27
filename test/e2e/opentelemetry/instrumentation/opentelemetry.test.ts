@@ -33,6 +33,8 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
 
   let next = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
@@ -1540,6 +1542,8 @@ if (isNextStart) {
     let collector: Collector | undefined
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // Deploy mode exclusion: This suite starts a process-local telemetry
+      // collector and controls the server lifecycle.
       skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
@@ -1615,6 +1619,8 @@ describe.each(
     let collector: Collector | undefined
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // Deploy mode exclusion: This suite starts a process-local telemetry
+      // collector and controls the server lifecycle.
       skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
@@ -1845,6 +1851,8 @@ describe.each(
     let collector: Collector | undefined
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // Deploy mode exclusion: This suite starts a process-local telemetry
+      // collector and controls the server lifecycle.
       skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
@@ -1944,6 +1952,8 @@ describe.each(
   () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely controls the local Next.js build or server lifecycle.
       skipDeployment: true,
       dependencies: require('./package.json').dependencies,
       env: {
@@ -2011,6 +2021,8 @@ describe.each(
 describe('opentelemetry with disabled fetch tracing', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     env: {
@@ -2093,6 +2105,8 @@ describe('opentelemetry with disabled fetch tracing', () => {
 describe('opentelemetry with custom server', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
@@ -2271,6 +2285,8 @@ if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely controls the local Next.js build or server lifecycle.
       skipDeployment: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',

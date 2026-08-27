@@ -8,6 +8,8 @@ const itif = (condition: boolean) => (condition ? it : it.skip)
 const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
 
 describe('Middleware custom matchers', () => {
+  // TODO(deploy-test-completion): Re-enable this suite for deployed Node.js middleware.
+  // No deploy-specific incompatibility is documented.
   if ((global as any).isNextDeploy && process.env.TEST_NODE_MIDDLEWARE) {
     return it('should skip deploy for now', () => {})
   }

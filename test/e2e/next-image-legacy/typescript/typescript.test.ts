@@ -6,6 +6,8 @@ describe('TypeScript Image Component', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return

@@ -5,6 +5,8 @@ import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation
 describe('instant validation causes', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',

@@ -8,6 +8,7 @@ describe('after during server shutdown - custom server', () => {
     serverReadyPattern: /Custom server started/,
     forcedPort: 'random',
     skipStart: true,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // the tests use cli logs and a custom server
     env: {
       NODE_ENV: isNextDev ? 'development' : 'production',

@@ -37,6 +37,7 @@ describe('partial-fallback-shell-upgrade', () => {
     // Deployed shell upgrades require `partialFallback` metadata, which the
     // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
     skipDeployment: !isAdapterTest,
@@ -174,6 +175,7 @@ describe('partial-fallback-shell-upgrade', () => {
 describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
     skipDeployment: !isAdapterTest,

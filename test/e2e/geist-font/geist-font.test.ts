@@ -4,6 +4,7 @@ import { waitForNoRedbox } from 'next-test-utils'
 describe('geist-font', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // `geist@latest` has a peer dependency issue with the latest Next.js.
     // see: https://github.com/vercel/geist-font/pull/117
     skipDeployment: true,

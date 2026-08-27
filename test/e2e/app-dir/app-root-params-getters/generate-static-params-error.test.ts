@@ -5,6 +5,8 @@ describe('app-root-param-getters - generateStaticParams error', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'generate-static-params-error'),
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

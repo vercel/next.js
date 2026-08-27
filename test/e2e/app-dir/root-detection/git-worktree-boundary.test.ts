@@ -28,6 +28,8 @@ describe('root-detection - git worktree boundary', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'worktree/app',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     // The workspace file would stop the search before the worktree boundary
     // does, so the test wouldn't be exercising the boundary.

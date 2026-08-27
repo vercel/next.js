@@ -46,6 +46,8 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
 
     const { skipped, next } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely inspects local build artifacts that deploy tests do not expose.
       skipDeployment: true,
       packageJson: {
         packageManager: 'npm@10.9.2',

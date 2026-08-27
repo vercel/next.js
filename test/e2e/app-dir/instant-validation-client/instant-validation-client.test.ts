@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('app dir - instant-validation-client', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: true,
   })

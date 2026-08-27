@@ -7,6 +7,8 @@ import { nextTestSetup } from 'e2e-utils'
   : describe.skip)('turbopack-emit-collect', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite restarts the local server to inspect
+    // process-global module state.
     skipDeployment: true,
   })
 

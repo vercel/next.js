@@ -21,6 +21,7 @@ describe('app-dir - server source maps', () => {
   const { skipped, next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // Deploy tests don't have access to runtime logs.
     // Manually verify that the runtime logs match.
     skipDeployment: true,

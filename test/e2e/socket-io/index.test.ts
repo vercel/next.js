@@ -10,6 +10,7 @@ describe('socket-io', () => {
       'utf-8-validate': '6.0.3',
       bufferutil: '4.0.8',
     },
+    // Deploy mode exclusion: This suite controls a local server or proxy process.
     // the socket.io setup relies on patching next's `http.Server` instance,
     // which we can't do when deployed
     skipDeployment: true,

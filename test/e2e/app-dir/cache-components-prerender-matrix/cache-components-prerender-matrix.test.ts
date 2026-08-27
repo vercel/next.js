@@ -452,6 +452,8 @@ function createDocumentFetcher(next: NextInstance) {
 describe('cache-components-prerender-matrix', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: !isAdapterTest,
   })
 

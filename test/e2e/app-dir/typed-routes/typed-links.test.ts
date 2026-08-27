@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('typed-links', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
 

@@ -8,6 +8,8 @@ describe('GS(S)P Redirect Support', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

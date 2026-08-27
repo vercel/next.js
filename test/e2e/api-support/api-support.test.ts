@@ -15,6 +15,8 @@ describe('API routes', () => {
       cors: 'latest',
       'node-fetch': '2.6.7',
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
     disableAutoSkewProtection: true,
   })
@@ -603,6 +605,8 @@ describe('API routes output export error', () => {
       'node-fetch': '2.6.7',
     },
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
     disableAutoSkewProtection: true,
   })

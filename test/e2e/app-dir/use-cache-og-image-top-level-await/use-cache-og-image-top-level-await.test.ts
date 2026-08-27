@@ -4,6 +4,7 @@ describe('use-cache-og-image-top-level-await', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // The prerendered output can't be observed in a deployment, and without
     // it nothing distinguishes broken from fixed behavior.
     skipDeployment: true,

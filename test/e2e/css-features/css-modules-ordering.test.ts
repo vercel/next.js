@@ -22,6 +22,8 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: true,
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
 
@@ -92,6 +94,8 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: false,
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
 
@@ -163,6 +167,8 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: true,
         },
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
 
@@ -252,6 +258,8 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: false,
         },
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
 
@@ -347,6 +355,8 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: true,
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
 
@@ -507,6 +517,8 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: false,
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
 

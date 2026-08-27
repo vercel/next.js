@@ -4,6 +4,7 @@ import { waitForNoRedbox, retry } from 'next-test-utils'
 describe('app dir', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite only defines assertions for local dev or start modes.
     // This is skipped when deployed because there are no assertions outside of next start/next dev
     skipDeployment: true,
   })

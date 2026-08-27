@@ -16,6 +16,8 @@ import path from 'path'
 // Turbopack: /favicon.ico?favicon.<hash>.ico
 const FAVICON_REGEX = /\/favicon.ico\?\w+/
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('app dir - metadata', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,

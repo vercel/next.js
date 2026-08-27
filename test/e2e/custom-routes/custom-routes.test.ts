@@ -18,6 +18,8 @@ describe('Custom routes', () => {
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -3478,6 +3480,8 @@ describe('Custom routes no-op rewrite', () => {
     env: {
       ADD_NOOP_REWRITE: 'true',
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -3533,6 +3537,8 @@ describe('Custom routes solo types', () => {
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -3655,6 +3661,8 @@ describe('Custom routes solo types', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (isNextDeploy) return

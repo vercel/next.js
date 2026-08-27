@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('404 Page Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
 
@@ -137,6 +139,8 @@ describe('404 Page Support', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return

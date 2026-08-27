@@ -6,6 +6,7 @@ const uuidRegExp =
 describe('use-cache-infinity-profile', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Deployment platforms provide their own cache handlers.
     skipDeployment: true,
   })

@@ -5,6 +5,8 @@ import { join } from 'path'
 describe('custom-app-server-action-redirect', () => {
   const { next, skipped } = nextTestSetup({
     files: join(__dirname, 'custom-server'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,

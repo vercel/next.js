@@ -4,6 +4,8 @@ describe('node-cli-args', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: `node --experimental-network-inspection ./node_modules/next/dist/bin/next ${process.env.NEXT_TEST_MODE === 'dev' ? 'dev' : 'start'}`,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     skipStart: true,
   })

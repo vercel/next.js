@@ -10,6 +10,7 @@ function normalizeCliOutput(output: string) {
 describe('app-dir - server source maps edge runtime', () => {
   const { skipped, next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/edge'),
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // Deploy tests don't have access to runtime logs.
     // Manually verify that the runtime logs match.
     skipDeployment: true,

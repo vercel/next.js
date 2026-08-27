@@ -13,6 +13,8 @@ describe.each([{ fixture: 'simple' }, { fixture: 'multiple-roots' }])(
   ({ fixture }) => {
     const { next, skipped } = nextTestSetup({
       files: join(__dirname, 'fixtures', fixture),
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely controls the local Next.js build or server lifecycle.
       skipDeployment: true,
     })
 

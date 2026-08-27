@@ -5,6 +5,8 @@ import path from 'path'
 describe('multi-zone', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'app'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',

@@ -5,6 +5,7 @@ import { retry } from 'next-test-utils'
 describe('nested index.js', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Vercel's deploy infrastructure normalizes nested `/index/index/index`
     // paths differently from Next.js's local server, so the routing
     // assertions here are local-only.

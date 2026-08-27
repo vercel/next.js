@@ -6,6 +6,7 @@ import { waitForNoRedbox, retry } from '../../../../lib/next-test-utils'
 describe('after() in generateStaticParams', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })

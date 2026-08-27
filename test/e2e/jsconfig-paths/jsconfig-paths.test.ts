@@ -5,6 +5,8 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 describe('jsconfig paths', () => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -100,6 +102,8 @@ describe('jsconfig paths without baseurl', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

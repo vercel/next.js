@@ -5,6 +5,7 @@ const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 describe('pages-router-app-not-found', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // The legacy builder incorrectly replaces this response with the Pages
     // Router error page. The adapter preserves the App Router not-found page.
     skipDeployment: !isAdapterTest,

@@ -5,6 +5,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/client-hook-abort-reasons',
     skipStart: !isNextDev,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

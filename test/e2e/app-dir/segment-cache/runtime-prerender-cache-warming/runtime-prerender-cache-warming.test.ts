@@ -7,7 +7,8 @@ const CACHE_MISS_WARNING = 'Unexpected cache miss after cache warming phase'
 describe('runtime prerender cache warming', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reads CLI output
+    // Deploy mode exclusion: This suite asserts local server CLI output.
+    skipDeployment: true,
   })
   if (skipped) return
 

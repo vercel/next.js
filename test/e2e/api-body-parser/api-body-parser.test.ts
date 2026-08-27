@@ -4,6 +4,7 @@ describe('API body parser', () => {
   describe('without custom server', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // Deploy mode exclusion: This suite controls a local server or proxy process.
       // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
       skipDeployment: true,
     })
@@ -31,6 +32,7 @@ describe('API body parser', () => {
       dependencies: {
         express: '4',
       },
+      // Deploy mode exclusion: This suite controls a local server or proxy process.
       // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
       skipDeployment: true,
     })

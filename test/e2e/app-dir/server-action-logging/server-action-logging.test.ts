@@ -4,6 +4,8 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('server-action-logging', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     files: __dirname,
   })
@@ -190,6 +192,8 @@ describe('server-action-logging', () => {
 
 describe('server-action-logging when logging.serverFunctions is disabled', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     files: __dirname,
     env: {

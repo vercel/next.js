@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir edge runtime root layout', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely inspects local build artifacts that deploy tests do not expose.
     skipDeployment: true,
   })
 

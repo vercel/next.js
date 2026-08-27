@@ -54,6 +54,8 @@ describe.each(cases)(
       },
       // So that the files written above don't leave the isolated testDir
       subDir: 'project/app',
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       // The workspace file would stop the search before the home directory
       // boundary does, so the test wouldn't be exercising the boundary.

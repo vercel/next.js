@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('on-request-error - skip-next-internal-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

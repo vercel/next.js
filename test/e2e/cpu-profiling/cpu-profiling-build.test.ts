@@ -8,6 +8,8 @@ describe('CPU Profiling - next build', () => {
     buildCommand: 'pnpm next build --experimental-cpu-prof',
     dependencies: {},
     skipStart: true,
+    // Deploy mode exclusion: This suite invokes a local profiled build and
+    // inspects the generated profile files.
     skipDeployment: true,
   })
   if (skipped) return

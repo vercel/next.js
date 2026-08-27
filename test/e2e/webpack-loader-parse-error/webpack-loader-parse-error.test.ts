@@ -78,6 +78,8 @@ function extractErrorBlock(output: string, errorTitle: string): string {
 describe('webpack-loader-parse-error (development)', () => {
   const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: true,
   })
@@ -201,6 +203,8 @@ describe('webpack-loader-parse-error (development)', () => {
 describe('webpack-loader-parse-error (production)', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: true,
   })

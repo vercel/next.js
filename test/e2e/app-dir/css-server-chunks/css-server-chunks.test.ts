@@ -6,6 +6,8 @@ import path from 'node:path'
 describe('css-server-chunks', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely reads files from the isolated local fixture.
     skipDeployment: true,
   })
 

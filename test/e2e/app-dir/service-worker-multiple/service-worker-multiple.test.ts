@@ -8,6 +8,7 @@ import { retry } from 'next-test-utils'
     const { next, skipped, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // Deploy mode exclusion: This suite intentionally exercises a failed local build, so it cannot produce a deployment.
       // This test asserts a build failure.
       skipDeployment: true,
     })

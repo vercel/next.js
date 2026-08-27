@@ -11,6 +11,8 @@ describe('i18n Support basePath', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
   if (skipped) return

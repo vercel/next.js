@@ -8,6 +8,8 @@ const getExpectedErrorMessage = (route: string) =>
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })

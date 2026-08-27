@@ -10,6 +10,8 @@ describe('GS(S)P Redirect with basePath', () => {
       react: '19.3.0-canary-da9325b5-20260417',
       'react-dom': '19.3.0-canary-da9325b5-20260417',
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

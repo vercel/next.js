@@ -4,6 +4,8 @@ import { waitForNoRedbox } from 'next-test-utils'
 describe('app dir - not found with nested layouts', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

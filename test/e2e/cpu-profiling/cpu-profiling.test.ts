@@ -12,6 +12,7 @@ describe('CPU Profiling - next start', () => {
   })
 
   // CPU profiling only works with local `next start`, not dev or deploy modes
+  // Deploy mode exclusion: This suite controls a local `next start` process and inspects generated profile files.
   if (isNextDev || isNextDeploy || skipped) {
     it('skip for development/deploy mode', () => {})
     return

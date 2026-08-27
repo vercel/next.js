@@ -5,6 +5,8 @@ import stripAnsi from 'strip-ansi'
 describe('app-custom-cache-handler-errors - get throws', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'get' },
   })
@@ -99,6 +101,8 @@ describe('app-custom-cache-handler-errors - get throws', () => {
 describe('app-custom-cache-handler-errors - set throws', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'set' },
   })

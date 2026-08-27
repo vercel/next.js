@@ -6,6 +6,8 @@ describe('parallel-routes-leaf-segments-build-error', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'build-error'),
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
 

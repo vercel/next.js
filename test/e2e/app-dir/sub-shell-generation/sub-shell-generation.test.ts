@@ -6,6 +6,7 @@ const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
     skipDeployment: !isAdapterTest,

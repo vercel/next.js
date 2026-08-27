@@ -8,6 +8,8 @@ import {
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely inspects local build artifacts that deploy tests do not expose.
     skipDeployment: true,
   })
 

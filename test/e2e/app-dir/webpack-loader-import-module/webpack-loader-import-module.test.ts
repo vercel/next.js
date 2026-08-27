@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('webpack-loader-import-module', () => {
   const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

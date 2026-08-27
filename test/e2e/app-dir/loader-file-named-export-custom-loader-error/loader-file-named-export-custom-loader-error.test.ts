@@ -12,6 +12,8 @@ async function testDev(browser, errorRegex) {
 describe('Error test if the loader file export a named function', () => {
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       files: __dirname,
     })
@@ -31,6 +33,8 @@ describe('Error test if the loader file export a named function', () => {
 
   describe('in Build and Start', () => {
     const { next, isNextStart } = nextTestSetup({
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       skipStart: true,
       files: __dirname,

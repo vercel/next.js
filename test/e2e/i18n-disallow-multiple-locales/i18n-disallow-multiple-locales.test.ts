@@ -16,6 +16,7 @@ async function verify(res, locale) {
 describe('i18n-disallow-multiple-locales', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // TODO: re-enable after this behavior is corrected
     skipDeployment: true,
   })

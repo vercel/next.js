@@ -8,6 +8,8 @@ import {
 describe('app dir - forbidden with default forbidden boundary', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

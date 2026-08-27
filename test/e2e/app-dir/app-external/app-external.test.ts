@@ -32,6 +32,8 @@ describe('app dir - external dependency', () => {
     installCommand: 'pnpm i',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

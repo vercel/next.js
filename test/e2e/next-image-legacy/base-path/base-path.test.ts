@@ -11,6 +11,7 @@ describe('Legacy Image Component basePath Tests', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
     // Image URL assertions construct expected URLs via
     // `getDeploymentId(next.testDir, ...)`, which reads the local
     // `.next/required-server-files.json`. In deploy mode that file lives on

@@ -9,6 +9,7 @@ import stripAnsi from 'strip-ansi'
   () => {
     const isDev = (global as any).isNextDev
 
+    // Deploy mode exclusion: This suite creates and patches project files, which cannot be changed after deployment.
     if ((global as any).isNextDeploy) {
       it('should skip next deploy for now', () => {})
       return
@@ -232,6 +233,8 @@ import stripAnsi from 'strip-ansi'
         app: new FileRef(path.join(__dirname, 'app')),
         'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
       },
+      // Deploy mode exclusion: This suite intentionally fails a local build
+      // and inspects its output and fixture files.
       skipDeployment: true,
       skipStart: true,
     })

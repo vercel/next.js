@@ -6,6 +6,7 @@ const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 describe('use-cache-custom-handler', () => {
   const { next, skipped, isNextStart } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Skip deployment so we can test the custom cache handlers log output
     skipDeployment: true,
   })

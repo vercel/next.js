@@ -6,6 +6,8 @@ describe('TypeScript Features', () => {
     dependencies: {
       sass: 'latest',
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -107,6 +109,8 @@ export default function EvilPage(): JSX.Element {
       dependencies: {
         sass: 'latest',
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return

@@ -4,6 +4,7 @@ import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 describe('app-dir refresh', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // We do not have access to runtime logs when deployed
     skipDeployment: true,
   })

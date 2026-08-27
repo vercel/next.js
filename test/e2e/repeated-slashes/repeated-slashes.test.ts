@@ -421,6 +421,8 @@ describe('404 handling', () => {
     describe('server mode', () => {
       const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely mutates files in the isolated local fixture after setup.
         skipDeployment: true,
       })
       if (isNextDeploy) return
@@ -431,6 +433,8 @@ describe('404 handling', () => {
       const { next, skipped } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely mutates files in the isolated local fixture after setup.
         skipDeployment: true,
       })
       if (skipped) return
@@ -475,6 +479,8 @@ describe('404 handling', () => {
       const { next, skipped } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely mutates files in the isolated local fixture after setup.
         skipDeployment: true,
       })
       if (skipped) return
@@ -505,6 +511,8 @@ describe('404 handling', () => {
       const { next, skipped } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely mutates files in the isolated local fixture after setup.
         skipDeployment: true,
       })
       if (skipped) return

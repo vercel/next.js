@@ -1,6 +1,8 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('beforeInteractive in document Head', () => {
   const { next } = nextTestSetup({
     files: {

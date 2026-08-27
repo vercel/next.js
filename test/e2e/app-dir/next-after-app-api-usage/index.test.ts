@@ -7,6 +7,7 @@ describe('nextjs APIs in after()', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // reading runtime logs is not supported in deploy tests
   })
 

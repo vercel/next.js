@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - fetch warnings', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     files: __dirname,
   })

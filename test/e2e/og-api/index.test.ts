@@ -7,6 +7,8 @@ import { join } from 'path'
 describe('og-api', () => {
   const { next, skipped } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: process.env.TEST_OUTPUT_STANDALONE === 'true',
   })
 

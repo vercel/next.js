@@ -5,6 +5,8 @@ import { retry } from 'next-test-utils'
 describe('Dynamic Optional Routing', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return
@@ -220,6 +222,8 @@ describe('Dynamic Optional Routing - build validation', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return

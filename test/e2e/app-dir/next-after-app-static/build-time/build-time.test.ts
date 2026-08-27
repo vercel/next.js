@@ -9,6 +9,7 @@ const _describe = isNextDev ? describe.skip : describe
 _describe('after() in static pages', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })

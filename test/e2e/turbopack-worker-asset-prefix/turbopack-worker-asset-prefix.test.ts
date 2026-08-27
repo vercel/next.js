@@ -3,6 +3,7 @@ import { retry } from 'next-test-utils'
 
 // `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
 const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
+// Deploy mode exclusion: This suite models cross-origin loading with `localhost` and `127.0.0.1` on a local port.
 const describeTurbopack =
   isTurbopack && !isNextDeploy ? describe : describe.skip
 

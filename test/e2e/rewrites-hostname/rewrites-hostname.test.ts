@@ -5,6 +5,8 @@ import createTargetServer from './target-server'
 describe('rewrites hostname', () => {
   const { skipped, next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely depends on a local server, proxy, process, or dynamically allocated port.
     skipDeployment: true,
     skipStart: true,
   })

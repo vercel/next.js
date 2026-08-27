@@ -4,6 +4,8 @@ import cheerio from 'cheerio'
 describe('disabled runtime JS', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
   if (skipped) return

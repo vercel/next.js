@@ -11,9 +11,9 @@ describe('explicit parallel route children viewport limitation', () => {
     // startup only in that mode so we can add the declaration to the isolated
     // fixture first.
     skipStart: isCacheComponentsEnabled,
-    // A deployed fixture cannot be patched before startup. The ordinary deploy
-    // run remains covered; Cache Components behavior is exercised in the local
-    // dev and production test runs.
+    // Deploy mode exclusion: A deployed fixture cannot be patched before
+    // startup. The ordinary deploy run remains covered; Cache Components
+    // behavior is exercised in the local dev and production test runs.
     skipDeployment: isCacheComponentsEnabled,
   })
 

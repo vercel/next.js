@@ -6,6 +6,7 @@ describe(`Cache Components Prospective Render Errors - Debug Build`, () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/prospective-render-errors',
     env: { NEXT_DEBUG_BUILD: 'true' },
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // Accessing cliOutput is only available on the deployment
     skipDeployment: true,
   })

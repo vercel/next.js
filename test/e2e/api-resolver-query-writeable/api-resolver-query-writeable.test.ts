@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('api-resolver-query-writeable', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,

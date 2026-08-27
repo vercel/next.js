@@ -4,6 +4,8 @@ import { runNextCommand } from 'next-test-utils'
 describe('typegen error diagnostic', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     // We drive `next typegen` manually; no server needed.
     skipStart: true,

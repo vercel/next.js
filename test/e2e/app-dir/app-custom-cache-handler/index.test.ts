@@ -33,6 +33,8 @@ function runTests(
 describe('app-dir - custom-cache-handler - cjs', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler.js',
@@ -49,6 +51,8 @@ describe('app-dir - custom-cache-handler - cjs', () => {
 describe('app-dir - custom-cache-handler - cjs-default-export', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler-cjs-default-export.js',
@@ -72,6 +76,8 @@ describe('app-dir - custom-cache-handler - esm', () => {
         'export default '
       ),
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     packageJson: {
       type: 'module',
@@ -95,6 +101,8 @@ describe('app-dir - custom-cache-handler - esm import.meta.resolve', () => {
       'cache-handler-esm.js': new FileRef(__dirname + '/cache-handler-esm.js'),
       'next.config.js': importMetaResolveNextConfig,
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     packageJson: {
       type: 'module',

@@ -463,6 +463,7 @@ const cases: {
 describe('rewrite-headers', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // TODO: re-enable once changes in infrastructure are merged
     skipDeployment: true,
   })

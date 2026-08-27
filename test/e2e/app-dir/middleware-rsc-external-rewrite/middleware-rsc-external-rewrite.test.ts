@@ -3,6 +3,8 @@ import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import { startExternalServer } from './external-server.mjs'
 
 describe('middleware RSC external rewrite', () => {
+  // Deploy mode exclusion: This suite starts an external test server on a
+  // local port, which the deployed application could not reach.
   if (isNextDev || isNextDeploy) {
     test('should not run during dev or deploy test runs', () => {})
     return

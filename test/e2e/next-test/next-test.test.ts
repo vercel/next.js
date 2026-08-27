@@ -32,6 +32,7 @@ describe.skip('next test', () => {
       '@playwright/test': '1.43.1',
     },
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // This doesn't need to be deployed as it's using `experimental-test` mode
     skipDeployment: true,
   })

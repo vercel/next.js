@@ -16,6 +16,7 @@ describe('Middleware Rewrite', () => {
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // FIXME: Fails to deploy
     skipDeployment: isAdapterTest && isTurbopackTest,
   })

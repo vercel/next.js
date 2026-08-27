@@ -5,6 +5,8 @@ import { join } from 'path'
 describe('app-dir action allowed origins', () => {
   const { next, skipped } = nextTestSetup({
     files: join(__dirname, 'safe-origins'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
     dependencies: {
       'server-only': 'latest',

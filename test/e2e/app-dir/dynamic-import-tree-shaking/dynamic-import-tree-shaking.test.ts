@@ -5,6 +5,8 @@ import path from 'path'
 describe('dynamic-import-tree-shaking', () => {
   const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely inspects local build artifacts that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

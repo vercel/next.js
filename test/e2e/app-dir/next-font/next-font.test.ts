@@ -33,6 +33,8 @@ describe('app dir - next/font', () => {
       dependencies: {
         '@next/font': 'canary',
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely mutates files in the isolated local fixture after setup.
       skipDeployment: true,
     })
 

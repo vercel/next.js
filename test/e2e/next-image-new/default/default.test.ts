@@ -16,6 +16,7 @@ describe('Image Component Default Tests', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
     // Image URL assertions assume local-relative `/_next/image?url=...`
     // paths and access to `.next/static` on disk; deploy mode rewrites URLs
     // through the Vercel hostname and has no on-disk `.next/`.

@@ -6,6 +6,8 @@ describe('cache-handlers-upstream-wiring', () => {
   describe('pages router non-edge', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures/pages-router-non-edge'),
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
 
@@ -54,6 +56,8 @@ describe('cache-handlers-upstream-wiring', () => {
   describe('cacheComponents enabled, non-edge app router', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures/non-edge-cache-components'),
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
 
@@ -103,6 +107,8 @@ describe('cache-handlers-upstream-wiring', () => {
     () => {
       const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'fixtures/edge-without-cache-components'),
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
 

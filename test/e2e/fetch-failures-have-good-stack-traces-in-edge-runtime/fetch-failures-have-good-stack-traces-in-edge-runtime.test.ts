@@ -5,6 +5,7 @@ import stripAnsi from 'strip-ansi'
 describe('fetch failures have good stack traces in edge runtime', () => {
   const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // don't have access to runtime logs on deploy
     skipDeployment: true,
   })

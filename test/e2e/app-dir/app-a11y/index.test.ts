@@ -5,6 +5,8 @@ describe('app a11y features', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     packageJson: {},
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

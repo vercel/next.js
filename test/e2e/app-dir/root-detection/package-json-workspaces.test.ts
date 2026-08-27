@@ -28,6 +28,8 @@ describe('root-detection - package.json workspaces', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'test',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     // The workspace file would make the app directory a workspace root of its
     // own, so the test wouldn't be exercising the `workspaces` field.

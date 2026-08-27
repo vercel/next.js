@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - server components externals', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
+    // Deploy mode exclusion: This suite manually changes the local `node_modules` tree.
     // This test is skipped when deployed because it relies on manually patched `node_modules`
     skipDeployment: true,
     files: __dirname,

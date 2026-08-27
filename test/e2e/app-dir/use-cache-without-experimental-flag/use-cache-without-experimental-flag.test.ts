@@ -17,6 +17,8 @@ describe('use-cache-without-experimental-flag', () => {
   const { next, isNextStart, isTurbopack, skipped, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
 

@@ -4,6 +4,7 @@ import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 
 describe('avoid-popstate-flash', () => {
+  // Deploy mode exclusion: This suite depends on a test-data service running on a local port.
   if ((global as any).isNextDev || (global as any).isNextDeploy) {
     // this is skipped in dev because PPR is not enabled in dev
     // and in deploy we can't rely on this test data service existing

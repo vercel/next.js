@@ -112,6 +112,8 @@ function runQueryTraceCli(
 // ─── test suite ──────────────────────────────────────────────────────────────
 
 describe('turbopack-trace-server', () => {
+  // Deploy mode exclusion: This suite reads a local trace file and spawns
+  // local MCP and CLI processes.
   if (isNextDeploy) {
     it('skipped for deploy mode', () => {})
     return
@@ -120,6 +122,8 @@ describe('turbopack-trace-server', () => {
   const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     env: { NEXT_TURBOPACK_TRACING: '1' },
+    // Deploy mode exclusion: The trace server requires local trace files and
+    // child processes.
     skipDeployment: true,
   })
 

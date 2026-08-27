@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('next-phase', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // This test is skipped when deployed because it asserts against runtime
     // logs that cannot be queried in a deployed environment.
     skipDeployment: true,

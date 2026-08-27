@@ -3,6 +3,8 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 describe('node-worker-threads', () => {
   const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
     dependencies: {
       pino: '9.6.0',

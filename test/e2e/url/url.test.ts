@@ -18,6 +18,8 @@ describe(`Handle new URL asset references`, () => {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
       __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

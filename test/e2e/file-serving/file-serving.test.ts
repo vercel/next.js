@@ -7,6 +7,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 describe('file-serving', () => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Vercel's edge rejects malformed URLs (mixed-encoding traversal,
     // backslash, double-encoded, etc.) before they reach the runtime, and
     // `safeFetch` for those paths uses `localhost:0` which doesn't apply in

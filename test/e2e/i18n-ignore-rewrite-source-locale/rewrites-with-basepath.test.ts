@@ -8,6 +8,8 @@ const locales = ['', '/en', '/sv', '/nl']
 describe('i18n-ignore-rewrite-source-locale with basepath', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely reads files from the isolated local fixture.
     skipDeployment: true,
   })
 

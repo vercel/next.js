@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('metadata-invalid-image-file', () => {
   const { next, isTurbopack, isNextDev, skipped, isRspack } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
     skipStart: true,
   })

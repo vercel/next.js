@@ -49,6 +49,8 @@ describe('404-page-router', () => {
     (options) => {
       const isDev = (global as any).isNextDev
 
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It currently avoids creating five deployments rather than documenting an incompatibility.
       if ((global as any).isNextDeploy) {
         // TODO: investigate condensing these tests to avoid
         // 5 separate deploys for this one test

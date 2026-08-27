@@ -17,6 +17,7 @@ describe('tsconfig module: preserve', () => {
         } 
       `,
     },
+    // Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
     // This test is skipped because it relies on `next.readFile`
     skipDeployment: true,
     dependencies: {

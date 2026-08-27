@@ -7,6 +7,8 @@ describe('turbopack-postcss-multiple-configs', () => {
     // (turbopackLocalPostcssConfig). Webpack does not support this feature and
     // does not accept function-valued PostCSS plugins, so skip non-Turbopack runs.
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
   })
 

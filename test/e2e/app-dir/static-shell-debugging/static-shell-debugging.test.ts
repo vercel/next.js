@@ -10,6 +10,7 @@ describe.skip('static-shell-debugging', () => {
 
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // This test skips deployment because env vars that are doubled underscore prefixed
     // are not supported. This is also intended to be used in development.
     skipDeployment: true,

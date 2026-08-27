@@ -9,6 +9,7 @@ describe('`next-js` Condition - Rendering', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/render/package.json').dependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })
@@ -632,6 +633,7 @@ describe('`next-js` Condition - middleware (legacy)', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/middleware/package.json').dependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })
@@ -677,6 +679,7 @@ describe('`next-js` Condition - proxy', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/proxy/package.json').dependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })
@@ -723,6 +726,7 @@ describe('`next-js` Condition - instrumentation', () => {
     },
     dependencies: require('./fixtures/instrumentation/package.json')
       .dependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })

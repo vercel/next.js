@@ -8,6 +8,8 @@ describe('app dir - prefetching (custom staleTime)', () => {
     files: {
       app: new FileRef(join(__dirname, 'app')),
     },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
     nextConfig: {
       experimental: {

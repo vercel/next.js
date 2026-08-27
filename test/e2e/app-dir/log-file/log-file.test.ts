@@ -6,6 +6,8 @@ import { retry } from 'next-test-utils'
 describe('log-file', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely reads files from the isolated local fixture.
     skipDeployment: true,
   })
 

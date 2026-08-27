@@ -294,6 +294,7 @@ describe('app-root-param-getters - cache - at build', () => {
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // In deploy mode, concurrent requests could hit different lambdas.
     skipDeployment: true,
   })

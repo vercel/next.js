@@ -47,6 +47,8 @@ describe('TypeScript Features', () => {
     })
 
     const { next, skipped } = nextTestSetup({
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely controls the local Next.js build or server lifecycle.
       skipDeployment: true,
       dependencies: testBaseUrl
         ? {

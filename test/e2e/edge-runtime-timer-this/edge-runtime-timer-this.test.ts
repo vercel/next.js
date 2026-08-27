@@ -5,6 +5,7 @@ const enableCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 describe('edge-runtime-timer-this', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
     // This is testing the edge runtime sandbox, which is only used in `next start`.
     skipDeployment: true,
   })

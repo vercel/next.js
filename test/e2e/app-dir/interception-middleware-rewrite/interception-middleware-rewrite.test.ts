@@ -4,6 +4,7 @@ import { check } from 'next-test-utils'
 describe('interception-middleware-rewrite', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // TODO: remove after deployment handling is updated
     skipDeployment: true,
   })

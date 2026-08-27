@@ -21,6 +21,8 @@ describe('multiple-lockfiles', () => {
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     // The workspace file would be treated as the root and suppress the
     // warning.

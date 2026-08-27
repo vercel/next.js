@@ -339,6 +339,8 @@ const options = (value: CssChunkingValue) => ({
   dependencies: {
     sass: 'latest',
   },
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
   skipDeployment: true,
 })
 

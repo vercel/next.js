@@ -7,6 +7,8 @@ const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 describe('Validations for <Link legacyBehavior>', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return

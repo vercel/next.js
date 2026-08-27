@@ -131,6 +131,8 @@ describe('app-dir - server source maps - fake frame source maps', () => {
   const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],

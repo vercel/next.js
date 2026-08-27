@@ -4,6 +4,8 @@ describe('swcPlugins', () => {
   describe('supports swcPlugins', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '11.1.0',
@@ -20,6 +22,8 @@ describe('swcPlugins', () => {
   ;(isNextDev ? describe : describe.skip)('incompatible plugin version', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
@@ -58,6 +62,8 @@ describe('swcPlugins', () => {
   ;(isNextDev ? describe : describe.skip)('invalid plugin name', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       overrideFiles: {
         'next.config.js': `

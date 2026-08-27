@@ -5,6 +5,8 @@ describe('ppr-missing-root-params (single)', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/single'),
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return
@@ -30,6 +32,8 @@ describe('ppr-missing-root-params (multiple)', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/multiple'),
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return
@@ -55,6 +59,8 @@ describe('ppr-missing-root-params (nested)', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/nested'),
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
   if (skipped) return

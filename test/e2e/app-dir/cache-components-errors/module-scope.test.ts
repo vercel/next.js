@@ -4,6 +4,8 @@ describe('Lazy Module Init', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/lazy-module-init',
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

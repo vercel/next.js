@@ -7,6 +7,7 @@ import { retry } from '../../../lib/next-test-utils'
 describe('use cache called after tasky uncached IO', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // reads cli logs
   })
 

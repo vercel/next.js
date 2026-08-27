@@ -45,6 +45,8 @@ describe('react-current-version', () => {
       return
     }
 
+    // Deploy mode exclusion: This block asserts local build and server CLI
+    // output, which is produced before a deployment is available.
     if (isNextDeploy) {
       it('should skip in deploy mode', () => {})
       return

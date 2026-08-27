@@ -13,6 +13,8 @@ describe('use-cache-unknown-cache-kind', () => {
   const { next, isNextStart, isTurbopack, isRspack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely expects a local build failure instead of a successful deployment.
     skipDeployment: true,
   })
 

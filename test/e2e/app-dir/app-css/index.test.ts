@@ -4,6 +4,8 @@ import { check } from 'next-test-utils'
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',

@@ -8,6 +8,7 @@ _describe('after() in static pages - thrown errors', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Deploy mode exclusion: This suite intentionally exercises a failed local build, so it cannot produce a deployment.
     skipDeployment: true, // can't access build errors in deploy tests
   })
 

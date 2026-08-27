@@ -10,6 +10,7 @@ const runtimes = ['nodejs', 'edge']
 describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
   })

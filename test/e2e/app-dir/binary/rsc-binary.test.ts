@@ -4,6 +4,8 @@ import { check } from 'next-test-utils'
 describe('RSC binary serialization', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     dependencies: {
       'server-only': 'latest',

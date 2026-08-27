@@ -5,6 +5,8 @@ import cheerio from 'cheerio'
 describe('gip identifiers', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
   if (skipped) return

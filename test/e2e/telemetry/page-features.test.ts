@@ -8,6 +8,7 @@ describe('page features telemetry', () => {
   const { next, isTurbopack, isRspack, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
     // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
     skipDeployment: true,
   })

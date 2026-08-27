@@ -7,6 +7,8 @@ describe('conflicting-page-segments', () => {
     // we skip start & deploy because the build will fail and we won't be able to catch it
     // start is re-triggered but caught in the assertions below.
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

@@ -10,6 +10,8 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
     const { next, skipped, isRspack } = nextTestSetup({
       files: __dirname,
       skipStart: isNextStart,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
       dependencies: { sass: '1.54.0' },
     })

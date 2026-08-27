@@ -7,6 +7,8 @@ describe('Dynamic Routing with Middleware', () => {
     files: join(__dirname, '../dynamic-routing'),
     skipStart: true,
     disableAutoSkewProtection: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
   if (skipped) return

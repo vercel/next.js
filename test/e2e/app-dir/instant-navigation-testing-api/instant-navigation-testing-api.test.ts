@@ -1331,6 +1331,8 @@ describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
 
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'blocking'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

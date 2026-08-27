@@ -5,6 +5,8 @@ process.env.__TEST_SENTINEL = 'at buildtime'
 describe('dynamic-data', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/main',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 
@@ -163,6 +165,8 @@ describe('dynamic-data with dynamic = "error"', () => {
     return
   }
 
+  // Deploy mode exclusion: This suite intentionally tests dev-server errors
+  // or a failed local build, so it cannot produce a deployment.
   if (isNextDeploy) {
     it.skip('should not run in next deploy.', () => {})
     return
@@ -292,6 +296,8 @@ describe('dynamic-data inside cache scope', () => {
     return
   }
 
+  // Deploy mode exclusion: This suite intentionally tests dev-server errors
+  // or a failed local build, so it cannot produce a deployment.
   if (isNextDeploy) {
     it.skip('should not run in next deploy..', () => {})
     return

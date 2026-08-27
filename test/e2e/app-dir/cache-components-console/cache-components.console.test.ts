@@ -9,6 +9,8 @@ describe.skip('cache-components - Console Dimming - Validation', () => {
       FORCE_COLOR: '1',
     },
     files: __dirname + '/fixtures/default',
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: !isNextDev,
   })
@@ -208,6 +210,8 @@ describe.skip('cache-components - Logging after Abort', () => {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/default',
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       skipStart: !isNextDev,
     })
@@ -386,6 +390,8 @@ describe.skip('cache-components - Logging after Abort', () => {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/default',
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       skipStart: !isNextDev,
     })
@@ -555,6 +561,8 @@ describe.skip('cache-components - Logging after Abort', () => {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/hide-logs-after-abort',
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       skipStart: !isNextDev,
     })
@@ -656,6 +664,8 @@ describe.skip('cache-components - Logging after Abort', () => {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/hide-logs-after-abort',
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       skipStart: !isNextDev,
     })

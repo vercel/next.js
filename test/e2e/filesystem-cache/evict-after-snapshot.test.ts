@@ -16,6 +16,8 @@ import { retry, waitFor } from 'next-test-utils'
 
   const { skipped, next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
     packageJson: {
       scripts: {

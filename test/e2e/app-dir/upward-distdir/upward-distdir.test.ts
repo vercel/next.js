@@ -2,6 +2,8 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('upward-distdir', () => {
   const { next } = nextTestSetup({
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely controls the local Next.js build or server lifecycle.
     skipDeployment: true,
     files: __dirname,
     installCommand: 'pnpm install',

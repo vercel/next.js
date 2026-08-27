@@ -12,6 +12,7 @@ async function expectContainOnce(next: any, search: string) {
 describe('dedupe-rsc-error-log', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // Runtime logs aren't available when deployed
     skipDeployment: true,
   })

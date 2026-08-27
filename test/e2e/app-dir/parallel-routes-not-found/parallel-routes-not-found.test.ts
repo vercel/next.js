@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('parallel-routes-and-interception', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // TODO: remove after deployment handling is updated
     skipDeployment: true,
   })

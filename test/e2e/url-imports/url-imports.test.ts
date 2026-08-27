@@ -34,6 +34,7 @@ import { join } from 'path'
             public: new FileRef(join(__dirname, 'public')),
           }
         : __dirname,
+      // Deploy mode exclusion: This suite controls a local server or proxy process.
       // The staticServer above doesn't work when deployed
       skipDeployment: true,
     })

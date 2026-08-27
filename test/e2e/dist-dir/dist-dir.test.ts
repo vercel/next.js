@@ -4,6 +4,8 @@ import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 describe('distDir', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -31,6 +33,8 @@ if (isNextStart) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return

@@ -9,6 +9,7 @@ describe('CSS Module client-side navigation', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Deploy mode exclusion: This suite controls a local server or proxy process.
     // Calls `next.build()` and uses an in-test proxy in front of the Next
     // server; both rely on the local-process model and are not applicable to
     // deploy mode.

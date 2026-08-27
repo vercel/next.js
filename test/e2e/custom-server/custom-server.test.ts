@@ -29,6 +29,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -158,6 +160,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -180,6 +184,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -199,6 +205,8 @@ describe.each([
         serverReadyPattern: /- Local:/,
         env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
         dependencies: sharedDeps,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
         disableAutoSkewProtection: true,
       })
@@ -244,6 +252,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -281,6 +291,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: { ...sharedDeps, 'node-fetch': '2.6.7' },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -299,6 +311,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
@@ -326,6 +340,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })

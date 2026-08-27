@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Route indexes handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Pages-router `/index` route resolution differs in Vercel's deploy
     // infrastructure; these assertions are local-only.
     skipDeployment: true,

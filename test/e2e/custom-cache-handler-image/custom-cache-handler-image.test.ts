@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('custom-cache-handler-image', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     env: {
       // Set max cache entries to 2 to easily test eviction

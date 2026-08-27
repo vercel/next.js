@@ -18,6 +18,8 @@ describe('Image Optimizer', () => {
     const { next, skipped } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return
@@ -272,6 +274,8 @@ describe('Image Optimizer', () => {
           qualities: [70, 75],
         },
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return
@@ -288,6 +292,8 @@ describe('Image Optimizer', () => {
       const size = 96
       const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'app'),
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return
@@ -380,6 +386,8 @@ describe('Image Optimizer', () => {
             path: 'https://example.com/act123/',
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return
@@ -404,6 +412,8 @@ describe('Image Optimizer', () => {
         nextConfig: {
           images: { unoptimized: true },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return
@@ -428,6 +438,8 @@ describe('Image Optimizer', () => {
         nextConfig: {
           experimental: { imgOptMaxInputPixels: 100 },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return
@@ -461,6 +473,8 @@ describe('Image Optimizer', () => {
             ]
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return
@@ -515,6 +529,8 @@ describe('Image Optimizer', () => {
             imageSizes: [],
           },
         },
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // It likely asserts local CLI or runtime output that deploy tests do not expose.
         skipDeployment: true,
       })
       if (skipped) return

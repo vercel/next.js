@@ -15,6 +15,7 @@ function checkDataRoute(data: any, page: string) {
 describe('i18n-data-route', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // This test skips deployment because env vars that are doubled underscore prefixed
     // are not supported.
     skipDeployment: true,

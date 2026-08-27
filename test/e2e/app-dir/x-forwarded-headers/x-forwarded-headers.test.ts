@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('x-forwarded-headers', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
     // This test is skipped because it sends requests with manipulated host headers
     // which doesn't work in a deployed environment
     skipDeployment: true,

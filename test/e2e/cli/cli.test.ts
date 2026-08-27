@@ -19,6 +19,8 @@ describe('CLI Usage', () => {
     files: join(__dirname, 'basic'),
     skipStart: true,
     dependencies: reactDependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
 
@@ -1187,6 +1189,8 @@ describe('CLI Usage: duplicate sass dependencies', () => {
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
     dependencies: reactDependencies,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
   if (skipped) return

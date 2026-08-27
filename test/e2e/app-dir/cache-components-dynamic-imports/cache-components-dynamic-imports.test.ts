@@ -161,6 +161,8 @@ describe('async imports in cacheComponents', () => {
 describe('async imports in cacheComponents - external packages', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'external'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
     skipStart: true,
   })

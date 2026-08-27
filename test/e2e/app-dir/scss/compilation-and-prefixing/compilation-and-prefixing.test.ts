@@ -20,6 +20,7 @@ describe.each([
 ])('SCSS Support ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
     // This test is skipped because it is reading files in the `.next` file which
     // isn't available/necessary in a deployment environment.
     skipDeployment: true,

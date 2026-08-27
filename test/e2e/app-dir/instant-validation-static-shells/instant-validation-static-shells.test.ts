@@ -5,6 +5,8 @@ import { join } from 'node:path'
 describe('instant validation - opting out of static shells', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'valid'),
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
   if (skipped) return
@@ -34,6 +36,8 @@ describe('instant validation', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return

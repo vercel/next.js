@@ -8,6 +8,8 @@ describe('use-cache-default-handler-expire-zero', () => {
     // assert on its `set()` decisions in the CLI output. That output is not
     // available on deploy, so skip the deploy variant.
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely asserts local CLI or runtime output that deploy tests do not expose.
     skipDeployment: true,
   })
 

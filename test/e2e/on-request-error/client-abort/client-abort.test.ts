@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('on-request-error - client-abort', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local server CLI output after
+    // aborting a response stream.
     skipDeployment: true,
   })
 

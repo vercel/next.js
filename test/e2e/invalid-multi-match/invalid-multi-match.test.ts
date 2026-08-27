@@ -4,6 +4,7 @@ describe('Custom routes invalid multi-match', () => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     // The test asserts on `next.cliOutput`, expecting the local
     // `next build` failure message ("To use a multi-match in the
     // destination..."). In deploy mode `next.cliOutput` contains the

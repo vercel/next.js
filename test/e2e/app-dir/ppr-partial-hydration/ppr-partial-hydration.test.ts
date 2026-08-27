@@ -10,6 +10,7 @@ import { retry } from 'next-test-utils'
 describe('PPR - partial hydration', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // the file-patching strategy we use for synchronizing the test doesn't work
     // on deployments
     skipDeployment: true,

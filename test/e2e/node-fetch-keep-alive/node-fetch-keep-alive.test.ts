@@ -7,6 +7,7 @@ describe('node-fetch-keep-alive', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
     skipDeployment: true,
   })

@@ -6,6 +6,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Deploy mode exclusion: This suite controls a local server or proxy process.
     // Spawns a custom proxy server in front of `next.start()`; deploy mode
     // doesn't run a local server.
     skipDeployment: true,

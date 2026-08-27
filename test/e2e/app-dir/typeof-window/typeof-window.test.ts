@@ -4,6 +4,7 @@ import path from 'path'
 describe('typeof-window', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // This test is skipped when deployed because the local tarball appears corrupted
     // It also doesn't seem particularly useful to test when deployed
     skipDeployment: true,

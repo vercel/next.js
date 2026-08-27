@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app dir - not-found - conflict route', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
     skipDeployment: true,
   })
 

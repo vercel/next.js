@@ -38,6 +38,8 @@ for (const { app, src, pathname, text } of [
       env: {
         NEXT_PUBLIC_SIMPLE_INSTRUMENT: '1',
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
       packageJson: {
         scripts: {

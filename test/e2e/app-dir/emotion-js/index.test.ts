@@ -4,6 +4,8 @@ import { check } from 'next-test-utils'
 describe('app dir - emotion-js', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
     dependencies: {
       '@emotion/react': 'latest',

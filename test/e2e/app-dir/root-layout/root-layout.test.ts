@@ -8,6 +8,8 @@ describe('app-dir root layout', () => {
     skipped,
   } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
     skipDeployment: true,
   })
 

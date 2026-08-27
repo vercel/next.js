@@ -126,6 +126,8 @@ describe('Edge runtime module errors', () => {
       // pushes the initial server startup past the default 10s window on
       // loaded CI hardware.
       startServerTimeout: 30_000,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return
@@ -581,6 +583,8 @@ describe('Edge runtime module errors', () => {
       dependencies: {
         nanoid: 'latest',
       },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely asserts local CLI or runtime output that deploy tests do not expose.
       skipDeployment: true,
     })
     if (skipped) return

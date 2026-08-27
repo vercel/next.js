@@ -7,6 +7,8 @@ describe('segment cache prefetch fallback retry', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
+  // Deploy mode exclusion: This suite requires direct observation and control
+  // of local ISR cache state and background regeneration.
   if (isNextDev || isNextDeploy) {
     // Prefetching is disabled in dev, and the recovery test relies on
     // observing ISR cache state and background regeneration, which aren't

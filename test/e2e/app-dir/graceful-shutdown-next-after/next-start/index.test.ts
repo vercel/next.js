@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('after during server shutdown - next start', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
     skipDeployment: true, // the tests use cli logs
     skipStart: true,
   })

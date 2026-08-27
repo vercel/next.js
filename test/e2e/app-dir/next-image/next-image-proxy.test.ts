@@ -11,6 +11,7 @@ let proxyServer: https.Server
 describe('next-image-proxy', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Deploy mode exclusion: This suite controls a local server or proxy process.
     // This test is skipped when deployed because it relies on a proxy server
     skipDeployment: true,
   })

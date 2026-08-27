@@ -17,6 +17,8 @@ describe('Edge runtime configurable guards', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
     const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
     })
     if (skipped) return
@@ -346,6 +348,8 @@ describe('Edge runtime configurable guards', () => {
       files: __dirname,
       skipStart: true,
       env: shouldUseTurbopack() ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
+      // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+      // It likely expects a local build failure instead of a successful deployment.
       skipDeployment: true,
     })
     if (skipped) return

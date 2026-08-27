@@ -6,6 +6,7 @@ describe('edge-runtime-streaming-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
     skipDeployment: true,
   })

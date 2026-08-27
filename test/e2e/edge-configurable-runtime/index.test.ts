@@ -139,6 +139,7 @@ const apiPath = 'pages/api/edge.js'
       })
     })
   } else {
+    // Deploy mode exclusion: This suite mutates fixture files and asserts local build and CLI output.
     it.skip('no deploy tests', () => {})
   }
 })

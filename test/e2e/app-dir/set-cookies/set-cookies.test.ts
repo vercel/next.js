@@ -13,6 +13,7 @@ function getSetCookieHeaders(res: Response): ReadonlyArray<string> {
 describe('set-cookies', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
     // TODO: re-enable once this behavior is corrected on deploy
     skipDeployment: true,
   })

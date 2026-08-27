@@ -5,6 +5,8 @@ describe('Node Extensions', () => {
     describe('Cache Components', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/random/cache-components',
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // No deploy-specific incompatibility is documented.
         skipDeployment: true,
       })
 
