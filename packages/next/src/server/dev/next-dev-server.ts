@@ -772,6 +772,9 @@ export default class DevServer extends Server {
           deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
