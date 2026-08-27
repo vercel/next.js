@@ -10,11 +10,15 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     let keyRoot: string,
       keyNested: string,
+      keyArgumentUseCache: string,
+      keyArgumentUseServer: string,
       keyPrerender: string,
       keyClient: string,
       keyRoute: string,
       dataRoot: string,
       dataNested: string,
+      dataArgumentUseCache: string,
+      dataArgumentUseServer: string,
       dataPrerender: string,
       dataClient: string,
       dataRoute: string
@@ -69,6 +73,28 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     {
       const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/argument-use-cache`)
+      dataArgumentUseCache = await browser.elementById('data').text()
+      const match = logs().match(
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-cache\/layout","_N_T_\/argument-use-cache\/page","_N_T_\/argument-use-cache"\]\]$/m
+      )
+      expect(match).toBeArray()
+      keyArgumentUseCache = match[0]
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/argument-use-server`)
+      dataArgumentUseServer = await browser.elementById('data').text()
+      const match = logs().match(
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-server\/layout","_N_T_\/argument-use-server\/page","_N_T_\/argument-use-server"\]\]$/m
+      )
+      expect(match).toBeArray()
+      keyArgumentUseServer = match[0]
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/`)
       dataRoot = await browser.elementById('data').text()
       const match = logs().match(
@@ -80,11 +106,15 @@ async function execute(next: NextInstance, envKey: string, id: string) {
     return {
       keyRoot,
       keyNested,
+      keyArgumentUseCache,
+      keyArgumentUseServer,
       keyPrerender,
       keyClient,
       keyRoute,
       dataRoot,
       dataNested,
+      dataArgumentUseCache,
+      dataArgumentUseServer,
       dataPrerender,
       dataClient,
       dataRoute,
@@ -190,6 +220,43 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.keyRoute).not.toBe(key2.keyRoute)
           expect(key1.dataRoute).not.toBe(key2.dataRoute)
           expect(key2.dataRoute).toBe(value)
+        }
+      )
+    })
+
+    // TODO when serializing server reference arguments, we need to include the server reference's
+    // entropy in the argument-part of the cache key.
+    it.skip('should recompute when a use cache reference argument changes', async () => {
+      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+
+      await next.patchFile(
+        'app/argument-use-cache/action.ts',
+        (content) => content.replace("return 'first'", "return 'second'"),
+        async () => {
+          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+
+          expect(key1.keyArgumentUseCache).not.toBe(key2.keyArgumentUseCache)
+          expect(key1.dataArgumentUseCache).not.toBe(key2.dataArgumentUseCache)
+        }
+      )
+    })
+
+    // TODO when serializing server reference arguments, we need to include the server reference's
+    // entropy in the argument-part of the cache key.
+    // Furthermore, we need to compute the metadata information for use-server functions.
+    it.skip('should recompute when a use server reference argument changes', async () => {
+      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+
+      await next.patchFile(
+        'app/argument-use-server/action.ts',
+        (content) => content.replace("return 'first'", "return 'second'"),
+        async () => {
+          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+
+          expect(key1.keyArgumentUseServer).not.toBe(key2.keyArgumentUseServer)
+          expect(key1.dataArgumentUseServer).not.toBe(
+            key2.dataArgumentUseServer
+          )
         }
       )
     })
