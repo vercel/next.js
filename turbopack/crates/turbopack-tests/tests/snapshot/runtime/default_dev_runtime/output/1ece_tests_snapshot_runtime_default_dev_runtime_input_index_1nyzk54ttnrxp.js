@@ -819,6 +819,34 @@ function loadChunkByUrl(chunkEntry) {
     return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
+const externalScriptCache = new Map();
+function loadScriptByUrl(url) {
+    let promise = externalScriptCache.get(url);
+    if (promise !== undefined) return promise;
+    promise = new Promise((resolve, reject)=>{
+        if (typeof document === 'undefined') {
+            reject(new Error(`Cannot load external script ${url} without a document`));
+            return;
+        }
+        const script = document.createElement('script');
+        if (CROSS_ORIGIN != null) script.crossOrigin = CROSS_ORIGIN;
+        script.src = url;
+        script.onload = ()=>resolve();
+        script.onerror = ()=>{
+            script.remove();
+            reject(new Error(`Failed to load external script ${url}`));
+        };
+        document.head.appendChild(script);
+    });
+    externalScriptCache.set(url, promise);
+    void promise.catch(()=>{
+        if (externalScriptCache.get(url) === promise) {
+            externalScriptCache.delete(url);
+        }
+    });
+    return promise;
+}
+browserContextPrototype.o = loadScriptByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
     if (SUPPORT_COMPONENT_CHUNKS) {
