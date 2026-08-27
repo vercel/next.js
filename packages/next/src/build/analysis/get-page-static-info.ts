@@ -692,30 +692,24 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and instant in the same file.
-  if (directives?.has('client') && 'instant' in config) {
-    throw new Error(
-      `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
+  for (const exportName of [
+    'instant',
+    'prefetch',
+    'unstable_requireStatic',
+  ] as const) {
+    if (exportName in config) {
+      if (directives?.has('client')) {
+        throw new Error(
+          `"${exportName}" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+        )
+      }
 
-  if ('instant' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const instant = ...\` without enabling \`cacheComponents\`.`
-    )
-  }
-
-  // Prevent use client and prefetch in the same file.
-  if (directives?.has('client') && 'prefetch' in config) {
-    throw new Error(
-      `"prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
-
-  if ('prefetch' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const prefetch = ...\` without enabling \`cacheComponents\`.`
-    )
+      if (!nextConfig.cacheComponents) {
+        throw new Error(
+          `Route "${page}" cannot use \`export const ${exportName} = ...\` without enabling \`cacheComponents\`.`
+        )
+      }
+    }
   }
 
   // Prevent unstable_dynamicStaleTime in layouts.
