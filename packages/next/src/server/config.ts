@@ -548,6 +548,13 @@ function assignDefaultsAndValidate(
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
   if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+    if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {

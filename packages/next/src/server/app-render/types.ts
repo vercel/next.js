@@ -169,6 +169,7 @@ export interface RenderOptsPartial {
     reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     cachedNavigations: boolean
 
     /**

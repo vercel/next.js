@@ -242,4 +242,40 @@ describe('loadConfig', () => {
       expect(result.experimental.cssChunking).toBe('graph')
     })
   })
+
+  describe('experimental.durableUseCacheEntries', () => {
+    const originalTurbopack = process.env.TURBOPACK
+
+    afterEach(() => {
+      if (originalTurbopack === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    })
+
+    it('throws when using webpack', async () => {
+      delete process.env.TURBOPACK
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { durableUseCacheEntries: true },
+          },
+        })
+      ).rejects.toThrow(/only supported with Turbopack/)
+    })
+
+    it('is preserved when using Turbopack', async () => {
+      process.env.TURBOPACK = '1'
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: { durableUseCacheEntries: true },
+        },
+      })
+
+      expect(result.experimental.durableUseCacheEntries).toBe(true)
+    })
+  })
 })

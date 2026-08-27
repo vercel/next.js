@@ -180,6 +180,9 @@ async function requestHandler(
         // no-op.
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
