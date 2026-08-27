@@ -79,6 +79,7 @@ import {
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
+import { getReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 
 export type DynamicAccess = {
   /**
@@ -920,7 +921,8 @@ export function trackThrownErrorInNavigation(
   workStore: WorkStore,
   dynamicValidation: InstantValidationState,
   thrownValue: unknown,
-  componentStack: string
+  componentStack: string,
+  reactBrowserBailout: boolean
 ) {
   const boundaryLocation =
     hasInstantValidationBoundaryRegex.exec(componentStack)
@@ -932,6 +934,16 @@ export function trackThrownErrorInNavigation(
     // This helps for errors from node_modules which would otherwise
     // have no useful stack information due to ignore-listing,
     // e.g. next/dynamic with `ssr: false`.
+    if (reactBrowserBailout) {
+      // React preserves Next's branded bailout reason as the error cause.
+      // Replace the internal wrapper before storing the user-facing diagnostic.
+      const browserBailoutReason = getReactBrowserBailoutReason(thrownValue)
+      if (browserBailoutReason !== undefined) {
+        const browserBailoutError = thrownValue as Error
+        browserBailoutError.cause = browserBailoutReason
+      }
+    }
+
     const error = addErrorContext(
       new Error(
         'An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.',
@@ -958,6 +970,16 @@ export function trackThrownErrorInNavigation(
         // invalid - fallthrough
       }
     }
+    if (reactBrowserBailout) {
+      // React preserves Next's branded bailout reason as the error cause.
+      // Replace the internal wrapper before storing the user-facing diagnostic.
+      const browserBailoutReason = getReactBrowserBailoutReason(thrownValue)
+      if (browserBailoutReason !== undefined) {
+        const browserBailoutError = thrownValue as Error
+        browserBailoutError.cause = browserBailoutReason
+      }
+    }
+
     const message = `Route "${workStore.route}": Could not validate \`instant\` because an error prevented the target segment from rendering.`
     const error = addErrorContext(
       new Error(message, { cause: thrownValue }),

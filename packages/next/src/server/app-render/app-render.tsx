@@ -137,6 +137,7 @@ import {
 } from './create-transport-tree-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { getReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 import { warn, error } from '../../build/output/log'
 import {
   appendMutableCookies,
@@ -2919,7 +2920,7 @@ async function prerenderAppPage({
   // Pick first userland SSR error, which is also not a RSC error.
   if (response.ssrErrors.length) {
     const buildFailingError = response.ssrErrors.find((err) =>
-      isUserLandError(err)
+      isUserLandError(err, ctx.renderOpts.experimental.reactBrowserBailout)
     )
     if (buildFailingError) throw buildFailingError
   }
@@ -3698,6 +3699,7 @@ async function renderToStream(
     const htmlRendererErrorHandler = createHTMLErrorHandler(
       process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
+      ctx.renderOpts.experimental.reactBrowserBailout,
       reactServerErrorsByDigest,
       allCapturedErrors,
       onHTMLRenderSSRError,
@@ -6519,6 +6521,7 @@ export type ValidationRenderContext = Pick<
   | 'workStore'
 > & {
   renderOpts: Pick<RenderOpts, 'images' | 'allowEmptyStaticShell'>
+  reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
 }
 
@@ -6542,6 +6545,7 @@ export function toValidationRenderContext(
       images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
     },
+    reactBrowserBailout: ctx.renderOpts.experimental.reactBrowserBailout,
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
   }
 }
@@ -6666,6 +6670,7 @@ export async function runValidationInDevFromSnapshot(
       images: message.renderOpts.images,
       allowEmptyStaticShell: message.renderOpts.allowEmptyStaticShell,
     },
+    reactBrowserBailout: message.reactBrowserBailout,
     isDebugChannelEnabled: message.isDebugChannelEnabled,
   }
 
@@ -7584,6 +7589,20 @@ async function validateInstantConfigs(
             />,
             {
               signal: reactSignal,
+              onBrowserBailout: (err: unknown, errorInfo: ErrorInfo) => {
+                if (!reactSignal.aborted) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackThrownErrorInNavigation(
+                      workStore,
+                      instantValidationState,
+                      err,
+                      componentStack,
+                      ctx.reactBrowserBailout
+                    )
+                  }
+                }
+              },
               onError: (err: unknown, errorInfo: ErrorInfo) => {
                 if (isPrerenderInterruptedError(err) || reactSignal.aborted) {
                   const componentStack = errorInfo.componentStack
@@ -7625,7 +7644,8 @@ async function validateInstantConfigs(
                       workStore,
                       instantValidationState,
                       errorForDisplay,
-                      componentStack
+                      componentStack,
+                      ctx.reactBrowserBailout
                     )
                   }
                 }
@@ -8671,6 +8691,7 @@ async function prerenderToStream(
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
+    ctx.renderOpts.experimental.reactBrowserBailout,
     reactServerErrorsByDigest,
     allCapturedErrors,
     onHTMLRenderSSRError
@@ -9735,6 +9756,19 @@ async function prerenderToStream(
       )
 
       throw err
+    }
+
+    if (ctx.renderOpts.experimental.reactBrowserBailout) {
+      // React preserves the reason passed to browser() as the fatal error's cause.
+      const browserBailoutReason = getReactBrowserBailoutReason(err)
+      if (browserBailoutReason !== undefined) {
+        const stack = getStackWithoutErrorMessage(err as Error)
+        error(
+          `${browserBailoutReason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        )
+
+        throw new StaticGenBailoutError()
+      }
     }
 
     // If we errored when we did not have an RSC stream to read from. This is
