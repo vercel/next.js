@@ -6577,6 +6577,8 @@ function buildDevValidationWorkStore(
     forceStatic: message.forceStatic,
     isDraftMode: message.request.isDraftMode,
     useCacheTimeout: message.nextConfigSerializable.useCacheTimeout,
+    durableUseCacheEntries:
+      message.nextConfigSerializable.durableUseCacheEntries,
     staticPageGenerationTimeout:
       message.nextConfigSerializable.staticPageGenerationTimeout,
     cacheLifeProfiles: message.nextConfigSerializable.cacheLifeProfiles,
@@ -8224,6 +8226,7 @@ async function validateInstantConfigInBuildWithSample(
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
     useCacheTimeout: outerWorkStore.useCacheTimeout,
+    durableUseCacheEntries: outerWorkStore.durableUseCacheEntries,
     staticPageGenerationTimeout: outerWorkStore.staticPageGenerationTimeout,
     isBuildTimePrerendering: false,
     fetchCache: outerWorkStore.fetchCache,

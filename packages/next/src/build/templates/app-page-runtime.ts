@@ -948,6 +948,9 @@ export function createAppPageEntrypoint({
                 nextConfig.experimental.serverComponentsHmrCancellation
               ),
               useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                nextConfig.experimental.durableUseCacheEntries
+              ),
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:
