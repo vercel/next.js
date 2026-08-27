@@ -372,7 +372,7 @@ async fn parse_internal(
                 }
             }
         },
-        AssetContent::Redirect { .. } => ParseResult::Unparsable { messages: None }.cell(),
+        AssetContent::Redirect(..) => ParseResult::Unparsable { messages: None }.cell(),
     })
 }
 

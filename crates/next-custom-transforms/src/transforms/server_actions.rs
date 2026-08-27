@@ -1567,15 +1567,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_current_export_name = self.current_export_name.take();
 
         match n {
-            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+            PropOrSpread::Prop(Prop::KeyValue(KeyValueProp {
                 key: PropName::Ident(ident_name),
-                value: box Expr::Arrow(_) | box Expr::Fn(_),
+                value: Expr::Arrow(_) | Expr::Fn(_),
                 ..
             })) => {
                 self.current_export_name = None;
                 self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
             }
-            PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
+            PropOrSpread::Prop(Prop::Method(MethodProp { key, .. })) => {
                 let key = key.clone();
 
                 if let PropName::Ident(ident_name) = &key {
@@ -1603,7 +1603,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if !self.in_module_level
             && self.should_track_names
-            && let PropOrSpread::Prop(box Prop::Shorthand(i)) = n
+            && let PropOrSpread::Prop(Prop::Shorthand(i)) = n
         {
             self.names.push(Name::from(&*i));
             self.should_track_names = false;
@@ -1686,7 +1686,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
-        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee
+        if let Callee::Expr(Expr::Ident(Ident { sym, .. })) = &mut n.callee
             && (sym == "jsxDEV" || sym == "_jsxDEV")
         {
             // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
@@ -2743,7 +2743,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                atom!("use turbopack no side effects").into(),
+                                atom!("use turbopack: no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2752,7 +2752,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let mut module_items = vec![
                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                        atom!("use turbopack no side effects").into(),
+                                        atom!("use turbopack: no side effects").into(),
                                     ))),
                                     span: DUMMY_SP,
                                 })),
@@ -2837,7 +2837,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             (&attr.value, &attr.name)
         {
             match &container.expr {
-                JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
+                JSXExpr::Expr(Expr::Arrow(_)) | JSXExpr::Expr(Expr::Fn(_)) => {
                     self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
                 _ => {}
@@ -2852,7 +2852,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_current_export_name = self.current_export_name.take();
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
+        if let (Pat::Ident(ident), Some(Expr::Arrow(_) | Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
             if self.in_module_level
@@ -3301,7 +3301,7 @@ fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
         for stmt in body.stmts.iter() {
             match stmt {
                 Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                    expr: Expr::Lit(Lit::Str(Str { value, .. })),
                     ..
                 }) => {
                     if value == "use server" {
@@ -3440,7 +3440,7 @@ impl DirectiveVisitor<'_> {
 
         match stmt {
             Stmt::Expr(ExprStmt {
-                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
+                expr: Expr::Lit(Lit::Str(Str { value, span, .. })),
                 ..
             }) => {
                 if value == "use server" {
@@ -3575,8 +3575,8 @@ impl DirectiveVisitor<'_> {
             }
             Stmt::Expr(ExprStmt {
                 expr:
-                    box Expr::Paren(ParenExpr {
-                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                    Expr::Paren(ParenExpr {
+                        expr: Expr::Lit(Lit::Str(Str { value, .. })),
                         ..
                     }),
                 span,
@@ -3668,7 +3668,7 @@ impl VisitMut for ClosureReplacer<'_> {
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         n.visit_mut_children_with(self);
 
-        if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+        if let PropOrSpread::Prop(Prop::Shorthand(i)) = n {
             let name = Name::from(&*i);
             if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {

@@ -10908,9 +10908,13 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
     case 21:
       break;
     case 7:
-      current &&
-        null !== current.stateNode &&
-        (current.stateNode._fragmentFiber = finishedWork);
+      flags & 512 &&
+        (offscreenSubtreeWasHidden ||
+          null === current ||
+          safelyDetachRef(current, current.return)),
+        current &&
+          null !== current.stateNode &&
+          (current.stateNode._fragmentFiber = finishedWork);
     default:
       recursivelyTraverseMutationEffects(root, finishedWork, lanes),
         commitReconciliationEffects(finishedWork);
@@ -18427,14 +18431,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2040 = React.version;
 if (
-  "19.3.0-canary-eb8feb71-20260814" !==
+  "19.3.0-canary-f789f203-20260825" !==
   isomorphicReactPackageVersion$jscomp$inline_2040
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2040,
-      "19.3.0-canary-eb8feb71-20260814"
+      "19.3.0-canary-f789f203-20260825"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18456,10 +18460,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2583 = {
   bundleType: 0,
-  version: "19.3.0-canary-eb8feb71-20260814",
+  version: "19.3.0-canary-f789f203-20260825",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-eb8feb71-20260814"
+  reconcilerVersion: "19.3.0-canary-f789f203-20260825"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2584 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18557,4 +18561,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-eb8feb71-20260814";
+exports.version = "19.3.0-canary-f789f203-20260825";

@@ -1699,14 +1699,10 @@ function finalizeConfig(
     config.supportsImmutableAssets = false
   }
 
-  if (
-    config.supportsImmutableAssets &&
-    (config.output === 'export' || config.output === 'standalone')
-  ) {
-    // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
-    // output=standalone, which are currently using a non-adapter codepath.
-    // Particularly output=export should just run through the adapter, with only static assets.
-    // TODO remove again once output=export (and output=standalone) are using adapters.
+  if (config.supportsImmutableAssets && config.output === 'standalone') {
+    // supportsImmutableAssets is designed to work with adapters. Disable it for output=standalone,
+    // which is currently using a non-adapter codepath.
+    // TODO remove again once output=standalone is using adapters.
     config.supportsImmutableAssets = false
   }
 

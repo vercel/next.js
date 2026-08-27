@@ -341,6 +341,32 @@ export function runDevWarmupTests({
           assertLog(logs, `after params`, 'Prefetch')
           assertLog(logs, `after searchParams`, 'Prefetch')
 
+          assertLog(
+            logs,
+            `after prefetch`,
+            // Same as navigation() below: static prerender timing on initial
+            // load, app-shell timing for a client nav when there's a runtime
+            // prefetch.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
+
+          assertLog(
+            logs,
+            `after navigation`,
+            // For initial load, navigation() follows static prerender timing.
+            // For client nav, it follows app-shell timing if `partialPrefetching` is on,
+            // and static timing otherwise.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
+
           assertLog(logs, 'after connection', 'Server')
         }
 
