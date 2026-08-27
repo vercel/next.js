@@ -193,6 +193,36 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('parallel route matching flags', () => {
+    it('allows explicit children detection without strict route matching', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            explicitParallelRouteChildren: true,
+            strictRouteMatching: false,
+          },
+        },
+      })
+
+      expect(result.experimental.explicitParallelRouteChildren).toBe(true)
+      expect(result.experimental.strictRouteMatching).toBe(false)
+    })
+
+    it('disables strict route matching when explicit children detection is disabled', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            explicitParallelRouteChildren: false,
+            strictRouteMatching: true,
+          },
+        },
+      })
+
+      expect(result.experimental.explicitParallelRouteChildren).toBe(false)
+      expect(result.experimental.strictRouteMatching).toBe(false)
+    })
+  })
+
   describe('cacheHandlers validation', () => {
     it('should reject invalid keys', async () => {
       const invalidKeys = [
