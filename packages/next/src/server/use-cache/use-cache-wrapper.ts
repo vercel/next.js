@@ -3620,8 +3620,7 @@ const encoder = new TextEncoder()
  *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
  * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
  *   not inlined)
- * - the version of Next.js (to account for RSC write format changes, or use-cache-wrapper.ts
- *   changes, etc...)
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
  *
  * In case that granular information isn't available, fall back to
  * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
