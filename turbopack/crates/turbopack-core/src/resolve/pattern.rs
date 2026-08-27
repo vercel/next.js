@@ -1610,8 +1610,10 @@ pub async fn read_matches(
                                 continue;
                             };
                             let path = concat(&prefix, str).into();
-                            if matches!(target.target_type().await?, FileSystemEntryType::Directory)
-                            {
+                            if matches!(
+                                target.resolved_type().await?,
+                                FileSystemEntryType::Directory
+                            ) {
                                 results.push((index, PatternMatch::Directory(path, fs_path)));
                             } else {
                                 results.push((index, PatternMatch::File(path, fs_path)))
@@ -1799,7 +1801,7 @@ pub async fn read_matches(
                                         &*fs_path.read_link().await?
                                     {
                                         if matches!(
-                                            target.target_type().await?,
+                                            target.resolved_type().await?,
                                             FileSystemEntryType::Directory
                                         ) {
                                             results.push((
@@ -1823,7 +1825,7 @@ pub async fn read_matches(
                                     if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
                                         && matches!(
-                                            target.target_type().await?,
+                                            target.resolved_type().await?,
                                             FileSystemEntryType::Directory
                                         )
                                     {
@@ -1838,7 +1840,7 @@ pub async fn read_matches(
                                     if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
                                         && matches!(
-                                            target.target_type().await?,
+                                            target.resolved_type().await?,
                                             FileSystemEntryType::Directory
                                         )
                                     {

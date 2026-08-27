@@ -58,11 +58,11 @@ the project's other experimental options.
 
 Set the condition while running `next build`. Setting it only for `next start`
 is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, `instant()` may not acquire the
-testing cookie before Playwright times out. Treat that symptom as a rig
-configuration failure and rebuild with the condition enabled. Use the
-project's existing environment naming when it already distinguishes test,
-staging, preview, and production builds.
+When the artifact was built without it, Next.js does not activate the
+navigation lock, so the test cannot distinguish prefetched UI from streamed
+dynamic content. Rebuild with the condition enabled before interpreting the
+results. Use the project's existing environment naming when it already
+distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
@@ -143,11 +143,10 @@ Place this file at the repository root or next to the end-to-end configuration:
 ```md
 # instant-nav rig: <project>
 
-- BUILD: <command or platform that produces the measured production build>
+- BUILD: <commands or platform that builds and serves the measured production artifact>
 - EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build>
-- START: <local start command, or remote artifact URL discovery>
 - RUN: <focused Playwright command and how it receives BASE_URL>
-- TEST CONTEXT: <public/no auth, or account and login>; state: <flags, role, data, locale>
+- TEST USER: <public/no auth, or account and login>; state: <flags, role, data, locale>
 - DRIFT: <differences that could change the asserted UI>
 - LOOP: <local build → start → test, or push → deploy → test>; agent limits: <...>
 - LIVENESS: <deployed SHA check, or n/a for a local build and start>
@@ -155,7 +154,7 @@ Place this file at the repository root or next to the end-to-end configuration:
 ```
 
 Every field needs a concrete value. `n/a` is valid only with a reason, such as
-`TEST CONTEXT: public; no authentication` or `LIVENESS: n/a; local build and
+`TEST USER: public; no authentication` or `LIVENESS: n/a; local build and
 start`.
 
 ## Check the rig before writing the baseline

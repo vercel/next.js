@@ -2285,6 +2285,9 @@ export default async function build(
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                config.experimental.durableUseCacheEntries
+              ),
               staticPageGenerationTimeout: config.staticPageGenerationTimeout,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2517,6 +2520,9 @@ export default async function build(
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
+                            durableUseCacheEntries: Boolean(
+                              config.experimental.durableUseCacheEntries
+                            ),
                             staticPageGenerationTimeout:
                               config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,

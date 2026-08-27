@@ -18,7 +18,7 @@ The development insights and the preservation tests are two different paths. Ins
 
 ## preservation gate
 
-When the audit finds an effective legacy `prefetch={true}`, the first implementation milestone is a passing flag-off `instant()` suite. Set up the production test rig, write the selected assertions, run them with `partialPrefetching` disabled, and record the command and exit status. Test-only configuration required by the rig is allowed, but until that baseline passes, do not enable `partialPrefetching` or edit the destination, cache boundaries, or Link props. Installing missing test dependencies is part of reaching the baseline, not a reason to adopt first.
+When using test-backed preservation, the first implementation milestone is a passing flag-off `instant()` suite. Set up the production test rig, write the selected assertions, run them with `partialPrefetching` disabled, and record the command and exit status. Test-only configuration required by the rig is allowed, but until that baseline passes, do not enable `partialPrefetching` or edit the destination, cache boundaries, or Link props. Installing missing test dependencies is part of reaching the baseline, not a reason to adopt first. Use the manual path only when `rig-template.md` identifies a concrete blocker the repository cannot resolve, and record the blocker and deferred test coverage.
 
 Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: links to a route prefetch one shared App Shell, and `prefetch={true}` can also resolve cached URL-specific content. The audit determines which UI from the legacy full prefetch to preserve.
 
@@ -171,12 +171,9 @@ Then check in with the user. Speak their language — no insight slugs or step l
 
 The audit marked candidates beyond the already-preserved legacy contract instead of deciding them. Grep for `TODO(per-link-prefetch)` and walk the list with the user in one conversation. The question per route is whether they want the additional URL-dependent content prefetched ahead of the click, or streaming in after navigation is fine. A per-link prefetch costs a server invocation per prefetchable link — the guide's [trade-offs](https://nextjs.org/docs/app/guides/optimizing-prefetching#trade-offs) section is the checklist. Don't make these calls alone.
 
-Where the answer is no, delete the marker and leave the route on the App Shell default. Where the answer is yes, choose one of these paths:
+Where the answer is no, delete the marker and leave the route on the App Shell default. Where the answer is yes, follow the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching), confirm the opted-in link against a production run, and delete the marker when the selected result is verified.
 
-- **Manual:** follow the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching), confirm the opted-in link against a production run, and delete the marker when the selected result is verified.
-- **Test-backed:** hand the source link, destination, selected UI, and viewport-or-intent decision to the experimental [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471). It turns the accepted candidate into a failing `instant()` test, works it to GREEN, and removes the marker only after the differential proves the additional UI comes from that exact link's prefetch.
-
-Keep accepted markers until their manual verification or optimizer test is complete. No `TODO(per-link-prefetch)` marker survives the finished step. Per-link optimization remains a separate commit or PR from adoption.
+No `TODO(per-link-prefetch)` marker survives the finished step. Per-link optimization remains a separate commit or PR from adoption.
 
 Finally, show any effective `prefetch={false}` links in a concise `Navigation | Why it may no longer be needed` table. Explain that `false` disables all prefetching, while Partial Prefetching's default `auto` behavior prefetches only the shared App Shell, so opt-outs added to avoid legacy full-route prefetching may now be unnecessary. Invite the user to revisit them separately.
 
@@ -185,4 +182,3 @@ Finally, show any effective `prefetch={false}` links in a concise `Navigation | 
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.
-- [`next-partial-prefetching-optimizer` PR](https://github.com/vercel/next.js/pull/96471) — adds selected URL-specific UI to an exact link's prefetched result and guards it with `instant()`.
