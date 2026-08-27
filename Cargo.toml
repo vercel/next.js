@@ -214,7 +214,7 @@ swc_ecma_react_compiler = "24.0.0"
 react_compiler = { version = "0.2", package = "forked_react_compiler" }
 
 # SWC crates
-swc_core = { version = "77.0.2", default-features = false, features = [
+swc_core = { version = "77.1.2", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
