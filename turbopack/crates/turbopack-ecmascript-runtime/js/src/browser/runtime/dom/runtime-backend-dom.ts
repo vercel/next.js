@@ -36,11 +36,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 ;(() => {
   BACKEND = {
     async registerChunk(chunk, params) {
-      let chunkPath = getPathFromScript(chunk)
-      let chunkUrl = getUrlFromScript(chunk)
-
-      const resolver = getOrCreateResolver(chunkUrl)
-      resolver.resolve()
+      // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
+      let chunkPath: ChunkPath | undefined
+      if (chunk != null) {
+        chunkPath = getPathFromScript(chunk)
+        const resolver = getOrCreateResolver(getUrlFromScript(chunk))
+        resolver.resolve()
+      }
 
       if (params == null) {
         return

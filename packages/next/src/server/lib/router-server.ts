@@ -14,7 +14,12 @@ import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { DecodeError } from '../../shared/lib/utils'
+import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -24,8 +29,9 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { isPostpone } from './router-utils/is-postpone'
+import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
@@ -70,6 +76,42 @@ import {
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
+
+// ModuleBuildError can cross compiled module boundaries, so constructor
+// identity is not reliable. Check its stable fields and string prefix instead.
+function isModuleBuildError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as {
+    code?: unknown
+    constructor?: { name?: unknown }
+    name?: unknown
+  }
+  const errorString = String(error)
+
+  return (
+    maybeError.name === 'ModuleBuildError' ||
+    maybeError.code === 'ModuleBuildError' ||
+    maybeError.constructor?.name === 'ModuleBuildError' ||
+    errorString.startsWith('ModuleBuildError:') ||
+    errorString.startsWith('Error [ModuleBuildError]:')
+  )
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return deobfuscateText(error.message)
+  }
+
+  return deobfuscateText(String(error))
+}
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -121,7 +163,6 @@ export async function initialize(opts: {
       },
     }
   )
-
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
@@ -223,7 +264,8 @@ export async function initialize(opts: {
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      }
+      },
+      Boolean(developmentConfig.experimental.requestInsights)
     )
 
     development = {
@@ -232,6 +274,8 @@ export async function initialize(opts: {
       config: developmentConfig,
     }
   }
+  const devMemoryThresholdRestart =
+    development?.config.experimental.devMemoryThresholdRestart !== false
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
@@ -340,6 +384,14 @@ export async function initialize(opts: {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
+
+      // On client disconnect the middleware never ends its zlib stream, which
+      // then leaks past GC. See `releaseCompressionStream`.
+      res.once('close', () => {
+        if (res.writableFinished) return
+
+        releaseCompressionStream(res)
+      })
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
@@ -586,6 +638,10 @@ export async function initialize(opts: {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
             res.setHeader('Service-Worker-Allowed', config.basePath || '/')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+            // Development assets stay revalidatable. `serveStatic` adds an
+            // `ETag`, so the browser sends a conditional request and reuses the
+            // stored body when the server answers `304`. This keeps the browser
+            // from downloading every chunk again on each page load.
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
@@ -673,12 +729,38 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        // fsChecker preserves compilation errors from its dev ensure step so
+        // the route remains matched. Log the compiler diagnostic, then render
+        // the matched route as a 500 instead of falling through to a 404.
+        if (matchedOutput.error && development) {
+          development.bundler.logErrorWithOriginalStack(
+            matchedOutput.error,
+            matchedOutput.type === 'appFile' ? 'app-dir' : undefined
+          )
+        }
+
         return await invokeRender(
           parsedUrl,
           parsedUrl.pathname || '/',
           handleIndex,
           {
             invokeOutput: matchedOutput.itemPath,
+            ...(matchedOutput.error
+              ? {
+                  invokeStatus: 500,
+                  invokeError: matchedOutput.error,
+                }
+              : undefined),
+            // fsChecker owns the route match for filesystem requests. Forward
+            // it so BaseServer does not need the removed matcher manager.
+            ...(matchedOutput.route
+              ? {
+                  match: {
+                    definition: matchedOutput.route,
+                    params: matchedOutput.params,
+                  },
+                }
+              : undefined),
           }
         )
       }
@@ -725,6 +807,18 @@ export async function initialize(opts: {
         return null
       }
 
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
+
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
       if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
         res.statusCode = 404
@@ -764,6 +858,10 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
+        } else if (isModuleBuildError(err)) {
+          // Webpack compilation failures may bubble out of invokeRender. Log
+          // the readable diagnostic without printing the wrapper stack again.
+          Log.error(getErrorMessage(err))
         } else {
           console.error(err)
         }
@@ -815,6 +913,7 @@ export async function initialize(opts: {
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
+    devMemoryThresholdRestart,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -849,24 +948,18 @@ export async function initialize(opts: {
     ),
   }
 
-  const logError = async (
-    type: 'uncaughtException' | 'unhandledRejection',
-    err: Error | undefined
-  ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    if (type === 'unhandledRejection') {
-      Log.error('unhandledRejection: ', err)
-    } else if (type === 'uncaughtException') {
-      Log.error('uncaughtException: ', err)
-    }
+  const logError = async (err: Error | undefined) => {
+    Log.error('uncaughtException: ', err)
   }
 
-  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
+  process.on('uncaughtException', logError)
+
+  // The render server may run in the same process and have already registered
+  // the unhandled rejection listener, in which case we must not register
+  // another one, to avoid logging unhandled rejections multiple times.
+  if (!isUnhandledRejectionListenerRegistered()) {
+    registerUnhandledRejectionListener()
+  }
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -996,5 +1089,6 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    devMemoryThresholdRestart,
   }
 }

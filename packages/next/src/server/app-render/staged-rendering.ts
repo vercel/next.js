@@ -4,14 +4,16 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 export enum RenderStage {
   Before = 1,
   //
-  ShellStatic = 11,
+  ShellStatic = 10,
+  PrefetchStatic = 11,
+  NavigationStatic = 12,
   Static = 13,
   //
-  ShellRuntime = 21,
-  Runtime = 23,
+  ShellRuntime = 20,
+  Runtime = 21,
+  NavigationRuntime = 22,
   //
   Dynamic = 30,
-  //
   Abandoned = 40,
 }
 
@@ -22,10 +24,13 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic,
+  RenderStage.NavigationStatic,
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
   RenderStage.Runtime,
+  RenderStage.NavigationRuntime,
   //
   RenderStage.Dynamic,
 ]
@@ -63,15 +68,8 @@ export class StagedRenderingController {
 
   syncInterruptReason: Error | null = null
 
-  triggers: Record<AdvanceableRenderStage, StageTrigger> = {
-    [RenderStage.ShellStatic]: createStageTrigger(),
-    [RenderStage.Static]: createStageTrigger(),
-    //
-    [RenderStage.ShellRuntime]: createStageTrigger(),
-    [RenderStage.Runtime]: createStageTrigger(),
-    //
-    [RenderStage.Dynamic]: createStageTrigger(),
-  }
+  triggers: Record<AdvanceableRenderStage, StageTrigger> =
+    createAdvanceableStageTriggers()
 
   constructor({
     abortSignal,
@@ -120,36 +118,29 @@ export class StagedRenderingController {
   }
 
   shouldTrackSyncInterrupt(): boolean {
-    if (this.syncIOMode === SyncIOMode.Untracked) {
-      return false
-    }
-
-    switch (this.currentStage) {
-      case RenderStage.Before:
-        // If we haven't started the render yet, it can't be interrupted.
+    const { syncIOMode, currentStage } = this
+    switch (syncIOMode) {
+      case SyncIOMode.Untracked: {
         return false
-      case RenderStage.ShellStatic:
-      case RenderStage.Static:
-        return true
-      case RenderStage.ShellRuntime:
-      case RenderStage.Runtime: {
-        switch (this.syncIOMode) {
-          case SyncIOMode.AllowedInRuntimeOrDynamic: {
-            // Before `partialPrefetching`: Sync IO only errors in static stages.
-            return false
-          }
-          case SyncIOMode.AllowedInDynamic: {
-            return true
-          }
-        }
-        // NOT a fallthrough, but eslint doesn't understand that
       }
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return false
-      default:
-        this.currentStage satisfies never
-        return false
+      case SyncIOMode.AllowedInRuntimeOrDynamic: {
+        // Legacy: track Sync IO only in static stages.
+        // Do not track it before the render, or in runtime/dynamic stages.
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage <= RenderStage.Static
+        )
+      }
+      case SyncIOMode.AllowedInDynamic: {
+        // Track sync IO in all cacheable stages.
+        // This means all stages except:
+        // - before the render
+        // - in the dynamic stage
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage < RenderStage.Dynamic
+        )
+      }
     }
   }
 
@@ -193,18 +184,8 @@ export class StagedRenderingController {
     return this.syncInterruptReason
   }
 
-  getStaticStageEndTime() {
-    // The Static stage ends when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Static)].triggeredAt ?? Infinity
-    )
-  }
-
-  getRuntimeStageEndTime() {
-    // The Runtime stage ended when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Runtime)].triggeredAt ?? Infinity
-    )
+  getStageEndTime(stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>) {
+    return this.triggers[getNextStage(stage)].triggeredAt ?? Infinity
   }
 
   private abandonRender() {
@@ -307,7 +288,7 @@ export class StagedRenderingController {
           )
         : stagePromise.then(() => resolvedValue)
 
-    // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
+    // Analogously to `makeDynamicHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).
     // We shouldn't consider this an unhandled rejection, so we attach a noop catch handler here to suppress this warning.
     if (this.abortSignal) {
@@ -315,6 +296,17 @@ export class StagedRenderingController {
     }
     return promise
   }
+}
+
+function createAdvanceableStageTriggers(): Record<
+  AdvanceableRenderStage,
+  StageTrigger
+> {
+  const triggers: Partial<Record<AdvanceableRenderStage, StageTrigger>> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    triggers[stage] = createStageTrigger()
+  }
+  return triggers as Record<AdvanceableRenderStage, StageTrigger>
 }
 
 function ignoreReject() {}

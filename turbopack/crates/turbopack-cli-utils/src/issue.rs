@@ -9,7 +9,6 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
@@ -558,15 +557,11 @@ fn make_relative_to_cwd<'a>(path: &'a str, project_dir: &Path, cwd: &Path) -> Co
     }
 }
 
-fn show_all_message(label: &str, size: usize) -> StyledContent<String> {
+fn show_all_message(label: &str, size: usize) -> String {
     show_all_message_with_shown_count(label, size, DEFAULT_SHOW_COUNT)
 }
 
-fn show_all_message_with_shown_count(
-    label: &str,
-    size: usize,
-    shown: usize,
-) -> StyledContent<String> {
+fn show_all_message_with_shown_count(label: &str, size: usize, shown: usize) -> String {
     if shown == 0 {
         format!(
             "... [{} {label}] are hidden, run with {} to show them",
@@ -574,6 +569,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     } else {
         format!(
             "... [{} more {label}] are hidden, run with {} to show all",
@@ -581,6 +577,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     }
 }
 

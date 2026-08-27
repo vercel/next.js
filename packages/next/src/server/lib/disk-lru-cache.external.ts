@@ -43,7 +43,13 @@ export async function getOrInitDiskLRU(
 
       const entries = await readEntries(cacheDir)
       for (const entry of entries) {
-        lru.set(entry.key, entry.size)
+        // Skip entries with a non-positive size: `LRUCache.set()` rejects
+        // sizes <= 0, so a single such entry (e.g. a 0-byte or corrupt cache
+        // file) would otherwise throw here and permanently reject this cached
+        // singleton promise, breaking the disk cache for the whole process.
+        if (entry.size > 0) {
+          lru.set(entry.key, entry.size)
+        }
       }
 
       return lru

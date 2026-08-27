@@ -20,7 +20,11 @@ import cheerio from 'cheerio'
 import { once } from 'events'
 import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
+import * as JSON5 from 'json5'
 import { Page, Response } from 'playwright'
+import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { loadResolvedConfig } from '../gate/load-resolved-config'
+import type { ResolvedNextConfig } from '../gate/resolved-config'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -57,6 +61,12 @@ export interface NextInstanceOpts {
   patchFileDelay?: number
   startServerTimeout?: number
   disableAutoSkewProtection?: boolean
+  /**
+   * Delete the `pnpm-workspace.yaml` that `createNextInstall` writes for
+   * supply-chain gating of installs. For tests that assert on Next.js
+   * workspace-root detection, which the file affects.
+   */
+  deleteWorkspaceFile?: boolean
 }
 
 /**
@@ -71,7 +81,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.7";
+const nextjsReactPeerVersion = "19.2.8";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -103,6 +113,8 @@ export class NextInstance {
   public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
+  public deleteWorkspaceFile: boolean = false
+  private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -363,6 +375,12 @@ export class NextInstance {
           }
         }
 
+        if (this.deleteWorkspaceFile) {
+          await fs.rm(path.join(this.testDir, 'pnpm-workspace.yaml'), {
+            force: true,
+          })
+        }
+
         const testDirFiles = await fs.readdir(this.testDir)
 
         let nextConfigFile = testDirFiles.find((file) =>
@@ -435,10 +453,24 @@ export class NextInstance {
           require('console').log(
             'tsconfig.test.json found, using it for this test'
           )
-          await fs.copyFile(
-            path.join(this.testDir, 'tsconfig.test.json'),
-            path.join(this.testDir, 'tsconfig.json')
-          )
+          const tsConfigTestPath = path.join(this.testDir, 'tsconfig.test.json')
+          const tsConfigPath = path.join(this.testDir, 'tsconfig.json')
+
+          if (this.env.NEXT_PRIVATE_LOCAL_DEV) {
+            const tsConfig = JSON5.parse(
+              await fs.readFile(tsConfigTestPath, 'utf8')
+            )
+            const exclude = new Set<string>(tsConfig.exclude ?? [])
+            exclude.add('**/*.test.ts')
+            exclude.add('**/*.test.tsx')
+            tsConfig.exclude = Array.from(exclude)
+            await fs.writeFile(
+              tsConfigPath,
+              JSON.stringify(tsConfig, null, 2) + os.EOL
+            )
+          } else {
+            await fs.copyFile(tsConfigTestPath, tsConfigPath)
+          }
         }
 
         if (isNextDeploy) {
@@ -471,10 +503,6 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
             process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
           }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
-          }
-
         `
           )
 
@@ -505,6 +533,60 @@ export class NextInstance {
           }
         }
       })
+  }
+
+  /**
+   * The phase this fixture's `next.config` should be resolved for. `next dev`
+   * overrides it; deploy mode resolves the production-build phase locally,
+   * which is a best-effort approximation of the remote build.
+   */
+  protected get configPhase(): string {
+    return PHASE_PRODUCTION_BUILD
+  }
+
+  /**
+   * This fixture's **resolved** `next.config` — i.e. the output of
+   * `loadConfig`, not the config file. Resolution implies flags the fixture
+   * never mentions (`cacheComponents: true` turns on `experimental.ppr`) and
+   * honours the env the fixture actually runs with.
+   *
+   * Used by `// @gate` conditions (see test/lib/gate/README.md). Memoized per
+   * instance and resolved lazily, so a suite that never asks pays nothing; a
+   * suite that rewrites its own `next.config` mid-run keeps the first answer.
+   */
+  public getResolvedConfig(): Promise<ResolvedNextConfig> {
+    return (this._resolvedConfig ??= loadResolvedConfig({
+      dir: this.testDir,
+      phase: this.configPhase,
+      env: this.getSpawnOpts().env,
+    }))
+  }
+
+  /**
+   * The options every child process of this fixture is spawned with — its cwd,
+   * and the exact env `next build` / `next dev` / `next start` see.
+   *
+   * Anything that inspects the fixture out of process (e.g. resolving its
+   * `next.config`) has to use this env, because config resolution reads env
+   * vars from the calling process and a suite may pass its own via
+   * `nextTestSetup({ env })`.
+   */
+  protected getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
   }
 
   protected setServerReadyTimeout(

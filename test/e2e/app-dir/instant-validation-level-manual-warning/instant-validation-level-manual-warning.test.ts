@@ -93,7 +93,6 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1398",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -125,7 +124,6 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1398",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -157,7 +155,6 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1398",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -198,11 +195,10 @@ describe('instant validation - level manual-warning', () => {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                at a (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -230,7 +226,6 @@ describe('instant validation - level manual-warning', () => {
           // did not run under 'manual-warning'.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -250,7 +245,6 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -270,7 +264,6 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -290,7 +283,6 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -337,11 +329,10 @@ describe('instant validation - level manual-warning', () => {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                at body (<anonymous>)
                at html (<anonymous>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -363,11 +354,10 @@ describe('instant validation - level manual-warning', () => {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                at body (<anonymous>)
                at html (<anonymous>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -391,11 +381,10 @@ describe('instant validation - level manual-warning', () => {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                at body (<anonymous>)
                at html (<anonymous>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -423,11 +412,10 @@ describe('instant validation - level manual-warning', () => {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                at body (<anonymous>)
                at html (<anonymous>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:

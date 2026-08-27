@@ -346,6 +346,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Only relevant to the App Router; ignored in the Pages Router client.
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = message
       if (errorJSON) {

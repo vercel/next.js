@@ -71,7 +71,11 @@ Note that `'use cache: private'` does not use cache handlers and cannot be custo
 
 ## API Reference
 
-A cache handler must implement the [`CacheHandler`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) interface with the following methods:
+A cache handler must implement the `CacheHandler` interface with the following methods. The `CacheHandler` and `CacheEntry` types are exported from `next/cache`:
+
+```ts
+import type { CacheHandler, CacheEntry } from 'next/cache'
+```
 
 ### `get()`
 
@@ -227,7 +231,7 @@ const cacheHandler = {
 
 ## CacheEntry Type
 
-The [`CacheEntry`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) object has the following structure:
+The `CacheEntry` object (exported from `next/cache`) has the following structure:
 
 ```ts
 interface CacheEntry {
@@ -471,7 +475,7 @@ For a full explanation of the tag architecture (including soft tags and multi-in
 
 ## Soft Tags
 
-Soft tags are implicit tags that Next.js automatically generates based on the route path. For example, the route `/blog/hello` generates soft tags for `/`, `/blog`, `/blog/hello`, and their corresponding layout entries. These tags are prefixed internally with `_N_T_`.
+Soft tags are implicit tags that Next.js automatically generates based on the route path. Every segment in the path gets a layout tag, plus the leaf route itself. For example, the route `/blog/hello` generates soft tags for `/layout`, `/blog/layout`, `/blog/hello/layout`, and `/blog/hello`. These tags are prefixed internally with `_N_T_`.
 
 Soft tags enable [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath) to work through the same tag-based cache system. When `revalidatePath('/blog/hello')` is called, it invalidates all cache entries associated with that path's soft tags.
 

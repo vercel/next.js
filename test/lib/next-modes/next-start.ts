@@ -6,6 +6,8 @@ import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 import { shouldUseTurbopack } from 'next-test-utils'
+import { RequiredServerFilesManifest } from 'next/dist/build'
+import { FileRef } from '../e2e-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -22,6 +24,15 @@ export class NextStartInstance extends NextInstance {
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      // Directory fixtures can include their test runner. Keep it in the
+      // generated app while excluding it from TypeScript checks.
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
 
     if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
       this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
@@ -171,12 +182,11 @@ export class NextStartInstance extends NextInstance {
             ),
             'utf8'
           )
-        )
+        ) as RequiredServerFilesManifest
         this._deploymentId =
           requiredServerFiles.config?.deploymentId || undefined
         this._supportsImmutableAssets =
-          requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-          false
+          requiredServerFiles.config?.supportsImmutableAssets || false
       } catch {}
     }
 
@@ -256,24 +266,6 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
-    return {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
-  }
-
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -295,7 +287,9 @@ export class NextStartInstance extends NextInstance {
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed. Wait
+      // for it before snapshotting cliOutput so trailing diagnostics are not lost.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,
@@ -330,8 +324,7 @@ export class NextStartInstance extends NextInstance {
       )
       this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
       this._supportsImmutableAssets =
-        requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-        false
+        requiredServerFiles.config?.supportsImmutableAssets || false
     } catch {}
 
     return result

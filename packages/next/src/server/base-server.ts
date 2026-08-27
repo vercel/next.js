@@ -31,10 +31,16 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { RouteMatch } from './route-matches/route-match'
+import type { RouteDefinition } from './route-definitions/route-definition'
+import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
+import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
+import type { LocaleRouteDefinition } from './route-definitions/locale-route-definition'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -49,15 +55,14 @@ import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
+import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
 import {
-  APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
-  PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
-import { isDynamicRoute } from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -67,6 +72,9 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
+import { isAPIRoute } from '../lib/is-api-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -75,7 +83,10 @@ import {
   setRequestMeta,
 } from './request-meta'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import {
   parseUrl,
@@ -84,25 +95,20 @@ import {
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
-import type {
-  MatchOptions,
-  RouteMatcherManager,
-} from './route-matcher-managers/route-matcher-manager'
+import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
-import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
-import { AppPageRouteMatcherProvider } from './route-matcher-providers/app-page-route-matcher-provider'
-import { AppRouteRouteMatcherProvider } from './route-matcher-providers/app-route-route-matcher-provider'
-import { PagesAPIRouteMatcherProvider } from './route-matcher-providers/pages-api-route-matcher-provider'
-import { PagesRouteMatcherProvider } from './route-matcher-providers/pages-route-matcher-provider'
-import { ServerManifestLoader } from './route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { isAppPageRouteDefinition } from './route-definitions/app-page-route-definition'
+import { PagesNormalizers } from './normalizers/built/pages'
+import { AppNormalizers } from './normalizers/built/app'
 import {
   getTracer,
   isBubbledError,
@@ -110,7 +116,9 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { I18NProvider } from './lib/i18n-provider'
+import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
+import { isRequestInsightsEnabled } from './lib/trace/span-store'
+import { I18NProvider, type LocaleAnalysisResult } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
 import {
@@ -122,6 +130,7 @@ import {
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
@@ -135,7 +144,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -370,6 +378,7 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
     | undefined
@@ -417,15 +426,24 @@ export default abstract class Server<
       : undefined
   }
 
+  /**
+   * The hash of the most recent server component change (dev only), used to
+   * revalidate `"use cache"` entries after an edit. Overridden by the dev
+   * server; returns `undefined` otherwise.
+   */
+  protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
   }): void
 
-  // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
-  public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
+  private readonly pagesNormalizers: PagesNormalizers
+  private readonly appNormalizers: AppNormalizers
 
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
@@ -488,7 +506,7 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+      this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
         : `?dpl=${this.deploymentId}`
 
@@ -502,6 +520,8 @@ export default abstract class Server<
       /* turbopackIgnore: true */ this.dir,
       this.nextConfig.distDir
     )
+    this.pagesNormalizers = new PagesNormalizers(this.distDir)
+    this.appNormalizers = new AppNormalizers(this.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -526,8 +546,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -553,7 +572,7 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
-      previewProps: this.getPrerenderManifest().preview,
+      previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -573,8 +592,6 @@ export default abstract class Server<
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      // `htmlLimitedBots` is passed to server as serialized config in string format
-      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -592,19 +609,24 @@ export default abstract class Server<
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
-        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          this.nextConfig.experimental.disableResumeDataCacheCompression ??
+          false,
         exposeTestingApi:
-          this.dev === true ||
-          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
-            true,
+          this.nextConfig.cacheComponents === true &&
+          (this.dev === true ||
+            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+              true),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -620,19 +642,7 @@ export default abstract class Server<
     this.appPathRoutes = this.getAppPathRoutes()
     this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
-    // Configure the routes.
-    this.matchers = this.getRouteMatchers()
-
-    // Start route compilation. We don't wait for the routes to finish loading
-    // because we use the `waitTillReady` promise below in `handleRequest` to
-    // wait. Also we can't `await` in the constructor.
-    void this.matchers.reload()
-
     this.setAssetPrefix(assetPrefix)
-  }
-
-  protected reloadMatchers() {
-    return this.matchers.reload()
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -813,54 +823,6 @@ export default abstract class Server<
     ServerResponse
   > = () => false
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    // Create a new manifest loader that get's the manifests from the server.
-    const manifestLoader = new ServerManifestLoader((name) => {
-      switch (name) {
-        case PAGES_MANIFEST:
-          return this.getPagesManifest() ?? null
-        case APP_PATHS_MANIFEST:
-          return this.getAppPathsManifest() ?? null
-        default:
-          return null
-      }
-    })
-
-    // Configure the matchers and handlers.
-    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
-
-    // Match pages under `pages/`.
-    matchers.push(
-      new PagesRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        this.i18nProvider
-      )
-    )
-
-    // Match api routes under `pages/api/`.
-    matchers.push(
-      new PagesAPIRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        this.i18nProvider
-      )
-    )
-
-    // If the app directory is enabled, then add the app matchers and handlers.
-    if (this.enabledDirectories.app) {
-      // Match app pages under `app/`.
-      matchers.push(
-        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-      matchers.push(
-        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-    }
-
-    return matchers
-  }
-
   protected async instrumentationOnRequestError(
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
@@ -902,86 +864,111 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    return tracer.withPropagatedContext(req.headers, () => {
-      // Capture the parent span before creating the handleRequest span.
-      // When deployed with an adapter, the platform's runtime may create its
-      // own OTEL HTTP server span before Next.js runs. We propagate http.route
-      // to this parent span so APM tools (e.g. Datadog) can derive the
-      // resource name correctly.
-      const parentSpan = tracer.getActiveScopeSpan()
+    const handleRequest = () =>
+      tracer.withPropagatedContext(req.headers, () => {
+        // Capture the parent span before creating the handleRequest span.
+        // When deployed with an adapter, the platform's runtime may create its
+        // own OTEL HTTP server span before Next.js runs. We propagate http.route
+        // to this parent span so APM tools (e.g. Datadog) can derive the
+        // resource name correctly.
+        const parentSpan = tracer.getActiveScopeSpan()
 
-      return tracer.trace(
-        BaseServerSpan.handleRequest,
-        {
-          spanName: `${method}`,
-          kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': method,
-            'http.target': req.url,
+        return tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName: `${method}`,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': method,
+              'http.target': req.url,
+            },
           },
-        },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-            if (!span) return
+          async (span) =>
+            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+              if (!span) return
 
-            const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-            span.setAttributes({
-              'http.status_code': res.statusCode,
-              'next.rsc': isRSCRequest,
-            })
-
-            if (res.statusCode && res.statusCode >= 500) {
-              // For 5xx status codes: SHOULD be set to 'Error' span status.
-              // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-              })
-              // For span status 'Error', SHOULD set 'error.type' attribute.
-              span.setAttribute('error.type', res.statusCode.toString())
-            }
-
-            const rootSpanAttributes = tracer.getRootSpanAttributes()
-            // We were unable to get attributes, probably OTEL is not enabled
-            if (!rootSpanAttributes) return
-
-            if (
-              rootSpanAttributes.get('next.span_type') !==
-              BaseServerSpan.handleRequest
-            ) {
-              console.warn(
-                `Unexpected root span type '${rootSpanAttributes.get(
-                  'next.span_type'
-                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-              )
-              return
-            }
-
-            const route = rootSpanAttributes.get('next.route')
-            if (route) {
-              const name = isRSCRequest
-                ? `RSC ${method} ${route}`
-                : `${method} ${route}`
-
+              const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
               span.setAttributes({
-                'next.route': route,
-                'http.route': route,
-                'next.span_name': name,
+                'http.status_code': res.statusCode,
+                'next.rsc': isRSCRequest,
               })
-              span.updateName(name)
 
-              // Propagate http.route to the parent span if one exists and
-              // is different from the handleRequest span. This ensures APM
-              // tools that read attributes from the outermost span (e.g.
-              // a platform-created HTTP span) can derive the resource name.
-              if (parentSpan && parentSpan !== span) {
-                parentSpan.setAttribute('http.route', route)
+              if (res.statusCode && res.statusCode >= 500) {
+                // For 5xx status codes: SHOULD be set to 'Error' span status.
+                // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                span.setStatus({
+                  code: SpanStatusCode.ERROR,
+                })
+                // For span status 'Error', SHOULD set 'error.type' attribute.
+                span.setAttribute('error.type', res.statusCode.toString())
               }
-            } else {
-              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
-            }
-          })
-      )
-    })
+
+              const rootSpanAttributes = tracer.getRootSpanAttributes()
+              // We were unable to get attributes, probably OTEL is not enabled
+              if (!rootSpanAttributes) return
+
+              if (
+                rootSpanAttributes.get('next.span_type') !==
+                BaseServerSpan.handleRequest
+              ) {
+                console.warn(
+                  `Unexpected root span type '${rootSpanAttributes.get(
+                    'next.span_type'
+                  )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                )
+                return
+              }
+
+              const route = rootSpanAttributes.get('next.route')
+              if (route) {
+                const name = isRSCRequest
+                  ? `RSC ${method} ${route}`
+                  : `${method} ${route}`
+
+                span.setAttributes({
+                  'next.route': route,
+                  'http.route': route,
+                  'next.span_name': name,
+                })
+                span.updateName(name)
+
+                // Propagate http.route to the parent span if one exists and
+                // is different from the handleRequest span. This ensures APM
+                // tools that read attributes from the outermost span (e.g.
+                // a platform-created HTTP span) can derive the resource name.
+                if (parentSpan && parentSpan !== span) {
+                  parentSpan.setAttribute('http.route', route)
+                }
+              } else {
+                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+              }
+            })
+        )
+      })
+
+    if (!isRequestInsightsEnabled()) {
+      return handleRequest()
+    }
+
+    const requestIdHeader = req.headers[NEXT_REQUEST_ID_HEADER]
+    const requestId =
+      typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
+    const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
+
+    // The request root and route-matching spans start before App Render creates
+    // its workStore. Carry their identity in this outer scope; App Render copies
+    // it into the workStore so the complete timeline uses one request ID.
+    return runWithRequestInsightsIdentity(
+      {
+        requestId,
+        htmlRequestId:
+          typeof htmlRequestIdHeader === 'string'
+            ? htmlRequestIdHeader
+            : requestId,
+        url: req.url,
+      },
+      handleRequest
+    )
   }
 
   private async handleRequestImpl(
@@ -990,9 +977,6 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
-      // Wait for the matchers to be ready.
-      await this.matchers.waitTillReady()
-
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       patchSetHeaderWithCookieSupport(
@@ -1192,21 +1176,31 @@ export default abstract class Server<
             hasValidParams: false,
           }
 
-          const match = await this.matchers.match(srcPathname, {
-            i18n: localeAnalysisResult,
-          })
+          // A dynamic x-matched-path identifies the route pattern, not a
+          // concrete pathname. Match it by identity so a pattern such as
+          // `/[...path]` cannot be captured by the regex for `/[slug]`.
+          let routeDefinition: RouteDefinition | undefined
+          if (pageIsDynamic) {
+            routeDefinition = this.getRoutePatternDefinition(
+              srcPathname,
+              localeAnalysisResult
+            )
+          } else {
+            const match = this.getRouteMatch(srcPathname, localeAnalysisResult)
+            if (match) {
+              routeDefinition = match.definition
 
-          if (!pageIsDynamic && match) {
-            // Update the source pathname to the matched page's pathname.
-            srcPathname = match.definition.pathname
+              // Update the source pathname to the matched page's pathname.
+              srcPathname = match.definition.pathname
 
-            // The page is dynamic if the params are defined. We know at this
-            // stage that the matched path is not a static page if the params
-            // were parsed from the matched path header.
-            if (typeof match.params !== 'undefined') {
-              pageIsDynamic = true
-              paramsResult.params = match.params
-              paramsResult.hasValidParams = true
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1427,6 +1421,50 @@ export default abstract class Server<
             }
           }
 
+          // A platform route match can capture the locale as a dynamic param.
+          // Analyze the interpolated pathname again to remove that prefix, but
+          // preserve the original locale when it was already stripped above.
+          let finalLocaleAnalysisResult = localeAnalysisResult
+          if (this.i18nProvider) {
+            const analyzedMatchedPath = this.i18nProvider.analyze(matchedPath, {
+              defaultLocale,
+            })
+            const hasLocalePrefix = analyzedMatchedPath.pathname !== matchedPath
+
+            if (hasLocalePrefix || !localeAnalysisResult) {
+              finalLocaleAnalysisResult = analyzedMatchedPath
+            } else {
+              finalLocaleAnalysisResult = {
+                ...localeAnalysisResult,
+                pathname: matchedPath,
+              }
+            }
+
+            matchedPath = finalLocaleAnalysisResult.pathname
+            addRequestMeta(
+              req,
+              'locale',
+              finalLocaleAnalysisResult.detectedLocale
+            )
+            if (finalLocaleAnalysisResult.inferredFromDefault) {
+              addRequestMeta(req, 'localeInferredFromDefault', true)
+            } else {
+              removeRequestMeta(req, 'localeInferredFromDefault')
+            }
+          }
+
+          // Match the resulting concrete pathname again so route precedence
+          // is preserved while the concrete params remain available to PPR.
+          const finalRouteMatch = this.getRouteMatch(
+            matchedPath,
+            finalLocaleAnalysisResult
+          )
+          if (finalRouteMatch) {
+            addRequestMeta(req, 'match', finalRouteMatch)
+          } else {
+            removeRequestMeta(req, 'match')
+          }
+
           if (pageIsDynamic || didRewrite) {
             utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
@@ -1451,8 +1489,8 @@ export default abstract class Server<
           // App Router routes should not include rewrite query params as they
           // affect RSC payload.
           if (
-            match?.definition.kind === RouteKind.PAGES ||
-            match?.definition.kind === RouteKind.PAGES_API
+            routeDefinition?.kind === RouteKind.PAGES ||
+            routeDefinition?.kind === RouteKind.PAGES_API
           ) {
             parsedUrl.query = rewrittenQueryParams
           }
@@ -1515,6 +1553,20 @@ export default abstract class Server<
           req,
           'serverComponentsHmrCache',
           this.getServerComponentsHmrCache()
+        )
+      }
+
+      // Attach the server components HMR refresh hash here, alongside the HMR
+      // cache, so it reaches every render that passes through this request
+      // handling, including internal renders (e.g. dev validation/warmup) that
+      // don't re-enter the top-level request handler. It's included in `"use
+      // cache"` keys so cached entries revalidate after an edit, for every
+      // client.
+      if (!getRequestMeta(req, 'hmrRefreshHash')) {
+        addRequestMeta(
+          req,
+          'hmrRefreshHash',
+          this.getServerComponentsHmrRefreshHash()
         )
       }
 
@@ -1674,6 +1726,269 @@ export default abstract class Server<
     return pathname
   }
 
+  private getPagesRouteDefinition(
+    page: string,
+    pathname: string,
+    kind: RouteKind.PAGES | RouteKind.PAGES_API,
+    locale?: string
+  ): LocaleRouteDefinition<RouteKind.PAGES | RouteKind.PAGES_API> | undefined {
+    const filename = this.pagesManifest?.[page]
+
+    if (!filename) return
+
+    return {
+      kind,
+      pathname,
+      page,
+      bundlePath: this.pagesNormalizers.bundlePath.normalize(page),
+      filename: this.pagesNormalizers.filename.normalize(filename),
+      ...(this.i18nProvider
+        ? {
+            i18n: {
+              locale,
+            },
+          }
+        : {}),
+    }
+  }
+
+  private getAppPageRouteDefinition(
+    pathname: string
+  ): AppPageRouteDefinition | undefined {
+    const appPaths = this.appPathRoutes?.[pathname]
+    if (!appPaths) return
+
+    const page = selectAppPageEntry(pathname, appPaths)
+    if (!isAppPageRoute(page)) return
+
+    const filename = this.appPathsManifest?.[page]
+    if (!filename) return
+
+    return {
+      kind: RouteKind.APP_PAGE,
+      pathname,
+      page,
+      bundlePath: this.appNormalizers.bundlePath.normalize(page),
+      filename: this.appNormalizers.filename.normalize(filename),
+      appPaths,
+    }
+  }
+
+  private getAppRouteRouteDefinition(
+    page: string
+  ): AppRouteRouteDefinition | undefined {
+    const filename = this.appPathsManifest?.[page]
+    if (!filename) return
+
+    const pathname = this.appNormalizers.pathname.normalize(page)
+
+    return {
+      kind: RouteKind.APP_ROUTE,
+      pathname,
+      page,
+      bundlePath: this.appNormalizers.bundlePath.normalize(page),
+      filename: this.appNormalizers.filename.normalize(filename),
+    }
+  }
+
+  private getRouteDefinitions(): RouteDefinition[] {
+    // Route definitions are rebuilt from the manifests instead of being held
+    // by route matcher providers. This keeps direct BaseServer entrypoints
+    // working when requests do not pass through router-server's fsChecker.
+    const definitions: RouteDefinition[] = []
+
+    if (this.enabledDirectories.pages) {
+      for (const page of Object.keys(this.pagesManifest || {})) {
+        const localeResult = this.i18nProvider?.analyze(page)
+        const pathname = localeResult?.pathname ?? page
+
+        if (isBlockedPage(pathname)) continue
+
+        const definition = this.getPagesRouteDefinition(
+          page,
+          pathname,
+          isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES,
+          localeResult?.detectedLocale
+        )
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+    }
+
+    if (this.enabledDirectories.app) {
+      for (const pathname of Object.keys(this.appPathRoutes || {})) {
+        const definition = this.getAppPageRouteDefinition(pathname)
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+
+      for (const page of Object.keys(this.appPathsManifest || {})) {
+        if (!isAppRouteRoute(page)) continue
+
+        const definition = this.getAppRouteRouteDefinition(page)
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+    }
+
+    return definitions
+  }
+
+  private getSortedRouteDefinitions(
+    definitions: RouteDefinition[]
+  ): RouteDefinition[] {
+    const references = new Map<string, RouteDefinition[]>()
+    const pathnames: string[] = []
+
+    for (const definition of definitions) {
+      const existing = references.get(definition.pathname)
+      if (existing) {
+        existing.push(definition)
+      } else {
+        references.set(definition.pathname, [definition])
+        pathnames.push(definition.pathname)
+      }
+    }
+
+    return getSortedRoutes(pathnames).flatMap(
+      (pathname) => references.get(pathname)!
+    )
+  }
+
+  private getRouteMatchPathname(
+    pathname: string,
+    definition: RouteDefinition,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): string | null {
+    const localeDefinition = definition as RouteDefinition & {
+      i18n?: { locale?: string }
+    }
+
+    if (localeDefinition.i18n && localeAnalysisResult) {
+      if (
+        localeDefinition.i18n.locale &&
+        localeAnalysisResult.detectedLocale &&
+        localeDefinition.i18n.locale !== localeAnalysisResult.detectedLocale
+      ) {
+        return null
+      }
+
+      return localeAnalysisResult.pathname
+    }
+
+    if (localeAnalysisResult?.inferredFromDefault) {
+      return localeAnalysisResult.pathname
+    }
+
+    return pathname
+  }
+
+  private testRouteDefinition(
+    pathname: string,
+    definition: RouteDefinition,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteMatch | null {
+    const matchPathname = this.getRouteMatchPathname(
+      pathname,
+      definition,
+      localeAnalysisResult
+    )
+
+    if (!matchPathname) return null
+
+    if (isDynamicRoute(definition.pathname)) {
+      const params = getRouteMatcher(getRouteRegex(definition.pathname))(
+        matchPathname
+      )
+
+      if (!params) return null
+
+      return {
+        definition,
+        params,
+      }
+    }
+
+    if (matchPathname === definition.pathname) {
+      return {
+        definition,
+        params: undefined,
+      }
+    }
+
+    return null
+  }
+
+  private getRoutePatternDefinition(
+    pathname: string,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteDefinition | undefined {
+    for (const definition of this.getRouteDefinitions()) {
+      const matchPathname = this.getRouteMatchPathname(
+        pathname,
+        definition,
+        localeAnalysisResult
+      )
+
+      if (matchPathname === definition.pathname) {
+        return definition
+      }
+    }
+  }
+
+  protected getRouteMatch(
+    pathname: string,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteMatch | null {
+    const definitions = this.getRouteDefinitions()
+    const dynamicDefinitions: RouteDefinition[] = []
+
+    // Check exact routes first, then sort dynamic routes by specificity. The
+    // old matcher manager provided the same precedence before it was removed.
+    if (!isDynamicRoute(pathname)) {
+      for (const definition of definitions) {
+        if (isDynamicRoute(definition.pathname)) {
+          dynamicDefinitions.push(definition)
+          continue
+        }
+
+        const match = this.testRouteDefinition(
+          pathname,
+          definition,
+          localeAnalysisResult
+        )
+
+        if (match) return match
+      }
+    } else {
+      for (const definition of definitions) {
+        if (isDynamicRoute(definition.pathname)) {
+          dynamicDefinitions.push(definition)
+        }
+      }
+    }
+
+    for (const definition of this.getSortedRouteDefinitions(
+      dynamicDefinitions
+    )) {
+      const match = this.testRouteDefinition(
+        pathname,
+        definition,
+        localeAnalysisResult
+      )
+
+      if (match) return match
+    }
+
+    return null
+  }
+
   private normalizeAndAttachMetadata: RouteHandler<
     ServerRequest,
     ServerResponse
@@ -1755,6 +2070,9 @@ export default abstract class Server<
       }
       appPathRoutes[normalizedPath].push(entry)
     })
+
+    // Preserve manifest order: legacy deployment builders package the final
+    // direct entry for a pathname as the function's loadable page module.
     return appPathRoutes
   }
 
@@ -1825,21 +2143,14 @@ export default abstract class Server<
     if (!res.sent) {
       const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // Dev responses use `no-cache` so the browser can restore them from the
-      // HTTP cache on back/forward instead of reloading. HMR refresh responses
-      // opt out into `no-store` because a superseded refresh's fetch is aborted
-      // mid-write: under `no-cache` the response is stored, so the abort leaves
-      // the cache entry shared with the superseding refresh (same URL)
-      // half-written; Chromium then discards it and reissues the superseding
-      // refresh on a second connection as a duplicate request. `no-store` keeps
-      // that entry from being created.
+      // Documents and data responses must not be stored in development.
+      // Browsers reuse a stored response for a history navigation without
+      // revalidating it, so a back navigation would restore a page from before
+      // the latest edit. Static assets never reach this code. They keep a
+      // revalidatable `Cache-Control`, so the browser caches them between page
+      // loads.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-            ? 'no-store'
-            : 'no-cache, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-store')
         cacheControl = undefined
       }
 
@@ -2148,7 +2459,12 @@ export default abstract class Server<
         // generate the 5-character `_rsc` form.
         // Note: When no headers are present, expectedHash is empty string and client
         // must send `_rsc` param, otherwise actualHash is null and hash check fails.
-        const url = new URL(req.url || '', 'http://localhost')
+        // `req.url` may have had its basePath removed during normalization.
+        // Build the redirect from the original URL so it remains public-facing.
+        const url = new URL(
+          getRequestMeta(req, 'initURL') || req.url || '',
+          'http://localhost'
+        )
         setCacheBustingSearchParamWithHash(url, expectedHash)
         res.statusCode = 307
         res.setHeader('location', `${url.pathname}${url.search}`)
@@ -2297,6 +2613,21 @@ export default abstract class Server<
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
+
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.body('Not Found').send()
+        return null
+      }
     }
 
     // ensure correct status is set when visiting a status page
@@ -2570,13 +2901,22 @@ export default abstract class Server<
   ) {
     const { query, pathname } = ctx
 
-    const appPaths = this.getOriginalAppPaths(pathname)
+    const match = getRequestMeta(ctx.req, 'match')
+    const appPaths =
+      this.getOriginalAppPaths(pathname) ??
+      (match && isAppPageRouteDefinition(match.definition)
+        ? match.definition.appPaths
+        : null)
     const isAppPath = Array.isArray(appPaths)
 
     let page = pathname
     if (isAppPath) {
-      // the last item in the array is the root page, if there are parallel routes
-      page = appPaths[appPaths.length - 1]
+      // Load the same direct entry selected by the build and deployment
+      // adapter. Expanded catch-all contributors are part of the route tree,
+      // but their modules are not necessarily traced into this function.
+      page = selectAppPageEntry(pathname, appPaths)
+    } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
+      page = match.definition.page
     }
 
     const result = await this.findPageComponents({
@@ -2587,8 +2927,10 @@ export default abstract class Server<
       isAppPath,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
-      // Ensuring for loading page component routes is done via the matcher.
-      shouldEnsure: false,
+      // Normal routed requests are ensured by the route match. Legacy custom
+      // server render methods bypass that path, so ensure when no match exists.
+      shouldEnsure: !match,
+      url: pathname,
     })
     if (result) {
       getTracer().setRootSpanAttribute('next.route', pathname)
@@ -2648,54 +2990,46 @@ export default abstract class Server<
     }
     delete query[NEXT_RSC_UNION_QUERY]
 
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromRequest(req, pathname),
-    }
-
-    const existingMatch = getRequestMeta(ctx.req, 'match')
-
-    let fastPath = true
-    // when a specific invoke-output is meant to be matched
-    // ensure a prior dynamic route/page doesn't take priority
+    let existingMatch = getRequestMeta(ctx.req, 'match')
     const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
 
-    if (
-      (!this.minimalMode &&
-        typeof invokeOutput === 'string' &&
-        isDynamicRoute(invokeOutput || '') &&
-        invokeOutput !== existingMatch?.definition.pathname) ||
-      // Parallel routes are matched in `existingMatch` but since currently
-      // there can be multiple matches it's not guaranteed to be the right match
-      // therefor we need to opt-out of the fast path for parallel routes.
-      existingMatch?.definition.page.includes('/@')
-    ) {
-      fastPath = false
-    }
-
     try {
-      for await (const match of fastPath && existingMatch
-        ? [existingMatch]
-        : this.matchers.matchAll(pathname, options)) {
-        if (
+      if (!existingMatch) {
+        const localeAnalysisResult = this.i18nProvider?.fromRequest(
+          req,
+          pathname
+        )
+        const routeMatch = this.getRouteMatch(pathname, localeAnalysisResult)
+
+        if (routeMatch) {
+          existingMatch = routeMatch
+          addRequestMeta(req, 'match', routeMatch)
+        }
+      }
+
+      if (existingMatch) {
+        const shouldSkipMatch =
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
-          invokeOutput !== match.definition.pathname
-        ) {
-          continue
-        }
+          invokeOutput !== existingMatch.definition.pathname
 
-        const result = await this.renderPageComponent(
-          {
-            ...ctx,
-            pathname: match.definition.pathname,
-            renderOpts: {
-              ...ctx.renderOpts,
-              params: match.params,
+        if (!shouldSkipMatch) {
+          const result = await this.renderPageComponent(
+            {
+              ...ctx,
+              pathname: existingMatch.definition.pathname,
+              renderOpts: {
+                ...ctx.renderOpts,
+                params: existingMatch.params,
+              },
             },
-          },
-          bubbleNoFallback
-        )
+            bubbleNoFallback
+          )
+          if (result !== false) return result
+        }
+      } else {
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
         if (result !== false) return result
       }
 

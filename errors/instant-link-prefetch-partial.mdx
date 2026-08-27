@@ -17,15 +17,14 @@ kind: insight
   This Insight is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
-  instant
-  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
-  guide for an overview of what instant navigations are and how Next.js
-  validates them, then come back here for the specific fix.
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
 </div>
 
-During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a [`<Link prefetch={true}>`](https://preview.nextjs.org/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](https://preview.nextjs.org/docs/app/glossary#app-shell). This will lead to slower, more expensive prefetches.
+During a [client-side navigation](/docs/app/glossary#client-side-navigation), a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](/docs/app/glossary#partial-prefetching). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](/docs/app/glossary#app-shell). This will lead to slower, more expensive prefetches.
 
-Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](https://preview.nextjs.org/docs/app/glossary#streaming), ahead of time via [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have recently enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
+Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](/docs/app/glossary#streaming), ahead of time via [per-link prefetching](/docs/app/guides/optimizing-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have recently enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
 
 ## Ways to fix this
 
@@ -62,13 +61,13 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Opt into Partial Prefetching
 
-Choose this fix when the target route has an [App Shell](https://preview.nextjs.org/docs/app/glossary#app-shell) with dynamic content below it. Opting into Partial Prefetching tells Next.js to prefetch only the App Shell and defer the dynamic data to navigation. Opt in per-route or app-wide, and from there layer on further prefetch optimizations.
+Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Opting into Partial Prefetching tells Next.js to prefetch only the App Shell and defer the dynamic data to navigation. After opting in per route or app-wide, decide whether selected links should also prefetch URL-specific content.
 
 ### Patterns
 
 #### Per-route opt-in
 
-Export [`prefetch`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch) from the page or layout of the route the link points at.
+Export [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) from the page or layout of the route the link points at.
 
 ```jsx filename="app/dashboard/page.js"
 export const prefetch = 'partial'
@@ -80,7 +79,7 @@ export default function DashboardPage() {
 
 #### App-wide opt-in
 
-Set [`partialPrefetching`](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) to `true` in `next.config` to opt the whole app in.
+Set [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) to `true` in `next.config` to opt the whole app in.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -92,13 +91,13 @@ module.exports = {
 
 `'partial'` prefetches only the App Shell, which is the route's static and cached content. Uncached dynamic data is no longer prefetched. To keep prefetching content that came down with `prefetch={true}`, work through two steps.
 
-1. Cache it with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). If the content doesn't depend on the URL, it gets included in the App Shell and that's enough.
-2. If it depends on per-link runtime data (`params`, `searchParams`), it can't be included in the shared App Shell. Opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) so the cached content is prefetched behind the runtime read.
+1. Cache it with [`use cache`](/docs/app/api-reference/directives/use-cache). If the content doesn't depend on the URL, it gets included in the App Shell and that's enough.
+2. If it depends on URL data (`params`, `searchParams`), it can't be included in the shared App Shell. With Partial Prefetching enabled, `prefetch={true}` opts the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching), so the cached content can resolve before navigation.
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function getMetrics(range) {
   'use cache'
@@ -120,7 +119,7 @@ export default function DashboardPage({ searchParams }) {
 }
 ```
 
-Learn more: [Adopting Partial Prefetching](https://preview.nextjs.org/docs/app/guides/adopting-partial-prefetching).
+Learn more: [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
 ### Trade-off
 
@@ -128,7 +127,7 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 ### Gotchas
 
-- Partial Prefetching only works with [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
+- Partial Prefetching only works with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
 - If the route doesn't have a clear App Shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
 
 ## Use the default prefetch
@@ -154,11 +153,11 @@ The link no longer forces a full prefetch. The user gets the App Shell (static a
 ### Gotchas
 
 - Removing `prefetch={true}` does not disable prefetching. It falls back to the default. To disable prefetching entirely, use `prefetch={false}`.
-- See [Adopting Partial Prefetching](https://preview.nextjs.org/docs/app/guides/adopting-partial-prefetching) for the full table of what each `<Link>` prop downloads under each configuration.
+- See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the full table of what each `<Link>` prop downloads under each configuration.
 
 ## Disable validation on this route
 
-Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation.
+Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation.
 
 ### Patterns
 
@@ -186,16 +185,16 @@ The link continues to do a full prefetch, including dynamic data, and the warnin
 
 After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
+Depending on your [validation level](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this error.
 
-- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
-See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
 ## Related Insights
 

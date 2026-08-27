@@ -21,7 +21,6 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -51,7 +50,6 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -95,10 +93,17 @@ describe('Cache Components Dev Errors', () => {
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
       'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     )
+    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+      '\n    at Page (app/no-accessed-data/page.js:2:9)' +
+        '\n  1 | export default async function Page() {' +
+        '\n> 2 |   await new Promise((r) => setTimeout(r, 200))' +
+        '\n    |         ^' +
+        '\n  3 |   return <p>Page</p>' +
+        '\n  4 | }'
+    )
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1401",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",

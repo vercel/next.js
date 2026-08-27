@@ -9,8 +9,9 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
-import { isRequestInsightsEnabled } from './trace/span-store'
+import { DevBundlerServiceSpan } from './trace/constants'
 import { subscribeRequestInsights } from './trace/request-insights'
+import { getTracer } from './trace/tracer'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -25,7 +26,8 @@ export class DevBundlerService {
 
   constructor(
     private readonly bundler: DevBundler,
-    private readonly handler: WorkerRequestHandler
+    private readonly handler: WorkerRequestHandler,
+    requestInsightsEnabled: boolean
   ) {
     this.appIsrManifestInner = new LRUCache(
       8_000,
@@ -42,7 +44,7 @@ export class DevBundlerService {
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
-    if (isRequestInsightsEnabled()) {
+    if (requestInsightsEnabled) {
       this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
@@ -61,7 +63,15 @@ export class DevBundlerService {
     definition
   ) => {
     // TODO: remove after ensure is pulled out of server
-    return await this.bundler.hotReloader.ensurePage(definition)
+    return await getTracer().trace(
+      DevBundlerServiceSpan.ensurePage,
+      { spanName: 'compile route' },
+      () => this.bundler.hotReloader.ensurePage(definition)
+    )
+  }
+
+  public getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }
 
   public logErrorWithOriginalStack =

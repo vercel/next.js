@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding-escape/input/index.js"],"sourcesContent":["const lib = require('./lib.js')\n\nconsole.log(lib.used)\n\n// `lib` also escapes wholesale, so the whole namespace is observable and\n// nothing may be dropped.\nglobalThis.leaked = lib\n"],"names":["lib","console","log","used","globalThis","leaked"],"mappings":"AAAA,MAAMA;AAENC,QAAQC,GAAG,CAACF,IAAIG,IAAI;AAEpB,yEAAyE;AACzE,0BAA0B;AAC1BC,WAAWC,MAAM,GAAGL"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding-escape/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used","unused"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACfD,QAAQE,MAAM,GAAG"}}]
+}

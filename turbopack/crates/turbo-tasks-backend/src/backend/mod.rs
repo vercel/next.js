@@ -31,9 +31,9 @@ use tracing::{Span, field::display, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
-    ReadConsistency, ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT,
-    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks,
-    TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
+    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
+    TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
         TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -44,7 +44,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
-    scope::scope_and_block,
+    scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
@@ -330,6 +330,37 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
+    /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
+    /// hook for verifying incremental refcount maintenance.
+    #[doc(hidden)]
+    pub fn parent_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_parent_count())
+            .unwrap_or(0)
+    }
+
+    /// The transient `transient_ref_count` of a resident task (0 if absent or not resident).
+    #[doc(hidden)]
+    pub fn transient_ref_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_transient_ref_count())
+            .unwrap_or(0)
+    }
+
+    /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
+    /// hook to exercise the non-fabricating existence guarantee: this panics (debug builds) if
+    /// `task` exists in neither memory nor persistent storage (rather than fabricating a
+    /// blank).
+    #[doc(hidden)]
+    pub fn assert_task_exists_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let _ = ctx.task(task, TaskDataCategory::All);
+    }
+
     fn should_restore(&self) -> bool {
         self.options.storage_mode.is_some()
     }
@@ -430,6 +461,40 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
+fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
+    ctx: &mut C,
+    task_id: TaskId,
+    reader_id: Option<TaskId>,
+) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+    let Some(reader_id) = reader_id else {
+        return (ctx.task(task_id, TaskDataCategory::All), None);
+    };
+
+    // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
+    // reader too in that common case. When the task is still mutable, drop the speculative lock
+    // and reacquire both locks together to preserve the invalidation race guarantee.
+    let task = ctx.task(task_id, TaskDataCategory::All);
+    if task.immutable() && !cfg!(feature = "verify_immutable") {
+        (task, None)
+    } else {
+        drop(task);
+
+        // Having a task_pair here is not optimal, but locking the reader separately could lose an
+        // invalidation that races with dependency edge insertion.
+        // TODO(sokra): solve this more performantly for mutable tasks.
+        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+        // The task can become immutable between the speculative task lock and the pair lock.
+        // Recheck under the final lock so callers can rely on a reader guard only being returned
+        // when dependency edges may still be added.
+        if task.immutable() && !cfg!(feature = "verify_immutable") {
+            drop(reader);
+            (task, None)
+        } else {
+            (task, Some(reader))
+        }
+    }
+}
+
 // Operations
 impl TurboTasksBackend {
     fn try_read_task_output(
@@ -438,28 +503,18 @@ impl TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = if self.should_track_dependencies()
-            && !matches!(options.tracking, ReadTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            Some(reader_id)
-        } else {
-            None
-        };
-        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(options.tracking, ReadTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, mut reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -480,23 +535,29 @@ impl TurboTasksBackend {
             })
         }
 
-        fn check_in_progress(
+        /// Reports whether the task is already being computed, and — crucially for the reader —
+        /// whether a worker has actually started it. A task that is only `Scheduled` can be taken
+        /// over and executed by the reader; one that is `InProgress` can only be waited for.
+        fn check_in_progress<T>(
             task: &impl TaskGuard,
             reader_description: Option<EventDescription>,
             tracking: ReadTracking,
-        ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
-        {
+        ) -> Option<Result<ReadOutcome<T>>> {
             match task.get_in_progress() {
-                Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
-                    listen_to_done_event(reader_description, tracking, done_event),
-                ))),
-                Some(InProgressState::InProgress(box InProgressStateInner {
-                    done_event, ..
-                })) => Some(Ok(Err(listen_to_done_event(
-                    reader_description,
-                    tracking,
-                    done_event,
-                )))),
+                Some(InProgressState::Scheduled { done_event, .. }) => {
+                    Some(Ok(ReadOutcome::Scheduled(listen_to_done_event(
+                        reader_description,
+                        tracking,
+                        done_event,
+                    ))))
+                }
+                Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) => {
+                    Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
+                        reader_description,
+                        tracking,
+                        done_event,
+                    ))))
+                }
                 Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
                     "{} was canceled",
                     task.get_task_description()
@@ -666,13 +727,18 @@ impl TurboTasksBackend {
                     queue.execute(&mut ctx);
                 }
 
-                return Ok(Err(listener));
+                return Ok(ReadOutcome::InProgress(listener));
             }
         }
 
         let reader_description = reader_task
             .as_ref()
-            .map(|r| EventDescription::new(|| r.get_task_desc_fn()));
+            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
+            .or_else(|| {
+                need_reader_task.map(|reader_id| {
+                    EventDescription::new(move || move || format!("{reader_id:?}"))
+                })
+            });
         if let Some(value) = check_in_progress(&task, reader_description.clone(), options.tracking)
         {
             return value;
@@ -680,13 +746,12 @@ impl TurboTasksBackend {
 
         if let Some(output) = task.get_output() {
             let result = match output {
-                OutputValue::Cell(cell) => Ok(Ok(RawVc::task_cell(cell.task, cell.cell))),
-                OutputValue::Output(task) => Ok(Ok(RawVc::task_output(*task))),
+                OutputValue::Cell(cell) => Ok(RawVc::task_cell(cell.task, cell.cell)),
+                OutputValue::Output(task) => Ok(RawVc::task_output(*task)),
                 OutputValue::Error(error) => Err(error.clone()),
             };
             if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
@@ -728,7 +793,7 @@ impl TurboTasksBackend {
                 drop(task);
             }
 
-            return result.map_err(|error| {
+            return result.map(ReadOutcome::Value).map_err(|error| {
                 self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
                     .with_task_context(task_id, turbo_tasks.pin())
                     .into()
@@ -759,7 +824,7 @@ impl TurboTasksBackend {
         debug_assert!(old.is_none(), "InProgress already exists");
         ctx.schedule_task(task, TaskPriority::Recomputation);
 
-        Ok(Err(listener))
+        Ok(ReadOutcome::Scheduled(listener))
     }
 
     fn try_read_task_cell(
@@ -769,7 +834,7 @@ impl TurboTasksBackend {
         cell: CellId,
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
         fn add_cell_dependency(
@@ -780,9 +845,7 @@ impl TurboTasksBackend {
             cell: CellId,
             key: Option<u64>,
         ) {
-            if let Some(mut reader_task) = reader_task
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
-            {
+            if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
                 if let Some(k) = key {
@@ -818,19 +881,14 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, reader_task) = if self.should_track_dependencies()
-            && !matches!(tracking, ReadCellTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(tracking, ReadCellTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
@@ -841,7 +899,7 @@ impl TurboTasksBackend {
             if tracking.should_track(false) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
-            return Ok(Ok(TypedCellContent(
+            return Ok(ReadOutcome::Value(TypedCellContent(
                 cell.type_id(),
                 CellContent(Some(content)),
             )));
@@ -852,9 +910,17 @@ impl TurboTasksBackend {
             in_progress,
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
         ) {
-            return Ok(Err(self
-                .listen_to_cell(&mut task, task_id, &reader_task, cell)
-                .0));
+            // Tell the reader whether the task is merely queued (it may take it over and execute it
+            // itself) or already being executed by a worker (it can only wait).
+            let started = matches!(in_progress, Some(InProgressState::InProgress(..)));
+            let listener = self
+                .listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell)
+                .0;
+            return Ok(if started {
+                ReadOutcome::InProgress(listener)
+            } else {
+                ReadOutcome::Scheduled(listener)
+            });
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
@@ -887,10 +953,12 @@ impl TurboTasksBackend {
         }
 
         // Listen to the cell and potentially schedule the task
-        let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, &reader_task, cell);
+        let (listener, new_listener) =
+            self.listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell);
         drop(reader_task);
         if !new_listener {
-            return Ok(Err(listener));
+            // Somebody else is already waiting for this cell, so the task is being taken care of.
+            return Ok(ReadOutcome::InProgress(listener));
         }
 
         let _span = tracing::trace_span!(
@@ -906,13 +974,14 @@ impl TurboTasksBackend {
         );
         ctx.schedule_task(task, TaskPriority::Recomputation);
 
-        Ok(Err(listener))
+        Ok(ReadOutcome::Scheduled(listener))
     }
 
     fn listen_to_cell(
         &self,
         task: &mut impl TaskGuard,
         task_id: TaskId,
+        reader: Option<TaskId>,
         reader_task: &Option<impl TaskGuard>,
         cell: CellId,
     ) -> (EventListener, bool) {
@@ -921,6 +990,8 @@ impl TurboTasksBackend {
             move || {
                 if let Some(reader_desc) = reader_desc.as_ref() {
                     format!("try_read_task_cell (in progress) from {}", (reader_desc)())
+                } else if let Some(reader_id) = reader {
+                    format!("try_read_task_cell (in progress) from {reader_id:?}")
                 } else {
                     "try_read_task_cell (in progress, untracked)".to_string()
                 }
@@ -1219,7 +1290,7 @@ impl TurboTasksBackend {
                 None
             };
 
-            SnapshotItem {
+            SnapshotItem::Put {
                 task_id,
                 meta,
                 data,
@@ -1768,7 +1839,9 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id, TaskDataCategory::Data);
+        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
+        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
+        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
@@ -1796,7 +1869,7 @@ impl TurboTasksBackend {
                     done_event,
                     reason: _,
                 } => done_event.notify(usize::MAX),
-                InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
+                InProgressState::InProgress(InProgressStateInner { done_event, .. }) => {
                     done_event.notify(usize::MAX)
                 }
                 InProgressState::Canceled => {}
@@ -1941,7 +2014,12 @@ impl TurboTasksBackend {
                 )
             }
             TaskType::Transient(task_type) => {
-                let span = tracing::trace_span!("turbo_tasks::root_task");
+                // `inline_execution` is recorded when a read executed this task on its own thread,
+                // see `NativeFunction::span`.
+                let span = tracing::trace_span!(
+                    "turbo_tasks::root_task",
+                    inline_execution = tracing::field::Empty
+                );
                 let future = match &*task_type {
                     TransientTask::Root(f) => f(),
                     TransientTask::Once(future_mutex) => take(&mut *future_mutex.lock())?,
@@ -2058,10 +2136,6 @@ impl TurboTasksBackend {
         let has_new_children = !new_children.is_empty();
         span.record("new_children", new_children.len());
 
-        if has_new_children {
-            self.task_execution_completed_unfinished_children_dirty(&mut ctx, &new_children)
-        }
-
         if has_new_children
             && let Some(stale_priority) =
                 self.task_execution_completed_connect(&mut ctx, task_id, new_children)
@@ -2136,7 +2210,7 @@ impl TurboTasksBackend {
                 is_session_dependent,
             });
         }
-        let &mut InProgressState::InProgress(box InProgressStateInner {
+        let &mut InProgressState::InProgress(InProgressStateInner {
             stale,
             ref mut new_children,
             once_task: is_once_task,
@@ -2150,7 +2224,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner {
+            let Some(InProgressState::InProgress(InProgressStateInner {
                 done_event,
                 mut new_children,
                 ..
@@ -2481,7 +2555,7 @@ impl TurboTasksBackend {
         if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD {
             let chunk_size = good_chunk_size(output_dependent_tasks.len());
             let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
-            let _ = scope_and_block(chunks.len(), |scope| {
+            let _ = scope_bounded(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
                     #[cfg(feature = "task_dirty_cause")]
@@ -2519,36 +2593,6 @@ impl TurboTasksBackend {
         }
     }
 
-    fn task_execution_completed_unfinished_children_dirty(
-        &self,
-        ctx: &mut impl ExecuteContext<'_>,
-        new_children: &FxHashSet<TaskId>,
-    ) {
-        debug_assert!(!new_children.is_empty());
-
-        let mut queue = AggregationUpdateQueue::new();
-        ctx.for_each_task_all(
-            new_children.iter().copied(),
-            "unfinished children dirty",
-            |child_task, ctx| {
-                if !child_task.has_output() {
-                    let child_id = child_task.id();
-                    make_task_dirty_internal(
-                        child_task,
-                        child_id,
-                        false,
-                        #[cfg(feature = "task_dirty_cause")]
-                        TaskDirtyCause::InitialDirty,
-                        &mut queue,
-                        ctx,
-                    );
-                }
-            },
-        );
-
-        queue.execute(ctx);
-    }
-
     fn task_execution_completed_connect(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
@@ -2565,7 +2609,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't connect the children
             return None;
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
             stale,
             once_task: is_once_task,
@@ -2579,7 +2623,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
+            let Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) =
                 task.take_in_progress()
             else {
                 unreachable!();
@@ -2641,7 +2685,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't finish it
             return (None, None);
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             done_event,
             once_task: is_once_task,
             stale,
@@ -3206,7 +3250,7 @@ impl TurboTasksBackend {
     fn mark_own_task_as_finished(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress(box InProgressStateInner {
+        if let Some(InProgressState::InProgress(InProgressStateInner {
             marked_as_completed,
             ..
         })) = task.get_in_progress_mut()
@@ -3621,7 +3665,7 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         self.try_read_task_output(task_id, reader, options, turbo_tasks)
     }
 
@@ -3632,7 +3676,7 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 

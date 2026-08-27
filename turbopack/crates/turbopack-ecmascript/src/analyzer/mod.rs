@@ -7,6 +7,7 @@ pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
 pub mod bump_vec;
+pub(crate) mod cjs_ast;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -105,6 +106,8 @@ pub mod test_utils {
                         JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
+                            analyze_for_constants: false,
+                            reference: None,
                         }),
                     ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
@@ -290,7 +293,7 @@ mod tests {
         linker::link,
     };
     use crate::{
-        AnalyzeMode,
+        AnalyzeMode, SpecifiedModuleType,
         analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
     };
 
@@ -363,6 +366,9 @@ mod tests {
                 &eval_context,
                 AnalyzeMode::CodeGenerationAndTracing,
                 true,
+                SpecifiedModuleType::EcmaScript,
+                true,
+                false,
             );
             anyhow::Ok((eval_context, var_graph))
         })?;
@@ -731,6 +737,7 @@ mod tests {
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
                     | Effect::Member { .. }
+                    | Effect::DestructuredMember { .. }
                     | Effect::In { .. } => 0,
                 };
                 let time = start.elapsed();

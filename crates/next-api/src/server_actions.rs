@@ -48,8 +48,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     EcmascriptParsable,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
-    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
 use crate::project::Project;
@@ -784,7 +784,12 @@ pub async fn map_server_actions(
         .map(async |module| {
             // TODO: compare module contexts instead?
             let layer = match module.ident().await?.layer.as_ref() {
-                Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
+                Some(layer)
+                    if layer.name() == "app-rsc"
+                        || layer.name() == "app-edge-rsc"
+                        || layer.name() == "app-route"
+                        || layer.name() == "app-edge-route" =>
+                {
                     ActionLayer::Rsc
                 }
                 Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,

@@ -60,7 +60,6 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -90,7 +89,6 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -120,7 +118,6 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -150,7 +147,6 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -177,7 +173,6 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -208,11 +203,10 @@ describe('instant validation - level warning', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)

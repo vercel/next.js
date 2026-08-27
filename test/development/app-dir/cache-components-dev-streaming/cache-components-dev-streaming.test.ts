@@ -14,24 +14,39 @@ describe('cache-components-dev-streaming', () => {
     })
 
     // The loading boundary should be streamed immediately, without waiting for
-    // the cache to be filled. Read it at commit so we don't wait for "load"
-    // (which only fires once the cache has filled).
-    expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
-      'Loading...'
-    )
+    // the cache to be filled. The selector matches the fallback and the content
+    // alike, so it resolves with whichever one the shell delivers, and only the
+    // fallback is an acceptable answer here. Read it at commit (`waitUntil:
+    // false`) so we don't wait for "load" (which only fires once the cache has
+    // filled).
+    expect(
+      await browser
+        .elementByCss('#cached, #cached-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
 
-    // Eventually, the cache content should be streamed in.
-    await retry(async () => {
-      expect(
-        await browser.elementByCss('p', { waitUntil: false }).text()
-      ).toBeDateString()
-    })
+    // Eventually, the cache content should be streamed in. The boundary reveals
+    // `#cached` atomically with its final content, so waiting for the element
+    // is enough. The wait must cover more than the 2s fill. The content bytes
+    // arrive while the browser still evaluates the dev bundle, so on a loaded
+    // machine the reveal lands seconds after the response completed. The
+    // explicit 10s is the `waitForElementByCss` default that `elementByCss`
+    // narrows to 5s.
+    expect(
+      await browser
+        .elementByCss('#cached', { waitUntil: false, timeout: 10000 })
+        .text()
+    ).toBeDateString()
 
     // Now that the cache is filled, it should be served immediately with the
     // shell on the next page load, without going through the loading boundary.
+    // The combined selector resolves with whichever one the shell delivers, so
+    // a fallback appearing first would fail this assertion.
     await browser.refresh({ waitUntil: 'commit' })
     expect(
-      await browser.elementByCss('p', { waitUntil: false }).text()
+      await browser
+        .elementByCss('#cached, #cached-fallback', { waitUntil: false })
+        .text()
     ).toBeDateString()
   })
 
@@ -258,15 +273,21 @@ describe('cache-components-dev-streaming', () => {
       await browser.elementByCss('#expire-zero', { waitUntil: false }).text()
     ).toBe(coldValue)
 
-    // That warm reload re-warmed a fresh entry in the background, so a later
-    // reload converges to the new value. Read after "load" here (a plain
-    // refresh) since we want the settled value, not the streaming inspection
-    // above.
+    // That warm read re-warmed a fresh entry in the background, so a later read
+    // converges to the new value. More than one read is needed, because the
+    // regeneration that the previous one started has not been written yet. The
+    // reads go over HTTP instead of through the browser: the value is
+    // server-rendered, so a plain request observes the same cache state, while
+    // a dev page reload would spend seconds downloading and evaluating the dev
+    // bundle and keep the retry from fitting in its budget.
     await retry(async () => {
-      await browser.refresh()
-      expect(await browser.elementById('expire-zero').text()).not.toBe(
-        coldValue
-      )
+      const $ = await next.render$('/use-cache-expire-zero/reload')
+      const value = $('#expire-zero')
+
+      // Without this the assertion below would accept the empty string that a
+      // missing element yields.
+      expect(value.length).toBe(1)
+      expect(value.text()).not.toBe(coldValue)
     })
   })
 
@@ -282,7 +303,6 @@ describe('cache-components-dev-streaming', () => {
     // Cold cache miss: validation runs against a separate warm-cache render.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1401",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -307,7 +327,6 @@ describe('cache-components-dev-streaming', () => {
     // and the cached value is re-served rather than recomputed.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1401",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -329,7 +348,6 @@ describe('cache-components-dev-streaming', () => {
     // Cold cache miss: validation runs against a separate warm-cache render.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
        "description": "Next.js encountered the unstable value Date() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -354,7 +372,6 @@ describe('cache-components-dev-streaming', () => {
     // and the cached value is re-served rather than recomputed.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
        "description": "Next.js encountered the unstable value Date() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",

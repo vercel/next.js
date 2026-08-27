@@ -1,11 +1,8 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM ubuntu:24.04 AS base
-
-# use apt-get instead of apt, because apt does not have a stable CLI interface
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y --no-install-recommends curl ca-certificates git
+# buildpack-deps already includes curl, ca-certificates, and git, so we avoid
+# apt-get entirely (the arm64 apt mirror, ports.ubuntu.com, is unreliable).
+FROM buildpack-deps:noble-scm AS base
 
 RUN curl -sfLS https://install-node.vercel.app/v20.9.0 | bash -s -- -f
 RUN npm i -g corepack@0.34.6

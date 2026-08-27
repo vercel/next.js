@@ -8722,17 +8722,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
     "passed": [],
     "failed": [],
@@ -10495,7 +10484,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
-    "passed": ["turbopack-reports should render page importing sqlite3"],
+    "passed": [
+      "turbopack-reports should render page importing a package that loads a native binding"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10652,7 +10643,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
       "use-cache-dev should handle edits on nested pages",
       "use-cache-dev should return cached data after reload",
@@ -18563,16 +18554,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/firebase-grpc/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads",
-      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
-    ],
     "flakey": [],
     "runtimeError": false
   },

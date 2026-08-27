@@ -168,7 +168,7 @@ impl RouteTree {
         self.static_segments.extend(
             static_segments
                 .into_iter()
-                .map(|(key, value)| async {
+                .map(async |(key, value)| {
                     Ok((
                         key,
                         if value.len() == 1 {

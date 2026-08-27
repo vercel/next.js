@@ -13,13 +13,21 @@ describe('adapter-root', () => {
       files: path.join(__dirname, 'fixture'),
       subDir: 'sub',
       skipStart: true,
+      // The workspace file would be treated as the workspace root, changing
+      // the repoRoot this test asserts on.
+      deleteWorkspaceFile: true,
       overrideFiles: setEnvVar
         ? undefined
         : {
+            '../package.json': JSON.stringify({
+              name: 'parent-workspace',
+              version: '1.0.0',
+            }),
             '../package-lock.json': JSON.stringify({
               name: 'parent-workspace',
               version: '1.0.0',
               lockfileVersion: 3,
+              packages: { '': { name: 'parent-workspace', version: '1.0.0' } },
             }),
           },
     })

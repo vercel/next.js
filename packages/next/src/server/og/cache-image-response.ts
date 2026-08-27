@@ -5,7 +5,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -77,7 +77,6 @@ async function getCachedImageResponseArrayBuffer(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'generate-static-params':
       return renderImageResponseArrayBuffer(args)
@@ -192,7 +191,12 @@ async function getCachedImageResponseArrayBuffer(
       // `fetch`), so the image can't be produced statically. Return a hanging
       // promise: the body never resolves, and the final prerender's macrotask
       // budget then classifies the route as dynamic.
-      return makeHangingPromise<ArrayBuffer>(
+      // Whatever dynamic input made the element partial already classified
+      // itself when it created its own hanging promise (cookies() creates a
+      // runtime hanging promise, an uncached fetch creates a dynamic one,
+      // ...), so this wrapper adds no new information and can use the
+      // non-recording dynamic variant.
+      return makeDynamicHangingPromise<ArrayBuffer>(
         renderSignal,
         workStore.route,
         'dynamic `ImageResponse`'

@@ -29,13 +29,14 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
-    chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
+    chunk::EcmascriptBuildNodeChunk,
+    entry::{chunk::EcmascriptBuildNodeEntryChunk, chunk_list::EcmascriptBuildNodeChunkList},
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -165,6 +166,18 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    /// Marks this context as being shared by multiple independent module graphs, each of which
+    /// only sees part of what is written to `chunk_root_path`.
+    ///
+    /// The runtime chunk is emitted to a fixed path (`[turbopack]_runtime.js`), so every graph
+    /// sharing this context writes the same file. Optional runtime features must therefore not be
+    /// decided from a single graph: one graph would omit a helper that another graph's chunks
+    /// call, and which variant lands on disk depends on emission order.
+    pub fn shared_runtime_chunk(mut self, shared_runtime_chunk: bool) -> Self {
+        self.chunking_context.shared_runtime_chunk = shared_runtime_chunk;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -237,6 +250,9 @@ pub struct NodeJsChunkingContext {
     asset_content_hashing: ContentHashing,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
     hash_salt: ResolvedVc<RcStr>,
+    /// Whether the runtime chunk is shared with other module graphs using this context.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    shared_runtime_chunk: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -282,6 +298,7 @@ impl NodeJsChunkingContext {
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 hash_salt: ResolvedVc::cell(RcStr::default()),
+                shared_runtime_chunk: false,
             },
         }
     }
@@ -312,6 +329,39 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
+    }
+
+    /// Creates a standalone server-HMR tracking anchor at `path` covering
+    /// `chunks`, without producing an evaluate chunk.
+    ///
+    /// Unlike the browser's `hmr_chunk_list`, the caller supplies an explicit
+    /// output `path` so the anchor can be placed alongside the App Router
+    /// entries it belongs to (under `server/app/`). This is what lets the
+    /// aggregate server-HMR subscription scope tracking to App Router: the
+    /// anchor for client-component SSR chunks (which are physically emitted
+    /// under the shared `server/chunks/ssr/`) is registered under the app
+    /// entry's directory so it rides the same App Router scope.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_chunk_list(
+        self: ResolvedVc<Self>,
+        path: FileSystemPath,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        #[cfg(debug_assertions)]
+        if !matches!(*self.runtime_type().await?, RuntimeType::Development) {
+            bail!("server_hmr_chunk_list can only be used in development");
+        }
+        Ok(Vc::upcast(EcmascriptBuildNodeChunkList::new(
+            *self, path, chunks,
+        )))
+    }
+
+    /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
+    /// single graph may decide which optional runtime features to omit.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    #[turbo_tasks::function]
+    pub fn shared_runtime_chunk(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime_chunk)
     }
 }
 
@@ -545,6 +595,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params: None,
             }
             .cell())
         }
@@ -590,16 +641,24 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
+            let module = chunk_group.entries().last().unwrap();
+            let Some(module) =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
             else {
-                bail!("module must be placeable in an ecmascript chunk");
+                bail!("last entry must be EcmascriptChunkPlaceable {:?}", module);
             };
 
             let evaluatable_assets = chunk_group
                 .entries()
                 .map(|entry| {
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
-                        .context("entry_chunk_group entries must be evaluatable")
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry).with_context(
+                        || {
+                            format!(
+                                "entry_chunk_group entries must be EvaluatableAssets {:?}",
+                                entry
+                            )
+                        },
+                    )
                 })
                 .collect::<Result<Vec<_>>>()?;
 

@@ -280,6 +280,15 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
+    AdjustTransientRefCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+        #[bincode(skip, default = "unreachable_decode")]
+        delta: i32,
+    },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
@@ -439,6 +448,7 @@ impl AggregatedDataUpdate {
 
     /// Applies the update to the task. It may return an aggregated update that should be applied to
     /// upper tasks.
+    #[allow(clippy::needless_late_init)]
     fn apply(
         &self,
         task: &mut impl TaskGuard,
@@ -879,7 +889,8 @@ mod encode_jobs {
                 AggregationUpdateJob::IncreaseActiveCount { .. }
                 | AggregationUpdateJob::IncreaseActiveCounts { .. }
                 | AggregationUpdateJob::DecreaseActiveCount { .. }
-                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::AdjustTransientRefCount { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
                         #[cfg(feature = "trace_aggregation_update_queue")]
@@ -1420,7 +1431,7 @@ impl AggregationUpdateQueue {
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                     }
                 }
-                AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
+                AggregationUpdateJob::AggregatedDataUpdate(AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {
@@ -1444,6 +1455,20 @@ impl AggregationUpdateQueue {
                             ctx,
                         );
                     }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
+                        task.update_and_get_parent_count(delta);
+                    });
+                }
+                AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
