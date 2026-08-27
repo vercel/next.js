@@ -2659,11 +2659,15 @@ where
             )
         }
         WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing_assets() => {
+            // `fork()` takes a filesystem path to a module, same as `spawn()`/`execFile()`
+            // take a command path. Trace it as a file asset rather than resolving it as a
+            // module request — absolute/`path.join(cwd, …)` paths are not import specifiers.
             let args = linked_args().await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
-                if !pat.has_constant_parts() {
+                let dynamic = !pat.has_constant_parts();
+                if dynamic {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
                         span,
@@ -2676,17 +2680,17 @@ where
                         return Ok(());
                     }
                 }
-                let error_mode = if in_try {
-                    ResolveErrorMode::Warn
-                } else {
-                    ResolveErrorMode::Error
-                };
                 analysis.add_reference(
-                    CjsAssetReference::new(
-                        *origin,
-                        Request::parse(pat),
-                        issue_source(source, span),
-                        error_mode,
+                    FileSourceReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(pat),
+                        collect_affecting_sources,
+                        IssueSource::from_swc_offsets(
+                            source,
+                            span.lo.to_u32(),
+                            span.hi.to_u32(),
+                        ),
+                        rcstr!("child_process.fork"),
                     )
                     .to_resolved()
                     .await?,
