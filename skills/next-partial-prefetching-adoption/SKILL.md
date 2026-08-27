@@ -66,7 +66,7 @@ Enumerate explicit prefetch and manual prefetch sites across the whole source tr
 
 ### Choose what to preserve and how to verify it
 
-Before writing tests or editing destinations, follow the guide's [audit guidance](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) to propose the UI worth preserving. Present the result in one concise table:
+Before writing tests or editing destinations, follow the guide's [migration guidance](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#migrate-existing-full-prefetches) to propose the UI worth preserving. Present the result in one concise table:
 
 | Navigation | Proposed result |
 | ---------- | --------------- |
@@ -75,7 +75,7 @@ Group equivalent navigations. Summarize what will be ready immediately and what 
 
 After the target UI is settled, inspect the existing test setup. The `instant()` helper comes from the separate [`@next/playwright`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) package, not `next/experimental/testmode/playwright`.
 
-- **Applicable production-mode suite:** use test-backed preservation by default. Reuse the project's `@next/playwright` tests, production scripts, authentication, and existing `instant-nav.rig.md`. Follow the guide's [preservation-test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#preserve-existing-prefetched-ui) and make the complete flag-off suite green before adoption. The unchanged assertions drive the migration and stay as regression coverage.
+- **Applicable production-mode suite:** use test-backed preservation by default. Reuse the project's `@next/playwright` tests, production scripts, authentication, and existing `instant-nav.rig.md`. Follow the guide's [prefetched UI test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests) and make the complete flag-off suite green before adoption. The unchanged assertions drive the migration and stay as regression coverage.
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
 
