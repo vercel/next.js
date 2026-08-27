@@ -40,7 +40,10 @@ test('the custom preview bot is declared via htmlLimitedBots', () => {
   const config = read('next.config.ts')
   expect(config).toMatch(/htmlLimitedBots/)
   // Must be a RegExp value — a plain string fails config validation.
-  expect(config).toMatch(/htmlLimitedBots\s*:\s*(\/|new\s+RegExp)/)
+  // Accept explicit-property AND ES6-shorthand forms (const above).
+  expect(config).toMatch(
+    /\/[^\n/]*AcmePreview[^\n/]*\/[a-z]*|new\s+RegExp\([^)]*AcmePreview/
+  )
   expect(config).toMatch(/AcmePreview/)
 })
 

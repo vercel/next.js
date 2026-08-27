@@ -1,1 +1,1 @@
-GET /api/quote is getting hammered and the upstream lookup is slow — serve it from a server-side cache that refreshes every five minutes. POST on the same route must keep behaving exactly as it does now.
+GET /api/quote is getting hammered and the upstream lookup is slow — serve it from a server-side cache that refreshes every five minutes, and tag it as "quote" so an admin action can invalidate it on demand later. A hand-rolled in-memory memo won't do (we run multiple instances). POST on the same route must keep behaving exactly as it does now.

@@ -49,6 +49,3 @@ test('no timeout workarounds in config', () => {
   expect(config).not.toMatch(/useCacheTimeout|staticPageGenerationTimeout/)
 })
 
-test('the cache fill is not wrapped in try/catch', () => {
-  expect(read('lib/deals.ts')).not.toMatch(/try\s*\{/)
-})

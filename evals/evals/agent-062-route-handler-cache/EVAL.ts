@@ -52,7 +52,9 @@ test('a cached helper with a five-minute lifetime feeds the GET path', () => {
       // not five — a named-profile answer must be a custom profile whose
       // definition (inline here or in next.config.ts) says five minutes.
       /cacheLife\s*\(/.test(content) &&
-      (fiveMinutes.test(content) || fiveMinutes.test(read('next.config.ts')))
+      (fiveMinutes.test(content) || fiveMinutes.test(read('next.config.ts'))) &&
+      // Tag-based invalidation rules out hand-rolled memo caches.
+      /cacheTag\s*\(\s*(['"]quote['"]|[A-Z_][A-Z0-9_]*\b)/.test(content)
     )
   })
   expect(withLife.length).toBeGreaterThan(0)
