@@ -95,7 +95,7 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
-    aggregate_hmr::HmrChunksWithContent,
+    aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -2539,7 +2539,7 @@ impl Project {
 
     /// Server entry chunks shared by all pull baselines.
     #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<HmrChunksWithContent>> {
+    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
@@ -2551,12 +2551,11 @@ impl Project {
     pub async fn server_hmr_chunks_for_entries(
         self: Vc<Self>,
         entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<HmrChunksWithContent>> {
-        let mut chunks = HmrChunksWithContent::from_inner(
-            self.server_hmr_chunks().await?.iter().cloned().collect(),
-        );
-        chunks.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunks.cell())
+    ) -> Result<Vc<ServerHmrChunkLists>> {
+        let mut chunk_lists =
+            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
+        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
+        Ok(chunk_lists.cell())
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.

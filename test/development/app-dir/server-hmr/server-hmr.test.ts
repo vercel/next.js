@@ -6,6 +6,7 @@ import { retry, waitFor } from 'next-test-utils'
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
+    env: { NEXT_TEST_SERVER_HMR_DIFFING: '1' },
   })
 
   // Server HMR is a Turbopack-only feature, only available in dev mode

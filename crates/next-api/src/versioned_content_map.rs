@@ -15,9 +15,7 @@ use turbopack_core::{
     version::OptionVersionedContent,
 };
 
-use crate::aggregate_hmr::{
-    HmrChunkWithContent, HmrChunksWithContent, is_entry_chunk_list_content,
-};
+use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists, is_entry_chunk_list_content};
 
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
@@ -109,7 +107,7 @@ impl VersionedContentMap {
     pub async fn hmr_chunks_in_path(
         self: Vc<Self>,
         root: FileSystemPath,
-    ) -> Result<Vc<HmrChunksWithContent>> {
+    ) -> Result<Vc<ServerHmrChunkLists>> {
         let this = self.await?;
         // `State::get` returns a lock guard, which can't be held across the
         // awaits below, so snapshot the keys and release it.
@@ -142,14 +140,14 @@ impl VersionedContentMap {
                     return Ok(None);
                 }
 
-                Ok(Some(HmrChunkWithContent {
-                    path: name,
-                    content,
+                Ok(Some(ServerHmrChunkList {
+                    relative_path: name,
+                    versioned_content: content,
                 }))
             })
             .try_flat_join()
             .await?;
-        chunks.sort_by(|a, b| a.path.cmp(&b.path));
+        chunks.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
         Ok(Vc::cell(chunks))
     }
 
