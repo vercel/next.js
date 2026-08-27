@@ -223,7 +223,7 @@ export class Telemetry {
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (mode: 'dev', dir: string) => {
+  flushDetached = (mode: 'dev' | 'build', dir: string) => {
     const allEvents: TelemetryEvent[] = []
 
     this.queue.forEach((item: any) => {
@@ -234,6 +234,8 @@ export class Telemetry {
         // if we fail to abort ignore this event
       }
     })
+
+    this.queue.clear()
 
     if (allEvents.length === 0) {
       // No events to flush

@@ -4,10 +4,13 @@ import type { TelemetryEvent } from './storage'
 import { Telemetry } from './storage'
 import loadConfig from '../server/config'
 import { getProjectDir } from '../lib/get-project-dir'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 
 // this process should be started with following arg order
-// 1. mode e.g. dev, export, start
+// 1. mode e.g. dev, export, start, build
 // 2. project dir
 // 3. events filename (optional, defaults to _events.json)
 ;(async () => {
@@ -16,14 +19,17 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
   let dir = args.pop()
   const mode = args.pop()
 
-  if (!dir || mode !== 'dev') {
+  if (!dir || (mode !== 'dev' && mode !== 'build')) {
     throw new Error(
-      `Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile]`
+      `Invalid flags should be run as node detached-flush dev|build ./path-to/project [eventsFile]`
     )
   }
   dir = getProjectDir(dir)
 
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const config = await loadConfig(
+    mode === 'build' ? PHASE_PRODUCTION_BUILD : PHASE_DEVELOPMENT_SERVER,
+    dir
+  )
   const distDir = path.join(dir, config.distDir || '.next')
   // Support both old format (no eventsFile arg) and new format (with eventsFile arg)
   const eventsPath = path.join(
