@@ -3609,8 +3609,6 @@ export async function cache(
   })
 }
 
-const encoder = new TextEncoder()
-
 /**
  * This returns a cache key that has to cover everything that can affect the result of the cached
  * function (apart from the arguments). So
@@ -3630,21 +3628,6 @@ async function computeCacheKeyImplementationPart(
   workUnitStore: WorkUnitStore,
   id: string
 ): Promise<unknown> {
-  async function hashString(input: string): Promise<string> {
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      function bufferToHex(buffer: ArrayBuffer): string {
-        return Array.prototype.map
-          .call(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, '0'))
-          .join('')
-      }
-      const buffer = encoder.encode(input)
-      return bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
-    } else {
-      const crypto = require('crypto') as typeof import('crypto')
-      return crypto.createHash('sha256').update(input).digest('hex')
-    }
-  }
-
   let serverModuleMapEntry = workStore.durableUseCacheEntries
     ? getServerModuleMap()?.[id]
     : undefined
@@ -3655,14 +3638,19 @@ async function computeCacheKeyImplementationPart(
     serverModuleMapEntry?.referencesClientComponent !== true
   ) {
     // Hash the env var values, to not leak secrets into the cache key.
-    let runtimeEnvVarStateHash = await hashString(
-      serverModuleMapEntry.runtimeEnvVars
-        .map((k) => {
-          // Make sure not to stringify `undefined` and `"undefined"` to the same value.
-          return process.env[k] != null ? `${k}=${process.env[k]}` : k
-        })
-        .join('\0') ?? ''
-    )
+    // use cache is only suppored in Node.js runtime. So we can use the Node.js crypto module here.
+    const crypto = require('crypto') as typeof import('crypto')
+    let runtimeEnvVarStateHash = crypto
+      .createHash('sha256')
+      .update(
+        serverModuleMapEntry.runtimeEnvVars
+          .map((k) => {
+            // Make sure not to stringify `undefined` and `"undefined"` to the same value.
+            return process.env[k] != null ? `${k}=${process.env[k]}` : k
+          })
+          .join('\0') ?? ''
+      )
+      .digest('hex')
 
     // When more accurate analysis information is available, use codeHash + runtimeEnvVars
     return [serverModuleMapEntry.codeHash, nextVersion, runtimeEnvVarStateHash]
