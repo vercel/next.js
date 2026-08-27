@@ -262,11 +262,44 @@ describe('interception-dynamic-segment', () => {
         })
       })
 
+      it('should retain named host slots instead of rendering their defaults', async () => {
+        const { act, browser } = await createBrowserWithRouterAct('/named-host')
+
+        await browser.elementById('retained-counter').click()
+
+        await act(async () => {
+          await navigate(browser, '/named-target')
+        })
+
+        expect(await browser.elementById('named-host-modal').text()).toContain(
+          'Intercepted named target'
+        )
+        expect(
+          await browser.elementById('named-host-content').text()
+        ).toContain('Named content slot')
+        expect(
+          await browser.elementById('named-host-secondary').text()
+        ).toContain('Named secondary slot without a default')
+        expect(await browser.elementById('retained-counter').text()).toBe(
+          'Retained count: 1'
+        )
+
+        await browser.refresh()
+
+        expect(await browser.elementById('canonical-named-target').text()).toBe(
+          'Canonical named target'
+        )
+        expect(await browser.hasElementByCss('#named-host')).toBe(false)
+      })
+
       /**
-       * Test Case 4: Has @sidebar but NO page.tsx (THE KEY BUG CASE)
-       * Structure: @modal/(.)test-nested/@sidebar/page.tsx (NO page.tsx at root)
+       * Test Case 4: Has named slots but NO page.tsx (THE KEY BUG CASE)
+       * Structure: @modal/(.)test-nested has @sidebar/page.tsx and
+       * @panel/default.tsx, but NO page.tsx at root.
        * Expected: Should work WITHOUT explicit default.tsx (auto null default)
-       * Reason: Interception + parallel routes should inject null default
+       * Reason: Legacy matching still injects a null children fallback inside
+       * the interception subtree. The real @panel default renders normally
+       * because it belongs to the newly entered subtree, not the host update.
        *
        * This is the critical test! Without the fix:
        * 1. Server returns 404 (default.js calls notFound())
@@ -287,6 +320,7 @@ describe('interception-dynamic-segment', () => {
           // Modal should show intercepted content
           const modalContent = await browser.elementByCss('#modal').text()
           expect(modalContent).toContain('Intercepted test-nested sidebar')
+          expect(modalContent).toContain('Intercepted panel default')
         })
 
         await retry(async () => {
