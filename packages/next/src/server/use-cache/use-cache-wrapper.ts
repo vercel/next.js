@@ -3651,7 +3651,7 @@ async function computeCacheKeyImplementationPart(
     : undefined
   if (
     typeof serverModuleMapEntry?.codeHash === 'string' &&
-    Array.isArray(serverModuleMapEntry?.runtimeEnvVars) &&
+    serverModuleMapEntry?.runtimeEnvVars &&
     // TODO replace this with more granular tracking: a list of all client components imported
     serverModuleMapEntry?.referencesClientComponent !== true
   ) {

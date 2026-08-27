@@ -523,74 +523,10 @@ async fn compute_subtree_content_hash(
         let mut hashes = Vec::with_capacity(data.len());
         let mut runtime_env_vars = FxIndexSet::default();
 
-        // use async_trait::async_trait;
-        // use turbopack_core::issue::{
-        //     Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
-        // };
-        // #[turbo_tasks::value]
-        // pub struct ActionIssue {
-        //     pub ident: ResolvedVc<AssetIdent>,
-        //     pub title: ResolvedVc<StyledString>,
-        //     pub source: Option<IssueSource>,
-        // }
-        // #[turbo_tasks::value_impl]
-        // impl ActionIssue {
-        //     #[turbo_tasks::function]
-        //     pub fn new(
-        //         ident: ResolvedVc<AssetIdent>,
-        //         title: RcStr,
-        //         source: Option<IssueSource>,
-        //     ) -> Vc<Self> {
-        //         ActionIssue {
-        //             ident,
-        //             title: StyledString::Text(title).resolved_cell(),
-        //             source,
-        //         }
-        //         .cell()
-        //     }
-        // }
-
-        // #[async_trait]
-        // #[turbo_tasks::value_impl]
-        // impl Issue for ActionIssue {
-        //     fn severity(&self) -> IssueSeverity {
-        //         IssueSeverity::Warning
-        //     }
-        //     fn stage(&self) -> IssueStage {
-        //         IssueStage::ProcessModule
-        //     }
-
-        //     async fn file_path(&self) -> Result<FileSystemPath> {
-        //         Ok(self.ident.await?.path.clone())
-        //     }
-
-        //     async fn title(&self) -> Result<StyledString> {
-        //         Ok((*self.title.await?).clone())
-        //     }
-
-        //     fn source(&self) -> Option<IssueSource> {
-        //         self.source
-        //     }
-        // }
-
         for (_m, data) in &data {
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
                 runtime_env_vars.extend(env.runtime.iter());
-                // if let Some(issue_source) = &env.runtime_all {
-                //     ActionIssue::new(
-                //         m.ident(),
-                //         format!(
-                //             "Dynamic process.env access from {}",
-                //             entry.ident_string().await?
-                //         )
-                //         .into(),
-                //         Some(*issue_source),
-                //     )
-                //     .to_resolved()
-                //     .await?
-                //     .emit();
-                // }
             }
         }
 

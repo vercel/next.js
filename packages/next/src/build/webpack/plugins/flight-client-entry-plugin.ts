@@ -73,7 +73,7 @@ type Actions = {
         moduleId: string | number
         async: boolean
         codeHash?: string
-        runtimeEnvVars?: true | string[]
+        runtimeEnvVars?: string[]
         referencesClientComponent?: boolean
       }
     }

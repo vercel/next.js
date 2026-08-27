@@ -16,7 +16,7 @@ export interface ServerModuleMap {
     readonly chunks: Readonly<Array<string>> // currently not used
     readonly async?: boolean
     readonly codeHash?: string
-    readonly runtimeEnvVars?: true | string[]
+    readonly runtimeEnvVars?: string[]
     readonly referencesClientComponent?: boolean
   }
 }
@@ -269,7 +269,7 @@ function createServerModuleMap(): ServerModuleMap {
             moduleId: string | number
             async: boolean
             codeHash?: string
-            runtimeEnvVars?: true | readonly string[]
+            runtimeEnvVars?: readonly string[]
             referencesClientComponent?: boolean
           }
         | undefined
