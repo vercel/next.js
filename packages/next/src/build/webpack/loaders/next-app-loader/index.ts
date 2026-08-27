@@ -13,8 +13,6 @@ import type { ModuleTuple, CollectedMetadata } from '../metadata/types'
 import path from 'path'
 import { bold } from '../../../../lib/picocolors'
 import { getModuleBuildInfo } from '../get-module-build-info'
-import { verifyRootLayout } from '../../../../lib/verify-root-layout'
-import * as Log from '../../../output/log'
 import { APP_DIR_ALIAS } from '../../../../lib/constants'
 import {
   createMetadataExportsCode,
@@ -57,8 +55,6 @@ export type AppLoaderOptions = {
   preferredRegion: string | string[] | undefined
   pageExtensions: PageExtensions
   assetPrefix: string
-  rootDir?: string
-  tsconfigPath?: string
   isDev?: true
   basePath: string
   nextConfigOutput?: NextConfig['output']
@@ -681,8 +677,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     allNormalizedAppPaths: allNormalizedAppPathsOption,
     pagePath,
     pageExtensions,
-    rootDir,
-    tsconfigPath,
     isDev,
     nextConfigOutput,
     preferredRegion,
@@ -1011,7 +1005,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     })
   }
 
-  let treeCodeResult = await createTreeCodeFromPath(pagePath, {
+  const treeCodeResult = await createTreeCodeFromPath(pagePath, {
     page,
     resolveDir,
     resolver,
@@ -1035,58 +1029,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const isAppErrorRoute = page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
 
   if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath && !isAppErrorRoute) {
-    if (!isDev) {
-      // If we're building and missing a root layout, exit the build
-      Log.error(
-        `${bold(
-          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-        )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
-      )
-      process.exit(1)
-    } else {
-      // In dev we'll try to create a root layout
-      const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
-        appDir: appDir,
-        dir: rootDir!,
-        tsconfigPath: tsconfigPath,
-        pagePath,
-        pageExtensions,
-      })
-      if (!createdRootLayout) {
-        let message = `${bold(
-          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-        )} doesn't have a root layout. `
-
-        if (rootLayoutPath) {
-          message += `We tried to create ${bold(
-            path.relative(this._compiler?.context ?? '', rootLayoutPath)
-          )} for you but something went wrong.`
-        } else {
-          message +=
-            'To fix this error, make sure every page has a root layout.'
-        }
-
-        throw new Error(message)
-      }
-
-      // Clear fs cache, get the new result with the created root layout.
-      if (this._compilation) filesInDirMapMap.get(this._compilation)?.clear()
-      treeCodeResult = await createTreeCodeFromPath(pagePath, {
-        page,
-        resolveDir,
-        resolver,
-        metadataResolver,
-        resolveParallelSegments,
-        hasChildRoutesForSegment,
-        getStaticSiblingSegments,
-        loaderContext: this,
-        pageExtensions,
-        basePath,
-        collectedDeclarations,
-        isGlobalNotFoundEnabled,
-        isDev: !!isDev,
-      })
-    }
+    let message = `${bold(
+      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+    )} doesn't have a root layout. `
+    message += 'To fix this error, make sure every page has a root layout.'
+    throw new Error(message)
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)
