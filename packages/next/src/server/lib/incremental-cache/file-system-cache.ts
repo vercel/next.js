@@ -362,6 +362,22 @@ export default class FileSystemCache implements CacheHandler {
 
     if (!this.flushToDisk || !data) return
 
+    // A `notFound()` response for an app route/page (e.g. an on-demand ISR
+    // request for a `generateStaticParams` param that doesn't exist) is kept
+    // in the in-memory cache above for per-worker dedup, but must not be
+    // persisted to disk: every distinct unmatched param a client requests
+    // (including from bots crawling for nonexistent paths) would otherwise
+    // leave a permanent, never-evicted static artifact behind. This mirrors
+    // the Pages Router, which never reaches this method for a `{ notFound:
+    // true }` result from `getStaticProps` in the first place.
+    if (
+      (data.kind === CachedRouteKind.APP_PAGE ||
+        data.kind === CachedRouteKind.APP_ROUTE) &&
+      data.status === 404
+    ) {
+      return
+    }
+
     // Create a new writer that will prepare to write all the files to disk
     // after their containing directory is created.
     const writer = new MultiFileWriter(this.fs)

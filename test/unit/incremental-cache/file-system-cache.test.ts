@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
@@ -8,6 +9,15 @@ import {
 } from 'next/dist/server/response-cache'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
+
+async function fileExists(...segments: string[]) {
+  try {
+    await fs.access(path.join(cacheDir, 'app', ...segments))
+    return true
+  } catch {
+    return false
+  }
+}
 
 describe('FileSystemCache', () => {
   it('set image route', async () => {
@@ -51,6 +61,84 @@ describe('FileSystemCache', () => {
       status: 200,
       kind: IncrementalCacheKind.APP_ROUTE,
     })
+  })
+
+  it('does not write a 404 app page response to disk', async () => {
+    const fsCache = new FileSystemCache({
+      _requestHeaders: {},
+      flushToDisk: true,
+      fs: nodeFs,
+      serverDistDir: cacheDir,
+      revalidatedTags: [],
+    })
+
+    await fsCache.set(
+      'isr-not-found-page',
+      {
+        kind: CachedRouteKind.APP_PAGE,
+        html: '<html>not found</html>',
+        rscData: Buffer.from('not found'),
+        headers: {},
+        status: 404,
+        postponed: undefined,
+        segmentData: undefined,
+      },
+      {}
+    )
+
+    expect(await fileExists('isr-not-found-page.html')).toBe(false)
+    expect(await fileExists('isr-not-found-page.rsc')).toBe(false)
+    expect(await fileExists('isr-not-found-page.meta')).toBe(false)
+  })
+
+  it('does not write a 404 app route response to disk', async () => {
+    const fsCache = new FileSystemCache({
+      _requestHeaders: {},
+      flushToDisk: true,
+      fs: nodeFs,
+      serverDistDir: cacheDir,
+      revalidatedTags: [],
+    })
+
+    await fsCache.set(
+      'isr-not-found-route',
+      {
+        kind: CachedRouteKind.APP_ROUTE,
+        body: Buffer.from('not found'),
+        headers: {},
+        status: 404,
+      },
+      {}
+    )
+
+    expect(await fileExists('isr-not-found-route.body')).toBe(false)
+    expect(await fileExists('isr-not-found-route.meta')).toBe(false)
+  })
+
+  it('still writes a 200 app page response to disk', async () => {
+    const fsCache = new FileSystemCache({
+      _requestHeaders: {},
+      flushToDisk: true,
+      fs: nodeFs,
+      serverDistDir: cacheDir,
+      revalidatedTags: [],
+    })
+
+    await fsCache.set(
+      'isr-found-page',
+      {
+        kind: CachedRouteKind.APP_PAGE,
+        html: '<html>found</html>',
+        rscData: Buffer.from('found'),
+        headers: {},
+        status: 200,
+        postponed: undefined,
+        segmentData: undefined,
+      },
+      {}
+    )
+
+    expect(await fileExists('isr-found-page.html')).toBe(true)
   })
 })
 
