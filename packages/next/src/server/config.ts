@@ -528,6 +528,27 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Normalize experimental.durableUseCacheEntries to always be an object and to ensure NEXT_DEPLOYMENT_ID is ignored
+  if (result.experimental && 'durableUseCacheEntries' in result.experimental) {
+    if (result.experimental.durableUseCacheEntries) {
+      if (result.experimental.durableUseCacheEntries === true) {
+        result.experimental.durableUseCacheEntries = {}
+      }
+      result.experimental.durableUseCacheEntries.unstableEnvVars ??= []
+      if (
+        !result.experimental.durableUseCacheEntries.unstableEnvVars.includes(
+          'NEXT_DEPLOYMENT_ID'
+        )
+      ) {
+        result.experimental.durableUseCacheEntries.unstableEnvVars.push(
+          'NEXT_DEPLOYMENT_ID'
+        )
+      }
+    } else {
+      delete result.experimental.durableUseCacheEntries
+    }
+  }
+
   if (
     result.experimental?.allowDevelopmentBuild &&
     process.env.NODE_ENV !== 'development'

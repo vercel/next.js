@@ -4,7 +4,11 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
-    durableUseCacheEntries: true,
+    durableUseCacheEntries: {
+      unstableEnvVars: ['MY_DEPLOYMENT_ID'],
+      ignoredEnvVars: ['MY_OIDC_TOKEN'],
+    },
+    runtimeServerDeploymentId: true,
   },
 }
 

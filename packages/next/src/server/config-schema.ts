@@ -468,7 +468,15 @@ export const experimentalSchema = {
   serverComponentsHmrCancellation: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
-  durableUseCacheEntries: z.boolean().optional(),
+  durableUseCacheEntries: z
+    .union([
+      z.boolean(),
+      z.object({
+        unstableEnvVars: z.array(z.string()).optional(),
+        ignoredEnvVars: z.array(z.string()).optional(),
+      }),
+    ])
+    .optional(),
   useCacheTimeout: z.number().positive().optional(),
   slowModuleDetection: z
     .object({

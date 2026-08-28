@@ -5,6 +5,7 @@ use bincode::{Decode, Encode};
 use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
+    next_config::OptionDurableUseCacheEntriesConfig,
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
         ActionManifestWorkerEntryDurability, ServerReferenceManifest,
@@ -234,9 +235,8 @@ impl Asset for ServerActionManifestAsset {
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
         let next_config = self.project.next_config();
-        let durable_use_cache_entries = *next_config
-            .enable_durable_use_cache_entries(self.project.next_mode())
-            .await?;
+        let durable_use_cache_entries = next_config.enable_durable_use_cache_entries();
+        let durable_use_cache_entries_enabled = durable_use_cache_entries.await?.is_some();
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -288,7 +288,7 @@ impl Asset for ServerActionManifestAsset {
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
-            data: Option<ReadRef<ModulesInformation>>,
+            data: Option<ReadRef<OptionModulesInformation>>,
         }
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
@@ -303,7 +303,7 @@ impl Asset for ServerActionManifestAsset {
                     Cow::Owned(module.ident().await?.path.to_string())
                 };
 
-                let data = if durable_use_cache_entries
+                let data = if durable_use_cache_entries_enabled
                     && extract_type_from_server_reference_id(hash_id)
                         == ServerReferenceType::UseCache
                 {
@@ -314,6 +314,7 @@ impl Asset for ServerActionManifestAsset {
                             *self.chunking_context,
                             hash_salt,
                             modules_to_ignore,
+                            durable_use_cache_entries,
                         )
                         .await?,
                     )
@@ -351,10 +352,12 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.ident_code_hash.as_str(),
-                        runtime_env_vars: d.runtime_env_vars.as_slice(),
-                        references_client_component: d.references_client_component,
+                    durability: data.as_ref().and_then(|v| v.as_ref()).map(|d| {
+                        ActionManifestWorkerEntryDurability {
+                            code_hash: d.ident_code_hash.as_str(),
+                            runtime_env_vars: d.runtime_env_vars.as_slice(),
+                            references_client_component: d.references_client_component,
+                        }
                     }),
                 },
             );
@@ -403,8 +406,7 @@ pub async fn to_rsc_context(
 }
 
 /// Merged information about a module graph subgraph
-#[turbo_tasks::value]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode)]
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph
     pub ident_code_hash: RcStr,
@@ -414,6 +416,10 @@ struct ModulesInformation {
     pub references_client_component: bool,
 }
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+struct OptionModulesInformation(Option<ModulesInformation>);
+
 #[turbo_tasks::function]
 async fn compute_subtree_content_hash(
     module_graph: ResolvedVc<ModuleGraph>,
@@ -421,7 +427,8 @@ async fn compute_subtree_content_hash(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
-) -> Result<Vc<ModulesInformation>> {
+    durable_use_cache_entries: Vc<OptionDurableUseCacheEntriesConfig>,
+) -> Result<Vc<OptionModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
         entry = display(entry.ident_string().await?)
@@ -429,6 +436,9 @@ async fn compute_subtree_content_hash(
     match async {
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
+
+        let durable_use_cache_entries_value = durable_use_cache_entries.await?;
+        let durable_use_cache_entries_value = durable_use_cache_entries_value.as_ref().unwrap();
 
         let mut references_client_component = false;
 
@@ -464,42 +474,6 @@ async fn compute_subtree_content_hash(
             /* include_traced */ true,
         )?;
 
-        static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
-            std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
-                .is_some_and(|v| v == "1" || v == "true")
-        });
-        if *PRINT_USE_CACHE_SUBTREE {
-            println!(
-                "Modules in subtree for {}:\n{}",
-                entry.ident().await?.path,
-                modules
-                    .iter()
-                    .map(async |m| {
-                        let data = module_hash(
-                            *module_graph,
-                            chunking_context,
-                            async_module_info,
-                            **m,
-                            hash_salt,
-                        )
-                        .await?;
-                        Ok(format!(
-                            "  '{}': {} with env: {}",
-                            m.ident_string().await?,
-                            data.ident_code_hash,
-                            data.env_var_info
-                                .as_ref()
-                                .map(|e| e.runtime.clone())
-                                .unwrap_or_default()
-                                .join(",")
-                        ))
-                    })
-                    .try_join()
-                    .await?
-                    .join("\n")
-            );
-        }
-
         let data = modules
             .into_iter()
             .map(async |m| {
@@ -518,26 +492,62 @@ async fn compute_subtree_content_hash(
             .try_join()
             .await?;
 
+        static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
+            std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
+                .is_some_and(|v| v == "1" || v == "true")
+        });
+        if *PRINT_USE_CACHE_SUBTREE {
+            println!(
+                "Modules in subtree for {}:\n{}",
+                entry.ident().await?.path,
+                data.iter()
+                    .map(async |(m, data)| {
+                        Ok(format!(
+                            "  '{}': {} with env: {}",
+                            m.ident_string().await?,
+                            data.ident_code_hash,
+                            data.env_var_info
+                                .as_ref()
+                                .map(|e| e.runtime.clone())
+                                .unwrap_or_default()
+                                .join(",")
+                        ))
+                    })
+                    .try_join()
+                    .await?
+                    .join("\n")
+            );
+        }
+
         let mut hashes = Vec::with_capacity(data.len());
         let mut runtime_env_vars = FxIndexSet::default();
 
         for (_m, data) in &data {
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
-                runtime_env_vars.extend(env.runtime.iter());
+                runtime_env_vars.extend(env.runtime.iter().filter(|v| {
+                    !durable_use_cache_entries_value
+                        .ignored_env_vars
+                        .contains(*v)
+                }));
             }
+        }
+
+        if runtime_env_vars.iter().any(|v| {
+            durable_use_cache_entries_value
+                .unstable_env_vars
+                .contains(*v)
+        }) {
+            return anyhow::Ok(Vc::cell(None));
         }
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
 
-        anyhow::Ok(
-            ModulesInformation {
-                ident_code_hash: hash,
-                runtime_env_vars: runtime_env_vars.into_iter().cloned().collect(),
-                references_client_component,
-            }
-            .cell(),
-        )
+        anyhow::Ok(Vc::cell(Some(ModulesInformation {
+            ident_code_hash: hash,
+            runtime_env_vars: runtime_env_vars.into_iter().cloned().collect(),
+            references_client_component,
+        })))
     }
     .instrument(span)
     .await
