@@ -1270,8 +1270,16 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
-                        .await?;
+                    handle_membership(
+                        &ast_path,
+                        obj,
+                        prop,
+                        span,
+                        &analysis_state,
+                        &mut analysis,
+                        MembershipType::Member,
+                    )
+                    .await?;
                 }
                 Effect::DestructuredMember {
                     mut obj,
@@ -1319,7 +1327,16 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *left), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_in(&ast_path, right, left, &analysis_state, &mut analysis, span).await?;
+                    handle_membership(
+                        &ast_path,
+                        right,
+                        left,
+                        span,
+                        &analysis_state,
+                        &mut analysis,
+                        MembershipType::In,
+                    )
+                    .await?;
                 }
                 Effect::ImportedBinding {
                     esm_reference_index,
@@ -3406,13 +3423,18 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
     None
 }
 
-async fn handle_member<'a>(
+enum MembershipType {
+    Member,
+    In,
+}
+async fn handle_membership<'a>(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
     prop: JsValue<'a>,
     span: Span,
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    ty: MembershipType,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
@@ -3423,20 +3445,48 @@ async fn handle_member<'a>(
 
         if has_member && let Some((mut name, false)) = obj_name.clone() {
             name.0.push(DefinableNameSegmentRef::Name(prop));
-            if let Some(value) = state
-                .compile_time_info_ref
-                .free_var_references
-                .get(&name)
-                .await?
-            {
-                // Inline env var
-                handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
-                return Ok(());
+            match ty {
+                MembershipType::Member => {
+                    if let Some(value) = state
+                        .compile_time_info_ref
+                        .free_var_references
+                        .get(&name)
+                        .await?
+                    {
+                        // Inline env var
+                        handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+                        return Ok(());
+                    }
+                }
+                MembershipType::In => {
+                    if state
+                        .compile_time_info_ref
+                        .free_var_references
+                        .get(&name)
+                        .await?
+                        .is_some()
+                    {
+                        analysis.add_code_gen(ConstantValueCodeGen::new(
+                            CompileTimeDefineValue::Bool(true),
+                            ast_path.to_vec().into(),
+                        ));
+                        return Ok(());
+                    }
+                }
             }
         }
 
         if is_prop_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj {
-            analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+            analysis.add_code_gen::<CodeGen>(match ty {
+                MembershipType::Member => {
+                    CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
+                }
+                MembershipType::In => ConstantValueCodeGen::new(
+                    CompileTimeDefineValue::Bool(true),
+                    ast_path.to_vec().into(),
+                )
+                .into(),
+            });
             return Ok(());
         }
 
@@ -3451,65 +3501,6 @@ async fn handle_member<'a>(
         {
             // non-inlined env var
             analysis.add_runtime_env_var_reference(RcStr::from(prop));
-            return Ok(());
-        }
-    }
-
-    Ok(())
-}
-
-async fn handle_in<'a>(
-    ast_path: &[AstParentKind],
-    link_right: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
-    left: JsValue<'a>,
-    state: &AnalysisState<'a>,
-    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    _span: Span,
-) -> Result<()> {
-    if let Some(left) = left.as_str() {
-        let has_member = state.free_var_references_members.contains_key(left).await?;
-        let is_left_cache = left == "cache";
-
-        let right = link_right.await?;
-        let right_name = right.get_definable_name(Some(&state.var_graph));
-
-        if has_member && let Some((mut name, false)) = right_name.clone() {
-            name.0.push(DefinableNameSegmentRef::Name(left));
-            if state
-                .compile_time_info_ref
-                .free_var_references
-                .get(&name)
-                .await?
-                .is_some()
-            {
-                analysis.add_code_gen(ConstantValueCodeGen::new(
-                    CompileTimeDefineValue::Bool(true),
-                    ast_path.to_vec().into(),
-                ));
-                return Ok(());
-            }
-        }
-
-        if is_left_cache && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &right
-        {
-            analysis.add_code_gen(ConstantValueCodeGen::new(
-                CompileTimeDefineValue::Bool(true),
-                ast_path.to_vec().into(),
-            ));
-            return Ok(());
-        }
-
-        if let Some((name, false)) = &right_name
-            && matches!(
-                name.0.as_slice(),
-                [
-                    DefinableNameSegmentRef::Name("process"),
-                    DefinableNameSegmentRef::Name("env")
-                ]
-            )
-        {
-            // non-inlined env var
-            analysis.add_runtime_env_var_reference(RcStr::from(left));
             return Ok(());
         }
     }
