@@ -32,14 +32,14 @@ module.exports = nextConfig
 
 By default, Next.js redirects every request so the trailing slash matches your [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) setting.
 
-| [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) | Request   | Default response            |
-| ------------------------------------------------------------------------------ | --------- | --------------------------- |
-| `false`                                                                        | `/about`  | `200`                       |
-| `false`                                                                        | `/about/` | `308` redirect to `/about`  |
-| `true`                                                                         | `/about`  | `308` redirect to `/about/` |
-| `true`                                                                         | `/about/` | `200`                       |
+| `trailingSlash` | Request   | Default response            |
+| --------------- | --------- | --------------------------- |
+| `false`         | `/about`  | `200`                       |
+| `false`         | `/about/` | `308` redirect to `/about`  |
+| `true`          | `/about`  | `308` redirect to `/about/` |
+| `true`          | `/about/` | `200`                       |
 
-Enabling the option affects both server responses and client-side navigation:
+Enabling `skipTrailingSlashRedirect` affects both server responses and client-side navigation:
 
 - Both `/about` and `/about/` return `200`. Neither redirects to the other.
 - Next.js stops changing trailing slashes during client-side navigation. [`<Link>`](/docs/app/api-reference/components/link) and router URLs keep the path exactly as written.
@@ -48,7 +48,7 @@ Your own `redirects` and `rewrites` from `next.config.js` still apply.
 
 ### Paths that contain a dot
 
-The default redirects decide by looking at the last path segment. If it contains a dot, Next.js treats the path as a file and removes the trailing slash instead of adding one, so a route that happens to contain a dot in its last path segment behaves as if [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) were `false`. A dot in an earlier segment has no effect.
+The default redirects decide by looking at the last path segment. If it contains a dot, Next.js treats the path as a file and removes the trailing slash instead of adding one, so a route that happens to contain a dot in its last path segment behaves as if `trailingSlash` were `false`. A dot in an earlier segment has no effect.
 
 | Request                   | `trailingSlash: true`              | `trailingSlash: false`                     | `skipTrailingSlashRedirect: true` |
 | ------------------------- | ---------------------------------- | ------------------------------------------ | --------------------------------- |
@@ -61,7 +61,7 @@ The default redirects decide by looking at the last path segment. If it contains
 
 Paths under `.well-known/` are exempt from the default redirects when `trailingSlash` is `true`. When it is `false` there is no exemption and they redirect like any other path.
 
-With the option enabled, none of these redirects are generated and every path is served at whichever form was requested.
+With `skipTrailingSlashRedirect` enabled, none of these redirects are generated and every path is served at whichever form was requested.
 
 ## Good to know
 
