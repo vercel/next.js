@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
+use swc_core::ecma::ast::Ident;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{EitherTaskInput, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
@@ -149,31 +150,35 @@ impl NextRootParamsMapper {
                     "#,
                 ))
                 .chain(collected_root_params.iter().map(|param_name| {
-                    if is_valid_identifier(param_name) {
-                        formatdoc!(
+                    // `verify_symbol` rejects anything that cannot be a
+                    // function declaration name (invalid characters, reserved
+                    // words, `eval`/`arguments`) and suggests a valid symbol.
+                    match Ident::verify_symbol(param_name) {
+                        Ok(()) => formatdoc!(
                             r#"
                                 export function {PARAM_NAME}() {{
                                     return getRootParam('{PARAM_NAME}');
                                 }}
                             "#,
                             PARAM_NAME = param_name,
-                        )
-                    } else {
-                        // Param names like `lang-country` are not valid JS
-                        // identifiers, so they cannot be named function
-                        // exports. Declare a safely-named function and
-                        // re-export it under the original param name via a
-                        // string module export name.
-                        formatdoc!(
-                            r#"
-                                function {SAFE_NAME}() {{
-                                    return getRootParam("{PARAM_NAME}");
-                                }}
-                                export {{ {SAFE_NAME} as "{PARAM_NAME}" }};
-                            "#,
-                            SAFE_NAME = safe_identifier(param_name),
-                            PARAM_NAME = param_name,
-                        )
+                        ),
+                        Err(safe_name) => {
+                            // Param names like `lang-country` or `default`
+                            // cannot be named function exports. Declare a
+                            // safely-named function and re-export it under
+                            // the original param name via a string module
+                            // export name.
+                            formatdoc!(
+                                r#"
+                                    function {SAFE_NAME}() {{
+                                        return getRootParam("{PARAM_NAME}");
+                                    }}
+                                    export {{ {SAFE_NAME} as "{PARAM_NAME}" }};
+                                "#,
+                                SAFE_NAME = safe_name,
+                                PARAM_NAME = param_name,
+                            )
+                        }
                     }
                 }))
                 .join("\n")
@@ -244,85 +249,3 @@ impl ImportMappingReplacement for NextRootParamsMapper {
     }
 }
 
-/// Names that cannot be used as a function declaration name in module code
-/// (always strict): reserved words, strict-mode reserved words, literals, and
-/// the restricted binding names `eval` / `arguments`. They still work as
-/// string module export names (`export { _default as "default" }`).
-const RESERVED_WORDS: &[&str] = &[
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "enum",
-    "export",
-    "extends",
-    "false",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "import",
-    "in",
-    "instanceof",
-    "new",
-    "null",
-    "return",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "true",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    // strict mode
-    "yield",
-    "let",
-    "static",
-    "await",
-    "implements",
-    "interface",
-    "package",
-    "private",
-    "protected",
-    "public",
-    // restricted binding names in strict mode
-    "eval",
-    "arguments",
-];
-
-fn is_valid_identifier(name: &str) -> bool {
-    if RESERVED_WORDS.contains(&name) {
-        return false;
-    }
-    let mut chars = name.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$' => {}
-        _ => return false,
-    }
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
-}
-
-fn safe_identifier(name: &str) -> String {
-    let sanitized: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    format!("_{sanitized}")
-}
