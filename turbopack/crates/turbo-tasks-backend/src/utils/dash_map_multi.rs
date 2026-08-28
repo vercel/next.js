@@ -229,6 +229,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn stress_deadlock() {
         const N: usize = 100000;
         const THREADS: usize = 20;

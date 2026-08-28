@@ -305,3 +305,25 @@ pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
 pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
     validate_id(&TRAITS, id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The registries are gathered at link time by `link-section`. On wasm it stores them in custom
+    /// sections and requires the embedder to hand them back through an `env.read_custom_section`
+    /// import (see `scripts/wasi-test-host/`).
+    ///
+    /// If that import is missing or returns nothing the slices come up **empty**, and everything
+    /// still links and runs — task lookups just quietly find nothing. Assert the bootstrap actually
+    /// delivered data, so that failure mode is loud instead of silent.
+    #[test]
+    fn registries_are_populated() {
+        assert!(
+            !FUNCTIONS.is_empty(),
+            "no native functions registered: the link-section bootstrap produced nothing"
+        );
+        assert!(!VALUES.is_empty(), "no value types registered");
+        assert!(!TRAITS.is_empty(), "no trait types registered");
+    }
+}

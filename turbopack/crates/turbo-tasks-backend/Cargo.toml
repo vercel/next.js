@@ -67,7 +67,6 @@ thread_local = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
-criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
@@ -80,6 +79,12 @@ turbo-tasks-testing = { workspace = true }
 # The read-outcome tests assert on the counters, so they need them compiled in. Only for tests —
 # normal builds of this crate get the default (disabled) turbo-tasks.
 turbo-tasks = { workspace = true, features = ["inline_execution_stats"] }
+
+# Only used by the benchmarks, which don't run on wasm. Gated by target so that
+# `cargo test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads` can build: criterion pulls
+# in rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 
 
 [[bench]]

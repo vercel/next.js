@@ -540,6 +540,7 @@ mod tests {
     /// This is a lower-level test that verifies the database layer correctly handles
     /// the case where multiple task IDs are stored under the same hash key.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
@@ -572,6 +573,7 @@ mod tests {
     /// Tests that multiple distinct keys written in a single batch with flush can be read back.
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
@@ -632,6 +634,7 @@ mod tests {
     /// single id it deletes, so anything else in the bucket is untouched whether or not this
     /// commit knows about it.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
