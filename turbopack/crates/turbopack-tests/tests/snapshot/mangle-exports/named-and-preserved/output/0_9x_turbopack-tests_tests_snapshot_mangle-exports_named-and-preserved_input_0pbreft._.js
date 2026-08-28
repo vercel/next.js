@@ -1,3 +1,0 @@
-module.exports=["[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/index.js [test] (ecmascript)",t=>{"use strict";var s=t.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/lib.js [test] (ecmascript)");console.log(s.a,s.$,s.z,s.T,(0,s.X)()),t.s([])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/lib.js [test] (ecmascript)",t=>{"use strict";t.s(["a",0,"a","X",0,function(){return"fn"},"T",0,"long-2","$",0,"bb","z",0,"long-1"])}];
-
-//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_mangle-exports_named-and-preserved_input_0pbreft._.js.map

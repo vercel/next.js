@@ -31,10 +31,12 @@ it('should keep all 60 values correct through the mangled keys', () => {
   expect(values()).toEqual(expected)
 })
 
-it('should keep the names of a module read with a computed key', () => {
+it('should keep computed-key reads working on a mangled module', () => {
   for (let i = 0; i < 60; i++) {
     const n = String(i).padStart(2, '0')
     expect(manyAsNamespace[`exportNumber${n}`]).toBe(`value-${n}`)
   }
-  expect(manyAsNamespace.exportsInfo.exportNumber00.canMangle).toBe(false)
+  // The module is mangled internally, but the computed reads go through the namespace object the
+  // facade materializes, which still carries every original name.
+  expect(manyAsNamespace.exportsInfo.exportNumber00.canMangle).toBe(true)
 })

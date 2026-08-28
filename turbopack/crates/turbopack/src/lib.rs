@@ -204,35 +204,49 @@ async fn apply_module_type(
                         *module,
                         part.cloned().unwrap_or(ModulePart::facade()),
                     ))
-                } else if follow_reexports {
-                    if *module.get_exports().split_locals_and_reexports().await? {
-                        if let Some(part) = part {
-                            match part {
-                                ModulePart::Evaluation => {
-                                    Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                }
-                                ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(
-                                        Vc::upcast(
-                                            *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
-                                                .to_resolved()
-                                                .await?,
-                                        ),
-                                        part.clone(),
-                                    )
-                                    .await?
-                                }
-                                _ => bail!(
-                                    "Invalid module part \"{}\" for reexports only tree shaking \
-                                     mode",
-                                    part
-                                ),
+                } else if follow_reexports
+                    && !{
+                        // Some modules — a WASM loader, a client-reference proxy — are chunked and
+                        // read from a *different* module identity than the one that reaches this
+                        // resolution (see the same check in
+                        // `BindingUsageInfo::used_exports`). Splitting one of these into a facade
+                        // and a locals module mints a `<locals>` submodule keyed on the identity
+                        // that reaches it; a second identity that renders to the same ident string
+                        // (which happens for these modules, precisely because they aren't the one
+                        // true identity codegen uses) then collides with it as a duplicate ident.
+                        // Since none of these modules actually need the split for its intended
+                        // purpose (tree shaking / export mangling are moot for a
+                        // generated single-purpose wrapper), skip it outright rather than risk the
+                        // graph-level collision.
+                        let ident = module.ident().to_string().await?;
+                        ident.contains(".wasm_.loader.mjs")
+                            || ident.contains("/__nextjs-internal-proxy.")
+                    }
+                    && *module.get_exports().split_locals_and_reexports().await?
+                {
+                    if let Some(part) = part {
+                        match part {
+                            ModulePart::Evaluation => {
+                                Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                             }
-                        } else {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
+                            ModulePart::Export(_) => {
+                                apply_reexport_tree_shaking(
+                                    Vc::upcast(
+                                        *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
+                                            .to_resolved()
+                                            .await?,
+                                    ),
+                                    part.clone(),
+                                )
+                                .await?
+                            }
+                            _ => bail!(
+                                "Invalid module part \"{}\" for reexports only tree shaking mode",
+                                part
+                            ),
                         }
                     } else {
-                        Vc::upcast(*module)
+                        Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                     }
                 } else {
                     Vc::upcast(*module)
