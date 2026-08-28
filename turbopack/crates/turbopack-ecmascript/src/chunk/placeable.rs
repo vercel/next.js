@@ -322,8 +322,19 @@ impl EcmascriptExports {
 
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
-    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
-    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
+    /// Splitting happens for either of two reasons:
+    ///
+    /// 1. The module has re-exports (star exports or imported bindings), which lets the
+    ///    tree-shaking optimization separate local definitions from re-exports.
+    /// 2. Its export names may be mangled. The facade then keeps the original names for whatever
+    ///    reads this module from outside, while the locals module carries the mangled ones — see
+    ///    the `references::esm::mangle` module.
+    ///
+    /// A module with **no exports at all** is never split, even when mangling is enabled: there
+    /// are no export names to mangle, so the split would be pointless — and actively harmful,
+    /// because `EcmascriptModuleFacadeModule` unconditionally reports its module evaluation as
+    /// side-effect free. Splitting a module whose body is nothing *but* top-level side effects
+    /// would therefore hide them from tree shaking and let the whole body be eliminated.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
@@ -336,7 +347,11 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
-                Vc::cell(has_reexports || exports.mangle_export_names)
+                // `has_reexports` already implies a non-empty export list, so the emptiness check
+                // only needs to guard the mangling case.
+                Vc::cell(
+                    has_reexports || (exports.mangle_export_names && !exports.exports.is_empty()),
+                )
             }
             _ => Vc::cell(false),
         })

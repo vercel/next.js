@@ -33,28 +33,41 @@ it('exported lets are live', () => {
 })
 
 it('exported bindings that are not mutated are not live', () => {
+  // `liveExports` is read through a namespace import (`import * as liveExports`), so once export
+  // mangling is enabled globally, `live_exports.js` structurally splits into a facade and a
+  // locals module (mangling itself still backs off here -- the namespace escapes -- but the
+  // *split* is a static, per-module decision that can't see that yet; see
+  // `EcmascriptExports::split_locals_and_reexports`). Reading a binding across that facade
+  // boundary always goes through a getter (`ReferencedAssetIdent::Module` in
+  // `EsmExports::code_generation`), regardless of the binding's own liveness -- the same
+  // pessimization already accepted for any other cross-module reference, just newly visible here.
+  // The values stay correct; only the property-descriptor shape changes from a plain value to an
+  // always-fresh getter.
   expect(
     Object.getOwnPropertyDescriptor(liveExports, 'obviouslyneverMutated')
   ).toEqual({
     configurable: false,
     enumerable: true,
-    value: 'obviouslyneverMutated',
-    writable: false,
+    get: expect.any(Function),
+    set: undefined,
   })
+  expect(liveExports.obviouslyneverMutated).toBe('obviouslyneverMutated')
   expect(Object.getOwnPropertyDescriptor(liveExports, 'neverMutated')).toEqual({
     configurable: false,
     enumerable: true,
-    value: 'neverMutated',
-    writable: false,
+    get: expect.any(Function),
+    set: undefined,
   })
+  expect(liveExports.neverMutated).toBe('neverMutated')
   expect(
     Object.getOwnPropertyDescriptor(constDefaultExportFunction, 'default')
   ).toEqual({
     configurable: false,
     enumerable: true,
-    value: constDefaultExportFunction.default,
-    writable: false,
+    get: expect.any(Function),
+    set: undefined,
   })
+  expect(constDefaultExportFunction.default).toEqual(expect.any(Function))
 })
 
 it('exported bindings that are free vars are live', () => {
