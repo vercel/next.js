@@ -1,5 +1,5 @@
-// `lang-country` is not a valid JS identifier, so it cannot be a named import —
-// it is accessed through the module namespace instead.
+// `lang-country` (not a valid identifier) and `default` (reserved word)
+// cannot be named imports — they are accessed through the module namespace.
 import * as rootParams from 'next/root-params'
 import type { ReactNode } from 'react'
 
@@ -12,5 +12,5 @@ export default async function Root({ children }: { children: ReactNode }) {
 }
 
 export async function generateStaticParams() {
-  return [{ 'lang-country': 'en-us' }]
+  return [{ 'lang-country': 'en-us', default: 'main' }]
 }

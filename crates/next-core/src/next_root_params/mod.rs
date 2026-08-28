@@ -244,7 +244,67 @@ impl ImportMappingReplacement for NextRootParamsMapper {
     }
 }
 
+/// Names that cannot be used as a function declaration name in module code
+/// (always strict): reserved words, strict-mode reserved words, literals, and
+/// the restricted binding names `eval` / `arguments`. They still work as
+/// string module export names (`export { _default as "default" }`).
+const RESERVED_WORDS: &[&str] = &[
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    // strict mode
+    "yield",
+    "let",
+    "static",
+    "await",
+    "implements",
+    "interface",
+    "package",
+    "private",
+    "protected",
+    "public",
+    // restricted binding names in strict mode
+    "eval",
+    "arguments",
+];
+
 fn is_valid_identifier(name: &str) -> bool {
+    if RESERVED_WORDS.contains(&name) {
+        return false;
+    }
     let mut chars = name.chars();
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$' => {}
