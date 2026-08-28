@@ -2138,7 +2138,6 @@ mod cell_data_tracking_tests {
     // `evict_after_snapshot` uses `parallel::for_each`/`map_collect`, which call
     // `block_in_place` internally and require a multi-threaded Tokio runtime.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn skip_never_cell_survives_eviction_without_modified_flag() {
         // A Skip + evict="never" cell must be retained in memory by
         // `drop_partial` (which keys on Evictability, not the modified flag), so

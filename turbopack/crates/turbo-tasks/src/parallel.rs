@@ -298,7 +298,6 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -309,7 +308,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_try_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let result = try_for_each(&input, |&x| {
@@ -324,9 +322,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    // Without a working parker the scope does not wait for every chunk, so this fails with
-    // *incomplete* results rather than a panic.
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_try_for_each_mut() {
         let mut input = vec![1, 2, 3, 4, 5];
         let result = try_for_each_mut(&mut input, |x| {
@@ -339,11 +334,26 @@ mod tests {
         });
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Odd number 11 encountered");
-        assert_eq!(input, vec![11, 12, 13, 14, 15]);
+
+        // How much of the input gets mutated depends on the chunking, which is derived from
+        // `available_parallelism()`: each chunk stops at its first error, so items after one in the
+        // same chunk are never visited. Asserting `[11, 12, 13, 14, 15]` would only hold where the
+        // chunk size is 1, and fails anywhere parallelism is reported as 1 — a single-core machine,
+        // or wasm. Assert the parallelism-independent contract instead: every item is either
+        // untouched or incremented exactly once, and the first one was visited.
+        assert_eq!(input.len(), 5);
+        for (i, &value) in input.iter().enumerate() {
+            let original = i as i32 + 1;
+            assert!(
+                value == original || value == original + 10,
+                "input[{i}] = {value}, expected {original} or {}",
+                original + 10
+            );
+        }
+        assert_eq!(input[0], 11);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_for_each_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -354,7 +364,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect(&input, |&x| x * 2);
@@ -362,7 +371,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);
@@ -370,7 +378,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect_owned_many() {
         let input = vec![1; 1000];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);

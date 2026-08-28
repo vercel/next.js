@@ -1061,7 +1061,6 @@ mod tests {
     // `end_snapshot` uses `parallel::for_each` which calls `block_in_place` internally,
     // requiring a multi-threaded Tokio runtime.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn modify_during_snapshot_clears_live_modified_flags() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1134,7 +1133,6 @@ mod tests {
     ///    unmodified-before-snapshot category is still the pre-snapshot state), clears pre-snapshot
     ///    flags, and promotes `data_modified_during_snapshot → data_modified`.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn modify_different_category_during_snapshot() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1194,7 +1192,6 @@ mod tests {
     /// persisted rather than retaining it until the whole snapshot is written. Either way the
     /// entry must be gone from the map by the time the snapshot is consumed.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn drain_entries_removes_entry_from_map() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1231,7 +1228,6 @@ mod tests {
     /// In drain mode, fully consuming the iterators should release each drained shard's table
     /// allocation entirely (reset-to-empty in `SnapshotShardIter::drop`), not just shrink it.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn drain_entries_releases_drained_shards() {
         // dashmap requires at least 2 shards.
         let storage = Storage::new(2, true);
@@ -1279,7 +1275,6 @@ mod tests {
     /// the map is already empty when `take_snapshot` returns, and only the modified task is
     /// yielded.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn drain_entries_removes_unmodified_during_take_snapshot() {
         let storage = Storage::new(2, true);
         let modified_id = non_transient_task(1);
@@ -1322,7 +1317,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn undo_non_snapshot_reverses_flag_and_counter() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1347,7 +1341,6 @@ mod tests {
     /// A second track on an already-modified category returns `NoChange`; undoing it is a no-op and
     /// must NOT clear the real modification recorded by the first track.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn undo_nochange_preserves_prior_modification() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1369,7 +1362,6 @@ mod tests {
     /// Undo only reverses the category it tracked: tracking Data then Meta, undoing only the Meta
     /// outcome must leave Data modified and the shard counter still non-zero.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn undo_only_reverses_its_own_category() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1393,7 +1385,6 @@ mod tests {
     /// snapshot, inserts a `None` marker into `snapshots` and sets the `_during_snapshot` bit.
     /// Undo must remove the marker and clear the bit.
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn undo_during_snapshot_true_false_removes_marker() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
@@ -1427,7 +1418,6 @@ mod tests {
     /// the `_during_snapshot` bit, while leaving the pre-existing `modified` flag intact (it
     /// belongs to the snapshot, not to this call).
     #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn undo_during_snapshot_true_true_removes_copy_preserves_modified() {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
