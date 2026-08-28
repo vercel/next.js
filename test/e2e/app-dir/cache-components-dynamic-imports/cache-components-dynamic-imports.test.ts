@@ -158,15 +158,13 @@ describe('async imports in cacheComponents', () => {
   })
 })
 
+// This block intentionally exercises a failed build, so there is no deployment to test.
+// @force-gate !deploy
 describe('async imports in cacheComponents - external packages', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: path.join(__dirname, 'external'),
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely asserts local CLI or runtime output that deploy tests do not expose.
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
