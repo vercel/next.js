@@ -33,6 +33,23 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
+async function writeFileAtomic(
+  fs: CacheFs,
+  filePath: string,
+  data: string
+): Promise<void> {
+  const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
+
+  await fs.mkdir(path.dirname(filePath))
+  try {
+    await fs.writeFile(tempPath, data)
+    await fs.rename(tempPath, filePath)
+  } catch (error) {
+    await fs.unlink(tempPath).catch(() => {})
+    throw error
+  }
+}
+
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
@@ -362,6 +379,19 @@ export default class FileSystemCache implements CacheHandler {
 
     if (!this.flushToDisk || !data) return
 
+    if (data.kind === CachedRouteKind.FETCH) {
+      const filePath = this.getFilePath(key, IncrementalCacheKind.FETCH)
+      await writeFileAtomic(
+        this.fs,
+        filePath,
+        JSON.stringify({
+          ...data,
+          tags: ctx.fetchCache ? ctx.tags : [],
+        })
+      )
+      return
+    }
+
     // Create a new writer that will prepare to write all the files to disk
     // after their containing directory is created.
     const writer = new MultiFileWriter(this.fs)
@@ -441,15 +471,6 @@ export default class FileSystemCache implements CacheHandler {
           JSON.stringify(meta)
         )
       }
-    } else if (data.kind === CachedRouteKind.FETCH) {
-      const filePath = this.getFilePath(key, IncrementalCacheKind.FETCH)
-      writer.append(
-        filePath,
-        JSON.stringify({
-          ...data,
-          tags: ctx.fetchCache ? ctx.tags : [],
-        })
-      )
     }
 
     // Wait for all FS operations to complete.
