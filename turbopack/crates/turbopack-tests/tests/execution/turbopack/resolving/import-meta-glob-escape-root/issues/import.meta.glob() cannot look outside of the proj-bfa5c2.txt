@@ -1,0 +1,21 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:13:24  import.meta.glob() cannot look outside of the project root
+       9 | it('should return an empty object for a base above the project root', () => {
+      10 |   expect(escapingBase).toEqual({})
+      11 | })
+      12 | 
+         |                         v----------------
+      13 + const escapingPattern = import.meta.glob(
+      14 +   '../../../../../../../../../../../../*.js'
+      15 + )
+         +-^
+      16 | 
+      17 | it('should return an empty object for a pattern above the project root', () => {
+      18 |   expect(escapingPattern).toEqual({})
+      19 | })
+  
+  the pattern "../../../../../../../../../../../../*.js" of import.meta.glob("../../../../../../../../../../../../*.js") resolves to a directory above the project root, relative to turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input. Patterns are relative to the importing file, or absolute from the project root when they start with `/`.
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js
