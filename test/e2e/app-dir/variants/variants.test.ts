@@ -57,6 +57,18 @@ import { startExternalServer } from './external-server.mjs'
     expect($('#locale').text()).toBe('de')
   })
 
+  it('should resolve a variant per request on a route that declared static combinations', async () => {
+    const $ = await next.render$(url('/declared'), undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    // This route declared static combinations, and resolves its variants for
+    // each request all the same, exactly as a route that declared none does.
+    // Nothing is prerendered against a combination yet.
+    expect($('#theme').text()).toBe('dark')
+    expect($('#locale').text()).toBe('en')
+  })
+
   it('should not expose the resolved values to the client', async () => {
     const response = await next.fetch(url('/'), {
       headers: { cookie: 'theme=dark' },

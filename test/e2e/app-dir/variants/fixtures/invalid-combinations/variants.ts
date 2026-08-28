@@ -12,15 +12,13 @@ export const theme = unstable_variant(
   'theme@variants.ts'
 )
 
-// A second variant. A resolved set then holds more than one pair, which
-// exercises the canonical ordering.
 export const locale = unstable_variant(
   (request) => (request.cookies.get('locale')?.value === 'de' ? 'de' : 'en'),
   'locale@variants.ts'
 )
 
-// A third variant, read by no route. It lets `/declared` declare two
-// combinations that each assign a variant the other leaves out.
+// A third variant, so that two combinations can each assign one that the other
+// leaves out while both assign `theme`.
 export const country = unstable_variant(
   (request) => (request.cookies.get('country')?.value === 'de' ? 'de' : 'us'),
   'country@variants.ts'
