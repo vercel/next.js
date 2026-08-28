@@ -22,6 +22,11 @@ const CHANGE_ITEM_GROUPS = {
     '.github/ISSUE_TEMPLATE',
     '.github/actions/pr-auto-label/src/config.json',
     '.github/pull_request_template.md',
+    // Agent evals and skills do not affect the framework runtime. Keep them on
+    // the same lightweight CI path as documentation changes.
+    'evals',
+    'skills',
+    'run-evals.js',
     'packages/next-plugin-storybook/readme.md',
     'packages/next/license.md',
     'packages/next/README.md',

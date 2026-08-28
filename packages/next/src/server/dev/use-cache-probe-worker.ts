@@ -57,6 +57,7 @@ export type ProbeMessage = {
     httpAgentOptions: NextConfigComplete['httpAgentOptions']
     cacheLifeProfiles: NextConfigComplete['cacheLife']
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     staticPageGenerationTimeout: number
   }
   timeoutMs: number
@@ -202,6 +203,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },
     isDraftMode: msg.request.isDraftMode,
     useCacheTimeout: msg.nextConfigSerializable.useCacheTimeout,
+    durableUseCacheEntries: msg.nextConfigSerializable.durableUseCacheEntries,
     staticPageGenerationTimeout:
       msg.nextConfigSerializable.staticPageGenerationTimeout,
     cacheLifeProfiles: msg.nextConfigSerializable.cacheLifeProfiles,

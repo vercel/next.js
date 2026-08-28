@@ -317,6 +317,9 @@ pub struct CssOptionsContext {
     /// User-specified lightningcss feature flags (include/exclude bitmasks).
     pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
 
+    /// Include the file name in CSS Module class names for easier debugging.
+    pub module_css_debuggable_idents: bool,
+
     pub placeholder_for_future_extensions: (),
 }
 

@@ -261,6 +261,9 @@ pub async fn get_server_resolve_options_context(
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
         ..Default::default()
     };
@@ -558,6 +561,7 @@ pub async fn get_server_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            module_css_debuggable_idents: next_mode.is_development(),
             ..Default::default()
         },
         follow_reexports: true,

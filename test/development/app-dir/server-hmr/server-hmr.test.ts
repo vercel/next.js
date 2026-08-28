@@ -48,6 +48,61 @@ describe('server-hmr', () => {
     )
 
     itTurbopackDev(
+      'does not re-evaluate an unmodified module after recovering from a compile error',
+      async () => {
+        const pagePath = 'app/module-preservation/page.tsx'
+        const originalPage = await next.readFile(pagePath)
+        const browser = await next.browser('/module-preservation')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#module-eval-time').text()
+          expect(text).toMatch(/Module Evaluated At: \d+/)
+        })
+
+        const initialModuleEvalTime = await browser
+          .elementByCss('#module-eval-time')
+          .text()
+
+        // Remove the closing function brace to trigger a server compile error.
+        await next.patchFile(pagePath, originalPage.replace(/\n}\s*$/, ''))
+
+        try {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "Expected '}', got '<eof>'",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./app/module-preservation/page.tsx (12:4)\n           Error: Expected '}', got '<eof>'\n           > 12 |   )\n                |    ^",
+             "stack": [],
+           }
+          `)
+
+          await next.patchFile(
+            pagePath,
+            originalPage.replace(
+              /<p id="greeting">.*?<\/p>/,
+              '<p id="greeting">hello recovered</p>'
+            )
+          )
+
+          await retry(async () => {
+            const greeting = await browser.elementByCss('#greeting').text()
+            expect(greeting).toBe('hello recovered')
+          })
+
+          // A full server module cache clear would re-evaluate the unchanged
+          // dependency and change this timestamp.
+          const newModuleEvalTime = await browser
+            .elementByCss('#module-eval-time')
+            .text()
+          expect(newModuleEvalTime).toBe(initialModuleEvalTime)
+        } finally {
+          await next.patchFile(pagePath, originalPage)
+        }
+      }
+    )
+
+    itTurbopackDev(
       're-evaluates a module when the module itself changes',
       async () => {
         const browser = await next.browser('/module-preservation')

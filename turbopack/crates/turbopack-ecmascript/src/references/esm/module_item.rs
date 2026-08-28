@@ -53,7 +53,7 @@ impl EsmModuleItem {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {
-                        ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { box expr, .. }) => {
+                        ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { expr, .. }) => {
                             let decl = Decl::Var(Box::new(VarDecl {
                                 span: DUMMY_SP,
                                 ctxt: Default::default(),
@@ -74,7 +74,7 @@ impl EsmModuleItem {
                                         Default::default(),
                                     )
                                     .into(),
-                                    init: Some(Box::new(expr)),
+                                    init: Some(expr),
                                     definite: false,
                                 }],
                             }));

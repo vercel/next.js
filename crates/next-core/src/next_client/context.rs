@@ -190,6 +190,9 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()
@@ -382,6 +385,7 @@ pub async fn get_client_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            module_css_debuggable_idents: next_mode.is_development(),
             ..Default::default()
         },
         static_url_tag: Some(rcstr!("client")),

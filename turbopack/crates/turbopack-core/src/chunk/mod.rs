@@ -38,6 +38,7 @@ pub use crate::chunk::{
 use crate::{
     asset::Asset,
     chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
+    emit_collect::CollectingModule,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -364,6 +365,17 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
+    /// Declare an emitted module (corresponds to __turboack_emit__).
+    Emitted {
+        namespace: RcStr,
+        /// false = emit to current entry, true = emit to all entries
+        emit_to_all_entries: bool,
+    },
+    /// During the build process, edges with ChunkingType::Emitted are collected and reattached to
+    /// the collecting module. These should not be used manually in a reference.
+    Collected { namespace: RcStr },
+    /// Chunk this reference once per entry, like async loaders.
+    PerEntry,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It provides available modules to the current chunk group. It's assumed
     /// to be loaded before the current chunk group.
@@ -393,6 +405,7 @@ impl Display for ChunkingType {
                 )
             }
             ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::PerEntry => write!(f, "PerEntry"),
             ChunkingType::Isolated {
                 _ty,
                 merge_tag: Some(merge_tag),
@@ -404,6 +417,18 @@ impl Display for ChunkingType {
                 merge_tag: None,
             } => {
                 write!(f, "Isolated")
+            }
+            ChunkingType::Emitted {
+                namespace,
+                emit_to_all_entries,
+            } => {
+                write!(
+                    f,
+                    "Emitted(namespace: {namespace}, emit_to_all_entries: {emit_to_all_entries})"
+                )
+            }
+            ChunkingType::Collected { namespace } => {
+                write!(f, "Collected(namespace: {namespace})")
             }
             ChunkingType::Shared {
                 inherit_async,
@@ -467,9 +492,20 @@ impl ChunkingType {
                 inherit_async: false,
             },
             ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::PerEntry => ChunkingType::PerEntry,
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
                 merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Emitted {
+                namespace,
+                emit_to_all_entries,
+            } => ChunkingType::Emitted {
+                namespace: namespace.clone(),
+                emit_to_all_entries: *emit_to_all_entries,
+            },
+            ChunkingType::Collected { namespace } => ChunkingType::Collected {
+                namespace: namespace.clone(),
             },
             ChunkingType::Shared {
                 inherit_async: _,
@@ -483,12 +519,19 @@ impl ChunkingType {
     }
 }
 
+/// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
 #[turbo_tasks::value(cell = "new")]
 pub struct ChunkGroupContentInner {
+    /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
+    /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    /// The modules that were imported with ChunkingType::Async
     #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    /// All modules that implement CollectingModule
+    #[bincode(with = "turbo_bincode::indexset")]
+    pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 
@@ -579,7 +622,7 @@ impl AsyncModuleInfo {
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,
-    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub module: Option<ResolvedVc<Box<dyn Module>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
