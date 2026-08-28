@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react'
 import { SAMPLE_LATENCY_CSV } from '../../lib/sample-data'
 import type { CrunchResult } from '../../lib/crunch'
 
+function spawnCruncher(): Worker | null {
+  try {
+    return new Worker(new URL('./crunch.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+  } catch (error) {
+    // The Worker constructor throws synchronously when the browser refuses
+    // to run the resolved script (e.g. the URL is not same-origin).
+    console.error(error)
+    return null
+  }
+}
+
 export function CsvCruncher() {
   const [result, setResult] = useState<CrunchResult | null>(null)
   const [status, setStatus] = useState<'crunching' | 'done' | 'error'>(
@@ -11,10 +24,11 @@ export function CsvCruncher() {
   )
 
   useEffect(() => {
-    const worker = new Worker(
-      new URL('./crunch.worker.ts', import.meta.url),
-      { type: 'module' }
-    )
+    const worker = spawnCruncher()
+    if (worker === null) {
+      setStatus('error')
+      return
+    }
     worker.onmessage = (event: MessageEvent<CrunchResult>) => {
       setResult(event.data)
       setStatus('done')

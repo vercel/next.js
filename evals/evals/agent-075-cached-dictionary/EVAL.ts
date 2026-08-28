@@ -37,7 +37,7 @@
 
 import { execSync, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 
 const PORT = 4075
@@ -82,22 +82,36 @@ function read(p: string): string {
 function stripComments(src: string): string {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/[^\n]*/gm, '$1')
+    .replace(/(^|[^:'"\\])\/\/[^\n]*/gm, '$1')
 }
 
+/**
+ * Every fixture-owned script source in the project, whatever the extension —
+ * allowJs is on, so hardcoded strings or smuggled state could hide in plain
+ * .js/.mjs/.cjs files just as well as in .ts/.tsx.
+ */
 function sourceFiles(): string[] {
+  const skip = /\/(node_modules|\.next|\.git)\//
   const files: string[] = []
-  for (const dir of ['app', 'components', 'lib']) {
-    const root = join(process.cwd(), dir)
-    if (!existsSync(root)) continue
-    for (const d of readdirSync(root, {
-      recursive: true,
-      withFileTypes: true,
-    })) {
-      if (!d.isFile() || !/\.(ts|tsx)$/.test(d.name)) continue
-      const parent = d.parentPath ?? (d as unknown as { path: string }).path
-      files.push(join(parent, d.name))
+  for (const d of readdirSync(process.cwd(), {
+    recursive: true,
+    withFileTypes: true,
+  })) {
+    if (!d.isFile() || !/\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(d.name)) {
+      continue
     }
+    const parent = d.parentPath ?? (d as unknown as { path: string }).path
+    const p = join(parent, d.name)
+    if (skip.test(p)) continue
+    const base = basename(p)
+    if (
+      base.startsWith('EVAL') ||
+      /\.test\.[cm]?[jt]sx?$/.test(base) ||
+      base === 'next-env.d.ts'
+    ) {
+      continue
+    }
+    files.push(p)
   }
   return files
 }

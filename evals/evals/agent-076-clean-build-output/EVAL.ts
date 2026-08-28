@@ -27,7 +27,11 @@
  * banned, `(Turbopack)` banner required); `serverExternalPackages` (silently
  * ineffective for a relative vendored file — warning stays, output check
  * fails); pipeline wrapper scripts that grep the output (the EVAL invokes the
- * next binary directly).
+ * next binary directly); monkey-patching process.stdout/stderr or console in
+ * next.config, which executes inside the `next build` process (empirically
+ * confirmed to swallow the block and pass the output checks — banned by
+ * source shape, since no legitimate suppression config touches the output
+ * streams).
  */
 import { test, expect, beforeAll, afterAll } from 'vitest'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -271,6 +275,49 @@ test('the vendored client still loads through the bundler, not a shim', () => {
     fingerprint,
     'the vendored client is no longer part of the compiled server bundle'
   ).toBe(true)
+})
+
+test('the warning is suppressed, not swallowed: no output-stream tampering', () => {
+  // next.config.* (and anything it imports) executes inside the `next build`
+  // process, so patching process.stdout/stderr writes or console methods can
+  // hide the warning from the captured output without suppressing anything.
+  // No legitimate solution needs any of these shapes anywhere in first-party
+  // code: a real issue-suppression config never references the output
+  // streams, never imports the process module, and never reassigns console
+  // methods. Bans are shape-based and comment-stripped, so prose mentioning
+  // these names stays legal.
+  const bans: Array<[RegExp, string]> = [
+    [
+      /\bprocess\s*\.\s*(?:stdout|stderr)\b/,
+      'references process.stdout/stderr',
+    ],
+    [
+      /(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(?\s*)['"](?:node:)?process['"]/,
+      'imports the process module',
+    ],
+    [
+      /\bconsole\s*\.\s*[A-Za-z_$][\w$]*\s*=(?!=)/,
+      'reassigns a console method',
+    ],
+    [
+      /\b(?:defineProperty|defineProperties|assign)\s*\(\s*console\b/,
+      'patches the console object',
+    ],
+  ]
+  const sources = walkFiles(ROOT, /\.(ts|tsx|js|jsx|mjs|cjs)$/, [
+    'node_modules',
+    '.next',
+    'vendor',
+  ]).filter((p) => !/EVAL/.test(relative(ROOT, p)))
+  for (const p of sources) {
+    const code = stripComments(readFileSync(p, 'utf-8'))
+    for (const [re, what] of bans) {
+      expect(
+        re.test(code),
+        `${relative(ROOT, p)} ${what} — the warning must be suppressed, not swallowed from the build output`
+      ).toBe(false)
+    }
+  }
 })
 
 test('the build script is untouched and no webpack config sneaks in', () => {
