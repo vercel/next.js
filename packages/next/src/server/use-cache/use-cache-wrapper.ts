@@ -2713,7 +2713,8 @@ export async function cache(
       debug?.(
         logPrefix,
         'Resume Data Cache entry not found',
-        serializedCacheKey
+        serializedCacheKey,
+        `(${resumeDataCache.cache.size} entries)`
       )
 
       if (cacheSignal) {

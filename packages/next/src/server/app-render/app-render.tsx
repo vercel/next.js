@@ -1113,7 +1113,10 @@ async function generateStagedDynamicFlightRenderResultNode(
     (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
   ) {
     // Create a mutable cache that gets filled during the dynamic render.
-    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+    const prerenderResumeDataCache = createPrerenderResumeDataCache(
+      // Prefill the mutable cache from the RDC if available.
+      requestStore.resumeDataCache ?? undefined
+    )
     requestStore.resumeDataCache = prerenderResumeDataCache
 
     const cacheSignal = new CacheSignal()
@@ -3885,7 +3888,10 @@ async function renderToStream(
           Boolean(renderOpts.partialPrefetching) ||
           (await anySegmentHasPartialPrefetchingEnabled(tree))
         ) {
-          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+          const prerenderResumeDataCache = createPrerenderResumeDataCache(
+            // Prefill the mutable cache from the RDC if available.
+            requestStore.resumeDataCache ?? undefined
+          )
           requestStore.resumeDataCache = prerenderResumeDataCache
 
           const cacheSignal = new CacheSignal()
