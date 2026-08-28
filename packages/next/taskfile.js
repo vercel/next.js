@@ -2193,21 +2193,24 @@ export async function ncc_webpack_bundle5(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/webpack')
+}
 
-  // Webpack resolves its lazy-compilation clients relative to
-  // `lib/WebpackOptionsApply.js`. ncc flattens emitted assets into the bundle
-  // directory, so also preserve the relative `../hot/` layout webpack expects.
-  await task
-    .source('src/compiled/webpack/lazy-compilation-*.js')
-    .target('src/compiled/hot')
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('webpack/hot/lazy-compilation-universal.js')
+// Webpack resolves its lazy-compilation clients relative to
+// `lib/WebpackOptionsApply.js`. ncc flattens emitted assets into the bundle
+// directory, so also preserve the relative `../hot/` layout webpack expects.
+// This must be a separate task so the ncc transform above is not applied to
+// these verbatim runtime clients.
+export async function copy_webpack_lazy_compilation_clients(task) {
+  for (const client of ['node', 'universal', 'web']) {
+    await task
+      .source(
+        relative(
+          __dirname,
+          require.resolve(`webpack/hot/lazy-compilation-${client}.js`)
+        )
       )
-    )
-    .target('src/compiled/hot')
+      .target('src/compiled/hot')
+  }
 }
 
 const webpackBundlePackages = {
@@ -2450,7 +2453,10 @@ export async function ncc(task, opts) {
       ],
       opts
     )
-  await task.serial(['ncc_minimizer_webpack_plugin'], opts)
+  await task.serial(
+    ['copy_webpack_lazy_compilation_clients', 'ncc_minimizer_webpack_plugin'],
+    opts
+  )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(

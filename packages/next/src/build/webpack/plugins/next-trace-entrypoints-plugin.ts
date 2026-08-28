@@ -246,6 +246,19 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             appDirRelativeEntryPath &&
             isMetadataRouteFile(appDirRelativeEntryPath, [], true)
 
+          if (
+            appDirRelativeEntryPath &&
+            /[\\/](?:opengraph-image|twitter-image)/.test(
+              appDirRelativeEntryPath
+            )
+          ) {
+            // webpack 5.109 handles the default font's `new URL()` as an
+            // asset dependency before node-file-trace sees it.
+            entryFiles.add(
+              require.resolve('next/dist/compiled/@vercel/og/Geist-Regular.ttf')
+            )
+          }
+
           // Include the client reference manifest in the trace, but not for
           // static metadata routes, for which we don't generate those.
           if (!entryIsStaticMetadataRoute) {
