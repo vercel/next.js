@@ -6,7 +6,7 @@ Hold these requirements, and verify each one yourself before you call it done:
 
 2. **Bounded staleness, deduped reads.** Catalog and promo data may be up to 5 minutes stale. Repeat requests within that window must not hit the data layer again — one query serves all of them. (The data team audits `data/query-log.ndjson`, so this is visible.)
 
-3. **Strictly per-user.** The account and cart pages stay private to each customer. One customer's billing email or cart contents must never appear in any prebuilt output, and must never be stored anywhere another customer's request could read it.
+3. **Strictly per-user.** The account and cart pages stay private to each customer. One customer's billing email or cart contents must never appear in any prebuilt output, and must never be stored in any cache or store that is shared across customers — per-customer keying inside a shared store does not satisfy this.
 
 4. **The visible UI stays exactly as it is today.**
 

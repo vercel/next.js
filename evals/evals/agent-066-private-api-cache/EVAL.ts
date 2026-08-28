@@ -60,6 +60,10 @@ async function getRecs(uid: string): Promise<{ items: unknown; stamp: unknown }>
   return await res.json()
 }
 
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+}
+
 function sourceFiles(dir: string): string[] {
   const root = join(process.cwd(), dir)
   if (!existsSync(root)) return []
@@ -149,7 +153,9 @@ test('prod: the first user is still served the original entry afterwards', async
 
 test('no hand-rolled in-process caches (multi-instance deployment)', () => {
   for (const f of [...sourceFiles('app'), ...sourceFiles('lib')]) {
-    const src = readFileSync(f, 'utf-8')
+    // Comments are stripped first so an explanatory remark that mentions
+    // `new Map()` or `globalThis.` doesn't falsely reject a correct solution.
+    const src = stripComments(readFileSync(f, 'utf-8'))
     expect(src, f).not.toMatch(/\bnew\s+(Map|WeakMap)\s*\(/)
     expect(src, f).not.toMatch(/\bglobalThis\s*[.[]/)
   }

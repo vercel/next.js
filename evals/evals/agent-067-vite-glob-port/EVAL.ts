@@ -23,9 +23,12 @@
  * .next/static/media/ and leaves only tiny URLs in the JS; bodies are then
  * fetch()ed on click. Predicted failures: fs.readdirSync in a server
  * component passing bodies as props (markers land in the RSC payload/HTML),
- * hard-coded import maps (add-a-file test), require.context (webpack-only;
- * md files hit "Unknown module type"), route handlers (banned by prompt:
- * static-bundle constraint), and eager/?raw globs (bodies in chunk JS).
+ * hard-coded import maps (add-a-file test), route handlers (banned by
+ * prompt: static-bundle constraint), and eager/?raw globs (bodies in chunk
+ * JS). Turbopack also implements webpack's require.context on this canary
+ * (turbopack-ecmascript references/require_context.rs), so a
+ * require.context-based port that meets the same outcome assertions is
+ * accepted as a legitimate directory-scanning alternative.
  */
 
 import { expect, test, beforeAll, afterAll } from 'vitest'
@@ -284,17 +287,23 @@ test(
   }
 )
 
-test('the document index is built with the bundler-native glob, not fs or endpoints', () => {
+test('a directory-scanning bundler API is used, not fs or endpoints', () => {
   const sources = sourceFiles().map((p) => ({
     p,
     code: stripComments(readSafe(p)),
   }))
 
-  // The Vite API works in Next.js — the port must use it (any option style).
-  const hasGlob = sources.some((s) => /import\.meta\.glob\s*[<(]/.test(s.code))
+  // The Vite API works in Next.js — the port must enumerate the files
+  // through the bundler. Turbopack supports both import.meta.glob and
+  // webpack's require.context, so either counts.
+  const hasBundlerScan = sources.some(
+    (s) =>
+      /import\.meta\.glob\s*[<(]/.test(s.code) ||
+      /require\.context\s*\(/.test(s.code)
+  )
   expect(
-    hasGlob,
-    'no import.meta.glob( call found outside comments in any source file'
+    hasBundlerScan,
+    'no import.meta.glob( or require.context( call found outside comments in any source file'
   ).toBe(true)
 
   // No filesystem enumeration or file reading in app code.
@@ -303,7 +312,6 @@ test('the document index is built with the bundler-native glob, not fs or endpoi
     [/\breadFile(?:Sync)?\b/, 'fs readFile'],
     [/from\s+['"](?:node:)?fs(?:\/promises)?['"]/, 'fs import'],
     [/require\s*\(\s*['"](?:node:)?fs(?:\/promises)?['"]\s*\)/, 'fs require'],
-    [/require\.context\s*\(/, 'require.context'],
   ]
   for (const s of sources) {
     for (const [re, label] of banned) {
