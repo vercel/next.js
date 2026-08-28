@@ -1599,7 +1599,10 @@ async function generateRuntimePrefetchResult(
 
   // We need to share caches between the prospective prerender and the final prerender,
   // but we're not going to persist this anywhere.
-  const prerenderResumeDataCache = createPrerenderResumeDataCache()
+  const prerenderResumeDataCache = createPrerenderResumeDataCache(
+    // Prefill the mutable cache from the RDC if available.
+    requestStore.resumeDataCache ?? undefined
+  )
 
   await prospectiveRuntimeServerPrerender(
     ctx,
