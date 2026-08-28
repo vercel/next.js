@@ -308,7 +308,9 @@ function buildWebpackError({
   if (module) {
     error.module = module
   }
-  error.loc = loc
+  if (loc) {
+    error.loc = loc
+  }
   return error
 }
 
@@ -359,8 +361,9 @@ function buildUnsupportedApiError({
   compilation: webpack.Compilation
   parser: webpack.javascript.JavascriptParser
 }) {
+  const atLine = loc?.start?.line ? ` at line: ${loc.start.line}` : ''
   return buildWebpackError({
-    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
+    message: `A Node.js API is used (${apiName}${atLine}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
     loc,
     ...rest,
