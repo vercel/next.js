@@ -928,7 +928,7 @@ export function registerHeadAndReportingTests(
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-cache-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -975,7 +975,7 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "description": "Next.js encountered URL data outside of Suspense.",
+             "description": "Next.js encountered unstable_prefetch() outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:26) @ PrefetchContent
@@ -993,15 +993,15 @@ export function registerHeadAndReportingTests(
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered \`unstable_prefetch()\` during prerendering or a navigation.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+           \`unstable_prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-cache-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)

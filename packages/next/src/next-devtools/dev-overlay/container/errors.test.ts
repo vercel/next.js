@@ -14,8 +14,11 @@ import {
   createLinkMetadataError,
   createLinkViewportError,
   createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
   createNavigationMetadataError,
+  createPrefetchMetadataError,
   createNavigationViewportError,
+  createPrefetchViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -28,6 +31,7 @@ import { getCards } from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
+  getErrorTypeLabel,
   getLinkPrefetchPartialErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -37,6 +41,29 @@ import {
 } from './errors'
 
 const ROUTE = '/example'
+
+describe('getErrorTypeLabel', () => {
+  function getLabel(instance: Error) {
+    const details = getBlockingRouteErrorDetails(instance)
+    if (!details) {
+      throw new Error('Expected Instant Insight details')
+    }
+    return getErrorTypeLabel(instance, 'runtime', details)
+  }
+
+  it('labels warning-only validation messages as Instant', () => {
+    expect(getLabel(createNavigationMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createNavigationViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createLinkBodyErrorInNavigation(ROUTE))).toBe('Instant')
+  })
+
+  it('labels prerender failures as Blocking Route', () => {
+    expect(getLabel(createRuntimeMetadataError(ROUTE))).toBe('Blocking Route')
+    expect(getLabel(createRuntimeViewportError(ROUTE))).toBe('Blocking Route')
+  })
+})
 
 describe('getGuidanceVariant', () => {
   describe('classifies runtime messages as runtime', () => {
@@ -94,6 +121,25 @@ describe('getGuidanceVariant', () => {
       },
     ])('$description', ({ error }) => {
       expect(getGuidanceVariant(error().message)).toBe('navigation')
+    })
+  })
+
+  describe('classifies prefetch messages as prefetch', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createPrefetchBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createPrefetchMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createPrefetchViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('prefetch')
     })
   })
 
@@ -254,6 +300,16 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
+  it('classifies createPrefetchBodyErrorInNavigation as blocking-route + prefetch + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'prefetch',
+      inNavigation: true,
+    })
+  })
+
   it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
     // dynamic branch by `isRuntimeVariant`. Documents current behavior.
@@ -284,6 +340,12 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
   })
 
+  it('classifies createPrefetchMetadataError as dynamic-metadata + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchMetadataError(ROUTE))
+    ).toEqual({ type: 'dynamic-metadata', variant: 'prefetch' })
+  })
+
   it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicMetadataError(ROUTE))
@@ -312,6 +374,12 @@ describe('getBlockingRouteErrorDetails', () => {
     expect(
       getBlockingRouteErrorDetails(createNavigationViewportError(ROUTE))
     ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
+  })
+
+  it('classifies createPrefetchViewportError as dynamic-viewport + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchViewportError(ROUTE))
+    ).toEqual({ type: 'dynamic-viewport', variant: 'prefetch' })
   })
 
   it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {
@@ -694,12 +762,27 @@ describe('isInstantNavigationError', () => {
     expect(isInstantNavigationError(error)).toBe(true)
   })
 
+  it('returns true for cache stage APIs in metadata and viewport', () => {
+    expect(isInstantNavigationError(createNavigationMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createNavigationViewportError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchViewportError(ROUTE))).toBe(
+      true
+    )
+  })
+
   it('returns false for prerender-phase blocking-route errors', () => {
     expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
     expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
   })
 
-  it('returns false for metadata/viewport/sync-io errors', () => {
+  it('returns false for blocking metadata/viewport/sync-io errors', () => {
     expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
       false
     )

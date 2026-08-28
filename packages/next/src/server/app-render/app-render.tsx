@@ -1336,6 +1336,7 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
     case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
+    case RenderStage.PrefetchRuntime:
     case RenderStage.Runtime:
     case RenderStage.NavigationRuntime:
     case RenderStage.Dynamic:
@@ -2002,6 +2003,14 @@ async function finalRuntimeServerPrerender(
     () => {
       if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.ShellRuntime)
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
+
+      // We may not reach this stage depending on the mode.
+      if (finalStage < RenderStage.PrefetchRuntime) return
+
+      finalStageController.advanceStage(RenderStage.PrefetchRuntime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -5393,6 +5402,7 @@ function getEnvironmentNameForStage(stage: RenderStage) {
     case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
+    case RenderStage.PrefetchRuntime:
     case RenderStage.Runtime:
     case RenderStage.NavigationRuntime:
       return 'Prefetch'
@@ -5620,6 +5630,8 @@ async function streamStagedRenderInDev({
     () => checkCacheMissAndAdvance(RenderStage.ShellRuntime),
     () => checkReveal(RenderStage.ShellRuntime),
 
+    () => checkCacheMissAndAdvance(RenderStage.PrefetchRuntime),
+
     () => checkCacheMissAndAdvance(RenderStage.Runtime),
     () => checkReveal(RenderStage.Runtime),
 
@@ -5701,6 +5713,9 @@ function getStageEndTimes(
     [RenderStage.ShellRuntime]: stageController.getStageEndTime(
       RenderStage.ShellRuntime
     ),
+    [RenderStage.PrefetchRuntime]: stageController.getStageEndTime(
+      RenderStage.PrefetchRuntime
+    ),
     [RenderStage.Runtime]: stageController.getStageEndTime(RenderStage.Runtime),
     [RenderStage.NavigationRuntime]: stageController.getStageEndTime(
       RenderStage.NavigationRuntime
@@ -5781,6 +5796,7 @@ async function renderWithWarmCachesForValidationInDev(
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime),
     () => stageController.advanceStage(RenderStage.Runtime),
     () => stageController.advanceStage(RenderStage.NavigationRuntime),
     () => stageController.advanceStage(RenderStage.Dynamic)
@@ -5915,6 +5931,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime),
     () => stageController.advanceStage(RenderStage.Runtime),
     // NOTE: We don't need `NavigationRuntime`, because we set `needsAppShell: false`
     // so `navigation()` resolves in the static stages.
@@ -7366,7 +7383,10 @@ async function validateInstantConfigs(
 
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
-  type RetryStage = RenderStage.Runtime | RenderStage.NavigationRuntime
+  type RetryStage =
+    | RenderStage.PrefetchRuntime
+    | RenderStage.Runtime
+    | RenderStage.NavigationRuntime
 
   type ValidationSequence = {
     stageOrder: PrefetchedSegmentStage[]
@@ -7376,6 +7396,7 @@ async function validateInstantConfigs(
     [ValidationPrefetchKind.Shell]: {
       stageOrder: [
         RenderStage.ShellRuntime,
+        RenderStage.PrefetchRuntime,
         RenderStage.Runtime,
         RenderStage.NavigationRuntime,
         RenderStage.Dynamic,
@@ -7383,6 +7404,7 @@ async function validateInstantConfigs(
       holeResolution: {
         [RenderStage.Static]: null, // no holes resolve in the Static stage (URL data like static params goes in the Runtime stage)
         [RenderStage.ShellRuntime]: null, // initial stage
+        [RenderStage.PrefetchRuntime]: DynamicHoleKind.Prefetch,
         [RenderStage.Runtime]: DynamicHoleKind.Link,
         [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
@@ -7397,6 +7419,7 @@ async function validateInstantConfigs(
       holeResolution: {
         [RenderStage.Static]: null, // initial stage
         [RenderStage.ShellRuntime]: null, // currently unused in static prefetch validation.
+        [RenderStage.PrefetchRuntime]: null, // currently unused in static prefetch validation.
         [RenderStage.Runtime]: DynamicHoleKind.Runtime,
         [RenderStage.NavigationRuntime]: null, // static prefetches never have navigation() holes.
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
@@ -7915,6 +7938,7 @@ async function renderWithRestartOnCacheMissInValidation(
     () => advanceStageIfNoCacheMiss(RenderStage.NavigationStatic),
     () => advanceStageIfNoCacheMiss(RenderStage.Static),
     () => advanceStageIfNoCacheMiss(RenderStage.ShellRuntime),
+    () => advanceStageIfNoCacheMiss(RenderStage.PrefetchRuntime),
     () => advanceStageIfNoCacheMiss(RenderStage.Runtime),
     () => advanceStageIfNoCacheMiss(RenderStage.NavigationRuntime),
     () => advanceStageIfNoCacheMiss(RenderStage.Dynamic)
@@ -8018,6 +8042,7 @@ async function renderWithRestartOnCacheMissInValidation(
     () => finalStageController.advanceStage(RenderStage.NavigationStatic),
     () => finalStageController.advanceStage(RenderStage.Static),
     () => finalStageController.advanceStage(RenderStage.ShellRuntime),
+    () => finalStageController.advanceStage(RenderStage.PrefetchRuntime),
     () => finalStageController.advanceStage(RenderStage.Runtime),
     () => finalStageController.advanceStage(RenderStage.NavigationRuntime),
     () => finalStageController.advanceStage(RenderStage.Dynamic)
