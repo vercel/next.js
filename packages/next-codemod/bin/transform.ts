@@ -22,27 +22,6 @@ function expandFilePathsIfNeeded(filesBeforeExpansion) {
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = join(__dirname, '../', 'transforms')
 
-export async function confirmVercelDeployment(
-  nonInteractive: boolean
-): Promise<boolean> {
-  if (nonInteractive) {
-    return true
-  }
-
-  const { isAppDeployedToVercel } = await prompts(
-    {
-      type: 'confirm',
-      name: 'isAppDeployedToVercel',
-      message:
-        'Is your app deployed to Vercel? (Required to apply the selected codemod)',
-      initial: true,
-    },
-    { onCancel }
-  )
-
-  return isAppDeployedToVercel
-}
-
 export async function runTransform(
   transform: string,
   path: string,
@@ -101,8 +80,18 @@ export async function runTransform(
     transformer = res.transformer
   }
 
-  if (transformer === 'next-request-geo-ip') {
-    if (!(await confirmVercelDeployment(options.nonInteractive === true))) {
+  if (transformer === 'next-request-geo-ip' && !options.nonInteractive) {
+    const { isAppDeployedToVercel } = await prompts(
+      {
+        type: 'confirm',
+        name: 'isAppDeployedToVercel',
+        message:
+          'Is your app deployed to Vercel? (Required to apply the selected codemod)',
+        initial: true,
+      },
+      { onCancel }
+    )
+    if (!isAppDeployedToVercel) {
       console.log(
         'Skipping codemod "next-request-geo-ip" as your app is not deployed to Vercel.'
       )
