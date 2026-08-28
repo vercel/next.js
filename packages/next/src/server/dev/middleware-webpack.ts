@@ -285,6 +285,11 @@ export async function createOriginalStackFrame({
   }
 }
 
+const sourceMapCache = new WeakMap<
+  webpack.Compilation,
+  WeakMap<webpack.Module, RawSourceMap | null>
+>()
+
 async function getSourceMapFromCompilation(
   id: string,
   compilation: webpack.Compilation
@@ -296,6 +301,19 @@ async function getSourceMapFromCompilation(
       return undefined
     }
 
+    let compilationSourceMaps = sourceMapCache.get(compilation)
+    if (!compilationSourceMaps) {
+      compilationSourceMaps = new WeakMap()
+      sourceMapCache.set(compilation, compilationSourceMaps)
+    } else if (compilationSourceMaps.has(module)) {
+      return compilationSourceMaps.get(module) ?? undefined
+    }
+
+    const cacheSourceMap = (sourceMap: RawSourceMap | undefined) => {
+      compilationSourceMaps.set(module, sourceMap ?? null)
+      return sourceMap
+    }
+
     const codeGenerationResults = compilation.codeGenerationResults
     if (!codeGenerationResults) {
       return undefined
@@ -305,6 +323,9 @@ async function getSourceMapFromCompilation(
       compilation.chunkGraph.getModuleRuntimes(module)
     )
     for (const runtime of runtimes) {
+      // Generated on demand when webpack has not stored a result for this
+      // runtime, which is the case for a module that failed to render. The
+      // result is cached above rather than written back into the compilation.
       const codeGenerationResult = codeGenerationResults.has(module, runtime)
         ? codeGenerationResults.get(module, runtime)
         : module.codeGeneration({
@@ -320,11 +341,11 @@ async function getSourceMapFromCompilation(
       const source = codeGenerationResult.sources.get('javascript')
       const sourceMap = source?.map()
       if (sourceMap) {
-        return sourceMap
+        return cacheSourceMap(sourceMap)
       }
     }
 
-    return module.originalSource()?.map() ?? undefined
+    return cacheSourceMap(module.originalSource()?.map() ?? undefined)
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
     return undefined
