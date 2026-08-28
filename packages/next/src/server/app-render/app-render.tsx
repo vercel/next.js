@@ -1140,7 +1140,10 @@ async function generateStagedDynamicFlightRenderResultNode(
   // processing and increases the response payload size.
   if (prefetchMode === PrefetchingMode.Partial) {
     // Create a mutable cache that gets filled during the dynamic render.
-    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+    const prerenderResumeDataCache = createPrerenderResumeDataCache(
+      // Prefill the mutable cache from the RDC if available.
+      requestStore.resumeDataCache ?? undefined
+    )
     requestStore.resumeDataCache = prerenderResumeDataCache
 
     const cacheSignal = new CacheSignal(immediateTracker)
@@ -3967,12 +3970,13 @@ async function renderToStream(
         // If the route should runtime-cache its navigation, spawn a runtime
         // prerender after the resume render fills caches. The result is
         // embedded in the initial RSC payload so the client can cache
-        // runtime-prefetchable content during hydration. This is enabled when
-        // Partial Prefetching is on for the route, either per segment (a
-        // `prefetch` of 'partial') or globally (the
-        // `partialPrefetching` config).
+        // runtime-prefetchable content during hydration. This is enabled for
+        // Partial Prefetching routes.
         if (prefetchMode === PrefetchingMode.Partial) {
-          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+          const prerenderResumeDataCache = createPrerenderResumeDataCache(
+            // Prefill the mutable cache from the RDC if available.
+            requestStore.resumeDataCache ?? undefined
+          )
           requestStore.resumeDataCache = prerenderResumeDataCache
 
           const cacheSignal = new CacheSignal(immediateTracker)
