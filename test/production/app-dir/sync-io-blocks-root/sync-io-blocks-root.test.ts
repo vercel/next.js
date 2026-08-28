@@ -75,10 +75,11 @@ describe.skip('sync IO that blocks the root', () => {
         }
 
         if (isDebugPrerender) {
-          // The detailed diagnostic comes from the static generation worker
-          // and can be lost when React 18 aborts before flushing the root. The
-          // parent process still reports the failed route in its export summary.
-          expect(result.cliOutput).toContain(`${route}/page: ${route}`)
+          // Diagnostic mode: retain the original assertion so CI exposes the
+          // process trace whenever the detailed message is missing.
+          expect(result.cliOutput).toContain(
+            `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+          )
         } else {
           expect(result.cliOutput).toContain(
             `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
