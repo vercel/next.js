@@ -241,6 +241,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(Box::new([export])),
             star_exports: Vec::new(),
+            // This module only re-exports one binding of `self.module` under a different name, so
+            // whether its own key may be shortened follows the module it renames.
+            mangle_export_names: match &*self.module.get_exports().await? {
+                EcmascriptExports::EsmExports(exports) => exports.await?.mangle_export_names,
+                _ => false,
+            },
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
