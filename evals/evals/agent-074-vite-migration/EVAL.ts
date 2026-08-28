@@ -158,7 +158,17 @@ function rscPayload(): string {
  * old Vite app kept as a read-only reference (vite-src/), and EVAL itself.
  */
 function sourceFiles(): { p: string; code: string }[] {
-  const skip = new Set(['node_modules', '.next', 'content', '.git', 'vite-src'])
+  // __agent_eval__ is the harness's own runtime dir, injected into the
+  // sandbox cwd after the agent finishes — its helper files use fs and must
+  // never count against the agent's solution.
+  const skip = new Set([
+    'node_modules',
+    '.next',
+    'content',
+    '.git',
+    'vite-src',
+    '__agent_eval__',
+  ])
   const files: string[] = []
   for (const entry of readdirSync(ROOT, { withFileTypes: true })) {
     if (skip.has(entry.name)) continue

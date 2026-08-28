@@ -60,7 +60,8 @@ function walkFiles(root: string): string[] {
 
 /** All fixture-owned .ts/.tsx sources (excludes deps, build output, EVAL). */
 function sourceFiles(): { path: string; text: string }[] {
-  const skip = /\/(node_modules|\.next|\.git)\//
+  // __agent_eval__ is the harness's own runtime dir, injected post-agent.
+  const skip = /\/(node_modules|\.next|\.git|__agent_eval__)\//
   return walkFiles(process.cwd())
     .filter((p) => /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(p))
     .filter((p) => !skip.test(p))

@@ -74,7 +74,14 @@ const PRISTINE_PRODUCTS =
 
 function sourceFiles(): string[] {
   const out: string[] = []
-  const skipDirs = new Set(['node_modules', '.next', '.git', 'data'])
+  // __agent_eval__ is the harness's own runtime dir, injected post-agent.
+  const skipDirs = new Set([
+    'node_modules',
+    '.next',
+    '.git',
+    'data',
+    '__agent_eval__',
+  ])
   const entries = readdirSync(ROOT, { recursive: true, withFileTypes: true })
   for (const d of entries) {
     if (!d.isFile()) continue

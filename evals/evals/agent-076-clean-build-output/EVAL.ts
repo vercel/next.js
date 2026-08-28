@@ -250,10 +250,13 @@ test('the vendored client still loads through the bundler, not a shim', () => {
   // accepted: relative, or the tsconfig `@/` alias).
   const importShape =
     /(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(?\s*)['"][^'"]*vendor\/telemetry-client/
+  // __agent_eval__ is the eval harness's own runtime directory, injected into
+  // the sandbox cwd after the agent finishes — never scan it.
   const sources = walkFiles(ROOT, /\.(ts|tsx|js|jsx|mjs|cjs)$/, [
     'node_modules',
     '.next',
     'vendor',
+    '__agent_eval__',
   ]).filter((p) => !/EVAL/.test(relative(ROOT, p)))
   const importers = sources.filter((p) =>
     importShape.test(stripComments(readFileSync(p, 'utf-8')))
@@ -304,10 +307,13 @@ test('the warning is suppressed, not swallowed: no output-stream tampering', () 
       'patches the console object',
     ],
   ]
+  // __agent_eval__ is the eval harness's own runtime directory, injected into
+  // the sandbox cwd after the agent finishes — never scan it.
   const sources = walkFiles(ROOT, /\.(ts|tsx|js|jsx|mjs|cjs)$/, [
     'node_modules',
     '.next',
     'vendor',
+    '__agent_eval__',
   ]).filter((p) => !/EVAL/.test(relative(ROOT, p)))
   for (const p of sources) {
     const code = stripComments(readFileSync(p, 'utf-8'))

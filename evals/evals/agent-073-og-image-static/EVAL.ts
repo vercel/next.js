@@ -70,6 +70,7 @@ function sourceFiles(): string[] {
     if (
       p.includes('node_modules') ||
       p.includes('.next') ||
+      p.includes('__agent_eval__') ||
       /EVAL/i.test(d.name)
     ) {
       continue

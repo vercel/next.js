@@ -91,7 +91,10 @@ function stripComments(src: string): string {
  * .js/.mjs/.cjs files just as well as in .ts/.tsx.
  */
 function sourceFiles(): string[] {
-  const skip = /\/(node_modules|\.next|\.git)\//
+  // __agent_eval__ is the eval harness's own runtime directory, injected into
+  // the sandbox cwd after the agent finishes — its helper files contain let/var
+  // and fs usage that must never count against the agent's solution.
+  const skip = /\/(node_modules|\.next|\.git|__agent_eval__)\//
   const files: string[] = []
   for (const d of readdirSync(process.cwd(), {
     recursive: true,

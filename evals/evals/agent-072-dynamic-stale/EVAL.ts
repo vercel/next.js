@@ -67,7 +67,14 @@ function walkSourceFiles(): string[] {
     const parent = (d as any).parentPath ?? (d as any).path
     const full = join(parent, d.name)
     const rel = relative(ROOT, full)
-    if (rel.split('/').some((s) => s === 'node_modules' || s === '.next'))
+    if (
+      rel
+        .split('/')
+        .some(
+          (s) =>
+            s === 'node_modules' || s === '.next' || s === '__agent_eval__'
+        )
+    )
       continue
     if (!d.isFile()) continue
     if (!/\.(ts|tsx)$/.test(d.name)) continue
