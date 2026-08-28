@@ -258,7 +258,11 @@ mod relativize_glob_tests {
             let (glob, root) = relativize_glob("../../lib/*.js", &dir).unwrap();
             assert_eq!((glob, root.path.as_str()), ("lib/*.js", "project"));
 
-            // `./` and `../` may be mixed and are all consumed.
+            // `./` and `../` may be mixed, in either order, and are all consumed.
+            let (glob, root) = relativize_glob(".././utils/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("utils/*.js", "project/src"));
+            let (glob, root) = relativize_glob("./../lib/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("lib/*.js", "project/src"));
             let (glob, root) = relativize_glob("././../.././x/*.js", &dir).unwrap();
             assert_eq!((glob, root.path.as_str()), ("x/*.js", "project"));
 
