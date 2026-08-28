@@ -371,6 +371,11 @@ fn split_pattern(pattern: &str) -> (PatternRoot, &str) {
     }
 }
 
+/// Strip the `!` prefix that marks a negative (exclusion) pattern.
+fn strip_negation(pattern: &str) -> &str {
+    pattern.strip_prefix('!').unwrap_or(pattern)
+}
+
 /// A glob pattern rewritten to be relative to the common scan directory.
 struct NormalizedPattern {
     /// Where the original pattern was rooted.
@@ -724,7 +729,7 @@ impl ImportMetaGlobAsset {
             self.patterns.iter().partition(|p| !p.starts_with('!'));
         let negative_raw = negative_raw
             .iter()
-            .map(|p| p.strip_prefix('!').unwrap_or(p))
+            .map(|p| strip_negation(p))
             .collect::<Vec<_>>();
 
         // Figure out where each pattern is rooted, then pick a single directory
@@ -739,27 +744,32 @@ impl ImportMetaGlobAsset {
             Some((root, dir))
         };
 
-        let mut scan_dir = base_dir.clone();
-        for pattern in &positive_raw {
-            let Some((_, root_dir)) = pattern_root_dir(pattern) else {
+        // No pattern may point outside of the project, not even a negative one:
+        // silently ignoring it would include files the user asked to exclude.
+        // Report the pattern as it was written, so it can be found in the source.
+        for pattern in &self.patterns {
+            if pattern_root_dir(strip_negation(pattern)).is_none() {
                 emit_escapes_root_issue(self, &origin_dir, &format!("the pattern {pattern:?}"))
                     .await?;
                 return Ok(Vc::cell(Default::default()));
-            };
+            }
+        }
+
+        // A negative pattern can't add files, but it can be rooted above the
+        // positive patterns (e.g. `['../dir/*.js', '!/dir/skip.js']`), and it
+        // still has to be expressible relative to `scan_dir`, so both are
+        // considered here.
+        let mut scan_dir = base_dir.clone();
+        for pattern in positive_raw
+            .iter()
+            .map(|p| p.as_str())
+            .chain(negative_raw.iter().copied())
+        {
+            let (_, root_dir) =
+                pattern_root_dir(pattern).context("every pattern was checked above")?;
             // Every root is an ancestor of `base_dir` (or the project root), so
             // the shortest path is an ancestor of all of them.
             if root_dir.path.len() < scan_dir.path.len() {
-                scan_dir = root_dir;
-            }
-        }
-        // A negative pattern can't add files, but it can be rooted above the
-        // positive patterns (e.g. `['../dir/*.js', '!/dir/skip.js']`), and it
-        // still has to be expressible relative to `scan_dir`. A negative pattern
-        // that leaves the filesystem can't exclude anything and is ignored.
-        for pattern in &negative_raw {
-            if let Some((_, root_dir)) = pattern_root_dir(pattern)
-                && root_dir.path.len() < scan_dir.path.len()
-            {
                 scan_dir = root_dir;
             }
         }
@@ -770,11 +780,10 @@ impl ImportMetaGlobAsset {
         };
 
         // Rewrite a pattern to be relative to `scan_dir`.
-        let normalize = |pattern: &str| -> Result<Option<NormalizedPattern>> {
+        let normalize = |pattern: &str| -> Result<NormalizedPattern> {
             let (_, rest) = split_pattern(pattern);
-            let Some((root, root_dir)) = pattern_root_dir(pattern) else {
-                return Ok(None);
-            };
+            let (root, root_dir) =
+                pattern_root_dir(pattern).context("every pattern was checked above")?;
             let prefix = if root_dir == scan_dir {
                 ""
             } else {
@@ -782,20 +791,20 @@ impl ImportMetaGlobAsset {
                     .get_path_to(&root_dir)
                     .context("the scanned directory must contain every pattern root")?
             };
-            Ok(Some(NormalizedPattern {
+            Ok(NormalizedPattern {
                 root,
                 relative_to_scan_dir: if prefix.is_empty() {
                     rest.into()
                 } else {
                     format!("{prefix}/{rest}").into()
                 },
-            }))
+            })
         };
 
         let mut positive_globs: Vec<Vc<Glob>> = Vec::with_capacity(positive_raw.len());
         let mut root_absolute_globs: Vec<Vc<Glob>> = Vec::new();
         for pattern in &positive_raw {
-            let normalized = normalize(pattern)?.context("pattern root was checked above")?;
+            let normalized = normalize(pattern)?;
             let glob = Glob::new(normalized.relative_to_scan_dir.clone(), glob_options);
             if normalized.root == PatternRoot::ProjectRoot {
                 root_absolute_globs.push(glob);
@@ -813,14 +822,11 @@ impl ImportMetaGlobAsset {
         // same way and combined into a single alternation glob.
         let mut negative_globs: Vec<Vc<Glob>> = Vec::with_capacity(negative_raw.len());
         for pattern in &negative_raw {
-            // A negative pattern that leaves the project root can't exclude
-            // anything inside it, so it is simply dropped.
-            if let Some(normalized) = normalize(pattern)? {
-                negative_globs.push(Glob::new(
-                    normalized.relative_to_scan_dir.clone(),
-                    glob_options,
-                ));
-            }
+            let normalized = normalize(pattern)?;
+            negative_globs.push(Glob::new(
+                normalized.relative_to_scan_dir.clone(),
+                glob_options,
+            ));
         }
         let negative_glob = if negative_globs.is_empty() {
             None

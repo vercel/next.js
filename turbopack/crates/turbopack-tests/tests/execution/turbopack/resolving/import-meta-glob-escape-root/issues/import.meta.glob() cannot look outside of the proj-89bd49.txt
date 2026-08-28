@@ -1,5 +1,5 @@
 error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:5:21  import.meta.glob() cannot look outside of the project root
-       1 | // `base` (and a pattern) that walk above the filesystem root must produce a
+       1 | // `base` and patterns that walk above the filesystem root must produce a
        2 | // normal, actionable error issue and an empty result — not an internal
        3 | // Turbopack error with a panic report.
        4 | 
@@ -14,8 +14,3 @@ error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/r
       11 | })
   
   the 'base' option "../../../../../../../../../../../.." of import.meta.glob("*.js") resolves to a directory above the project root, relative to turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input. Patterns are relative to the importing file, or absolute from the project root when they start with `/`.
-  
-  Import trace:
-    test:
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js

@@ -14,8 +14,3 @@ error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/r
       19 | })
   
   the pattern "../../../../../../../../../../../../*.js" of import.meta.glob("../../../../../../../../../../../../*.js") resolves to a directory above the project root, relative to turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input. Patterns are relative to the importing file, or absolute from the project root when they start with `/`.
-  
-  Import trace:
-    test:
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js
