@@ -1,3 +1,5 @@
+import path from 'path'
+
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO(lubieowoce): reenable when the cause of flakiness is found and fixed
@@ -43,7 +45,34 @@ describe.skip('sync IO that blocks the root', () => {
         if (isDebugPrerender) {
           args.push('--debug-prerender')
         }
-        const result = await next.build({ args })
+        const traceFile = `.sync-io-trace-${route.slice(1).replaceAll('/', '-')}-${isDebugPrerender ? 'debug' : 'production'}.log`
+        const result = await next.build({
+          args,
+          env: {
+            NEXT_TEST_SYNC_IO_TRACE: '1',
+            NEXT_TEST_SYNC_IO_TRACE_FILE: path.join(next.testDir, traceFile),
+            NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require=${path.join(__dirname, 'trace-preload.cjs')}`,
+          },
+        })
+
+        if (isDebugPrerender) {
+          const trace = await next.readFile(traceFile).catch(() => '')
+          console.log(
+            JSON.stringify({
+              route,
+              reactVersion: process.env.NEXT_TEST_REACT_VERSION ?? 'default',
+              exitCode: result.exitCode,
+              hasDetailedDiagnostic: result.cliOutput.includes(
+                `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+              ),
+              trace: trace
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .map((line) => JSON.parse(line)),
+            })
+          )
+        }
 
         if (isDebugPrerender) {
           // The detailed diagnostic comes from the static generation worker
