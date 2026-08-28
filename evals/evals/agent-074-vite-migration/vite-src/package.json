@@ -1,0 +1,21 @@
+{
+  "name": "recipe-box",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.tsx --outDir dist/server",
+    "serve": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5",
+    "vite": "^6.3.5"
+  }
+}
