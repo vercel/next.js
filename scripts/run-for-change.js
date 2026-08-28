@@ -1,5 +1,6 @@
 const { promisify } = require('util')
 const { exec: execOrig, spawn } = require('child_process')
+const { getDiffRevision, getGitInfo } = require('./git-info.js')
 
 const exec = promisify(execOrig)
 
@@ -55,44 +56,17 @@ const CHANGE_ITEM_GROUPS = {
 }
 
 async function main() {
-  let eventData = {}
+  const { branchName, remoteUrl } = await getGitInfo()
+  const diffRevision = await getDiffRevision()
 
-  try {
-    eventData = require(process.env.GITHUB_EVENT_PATH)['pull_request'] || {}
-  } catch (_) {}
+  const changesResult = await exec(
+    `git diff ${diffRevision} --name-only`
+  ).catch((err) => {
+    console.error(err)
+    return { stdout: '' }
+  })
 
-  const branchName =
-    eventData?.head?.ref ||
-    process.env.GITHUB_REF_NAME ||
-    (await exec('git rev-parse --abbrev-ref HEAD')).stdout
-
-  const remoteUrl =
-    eventData?.head?.repo?.full_name ||
-    process.env.GITHUB_REPOSITORY ||
-    (await exec('git remote get-url origin')).stdout
-
-  const isCanary =
-    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
-
-  try {
-    await exec('git remote set-branches --add origin canary')
-    await exec('git fetch origin canary --depth=20')
-  } catch (err) {
-    console.error(await exec('git remote -v'))
-    console.error(`Failed to fetch origin/canary`, err)
-  }
-  // if we are on the canary branch only diff current commit
-  const toDiff = isCanary
-    ? `${process.env.GITHUB_SHA || 'canary'}~`
-    : 'origin/canary...'
-
-  const changesResult = await exec(`git diff ${toDiff} --name-only`).catch(
-    (err) => {
-      console.error(err)
-      return { stdout: '' }
-    }
-  )
-  console.error({ branchName, remoteUrl, isCanary, changesResult })
+  console.error({ branchName, remoteUrl, changesResult })
   const changedFilesOutput = changesResult.stdout
 
   const typeIndex = process.argv.indexOf('--type')
