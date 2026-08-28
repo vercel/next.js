@@ -1144,7 +1144,8 @@ export default async function getBaseWebpackConfig(
           chunks: 'all' as const,
           name: 'framework',
           // Ensures the framework chunk is not created for App Router.
-          layer: isWebpackDefaultLayer,
+          layer: (layer: string | null) =>
+            isWebpackDefaultLayer(layer as WebpackLayerName | null),
           test(module: any) {
             const resource = module.nameForCondition?.()
             return resource
@@ -1171,22 +1172,23 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
-          name(module: {
-            layer: string | null | undefined
-            type: string
-            libIdent?: Function
-            updateHash: (hash: crypto.Hash) => void
-          }): string {
+          name(module: webpack.Module): string {
             const hash = crypto.createHash('sha1')
             if (isModuleCSS(module)) {
-              module.updateHash(hash)
+              ;(module.updateHash as (hash: crypto.Hash) => void)(hash)
             } else {
               if (!module.libIdent) {
                 throw new Error(
                   `Encountered unknown module type: ${module.type}. Please open an issue.`
                 )
               }
-              hash.update(module.libIdent({ context: dir }))
+              const ident = module.libIdent({ context: dir })
+              if (!ident) {
+                throw new Error(
+                  `Unable to identify module type: ${module.type}. Please open an issue.`
+                )
+              }
+              hash.update(ident)
             }
 
             // Ensures the name of the chunk is not the same between two modules in different layers
@@ -2299,6 +2301,16 @@ export default async function getBaseWebpackConfig(
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
+    // Webpack 5.109 enables these experiments in "auto" mode by default.
+    // Keep Next.js loaders authoritative and preserve the previous behavior.
+    ...(!isRspack
+      ? {
+          asyncWebAssembly: false,
+          css: false,
+          html: false,
+          typescript: false,
+        }
+      : {}),
     buildHttp: Array.isArray(config.experimental.urlImports)
       ? {
           allowedUris: config.experimental.urlImports,

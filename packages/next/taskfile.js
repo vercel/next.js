@@ -86,6 +86,7 @@ const externals = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
+  'minimizer-webpack-plugin': 'next/dist/compiled/minimizer-webpack-plugin',
 
   punycode: 'punycode/',
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
@@ -356,6 +357,15 @@ export async function ncc_acorn(task, opts) {
     .source(relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
     .target('src/compiled/acorn')
+}
+
+externals['@jridgewell/trace-mapping'] =
+  'next/dist/compiled/@jridgewell/trace-mapping'
+export async function ncc_jridgewell_trace_mapping(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@jridgewell/trace-mapping')))
+    .ncc({ packageName: '@jridgewell/trace-mapping', externals })
+    .target('src/compiled/@jridgewell/trace-mapping')
 }
 
 externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
@@ -1951,6 +1961,57 @@ export async function ncc_terser(task, opts) {
     .ncc({ packageName: 'terser', externals })
     .target('src/compiled/terser')
 }
+
+export async function ncc_minimizer_webpack_plugin(task, opts) {
+  const packagePath = require.resolve('minimizer-webpack-plugin/package.json')
+  const packageDir = dirname(packagePath)
+  const packageJson = require(packagePath)
+
+  await task
+    .source(join(packageDir, 'dist/*'))
+    // minimizer-webpack-plugin serializes minifier functions for workers, so
+    // preserve its source while redirecting bundled dependencies.
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (!file.base.endsWith('.js')) return
+      file.data = file.data
+        .toString()
+        .replace(
+          /require\(["']@jridgewell\/trace-mapping["']\)/g,
+          "require('next/dist/compiled/@jridgewell/trace-mapping')"
+        )
+        .replace(
+          /require\(["']schema-utils["']\)/g,
+          "require('next/dist/compiled/schema-utils3')"
+        )
+        .replace(
+          /require\(["']jest-worker["']\)/g,
+          "require('next/dist/compiled/jest-worker')"
+        )
+        .replace(
+          /require\(["']terser["']\)/g,
+          "require('next/dist/compiled/terser')"
+        )
+        .replace(
+          /require\(["']terser\/package\.json["']\)/g,
+          "require('next/dist/compiled/terser/package.json')"
+        )
+    })
+    .target('src/compiled/minimizer-webpack-plugin')
+
+  await task
+    .source(join(packageDir, 'LICENSE'))
+    .target('src/compiled/minimizer-webpack-plugin')
+  await writeJson(
+    join(__dirname, 'src/compiled/minimizer-webpack-plugin/package.json'),
+    {
+      name: packageJson.name,
+      version: packageJson.version,
+      license: packageJson.license,
+      main: './index.js',
+    }
+  )
+}
 externals['text-table'] = 'next/dist/compiled/text-table'
 export async function ncc_text_table(task, opts) {
   await task
@@ -2263,6 +2324,7 @@ export async function ncc(task, opts) {
         'ncc_node_cssescape',
         'ncc_node_shell_quote',
         'ncc_acorn',
+        'ncc_jridgewell_trace_mapping',
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
@@ -2366,6 +2428,7 @@ export async function ncc(task, opts) {
       ],
       opts
     )
+  await task.serial(['ncc_minimizer_webpack_plugin'], opts)
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(

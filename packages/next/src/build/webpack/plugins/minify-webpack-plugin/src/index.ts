@@ -125,7 +125,7 @@ export class MinifyPlugin {
         return {
           minify: async (options: {
             input: string
-            inputSourceMap: Object
+            inputSourceMap: Object | null
           }) => {
             const result = await (
               require('../../../../swc') as typeof import('../../../../swc')
