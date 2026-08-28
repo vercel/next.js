@@ -38,7 +38,7 @@ import {
   filterReqHeaders,
   actionsForbiddenHeaders,
 } from '../lib/server-ipc/utils'
-import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
+import { didMutatedCookiesRequestRevalidation } from '../web/spec-extension/adapters/request-cookies'
 
 import {
   JSON_CONTENT_TYPE_HEADER,
@@ -180,9 +180,11 @@ function addRevalidationHeader(
   )
     ? 1
     : 0
-  const isCookieRevalidated = getModifiedCookieValues(
+  // Only count cookie mutations that requested revalidation. Mutations
+  // performed with `revalidate: false` opt out of client cache invalidation.
+  const isCookieRevalidated = didMutatedCookiesRequestRevalidation(
     requestStore.mutableCookies
-  ).length
+  )
     ? 1
     : 0
 
