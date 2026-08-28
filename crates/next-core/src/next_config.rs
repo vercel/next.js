@@ -2589,13 +2589,20 @@ impl NextConfig {
         )
     }
 
+    /// Whether Turbopack should shorten ("mangle") the export names modules expose to each other.
+    ///
+    /// An explicit value always wins, in either direction — setting this to `true` in development
+    /// is honoured. `mode` only supplies the default when the option is unset: on in production
+    /// builds, off in development, where the extra module splitting costs rebuild time and the
+    /// short names make debugging harder for no benefit.
     #[turbo_tasks::function]
-    pub fn turbopack_mangle_export_names(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_mangle_export_names
-                .unwrap_or(false),
-        )
+    pub async fn turbopack_mangle_export_names(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            match self.experimental.turbopack_mangle_export_names {
+                Some(explicit) => explicit,
+                None => !mode.await?.is_development(),
+            },
+        ))
     }
 
     #[turbo_tasks::function]
