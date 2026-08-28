@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -437,13 +437,12 @@ pub struct Instrumentation {
     pub edge: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value]
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
-    #[turbo_tasks(trace_ignore)]
-    server_hmr_entry_map: Arc<ServerHmrEntryMap>,
+    server_hmr_entry_map: ResolvedVc<ServerHmrEntryMap>,
 }
 
 #[turbo_tasks::value_impl]
@@ -460,7 +459,7 @@ impl ProjectContainer {
                 None
             },
             options_state: State::new(None),
-            server_hmr_entry_map: Arc::new(ServerHmrEntryMap::default()),
+            server_hmr_entry_map: ServerHmrEntryMap::new(),
         }
         .cell())
     }
@@ -734,6 +733,10 @@ impl ProjectContainer {
                         .as_str(),
                 );
             }
+            // Registered entries hold chunk lists from the current project options. Drop them
+            // before invalidating the project so a config or environment update cannot expose
+            // stale ownership while the affected endpoints are rebuilt.
+            this.server_hmr_entry_map.await?.clear();
             this.options_state.set(Some(new_options));
             let project = project_operation(self)
                 .resolve()
@@ -841,7 +844,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            server_hmr_entry_map: self.server_hmr_entry_map.clone(),
+            server_hmr_entry_map: self.server_hmr_entry_map,
             build_id,
             encryption_key,
             preview_props,
@@ -885,7 +888,7 @@ impl ProjectContainer {
 }
 
 #[derive(Clone)]
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -897,8 +900,7 @@ pub struct Project {
     /// E.g. `apps/my-app`
     project_path: RcStr,
 
-    #[turbo_tasks(trace_ignore)]
-    server_hmr_entry_map: Arc<ServerHmrEntryMap>,
+    server_hmr_entry_map: ResolvedVc<ServerHmrEntryMap>,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
     /// Unix path. Corresponds to next.config.js's `distDir`.
@@ -961,21 +963,28 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn register_server_hmr_entry(
+    pub async fn register_server_hmr_entry(
         &self,
         entry_key: RcStr,
         chunk_lists: Option<ResolvedVc<ServerHmrChunkLists>>,
-    ) {
-        self.server_hmr_entry_map.set(
+    ) -> Result<()> {
+        self.server_hmr_entry_map.await?.set(
             entry_key,
             chunk_lists.unwrap_or_else(|| ServerHmrChunkLists::new(vec![]).resolved_cell()),
         );
+        Ok(())
     }
 
-    pub fn server_hmr_chunk_lists(&self, entry_key: &str) -> ResolvedVc<ServerHmrChunkLists> {
-        self.server_hmr_entry_map
+    pub async fn server_hmr_chunk_lists(
+        &self,
+        entry_key: &str,
+    ) -> Result<ReadRef<ServerHmrChunkLists>> {
+        let chunk_lists = self
+            .server_hmr_entry_map
+            .await?
             .get(entry_key)
-            .unwrap_or_else(|| ServerHmrChunkLists::new(vec![]).resolved_cell())
+            .unwrap_or_else(|| ServerHmrChunkLists::new(vec![]).resolved_cell());
+        Ok(chunk_lists.await?)
     }
 }
 
@@ -1235,6 +1244,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn server_hmr_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.server_hmr)
     }
 
     #[turbo_tasks::function]

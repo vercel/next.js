@@ -240,7 +240,8 @@ pub async fn endpoint_write_to_disk(
     if let Some(entry_key) = entry_key {
         project
             .await?
-            .register_server_hmr_entry(entry_key, server_hmr_chunks);
+            .register_server_hmr_entry(entry_key, server_hmr_chunks)
+            .await?;
     }
 
     Ok(*output_paths)

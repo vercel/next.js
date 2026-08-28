@@ -1857,7 +1857,7 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshotWithEffects {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
     version: ReadRef<ServerHmrChunkListVersion>,
@@ -1865,7 +1865,7 @@ struct ServerHmrSnapshotWithEffects {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshot {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
     version: ReadRef<ServerHmrChunkListVersion>,

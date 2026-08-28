@@ -1,13 +1,14 @@
 use std::{
     fmt::Display,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context, Result};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State,
+    TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
@@ -75,33 +76,55 @@ impl ServerHmrChunkLists {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
+struct ServerHmrEntries(FxIndexMap<RcStr, ResolvedVc<ServerHmrChunkLists>>);
+
+// HACK: This is safe for this session-only map because the referenced chunk lists are never
+// serialized and the owning value is never evicted within the session.
+unsafe impl OperationValue for ServerHmrEntries {}
+
+/// Tracks the server HMR chunk lists owned by each route entry, keyed by its entry key.
+///
+/// Ownership is registered imperatively when an endpoint is written, so this is a session-scoped
+/// value rather than task output: `serialization = "skip"` keeps a restored session from holding
+/// references to the previous session's chunk lists, and `evict = "never"` keeps the registered
+/// ownership alive for the whole session. Keeping this state here (instead of inline in
+/// [`crate::project::Project`]) is what lets `Project` itself stay serializable and cacheable.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct ServerHmrEntryMap {
-    entries: RwLock<FxIndexMap<RcStr, ResolvedVc<ServerHmrChunkLists>>>,
+    entries: State<ServerHmrEntries>,
 }
-
-impl PartialEq for ServerHmrEntryMap {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
-    }
-}
-
-impl Eq for ServerHmrEntryMap {}
 
 impl ServerHmrEntryMap {
-    pub fn set(&self, entry_key: RcStr, chunk_lists: ResolvedVc<ServerHmrChunkLists>) {
-        self.entries
-            .write()
-            .expect("server HMR entry map lock poisoned")
-            .insert(entry_key, chunk_lists);
+    // This must not be a `#[turbo_tasks::function]`: each project container owns one map.
+    pub fn new() -> ResolvedVc<Self> {
+        Self {
+            entries: State::new(ServerHmrEntries::default()),
+        }
+        .resolved_cell()
     }
 
+    /// Records the chunk lists owned by `entry_key`, replacing any previous registration.
+    pub fn set(&self, entry_key: RcStr, chunk_lists: ResolvedVc<ServerHmrChunkLists>) {
+        self.entries.update_conditionally(|entries| {
+            entries.0.insert(entry_key, chunk_lists) != Some(chunk_lists)
+        });
+    }
+
+    /// Reads the chunk lists owned by `entry_key`. Untracked: pulls are driven by the endpoint
+    /// write that registered them, not by task invalidation.
     pub fn get(&self, entry_key: &str) -> Option<ResolvedVc<ServerHmrChunkLists>> {
-        self.entries
-            .read()
-            .expect("server HMR entry map lock poisoned")
-            .get(entry_key)
-            .copied()
+        self.entries.get_untracked().0.get(entry_key).copied()
+    }
+
+    /// Drops every registration, e.g. when project options change and the chunk lists they were
+    /// built from no longer describe the project.
+    pub fn clear(&self) {
+        self.entries.update_conditionally(|entries| {
+            let was_populated = !entries.0.is_empty();
+            entries.0.clear();
+            was_populated
+        });
     }
 }
 

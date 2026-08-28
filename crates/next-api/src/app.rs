@@ -1785,16 +1785,24 @@ impl AppEndpoint {
             NextRuntime::NodeJs => {
                 // For node, there will be exactly one asset in this
                 let rsc_chunk = *app_entry_chunks_ref.first().unwrap();
-                let app_server_root = server_path.join("app")?;
-                let mut server_hmr_chunks =
-                    vec![ServerHmrChunkList::from_chunk_list(&app_server_root, rsc_chunk).await?];
-                if let Some(ssr_hmr_chunk_list) = ssr_hmr_chunk_list {
-                    server_hmr_chunks.push(
-                        ServerHmrChunkList::from_chunk_list(&app_server_root, ssr_hmr_chunk_list)
+                let server_hmr_chunks = if *project.server_hmr_enabled().await? {
+                    let app_server_root = server_path.join("app")?;
+                    let mut server_hmr_chunks = vec![
+                        ServerHmrChunkList::from_chunk_list(&app_server_root, rsc_chunk).await?,
+                    ];
+                    if let Some(ssr_hmr_chunk_list) = ssr_hmr_chunk_list {
+                        server_hmr_chunks.push(
+                            ServerHmrChunkList::from_chunk_list(
+                                &app_server_root,
+                                ssr_hmr_chunk_list,
+                            )
                             .await?,
-                    );
-                }
-                let server_hmr_chunks = ServerHmrChunkLists::new(server_hmr_chunks).resolved_cell();
+                        );
+                    }
+                    Some(ServerHmrChunkLists::new(server_hmr_chunks).resolved_cell())
+                } else {
+                    None
+                };
 
                 if emit_manifests != EmitManifests::None {
                     // create app paths manifest
@@ -2185,7 +2193,7 @@ impl Endpoint for AppEndpoint {
             let server_hmr_chunks = match *output.await? {
                 AppEndpointOutput::NodeJs {
                     server_hmr_chunks, ..
-                } => Some(server_hmr_chunks),
+                } => server_hmr_chunks,
                 AppEndpointOutput::Edge { .. } => None,
             };
 
@@ -2346,7 +2354,7 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
-        server_hmr_chunks: ResolvedVc<ServerHmrChunkLists>,
+        server_hmr_chunks: Option<ResolvedVc<ServerHmrChunkLists>>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
