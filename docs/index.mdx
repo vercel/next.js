@@ -1,67 +1,1044 @@
----
-title: Next.js Docs
-description: Welcome to the Next.js Documentation.
-related:
-  title: Next Steps
-  description: Create your first application and learn the core Next.js features.
-  links:
-    - app/getting-started
----
+GitHub
+   ↓
+Next.js
+   ↓
+Vercel
+   ↓
+Supabase
+   ↓
+Replicate
+   ↓
+Image + Video AI
+yourdomain.com
+       │
+       ├── /image
+       │      └── AI Image Generator
+       │
+       ├── /video
+       │      └── AI Video Generator
+       │
+       ├── /image-to-video
+       │      └── Animate Image
+       │
+       ├── /cinema
+       │      └── Camera + Motion Controls
+       │
+       ├── /character
+       │      └── Character Consistency
+       │
+       ├── /editor
+       │      └── AI Image/Video Editor
+       │
+       ├── /projects
+       │      └── User Projects
+       │
+       └── /account
+              └── Credits + Subscription
+YOUR WEBSITE
+     ↓
+VERCEL
+     ↓
+YOUR BACKEND
+     ↓
+AI ORCHESTRATOR
+     ↓
+┌───────────────┐
+│ Replicate     │
+│ Runway        │
+│ Other APIs    │
+└───────┬───────┘
+        ↓
+      AI/GPU
+        ↓
+    SUPABASE
+        ↓
+FINAL IMAGE/VIDEO
+ YOUR WEBSITE / APP
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │   FRONTEND / UI     │
+                     │ Next.js + React     │
+                     │ Mobile App          │
+                     └──────────┬──────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │    API GATEWAY      │
+                     │ Authentication      │
+                     │ Rate limiting       │
+                     │ Credits             │
+                     └──────────┬──────────┘
+                                │
+                                ▼
+                ┌────────────────────────────────┐
+                │     AI ORCHESTRATION SYSTEM   │
+                │                                │
+                │ Prompt → Task → Model → Job    │
+                │ Model selection                │
+                │ Queue management               │
+                │ Cost calculation                │
+                └───────────────┬────────────────┘
+                                │
+               ┌────────────────┼────────────────┐
+               ▼                ▼                ▼
+        ┌────────────┐   ┌────────────┐   ┌────────────┐
+        │ IMAGE AI   │   │ VIDEO AI   │   │ EDITING AI │
+        │ APIs       │   │ APIs       │   │ APIs       │
+        └─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+              │                │                │
+              └────────────────┼────────────────┘
+                               ▼
+                     ┌─────────────────────┐
+                     │ GPU / CLOUD WORKERS │
+                     │                     │
+                     │ Generation          │
+                     │ Upscaling           │
+                     │ Processing          │
+                     └──────────┬──────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ OBJECT STORAGE      │
+                     │ S3 / Cloudflare R2  │
+                     │                     │
+                     │ Images              │
+                     │ Videos              │
+                     │ Thumbnails           │
+                     │ User uploads         │
+                     └──────────┬──────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ FINAL MEDIA         │
+                     │                     │
+                     │ Image / Video       │
+                     │ Preview              │
+                     │ Download             │
+                     │ Share                │
+                     └─────────────────────┘
+2. YOUR WEBSITE / APP
 
-Welcome to the Next.js documentation!
+This is what your customer sees.
 
-## What is Next.js?
+I'd divide it into:
 
-Next.js is a React framework for building full-stack web applications. You use React Components to build user interfaces, and Next.js for additional features and optimizations.
+HOME
+│
+├── AI Image
+├── AI Video
+├── Image → Video
+├── AI Editor
+├── Character
+├── Cinema Studio
+├── Templates
+├── Projects
+├── History
+└── Account
+Main dashboard
+┌───────────────────────────────────────────────┐
+│ YOUR AI STUDIO                  4,850 Credits │
+├──────────────┬────────────────────────────────┤
+│              │                                │
+│ Dashboard    │       CREATE                  │
+│              │                                │
+│ Image        │   ┌────────┐ ┌────────┐       │
+│ Video        │   │ IMAGE  │ │ VIDEO  │       │
+│ Image→Video  │   └────────┘ └────────┘       │
+│ AI Editor    │                                │
+│ Characters   │   ┌───────────────┐            │
+│ Cinema       │   │ IMAGE → VIDEO │            │
+│ Templates    │   └───────────────┘            │
+│ Projects     │                                │
+│ History      │                                │
+│              │                                │
+└──────────────┴────────────────────────────────┘
+3. Frontend technology
 
-It also automatically configures lower-level tools like bundlers and compilers. You can instead focus on building your product and shipping quickly.
+I recommend:
 
-Whether you're an individual developer or part of a larger team, Next.js can help you build interactive, dynamic, and fast React applications.
+Next.js
+React
+TypeScript
+Tailwind CSS
+Shadcn/UI
+Framer Motion
 
-## How to use the docs
+For mobile:
 
-The docs are organized into 3 sections:
+React Native
 
-- [Getting Started](/docs/app/getting-started): Step-by-step tutorials to help you create a new application and learn the core Next.js features.
-- [Guides](/docs/app/guides): Tutorials on specific use cases, choose what's relevant to you.
-- [API Reference](/docs/app/api-reference): Detailed technical reference for every feature.
+or
 
-Use the sidebar to navigate through the sections, or search (`Ctrl+K` or `Cmd+K`) to quickly find a page.
+Flutter
+Why Next.js?
 
-## App Router and Pages Router
+Because your platform needs:
 
-Next.js has two different routers:
+authentication
+dashboard
+payments
+API requests
+file uploads
+project pages
+SEO
+responsive design
 
-- **App Router**: The newer router that supports new React features like Server Components.
-- **Pages Router**: The original router, still supported and being improved.
+all in one ecosystem.
 
-At the top of the sidebar, you'll notice a dropdown menu that allows you to switch between the [App Router](/docs/app) and the [Pages Router](/docs/pages) docs.
+4. API Gateway
 
-### React version handling
+Everything should pass through your backend.
 
-The App Router and Pages Router handle React versions differently:
+Don't let your frontend directly expose AI API keys.
 
-- **App Router**: Uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks, prior to a new React release.
+Bad:
 
-- **Pages Router**: Uses the React version installed in your project's `package.json`.
+Browser
+   ↓
+AI API
 
-This approach ensures new React features work reliably in the App Router while maintaining backwards compatibility for existing Pages Router applications.
+Instead:
 
-## Pre-requisite knowledge
+Browser
+   ↓
+YOUR API
+   ↓
+AI provider
 
-Our documentation assumes some familiarity with web development. Before getting started, it'll help if you're comfortable with:
+For example:
 
-- HTML
-- CSS
-- JavaScript
-- React
+POST /api/generate/image
 
-If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
+POST /api/generate/video
 
-## Accessibility
+POST /api/generate/image-to-video
 
-For the best experience when using a screen reader, we recommend using Firefox and NVDA, or Safari and VoiceOver.
+POST /api/edit/image
 
-## Join our Community
+POST /api/upscale
 
-If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions), [Discord](https://discord.com/invite/bUG2bvbtHy), [X (Twitter)](https://x.com/nextjs), and [Reddit](https://www.reddit.com/r/nextjs).
+GET /api/generation/:id
+
+Your secret API keys remain on your server.
+
+5. AI Orchestration System
+
+This is the most important part of your platform.
+
+The orchestration system decides:
+
+What does the user want, and which AI model should perform it?
+
+Example:
+
+USER
+
+"Create a cinematic video of this woman
+walking through a foggy forest."
+
+          ↓
+
+AI ORCHESTRATOR
+
+Task:
+IMAGE → VIDEO
+
+Aspect:
+9:16
+
+Duration:
+8 seconds
+
+Style:
+Cinematic
+
+Motion:
+Walking
+
+          ↓
+
+MODEL ROUTER
+
+Select best video model
+
+          ↓
+
+QUEUE
+
+Create job
+
+          ↓
+
+AI MODEL
+
+Generate video
+
+          ↓
+
+STORAGE
+
+Save video
+
+          ↓
+
+USER
+
+Watch / Download
+6. Model Router
+
+Don't hard-code one AI model.
+
+Create a model registry.
+
+MODEL REGISTRY
+
+IMAGE
+├── Model A
+├── Model B
+├── Model C
+└── Model D
+
+VIDEO
+├── Model A
+├── Model B
+├── Model C
+└── Model D
+
+Database example:
+
+ai_models
+
+id
+name
+provider
+type
+capabilities
+cost_per_generation
+max_resolution
+max_duration
+enabled
+priority
+
+Then your system can automatically choose the appropriate model.
+
+7. Image AI APIs
+
+Your image engine could support multiple providers/models.
+
+For example:
+
+                    IMAGE ENGINE
+                         │
+       ┌─────────────────┼─────────────────┐
+       ↓                 ↓                 ↓
+ Text → Image       Image → Image      Image Edit
+       │                 │                 │
+       ↓                 ↓                 ↓
+   Model A            Model B           Model C
+
+Features:
+
+Text → Image
+Prompt
++
+Style
++
+Aspect Ratio
++
+Resolution
+Image → Image
+Original image
++
+Prompt
++
+Strength
+Image editing
+Image
++
+Mask
++
+Instruction
+
+Example:
+
+Change the person's clothing to a traditional Chin outfit.
+
+8. Video AI APIs
+
+Create a separate video engine.
+
+                    VIDEO ENGINE
+                         │
+       ┌─────────────────┼──────────────────┐
+       ↓                 ↓                  ↓
+ Text → Video      Image → Video       Video → Video
+       │                 │                  │
+       ↓                 ↓                  ↓
+   Model A            Model B             Model C
+
+Support:
+
+Text → Video
+Image → Video
+First frame → Video
+First + last frame
+Reference video
+Video extension
+Video editing
+Video upscale
+9. Image → Video workflow
+
+This should be one of your main features.
+
+USER UPLOADS IMAGE
+       │
+       ▼
+Image stored temporarily
+       │
+       ▼
+User enters motion prompt
+       │
+       ▼
+AI Orchestrator
+       │
+       ▼
+Select video model
+       │
+       ▼
+Create job
+       │
+       ▼
+Worker
+       │
+       ▼
+Video API
+       │
+       ▼
+Video generated
+       │
+       ▼
+Upload to storage
+       │
+       ▼
+Database updated
+       │
+       ▼
+User sees video
+10. GPU / Cloud Processing
+
+There are actually two different approaches.
+
+Approach A — API-first
+
+You don't operate GPUs initially.
+
+YOUR SERVER
+     ↓
+AI API
+     ↓
+Provider's GPU
+     ↓
+Generated result
+
+This is the easiest way to launch.
+
+Approach B — Your own GPUs
+
+Later:
+
+YOUR SERVER
+     ↓
+GPU QUEUE
+     ↓
+NVIDIA GPU
+     ↓
+AI MODEL
+     ↓
+Generated result
+
+You might eventually use:
+
+NVIDIA L40S
+NVIDIA A100
+NVIDIA H100
+NVIDIA H200
+
+depending on workload and model requirements.
+
+11. Why you need a queue
+
+This is critical.
+
+Imagine 1,000 users click:
+
+Generate Video
+
+at the same time.
+
+Don't do:
+
+1,000 requests
+      ↓
+1,000 GPU jobs
+
+Instead:
+
+1,000 requests
+      ↓
+      QUEUE
+      ↓
+Job 1
+Job 2
+Job 3
+Job 4
+...
+Job 1000
+
+Use something like:
+
+Redis
++
+BullMQ
+
+Your workers then process jobs according to capacity.
+
+12. Generation job
+
+Every generation should have a unique job.
+
+Example:
+
+generation_id:
+gen_8f91ab23
+
+user_id:
+user_123
+
+type:
+image_to_video
+
+status:
+processing
+
+model:
+video-model-x
+
+progress:
+62%
+
+created_at:
+...
+
+completed_at:
+...
+
+Status:
+
+QUEUED
+   ↓
+PROCESSING
+   ↓
+UPLOADING
+   ↓
+COMPLETED
+
+or:
+
+FAILED
+13. Storage system
+
+Never store large videos directly inside PostgreSQL.
+
+Use object storage.
+
+Good options:
+
+Amazon S3
+Cloudflare R2
+Google Cloud Storage
+
+Example:
+
+bucket/
+│
+├── users/
+│   ├── user_123/
+│   │
+│   └── user_456/
+│
+├── generations/
+│   ├── images/
+│   ├── videos/
+│   └── thumbnails/
+│
+└── projects/
+
+Database stores the metadata.
+
+Storage stores the actual files.
+
+14. Database
+
+Use PostgreSQL.
+
+Important tables:
+
+users
+subscriptions
+credits
+credit_transactions
+
+projects
+generations
+generation_inputs
+generation_outputs
+
+ai_models
+ai_providers
+
+characters
+character_images
+
+uploads
+files
+
+templates
+
+payments
+
+Example:
+
+users
+---------
+id
+email
+name
+avatar
+created_at
+generations
+---------
+id
+user_id
+project_id
+type
+model
+prompt
+status
+credits_used
+created_at
+completed_at
+generation_outputs
+---------
+id
+generation_id
+file_url
+thumbnail_url
+width
+height
+duration
+size
+15. Character system
+
+For a Higgsfield-style platform, I'd make this a separate subsystem.
+
+USER
+ ↓
+Create Character
+ ↓
+Upload 3–10 reference images
+ ↓
+AI Character Processing
+ ↓
+Character ID
+ ↓
+Character Library
+
+Then:
+
+Character:
+"Sarah"
+
+Generate:
+Sarah in Paris
+
+Sarah in Tokyo
+
+Sarah in a forest
+
+Sarah on a movie set
+
+Sarah walking through London
+
+The system sends the character references to the appropriate model/API.
+
+16. Cinema Studio
+
+This could be your unique selling point.
+
+Instead of only:
+
+"Write a prompt"
+
+give users a filmmaking interface.
+
+CINEMA STUDIO
+
+SUBJECT
+[ Upload ]
+
+SCENE
+[ Describe ]
+
+CAMERA
+[ Sony A1 ]
+
+LENS
+[ 35mm ]
+
+APERTURE
+[ f/1.4 ]
+
+CAMERA MOVEMENT
+[ Dolly In ]
+
+SHOT TYPE
+[ Medium Shot ]
+
+LIGHTING
+[ Golden Hour ]
+
+FILM LOOK
+[ 35mm Film ]
+
+MOTION
+[ Slow ]
+
+RATIO
+[ 9:16 ]
+
+DURATION
+[ 8 sec ]
+
+             GENERATE
+
+The system then converts these parameters into a structured AI prompt.
+
+17. Prompt compiler
+
+This is another important component.
+
+User selects:
+
+Camera = Sony A1
+Lens = 85mm
+Movement = Dolly In
+Lighting = Golden Hour
+Film = 35mm
+Ratio = 9:16
+
+Your backend creates:
+
+{
+  subject: "...",
+  environment: "...",
+  camera: {
+    body: "Sony A1",
+    lens: "85mm",
+    movement: "dolly_in"
+  },
+  lighting: "golden_hour",
+  visual_style: "35mm_film",
+  aspect_ratio: "9:16"
+}
+
+Then your prompt engine turns that into the model-specific request.
+
+This lets you support different AI models without changing your entire UI.
+
+18. Credit system
+
+Every AI job should have a cost.
+
+User
+ ↓
+Check credits
+ ↓
+Enough?
+ ├── YES → Generate
+ └── NO  → Upgrade
+
+Example:
+
+IMAGE 1K        5 credits
+IMAGE 2K       10 credits
+IMAGE 4K       20 credits
+
+VIDEO 5 sec    50 credits
+VIDEO 10 sec  100 credits
+VIDEO 20 sec  200 credits
+
+Those are example values—you should calculate them from your actual provider costs.
+
+19. Payment system
+
+For India + international users:
+
+USER
+ ↓
+Choose plan
+ ↓
+Payment
+ ↓
+Webhook
+ ↓
+Your Backend
+ ↓
+Add credits
+
+You can support:
+
+Razorpay
+Stripe
+
+Do not add credits based only on the browser's payment-success page. Use the payment provider's server-side webhook.
+
+20. Final media delivery
+
+When generation finishes:
+
+AI MODEL
+   ↓
+Worker
+   ↓
+Validate file
+   ↓
+Generate thumbnail
+   ↓
+Upload original
+   ↓
+Upload thumbnail
+   ↓
+Database
+   ↓
+COMPLETED
+
+Frontend:
+
+┌──────────────────────────────┐
+│                              │
+│       GENERATED VIDEO        │
+│                              │
+│          ▶ PLAY              │
+│                              │
+├──────────────────────────────┤
+│ Download │ Share │ Edit      │
+└──────────────────────────────┘
+21. Recommended complete technology stack
+Frontend
+Next.js
+React
+TypeScript
+Tailwind
+Shadcn
+Framer Motion
+Backend
+Node.js
+TypeScript
+FastAPI/Python
+Database
+PostgreSQL
+Queue
+Redis
+BullMQ
+Storage
+Cloudflare R2
+or
+Amazon S3
+AI
+Replicate
+Runway
+Direct model APIs
+Own GPU models later
+Authentication
+Google OAuth
+Email/password
+Apple Sign-In
+Payments
+Razorpay
+Stripe
+22. Your actual project structure
+
+I would structure the code approximately like this:
+
+my-ai-studio/
+│
+├── apps/
+│   │
+│   ├── web/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── dashboard/
+│   │   ├── image/
+│   │   ├── video/
+│   │   ├── cinema/
+│   │   └── editor/
+│   │
+│   └── mobile/
+│
+├── services/
+│   │
+│   ├── api/
+│   ├── ai-orchestrator/
+│   ├── image-worker/
+│   ├── video-worker/
+│   ├── upload-service/
+│   └── payment-service/
+│
+├── packages/
+│   │
+│   ├── database/
+│   ├── ai-models/
+│   ├── prompts/
+│   ├── credits/
+│   └── shared/
+│
+├── infrastructure/
+│   ├── docker/
+│   ├── redis/
+│   └── deployment/
+│
+└── README.md
+23. Most important part: AI provider abstraction
+
+Don't write your application like this:
+
+if video:
+   call provider X
+
+Instead:
+
+AIProvider
+   │
+   ├── ImageProvider
+   ├── VideoProvider
+   ├── EditProvider
+   └── UpscaleProvider
+
+Then:
+
+VideoProvider
+   │
+   ├── Provider A
+   ├── Provider B
+   ├── Provider C
+   └── Provider D
+
+This means if one AI company changes its API or pricing, you can replace it without rebuilding your whole application.
+
+24. Production architecture
+
+Eventually I'd make it:
+
+                     CLOUDFLARE
+                         │
+                         ▼
+                   LOAD BALANCER
+                         │
+                         ▼
+                  NEXT.JS FRONTEND
+                         │
+                         ▼
+                    API GATEWAY
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+       AUTH           CREDITS        PROJECTS
+          │              │              │
+          └──────────────┼──────────────┘
+                         ▼
+                  AI ORCHESTRATOR
+                         │
+                 ┌───────┴────────┐
+                 ▼                ▼
+              REDIS            POSTGRES
+              QUEUE             DATABASE
+                 │
+          ┌──────┼───────┐
+          ▼      ▼       ▼
+       IMAGE   VIDEO   EDIT
+       WORKER  WORKER  WORKER
+          │      │       │
+          └──────┼───────┘
+                 ▼
+          AI PROVIDERS
+                 │
+                 ▼
+             GPU CLOUD
+                 │
+                 ▼
+          OBJECT STORAGE
+                 │
+                 ▼
+          FINAL MEDIA
+25. Build it in this order
+
+Don't start by building the GPU infrastructure.
+
+Phase 1 — MVP
+1. Domain
+2. Next.js website
+3. Login
+4. Dashboard
+5. Image generation
+6. Video generation
+7. Image → video
+8. File storage
+9. Generation history
+10. Credits
+Phase 2
+11. Multiple AI models
+12. AI model router
+13. Prompt enhancer
+14. Image editor
+15. Character consistency
+16. Templates
+17. Projects
+Phase 3
+18. Cinema Studio
+19. Camera controls
+20. Motion controls
+21. First/last frame
+22. Storyboard
+23. Video extension
+24. AI upscaling
+Phase 4
+25. Mobile app
+26. Own GPU workers
+27. Open-source models
+28. Fine-tuned models
+29. Advanced video editor
+30. Creator marketplace
+The key idea
+
+Your business is not simply an AI model.
+
+It's this:
+
+                 YOUR PRODUCT
+                      │
+      ┌───────────────┼────────────────┐
+      ↓               ↓                ↓
+ Beautiful UI    AI ORCHESTRATOR    User System
+      │               │                │
+      │        ┌──────┼───────┐        │
+      │        ↓      ↓       ↓        │
+      │      Image   Video   Edit      │
+      │        │      │       │        │
+      │        └──────┼───────┘        │
+      │               ↓                │
+      │          GPU / APIs            │
+      │               ↓                │
+      └────────── STORAGE ─────────────┘
+                      ↓
+               FINAL CREATION
