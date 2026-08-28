@@ -73,6 +73,7 @@ describe('sync IO that blocks the root', () => {
             JSON.stringify(
               {
                 route,
+                cwd: process.cwd(),
                 reactVersion: process.env.NEXT_TEST_REACT_VERSION ?? 'default',
                 exitCode: result.exitCode,
                 hasDetailedDiagnostic: result.cliOutput.includes(
