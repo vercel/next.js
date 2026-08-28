@@ -1,0 +1,16 @@
+{
+  "records": [
+    { "sku": "INV-1001", "qty": 42 },
+    { "sku": "INV-1002", "qty": 7 },
+    { "sku": "INV-1003", "qty": 130 },
+    { "sku": "INV-1004", "qty": 5 },
+    { "sku": "INV-1005", "qty": 61 },
+    { "sku": "INV-1006", "qty": 18 },
+    { "sku": "INV-1007", "qty": 240 },
+    { "sku": "INV-1008", "qty": 3 },
+    { "sku": "INV-1009", "qty": 77 },
+    { "sku": "INV-1010", "qty": 12 },
+    { "sku": "INV-1011", "qty": 55 },
+    { "sku": "INV-1012", "qty": 91 }
+  ]
+}
