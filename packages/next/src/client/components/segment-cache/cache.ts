@@ -3775,8 +3775,10 @@ function addSegmentPathToUrlInOutputExportMode(
     const routeDir = staticUrl.pathname.endsWith('/')
       ? staticUrl.pathname.slice(0, -1)
       : staticUrl.pathname
-    const staticExportFilename =
-      convertSegmentPathToStaticExportFilename(segmentPath)
+    const staticExportFilename = convertSegmentPathToStaticExportFilename(
+      segmentPath,
+      getNavigationBuildId()
+    )
     staticUrl.pathname = `${routeDir}/${staticExportFilename}`
     return staticUrl
   }

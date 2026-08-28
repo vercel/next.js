@@ -39,6 +39,7 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { getStaticExportRscPath } from '../../../shared/lib/static-export-rsc'
 import {
   stripIsPartialByte,
   bufferPrefetchResponseBody,
@@ -175,14 +176,13 @@ export async function fetchServerResponse(
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         // In "output: export" mode, we can't rely on headers to distinguish
-        // between HTML and RSC requests. Instead, we append an extra prefix
-        // to the request.
+        // between HTML and RSC requests. Instead, we request a build-specific
+        // .txt file so payloads from multiple deployments can coexist.
         url = new URL(url)
-        if (url.pathname.endsWith('/')) {
-          url.pathname += 'index.txt'
-        } else {
-          url.pathname += '.txt'
-        }
+        url.pathname = getStaticExportRscPath(
+          url.pathname,
+          getNavigationBuildId()
+        )
       }
     }
 

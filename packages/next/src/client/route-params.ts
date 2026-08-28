@@ -19,6 +19,8 @@ import type {
 } from './components/segment-cache/cache-key'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { ParsedUrlQuery } from 'querystring'
+import { getNavigationBuildId } from './navigation-build-id'
+import { stripStaticExportRscPath } from '../shared/lib/static-export-rsc'
 
 export type RouteParamValue = string | Array<string> | null
 
@@ -225,15 +227,11 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
       process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
-      const { pathname } = urlWithoutFlightParameters
-      // Undo the marker appended in `fetchServerResponse`, which is keyed on
-      // whether the requested pathname ended with a slash: `index.txt` for
-      // `/foo/`, `.txt` for `/foo`. Slicing off only `index.txt` keeps that
-      // slash, then `normalizePathTrailingSlash` applies the configured
-      // policy so we don't hand-roll a second one here.
-      const length = pathname.endsWith('/index.txt') ? 9 : 4
       urlWithoutFlightParameters.pathname = normalizePathTrailingSlash(
-        pathname.slice(0, -length)
+        stripStaticExportRscPath(
+          urlWithoutFlightParameters.pathname,
+          getNavigationBuildId()
+        )
       )
     }
   }
