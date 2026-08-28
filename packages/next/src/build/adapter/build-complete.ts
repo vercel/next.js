@@ -2188,22 +2188,6 @@ export async function handleBuildComplete({
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
 
-    // The entries that match a request under the prefix of a combination. They
-    // are collected apart from the entries for the plain paths, and the table
-    // lists this whole block first.
-    //
-    // A root-level catch-all is what forces the order. `/[...slug]` and
-    // `/[[...slug]]` match `/__variants/<hash>/p1/x`, capturing the whole path
-    // as the param, so a plain entry listed first would claim a request that
-    // belongs to a per-combination artifact. This order is safe in both
-    // directions, because no request for a plain path can match a prefixed
-    // pattern: every one of them requires the `/__variants/` literal.
-    //
-    // The blocks also have to be contiguous. The route collapses group
-    // neighbours in the table, so a block that a plain entry interrupts cannot
-    // be collapsed at all.
-    const variantsPrefixedRoutes: DynamicRouteItem[] = []
-
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
       if (items.length === 0) return ''
@@ -2445,7 +2429,7 @@ export async function handleBuildComplete({
           // form gains nothing of its own here: the prefix is a literal ahead
           // of the page pattern, so it neither takes part in the suffix group
           // nor changes what that group can match.
-          variantsPrefixedRoutes.push({
+          dynamicRoutes.push({
             source: pagePath,
             sourceRegex: variantsSourceRegex.replace(
               new RegExp(escapeStringRegexp('(?:/)?$')),
@@ -2470,7 +2454,7 @@ export async function handleBuildComplete({
           // that rule takes any character, and would otherwise take the suffix
           // as part of the param.
           if (hasAppPages) {
-            variantsPrefixedRoutes.push({
+            dynamicRoutes.push({
               source: pagePath + '.rsc',
               sourceRegex: variantsSourceRegex.replace(
                 new RegExp(escapeStringRegexp('(?:/)?$')),
@@ -2482,7 +2466,7 @@ export async function handleBuildComplete({
             })
           }
 
-          variantsPrefixedRoutes.push({
+          dynamicRoutes.push({
             source: pagePath,
             sourceRegex: variantsSourceRegex,
             destination: withCombination(variantsDestination),
@@ -2534,7 +2518,7 @@ export async function handleBuildComplete({
           ? path.posix.join('/', config.basePath)
           : ''
 
-      variantsPrefixedRoutes.push({
+      dynamicRoutes.push({
         source: page,
         sourceRegex: `^${basePathPrefix}[/]?/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)${escapeStringRegexp(page)}(?:/)?$`,
         destination: `${path.posix.join('/', config.basePath, page)}?${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
@@ -2643,7 +2627,6 @@ export async function handleBuildComplete({
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
       const combinedDynamicRoutes = [
-        ...variantsPrefixedRoutes,
         ...dynamicDataRoutes,
         ...dynamicSegmentRoutes,
         ...dynamicRoutes,
