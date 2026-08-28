@@ -53,17 +53,41 @@ export function getVariantDecide(
   return value[VARIANT_DECIDE]
 }
 
+export function isVariant(value: unknown): value is Variant<string> {
+  return typeof value === 'function' && VARIANT_KEY in value
+}
+
 /**
- * Asserts that the value a `decide` function returned is a string.
+ * Where a variant value came from. A `decide` function returns one, and a
+ * combination assigns one. Each origin gets its own wording, so that an error
+ * names the code that supplied the value.
+ */
+type VariantValueOrigin = 'decide' | 'assignment'
+
+/**
+ * Asserts that a variant value is a string, and returns it.
  *
  * Any string is allowed, whatever characters it holds, because the transport
  * encodes it. A value that is not a string is the one thing to reject: it would
  * serialize into something that does not round-trip.
  */
-export function assertValidVariantValue(key: string, value: unknown): string {
+export function assertValidVariantValue(
+  key: string,
+  value: unknown,
+  origin: VariantValueOrigin
+): string {
   if (typeof value !== 'string') {
+    // Each origin has its own literal message. A computed prefix would give the
+    // two of them one error code, and neither wording would appear in the
+    // source.
+    if (origin === 'decide') {
+      throw new Error(
+        `The variant \`${key}\` resolved to a ${typeof value} value. Variant values must be strings.`
+      )
+    }
+
     throw new Error(
-      `The variant \`${key}\` resolved to a ${typeof value} value. Variant values must be strings.`
+      `The variant \`${key}\` was assigned a ${typeof value} value. Variant values must be strings.`
     )
   }
 
@@ -118,6 +142,19 @@ export function unstable_variant<T extends string = string>(
     [VARIANT_DECIDE]: { value: decide },
   }) as Variant<T>
 }
+
+/**
+ * Assigns one value to one variant.
+ *
+ * The tuple holds the variant itself, and not its name. An object key would be
+ * a local identifier at the call site: under `import { theme as t }` the
+ * framework could not map it back to the identity of the variant. A tuple is
+ * exact, and a rename does not change it.
+ */
+export type VariantAssignment<T extends string = string> = readonly [
+  Variant<T>,
+  T,
+]
 
 /**
  * Resolves a variant value at the render stage that the value belongs to.
