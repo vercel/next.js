@@ -428,7 +428,9 @@ test('cacheComponents stays enabled', () => {
     .map((f) => join(ROOT, f))
     .find((p) => existsSync(p))
   expect(configPath).toBeTruthy()
-  const config = read(configPath as string)
+  // Comment-stripped so a prose mention of `cacheComponents: false` in a
+  // comment can't false-fail a correct solution.
+  const config = stripComments(read(configPath as string))
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
   expect(config).not.toMatch(/cacheComponents\s*:\s*false/)
 })
