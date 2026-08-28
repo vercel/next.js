@@ -687,7 +687,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       .traceAsyncFn(() =>
         recursiveDeleteSyncWithAsyncRetries(
           join(this.dir, this.config.distDir),
-          /^(cache|lock)/
+          new Set(['cache', 'lock'])
         )
       )
   }

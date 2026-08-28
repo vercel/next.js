@@ -1446,6 +1446,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    turbopack_mangle_export_names: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -2428,21 +2430,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_transition_indicator(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_gesture_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_blocking_ssr(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -2482,6 +2469,16 @@ impl NextConfig {
                 Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
             }
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn use_react_experimental(&self) -> Vc<bool> {
+        // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+        let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
+        let taint = self.experimental.taint.unwrap_or(false);
+        let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
+        let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
+        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
     }
 
     #[turbo_tasks::function]
@@ -2585,6 +2582,22 @@ impl NextConfig {
                 .turbopack_cjs_tree_shaking
                 .unwrap_or(false),
         )
+    }
+
+    /// Whether Turbopack should shorten ("mangle") the export names modules expose to each other.
+    ///
+    /// An explicit value always wins, in either direction — setting this to `true` in development
+    /// is honoured. `mode` only supplies the default when the option is unset: on in production
+    /// builds, off in development, where the extra module splitting costs rebuild time and the
+    /// short names make debugging harder for no benefit.
+    #[turbo_tasks::function]
+    pub async fn turbopack_mangle_export_names(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            match self.experimental.turbopack_mangle_export_names {
+                Some(explicit) => explicit,
+                None => !mode.await?.is_development(),
+            },
+        ))
     }
 
     #[turbo_tasks::function]
