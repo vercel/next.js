@@ -37,23 +37,13 @@ it('should apply negative patterns that walk up out of the importer directory', 
   expect(Object.keys(parentNegative)).toEqual(['../outside/one.js'])
 })
 
-// Absolute from the project root. In this test suite the project root is the
-// repository root.
-const absolute = import.meta.glob(
-  '/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-relative/outside/*.js',
-  { eager: true }
-)
+// Absolute from the directory a `/`-rooted request resolves from, which in this
+// test suite is the test's own directory rather than the root of the filesystem.
+const absolute = import.meta.glob('/outside/*.js', { eager: true })
 
-it('should match a pattern that is absolute from the project root', () => {
-  expect(Object.keys(absolute)).toEqual([
-    '/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-relative/outside/one.js',
-    '/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-relative/outside/two.js',
-  ])
-  expect(
-    absolute[
-      '/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-relative/outside/one.js'
-    ].default
-  ).toBe('one')
+it('should match a pattern that is absolute from the root of the project', () => {
+  expect(Object.keys(absolute)).toEqual(['/outside/one.js', '/outside/two.js'])
+  expect(absolute['/outside/one.js'].default).toBe('one')
 })
 
 const mixedRoots = import.meta.glob(['./local/*.js', '../outside/one.js'], {
@@ -62,10 +52,7 @@ const mixedRoots = import.meta.glob(['./local/*.js', '../outside/one.js'], {
 
 // A negative pattern may be rooted above the positive patterns.
 const mixedRootsNegative = import.meta.glob(
-  [
-    '../outside/*.js',
-    '!/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-relative/outside/two.js',
-  ],
+  ['../outside/*.js', '!/outside/two.js'],
   { eager: true }
 )
 
