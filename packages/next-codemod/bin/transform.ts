@@ -21,7 +21,7 @@ function expandFilePathsIfNeeded(filesBeforeExpansion) {
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = join(__dirname, '../', 'transforms')
-export const jscodeshiftExtensions = ['tsx', 'ts', 'jsx', 'js', 'mjs', 'cjs']
+export const jscodeshiftExtensions = ['tsx', 'ts', 'jsx', 'js', 'mjs']
 
 export async function runTransform(
   transform: string,

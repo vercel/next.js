@@ -4,34 +4,21 @@ const path = require('node:path')
 const { jscodeshiftExtensions, runTransform } = require('../transform')
 
 describe('transform runner', () => {
-  it('includes JavaScript module config extensions', () => {
-    expect(jscodeshiftExtensions).toEqual([
-      'tsx',
-      'ts',
-      'jsx',
-      'js',
-      'mjs',
-      'cjs',
-    ])
+  it('includes the JavaScript module config extension', () => {
+    expect(jscodeshiftExtensions).toEqual(['tsx', 'ts', 'jsx', 'js', 'mjs'])
   })
 
-  it.each([
-    [
-      'mjs',
-      "export default { experimental: { turbo: { resolveAlias: { underscore: 'lodash' } } } }",
-    ],
-    [
-      'cjs',
-      "module.exports = { experimental: { turbo: { resolveAlias: { underscore: 'lodash' } } } }",
-    ],
-  ])('transforms next.config.%s files', async (extension, source) => {
+  it('transforms next.config.mjs files', async () => {
     const directory = fs.mkdtempSync(
       path.join(os.tmpdir(), 'next-codemod-transform-')
     )
-    const configPath = path.join(directory, `next.config.${extension}`)
+    const configPath = path.join(directory, 'next.config.mjs')
 
     try {
-      fs.writeFileSync(configPath, source)
+      fs.writeFileSync(
+        configPath,
+        "export default { experimental: { turbo: { resolveAlias: { underscore: 'lodash' } } } }"
+      )
 
       await runTransform('next-experimental-turbo-to-turbopack', directory, {
         force: true,
