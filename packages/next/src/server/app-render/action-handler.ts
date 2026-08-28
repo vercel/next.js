@@ -428,8 +428,7 @@ async function createRedirectRenderResult(
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
-          ''
+        workStore.incrementalCache?.previewProps.previewModeId || ''
       )
     }
 
@@ -564,6 +563,20 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
+function getRevalidationWaitUntil(
+  workStore: WorkStore,
+  skipPageRendering: boolean
+): Promise<void> | undefined {
+  if (!skipPageRendering) {
+    // Page rendering executes pending revalidations before rendering. We only
+    // need to attach them to waitUntil when no page render will take place.
+    return undefined
+  }
+
+  const revalidatesPromise = executeRevalidates(workStore)
+  return revalidatesPromise === false ? undefined : revalidatesPromise
+}
+
 export async function handleAction({
   req,
   res,
@@ -642,12 +655,6 @@ export async function handleAction({
         ? getInvalidServerReferenceIdError(actionId)
         : getActionNotFoundError(actionId)
     return handleUnrecognizedFetchAction(error)
-  }
-
-  if (workStore.isStaticGeneration) {
-    throw new Error(
-      "Invariant: server actions can't be handled during static rendering"
-    )
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -747,6 +754,14 @@ export async function handleAction({
   )
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  // A fetch action targeting a fallback route has no concrete params with
+  // which to resume the destination page.
+  const isActionOnlyFallbackRequest =
+    isFetchAction &&
+    requestStore.fallbackParams != null &&
+    typeof ctx.renderOpts.postponed === 'string'
+  const shouldSkipPageRendering =
+    actionWasForwarded || isActionOnlyFallbackRequest
 
   // Only attempt to forward if this request has not already been forwarded.
   // Otherwise middleware that rewrites the action POST can cause the receiving
@@ -1222,7 +1237,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            actionWasForwarded
+            shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1239,13 +1254,6 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          // If we skip page rendering, we need to ensure pending revalidates
-          // are awaited before closing the response. Otherwise, this will be
-          // done after rendering the page.
-          const maybeRevalidatesPromise = skipPageRendering
-            ? executeRevalidates(workStore)
-            : false
-
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
@@ -1253,10 +1261,10 @@ export async function handleAction({
                 actionResult: Promise.resolve(actionResult),
                 skipPageRendering,
                 temporaryReferences,
-                waitUntil:
-                  maybeRevalidatesPromise === false
-                    ? undefined
-                    : maybeRevalidatesPromise,
+                waitUntil: getRevalidationWaitUntil(
+                  workStore,
+                  skipPageRendering
+                ),
               })
             ),
           }
@@ -1320,9 +1328,13 @@ export async function handleAction({
         return {
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
-            skipPageRendering: false,
+            skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
+            waitUntil: getRevalidationWaitUntil(
+              workStore,
+              shouldSkipPageRendering
+            ),
           }),
         }
       }
@@ -1353,17 +1365,20 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
+      const skipPageRendering =
+        workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate ||
+        shouldSkipPageRendering
+
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // If the page was not revalidated, or if the action was forwarded
-          // from another worker, we can skip rendering the page.
-          skipPageRendering:
-            workStore.pathWasRevalidated === undefined ||
-            workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            actionWasForwarded,
+          // If the page was not revalidated, or if this is an action-only
+          // request, we can skip rendering the page.
+          skipPageRendering,
           temporaryReferences,
+          waitUntil: getRevalidationWaitUntil(workStore, skipPageRendering),
         }),
       }
     }
@@ -1386,13 +1401,13 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  actionWasForwarded: boolean
+  shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
-  let skipPageRendering = actionWasForwarded
+  let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
     throw new Error(
@@ -1405,8 +1420,8 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if the action was forwarded from
-    // another worker, we can skip rendering the page.
+    // If the page was not revalidated, or if this is an action-only request,
+    // we can skip rendering the page.
     skipPageRendering ||=
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate

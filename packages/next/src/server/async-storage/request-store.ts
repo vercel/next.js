@@ -30,29 +30,43 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
+/**
+ * Internal request headers that userland `headers()` must not expose. They stay
+ * on the shared request headers for framework plumbing.
+ *
+ * Every internal header that the client can send must be listed here. The
+ * sealed userland view reads through to the shared request headers, so an
+ * omission leaks the header to userland.
+ *
+ * The names are lowercased because `HeadersAdapter.seal` matches them in
+ * lowercase.
+ */
+const HIDDEN_REQUEST_HEADERS: ReadonlySet<string> = new Set(
+  [
+    ...FLIGHT_HEADERS,
+    // The client sends these dev-only request IDs so the server can route debug
+    // information back to the originating request. Like the flight headers,
+    // they are internal plumbing.
+    NEXT_REQUEST_ID_HEADER,
+    NEXT_HTML_REQUEST_ID_HEADER,
+  ].map((header) => header.toLowerCase())
+)
+
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
-  // `HeadersAdapter.from` wraps `IncomingHttpHeaders` (and returns a `Headers`
-  // instance unchanged) without copying, so the `delete` calls below would
-  // otherwise mutate the caller's underlying request headers. We copy first so
-  // that stripping internal headers only affects the sealed userland view, not
-  // the shared `req.headers`. The latter matters because the dev server reads
-  // the request-id headers from the raw request again (e.g. when rendering a
-  // redirect target after a server action), and mutating them there would break
-  // the dev debug channel routing.
-  const cleaned = HeadersAdapter.from(
-    headers instanceof Headers ? new Headers(headers) : { ...headers }
+  // The sealed userland view must not copy the request headers.
+  // `HeadersAdapter.from` returns a `Headers` instance unchanged, so the view
+  // reads through to `NextRequest.headers`. A copy detaches `headers()` from
+  // the writes that Proxy makes to `NextRequest.headers` afterwards.
+  //
+  // The view must also not delete the internal headers. Because
+  // `HeadersAdapter.from` does not copy, a delete removes them from the shared
+  // `req.headers`. The dev server reads the request-id headers from the raw
+  // request again, for example when it renders a redirect target after a server
+  // action. Their removal breaks the dev debug channel routing.
+  return HeadersAdapter.seal(
+    HeadersAdapter.from(headers),
+    HIDDEN_REQUEST_HEADERS
   )
-  for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header)
-  }
-
-  // The client sends these dev-only request IDs so the server can route debug
-  // information back to the originating request. Like the flight headers, they
-  // are internal plumbing and must not be exposed to userland `headers()`.
-  cleaned.delete(NEXT_REQUEST_ID_HEADER)
-  cleaned.delete(NEXT_HTML_REQUEST_ID_HEADER)
-
-  return HeadersAdapter.seal(cleaned)
 }
 
 function getMutableCookies(

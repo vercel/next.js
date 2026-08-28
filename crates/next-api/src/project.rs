@@ -45,7 +45,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     canonicalize_to_rcstr, invalidation,
 };
 use turbo_unix_path::join_path;
@@ -88,12 +88,12 @@ use turbopack_core::{
         VersionState, VersionedContent,
     },
 };
-#[cfg(feature = "process_pool")]
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
-use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
     aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
@@ -102,6 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -176,39 +177,6 @@ pub struct WatchOptions {
 pub struct DebugBuildPaths {
     pub app: Vec<RcStr>,
     pub pages: Vec<RcStr>,
-}
-
-/// Target for HMR operations - client-side (browser) or server-side (Node.js).
-#[turbo_tasks::task_input]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
-pub enum HmrTarget {
-    #[default]
-    Client,
-    Server,
-}
-
-impl std::fmt::Display for HmrTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HmrTarget::Client => write!(f, "client"),
-            HmrTarget::Server => write!(f, "server"),
-        }
-    }
-}
-
-impl std::str::FromStr for HmrTarget {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "client" => Ok(HmrTarget::Client),
-            "server" => Ok(HmrTarget::Server),
-            _ => Err(format!(
-                "Invalid HMR target: '{}'. Expected 'client' or 'server'",
-                s
-            )),
-        }
-    }
 }
 
 /// Pre-converted route keys from debug build paths for O(1) lookups.
@@ -294,8 +262,14 @@ impl DebugBuildPathsRouteKeys {
 
     fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
         // Special pages router framework routes
-        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-            return true;
+        if matches!(
+            route_key.as_str(),
+            "/_error" | "/_document" | "/_app" | "/404" | "/500"
+        ) {
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
         }
         self.pages.contains(route_key)
     }
@@ -630,9 +604,7 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             if watch.enable {
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
+                project_fs.start_watching().await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     // this path is just used for display purposes
@@ -775,9 +747,7 @@ impl ProjectContainer {
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
                 if watch.enable {
                     // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs
-                        .start_watching_with_invalidation_reason(watch.poll_interval)
-                        .await?;
+                    project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                         // this path is just used for display purposes
@@ -891,8 +861,8 @@ impl ProjectContainer {
 
     /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
-    pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
-        self.project().hmr_chunk_names(target)
+    pub fn hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        self.project().hmr_chunk_names()
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -1086,10 +1056,19 @@ impl Project {
             .unwrap()
             .into();
 
-        Ok(DiskFileSystem::new_with_denied_paths(
+        Ok(DiskFileSystem::new_with_options(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path, denied_profiles_path],
+            DiskWatcherConfig {
+                poll_interval: self.watch.poll_interval,
+                // the dev server reports these to the user
+                report_invalidation_reason: true,
+                extended_batch_delay_matcher: Some(ResolvedVc::upcast(
+                    NodeModulesPathMatcher.resolved_cell(),
+                )),
+                ..Default::default()
+            },
         ))
     }
 
@@ -1254,7 +1233,7 @@ impl Project {
         let node_backend = match strategy {
             #[cfg(feature = "worker_pool")]
             TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
-            #[cfg(feature = "process_pool")]
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
             TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 
@@ -1391,6 +1370,7 @@ impl Project {
                 Route::AppRoute {
                     original_name: _,
                     endpoint,
+                    ..
                 } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
@@ -1452,7 +1432,10 @@ impl Project {
                 .chain(std::iter::once(self.client_main_modules().owned().await?))
                 .chain(std::iter::once(GraphEntries::new(
                     vec![],
-                    self.additional_traced_modules().owned().await?,
+                    // The superset of what any endpoint traces, so that these modules and their
+                    // references are part of the graph. Which endpoint actually traces them is
+                    // decided by what is passed to `trace_endpoint`.
+                    self.pages_traced_modules().owned().await?,
                 ))),
         );
 
@@ -1620,7 +1603,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1659,7 +1642,7 @@ impl Project {
                 output_root: self.node_root().owned().await?,
                 output_root_to_root_path: self.node_root_to_root_path().owned().await?,
                 environment: self.client_compile_time_info().environment(),
-                minify: self.next_config().turbo_minify(self.next_mode()),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
@@ -1709,7 +1692,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1751,7 +1734,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -2476,36 +2459,16 @@ impl Project {
         .await
     }
 
-    /// Returns the root path for HMR content based on the target.
-    /// Client uses client_relative_path, Server uses node_root.
     #[turbo_tasks::function]
-    async fn hmr_root_path(self: Vc<Self>, target: HmrTarget) -> Result<Vc<FileSystemPath>> {
-        Ok(match target {
-            HmrTarget::Client => self.client_relative_path(),
-            HmrTarget::Server => self.node_root(),
-        })
+    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.node_root().await?.join("server/app")?.cell())
     }
 
+    /// Get client HMR content by chunk_name.
     #[turbo_tasks::function]
-    async fn aggregate_hmr_root_path(
-        self: Vc<Self>,
-        target: HmrTarget,
-    ) -> Result<Vc<FileSystemPath>> {
-        match target {
-            HmrTarget::Client => bail!("aggregate HMR is not implemented for the client"),
-            HmrTarget::Server => Ok(self.node_root().await?.join("server/app")?.cell()),
-        }
-    }
-
-    /// Get HMR content by chunk_name for the specified target.
-    #[turbo_tasks::function]
-    async fn hmr_content(
-        self: Vc<Self>,
-        chunk_name: RcStr,
-        target: HmrTarget,
-    ) -> Result<Vc<OptionVersionedContent>> {
+    async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.hmr_root_path(target).await?.join(&chunk_name)?);
+            let content = map.get(self.client_relative_path().await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
@@ -2518,7 +2481,6 @@ impl Project {
     pub async fn hmr_version_state(
         self: ResolvedVc<Self>,
         chunk_name: RcStr,
-        target: HmrTarget,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         // The session argument is important to avoid caching this function between
@@ -2529,23 +2491,22 @@ impl Project {
             level = "info",
             name = "get HMR version",
             skip_all,
-            fields(chunk_name = %chunk_name, target = %target),
+            fields(chunk_name = %chunk_name),
         )]
         #[turbo_tasks::function(operation, root)]
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
-            target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
-            tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
-            let content = this.hmr_content(chunk_name, target).await?;
+            tracing::info!(chunk_name = %chunk_name, "hmr subscription");
+            let content = this.hmr_content(chunk_name).await?;
             if let Some(content) = &*content {
                 Ok(content.version())
             } else {
                 Ok(Vc::upcast(NotFoundVersion::new()))
             }
         }
-        let version_op = hmr_version_operation(self, chunk_name, target);
+        let version_op = hmr_version_operation(self, chunk_name);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
@@ -2561,16 +2522,15 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `chunk_name` for the specified target.
+    /// internally known as `chunk_name`.
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
         chunk_name: RcStr,
-        target: HmrTarget,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(chunk_name, target).await?;
+        let content = self.hmr_content(chunk_name).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2579,35 +2539,21 @@ impl Project {
     }
 
     /// Aggregate counterpart to [`Self::hmr_version_state`]: one [`VersionState`]
-    /// covering every HMR-eligible chunk under `target`'s root. See
-    /// [`Self::all_hmr_update`].
+    /// covering every server HMR-eligible chunk. See [`Self::server_hmr_update`].
     #[turbo_tasks::function(session_dependent)]
-    pub async fn all_hmr_version_state(
-        self: ResolvedVc<Self>,
-        target: HmrTarget,
-    ) -> Result<Vc<VersionState>> {
-        if target == HmrTarget::Client {
-            bail!("all_hmr_version_state is not yet implemented for the client target");
-        }
-
-        #[tracing::instrument(
-            level = "info",
-            name = "get aggregate HMR version",
-            skip_all,
-            fields(target = %target),
-        )]
+    pub async fn server_hmr_version_state(self: ResolvedVc<Self>) -> Result<Vc<VersionState>> {
+        #[tracing::instrument(level = "info", name = "get server HMR version", skip_all)]
         #[turbo_tasks::function(operation, root)]
-        async fn aggregate_hmr_version_operation(
+        async fn server_hmr_version_operation(
             this: ResolvedVc<Project>,
-            target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
             let Some(map) = this.await?.versioned_content_map else {
                 bail!("must be in dev mode to hmr")
             };
-            let root = this.aggregate_hmr_root_path(target).owned().await?;
-            AggregateHmrVersion::from_map(*map, &root).await
+            let root = this.server_hmr_root_path().owned().await?;
+            AggregateHmrVersion::from_map(*map, root).await
         }
-        let version_op = aggregate_hmr_version_operation(self, target);
+        let version_op = server_hmr_version_operation(self);
 
         // INVALIDATION: untracked initial read; the subscription drives invalidation.
         let state = VersionState::new(
@@ -2621,8 +2567,7 @@ impl Project {
     }
 
     /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
-    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
-    /// under `target`'s root.
+    /// combined `ChunkListUpdate` is the union of the server entry chunk diffs.
     ///
     /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
     /// the module deltas for its shared chunks via the merger) or a bare
@@ -2634,20 +2579,12 @@ impl Project {
     /// chunks absent from `from` are skipped; the runtime require()s them on
     /// demand.
     #[turbo_tasks::function]
-    pub async fn all_hmr_update(
-        self: Vc<Self>,
-        target: HmrTarget,
-        from: Vc<VersionState>,
-    ) -> Result<Vc<Update>> {
-        if target == HmrTarget::Client {
-            bail!("all_hmr_update is not yet implemented for the client target");
-        }
-
+    pub async fn server_hmr_update(self: Vc<Self>, from: Vc<VersionState>) -> Result<Vc<Update>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
-        let root = self.aggregate_hmr_root_path(target).owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+        let root = self.server_hmr_root_path().owned().await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
         if chunks_versioned_content.is_empty() {
@@ -2695,14 +2632,11 @@ impl Project {
         Ok(builder.build(to_ref).cell())
     }
 
-    /// Gets a list of all HMR chunk names that can be subscribed to for the
-    /// specified target. Used by the dev server to set up server-side HMR
-    /// subscriptions for all Node.js App Router entries (pages and route
-    /// handlers).
+    /// Gets a list of all client HMR chunk names that can be subscribed to.
     #[turbo_tasks::function]
-    pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn hmr_chunk_names(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.keys_in_path(self.hmr_root_path(target).owned().await?))
+            Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
         }
@@ -2839,6 +2773,29 @@ impl Project {
                 .map(|m| m.to_resolved())
                 .try_join()
                 .await?,
+        ))
+    }
+
+    /// [`Project::additional_traced_modules`] plus the modules the Pages Router resolves only at
+    /// runtime: the targets of `next/dist/server/require-hook` and the production Pages renderer.
+    /// Other endpoints use [`Project::additional_traced_modules`].
+    #[turbo_tasks::function]
+    pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+
+        Ok(Vc::cell(
+            self.additional_traced_modules()
+                .owned()
+                .await?
+                .into_iter()
+                .chain(hook_modules)
+                .chain(renderer_modules)
+                .collect(),
         ))
     }
 }

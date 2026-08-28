@@ -11,7 +11,6 @@ import {
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
-  postponeWithTracking,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -19,7 +18,6 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
-  type PrerenderStorePPR,
   type PrerenderStoreModern,
   type PrerenderStoreModernRuntime,
   type StaticPrerenderStore,
@@ -60,7 +58,6 @@ export function createSearchParamsFromClient(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
       case 'prerender-runtime':
@@ -124,7 +121,6 @@ export function createServerSearchParamsForServerPage(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
       case 'validation-client':
@@ -203,7 +199,6 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
         )
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
         return Promise.resolve({})
@@ -229,7 +224,6 @@ function createStaticPrerenderSearchParams(
     case 'prerender-client':
       // We are in a cacheComponents (PPR or otherwise) prerender
       return makeHangingSearchParams(workStore, prerenderStore)
-    case 'prerender-ppr':
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
       // prerender when search params are accessed.
@@ -251,16 +245,20 @@ function createRuntimePrerenderSearchParams(
       : underlyingSearchParams
 
   const result = makeUntrackedSearchParams(userspaceSearchParams)
+
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender.
-    if (workUnitStore.isSessionShell) {
-      // If we're warming up for a session shell, search params should hang,
-      // because they'll be a hanging input in the final prerender.
+    // If there's no stage controller, we're in a prospective runtime prerender.
+    // Make sure we don't unblock content that won't be reached in the final prerender.
+    if (workUnitStore.finalStage < searchParamsStage) {
       return makeHangingSearchParams(workStore, workUnitStore)
+    } else {
+      return result
     }
-    return result
   }
+
   // Unlike `createRuntimePrerenderParams`, which uses `delayUntilStage`, we
   // resolve with `waitForStage(...).then(...)` here. Switching search params to
   // `delayUntilStage` drops the source code frame from the instant-validation
@@ -270,7 +268,6 @@ function createRuntimePrerenderSearchParams(
   // `suspense-boundaries` tests. The underlying reason in React's async I/O
   // await tracking isn't understood yet. TODO: align search params with params
   // on `delayUntilStage` once resolved.
-  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
   return stagedRendering.waitForStage(searchParamsStage).then(() => result)
 }
 
@@ -388,9 +385,9 @@ function makeHangingSearchParams(
     prerenderStore.renderSignal,
     workStore.route,
     '`searchParams`',
-    // This promise is created for every page whether or not it reads search
-    // params, so recording the access at creation would mark every render.
-    // The access is tracked in the proxy traps below instead.
+    // Passing `null` for the store disables tracking of params usage.
+    // We want accesses of chained promises to be tracked as well.
+    // TODO: The custom tracking seems unnecessary, we should standardize it
     null
   )
 
@@ -399,7 +396,7 @@ function makeHangingSearchParams(
     // created while the RSC payload is constructed, but typically accessed
     // later, during the render, under a different store.
     const workUnitStore = workUnitAsyncStorage.getStore()
-    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore)
+    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
   }
 
   const proxyHandler: ProxyHandler<Promise<SearchParams>> = {
@@ -463,7 +460,7 @@ function makeHangingSearchParams(
 
 function makeErroringSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
+  prerenderStore: PrerenderStoreLegacy
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
@@ -492,13 +489,6 @@ function makeErroringSearchParams(
           throwWithStaticGenerationBailoutErrorWithDynamicError(
             workStore.route,
             expression
-          )
-        } else if (prerenderStore.type === 'prerender-ppr') {
-          // PPR Prerender (no cacheComponents)
-          postponeWithTracking(
-            workStore.route,
-            expression,
-            prerenderStore.dynamicTracking
           )
         } else {
           // Legacy Prerender

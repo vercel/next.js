@@ -38,11 +38,13 @@ export type WorkStoreContext = {
     cacheComponents: boolean
     validationLevel: ValidationLevel
     fetchCache?: AppSegmentConfig['fetchCache']
-    isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
+      | 'isRoutePPREnabled'
+      | 'authInterrupts'
+      | 'useCacheTimeout'
+      | 'durableUseCacheEntries'
     >
 
     /**
@@ -64,7 +66,6 @@ export type WorkStoreContext = {
     // mirrored.
     RenderOpts,
     | 'assetPrefix'
-    | 'supportsDynamicResponse'
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -87,48 +88,32 @@ export type WorkStoreContext = {
   previouslyRevalidatedTags: string[]
 }
 
-export function createWorkStore({
-  page,
-  renderOpts,
-  isPrefetchRequest,
-  buildId,
-  deploymentId,
-  previouslyRevalidatedTags,
-  nonce,
-}: WorkStoreContext): WorkStore {
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for a static page.
-   *
-   *    3.) If the request is in draft mode, we must generate dynamic HTML.
-   *
-   *    4.) If the request is a server action, we must generate dynamic HTML.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const isStaticGeneration =
-    !renderOpts.supportsDynamicResponse &&
-    !renderOpts.isDraftMode &&
-    !renderOpts.isPossibleServerAction
+export function createWorkStore(context: WorkStoreContext): WorkStore {
+  return createWorkStoreImpl(context, !!process.env.__NEXT_DEV_SERVER)
+}
 
-  const shouldTrackFetchMetrics =
+export function createPrerenderWorkStore(context: WorkStoreContext): WorkStore {
+  return createWorkStoreImpl(
+    context,
     !!process.env.__NEXT_DEV_SERVER ||
-    // The only times we want to track fetch metrics outside of development is
-    // when we are performing a static generation and we either are in debug
-    // mode, or tracking fetch metrics was specifically opted into.
-    (isStaticGeneration &&
-      (!!process.env.NEXT_DEBUG_BUILD ||
-        process.env.NEXT_SSG_FETCH_METRICS === '1'))
+      !!process.env.NEXT_DEBUG_BUILD ||
+      process.env.NEXT_SSG_FETCH_METRICS === '1'
+  )
+}
 
+function createWorkStoreImpl(
+  {
+    page,
+    renderOpts,
+    isPrefetchRequest,
+    buildId,
+    deploymentId,
+    previouslyRevalidatedTags,
+    nonce,
+  }: WorkStoreContext,
+  shouldTrackFetchMetrics: boolean
+): WorkStore {
   const store: WorkStore = {
-    isStaticGeneration,
     page,
     route: normalizeAppPath(page),
     incrementalCache:
@@ -137,6 +122,7 @@ export function createWorkStore({
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     useCacheTimeout: renderOpts.experimental.useCacheTimeout,
+    durableUseCacheEntries: renderOpts.experimental.durableUseCacheEntries,
     staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
@@ -157,6 +143,7 @@ export function createWorkStore({
     cacheComponentsEnabled: renderOpts.cacheComponents,
     validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
+    requestStartTime: performance.timeOrigin + performance.now(),
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,

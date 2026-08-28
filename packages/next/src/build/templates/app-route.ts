@@ -156,6 +156,7 @@ export async function handler(
     resolvedPathname,
     clientReferenceManifest,
     serverActionsManifest,
+    previewProps,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -197,19 +198,6 @@ export async function handler(
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
 
-  const supportsDynamicResponse: boolean =
-    // If we're in development, we always support dynamic HTML
-    routeModule.isDev === true ||
-    // If this is not SSG or does not have static paths, then it supports
-    // dynamic HTML.
-    !isIsr
-
-  // This is a revalidation request if the request is for a static
-  // page and it is not being resumed from a postponed render and
-  // it is not a dynamic RSC request then it is a revalidation
-  // request.
-  const isStaticGeneration = isIsr && !supportsDynamicResponse
-
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
@@ -234,6 +222,7 @@ export async function handler(
     (await routeModule.getIncrementalCache(
       req,
       nextConfig,
+      previewProps,
       prerenderManifest,
       isMinimalMode
     ))
@@ -243,15 +232,18 @@ export async function handler(
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    previewProps: prerenderManifest.preview,
+    previewProps,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
-      supportsDynamicResponse,
+      isDraftMode,
       incrementalCache,
       hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
       cacheLifeProfiles: nextConfig.cacheLife,
@@ -305,7 +297,10 @@ export async function handler(
         return null
       }
 
-      const response = await routeModule.handle(nextReq, context)
+      const response =
+        cacheKey === null
+          ? await routeModule.handle(nextReq, context)
+          : await routeModule.prerender(nextReq, context)
 
       ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -388,7 +383,7 @@ export async function handler(
             routePath: srcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },
@@ -411,6 +406,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
+        previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,
@@ -492,7 +488,7 @@ export async function handler(
             routePath: normalizedSrcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },

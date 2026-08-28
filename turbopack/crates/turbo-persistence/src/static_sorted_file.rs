@@ -40,16 +40,30 @@ pub const BLOCK_TYPE_FIXED_KEY_WITH_HASH: u8 = 3;
 /// The block header for a fixed-size key block without hash.
 pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
 
+/// Written in a fixed-size key block header's value type field when entries share a value size but
+/// not a value type. Each entry then carries its own type byte ahead of its value.
+pub const FIXED_KEY_BLOCK_MIXED_VALUE_TYPE: u8 = 4;
+
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
 /// The tag for the blob value.
 pub const KEY_BLOCK_ENTRY_TYPE_BLOB: u8 = 1;
-/// The tag for the deleted value.
-pub const KEY_BLOCK_ENTRY_TYPE_DELETED: u8 = 2;
+/// The tag for the deleted value. This is a *key* tombstone: it deletes every value for the key.
+pub const KEY_BLOCK_ENTRY_TYPE_KEY_DELETED: u8 = 2;
 /// The tag for a medium-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
 /// The minimum tag for inline values. The actual size is (tag - INLINE_MIN).
 pub const KEY_BLOCK_ENTRY_TYPE_INLINE_MIN: u8 = 8;
+/// The minimum tag for a key-value tombstone, which deletes only the one value it carries and
+/// leaves other values for the same key intact. Only meaningful for
+/// [`FamilyKind::MultiValue`][crate::FamilyKind::MultiValue] families.
+///
+/// This mirrors the inline value range: the deleted value is stored inline in the key block and
+/// its size is (tag - KEY_VALUE_DELETED_MIN). Only inline-sized values can be deleted this way —
+/// a tombstone for a larger value would have to store a second copy of it, costing more than the
+/// value it reclaims.
+pub const KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN: u8 =
+    KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8 + 1;
 
 /// Encoded size of a small value reference: 2B block index + 2B size + 4B offset.
 pub(crate) const SMALL_VALUE_REF_SIZE: usize = 8;
@@ -58,12 +72,13 @@ pub(crate) const MEDIUM_VALUE_REF_SIZE: usize = 2;
 /// Encoded size of a blob value reference: 4B blob id.
 pub(crate) const BLOB_VALUE_REF_SIZE: usize = 4;
 /// Encoded size of a deleted (tombstone) value reference.
-pub(crate) const DELETED_VALUE_REF_SIZE: usize = 0;
+pub(crate) const KEY_DELETED_REF_SIZE: usize = 0;
 
-// Static assertion: MAX_INLINE_VALUE_SIZE must fit in the key type encoding.
-// Key types 8-255 encode inline values of size 0-247, so max is 255 - 8 = 247.
+// Static assertion: both the inline range and the key-value tombstone range that follows it must
+// fit in the key type byte. The tombstone range starts after the inline range and is the same
+// width, so the tombstone range's top is the binding constraint.
 const _: () = assert!(
-    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize,
+    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize,
     "MAX_INLINE_VALUE_SIZE exceeds what can be encoded in key type byte"
 );
 
@@ -369,19 +384,21 @@ impl StaticSortedFile {
         ensure!(block.len() >= 6, "fixed key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let key_size = be::read_u8(&block[4..]) as usize;
-        let value_type = be::read_u8(&block[5..]);
-        let val_size = entry_val_size(value_type)?;
+        let header_type = be::read_u8(&block[5..]);
+        let FixedValueLayout {
+            value_type,
+            val_size,
+            header_size,
+        } = fixed_value_layout(&block, header_type)?;
         let stride = hash_len as usize + key_size + val_size;
-        let entries = &block[6..];
+        let entries = &block[header_size..];
         ensure!(
             entries.len() == entry_count * stride,
             "fixed key block for {entry_count} entries must is the wrong size"
         );
 
         self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
-            Ok(get_fixed_key_entry(
-                entries, i, hash_len, key_size, value_type, stride,
-            ))
+            get_fixed_key_entry(entries, i, hash_len, key_size, value_type, stride)
         })
     }
 
@@ -422,10 +439,9 @@ impl StaticSortedFile {
                         return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                     }
                     // FIND_ALL (MultiValue) mode: collect all values for this key.
-                    // Tombstones (Deleted) sort last within each key group, so we
-                    // scan backward to find the start of the key group, then forward
-                    // to collect all entries. The tombstone, if present, will be the
-                    // last entry in the results.
+                    // Within a key group, key-value tombstones sort first and key tombstones
+                    // last. We scan backward to find the start of the key group, then forward to
+                    // collect all entries.
                     let mut results = SmallVec::new();
                     for i in (l..m).rev() {
                         let GetKeyEntryResult {
@@ -439,12 +455,10 @@ impl StaticSortedFile {
                         }
                         results.push(self.handle_key_match(ty, val, block, reader)?);
                     }
-                    // Technically we could `.reverse()` the items collected by the backwards
-                    // scan, but the only ordering constraint we need to maintain for single
-                    // sst multivalue reads is that a deleted token, if it exists comes last.
-                    // Because all the backwards scan items are strictly before the found item
-                    // we know they don't contain the _last_ item. So we don't care about
-                    // their order.
+                    // Restore on-disk order: callers depend on both ends of the key group, with
+                    // key-value tombstones preceding the values they filter and a key tombstone
+                    // landing last.
+                    results.reverse();
 
                     // Add the entry at `m`
                     results.push(self.handle_key_match(ty, val, block, reader)?);
@@ -712,7 +726,14 @@ fn handle_key_match_generic<B: SharedBytes>(
             let sequence_number = be::read_u32(val);
             LookupValue::Blob { sequence_number }
         }
-        KEY_BLOCK_ENTRY_TYPE_DELETED => LookupValue::Deleted,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => LookupValue::KeyDeleted,
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            // The deleted value is stored inline, so `val` is already the correct slice.
+            // SAFETY: val points into key_block's data
+            let value = unsafe { key_block.slice_from_subslice(val) };
+            LookupValue::KeyValueDeleted { value }
+        }
         _ => {
             // Inline value — val is already the correct slice
             // SAFETY: val points into key_block's data
@@ -747,11 +768,12 @@ pub struct StaticSortedFileIter {
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
     Variable { offsets: RcBytes, hash_len: u8 },
-    /// Fixed-size entries with uniform key size and value type (no offset table).
+    /// Fixed-size entries with uniform key size and value size (no offset table).
     Fixed {
         hash_len: u8,
         key_size: usize,
-        value_type: u8,
+        /// The type shared by every entry, or `None` if each entry carries its own type byte.
+        value_type: Option<u8>,
         stride: usize,
     },
 }
@@ -865,11 +887,13 @@ impl StaticSortedFileIter {
                     0
                 };
                 let key_size = data[4] as usize;
-                let value_type = data[5];
-                let val_size = entry_val_size(value_type)?;
+                let FixedValueLayout {
+                    value_type,
+                    val_size,
+                    header_size,
+                } = fixed_value_layout(data, data[5])?;
                 let stride = hash_len as usize + key_size + val_size;
-                // Header is 6 bytes for fixed-size blocks
-                let entries_range = 6..block.len();
+                let entries_range = header_size..block.len();
                 let entries = block.slice(entries_range);
                 Ok(CurrentKeyBlock {
                     kind: CurrentKeyBlockKind::Fixed {
@@ -912,7 +936,7 @@ impl StaticSortedFileIter {
                         *key_size,
                         *value_type,
                         *stride,
-                    ),
+                    )?,
                 };
                 let full_hash = if hash.is_empty() {
                     crate::key::hash_key(&key)
@@ -1017,7 +1041,11 @@ fn entry_val_size(ty: u8) -> Result<usize> {
         KEY_BLOCK_ENTRY_TYPE_SMALL => Ok(SMALL_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(MEDIUM_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(BLOB_VALUE_REF_SIZE),
-        KEY_BLOCK_ENTRY_TYPE_DELETED => Ok(DELETED_VALUE_REF_SIZE),
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => Ok(KEY_DELETED_REF_SIZE),
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            Ok((ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize)
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             Ok((ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize)
         }
@@ -1067,20 +1095,58 @@ fn get_key_entry<'l>(
 ///
 /// All entries have the same key size and value type, so positions are computed
 /// arithmetically with no offset table indirection.
+/// How a fixed-size key block encodes its entry values, decoded from the block header.
+struct FixedValueLayout {
+    /// The type shared by every entry, or `None` if each entry carries its own type byte.
+    value_type: Option<u8>,
+    /// Value bytes per entry, including any per-entry type byte.
+    val_size: usize,
+    /// Total header size, which the entry data follows.
+    header_size: usize,
+}
+
+/// Decodes the value layout from a fixed-size key block header.
+fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout> {
+    if header_type == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+        // Mixed-type block: the value size follows the header's type byte, and each entry
+        // carries its own type.
+        ensure!(block.len() >= 7, "mixed-type fixed key block too short");
+        Ok(FixedValueLayout {
+            value_type: None,
+            // +1 for the per-entry type byte, which is part of the stride.
+            val_size: be::read_u8(&block[6..]) as usize + 1,
+            header_size: 7,
+        })
+    } else {
+        Ok(FixedValueLayout {
+            value_type: Some(header_type),
+            val_size: entry_val_size(header_type)?,
+            header_size: 6,
+        })
+    }
+}
+
 fn get_fixed_key_entry<'l>(
     entries: &'l [u8],
     index: usize,
     hash_len: u8,
     key_size: usize,
-    value_type: u8,
+    value_type: Option<u8>,
     stride: usize,
-) -> GetKeyEntryResult<'l> {
+) -> Result<GetKeyEntryResult<'l>> {
     let hash_len_usize = hash_len as usize;
     let start = index * stride;
-    GetKeyEntryResult {
-        hash: &entries[start..start + hash_len_usize],
-        key: &entries[start + hash_len_usize..start + hash_len_usize + key_size],
-        ty: value_type,
-        val: &entries[start + hash_len_usize + key_size..(index + 1) * stride],
-    }
+    let key_start = start + hash_len_usize;
+    let key_end = key_start + key_size;
+    // In a mixed-type block the entry's type byte sits between its key and its value.
+    let (ty, val_start) = match value_type {
+        Some(ty) => (ty, key_end),
+        None => (be::read_u8(&entries[key_end..]), key_end + 1),
+    };
+    Ok(GetKeyEntryResult {
+        hash: &entries[start..key_start],
+        key: &entries[key_start..key_end],
+        ty,
+        val: &entries[val_start..(index + 1) * stride],
+    })
 }

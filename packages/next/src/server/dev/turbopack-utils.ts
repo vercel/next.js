@@ -460,6 +460,9 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       manifestLoader.loadAppPathsManifest(page)
+      if (route.hasActionManifest) {
+        manifestLoader.loadActionManifest(page)
+      }
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -680,6 +683,7 @@ export async function handleEntrypoints({
     await handleEntrypointsDevCleanup({
       currentEntryIssues,
       currentEntrypoints,
+      manifestLoader,
 
       ...dev,
     })
@@ -844,6 +848,7 @@ export async function handleEntrypoints({
 async function handleEntrypointsDevCleanup({
   currentEntryIssues,
   currentEntrypoints,
+  manifestLoader,
 
   assetMapper,
   changeSubscriptions,
@@ -854,11 +859,13 @@ async function handleEntrypointsDevCleanup({
 }: {
   currentEntrypoints: Entrypoints
   currentEntryIssues: EntryIssuesMap
+  manifestLoader: TurbopackManifestLoader
 } & HandleEntrypointsDevOpts) {
   // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
   for (const key of assetMapper.keys()) {
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       assetMapper.delete(key)
+      manifestLoader.delete(key)
     }
   }
 

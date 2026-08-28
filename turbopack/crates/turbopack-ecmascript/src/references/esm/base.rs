@@ -19,7 +19,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
-    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        code_gen::CodeGenerationIssue,
+    },
     loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem},
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
@@ -48,6 +51,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{all_known_export_names, is_export_missing},
+            mangle::generated_export_key,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -59,6 +63,11 @@ use crate::{
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
+    /// The request resolved to a module that can't be placed in an ECMAScript
+    /// chunk (e.g. a stylesheet or a raw module), so it has no bindings to
+    /// import. Importing it for its side effects is fine, reading a binding off
+    /// it is not.
+    NonPlaceable(ResolvedVc<Box<dyn Module>>),
     None,
     Unresolvable,
 }
@@ -300,7 +309,16 @@ impl ReferencedAsset {
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
-                    export,
+                    // The target module may emit its exports under shortened keys. This is the
+                    // only place a cross-module export access is materialized, and it resolves
+                    // the same map the producing module uses (see
+                    // `EsmExports::code_generation`), so the two always agree.
+                    export: match &export {
+                        Some(export) => {
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
+                        }
+                        None => None,
+                    },
                     import_source,
                 })
             }
@@ -315,6 +333,34 @@ impl ReferencedAsset {
                     export,
                     import_source,
                 })
+            }
+            ReferencedAsset::NonPlaceable(module) => {
+                // The module exists but has no ECMAScript bindings, so there is
+                // nothing this identifier could refer to. Report it instead of
+                // silently evaluating to `undefined`.
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!("non-ecmascript placeable asset"))
+                        .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "{} has no ECMAScript exports, so {} can't be read from it. It can \
+                             only be imported for its side effects.",
+                            module.ident().to_string().await?,
+                            match &export {
+                                Some(export) => format!("the export {export:?}"),
+                                None => "a namespace".to_string(),
+                            }
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: module.ident().await?.path.clone(),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
+                None
             }
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
@@ -338,6 +384,7 @@ impl ReferencedAsset {
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);
         }
+        let mut non_placeable = None;
         for (_, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External {
@@ -351,12 +398,16 @@ impl ReferencedAsset {
                     {
                         return Ok(ReferencedAsset::Some(placeable));
                     }
+                    non_placeable = non_placeable.or(Some(*module));
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::None)
+        Ok(match non_placeable {
+            Some(module) => ReferencedAsset::NonPlaceable(module),
+            None => ReferencedAsset::None,
+        })
     }
 }
 
@@ -740,7 +791,9 @@ impl EsmAssetReference {
                         stmt,
                     ));
                 }
-                ReferencedAsset::None => {}
+                // A module without ECMAScript bindings (e.g. a stylesheet) may still
+                // be imported for its side effects, which needs no code generation.
+                ReferencedAsset::None | ReferencedAsset::NonPlaceable(_) => {}
                 _ => {
                     let mut result = vec![];
 

@@ -247,6 +247,9 @@ impl ModuleOptions {
                     inline_helpers,
                     infer_module_side_effects,
                     cjs_tree_shaking,
+                    mangle_export_names,
+                    cjs_scope_hoisting,
+                    cross_module_constants,
                     ref preset_env_config,
                     ..
                 },
@@ -258,6 +261,7 @@ impl ModuleOptions {
                     source_maps: css_source_maps,
                     ref module_css_condition,
                     lightningcss_features,
+                    module_css_debuggable_idents,
                     ..
                 },
             ref static_url_tag,
@@ -340,6 +344,9 @@ impl ModuleOptions {
             inline_helpers,
             infer_module_side_effects,
             cjs_tree_shaking,
+            mangle_export_names,
+            cjs_scope_hoisting,
+            cross_module_constants,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -685,22 +692,34 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::NodeAddon)],
             ),
             // WebAssembly
+            // In tracing mode these are `Raw` modules: a WebAssembly module is loaded through a
+            // generated JS loader that references an embedded runtime helper, which is compiled
+            // into the output and has no path on disk, so tracing it would produce a file
+            // reference that cannot be resolved to a real file.
             ModuleRule::new(
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".wasm".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/wasm".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
-                    source_ty: WebAssemblySourceType::Binary,
-                })],
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
+                        source_ty: WebAssemblySourceType::Binary,
+                    })]
+                },
             ),
             ModuleRule::new(
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".wat".to_string(),
                 )]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
-                    source_ty: WebAssemblySourceType::Text,
-                })],
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
+                        source_ty: WebAssemblySourceType::Text,
+                    })]
+                },
             ),
             ModuleRule::new(
                 RuleCondition::any(vec![
@@ -845,6 +864,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 ModuleRule::new(
@@ -856,6 +876,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
             ]);
@@ -920,6 +941,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
@@ -934,6 +956,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -948,6 +971,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Module,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
                 ModuleRule::new(
@@ -963,6 +987,7 @@ impl ModuleOptions {
                         ty: CssModuleType::Default,
                         environment,
                         lightningcss_features,
+                        module_css_debuggable_idents,
                     })],
                 ),
             ]);

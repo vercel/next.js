@@ -57,6 +57,7 @@ export type ProbeMessage = {
     httpAgentOptions: NextConfigComplete['httpAgentOptions']
     cacheLifeProfiles: NextConfigComplete['cacheLife']
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     staticPageGenerationTimeout: number
   }
   timeoutMs: number
@@ -147,7 +148,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       )
     }
 
-    const args = decoded[2]
+    const args = decoded[1]
     const workStore: WorkStore = buildProbeWorkStore(msg)
 
     // The outer store is `'request'`-typed and built from the forwarded
@@ -197,17 +198,18 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
   })
 
   return {
-    isStaticGeneration: false,
     page: msg.page,
     route: msg.route,
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },
     isDraftMode: msg.request.isDraftMode,
     useCacheTimeout: msg.nextConfigSerializable.useCacheTimeout,
+    durableUseCacheEntries: msg.nextConfigSerializable.durableUseCacheEntries,
     staticPageGenerationTimeout:
       msg.nextConfigSerializable.staticPageGenerationTimeout,
     cacheLifeProfiles: msg.nextConfigSerializable.cacheLifeProfiles,
     buildId: msg.buildId,
     deploymentId: msg.deploymentId,
+    requestStartTime: msg.request.requestStartTime,
     // Empty values for cache-handler / RDC bookkeeping. The `useCacheProbeMode`
     // branch in `cache()` returns before any code that reads or writes these
     // fields, so the values can never be observed.

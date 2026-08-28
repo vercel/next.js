@@ -2,6 +2,7 @@ pub(crate) mod base;
 pub(crate) mod binding;
 pub(crate) mod dynamic;
 pub(crate) mod export;
+pub(crate) mod mangle;
 pub(crate) mod meta;
 pub(crate) mod module_id;
 pub(crate) mod module_item;
@@ -12,6 +13,7 @@ pub use self::{
     binding::EsmBinding,
     dynamic::EsmAsyncAssetReference,
     export::{EsmExport, EsmExports, FoundExportType, Liveness},
+    mangle::generated_export_key,
     meta::{ImportMetaBinding, ImportMetaRef},
     module_item::EsmModuleItem,
     url::{UrlAssetReference, UrlRewriteBehavior},

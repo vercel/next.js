@@ -33,9 +33,8 @@ impl ConnectChildOperation {
     ) {
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
-            let Some(InProgressState::InProgress(box InProgressStateInner {
-                new_children, ..
-            })) = parent_task.get_in_progress()
+            let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
+                parent_task.get_in_progress()
             else {
                 panic!("Task is not in progress while calling another task: {parent_task:?}");
             };
@@ -49,9 +48,8 @@ impl ConnectChildOperation {
             if parent_task.children_contains(&child_task_id) {
                 // It is already connected, we can skip the rest
                 // but we still need to update the new_children set
-                let Some(InProgressState::InProgress(box InProgressStateInner {
-                    new_children,
-                    ..
+                let Some(InProgressState::InProgress(InProgressStateInner {
+                    new_children, ..
                 })) = parent_task.get_in_progress_mut()
                 else {
                     unreachable!();
@@ -79,7 +77,10 @@ impl ConnectChildOperation {
                 task: child_task_id,
             });
         } else {
-            let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+            // First connect of this child: its id is minted but the storage entry may not exist
+            // yet, and concurrent connects race to be the one that first touches it.
+            let mut child_task =
+                ctx.open_or_create_task_storage(child_task_id, TaskDataCategory::Meta);
             let has_output = child_task.has_output();
             // An already constructed top-level task was made a root when it was first connected.
             // It may still be dirty and need to run; this only avoids repeating the idempotent
@@ -115,9 +116,8 @@ impl ConnectChildOperation {
 
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
-            let Some(InProgressState::InProgress(box InProgressStateInner {
-                new_children, ..
-            })) = parent_task.get_in_progress_mut()
+            let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
+                parent_task.get_in_progress_mut()
             else {
                 panic!("Task is not in progress while calling another task: {parent_task:?}");
             };

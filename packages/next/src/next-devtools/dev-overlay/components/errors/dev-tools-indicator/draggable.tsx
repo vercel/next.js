@@ -160,11 +160,7 @@ export function Draggable({
       {...props}
       {...drag}
       ref={ref}
-      style={{
-        ...props.style,
-        // prevent touch gestures from being treated as viewport panning, which would cancel drag
-        touchAction: 'none',
-      }}
+      style={{ touchAction: 'none', ...props.style }}
     >
       {children}
     </div>

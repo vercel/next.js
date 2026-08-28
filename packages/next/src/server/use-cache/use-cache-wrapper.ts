@@ -34,6 +34,7 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -50,7 +51,9 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getServerActionsManifest,
   getServerModuleMap,
+  normalizeWorkerPageName,
 } from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
@@ -60,7 +63,6 @@ import {
   createReactServerErrorHandler,
   type DigestedError,
 } from '../app-render/create-error-handler'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   MIN_PRERENDERABLE_EXPIRE,
@@ -72,6 +74,7 @@ import {
   getCacheHandler,
   getDevTieredCacheHandler,
   getPrivateCacheHandler,
+  isBuiltInCacheHandler,
   isCustomCacheHandler,
   isMemoryCacheDisabled,
 } from './handlers'
@@ -93,7 +96,6 @@ import {
 } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -153,9 +155,13 @@ interface PublicCacheContext {
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
 
-export type CacheKeyParts =
-  | [buildId: string, id: string, args: unknown[]]
-  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
+const nextVersion = process.env.__NEXT_VERSION as string
+
+export type CacheKeyParts = [
+  id: string,
+  args: unknown[],
+  implementationHash: unknown,
+]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -256,17 +262,35 @@ class ResolvableSharedCacheResult {
   private readonly registrations: Array<{
     map: Map<string, Promise<SharedCacheResult>>
     key: string
+    /**
+     * Where to move the entry once the invocation completes, instead of
+     * dropping it. Only set for the request-scoped map, and only for kinds
+     * whose entries are worth retaining; the module-scope cross-request map
+     * must never retain, since its entries would outlive the request that
+     * produced them.
+     */
+    retentionMap?: Map<string, Promise<SharedCacheResult>>
   }> = []
 
-  registerIn(map: Map<string, Promise<SharedCacheResult>>, key: string): void {
+  registerIn(
+    map: Map<string, Promise<SharedCacheResult>>,
+    key: string,
+    retentionMap?: Map<string, Promise<SharedCacheResult>>
+  ): void {
     map.set(key, this.deferred.promise)
-    this.registrations.push({ map, key })
+    this.registrations.push({ map, key, retentionMap })
   }
 
   resolve(result: SharedCacheResult): void {
     this.deferred.resolve(result)
     if (result.type === 'cached') {
-      result.entry.pendingMetadata.finally(this.cleanup.bind(this))
+      // Retain only an entry that collected successfully. A failed collection
+      // leaves metadata a later invocation cannot read, so it is dropped like
+      // any other failure and the next invocation regenerates.
+      result.entry.pendingMetadata.then(
+        () => this.cleanupAndRetain(),
+        () => this.cleanup()
+      )
     } else {
       this.cleanup()
     }
@@ -282,9 +306,27 @@ class ResolvableSharedCacheResult {
     this.cleanup()
   }
 
+  /**
+   * Drops the pending registrations, leaving nothing for a later invocation to
+   * join. Used when the invocation produced no entry that a later one could
+   * serve: an error has no value, and a 'prerender-dynamic' result is a hanging
+   * promise bound to the leader's render signal.
+   */
   private cleanup(): void {
     for (const { map, key } of this.registrations) {
       map.delete(key)
+    }
+  }
+
+  /**
+   * Drops the pending registrations and moves the entry into the retention map
+   * where one was given, so a later invocation in the same request can reuse it
+   * instead of repeating the lookup and, on a miss, the work.
+   */
+  private cleanupAndRetain(): void {
+    for (const { map, key, retentionMap } of this.registrations) {
+      map.delete(key)
+      retentionMap?.set(key, this.deferred.promise)
     }
   }
 }
@@ -301,8 +343,10 @@ const crossRequestPendingCacheInvocations = new Map<
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+// The first argument at each call site is the full directive that produced
+// the invocation, e.g. "'use cache'" or "'use cache: remote'".
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
-  ? console.debug.bind(console, 'use-cache:')
+  ? console.debug.bind(console)
   : undefined
 
 const filterStackFrame =
@@ -453,7 +497,8 @@ function computePrivateCacheKeyRequestSuffix(
 function saveToResumeDataCache(
   resumeDataCache: ResumeDataCache | null,
   serializedCacheKey: string,
-  pendingCacheResult: Promise<CollectedCacheResult>
+  pendingCacheResult: Promise<CollectedCacheResult>,
+  logPrefix: string
 ): Promise<CollectedCacheResult> {
   if (!resumeDataCache?.mutable) {
     return pendingCacheResult
@@ -467,7 +512,7 @@ function saveToResumeDataCache(
   // use the coarse key (without root param suffix). Unlike the cache handler,
   // the RDC doesn't need root-param-specific keys for isolation.
   resumeDataCache.cache.set(serializedCacheKey, rdcResult)
-  debug?.('Resume Data Cache entry saved', serializedCacheKey)
+  debug?.(logPrefix, 'Resume Data Cache entry saved', serializedCacheKey)
 
   return savedCacheResult
 }
@@ -491,7 +536,8 @@ function saveToResumeDataCache(
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
   sharedCacheEntry: SharedCacheEntry,
-  resumeDataCache: ResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null,
+  logPrefix: string
 ): void {
   if (
     !resumeDataCache?.mutable ||
@@ -517,7 +563,58 @@ function saveSharedCacheEntryToResumeDataCache(
     }))
 
   resumeDataCache.cache.set(serializedCacheKey, rdcResult)
-  debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
+  debug?.(
+    logPrefix,
+    'Resume Data Cache entry saved by joiner',
+    serializedCacheKey
+  )
+}
+
+/**
+ * Completes a join onto another invocation's entry, whether that invocation is
+ * still filling or has already finished: forks the stream, saves to this
+ * invocation's RDC if the leader had none, and balances the cache signal read
+ * once the entry is fully collected.
+ */
+function serveJoinedCacheEntry(
+  sharedCacheEntry: SharedCacheEntry,
+  serializedCacheKey: string,
+  resumeDataCache: ResumeDataCache | null,
+  cacheContext: CacheContext,
+  cacheSignal: CacheSignal | null,
+  logPrefix: string
+): ReadableStream<Uint8Array> {
+  const stream = sharedCacheEntry.fork()
+
+  // If the leader was nested inside another cache (no accessible RDC), it
+  // couldn't save to the RDC. This joiner may be top-level with an RDC, in
+  // which case it must save here; otherwise the RDC lookup during the final
+  // prerender will miss.
+  saveSharedCacheEntryToResumeDataCache(
+    serializedCacheKey,
+    sharedCacheEntry,
+    resumeDataCache,
+    logPrefix
+  )
+
+  // End the cache signal read when the result is fully collected, not when the
+  // stream is available. A failed collection has no metadata to propagate but
+  // must still balance the read, so both settlements end it; leaving it open
+  // would stall a prerender waiting for its cache reads. The trailing .catch()
+  // covers propagation itself throwing after the rendering stream resolved.
+  sharedCacheEntry.pendingMetadata
+    .then(
+      (metadata) => {
+        cacheSignal?.endRead()
+        maybePropagateCacheEntryMetadata(cacheContext, metadata)
+      },
+      () => {
+        cacheSignal?.endRead()
+      }
+    )
+    .catch(() => {})
+
+  return stream
 }
 
 function saveToCacheHandler(
@@ -670,6 +767,7 @@ function createUseCacheStore(
     return {
       type: 'private-cache',
       phase: 'render',
+      consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore?.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -707,7 +805,6 @@ function createUseCacheStore(
         break
       case 'prerender-runtime':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -719,6 +816,7 @@ function createUseCacheStore(
     return {
       type: 'cache',
       phase: 'render',
+      consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -767,7 +865,6 @@ function captureOuterOwnerStack(
     case 'unstable-cache':
     case 'request':
     case 'prerender':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -919,7 +1016,6 @@ function propagateCacheEntryMetadata(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
@@ -984,8 +1080,7 @@ function maybePropagateCacheEntryMetadata(
     case 'private-cache':
     case 'cache':
     case 'unstable-cache':
-    case 'prerender-legacy':
-    case 'prerender-ppr': {
+    case 'prerender-legacy': {
       propagateCacheEntryMetadata(cacheContext, metadata)
       break
     }
@@ -1196,7 +1291,7 @@ async function generateCacheEntryImpl(
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-  const [, , args] =
+  const [, args] =
     typeof encodedArguments === 'string'
       ? await decodeReply<CacheKeyParts>(
           encodedArguments,
@@ -1229,7 +1324,6 @@ async function generateCacheEntryImpl(
                     }
                   })
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
@@ -1323,8 +1417,13 @@ async function generateCacheEntryImpl(
       )
 
       clearTimeout(timer)
+      const didTimeout = timeoutAbortController.signal.aborted
+      if (dynamicAccessAbortSignal) {
+        // Release React's listener from the composite signal.
+        timeoutAbortController.abort()
+      }
 
-      if (timeoutAbortController.signal.aborted) {
+      if (didTimeout) {
         // When the timeout is reached we always error the stream. Even for
         // fallback shell prerenders we don't want to return a hanging promise,
         // which would allow the function to become a dynamic hole. Because that
@@ -1439,10 +1538,9 @@ async function generateCacheEntryImpl(
                   // error actually surfaces (vs. being caught in userland) is
                   // the consumer's decision, so the "surfaced" mark is left to
                   // the outer handler.
-                  const digest = createDigestWithErrorCode(
-                    error,
-                    stringHash(error.message + (error.stack || '')).toString()
-                  )
+                  const digest = stringHash(
+                    error.message + (error.stack || '')
+                  ).toString()
 
                   workStore.reactServerErrorsByDigest.set(
                     digest,
@@ -1487,7 +1585,6 @@ async function generateCacheEntryImpl(
         }
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -1634,6 +1731,9 @@ export async function cache(
 ) {
   const isPrivate = kind === 'private'
 
+  // The default handler kind corresponds to the bare 'use cache' directive.
+  const logPrefix = kind === 'default' ? `'use cache'` : `'use cache: ${kind}'`
+
   const workStore = workAsyncStorage.getStore()
   if (workStore === undefined) {
     throw new Error(
@@ -1672,7 +1772,6 @@ export async function cache(
       }
       break
     }
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-client':
     case 'validation-client':
@@ -1773,12 +1872,6 @@ export async function cache(
           expression,
           workUnitStore
         )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          workStore.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
       case 'prerender-legacy':
         return throwToInterruptStaticGeneration(
           expression,
@@ -1866,7 +1959,6 @@ export async function cache(
       }
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'private-cache':
@@ -1895,19 +1987,6 @@ export async function cache(
   // Get the clientReferenceManifest while we're still in the outer Context.
   // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
   const clientReferenceManifest = getClientReferenceManifest()
-
-  // Because the Action ID is not yet unique per implementation of that Action we can't
-  // safely reuse the results across builds yet. In the meantime we add the buildId to the
-  // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
-  // the implementation.
-  const buildId = workStore.deploymentId || workStore.buildId
-
-  // In dev mode, when the HMR refresh hash is set, we include it in the
-  // cache key. This ensures that cache entries are not reused when server
-  // components have been edited. This is a very coarse approach. But it's
-  // also only a temporary solution until Action IDs are unique per
-  // implementation. Remove this once Action IDs hash the implementation.
-  const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
 
   const hangingInputAbortSignal = createHangingInputAbortSignal(workUnitStore)
 
@@ -2069,9 +2148,11 @@ export async function cache(
   // long as the request. In development private caches are persisted across
   // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
   // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = hmrRefreshHash
-    ? [buildId, id, args, hmrRefreshHash]
-    : [buildId, id, args]
+  const cacheKeyParts: CacheKeyParts = [
+    id,
+    args,
+    await computeCacheKeyImplementationPart(workStore, workUnitStore, id),
+  ]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
@@ -2120,7 +2201,6 @@ export async function cache(
         break
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
@@ -2262,7 +2342,6 @@ export async function cache(
             'dynamic "use cache"',
             workUnitStore
           )
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2288,13 +2367,18 @@ export async function cache(
       // tags. When a server action calls updateTag(), the re-render should see
       // fresh data instead of stale RDC data.
       if (rdcResult !== undefined) {
+        const { timestamp } = rdcResult.entry
+
         if (
           rdcResult.entry.tags.some((tag) =>
-            isRecentlyRevalidatedTag(tag, workStore)
+            isRevalidatedAfter(tag, timestamp, workStore, logPrefix)
           ) ||
-          implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
+          implicitTags.some((tag) =>
+            isRevalidatedAfter(tag, timestamp, workStore, logPrefix)
+          )
         ) {
           debug?.(
+            logPrefix,
             'discarding RDC entry due to recently revalidated tags',
             serializedCacheKey
           )
@@ -2343,6 +2427,7 @@ export async function cache(
                   )
                 }
                 debug?.(
+                  logPrefix,
                   'omitting entry',
                   serializedCacheKey,
                   'from static shell due to revalidate: 0'
@@ -2359,6 +2444,7 @@ export async function cache(
                   )
                 }
                 debug?.(
+                  logPrefix,
                   'omitting entry',
                   serializedCacheKey,
                   'from static shell due to short expire value:',
@@ -2436,7 +2522,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2482,6 +2567,7 @@ export async function cache(
                   stagedRendering.finalStage < postShellStage)
               ) {
                 debug?.(
+                  logPrefix,
                   'omitting entry',
                   serializedCacheKey,
                   'from shell due to short stale value:',
@@ -2511,6 +2597,7 @@ export async function cache(
               }
               if (stagedRendering !== null) {
                 debug?.(
+                  logPrefix,
                   'delaying entry',
                   serializedCacheKey,
                   'until after the shell stage due to short stale value:',
@@ -2537,13 +2624,13 @@ export async function cache(
                 // resolves in the dynamic stage. Otherwise, a dynamic request
                 // generally recovers a static shell, so the entry can resolve
                 // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsSessionShell`,
+                // session shell instead, as indicated by `needsAppShell`,
                 // the entry must resolve after the session data stage that
                 // the shell includes.
                 let stage: AdvanceableRenderStage
                 if (!isPrefetchable) {
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsSessionShell) {
+                } else if (workUnitStore.needsAppShell) {
                   stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
                   stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
@@ -2556,7 +2643,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2570,7 +2656,7 @@ export async function cache(
       }
 
       if (rdcResult !== undefined) {
-        debug?.('Resume Data Cache entry found', serializedCacheKey)
+        debug?.(logPrefix, 'Resume Data Cache entry found', serializedCacheKey)
 
         if (
           rdcResult.readRootParamNames &&
@@ -2608,14 +2694,22 @@ export async function cache(
         }
       } else {
         // Entry was discarded (e.g. due to recently revalidated tags)
-        debug?.('Resume Data Cache entry discarded', serializedCacheKey)
+        debug?.(
+          logPrefix,
+          'Resume Data Cache entry discarded',
+          serializedCacheKey
+        )
 
         if (cacheSignal) {
           cacheSignal.endRead()
         }
       }
     } else {
-      debug?.('Resume Data Cache entry not found', serializedCacheKey)
+      debug?.(
+        logPrefix,
+        'Resume Data Cache entry not found',
+        serializedCacheKey
+      )
 
       if (cacheSignal) {
         cacheSignal.endRead()
@@ -2672,7 +2766,6 @@ export async function cache(
             )
           }
           break
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2693,49 +2786,88 @@ export async function cache(
   // doing redundant work. This also saves cache handler `get` calls which may
   // be HTTP round-trips for remote handlers.
   if (stream === undefined) {
-    const intraRequestPendingCacheInvocation =
+    const pendingInvocation =
       workStore.pendingCacheInvocations?.get(serializedCacheKey)
 
-    if (intraRequestPendingCacheInvocation) {
+    // A pending invocation is joined unconditionally: its fill is shared, so
+    // every joiner receives whatever that fill produces. A completed one is a
+    // stored entry instead, so it is only reused when the caller hasn't asked
+    // to bypass caches, and only if nothing has invalidated it since.
+    const completedInvocation =
+      pendingInvocation === undefined &&
+      !shouldForceRevalidate(workStore, workUnitStore)
+        ? workStore.completedCacheInvocations?.get(serializedCacheKey)
+        : undefined
+
+    const joinedInvocation = pendingInvocation ?? completedInvocation
+
+    if (joinedInvocation) {
       const cacheSignal = getCacheSignal(workUnitStore)
       cacheSignal?.beginRead()
 
-      debug?.('joining pending intra-request invocation', serializedCacheKey)
-      const sharedCacheResult = await intraRequestPendingCacheInvocation
+      debug?.(logPrefix, 'joining intra-request invocation', serializedCacheKey)
+      const sharedCacheResult = await joinedInvocation
 
       if (sharedCacheResult.type === 'prerender-dynamic') {
-        debug?.('joined invocation is prerender-dynamic', serializedCacheKey)
+        debug?.(
+          logPrefix,
+          'joined invocation is prerender-dynamic',
+          serializedCacheKey
+        )
         cacheSignal?.endRead()
         return sharedCacheResult.hangingPromise
       }
 
-      debug?.(
-        'joined invocation resolved with cached entry',
-        serializedCacheKey
-      )
+      // A completed entry may have been invalidated since it was produced, by
+      // an `updateTag()` in a server action earlier in this request. The
+      // implicit tags expiration is passed as 0 because it cannot apply to a
+      // retained entry: it is memoized for the request, so re-checking it
+      // against an unchanged entry timestamp only repeats the answer the leader
+      // already got.
+      const metadata =
+        completedInvocation === undefined
+          ? undefined
+          : await sharedCacheResult.entry.pendingMetadata
 
-      stream = sharedCacheResult.entry.fork()
+      if (
+        metadata !== undefined &&
+        shouldDiscardCacheEntry(
+          metadata,
+          workStore,
+          workUnitStore,
+          implicitTags,
+          0,
+          logPrefix
+        )
+      ) {
+        debug?.(
+          logPrefix,
+          'discarding completed invocation',
+          serializedCacheKey
+        )
+        workStore.completedCacheInvocations?.delete(serializedCacheKey)
 
-      // If the leader was nested inside another cache (no accessible RDC), it
-      // couldn't save to the RDC. This joiner may be top-level with an RDC, in
-      // which case it must save here; otherwise the RDC lookup during the
-      // final prerender will miss.
-      saveSharedCacheEntryToResumeDataCache(
-        serializedCacheKey,
-        sharedCacheResult.entry,
-        resumeDataCache
-      )
+        // This can take the signal's count to zero. The leader path below opens
+        // a read again synchronously, before it awaits anything, which is what
+        // stops a prerender from concluding that every cache read has settled
+        // while a fill is still about to start.
+        cacheSignal?.endRead()
+      } else {
+        debug?.(
+          logPrefix,
+          'joined invocation resolved with cached entry',
+          serializedCacheKey
+        )
 
-      // End the cache signal read when the result is fully collected, not when
-      // the stream is available. Fire-and-forget propagation runs in the same
-      // .then() callback. .catch() prevents unhandled rejection if collection
-      // fails after the rendering stream was already resolved.
-      sharedCacheResult.entry.pendingMetadata
-        .then((metadata) => {
-          cacheSignal?.endRead()
-          maybePropagateCacheEntryMetadata(cacheContext, metadata)
-        })
-        .catch(() => {})
+        stream = serveJoinedCacheEntry(
+          sharedCacheResult.entry,
+          serializedCacheKey,
+          resumeDataCache,
+          cacheContext,
+          cacheSignal,
+          logPrefix
+        )
+      }
     }
   }
 
@@ -2745,6 +2877,7 @@ export async function cache(
     const resolvableSharedCacheResult = new ResolvableSharedCacheResult()
 
     debug?.(
+      logPrefix,
       'registering as intra-request invocation leader',
       serializedCacheKey
     )
@@ -2753,9 +2886,25 @@ export async function cache(
         string,
         Promise<SharedCacheResult>
       >())
+
+    // Retain the completed entry for the rest of the request where a later
+    // invocation would otherwise repeat real work: private caches have no cache
+    // handler to fall back on in production, and a platform- or config-supplied
+    // handler may be remote, so a second `get` can be a round trip. A built-in
+    // handler read is a map lookup, so retaining its entries would hold a
+    // forked stream buffer for nothing.
+    const completedCacheInvocations =
+      isPrivate || !isBuiltInCacheHandler(kind)
+        ? (workStore.completedCacheInvocations ??= new Map<
+            string,
+            Promise<SharedCacheResult>
+          >())
+        : undefined
+
     resolvableSharedCacheResult.registerIn(
       intraRequestPendingCacheInvocations,
-      serializedCacheKey
+      serializedCacheKey,
+      completedCacheInvocations
     )
 
     // Cross-request deduplication lets concurrent requests for the same key
@@ -2782,7 +2931,11 @@ export async function cache(
           const cacheSignal = getCacheSignal(workUnitStore)
           cacheSignal?.beginRead()
 
-          debug?.('joining pending cross-request invocation', cacheHandlerKey)
+          debug?.(
+            logPrefix,
+            'joining pending cross-request invocation',
+            cacheHandlerKey
+          )
           const sharedCacheResult = await crossRequestPendingCacheInvocation
 
           if (sharedCacheResult.type === 'cached') {
@@ -2809,6 +2962,7 @@ export async function cache(
 
               if (newCacheHandlerKey !== cacheHandlerKey) {
                 debug?.(
+                  logPrefix,
                   'cross-request root param mismatch, retrying',
                   cacheHandlerKey,
                   '→',
@@ -2822,6 +2976,7 @@ export async function cache(
 
             // Key matches — safe to fork.
             debug?.(
+              logPrefix,
               'cross-request invocation matched, forking result',
               cacheHandlerKey
             )
@@ -2835,7 +2990,8 @@ export async function cache(
             saveSharedCacheEntryToResumeDataCache(
               serializedCacheKey,
               sharedCacheResult.entry,
-              resumeDataCache
+              resumeDataCache,
+              logPrefix
             )
 
             // Resolve for intra-request joiners in this request. They get
@@ -2855,6 +3011,7 @@ export async function cache(
 
               if (newCacheHandlerKey !== cacheHandlerKey) {
                 debug?.(
+                  logPrefix,
                   'cross-request root param mismatch, retrying',
                   cacheHandlerKey,
                   '→',
@@ -2867,6 +3024,7 @@ export async function cache(
             }
 
             debug?.(
+              logPrefix,
               'cross-request invocation is prerender-dynamic',
               cacheHandlerKey
             )
@@ -2882,6 +3040,7 @@ export async function cache(
         // No pending cross-request invocation — become the leader.
         if (!skipCrossRequestDedupe) {
           debug?.(
+            logPrefix,
             'registering as cross-request invocation leader',
             cacheHandlerKey
           )
@@ -2959,10 +3118,11 @@ export async function cache(
               workStore,
               workUnitStore,
               implicitTags,
-              implicitTagsExpiration
+              implicitTagsExpiration,
+              logPrefix
             )
           ) {
-            debug?.('discarding expired entry', cacheHandlerKey)
+            debug?.(logPrefix, 'discarding expired entry', cacheHandlerKey)
             entry = undefined
           }
         }
@@ -2982,12 +3142,14 @@ export async function cache(
               // entry.
               if (entry.revalidate === 0) {
                 debug?.(
+                  logPrefix,
                   'omitting entry',
                   cacheHandlerKey,
                   'from static shell due to revalidate: 0'
                 )
               } else {
                 debug?.(
+                  logPrefix,
                   'omitting entry',
                   cacheHandlerKey,
                   'from static shell due to short expire value:',
@@ -3007,7 +3169,11 @@ export async function cache(
                 'dynamic "use cache"',
                 workUnitStore
               )
-              debug?.('leader resolved as prerender-dynamic', cacheHandlerKey)
+              debug?.(
+                logPrefix,
+                'leader resolved as prerender-dynamic',
+                cacheHandlerKey
+              )
               resolvableSharedCacheResult.resolve({
                 type: 'prerender-dynamic',
                 hangingPromise,
@@ -3035,7 +3201,6 @@ export async function cache(
               break
             }
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -3069,13 +3234,13 @@ export async function cache(
                 // resolves in the dynamic stage. Otherwise, a dynamic request
                 // generally recovers a static shell, so the entry can resolve
                 // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsSessionShell`,
+                // session shell instead, as indicated by `needsAppShell`,
                 // the entry must resolve after the session data stage that
                 // the shell includes.
                 let stage: AdvanceableRenderStage
                 if (entry.stale < MIN_PREFETCHABLE_STALE) {
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsSessionShell) {
+                } else if (workUnitStore.needsAppShell) {
                   stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
                   stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
@@ -3090,7 +3255,6 @@ export async function cache(
             }
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -3120,15 +3284,14 @@ export async function cache(
                 ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
                 : entry.expire) *
                 1000 ||
-          (workStore.isStaticGeneration &&
+          (willConsumerServerCache(workUnitStore) &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
           // Miss. Generate a new result.
 
-          // If the cache entry is stale and we're prerendering, we don't want
-          // to use the stale entry since it would unnecessarily need to shorten
-          // the lifetime of the prerender. We're not time constrained here so
-          // we can re-generated it now.
+          // If the cache entry is stale and its consumer will persist the
+          // result in a server cache, don't persist the stale entry into a new
+          // cache. We're not time constrained here, so regenerate it now.
 
           // We need to run this inside a clean AsyncLocalStorage snapshot so
           // that the cache generation cannot read anything from the context
@@ -3140,14 +3303,18 @@ export async function cache(
 
           if (entry) {
             if (currentTime > entry.timestamp + entry.expire * 1000) {
-              debug?.('entry is expired', cacheHandlerKey)
+              debug?.(logPrefix, 'entry is expired', cacheHandlerKey)
             }
 
             if (
-              workStore.isStaticGeneration &&
+              willConsumerServerCache(workUnitStore) &&
               currentTime > entry.timestamp + entry.revalidate * 1000
             ) {
-              debug?.('static generation, entry is stale', cacheHandlerKey)
+              debug?.(
+                logPrefix,
+                'foreground revalidation, entry is stale',
+                cacheHandlerKey
+              )
             }
           }
 
@@ -3174,6 +3341,7 @@ export async function cache(
 
           if (result.type === 'prerender-dynamic') {
             debug?.(
+              logPrefix,
               'leader resolved as prerender-dynamic (generation)',
               cacheHandlerKey
             )
@@ -3198,7 +3366,8 @@ export async function cache(
             const savedCacheResult = saveToResumeDataCache(
               resumeDataCache,
               serializedCacheKey,
-              pendingCacheResult
+              pendingCacheResult,
+              logPrefix
             )
 
             if (cacheHandler) {
@@ -3213,7 +3382,11 @@ export async function cache(
             }
           }
 
-          debug?.('leader resolved with generated entry', cacheHandlerKey)
+          debug?.(
+            logPrefix,
+            'leader resolved with generated entry',
+            cacheHandlerKey
+          )
 
           const pendingMetadata: Promise<CacheResultMetadata> =
             metadataSource.then((collected) => ({
@@ -3294,7 +3467,11 @@ export async function cache(
             cacheSignal?.endRead()
           }
 
-          debug?.('leader resolved with cache handler hit', cacheHandlerKey)
+          debug?.(
+            logPrefix,
+            'leader resolved with cache handler hit',
+            cacheHandlerKey
+          )
 
           const sharedCacheEntry = new SharedCacheEntry(
             stream,
@@ -3335,7 +3512,6 @@ export async function cache(
               case 'private-cache':
               case 'prerender':
               case 'prerender-runtime':
-              case 'prerender-ppr':
               case 'prerender-legacy':
               case 'unstable-cache':
               case 'generate-static-params':
@@ -3369,7 +3545,8 @@ export async function cache(
                   const savedCacheResult = saveToResumeDataCache(
                     resumeDataCache,
                     serializedCacheKey,
-                    pendingCacheResult
+                    pendingCacheResult,
+                    logPrefix
                   )
 
                   if (cacheHandler) {
@@ -3388,6 +3565,7 @@ export async function cache(
               })
               .catch((error) => {
                 debug?.(
+                  logPrefix,
                   'background cache revalidation failed for',
                   revalidateCacheHandlerKey,
                   error
@@ -3431,6 +3609,71 @@ export async function cache(
     replayConsoleLogs,
     environmentName: 'Cache',
   })
+}
+
+/**
+ * This returns a cache key that has to cover everything that can affect the result of the cached
+ * function (apart from the arguments). So
+ * - codeHash: the code itself that generates the return value
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version
+ *      anyway:
+ *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
+ * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
+ *   not inlined)
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
+ *
+ * In case that granular information isn't available, fall back to
+ * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
+ */
+async function computeCacheKeyImplementationPart(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore,
+  id: string
+): Promise<unknown> {
+  let durability = workStore.durableUseCacheEntries
+    ? getServerActionsManifest().node[id].workers?.[
+        normalizeWorkerPageName(workStore.page)
+      ]?.durability
+    : undefined
+  if (
+    durability &&
+    // TODO replace this with more granular tracking: a list of all imported client components
+    durability.referencesClientComponent !== true
+  ) {
+    // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
+    const crypto = require('crypto') as typeof import('crypto')
+    let runtimeEnvVarStateHash = crypto
+      // Hash the env var values, to not leak secrets into the cache key.
+      .createHash('sha256')
+      .update(
+        durability.runtimeEnvVars
+          .map((k) => {
+            // Make sure not to stringify `undefined` and `"undefined"` to the same value.
+            return process.env[k] != null ? `${k}=${process.env[k]}` : k
+          })
+          .join('\0') ?? ''
+      )
+      .digest('hex')
+
+    // When more accurate analysis information is available, use codeHash + runtimeEnvVars
+    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
+  } else {
+    // Because the Action ID is not yet unique per implementation of that Action we can't
+    // safely reuse the results across builds yet. In the meantime we add the buildId to the
+    // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+    // the implementation.
+    const buildId = workStore.deploymentId || workStore.buildId
+
+    // In dev mode, when the HMR refresh hash is set, we include it in the
+    // cache key. This ensures that cache entries are not reused when server
+    // components have been edited. This is a very coarse approach. But it's
+    // also only a temporary solution until Action IDs are unique per
+    // implementation. Remove this once Action IDs hash the implementation.
+    const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
+
+    // otherwise fall back to buildId and/or the HMR hash.
+    return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
+  }
 }
 
 /**
@@ -3484,7 +3727,6 @@ function shouldForceRevalidate(
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -3498,16 +3740,18 @@ function shouldForceRevalidate(
 }
 
 function shouldDiscardCacheEntry(
-  entry: CacheEntry,
+  entry: Pick<CacheEntry, 'tags' | 'timestamp'>,
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   implicitTags: string[],
-  implicitTagsExpiration: number
+  implicitTagsExpiration: number,
+  logPrefix: string
 ): boolean {
   // If the cache entry was created before any of the implicit tags were
   // revalidated last, we need to discard it.
   if (entry.timestamp <= implicitTagsExpiration) {
     debug?.(
+      logPrefix,
       'entry was created at',
       entry.timestamp,
       'before implicit tags were revalidated at',
@@ -3528,7 +3772,6 @@ function shouldDiscardCacheEntry(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
@@ -3542,25 +3785,52 @@ function shouldDiscardCacheEntry(
 
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
-  if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+  if (
+    entry.tags.some((tag) =>
+      isRevalidatedAfter(tag, entry.timestamp, workStore, logPrefix)
+    )
+  ) {
     return true
   }
 
   // Finally, if any of the implicit tags have been revalidated recently, we
   // also need to discard the cache entry.
-  if (implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+  if (
+    implicitTags.some((tag) =>
+      isRevalidatedAfter(tag, entry.timestamp, workStore, logPrefix)
+    )
+  ) {
     return true
   }
 
   return false
 }
 
-function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
-  const { previouslyRevalidatedTags, pendingRevalidatedTags } = workStore
+/**
+ * Whether `tag` was revalidated after an entry created at `entryTimestamp`,
+ * which makes that entry stale. An entry produced after the revalidation
+ * already reflects it and is still usable.
+ */
+function isRevalidatedAfter(
+  tag: string,
+  entryTimestamp: number,
+  workStore: WorkStore,
+  logPrefix: string
+): boolean {
+  const {
+    previouslyRevalidatedTags,
+    pendingRevalidatedTags,
+    requestStartTime,
+  } = workStore
 
   // Was the tag previously revalidated (e.g. by a redirecting server action)?
-  if (previouslyRevalidatedTags.includes(tag)) {
-    debug?.('tag', tag, 'was previously revalidated')
+  // That happened in an earlier request and carries no timestamp of its own, so
+  // it counts as having happened when this request started.
+  if (
+    entryTimestamp <= requestStartTime &&
+    previouslyRevalidatedTags.includes(tag)
+  ) {
+    debug?.(logPrefix, 'tag', tag, 'was previously revalidated')
 
     return true
   }
@@ -3569,8 +3839,12 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been fully propagated by a
   // remote cache handler yet, so we read it from the pending tags in the work
   // store.
-  if (pendingRevalidatedTags?.some((item) => item.tag === tag)) {
-    debug?.('tag', tag, 'was just revalidated')
+  if (
+    pendingRevalidatedTags?.some(
+      (item) => item.tag === tag && item.revalidatedAt > entryTimestamp
+    )
+  ) {
+    debug?.(logPrefix, 'tag', tag, 'was just revalidated')
 
     return true
   }

@@ -4,7 +4,7 @@ title: Cannot access `Date.now()`, `Date()`, or `new Date()` before other uncach
 
 ## Why This Error Occurred
 
-`Date.now()`, `Date()`, or `new Date()` was used in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or the `connection()` API. While typically reading the current time can be guarded behind Runtime data like `cookies()`, `headers()`, `params`, and `searchParams`, this particular route is configured for Runtime Prefetching which makes these APIs available as part of the prefetch request. Reading the current time without preceding it with uncached data or `await connection()` interferes with the framework's ability to produce a correct prefetch result.
+`Date.now()`, `Date()`, or `new Date()` was used in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or the `connection()` API. While typically reading the current time can be guarded behind Runtime data like `cookies()`, `headers()`, `params`, and `searchParams`, this particular route is configured for per-link prefetching, which makes these APIs available as part of the prefetch request. Reading the current time without preceding it with uncached data or `await connection()` interferes with the framework's ability to produce a correct prefetch result.
 
 ## Possible Ways to Fix It
 
