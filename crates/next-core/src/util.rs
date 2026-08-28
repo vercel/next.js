@@ -1,6 +1,6 @@
-use std::{borrow::Cow, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
@@ -572,25 +572,9 @@ pub fn relativize_glob<'a>(
     glob: &'a str,
     relative_to: &FileSystemPath,
 ) -> Result<(&'a str, FileSystemPath)> {
-    let mut relative_to = Cow::Borrowed(relative_to);
-    let mut processed_glob = glob;
-    loop {
-        if let Some(stripped) = processed_glob.strip_prefix("../") {
-            if relative_to.path.is_empty() {
-                bail!(
-                    "glob '{glob}' is invalid, it has a prefix that navigates out of the project \
-                     root"
-                );
-            }
-            relative_to = Cow::Owned(relative_to.parent());
-            processed_glob = stripped;
-        } else if let Some(stripped) = processed_glob.strip_prefix("./") {
-            processed_glob = stripped;
-        } else {
-            break;
-        }
-    }
-    Ok((processed_glob, relative_to.into_owned()))
+    turbo_tasks_fs::glob::relativize_glob(glob, relative_to).with_context(|| {
+        format!("glob '{glob}' is invalid, it has a prefix that navigates out of the project root")
+    })
 }
 
 #[cfg(test)]

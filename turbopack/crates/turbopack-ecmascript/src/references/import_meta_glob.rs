@@ -23,7 +23,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath, ReadGlobResult,
-    glob::{Glob, GlobOptions},
+    glob::{Glob, GlobOptions, relativize_glob},
 };
 use turbopack_core::{
     chunk::{
@@ -338,37 +338,32 @@ pub fn parse_import_meta_glob(
 enum PatternRoot {
     /// The pattern is absolute from the project root (it started with `/`).
     ProjectRoot,
-    /// The pattern is relative to the base directory, walking up `0..n`
-    /// directories first (one per leading `../` segment).
-    Relative { up: usize },
+    /// The pattern is relative to the importing file.
+    Relative,
 }
 
 /// Split a Vite-style glob pattern into the directory it is rooted in and the
-/// remaining glob, which is relative to that directory.
-///
-/// Turbopack's `Glob` matches paths relative to the directory that is scanned
-/// and understands neither a leading `/` nor `..` segments, so those have to be
-/// turned into a different scan directory instead.
+/// remaining glob, which only traverses down from there.
 ///
 /// Vite's rule: a pattern is either relative to the importing file (`./`, `../`)
 /// or absolute from the project root (`/`).
 /// <https://vite.dev/guide/features.html#glob-import-caveats>
-fn split_pattern(pattern: &str) -> (PatternRoot, &str) {
+///
+/// The leading `/` is the part specific to `import.meta.glob`; resolving `./` and
+/// `../` against a directory is the general filesystem operation shared with
+/// other glob options, so that part is delegated to [`relativize_glob`].
+///
+/// Returns [`None`] if the pattern walks above the project root.
+fn split_pattern<'a>(
+    pattern: &'a str,
+    base_dir: &FileSystemPath,
+    project_root: &FileSystemPath,
+) -> Option<(PatternRoot, &'a str, FileSystemPath)> {
     if let Some(rest) = pattern.strip_prefix('/') {
-        return (PatternRoot::ProjectRoot, rest);
+        return Some((PatternRoot::ProjectRoot, rest, project_root.clone()));
     }
-    let mut rest = pattern;
-    let mut up = 0;
-    loop {
-        if let Some(next) = rest.strip_prefix("./") {
-            rest = next;
-        } else if let Some(next) = rest.strip_prefix("../") {
-            rest = next;
-            up += 1;
-        } else {
-            return (PatternRoot::Relative { up }, rest);
-        }
-    }
+    let (rest, dir) = relativize_glob(pattern, base_dir)?;
+    Some((PatternRoot::Relative, rest, dir))
 }
 
 /// Strip the `!` prefix that marks a negative (exclusion) pattern.
@@ -732,41 +727,31 @@ impl ImportMetaGlobAsset {
             .map(|p| strip_negation(p))
             .collect::<Vec<_>>();
 
-        // Figure out where each pattern is rooted, then pick a single directory
-        // to scan that contains all of them, so that one `read_glob` call covers
-        // every pattern and every pattern can be rewritten relative to it.
-        let pattern_root_dir = |pattern: &str| -> Option<(PatternRoot, FileSystemPath)> {
-            let root = split_pattern(pattern).0;
-            let dir = match root {
-                PatternRoot::ProjectRoot => project_root.clone(),
-                PatternRoot::Relative { up } => base_dir.try_join(&"../".repeat(up))?,
-            };
-            Some((root, dir))
-        };
-
         // No pattern may point outside of the project, not even a negative one:
         // silently ignoring it would include files the user asked to exclude.
         // Report the pattern as it was written, so it can be found in the source.
         for pattern in &self.patterns {
-            if pattern_root_dir(strip_negation(pattern)).is_none() {
+            if split_pattern(strip_negation(pattern), &base_dir, &project_root).is_none() {
                 emit_escapes_root_issue(self, &origin_dir, &format!("the pattern {pattern:?}"))
                     .await?;
                 return Ok(Vc::cell(Default::default()));
             }
         }
 
-        // A negative pattern can't add files, but it can be rooted above the
-        // positive patterns (e.g. `['../dir/*.js', '!/dir/skip.js']`), and it
-        // still has to be expressible relative to `scan_dir`, so both are
-        // considered here.
+        // Pick a single directory to scan that contains every pattern root, so
+        // that one `read_glob` call covers all of them and each pattern can be
+        // rewritten relative to it. A negative pattern can't add files, but it
+        // can be rooted above the positive patterns (e.g. `['../dir/*.js',
+        // '!/dir/skip.js']`) and still has to be expressible relative to
+        // `scan_dir`, so both are considered here.
         let mut scan_dir = base_dir.clone();
         for pattern in positive_raw
             .iter()
             .map(|p| p.as_str())
             .chain(negative_raw.iter().copied())
         {
-            let (_, root_dir) =
-                pattern_root_dir(pattern).context("every pattern was checked above")?;
+            let (_, _, root_dir) = split_pattern(pattern, &base_dir, &project_root)
+                .context("every pattern was checked above")?;
             // Every root is an ancestor of `base_dir` (or the project root), so
             // the shortest path is an ancestor of all of them.
             if root_dir.path.len() < scan_dir.path.len() {
@@ -781,9 +766,8 @@ impl ImportMetaGlobAsset {
 
         // Rewrite a pattern to be relative to `scan_dir`.
         let normalize = |pattern: &str| -> Result<NormalizedPattern> {
-            let (_, rest) = split_pattern(pattern);
-            let (root, root_dir) =
-                pattern_root_dir(pattern).context("every pattern was checked above")?;
+            let (root, rest, root_dir) = split_pattern(pattern, &base_dir, &project_root)
+                .context("every pattern was checked above")?;
             let prefix = if root_dir == scan_dir {
                 ""
             } else {
