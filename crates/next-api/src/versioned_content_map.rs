@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbo_tasks, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -174,7 +174,25 @@ impl VersionedContentMap {
             client_output_path,
         );
         this.map_op_to_compute_entry.update_conditionally(|map| {
-            map.insert(assets_operation, compute_entry) != Some(compute_entry)
+            let previous = map.insert(assets_operation, compute_entry);
+            if previous == Some(compute_entry) {
+                // No-op update.
+                return false;
+            }
+            // Pin the operations so GC keeps their tasks alive while this map holds them — nothing
+            // in the persistent graph parents them.
+            let tt = turbo_tasks();
+            match previous {
+                None => {
+                    tt.pin_task_for_gc(assets_operation.task_id());
+                    tt.pin_task_for_gc(compute_entry.task_id());
+                }
+                Some(old_compute_entry) => {
+                    tt.unpin_task_for_gc(old_compute_entry.task_id());
+                    tt.pin_task_for_gc(compute_entry.task_id());
+                }
+            }
+            true
         });
         Ok(())
     }
@@ -198,30 +216,38 @@ impl VersionedContentMap {
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
+            let tt = turbo_tasks();
+
             // get current map's keys, subtract keys that don't exist in operation
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                let res = map
+                let inserted = map
                     .0
                     .entry(k.clone())
                     .or_default()
                     .0
                     .insert(assets_operation);
+                if inserted {
+                    tt.pin_task_for_gc(assets_operation.task_id());
+                }
                 stale_assets.remove(k);
-                changed = changed || res;
+                changed = changed || inserted;
             }
 
             // Make more efficient with reverse map
             for k in &stale_assets {
-                let res = map
+                let removed = map
                     .0
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
                     .0
                     .swap_remove(&assets_operation);
-                changed = changed || res
+                if removed {
+                    tt.unpin_task_for_gc(assets_operation.task_id());
+                }
+                changed = changed || removed
             }
             changed
         });

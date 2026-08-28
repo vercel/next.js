@@ -551,15 +551,45 @@ impl Storage {
         self.map.shards().len()
     }
 
+    /// Iterates the non-transient tasks of a **single** shard of the resident map by index, under
+    /// that shard's read lock.
+    fn for_each_resident_persistent_in_shard(
+        &self,
+        index: usize,
+        mut f: impl FnMut(TaskId, &TaskStorage),
+    ) {
+        let shard = self.map.shards()[index].read();
+        for (task_id, task) in shard.iter() {
+            if task_id.is_transient() {
+                continue;
+            }
+            f(*task_id, task);
+        }
+    }
+
     /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
     /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
     pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        let shard = self.map.shards()[index].read();
-        for (task_id, task) in shard.iter() {
-            if !task_id.is_transient() && task.gc_maybe_collectible() {
-                on_candidate(*task_id);
+        self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
+            if storage.gc_maybe_collectible() {
+                on_candidate(task_id);
             }
-        }
+        });
+    }
+
+    /// Return the set of all known live roots.
+    pub fn gc_scan_roots(&self) -> impl Iterator<Item = TaskId> {
+        let per_shard: Vec<Vec<TaskId>> =
+            parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
+                let mut roots = Vec::new();
+                self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
+                    if storage.gc_is_root() {
+                        roots.push(task_id);
+                    }
+                });
+                roots
+            });
+        per_shard.into_iter().flatten()
     }
 
     pub fn access_pair_mut(
