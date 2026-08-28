@@ -1,3 +1,4 @@
+import fs from 'fs/promises'
 import path from 'path'
 
 import { nextTestSetup } from 'e2e-utils'
@@ -57,6 +58,34 @@ describe.skip('sync IO that blocks the root', () => {
 
         if (isDebugPrerender) {
           const trace = await next.readFile(traceFile).catch(() => '')
+          const parsedTrace = trace
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => JSON.parse(line))
+          await fs.mkdir(path.join(process.cwd(), 'test/traces'), {
+            recursive: true,
+          })
+          await fs.writeFile(
+            path.join(
+              process.cwd(),
+              'test/traces',
+              `sync-io-blocks-root-${route.slice(1).replaceAll('/', '-')}.json`
+            ),
+            JSON.stringify(
+              {
+                route,
+                reactVersion: process.env.NEXT_TEST_REACT_VERSION ?? 'default',
+                exitCode: result.exitCode,
+                hasDetailedDiagnostic: result.cliOutput.includes(
+                  `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+                ),
+                trace: parsedTrace,
+              },
+              null,
+              2
+            )
+          )
           console.log(
             JSON.stringify({
               route,
@@ -65,11 +94,7 @@ describe.skip('sync IO that blocks the root', () => {
               hasDetailedDiagnostic: result.cliOutput.includes(
                 `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
               ),
-              trace: trace
-                .trim()
-                .split('\n')
-                .filter(Boolean)
-                .map((line) => JSON.parse(line)),
+              trace: parsedTrace,
             })
           )
         }
