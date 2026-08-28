@@ -28,6 +28,9 @@ const STATUSES: Order['status'][] = [
 // Simulates the orders service. Statuses drift over time, so every request
 // observes a slightly different snapshot — this data must never be shared
 // between visitors.
+// 2026-08 tune-up sprint: dropped the old list-level response caching here
+// so statuses are always live. Users now report the list re-fetches on every
+// bounce back from an order — tracked as the second regression.
 export async function fetchOrders(): Promise<{
   orders: Order[]
   fetchedAt: string
