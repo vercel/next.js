@@ -184,14 +184,9 @@ The Dockerfiles automatically detect which lockfile is present and use the appro
 
 ## Environment Variables
 
-The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a
-local development file — which usually holds real credentials — is never copied
-into the build context or the final image.
+The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a local development file — which usually holds real credentials — is never copied into the build context or the final image.
 
-With `output: "export"` there is **no server at run time**: Nginx (or `serve`)
-only hands out the prebuilt files in `out/`. `docker run -e …` therefore has no
-effect on the application. Every value has to be present while `next build`
-runs, and every value ends up in files that are served to every visitor.
+With `output: "export"` there is **no server at run time**: Nginx (or `serve`) only hands out the prebuilt files in `out/`. `docker run -e …` therefore has no effect on the application. Values used by the exported application must be present while `next build` runs. Any value inlined or rendered into `out/` is served to every visitor.
 
 ### Non-secret configuration: use `.env.production`
 
@@ -204,8 +199,7 @@ NEXT_PUBLIC_SITE_URL=https://example.com
 
 ### Per-environment values: use a build argument
 
-To build the same source for several environments, pass the value into the
-build:
+To build the same source for several environments, pass the value into the build:
 
 ```dockerfile
 ARG NEXT_PUBLIC_SITE_URL
@@ -220,11 +214,7 @@ docker build \
 ```
 
 > [!IMPORTANT]
-> A static export cannot keep a secret. `NEXT_PUBLIC_*` values are inlined
-> verbatim into the exported JavaScript, and values without the prefix are read
-> while pages are prerendered, so anything derived from them can end up in the
-> exported HTML. Keep API keys and other credentials out of the build entirely
-> and call them from a separate backend.
+> A static export cannot keep a secret. `NEXT_PUBLIC_*` values are inlined verbatim into the exported JavaScript, and values without the prefix are read while pages are prerendered, so anything derived from them can end up in the exported HTML. Keep API keys and other credentials out of the build entirely and call them from a separate backend.
 
 ## Deployment
 

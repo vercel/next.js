@@ -158,19 +158,13 @@ To switch to Alpine, simply change the `NODE_VERSION` ARG in the Dockerfile to `
 
 ## Environment Variables
 
-The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a
-local development file — which usually holds real credentials — is never copied
-into the build context or the final image.
+The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a local development file — which usually holds real credentials — is never copied into the build context or the final image.
 
-The consequence is worth knowing up front: a value you rely on from `.env` is
-`undefined` inside the container, even though the same code works with
-`next build && next start` locally. Use one of the following instead.
+The consequence is worth knowing up front: a value you rely on from `.env` is `undefined` inside the container, even though the same code works with `next build && next start` locally. Use one of the following instead.
 
 ### Secrets and server-only values: pass them at run time
 
-Values read on the server at request time (Route Handlers, dynamically rendered
-Server Components, Server Actions) are read from the environment when the
-request happens, so they need nothing at build time:
+Values read on the server at request time (Route Handlers, dynamically rendered Server Components, Server Actions) are read from the environment when the request happens, so they need nothing at build time:
 
 ```bash
 docker run -p 3000:3000 -e MY_SECRET=value nextjs-standalone-image
@@ -188,14 +182,11 @@ services:
     #   - .env.production.local
 ```
 
-Prefer this wherever it works: it keeps one image promotable across
-environments instead of baking values into a per-environment build.
+Prefer this wherever it works: it keeps one image promotable across environments instead of baking values into a per-environment build.
 
 ### Non-secret build-time configuration: use `.env.production`
 
-`.env.production` is intentionally **not** ignored, so it is available to
-`next build` and loaded by the server at run time. Use it only for values that
-are safe to publish:
+`.env.production` is intentionally **not** ignored, so it is available to `next build` and loaded by the server at run time. Use it only for values that are safe to publish:
 
 ```bash
 # .env.production
@@ -204,9 +195,7 @@ NEXT_PUBLIC_SITE_URL=https://example.com
 
 ### Public values needed in the client bundle: use a build argument
 
-`NEXT_PUBLIC_*` values referenced from Client Components are inlined into the
-JavaScript sent to the browser, so they have to be present while `next build`
-runs. Add them to the builder stage:
+`NEXT_PUBLIC_*` values referenced from Client Components are inlined into the JavaScript sent to the browser, so they have to be present while `next build` runs. Add them to the builder stage:
 
 ```dockerfile
 ARG NEXT_PUBLIC_SITE_URL
@@ -221,18 +210,12 @@ docker build \
 ```
 
 > [!IMPORTANT]
-> Never pass secrets as build arguments. They are recoverable from the image
-> history, and `NEXT_PUBLIC_*` values are sent to the browser by definition.
+> Never pass secrets as build arguments. They are recoverable from the image history, and `NEXT_PUBLIC_*` values are sent to the browser by definition.
 
 > [!IMPORTANT]
-> Any env file that **is** present in the build context is also copied into
-> `.next/standalone` by `output: "standalone"`, and this Dockerfile copies that
-> directory wholesale into the runner stage. The file therefore ships inside the
-> image and is readable by anyone who can pull it. Keep credentials out of
-> committed env files and pass them at run time.
+> Any env file that **is** present in the build context is also copied into `.next/standalone` by `output: "standalone"`, and this Dockerfile copies that directory wholesale into the runner stage. The file therefore ships inside the image and is readable by anyone who can pull it. Keep credentials out of committed env files and pass them at run time.
 
-To build a separate image per environment instead, see
-[`with-docker-multi-env`](../with-docker-multi-env).
+To build a separate image per environment instead, see [`with-docker-multi-env`](../with-docker-multi-env).
 
 ## Deployment
 
