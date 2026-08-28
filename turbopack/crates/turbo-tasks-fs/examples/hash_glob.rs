@@ -72,8 +72,10 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<()> {
 async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
     let result = result.await?;
     let mut hashes = BTreeMap::new();
-    for (name, entry) in result.results.iter() {
-        if let DirectoryEntry::File(path) = entry {
+    for (name, (entry, realpath)) in result.results.iter() {
+        if matches!(entry, DirectoryEntry::File(_))
+            && let Ok(path) = &realpath.await?.path_result
+        {
             hashes.insert(name, hash_file(path.clone()).owned().await?);
         }
     }
@@ -98,9 +100,6 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
 
 #[turbo_tasks::function]
 async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
-    let Ok(file_path) = file_path.realpath().await? else {
-        return Ok(empty_string());
-    };
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),
