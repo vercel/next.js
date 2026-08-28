@@ -504,7 +504,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope_factory() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_bounded(1000, |scope| {
@@ -524,7 +527,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope_task() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_bounded(1000, |scope| {

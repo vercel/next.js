@@ -386,7 +386,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let mut input = vec![1; 1000];
