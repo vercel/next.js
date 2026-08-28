@@ -31,6 +31,7 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
     source_map::{
         GenerateSourceMap,
+        structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
@@ -97,28 +98,26 @@ impl CssChunk {
             let close = write_import_context(&mut body, content.import_context).await?;
 
             let chunking_context = self.chunking_context();
-            let source_map = content.source_map.await?;
-            let source_map = source_map.as_content().map(|f| f.content());
-            let source_map = match *chunking_context.source_map_source_type().await? {
-                SourceMapSourceType::AbsoluteFileUri => {
-                    absolute_fileify_source_map(
-                        source_map,
-                        chunking_context.root_path().owned().await?,
-                    )
-                    .await?
-                }
-                SourceMapSourceType::RelativeUri => {
+            let source_map = match (
+                *chunking_context.source_map_source_type().await?,
+                &content.source_map,
+            ) {
+                (SourceMapSourceType::AbsoluteFileUri, Some(map)) => Some(
+                    absolute_fileify_source_map(map, chunking_context.root_path().owned().await?)
+                        .await?,
+                ),
+                (SourceMapSourceType::RelativeUri, Some(map)) => Some(
                     relative_fileify_source_map(
-                        source_map,
+                        map,
                         chunking_context.root_path().owned().await?,
                         chunking_context
                             .relative_path_from_chunk_root_to_project_root()
                             .owned()
                             .await?,
                     )
-                    .await?
-                }
-                SourceMapSourceType::TurbopackUri => source_map.cloned(),
+                    .await?,
+                ),
+                (_, map) => map.clone(),
             };
 
             body.push_source(&content.inner_code, source_map);
@@ -130,7 +129,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "{}", &external_import)?;
+            writeln!(code, "{}", external_import)?;
         }
 
         let built = &body.build();
@@ -191,7 +190,7 @@ impl CssChunk {
         }
         let assets = chunk_items
             .iter()
-            .map(|chunk_item| async move {
+            .map(async |chunk_item| {
                 Ok((
                     rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
@@ -258,7 +257,7 @@ impl OutputAssetsReference for CssChunk {
         let references = content
             .chunk_items
             .iter()
-            .map(|item| async {
+            .map(async |item| {
                 let refs = item.references().await?;
                 let single_css_chunk = if should_generate_single_item_chunks {
                     Some(ResolvedVc::upcast(
@@ -354,7 +353,7 @@ impl OutputChunk for CssChunk {
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
-            .map(|&css_item| async move {
+            .map(async |&css_item| {
                 Ok(css_item
                     .content()
                     .await?
@@ -452,7 +451,7 @@ pub struct CssChunkItemContent {
     pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
-    pub source_map: ResolvedVc<FileContent>,
+    pub source_map: Option<StructuredSourceMap>,
 }
 
 #[turbo_tasks::value_trait]
@@ -499,7 +498,7 @@ impl Introspectable for CssChunk {
                 .await?
                 .chunk_items
                 .iter()
-                .map(|chunk_item| async move {
+                .map(async |chunk_item| {
                     Ok((
                         rcstr!("entry module"),
                         IntrospectableModule::new(chunk_item.module())
@@ -532,6 +531,7 @@ impl ChunkType for CssChunkType {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        _component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();
         // TODO operate with batches
@@ -549,7 +549,7 @@ impl ChunkType for CssChunkType {
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
+                .map(|ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
                     let Some(chunk_item) =
                         ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
                     else {
@@ -558,8 +558,7 @@ impl ChunkType for CssChunkType {
                     // CSS doesn't need to care about async_info, so we can discard it
                     Ok(chunk_item)
                 })
-                .try_join()
-                .await?,
+                .collect::<Result<Vec<_>>>()?,
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))

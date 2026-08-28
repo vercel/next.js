@@ -18,7 +18,7 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE } from './utils'
+import { getMemoryRestartStats, RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -229,6 +229,7 @@ export async function startServer(
   }
 
   let nextServer: NextServer | undefined
+  let devMemoryThresholdRestart = true
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -250,23 +251,21 @@ export async function startServer(
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     } finally {
-      if (isDev) {
-        if (
-          v8.getHeapStatistics().used_heap_size >
-          0.8 * v8.getHeapStatistics().heap_size_limit
-        ) {
-          Log.warn(
-            `Server is approaching the used memory threshold, restarting...`
-          )
-          trace('server-restart-close-to-memory-threshold', undefined, {
-            'memory.heapSizeLimit': String(
-              v8.getHeapStatistics().heap_size_limit
-            ),
-            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
-          }).stop()
-          await flushAllTraces()
-          process.exit(RESTART_EXIT_CODE)
-        }
+      const memoryRestartStats = getMemoryRestartStats(
+        isDev,
+        devMemoryThresholdRestart,
+        v8.getHeapStatistics
+      )
+      if (memoryRestartStats) {
+        Log.warn(
+          `Server is approaching the used memory threshold, restarting...`
+        )
+        trace('server-restart-close-to-memory-threshold', undefined, {
+          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
+        }).stop()
+        flushAllTraces()
+        process.exit(RESTART_EXIT_CODE)
       }
     }
   }
@@ -429,7 +428,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -495,6 +494,7 @@ export async function startServer(
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
         })
+        devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
@@ -505,13 +505,14 @@ export async function startServer(
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
 
           // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
           // is detected but the managed agent-rules block is missing.
           // Gated on `agentRules` in next.config (default true).
           if (initResult.agentRules !== false) {
-            const result = ensureAgentRulesForDev(dir)
+            const result = await ensureAgentRulesForDev(dir)
             if (result) {
               const generated: string[] = []
               if (

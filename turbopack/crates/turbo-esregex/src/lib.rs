@@ -122,6 +122,16 @@ impl EsRegex {
         }
     }
 
+    /// Returns the normalized `regex`-crate source (with inline flags already applied) if this
+    /// regex is backed by the `regex` crate, or `None` if it falls back to `regress` (e.g. it uses
+    /// lookahead/backreferences). Useful for combining several patterns into a [`regex::RegexSet`].
+    pub fn as_regex_str(&self) -> Option<&str> {
+        match &self.delegate {
+            EsRegexImpl::Regex(r) => Some(r.as_str()),
+            EsRegexImpl::Regress(_) => None,
+        }
+    }
+
     /// Searches for the first match of the regex in the `haystack`, and iterates over the capture
     /// groups within that first match.
     ///
@@ -148,6 +158,89 @@ impl EsRegex {
             }
         };
         Some(Captures { delegate })
+    }
+}
+
+/// A group of [`EsRegex`]es matched against a haystack as a unit.
+///
+/// The members backed by the `regex` crate are compiled into a single [`regex::RegexSet`] once,
+/// when the group is built, rather than on every match. The remainder (those that fall back to
+/// `regress`, e.g. for lookahead) are matched one at a time.
+#[derive(Debug, Clone)]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
+pub struct EsRegexSet {
+    /// The members, in the order they were given. Also the source of truth for equality and
+    /// serialization, since [`regex::RegexSet`] supports neither.
+    regexes: Vec<EsRegex>,
+    /// The combined members, or `None` if the combined program couldn't be built.
+    #[turbo_tasks(trace_ignore)]
+    set: Option<regex::RegexSet>,
+    /// Indices into `regexes` of the members `set` doesn't cover. Usually empty.
+    individual: Vec<u32>,
+}
+
+impl PartialEq for EsRegexSet {
+    fn eq(&self, other: &Self) -> bool {
+        self.regexes == other.regexes
+    }
+}
+impl Eq for EsRegexSet {}
+
+impl Encode for EsRegexSet {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.regexes.encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for EsRegexSet {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let regexes: Vec<EsRegex> = Decode::decode(decoder)?;
+        Ok(EsRegexSet::new(regexes))
+    }
+}
+
+impl_borrow_decode!(EsRegexSet);
+
+impl Default for EsRegexSet {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl EsRegexSet {
+    /// Builds the combined matcher. Members backed by `regress` can't join a
+    /// [`regex::RegexSet`], and the combined program has its own size limit; either way the
+    /// leftovers are recorded up front and matched one at a time.
+    pub fn new(regexes: Vec<EsRegex>) -> Self {
+        let set = regex::RegexSet::new(regexes.iter().filter_map(EsRegex::as_regex_str)).ok();
+        let individual = regexes
+            .iter()
+            .enumerate()
+            .filter(|(_, regex)| set.is_none() || regex.as_regex_str().is_none())
+            .map(|(index, _)| index as u32)
+            .collect();
+        Self {
+            regexes,
+            set,
+            individual,
+        }
+    }
+
+    /// Returns true if any member matches somewhere in the `haystack`.
+    pub fn is_match(&self, haystack: &str) -> bool {
+        if let Some(set) = &self.set
+            && set.is_match(haystack)
+        {
+            return true;
+        }
+        self.individual
+            .iter()
+            .any(|&index| self.regexes[index as usize].is_match(haystack))
+    }
+
+    /// Returns true if the group has no members.
+    pub fn is_empty(&self) -> bool {
+        self.regexes.is_empty()
     }
 }
 
@@ -206,7 +299,75 @@ impl<'h> Iterator for Captures<'h> {
 
 #[cfg(test)]
 mod tests {
-    use super::{EsRegex, EsRegexImpl};
+    use super::{EsRegex, EsRegexImpl, EsRegexSet};
+
+    #[test]
+    fn es_regex_set_matches_either_delegate() {
+        // `a(?!b)` needs regress; `^/docs` is handled by the shared `RegexSet`.
+        let set = EsRegexSet::new(vec![
+            EsRegex::new("^/docs", "").unwrap(),
+            EsRegex::new("a(?!b)", "").unwrap(),
+        ]);
+        assert_eq!(set.individual, vec![1]);
+        assert!(set.is_match("/docs/getting-started"));
+        assert!(set.is_match("ac"));
+        assert!(!set.is_match("/blog"));
+        assert!(!set.is_match("ab"));
+    }
+
+    #[test]
+    fn es_regex_set_combines_every_member_when_it_can() {
+        let set = EsRegexSet::new(vec![
+            EsRegex::new("^/docs", "").unwrap(),
+            EsRegex::new("^/blog", "").unwrap(),
+        ]);
+        // A miss only queries the combined set, not every member again.
+        assert!(set.individual.is_empty());
+        assert!(set.is_match("/docs"));
+        assert!(set.is_match("/blog"));
+        assert!(!set.is_match("/about"));
+    }
+
+    #[test]
+    fn empty_es_regex_set_never_matches() {
+        let set = EsRegexSet::default();
+        assert!(set.is_empty());
+        assert!(!set.is_match(""));
+        assert!(!set.is_match("/docs"));
+    }
+
+    #[test]
+    fn oversized_es_regex_set_falls_back_to_matching_individually() {
+        // Each of these compiles on its own but together they blow the combined size limit.
+        const N: usize = 60_000;
+        let regexes = vec![
+            EsRegex::new(&format!("^/docs/[0-9a-zA-Z]{{{N}}}"), "").unwrap(),
+            EsRegex::new(&format!("^/blog/[0-9a-zA-Z]{{{N}}}"), "").unwrap(),
+        ];
+        assert!(regexes.iter().all(|regex| regex.as_regex_str().is_some()));
+        let set = EsRegexSet::new(regexes);
+        assert!(set.set.is_none());
+        assert_eq!(set.individual, vec![0, 1]);
+        assert!(set.is_match(&format!("/docs/{}", "a".repeat(N))));
+        assert!(set.is_match(&format!("/blog/{}", "a".repeat(N))));
+        assert!(!set.is_match("/about"));
+    }
+
+    #[test]
+    fn es_regex_set_round_trip_bincode() {
+        let set = EsRegexSet::new(vec![
+            EsRegex::new("^/docs", "").unwrap(),
+            EsRegex::new("a(?!b)", "").unwrap(),
+        ]);
+        let config = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(&set, config).unwrap();
+        let (decoded, len) = bincode::decode_from_slice::<EsRegexSet, _>(&encoded, config).unwrap();
+        assert_eq!(set, decoded);
+        assert_eq!(len, encoded.len());
+        // The `RegexSet` is rebuilt on decode, not carried in the encoding.
+        assert!(decoded.is_match("/docs"));
+        assert!(decoded.is_match("ac"));
+    }
 
     #[test]
     fn round_trip_bincode() {

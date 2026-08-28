@@ -9,10 +9,11 @@ use std::{
     },
 };
 
+use hashbrown::hash_table;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
-use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskType, event::Event, parallel};
+use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
 
 use crate::{
     backend::storage_schema::{
@@ -22,8 +23,8 @@ use crate::{
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_multi::{RefMut, get_multiple_mut},
-        dash_map_raw_entry::{TryLockAndRemove, try_lock_and_remove},
+        dash_map_entry::{TryLockAndRemove, try_lock_and_remove},
+        dash_map_multi::{RefMut, get_disjoint_mut},
     },
 };
 
@@ -89,14 +90,6 @@ impl Display for EvictionCounts {
 }
 
 impl TaskDataCategory {
-    pub fn into_specific(self) -> SpecificTaskDataCategory {
-        match self {
-            TaskDataCategory::Meta => SpecificTaskDataCategory::Meta,
-            TaskDataCategory::Data => SpecificTaskDataCategory::Data,
-            TaskDataCategory::All => unreachable!(),
-        }
-    }
-
     pub fn includes_data(self) -> bool {
         matches!(self, TaskDataCategory::Data | TaskDataCategory::All)
     }
@@ -129,6 +122,31 @@ impl SpecificTaskDataCategory {
             SpecificTaskDataCategory::Data => KeySpace::TaskData,
         }
     }
+}
+
+/// Records exactly what a `track_modification` call changed, so that
+/// [`StorageWriteGuard::undo_track_modification`] can reverse it precisely when the mutation it
+/// guarded turns out to be a no-op.  This allows us to track modifications 'optimistically' and
+/// undo it if the modification turned out to be a no op.  Useful when dealing with datastructures
+/// like `AutoSet` that can efficiently say whether or not they were modified.
+#[must_use = "a no-op mutation must undo its TrackOutcome; dropping it leaks an over-track"]
+pub enum TrackOutcome {
+    /// Nothing was tracked: either the category was already modified, or (in snapshot mode) it was
+    /// already modified-during-snapshot. Undo is a no-op.
+    NoChange,
+    /// Non-snapshot path: `modified(category)` was set. `bumped` is true if this call also
+    /// incremented the per-shard modified counter (i.e. the task had no prior modifications).
+    Tracked {
+        category: SpecificTaskDataCategory,
+        bumped: bool,
+    },
+    /// Snapshot path: `modified_during_snapshot(category)` was set. `inserted_snapshot` is true if
+    /// this call also inserted the task's entry into the `snapshots` map (the pre-mutation copy or
+    /// a `None` marker).
+    TrackedDuringSnapshot {
+        category: SpecificTaskDataCategory,
+        inserted_snapshot: bool,
+    },
 }
 
 pub struct Storage {
@@ -183,7 +201,7 @@ pub struct Storage {
     /// This is backed by the TaskCache table in the database.
     ///
     /// LockOrdering: See the comments on [map].
-    pub task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,
+    pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
 }
 
 impl Storage {
@@ -253,14 +271,16 @@ impl Storage {
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<Arc<CachedTaskType>>) {
+    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<CachedTaskTypeArc>) {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
             if !task_id.is_transient() {
-                task.track_modification(SpecificTaskDataCategory::Data, "persistent_task_type");
+                // Unconditional track: a new task's type is always a real persistable change.
+                let _ =
+                    task.track_modification(SpecificTaskDataCategory::Data, "persistent_task_type");
             }
         }
     }
@@ -278,6 +298,11 @@ impl Storage {
     /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
     /// entries) are filtered out, but shards may still yield no items if all entries produce
     /// empty `SnapshotItem`s (this is rare and only happens under error conditions).
+    ///
+    /// When `drain_entries` is true (shutdown only), the scan drains the map: unmodified entries
+    /// are erased and freed immediately, and the modified entries are moved out into the
+    /// returned shard iterators, which free each task's memory as it is serialized rather than
+    /// after the whole batch is written.
     pub fn take_snapshot<
         'l,
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
@@ -285,6 +310,7 @@ impl Storage {
         &'l self,
         guard: SnapshotGuard<'l>,
         process: &'l P,
+        drain_entries: bool,
     ) -> Vec<SnapshotShard<'l, P>> {
         let guard = Arc::new(guard);
 
@@ -297,45 +323,66 @@ impl Storage {
             // snapshot_mode, there are no racing writes
             // So we can safely clear it out now that we are processing the modifications
             let modified_count = self.shard_modified_counts[shard_idx].swap(0, Ordering::Relaxed);
-            if modified_count == 0 {
+
+            if modified_count == 0 && !drain_entries {
+                // Nothing to persist in this shard and we're keeping the map, so skip the scan.
+                // TODO: when not draining but eviction is enabled we should run that logic here as
+                // well
                 return None;
             }
-            let mut modified = Vec::with_capacity(modified_count as usize);
-            {
-                let shard_guard = shard.read();
-                // Safety: shard_guard must outlive the iterator.
-                for bucket in unsafe { shard_guard.iter() } {
-                    // Safety: the guard guarantees that the bucket is not removed and the ptr
-                    // is valid.
-                    let (key, shared_value) = unsafe { bucket.as_ref() };
-                    let flags = &shared_value.get().flags;
-                    // Only check modified flags here — transient tasks never have
-                    // modified flags set (track_modification guards against it), so
-                    // this naturally excludes them. new_task is always
-                    // accompanied by modified flags (set_persistent_task_type calls
-                    // track_modification), so any_modified() is sufficient.
-                    if flags.any_modified() {
-                        if key.is_transient() {
+
+            // Scan the shard once, building the work this shard's iterator will perform. The two
+            // modes carry different data so that `next` has no per-item `drain` branch:
+            // - keep mode collects the modified `TaskId`s and looks them up again while iterating.
+            // - drain mode erases the unmodified entries here and then moves the remaining
+            //   (modified-only) table out of the map, so the iterator owns and drains it directly.
+            let work = {
+                let mut shard_guard = shard.write();
+                if drain_entries {
+                    shard_guard.retain(|(key, task)| {
+                        let modified_task = task.flags.any_modified();
+                        if modified_task {
                             debug_assert!(
-                                false,
-                                "found a modified transient task: {:?}",
-                                shared_value.get().get_persistent_task_type()
+                                !key.is_transient(),
+                                "found a modified transient task: {key:?}"
                             );
-                            continue;
                         }
-
-                        modified.push(*key);
+                        // Unmodified entries are not part of the snapshot. Remove and free them
+                        // now so the table we move out below holds only modified entries.
+                        modified_task
+                    });
+                    if shard_guard.is_empty() {
+                        // The shard held only unmodified entries, which we've now erased and freed.
+                        // No iterator is created for an empty shard.
+                        return None;
                     }
+                    // Move the modified-only table out of the map. Iterating it frees each task box
+                    // as it is serialized, and the shard's table allocation is released here.
+                    ShardWork::Drain(std::mem::take(&mut *shard_guard).into_iter())
+                } else {
+                    let mut modified = Vec::with_capacity(modified_count as usize);
+                    for (key, task) in shard_guard.iter() {
+                        // Only check modified flags — transient tasks never have modified flags set
+                        // (track_modification guards against it), so this naturally excludes them.
+                        // new_task always comes with modified flags (set_persistent_task_type calls
+                        // track_modification), so any_modified() is sufficient.
+                        if task.flags.any_modified() {
+                            debug_assert!(
+                                !key.is_transient(),
+                                "found a modified transient task: {key:?}"
+                            );
+                            modified.push(*key);
+                        }
+                    }
+                    // modified_count > 0 (we returned early otherwise), so this is never empty.
+                    debug_assert!(!modified.is_empty());
+                    ShardWork::Keep(modified)
                 }
-                // Safety: shard_guard must outlive the iterator.
-                drop(shard_guard);
-            }
-
-            debug_assert!(!modified.is_empty());
+            };
 
             Some(SnapshotShard {
                 shard_idx,
-                modified,
+                work,
                 storage: self,
                 process,
                 _guard: guard.clone(),
@@ -415,7 +462,7 @@ impl Storage {
             let snap_shard = &snapshot_shards[shard_idx];
 
             // Acquire in documented order: map first, snapshots second.
-            let map_guard = map_shard.write();
+            let mut map_guard = map_shard.write();
             let mut snap_guard = snap_shard.write();
 
             for (key, _) in snap_guard.drain() {
@@ -424,11 +471,8 @@ impl Storage {
                 // through `self.map.get_mut`, which would attempt to re-acquire this shard's
                 // write lock and would also obscure the pairing.
                 let hash = self.map.hasher().hash_one(key);
-                if let Some(bucket) = map_guard.find(hash, |(k, _)| *k == key) {
-                    // SAFETY: We hold `map_shard`'s write lock for the duration of this
-                    // access, so the bucket pointer is valid and no other thread can alias it.
-                    let (_, shared_value) = unsafe { bucket.as_mut() };
-                    self.promote_during_snapshot_flags(shared_value.get_mut(), shard_idx);
+                if let Some((_, task)) = map_guard.find_mut(hash, |(k, _)| *k == key) {
+                    self.promote_during_snapshot_flags(task, shard_idx);
                 }
             }
             // If we are saving a non-trivial amount of memory just clear it out.
@@ -460,12 +504,20 @@ impl Storage {
         }
     }
 
+    /// Read-only access to an already resident task. Returns `None` if the task isnt in memory
+    /// resident. The closure runs while a shard read lock is held, so it must be cheap and must
+    /// not re-enter the map.
+    pub fn with_task<R>(&self, key: TaskId, f: impl FnOnce(&TaskStorage) -> R) -> Option<R> {
+        let task = self.map.get(&key)?;
+        Some(f(task.value()))
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
+        let (a, b) = get_disjoint_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
         (
             StorageWriteGuard {
                 storage: self,
@@ -481,6 +533,10 @@ impl Storage {
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
         drop_contents(&self.snapshots);
+    }
+
+    /// Drop the `task_cache` map, freeing its memory.
+    pub(crate) fn drop_task_cache(&self) {
         drop_contents(&self.task_cache);
     }
 
@@ -516,22 +572,19 @@ impl Storage {
             // was contended. We defer them until after the map shard lock is released to
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
-            let mut deferred_task_cache_removals: Vec<Arc<CachedTaskType>> = Vec::new();
-            // SAFETY: We hold the write lock for the duration of iteration.
-            for bucket in unsafe { shard.iter() } {
-                // SAFETY: The write lock guard outlives the bucket reference.
-                let (task_id, task) = unsafe { bucket.as_mut() };
+            let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            shard.retain(|(task_id, task)| {
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
-                    continue;
+                    return true;
                 }
-                let (key_evictability, value_evictability) = task.get().evictability();
+                let (key_evictability, value_evictability) = task.evictability();
                 match key_evictability {
                     KeyEvictability::Evictable => {
                         // The task type is persisted to backing storage (new_task = false),
                         // so task_cache is a pure perf cache. Remove it now; it will be
                         // re-populated by task_by_type() on the next cache miss.
-                        let task_type = task.get().get_persistent_task_type().unwrap();
+                        let task_type = task.get_persistent_task_type().unwrap();
                         // Only try to acquire the lock, if we cannot just remove at the end
                         // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
                         // we do the opposite we need to be defensive here.  Attempting here is just
@@ -554,12 +607,10 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
-                        match task.get_mut().drop_partial(data, meta) {
+                        match task.drop_partial(data, meta) {
                             DropPartialOutcome::Empty => {
-                                unsafe {
-                                    shard.erase(bucket);
-                                }
                                 evicted.full += 1;
+                                return false;
                             }
                             DropPartialOutcome::HasResidue => {
                                 if data && meta {
@@ -577,7 +628,8 @@ impl Storage {
                         evicted.unevictable_reasons[reason.index()] += 1;
                     }
                 }
-            }
+                true
+            });
             // Shrink the shard if it's less than half full, to reclaim slack capacity
             // after bulk evictions. We already hold the write lock, so this is free
             // from a locking perspective. TaskId hashing is cheap (it's just an integer).
@@ -625,13 +677,13 @@ pub struct StorageWriteGuard<'a> {
 }
 
 impl StorageWriteGuard<'_> {
-    /// Tracks mutation of this task
+    /// Tracks mutation of this task.
     #[inline(always)]
     pub fn track_modification(
         &mut self,
         category: SpecificTaskDataCategory,
         #[allow(unused_variables)] name: &str,
-    ) {
+    ) -> TrackOutcome {
         debug_assert!(
             !self.inner.key().is_transient(),
             "transient task_ids should never be enqueued to be persisted"
@@ -640,14 +692,14 @@ impl StorageWriteGuard<'_> {
             category,
             #[cfg(feature = "trace_task_modification")]
             name,
-        );
+        )
     }
 
     fn track_modification_internal(
         &mut self,
         category: SpecificTaskDataCategory,
         #[cfg(feature = "trace_task_modification")] name: &str,
-    ) {
+    ) -> TrackOutcome {
         // Transient tasks are never persisted, so tracking modifications is meaningless.
         // All callers (TaskGuard, invalidate_serialization) already
         // guard against this, but we enforce it here as defense-in-depth.
@@ -659,39 +711,48 @@ impl StorageWriteGuard<'_> {
         let flags = &self.inner.flags;
         if flags.is_modified_during_snapshot(category) {
             // We can early return since `end_snapshot` is responsible for reconciling.
-            return;
+            return TrackOutcome::NoChange;
         }
         #[cfg(feature = "trace_task_modification")]
         let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
         match (self.storage.snapshot_mode(), flags.is_modified(category)) {
             (false, false) => {
                 // Not in snapshot mode and item is unmodified
-                if !flags.any_modified() {
+                let bumped = !flags.any_modified();
+                if bumped {
                     let shard_idx = self.storage.shard_index(self.inner.key());
                     self.storage.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
                 }
                 self.inner.flags.set_modified(category, true);
+                TrackOutcome::Tracked { category, bumped }
             }
             (false, true) => {
                 // Not in snapshot mode and item is already modified
                 // Do nothing
+                TrackOutcome::NoChange
             }
             (true, false) => {
                 // In snapshot mode and item is unmodified (so it's not part of the snapshot)
                 // Mark it so it gets re-added as Modified after this snapshot completes.
                 // Insert a None entry into snapshots so end_snapshot discovers this task
                 // and promotes its _during_snapshot flags.
-                if !flags.any_modified_during_snapshot() {
+                let inserted_snapshot = !flags.any_modified_during_snapshot();
+                if inserted_snapshot {
                     self.storage.snapshots.insert(*self.inner.key(), None);
                 }
                 self.inner
                     .flags
                     .set_modified_during_snapshot(category, true);
+                TrackOutcome::TrackedDuringSnapshot {
+                    category,
+                    inserted_snapshot,
+                }
             }
             (true, true) => {
                 // In snapshot mode and item is modified (so it's part of the snapshot)
                 // We need to store the original version that is part of the snapshot
-                if !flags.any_modified_during_snapshot() {
+                let inserted_snapshot = !flags.any_modified_during_snapshot();
+                if inserted_snapshot {
                     // Snapshot all non-transient fields, carrying the modified bits into
                     // the copy so the iterator knows which categories to persist.
                     let mut snapshot = self.inner.clone_snapshot();
@@ -705,6 +766,47 @@ impl StorageWriteGuard<'_> {
                 self.inner
                     .flags
                     .set_modified_during_snapshot(category, true);
+                TrackOutcome::TrackedDuringSnapshot {
+                    category,
+                    inserted_snapshot,
+                }
+            }
+        }
+    }
+
+    /// Reverse a [`TrackOutcome`] produced by [`Self::track_modification`] when the mutation it
+    /// guarded changed nothing persistable.
+    ///
+    /// # Correctness
+    ///
+    /// The `outcome` MUST be applied to the **same `StorageWriteGuard`** that produced it, with the
+    /// map shard write lock held continuously in between — i.e. `track_modification`, the mutation,
+    /// and `undo_track_modification` all run within one guard's lifetime. The guard holds its shard
+    /// write lock for its whole lifetime, so this guarantees no other thread observed the tracked
+    /// state, and that `bumped` / `inserted_snapshot` still describe reality (the counter and
+    /// `snapshots` entry are only mutated under that lock). Because those flags record whether
+    /// *this* call created the state, undo never clears a flag, counter, or snapshot entry that a
+    /// prior modification owns.
+    pub fn undo_track_modification(&mut self, outcome: TrackOutcome) {
+        match outcome {
+            TrackOutcome::NoChange => {}
+            TrackOutcome::Tracked { category, bumped } => {
+                self.inner.flags.set_modified(category, false);
+                if bumped {
+                    let shard_idx = self.storage.shard_index(self.inner.key());
+                    self.storage.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
+                }
+            }
+            TrackOutcome::TrackedDuringSnapshot {
+                category,
+                inserted_snapshot,
+            } => {
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, false);
+                if inserted_snapshot {
+                    self.storage.snapshots.remove(self.inner.key());
+                }
             }
         }
     }
@@ -802,9 +904,22 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
+/// The work a single shard's iterator performs, with the snapshot mode encoded in the data rather
+/// than a runtime flag re-checked per item. Built by `take_snapshot`'s scan.
+enum ShardWork {
+    /// Normal snapshot: look each task up in the map while iterating, serialize it, then clear and
+    /// promote its modified flags so it stays dirty for the next snapshot cycle.
+    Keep(Vec<TaskId>),
+    /// Shutdown drain: the scan already erased the unmodified entries and moved the remaining
+    /// (modified-only) shard table out of the map. The iterator owns that table and drains it
+    /// directly, freeing each task box as it is serialized. No second map lookup, no flag
+    /// bookkeeping (the whole map is discarded right after this snapshot).
+    Drain(hash_table::IntoIter<(TaskId, Box<TaskStorage>)>),
+}
+
 pub struct SnapshotShard<'l, P> {
     shard_idx: usize,
-    modified: Vec<TaskId>,
+    work: ShardWork,
     storage: &'l Storage,
     process: &'l P,
     /// Held for its `Drop` impl — ensures snapshot mode ends when all shards are done.
@@ -841,36 +956,52 @@ where
     type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(task_id) = self.shard.modified.pop() {
-            let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
+        let process = self.shard.process;
+        let snapshots = &self.shard.storage.snapshots;
+        let buffer = &mut self.buffer;
+        let mut serialize_task = |task_id: TaskId, inner: &TaskStorage| {
             // If the task was re-modified during snapshot, the snapshots map may
             // hold a pre-modification copy we must serialize instead of the live
             // data. Remove the entry so end_snapshot doesn't double-promote it;
             // we promote manually below.
-            let item = if inner.flags.any_modified_during_snapshot() {
-                match self.shard.storage.snapshots.remove(&task_id) {
-                    Some((_, Some(snapshot))) => {
-                        (self.shard.process)(task_id, &snapshot, &mut self.buffer)
-                    }
-                    Some((_, None)) | None => {
-                        (self.shard.process)(task_id, &inner, &mut self.buffer)
-                    }
+            if inner.flags.any_modified_during_snapshot() {
+                match snapshots.remove(&task_id) {
+                    Some((_, Some(snapshot))) => process(task_id, &snapshot, buffer),
+                    Some((_, None)) | None => process(task_id, inner, buffer),
                 }
             } else {
-                (self.shard.process)(task_id, &inner, &mut self.buffer)
-            };
-            // Clear the modified flags that were captured into the snapshot copy,
-            // then promote modified_during_snapshot → modified so the task stays
-            // dirty for the next snapshot cycle.
-            inner.flags.set_data_modified(false);
-            inner.flags.set_meta_modified(false);
-            inner.flags.set_new_task(false);
-            self.shard
-                .storage
-                .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
-            return Some(item);
+                process(task_id, inner, buffer)
+            }
+        };
+
+        match &mut self.shard.work {
+            ShardWork::Keep(modified) => {
+                let task_id = modified.pop()?;
+                let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
+                let item = serialize_task(task_id, &inner);
+                // Clear the modified flags that were captured into the snapshot copy,
+                // then promote modified_during_snapshot → modified so the task stays
+                // dirty for the next snapshot cycle.
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
+                inner.flags.set_new_task(false);
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
+                Some(item)
+            }
+            ShardWork::Drain(entries) => {
+                // Shutdown only: the scan already moved this shard's modified entries out of the
+                // map, so we own each `Box<TaskStorage>` here. Serialize from a borrow of the owned
+                // box and let it drop at the end of this branch — freeing the task's memory as it
+                // is persisted rather than after the whole batch is written. We skip the flag
+                // bookkeeping the normal path does, since the entire map is discarded right after
+                // this snapshot.
+                let (task_id, inner) = entries.next()?;
+                Some(serialize_task(task_id, &inner))
+                // we don't need to update any bits because everything is getting dropped.
+            }
         }
-        None
     }
 }
 
@@ -887,11 +1018,11 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{SpecificTaskDataCategory, Storage};
+    use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
     use crate::backing_storage::SnapshotItem;
 
     fn non_transient_task(id: u32) -> TaskId {
-        // TRANSIENT_TASK_BIT is 0x8000_0000; any id without that bit is non-transient.
+        // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
     }
 
@@ -902,7 +1033,7 @@ mod tests {
         _: &super::TaskStorage,
         _: &mut TurboBincodeBuffer,
     ) -> SnapshotItem {
-        SnapshotItem {
+        SnapshotItem::Put {
             task_id,
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
@@ -937,7 +1068,7 @@ mod tests {
         // Step 1: modify the task outside snapshot mode (data_modified = true).
         {
             let mut guard = storage.access_mut(task_id);
-            guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
         }
 
         // Step 2: enter snapshot mode.
@@ -947,7 +1078,7 @@ mod tests {
         // Step 3: `take_snapshot` scans the shard. At this point the task has
         // `any_modified()=true` and `any_modified_during_snapshot()=false`, so it
         // goes into the `modified` list inside the returned `SnapshotShard`.
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, false);
 
         // Step 4: now that the scan is done but before we consume the iterator,
         // modify the task again. We're still in snapshot mode, the task is already
@@ -955,7 +1086,7 @@ mod tests {
         // modified bits) and sets `data_modified_during_snapshot=true`.
         {
             let mut guard = storage.access_mut(task_id);
-            guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             // We should have set a snapshot bit
             assert!(guard.flags.data_modified_during_snapshot())
         }
@@ -970,7 +1101,7 @@ mod tests {
 
         // The pre-snapshot snapshot copy should have been encoded and returned.
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1009,7 +1140,7 @@ mod tests {
         // Step 1: modify meta only, outside snapshot mode.
         {
             let mut guard = storage.access_mut(task_id);
-            guard.track_modification(SpecificTaskDataCategory::Meta, "test");
+            let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
             assert!(guard.flags.meta_modified());
             assert!(!guard.flags.data_modified());
         }
@@ -1019,13 +1150,13 @@ mod tests {
         assert!(has_modifications);
 
         // Step 3: take_snapshot — task goes into modified list (meta_modified = true).
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, false);
 
         // Step 4: modify data during snapshot. The `(true, false)` branch fires:
         // data was not previously modified, so snapshots gets a None entry.
         {
             let mut guard = storage.access_mut(task_id);
-            guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
             assert!(guard.flags.data_modified_during_snapshot());
             assert!(!guard.flags.meta_modified_during_snapshot());
         }
@@ -1037,7 +1168,7 @@ mod tests {
             .collect();
 
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1053,6 +1184,275 @@ mod tests {
         assert!(
             has_modifications,
             "shard_modified_counts must be non-zero after promoting data_modified_during_snapshot"
+        );
+    }
+
+    /// With `drain_entries = true` (shutdown path), the modified entries are moved out of the map
+    /// (during the scan) and serialized by the iterator, freeing each task's memory as it is
+    /// persisted rather than retaining it until the whole snapshot is written. Either way the
+    /// entry must be gone from the map by the time the snapshot is consumed.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drain_entries_removes_entry_from_map() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        // Modify the task outside snapshot mode so it lands in the modified list.
+        {
+            let mut guard = storage.access_mut(task_id);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+        assert!(storage.map.get(&task_id).is_some());
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+
+        // Take the snapshot in drain mode.
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+
+        // Consume the iterator: the task is serialized and then removed from the map.
+        let items: Vec<_> = shards
+            .into_iter()
+            .flat_map(|shard| shard.into_iter())
+            .collect();
+
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].task_id(), task_id);
+
+        // The entry must be gone from the map now that it has been persisted.
+        assert!(
+            storage.map.get(&task_id).is_none(),
+            "task entry should be removed from the map after being persisted in drain mode"
+        );
+    }
+
+    /// In drain mode, fully consuming the iterators should release each drained shard's table
+    /// allocation entirely (reset-to-empty in `SnapshotShardIter::drop`), not just shrink it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drain_entries_releases_drained_shards() {
+        // dashmap requires at least 2 shards.
+        let storage = Storage::new(2, true);
+
+        // Insert and modify enough tasks to grow the shards' tables beyond their minimum.
+        let task_ids: Vec<_> = (1..=256).map(non_transient_task).collect();
+        for &task_id in &task_ids {
+            let mut guard = storage.access_mut(task_id);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+        let grown_capacity: usize = storage
+            .map
+            .shards()
+            .iter()
+            .map(|s| s.read().capacity())
+            .sum();
+        assert!(grown_capacity >= task_ids.len());
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+        let items: Vec<_> = shards
+            .into_iter()
+            .flat_map(|shard| shard.into_iter())
+            .collect();
+        assert_eq!(items.len(), task_ids.len());
+
+        // Every shard is now empty and its table allocation has been released (capacity 0),
+        // since the reset swaps in the allocation-free default table.
+        for shard in storage.map.shards() {
+            let shard = shard.read();
+            assert_eq!(shard.len(), 0);
+            assert_eq!(
+                shard.capacity(),
+                0,
+                "drained shard should have released its table allocation"
+            );
+        }
+    }
+
+    /// In drain mode, `take_snapshot`'s scan removes *both* kinds of entry from the map: unmodified
+    /// entries are erased and freed (never serialized), and the remaining modified-only table is
+    /// moved out into the shard iterators (to be serialized, then freed as each is consumed). So
+    /// the map is already empty when `take_snapshot` returns, and only the modified task is
+    /// yielded.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drain_entries_removes_unmodified_during_take_snapshot() {
+        let storage = Storage::new(2, true);
+        let modified_id = non_transient_task(1);
+        let unmodified_id = non_transient_task(2);
+
+        // One modified task (gets serialized) and one unmodified task (e.g. restored from disk but
+        // never dirtied) that just occupies memory and must not be serialized.
+        {
+            let mut guard = storage.access_mut(modified_id);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+        // `access_mut` inserts an entry; leaving it without track_modification keeps it unmodified.
+        let _ = storage.access_mut(unmodified_id);
+        assert!(storage.map.get(&unmodified_id).is_some());
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+
+        // The scan moved the modified table out and freed the unmodified entry, so both ids are
+        // already absent from the map before any iterator is consumed.
+        assert!(
+            storage.map.get(&unmodified_id).is_none(),
+            "unmodified entry should be removed during take_snapshot in drain mode"
+        );
+        assert!(
+            storage.map.get(&modified_id).is_none(),
+            "modified entry should be moved out of the map during take_snapshot in drain mode"
+        );
+
+        // Consuming the iterators yields only the modified task (the unmodified one was never part
+        // of the snapshot).
+        let items: Vec<_> = shards
+            .into_iter()
+            .flat_map(|shard| shard.into_iter())
+            .collect();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].task_id(), modified_id);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn undo_non_snapshot_reverses_flag_and_counter() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        {
+            let mut guard = storage.access_mut(task_id);
+            let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            assert!(guard.flags.data_modified());
+            guard.undo_track_modification(outcome);
+            assert!(!guard.flags.data_modified());
+            assert!(!guard.flags.any_modified());
+        }
+
+        // Counter is back to zero: the next snapshot sees no modifications.
+        let (_guard, has_modifications) = storage.start_snapshot();
+        assert!(
+            !has_modifications,
+            "undo must decrement the shard counter so no modifications remain"
+        );
+    }
+
+    /// A second track on an already-modified category returns `NoChange`; undoing it is a no-op and
+    /// must NOT clear the real modification recorded by the first track.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn undo_nochange_preserves_prior_modification() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        let mut guard = storage.access_mut(task_id);
+        // First track is the real modification.
+        let _first = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        // Second track on the same category changes nothing.
+        let second = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        assert!(matches!(second, TrackOutcome::NoChange));
+        // Undoing the no-op must leave the prior modification intact.
+        guard.undo_track_modification(second);
+        assert!(
+            guard.flags.data_modified(),
+            "undoing a NoChange outcome must not clear a real prior modification"
+        );
+    }
+
+    /// Undo only reverses the category it tracked: tracking Data then Meta, undoing only the Meta
+    /// outcome must leave Data modified and the shard counter still non-zero.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn undo_only_reverses_its_own_category() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        {
+            let mut guard = storage.access_mut(task_id);
+            let _data = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            let meta = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
+            assert!(guard.flags.meta_modified());
+            guard.undo_track_modification(meta);
+            assert!(!guard.flags.meta_modified());
+            assert!(guard.flags.data_modified());
+        }
+
+        // Data is still modified, so the counter is still non-zero.
+        let (_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+    }
+
+    /// During-snapshot `(true, false)` arm: a task unmodified-before-snapshot, tracked during
+    /// snapshot, inserts a `None` marker into `snapshots` and sets the `_during_snapshot` bit.
+    /// Undo must remove the marker and clear the bit.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn undo_during_snapshot_true_false_removes_marker() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+        // Insert the task (unmodified) so it exists in the map.
+        let _ = storage.access_mut(task_id);
+
+        let (_snapshot_guard, _) = storage.start_snapshot();
+
+        let mut guard = storage.access_mut(task_id);
+        let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        assert!(matches!(
+            outcome,
+            TrackOutcome::TrackedDuringSnapshot {
+                inserted_snapshot: true,
+                ..
+            }
+        ));
+        assert!(guard.flags.data_modified_during_snapshot());
+        assert!(storage.snapshots.get(&task_id).is_some());
+
+        guard.undo_track_modification(outcome);
+        assert!(!guard.flags.data_modified_during_snapshot());
+        assert!(
+            storage.snapshots.get(&task_id).is_none(),
+            "undo must remove the snapshots marker it inserted"
+        );
+    }
+
+    /// During-snapshot `(true, true)` arm: a task modified-before-snapshot, tracked again during
+    /// snapshot, stores a pre-mutation copy in `snapshots`. Undo must remove that copy and clear
+    /// the `_during_snapshot` bit, while leaving the pre-existing `modified` flag intact (it
+    /// belongs to the snapshot, not to this call).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn undo_during_snapshot_true_true_removes_copy_preserves_modified() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        // Modify before snapshot so the category is part of the snapshot.
+        {
+            let mut guard = storage.access_mut(task_id);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+
+        let (_snapshot_guard, _) = storage.start_snapshot();
+
+        let mut guard = storage.access_mut(task_id);
+        let outcome = guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        assert!(matches!(
+            outcome,
+            TrackOutcome::TrackedDuringSnapshot {
+                inserted_snapshot: true,
+                ..
+            }
+        ));
+        assert!(matches!(
+            storage.snapshots.get(&task_id).as_deref(),
+            Some(Some(_))
+        ));
+
+        guard.undo_track_modification(outcome);
+        assert!(!guard.flags.data_modified_during_snapshot());
+        assert!(
+            guard.flags.data_modified(),
+            "the pre-snapshot modification belongs to the snapshot and must survive undo"
+        );
+        assert!(
+            storage.snapshots.get(&task_id).is_none(),
+            "undo must remove the pre-mutation copy it inserted"
         );
     }
 }

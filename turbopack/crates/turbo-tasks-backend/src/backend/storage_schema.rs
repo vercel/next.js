@@ -17,12 +17,16 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-use std::{hash::Hash, sync::Arc};
+use std::{
+    hash::{BuildHasherDefault, Hash},
+    sync::Arc,
+};
 
 use parking_lot::Mutex;
+use rustc_hash::FxHasher;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
-    backend::{CachedTaskType, CellHash, TransientTaskType},
+    backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
@@ -35,13 +39,13 @@ use crate::{
     },
 };
 
-/// Auto-set storage for small sets of keys with unit values.
-/// Optimized for small collections (< 8 items use SmallVec inline).
-type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;
+type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
-type AutoMap<K, V> =
-    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+///
+/// See [`AutoSet`] for the meaning of `I`.
+type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
 /// The complete task storage schema.
 ///
@@ -52,7 +56,7 @@ type AutoMap<K, V> =
 /// - `TaskFlags` bitfield for boolean flags
 /// - Accessor methods and traits
 ///
-/// Fields are stored lazily in `Vec<LazyField>` by default for memory efficiency.
+/// Fields are stored lazily in `TinyVec<LazyField>` by default for memory efficiency.
 /// Fields with `inline` are stored directly on TaskStorage (for hot-path access).
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
@@ -80,7 +84,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId>,
+    output_dependent: AutoSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -89,7 +93,7 @@ struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    upper: CounterMap<TaskId, u32>,
+    upper: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
@@ -101,15 +105,15 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    collectibles: CounterMap<CollectibleRef, i32>,
+    collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_collectibles: CounterMap<CollectibleRef, i32>,
+    aggregated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
-    outdated_collectibles: CounterMap<CollectibleRef, i32>,
+    outdated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     // =========================================================================
     // STATE FIELDS (meta)
@@ -127,7 +131,7 @@ struct TaskStorageSchema {
 
     /// Individual dirty containers in the aggregated subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_dirty_containers: CounterMap<TaskId, i32>,
+    aggregated_dirty_containers: CounterMap<TaskId, i32, 3>,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
@@ -136,7 +140,20 @@ struct TaskStorageSchema {
 
     /// Individual clean containers in current session (transient).
     #[field(storage = "counter_map", category = "transient")]
-    aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
+    aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
+
+    /// Number of **persistent** parent tasks that list this task in their `children` set.
+    #[field(storage = "direct", category = "meta", inline, default)]
+    parent_count: u32,
+
+    /// Number of **transient** in-session references to this task. Two sources bump it:
+    /// - a **transient parent** connecting this task as a child (transient parents are never
+    ///   persisted, so their edge can't count toward the durable `parent_count`), and
+    /// - a **detached handle** that holds this task's `OperationVc` outside the tracked graph
+    ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
+    ///   root.
+    #[field(storage = "direct", category = "transient", inline, default)]
+    transient_ref_count: u32,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -223,11 +240,11 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    children: AutoSet<TaskId>,
+    children: AutoSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    followers: CounterMap<TaskId, u32>,
+    followers: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // DEPENDENCIES (data)
@@ -239,9 +256,11 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    output_dependencies: AutoSet<TaskId>,
+    output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Cells this task depends on.
+    /// Cells this task depends on as a whole (keyless `CellDependency::All`). The common case;
+    /// kept separate from `cell_dependencies_hashed` so it stores a bare `CellRef` instead of the
+    /// wider `CellDependency` enum (no tag, no `u64`).
     #[field(
         storage = "auto_set",
         category = "data",
@@ -249,7 +268,17 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    cell_dependencies: AutoSet<CellRef, 2>,
+
+    /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -259,43 +288,61 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    collectibles_dependencies: AutoSet<CollectiblesRef>,
+    collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_output_dependencies: AutoSet<TaskId>,
+    outdated_output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Outdated cell dependencies to be cleaned up (transient).
+    /// Outdated keyless cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    outdated_cell_dependencies: AutoSet<CellRef, 2>,
+
+    /// Outdated hashed cell dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
+    outdated_collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
+    /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
+    /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
+    /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
+    cell_dependents: AutoSet<CellRef, 2>,
+
+    /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
+    /// `cell_dependencies_hashed`.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
 
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
+    collectibles_dependents: AutoSet<(TraitTypeId, TaskId), 3>,
 
     #[field(
         storage = "auto_map",
         category = "data",
         shrink_on_completion,
         custom_drop_partial,
-        as_type = "AutoMap<CellId, SharedReference>"
+        custom_mutators,
+        as_type = "AutoMap<CellId, SharedReference, 1>"
     )]
     cell_data: CellData,
 
@@ -307,11 +354,11 @@ struct TaskStorageSchema {
     /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
     /// alignment requirement.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: AutoMap<CellId, CellHash>,
+    cell_data_hash: AutoMap<CellId, CellHash, 1>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_type_max_index: AutoMap<ValueTypeId, u32>,
+    cell_type_max_index: AutoMap<ValueTypeId, u32, 3>,
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
@@ -326,10 +373,10 @@ struct TaskStorageSchema {
 
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    in_progress_cells: AutoMap<CellId, InProgressCellState>,
+    in_progress_cells: AutoMap<CellId, InProgressCellState, 1>,
 
     #[field(storage = "direct", category = "data", inline)]
-    pub persistent_task_type: Option<Arc<CachedTaskType>>,
+    pub persistent_task_type: Option<CachedTaskTypeArc>,
 
     #[field(storage = "direct", category = "transient")]
     pub transient_task_type: Arc<TransientTask>,
@@ -515,24 +562,20 @@ impl TaskStorage {
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
-        let key_evictability = if flags.new_task() {
-            KeyEvictability::Unevictable
-        } else {
-            match &self.persistent_task_type {
-                None => KeyEvictability::Unevictable,
-                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
-                // references it. It must have been already evicted on a prior cycle.
-                Some(arc) if Arc::strong_count(arc) == 1 => KeyEvictability::AlreadyEvicted,
-                Some(_) => KeyEvictability::Evictable,
-            }
-        };
         // === Absolute blockers ===
         if flags.new_task() {
             return (
-                key_evictability,
+                KeyEvictability::Unevictable,
                 ValueEvictability::Unevictable(UnevictableReason::Modified),
             );
         }
+        let key_evictability = match &self.persistent_task_type {
+            None => KeyEvictability::Unevictable,
+            // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
+            // references it. It must have been already evicted on a prior cycle.
+            Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
+            Some(_) => KeyEvictability::Evictable,
+        };
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
@@ -781,12 +824,13 @@ impl TaskStorage {
         }));
         self.set_in_progress(InProgressState::Scheduled {
             done_event,
-            reason: TaskExecutionReason::Initial,
+            reason: TaskExecutionReason::Root,
         });
     }
 
     /// Returns counts for aggregation tree and collectibles fields.
     /// Used for cache size statistics.
+    #[cfg(feature = "print_cache_item_size")]
     pub fn meta_counts(&self) -> MetaCounts {
         MetaCounts {
             upper: self.upper().len(),
@@ -798,9 +842,21 @@ impl TaskStorage {
             aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
         }
     }
+
+    /// The number of persistent parents referencing this task (0 when the field is absent).
+    pub fn gc_parent_count(&self) -> u32 {
+        self.get_parent_count().copied().unwrap_or(0)
+    }
+
+    /// The number of transient (session-only) references to this task (0 when absent). See the
+    /// `transient_ref_count` field for what counts as one.
+    pub fn gc_transient_ref_count(&self) -> u32 {
+        self.get_transient_ref_count().copied().unwrap_or(0)
+    }
 }
 
 /// Counts for aggregation tree and collectibles fields.
+#[cfg(feature = "print_cache_item_size")]
 #[derive(Default)]
 pub struct MetaCounts {
     pub upper: usize,
@@ -844,14 +900,14 @@ impl IsTransient for (TraitTypeId, TaskId) {
         self.1.is_transient()
     }
 }
-impl IsTransient for (CellId, Option<u64>, TaskId) {
+impl IsTransient for CellRef {
     fn is_transient(&self) -> bool {
-        self.2.is_transient()
+        CellRef::is_transient(self)
     }
 }
-impl IsTransient for (CellRef, Option<u64>) {
+impl IsTransient for (CellRef, u64) {
     fn is_transient(&self) -> bool {
-        self.0.task.is_transient()
+        self.0.is_transient()
     }
 }
 
@@ -863,7 +919,7 @@ pub(crate) trait MergeRestore {
     fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>);
 }
 
-impl<K, V> MergeRestore for CounterMap<K, V>
+impl<K, V, const I: usize> MergeRestore for CounterMap<K, V, I>
 where
     K: Eq + Hash,
 {
@@ -872,7 +928,7 @@ where
         self.extend(items)
     }
 }
-impl<V> MergeRestore for AutoSet<V>
+impl<V, const I: usize> MergeRestore for AutoSet<V, I>
 where
     V: Eq + Hash,
 {
@@ -915,7 +971,7 @@ impl<T: IsTransient> DropPartial for Option<T> {
     }
 }
 
-impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
+impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
         if self.is_empty() {
@@ -927,7 +983,7 @@ impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
     }
 }
 
-impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
+impl<K: IsTransient + Hash + Eq, V: Eq, const I: usize> DropPartial for CounterMap<K, V, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, _v| k.is_transient());
         if self.is_empty() {
@@ -938,7 +994,7 @@ impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
         }
     }
 }
-impl<K: IsTransient + Hash + Eq, V: IsTransient> DropPartial for AutoMap<K, V> {
+impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for AutoMap<K, V, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, v| k.is_transient() || v.is_transient());
         if self.is_empty() {
@@ -1146,6 +1202,9 @@ mod tests {
         original
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
+        original.set_parent_count(3);
+        // Transient ref count (should NOT be serialized).
+        original.set_transient_ref_count(9);
 
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
@@ -1191,6 +1250,9 @@ mod tests {
             decoded.aggregated_dirty_containers(),
             original.aggregated_dirty_containers()
         );
+        assert_eq!(decoded.get_parent_count(), Some(&3));
+        // Transient parent count is NOT serialized; it stays at its default (absent == 0).
+        assert_eq!(decoded.get_transient_ref_count(), None);
 
         // Note: invalidator and immutable are data category flags, not meta
         // They should NOT have changed during meta encode/decode
@@ -1242,16 +1304,10 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_mut().insert((
-            CellRef {
-                task: TaskId::new(1).unwrap(),
-                cell: CellId {
-                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                    index: 0,
-                },
-            },
-            None,
-        ));
+        original.cell_dependencies_mut().insert(CellRef {
+            task: TaskId::new(1).unwrap(),
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
+        });
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -1390,16 +1446,10 @@ mod tests {
         storage.output_dependent_mut().insert(transient_task(3));
 
         // Lazy filter_transient data field.
-        storage.cell_dependencies_mut().insert((
-            CellRef {
-                task: persistent_task(10),
-                cell: CellId {
-                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                    index: 0,
-                },
-            },
-            None,
-        ));
+        storage.cell_dependencies_mut().insert(CellRef {
+            task: persistent_task(10),
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
+        });
 
         // Mark as restored so the task is eligible for dropping.
         storage.flags.set_data_restored(true);
@@ -1588,17 +1638,11 @@ mod tests {
         }
 
         fn keepable_cell(index: u32) -> CellId {
-            CellId {
-                type_id: Keepable::get_value_type_id(),
-                index,
-            }
+            CellId::new(Keepable::get_value_type_id(), index)
         }
 
         fn keep_me_cell(index: u32) -> CellId {
-            CellId {
-                type_id: KeepMe::get_value_type_id(),
-                index,
-            }
+            CellId::new(KeepMe::get_value_type_id(), index)
         }
 
         #[test]
@@ -1705,13 +1749,14 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            136,
-            "TaskStorage size changed! If this is intentional, update this test."
+            128,
+            "TaskStorage size changed! Update this test."
         );
+        // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
-            56,
-            "LazyField size changed! If this is intentional, update this test."
+            40,
+            "LazyField size changed! Update this test."
         );
     }
 }

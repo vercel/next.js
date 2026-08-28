@@ -14,10 +14,13 @@ use std::{
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::trace::TraceRawVcs;
 
 pub use crate::next_app::{
-    app_client_references_chunks::{ClientReferencesChunks, get_app_client_references_chunks},
+    app_client_references_chunks::{
+        ClientReferencesChunks, get_app_client_references_chunks,
+        get_client_references_chunks_for_hmr,
+    },
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
@@ -25,20 +28,8 @@ pub use crate::next_app::{
 };
 
 /// See [AppPage].
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
 pub enum PageSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -130,20 +121,8 @@ impl Display for PageSegment {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
 pub enum PageType {
     Page,
     Route,
@@ -161,19 +140,8 @@ impl Display for PageType {
 /// Describes the pathname including all internal modifiers such as
 /// intercepting routes, parallel routes and route/page suffixes that are not
 /// part of the pathname.
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
 pub struct AppPage(pub Vec<PageSegment>);
 
 impl AppPage {
@@ -356,20 +324,8 @@ impl PartialOrd for AppPage {
 /// Path segments for a router path (not including parallel routes and groups).
 ///
 /// Also see [AppPath].
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
 pub enum PathSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -409,19 +365,8 @@ impl Display for PathSegment {
 ///
 /// Does not include internal modifiers as it's the equivalent of the http
 /// request path.
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
 pub struct AppPath(pub Vec<PathSegment>);
 
 impl AppPath {
@@ -473,9 +418,9 @@ impl AppPath {
         true
     }
 
-    /// Returns true if ANY segment in the entire path is an interception route.
-    /// This is different from `is_intercepting()` which only checks the last
-    /// segment.
+    /// Returns true if any segment in the path is an interception route.
+    /// Unlike `AppPage::is_intercepting()`, this also identifies descendants
+    /// below the interception marker.
     pub fn contains_interception(&self) -> bool {
         self.iter().any(|segment| {
             matches!(

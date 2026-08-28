@@ -88,6 +88,9 @@ async fn base_resolve_options(
         if opt.module {
             conditions.insert(rcstr!("module"), ConditionValue::Set);
         }
+        if opt.module_sync != ConditionValue::Unset {
+            conditions.insert(rcstr!("module-sync"), opt.module_sync);
+        }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
                 conditions.insert(condition.clone(), ConditionValue::Set);
@@ -205,6 +208,7 @@ async fn base_resolve_options(
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
         collect_affecting_sources: opt.collect_affecting_sources,
+        server_relative_root: opt.server_relative_root.clone(),
         ..Default::default()
     }
     .cell())

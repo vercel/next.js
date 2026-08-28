@@ -62,7 +62,7 @@ pub async fn get_middleware_module(
                 has_default || has_named
             }
             // CommonJS modules are valid (they can have module.exports or exports.default)
-            EcmascriptExports::CommonJs | EcmascriptExports::Value => true,
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::Value => true,
             // DynamicNamespace might be valid for certain module types
             EcmascriptExports::DynamicNamespace => true,
             // None/Unknown likely indicate parsing errors - skip validation
@@ -191,9 +191,7 @@ impl Issue for MiddlewareMissingExportIssue {
              To fix it:\n\
              - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-            type_description,
-            migration_bullet,
-            self.function_name
+            type_description, migration_bullet, self.function_name
         );
 
         Ok(Some(StyledString::Text(description_text.into())))

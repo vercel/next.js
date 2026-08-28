@@ -1,8 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { getBrowserBodyText, retry } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
-import { type Playwright } from 'next-webdriver'
 
 const READ_ONLY_PERMISSIONS = 0o444
 const READ_WRITE_PERMISSIONS = 0o644
@@ -122,7 +121,11 @@ describe('Read-only source HMR', () => {
       await retry(async () => {
         if (!process.env.IS_TURBOPACK_TEST) {
           // webpack doesn't automatically refresh the page when a page is added?
-          await browser.refresh()
+          // Don't wait for subresources while webpack recompiles the restored route,
+          // and let retry handle reloads aborted by a concurrent Fast Refresh.
+          await browser
+            .refresh({ waitUntil: 'domcontentloaded' })
+            .catch(() => {})
         }
         expect(await getBrowserBodyText(browser)).toContain('Hello World')
       })

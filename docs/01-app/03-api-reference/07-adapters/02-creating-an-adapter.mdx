@@ -42,11 +42,13 @@ export interface NextAdapter {
     ctx: {
       phase: PHASE_TYPE
       nextVersion: string
+      projectDir: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>

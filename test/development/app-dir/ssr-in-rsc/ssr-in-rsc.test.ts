@@ -39,66 +39,36 @@ describe('react-dom/server in React Server environment', () => {
     )
 
     await waitForNoRedbox(browser)
-    if (isTurbopack) {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": [
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ],
-          "named": [
-            "default",
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ]
-        }"
-      `)
-    } else {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": [
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ],
-          "named": [
-            "default",
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ]
-        }"
-      `)
-    }
+    expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+      "{
+        "default": [
+          "renderToReadableStream",
+          "renderToStaticMarkup",
+          "renderToString",
+          "resume",
+          "version"
+        ],
+        "named": [
+          "default",
+          "renderToReadableStream",
+          "renderToStaticMarkup",
+          "renderToString",
+          "resume",
+          "version"
+        ]
+      }"
+    `)
+
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('explicit react-dom/server.edge usage in app code', async () => {
@@ -156,21 +126,12 @@ describe('react-dom/server in React Server environment', () => {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('implicit react-dom/server.edge usage in app code', async () => {
@@ -185,7 +146,7 @@ describe('react-dom/server in React Server environment', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Error: You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
@@ -327,7 +288,7 @@ describe('react-dom/server in React Server environment', () => {
        {
          "description": "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js (3:1)
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Error: You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
          1 | import * as ReactDOMServerNode from 'react-dom/server'
          2 | // Fine to drop once React is on ESM
@@ -510,21 +471,12 @@ describe('react-dom/server in React Server environment', () => {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('implicit react-dom/server.edge usage in library code', async () => {
@@ -533,70 +485,38 @@ describe('react-dom/server in React Server environment', () => {
     )
 
     await waitForNoRedbox(browser)
-    if (isTurbopack) {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": {
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }
-        }"
-      `)
-    } else {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": {
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }
-        }"
-      `)
-    }
+    expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+      "{
+        "default": {
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }
+      }"
+    `)
+
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('explicit react-dom/server.node usage in library code', async () => {

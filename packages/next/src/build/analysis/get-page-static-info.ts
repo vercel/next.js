@@ -77,31 +77,26 @@ export type ProxyConfig = {
   unstable_allowDynamic?: string[]
 }
 
-export interface AppPageStaticInfo {
-  type: PAGE_TYPES.APP
-  ssg?: boolean
-  ssr?: boolean
+export interface SharedPageStaticInfo {
   rsc?: RSCModuleType
-  generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
-  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
-  runtime: AppSegmentConfig['runtime'] | undefined
-  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
 }
 
-export interface PagesPageStaticInfo {
+export interface AppPageStaticInfo extends SharedPageStaticInfo {
+  type: PAGE_TYPES.APP
+  ssg?: boolean
+  ssr?: boolean
+  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
+  runtime: AppSegmentConfig['runtime'] | undefined
+  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
+}
+
+export interface PagesPageStaticInfo extends SharedPageStaticInfo {
   type: PAGE_TYPES.PAGES
-  getStaticProps?: boolean
-  getServerSideProps?: boolean
-  rsc?: RSCModuleType
-  generateStaticParams?: boolean
-  generateSitemaps?: boolean
-  generateImageMetadata?: boolean
-  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -109,8 +104,6 @@ export interface PagesPageStaticInfo {
     | undefined
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
-  maxDuration: number | undefined
-  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
@@ -699,29 +692,29 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and unstable_instant in the same file.
-  if (directives?.has('client') && 'unstable_instant' in config) {
+  // Prevent use client and instant in the same file.
+  if (directives?.has('client') && 'instant' in config) {
     throw new Error(
-      `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+      `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
     )
   }
 
-  if ('unstable_instant' in config && !nextConfig.cacheComponents) {
+  if ('instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const instant = ...\` without enabling \`cacheComponents\`.`
     )
   }
 
-  // Prevent use client and unstable_prefetch in the same file.
-  if (directives?.has('client') && 'unstable_prefetch' in config) {
+  // Prevent use client and prefetch in the same file.
+  if (directives?.has('client') && 'prefetch' in config) {
     throw new Error(
-      `"unstable_prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+      `"prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
     )
   }
 
-  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+  if ('prefetch' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const prefetch = ...\` without enabling \`cacheComponents\`.`
     )
   }
 
@@ -735,10 +728,10 @@ export async function getAppPageStaticInfo({
     }
   }
 
-  // Prevent combining unstable_dynamicStaleTime and unstable_instant.
-  if ('unstable_dynamicStaleTime' in config && 'unstable_instant' in config) {
+  // Prevent combining unstable_dynamicStaleTime and instant.
+  if ('unstable_dynamicStaleTime' in config && 'instant' in config) {
     throw new Error(
-      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const unstable_instant\`.`
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const instant\`.`
     )
   }
 
@@ -755,7 +748,6 @@ export async function getAppPageStaticInfo({
     rsc,
     generateImageMetadata,
     generateSitemaps,
-    generateStaticParams,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: config.runtime,
@@ -791,11 +783,7 @@ export async function getPagesPageStaticInfo({
     isDev,
   })
 
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
-    ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+  const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
@@ -870,8 +858,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    getStaticProps,
-    getServerSideProps,
     rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),

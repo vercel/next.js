@@ -55,8 +55,10 @@ impl TraceRawVcs for Invalidator {
     }
 }
 
-unsafe impl NonLocalValue for Invalidator {}
 unsafe impl OperationValue for Invalidator {}
+// Safety: Invalidator only contains a TaskId (a NonZero<u32> wrapper) and does not contain any
+// local Vc references.
+unsafe impl NonLocalValue for Invalidator {}
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.

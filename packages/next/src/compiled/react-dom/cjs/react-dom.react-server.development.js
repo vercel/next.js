@@ -230,7 +230,11 @@
                     ? options.integrity
                     : void 0,
                 nonce:
-                  "string" === typeof options.nonce ? options.nonce : void 0
+                  "string" === typeof options.nonce ? options.nonce : void 0,
+                fetchPriority:
+                  "string" === typeof options.fetchPriority
+                    ? options.fetchPriority
+                    : void 0
               });
         } else null == options && Internals.d.M(href);
     };
@@ -332,9 +336,14 @@
               integrity:
                 "string" === typeof options.integrity
                   ? options.integrity
+                  : void 0,
+              nonce: "string" === typeof options.nonce ? options.nonce : void 0,
+              fetchPriority:
+                "string" === typeof options.fetchPriority
+                  ? options.fetchPriority
                   : void 0
             }))
           : Internals.d.m(href));
     };
-    exports.version = "19.3.0-canary-dd453071-20260506";
+    exports.version = "19.3.0-canary-29d9d318-20260826";
   })();

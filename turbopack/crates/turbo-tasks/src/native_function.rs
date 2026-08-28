@@ -7,32 +7,34 @@ use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
 use turbo_tasks_hash::DeterministicHasher;
 
+#[cfg(feature = "task_dirty_cause")]
+use crate::TaskDirtyCause;
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    InputResolution, RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
-        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+        DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
         any_as_encode,
     },
     macro_helpers::into_task_fn,
-    registry::{RegistryType, turbo_registry},
+    registry::{RegistryType, impl_ptr_identity},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn DynTaskInputs>>> + Send + 'a>>;
 type ResolveFunctor = for<'a> fn(&'a dyn DynTaskInputs) -> ResolveFuture<'a>;
 
-type IsResolvedFunctor = fn(&dyn DynTaskInputs) -> bool;
-
-#[doc(hidden)]
-pub type FilterOwnedArgsFunctor =
-    for<'a> fn(&'a mut dyn StackDynTaskInputs) -> OwnedStackDynTaskInputs;
-#[doc(hidden)]
-pub type FilterAndResolveFunctor = ResolveFunctor;
+/// Filters out arguments that aren't used by the function body, returning the post-filter args
+/// together with the precomputed [`InputResolution`] for those filtered args. Fusing the two
+/// operations into one functor lets LLVM monomorphize and constant-fold them together, avoiding a
+/// second indirect call.
+type FilterOwnedArgsFunctor =
+    for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> (InputResolution, HeapDynTaskInputsStorage);
+type FilterAndResolveFunctor = ResolveFunctor;
 
 /// Function pointer that encodes a task argument directly to a hasher.
 ///
 /// This allows computing hashes of task arguments without intermediate buffer allocation.
-pub type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
+type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
@@ -40,7 +42,6 @@ pub struct ArgMeta {
     /// Encodes the argument directly to a hasher, avoiding buffer allocation.
     /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
     pub hash_encode: AnyHashEncodeFn,
-    is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods to filter out unused arguments. `None` when all arguments are used
     /// (no filtering needed).
@@ -110,15 +111,10 @@ impl ArgMeta {
                 T::encode(any_as_encode::<T>(this), &mut encoder)
                     .expect("encoding to hasher should not fail");
             },
-            is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,
         }
-    }
-
-    pub fn is_resolved(&self, value: &dyn DynTaskInputs) -> bool {
-        (self.is_resolved)(value)
     }
 
     pub async fn resolve(&self, value: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
@@ -186,15 +182,16 @@ pub fn downcast_args_ref<T: DynTaskInputs>(args: &dyn DynTaskInputs) -> &T {
         .unwrap()
 }
 
-/// Downcast a `&mut dyn StackDynTaskInputs` to a concrete [`StackDynTaskInputsSlot<T>`] and
+/// Downcast a `&mut dyn DynTaskInputsStorage` to a concrete [`StackDynTaskInputsStorage<T>`] and
 /// take the value out, avoiding the intermediate heap allocation that `take_box` +
 /// `downcast_args_owned` would require.
-pub fn downcast_stack_args_owned<T: DynTaskInputs>(args: &mut dyn StackDynTaskInputs) -> T {
+pub fn downcast_stack_args_owned<T: DynTaskInputs>(args: &mut dyn DynTaskInputsStorage) -> T {
     args.as_any_mut()
-        .downcast_mut::<StackDynTaskInputsSlot<T>>()
+        .downcast_mut::<StackDynTaskInputsStorage<T>>()
         .unwrap_or_else(|| {
             panic!(
-                "downcast_stack_args_owned::<{}> called with incorrect StackDynTaskInputs type",
+                "downcast_stack_args_owned::<{}> called with incorrect StackDynTaskInputsStorage \
+                 type",
                 std::any::type_name::<T>(),
             )
         })
@@ -215,7 +212,13 @@ pub struct NativeFunction {
     /// Whether this function's tasks should be treated as root nodes in the aggregation graph.
     /// Root tasks start with aggregation number `u32::MAX` on initial creation.
     pub is_root: bool,
+
+    /// Whether this function's tasks are session dependent. Session dependent tasks are
+    /// re-executed when restored from persistent cache because they depend on external state
+    /// (filesystem, environment, network) that may change between sessions.
+    pub is_session_dependent: bool,
 }
+impl_ptr_identity!(NativeFunction);
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -241,6 +244,7 @@ impl NativeFunction {
         implementation: &into_task_fn(default_fn) as &dyn TaskFn,
         ty: RegistryType::new::<()>("", ""),
         is_root: false,
+        is_session_dependent: false,
     };
 
     pub const fn new<T: TaskFn>(
@@ -249,12 +253,14 @@ impl NativeFunction {
         arg_meta: ArgMeta,
         implementation: &'static T,
         is_root: bool,
+        is_session_dependent: bool,
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(name, global_name),
             arg_meta,
             implementation,
             is_root,
+            is_session_dependent,
         }
     }
 
@@ -277,23 +283,46 @@ impl NativeFunction {
         persistence: TaskPersistence,
         reason: TaskExecutionReason,
         priority: TaskPriority,
+        #[cfg(feature = "task_dirty_cause")] cause: Option<&TaskDirtyCause>,
     ) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
         };
-        tracing::trace_span!(
-            "turbo_tasks::function",
-            name = self.ty.name,
-            priority = %priority,
-            flags = flags,
-            reason = reason.as_str()
-        )
+        // `inline_execution` is recorded when a read executed this task on its own thread instead
+        // of waiting for a worker: "complete" if it finished there, "partial" if it yielded
+        // and was handed to the runtime. It stays unset for a task a worker executed.
+        #[cfg(feature = "task_dirty_cause")]
+        {
+            tracing::trace_span!(
+                "turbo_tasks::function",
+                name = self.ty.name,
+                priority = %priority,
+                flags = flags,
+                reason = reason.as_str(),
+                cause = cause.map(tracing::field::display),
+                inline_execution = tracing::field::Empty,
+            )
+        }
+        #[cfg(not(feature = "task_dirty_cause"))]
+        {
+            tracing::trace_span!(
+                "turbo_tasks::function",
+                name = self.ty.name,
+                priority = %priority,
+                flags = flags,
+                reason = reason.as_str(),
+                inline_execution = tracing::field::Empty,
+            )
+        }
     }
 
     pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
+        tracing::trace_span!(
+            "turbo_tasks::resolve_call",
+            name = self.ty.name,
+            priority = %priority,
+            inline_execution = tracing::field::Empty,
+        )
     }
 }
-
-turbo_registry!("Function", NativeFunction);

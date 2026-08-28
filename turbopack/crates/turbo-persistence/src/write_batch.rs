@@ -1,25 +1,25 @@
 use std::{
     cell::SyncUnsafeCell,
-    fs::File,
     io::Write,
     mem::{replace, take},
     path::PathBuf,
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
+use fs_err::File;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    FamilyConfig, ValueBuffer,
+    FamilyConfig, FamilyKind, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::{checksum_block, compress_into_buffer},
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
@@ -27,6 +27,15 @@ use crate::{
     parallel_scheduler::ParallelScheduler,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
+
+/// A newly created database file (meta, SST, or blob), carrying its on-disk size so commit can sum
+/// written bytes without stat'ing the files afterwards.
+pub(crate) struct NewFile {
+    pub(crate) seq: u32,
+    pub(crate) file: File,
+    /// On-disk size in bytes.
+    pub(crate) size: u64,
+}
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
 //
@@ -37,8 +46,7 @@ struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     /// The collectors for each family.
     collectors: [Option<Collector<K, THREAD_LOCAL_SIZE_SHIFT>>; FAMILIES],
     /// The list of new blob files that have been created.
-    /// Tuple of (sequence number, file).
-    new_blob_files: Vec<(u32, File)>,
+    new_blob_files: Vec<NewFile>,
 }
 
 const COLLECTOR_SHARDS: usize = 4;
@@ -48,12 +56,9 @@ const COLLECTOR_SHARD_SHIFT: usize =
 /// The result of a `WriteBatch::finish` operation.
 pub(crate) struct FinishResult {
     pub(crate) sequence_number: u32,
-    /// Tuple of (sequence number, file).
-    pub(crate) new_meta_files: Vec<(u32, File)>,
-    /// Tuple of (sequence number, file).
-    pub(crate) new_sst_files: Vec<(u32, File)>,
-    /// Tuple of (sequence number, file).
-    pub(crate) new_blob_files: Vec<(u32, File)>,
+    pub(crate) new_meta_files: Vec<NewFile>,
+    pub(crate) new_sst_files: Vec<NewFile>,
+    pub(crate) new_blob_files: Vec<NewFile>,
     /// Number of keys written in this batch.
     pub(crate) keys_written: u64,
 }
@@ -86,8 +91,7 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     /// Meta file builders for each family.
     meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta<'static>)>>; FAMILIES],
     /// The list of new SST files that have been created.
-    /// Tuple of (sequence number, file).
-    new_sst_files: Mutex<Vec<(u32, File)>>,
+    new_sst_files: Mutex<Vec<NewFile>>,
 }
 
 impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
@@ -234,18 +238,55 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value);
         } else {
-            let (blob, file) = self.create_blob(&value)?;
-            collector.put_blob(key, blob);
-            state.new_blob_files.push((blob, file));
+            let blob = self.create_blob(&value)?;
+            collector.put_blob(key, blob.seq);
+            state.new_blob_files.push(blob);
         }
         Ok(())
     }
 
-    /// Puts a delete operation into the write batch.
+    /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    ///
+    /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
+    /// supported**: which one wins is undefined, and callers are expected to resolve the intent
+    /// themselves before writing.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Deletes a single key-value pair, leaving any other values for `key` intact.
+    ///
+    /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
+    /// value and [`WriteBatch::delete`] already removes it exactly.
+    ///
+    /// Deleting a pair that is written in the same batch — by this or any other operation on the
+    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
+    /// is undefined, and it is the caller's job to resolve that before writing.
+    ///
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
+    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
+    /// overhead of deleting large values by value makes it apriori inefficient.
+    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
+        let family_config = &self.family_configs[usize_from_u32(family)];
+        if family_config.kind != FamilyKind::MultiValue {
+            bail!(
+                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
+                family_config.name
+            );
+        }
+        if value.len() > MAX_INLINE_VALUE_SIZE {
+            bail!(
+                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
+                 {} bytes",
+                value.len()
+            );
+        }
+        let state = self.thread_local_state();
+        let collector = self.thread_local_collector_mut(state, family)?;
+        collector.delete_value(key, &value);
         Ok(())
     }
 
@@ -425,8 +466,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     let accessed_key_hashes = get_accessed_key_hashes(family);
                     builder.set_used_key_hashes_amqf(accessed_key_hashes);
                     let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                    let file = builder.write(&self.db_path, seq)?;
-                    Ok((seq, file))
+                    let (file, size) = builder.write(&self.db_path, seq)?;
+                    Ok(NewFile { seq, file, size })
                 },
             )?;
 
@@ -442,9 +483,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     }
 
     /// Creates a new blob file with the given value.
-    /// Returns a tuple of (sequence number, file).
     #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
-    fn create_blob(&self, value: &[u8]) -> Result<(u32, File)> {
+    fn create_blob(&self, value: &[u8]) -> Result<NewFile> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut compressed = Vec::new();
         compress_into_buffer(value, &mut compressed)
@@ -455,22 +495,21 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         buffer.write_u32::<BE>(checksum_block(&compressed))?;
         buffer.extend_from_slice(&compressed);
 
+        let size = buffer.len() as u64;
         let file = self.db_path.join(format!("{seq:08}.blob"));
-        let mut file = File::create(&file).context("Unable to create blob file")?;
-        file.write_all(&buffer)
-            .context("Unable to write blob file")?;
-        file.flush().context("Unable to flush blob file")?;
-        Ok((seq, file))
+        let mut file = File::create(&file)?;
+        file.write_all(&buffer)?;
+        file.flush()?;
+        Ok(NewFile { seq, file, size })
     }
 
     /// Creates a new SST file with the given collector data.
-    /// Returns a tuple of (sequence number, file).
     #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     fn create_sst_file(
         &self,
         family: u32,
         collector_data: (&[CollectorEntry<K>], usize),
-    ) -> Result<(u32, File)> {
+    ) -> Result<NewFile> {
         let (entries, _total_key_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
@@ -545,10 +584,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                     "we wrote a blob but did not read it"
                                 );
                             }
-                            CollectorEntryValue::Deleted => assert!(
-                                values.first() == Some(&LookupValue::Deleted),
-                                "we wrote a deleted tombstone but it was not first in results"
+                            // Key tombstones sort last within a key group, so a same-batch
+                            // `put(K, v); delete(K)` reads back as [v, KeyDeleted].
+                            CollectorEntryValue::KeyDeleted => assert!(
+                                values.last() == Some(&LookupValue::KeyDeleted),
+                                "we wrote a key tombstone but it was not last in results"
                             ),
+                            CollectorEntryValue::KeyValueDeleted { value, len } => {
+                                let expected = &value[..*len as usize];
+                                assert!(
+                                    values.iter().any(|lv| matches!(
+                                        lv,
+                                        LookupValue::KeyValueDeleted { value } if &**value == expected
+                                    )),
+                                    "we wrote a key-value tombstone but did not read it back"
+                                )
+                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
@@ -568,11 +619,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             }
         }
 
+        let size = meta.size;
         self.meta_collectors[usize_from_u32(family)]
             .lock()
             .push((seq, meta));
 
-        Ok((seq, file))
+        Ok(NewFile { seq, file, size })
     }
 }
 
@@ -581,7 +633,7 @@ const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
     const {
-        assert!(u32::BITS < usize::BITS);
+        assert!(u32::BITS <= usize::BITS);
     };
     value as usize
 }

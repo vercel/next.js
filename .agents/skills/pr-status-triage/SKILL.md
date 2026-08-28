@@ -6,6 +6,8 @@ description: >
   Covers blocker-first prioritization (build > lint > types > tests),
   CI env var matching for local reproduction, and the Known Flaky Tests
   distinction.
+metadata:
+  internal: true
 ---
 
 # PR Status Triage

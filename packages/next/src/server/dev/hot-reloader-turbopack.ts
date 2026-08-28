@@ -1,8 +1,9 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative } from 'path'
-import { pathToFileURL } from 'url'
+import { join, extname, relative, isAbsolute, sep } from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -17,6 +18,7 @@ import type {
   TurbopackConnectedMessage,
 } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -27,7 +29,7 @@ import type {
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -37,7 +39,12 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
+import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
+import {
+  dropDevValidationWorker,
+  mirrorModuleStateToDevValidationWorker,
+} from './dev-validation-worker-pool'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -59,6 +66,7 @@ import {
   processTopLevelIssues,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  type StartChangeSubscription,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -84,11 +92,12 @@ import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
+import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
+  ModuleBuildError,
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
@@ -100,10 +109,12 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
+import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -120,6 +131,12 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from '../lib/trace/request-insights'
+import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
@@ -142,145 +159,176 @@ const isTestMode = !!(
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
+/** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
+const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+
+const TURBOPACK_OUTPUT_DIRS = [
+  join('static', 'chunks'),
+  join('static', 'media'),
+  join('static', 'service-worker'),
+  join('server', 'app'),
+  join('server', 'pages'),
+  SERVER_HMR_CHUNKS_DIR,
+  join('server', 'assets'),
+  join('server', 'edge', 'chunks'),
+  join('server', 'edge', 'assets'),
+  join('server', 'middleware'),
+  join('server', 'instrumentation'),
+]
+
+const RETAINED_OUTPUT_PATHS = new Set([
+  'cache',
+  'lock',
+  ...TURBOPACK_OUTPUT_DIRS,
+])
+
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
 declare const __turbopack_server_hmr_apply__:
-  | ((update: NodeJsPartialHmrUpdate) => boolean)
+  | ((update: NodeJsPartialHmrUpdate) => void)
   | undefined
 
-type ServerHmrSubscriptions = Map<
-  string,
-  AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
->
+declare global {
+  /**
+   * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
+   */
+  var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+}
+
+/**
+ * Collects the output chunk paths touched by a partial HMR update. Both
+ * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
+ * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
+ * invalidated for every affected chunk after a successful apply.
+ */
+function collectUpdatedChunkPaths(
+  instruction: NodeJsPartialHmrUpdate['instruction']
+): string[] {
+  const paths = new Set<string>()
+  if (instruction.type === 'EcmascriptMergedUpdate') {
+    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
+      paths.add(chunkPath)
+    }
+  } else if (instruction.type === 'ChunkListUpdate') {
+    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
+      paths.add(chunkPath)
+    }
+    for (const merged of instruction.merged ?? []) {
+      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
+        paths.add(chunkPath)
+      }
+    }
+  } else {
+    throw new Error(
+      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
+    )
+  }
+  return Array.from(paths)
+}
 
 function setupServerHmr(
   project: Project,
   {
-    clear,
+    reEvaluateAllModulesExpensive,
+    onApplied,
   }: {
-    clear: () => void | Promise<void>
+    reEvaluateAllModulesExpensive: () => void | Promise<void>
+    onApplied: (chunkPaths: string[]) => void | Promise<void>
   }
 ) {
-  const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
+  async function runSubscription() {
+    const subscription = project.serverHmrEvents()
 
-  /**
-   * Subscribe to HMR updates for a server chunk.
-   * @param chunkPath - Server chunk output path (e.g., "server/chunks/ssr/..._.js")
-   */
-  function subscribeToServerHmr(chunkPath: string) {
-    if (serverHmrSubscriptions.has(chunkPath)) {
-      return
-    }
+    // Subscribing immediately emits one event describing the current state.
+    // There's no previous state to diff it against, so it never carries anything
+    // to apply. Drop it; real updates start with the second event.
+    await subscription.next()
 
-    const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
-    serverHmrSubscriptions.set(chunkPath, subscription)
+    for await (const result of subscription) {
+      const update = result as NodeJsHmrUpdate
 
-    // Start listening for changes in background
-    ;(async () => {
-      // Skip initial state
-      await subscription.next()
-
-      for await (const result of subscription) {
-        const update = result as NodeJsHmrUpdate
-
-        // Fully re-evaluate all chunks from disk. Clears the module cache and
-        // notifies browsers to refetch RSC.
-        if (update.type === 'restart') {
-          await clear()
-          continue
-        }
-
-        if (update.type !== 'partial') {
-          continue
-        }
-
-        const instruction = update.instruction
-        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
-          continue
-        }
-
-        if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update)
-          if (!applied) {
-            await clear()
-          }
-        }
+      // A 'restart' from the wire protocol means the update can't be applied
+      // incrementally, so we must fully re-evaluate all chunks from disk. This
+      // clears the module cache and notifies browsers to refetch RSC.
+      const requiresFullReEvaluation = update.type === 'restart'
+      if (requiresFullReEvaluation) {
+        await reEvaluateAllModulesExpensive()
+        continue
       }
-    })().catch(async (err) => {
-      console.error('[Server HMR] Subscription error:', err)
-      serverHmrSubscriptions.delete(chunkPath)
-      await clear()
-    })
+
+      if (update.type !== 'partial') {
+        continue
+      }
+
+      // `EcmascriptMergedUpdate` is the only instruction the Node.js runtime
+      // knows how to apply; `ChunkListUpdate` is browser-only. Anything else is
+      // unknown to us, so ignore it rather than evicting the module cache.
+      const instruction = update.instruction
+      if (
+        !instruction ||
+        (instruction.type !== 'EcmascriptMergedUpdate' &&
+          instruction.type !== 'ChunkListUpdate')
+      ) {
+        throw new Error(
+          `[Server HMR] unreachable: unexpected update instruction type ${(instruction as { type: string }).type}`
+        )
+      }
+
+      // No handler registered yet (before first request, or right after
+      // reEvaluateAllModulesExpensive()) — nothing live to update, so skip
+      // until the next request.
+      const handlers = globalThis.__turbopack_server_hmr_handlers__
+      if (!handlers || handlers.size === 0) {
+        continue
+      }
+
+      if (typeof __turbopack_server_hmr_apply__ === 'function') {
+        try {
+          __turbopack_server_hmr_apply__(update)
+          // The validation worker keeps its own copy of the module graph, and
+          // applies the same update to it.
+          mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
+        } catch {
+          // A matching runtime tried the apply and threw. Evict require.cache
+          // so the next request loads fresh, then skip onApplied. (A no-match
+          // update is a no-op and does not throw.)
+          await reEvaluateAllModulesExpensive()
+          continue
+        }
+
+        const updatedChunkPaths = collectUpdatedChunkPaths(instruction)
+        // An empty partial only advances the version state (e.g. the seed
+        // transition or a new endpoint); nothing changed on disk, so don't
+        // invalidate manifests or ping browsers to refetch RSC.
+        if (updatedChunkPaths.length > 0) {
+          await onApplied(updatedChunkPaths)
+        }
+      } else {
+        await reEvaluateAllModulesExpensive()
+      }
+    }
   }
 
-  // Listen to the Rust bindings update us on changing server HMR chunk paths
+  // Start listening for changes in background. Re-subscribe on error so
+  // server Fast Refresh continues working for the rest of the dev session.
+  // The delay keeps a persistently-failing subscription (which throws on the
+  // initial read) from hot-looping through reEvaluateAllModulesExpensive().
   ;(async () => {
-    try {
-      const serverHmrChunkPaths = project.hmrChunkNamesSubscribe(
-        HmrTarget.Server
-      )
-
-      // Process chunk paths (both initial and subsequent updates)
-      for await (const data of serverHmrChunkPaths) {
-        const currentChunkPaths = new Set<string>(
-          data.chunkNames.filter((path) => path.endsWith('.js'))
-        )
-
-        // Clean up subscriptions for removed chunk paths (like when pages are deleted)
-        const chunkPathsToRemove: string[] = []
-        for (const chunkPath of serverHmrSubscriptions.keys()) {
-          if (!currentChunkPaths.has(chunkPath)) {
-            chunkPathsToRemove.push(chunkPath)
-          }
-        }
-
-        for (const chunkPath of chunkPathsToRemove) {
-          const subscription = serverHmrSubscriptions.get(chunkPath)
-          subscription?.return?.()
-          serverHmrSubscriptions.delete(chunkPath)
-        }
-
-        // Subscribe to HMR events for new server chunks
-        for (const chunkPath of currentChunkPaths) {
-          if (!serverHmrSubscriptions.has(chunkPath)) {
-            subscribeToServerHmr(chunkPath)
-          }
-        }
+    for (;;) {
+      try {
+        await runSubscription()
+        return
+      } catch (err) {
+        console.error('[Server HMR] Subscription error, resubscribing:', err)
+        await reEvaluateAllModulesExpensive()
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
-    } catch (err) {
-      console.error('[Server HMR Setup] Error in chunk path subscription:', err)
     }
   })()
-
-  return serverHmrSubscriptions
-}
-
-/**
- * Replaces turbopack:///[project] with the specified project in the `source` field.
- */
-function rewriteTurbopackSources(
-  projectRoot: string,
-  sourceMap: ModernSourceMapPayload
-): void {
-  if ('sections' in sourceMap) {
-    for (const section of sourceMap.sections) {
-      rewriteTurbopackSources(projectRoot, section.map)
-    }
-  } else {
-    for (let i = 0; i < sourceMap.sources.length; i++) {
-      sourceMap.sources[i] = pathToFileURL(
-        join(
-          projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
-        )
-      ).toString()
-    }
-  }
 }
 
 function getSourceMapFromTurbopack(
   project: Project,
-  projectRoot: string,
   sourceURL: string
 ): ModernSourceMapPayload | undefined {
   let sourceMapJson: string | null = null
@@ -292,12 +340,49 @@ function getSourceMapFromTurbopack(
   if (sourceMapJson === null) {
     return undefined
   } else {
-    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
-    // The sourcemap from Turbopack is not yet written to disk so its `sources`
-    // are not absolute paths yet. We need to rewrite them to be absolute paths.
-    rewriteTurbopackSources(projectRoot, payload)
-    return payload
+    return JSON.parse(sourceMapJson)
   }
+}
+
+function getSourceMapURLFromTurbopack(
+  distDir: string,
+  scriptNameOrSourceURL: string
+): string | null {
+  // React invokes this with the raw stack-frame filename, which arrives
+  // either as an absolute filesystem path or as a `file:` URL. Anything else
+  // (`file:` URLs with a query are eval'd server HMR modules carrying inline
+  // source maps, `webpack-internal://`, `node:internal/...`, `<anonymous>`,
+  // ...) is not something we have an emitted source map for.
+  let scriptPath = scriptNameOrSourceURL
+  if (scriptNameOrSourceURL.startsWith('file://')) {
+    if (scriptNameOrSourceURL.includes('?')) {
+      return null
+    }
+    try {
+      scriptPath = fileURLToPath(scriptNameOrSourceURL)
+    } catch {
+      return null
+    }
+  }
+  if (!isAbsolute(scriptPath)) {
+    return null
+  }
+
+  // Only chunks emitted into `distDir` have an on-disk source map to point at.
+  const relativePath = relative(distDir, scriptPath)
+  if (
+    relativePath.startsWith('..') ||
+    // On Windows an absolute path on a different drive is returned unchanged
+    // rather than as a `..`-prefixed relative path.
+    isAbsolute(relativePath)
+  ) {
+    return null
+  }
+
+  // The emitted source map lives next to its chunk with a `.map` suffix (see
+  // `SourceMapAsset::path`). Encode through `pathToFileURL` so any special
+  // characters in the path are escaped into a well-formed `file:` URL.
+  return pathToFileURL(scriptPath + '.map').href
 }
 
 export async function createHotReloaderTurbopack(
@@ -325,6 +410,19 @@ export async function createHotReloaderTurbopack(
         `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
     )
   }
+
+  // This must finish before Turbopack records any writes. Once turbo-tasks has
+  // recorded a write effect, it dedups by hash without checking the file.
+  await recursiveDeleteSyncWithAsyncRetries(distDir, RETAINED_OUTPUT_PATHS)
+  await Promise.all(
+    TURBOPACK_OUTPUT_DIRS.map((subDir) =>
+      recursiveDeleteSyncWithAsyncRetries(
+        join(distDir, subDir),
+        undefined,
+        nextConfig.experimental.turbopackStaleOutputMaxAge
+      )
+    )
+  )
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
@@ -374,6 +472,14 @@ export async function createHotReloaderTurbopack(
     opts.nextConfig.turbopack?.root ||
     opts.nextConfig.outputFileTracingRoot ||
     projectPath
+
+  if (nextConfig.experimental.turbopackSeedCacheFromWorktree) {
+    seedTurbopackCacheIfNeeded({
+      projectDir: projectPath,
+      distDir,
+    })
+  }
+
   const project = await bindings.turbo.createProject(
     {
       rootPath,
@@ -413,7 +519,8 @@ export async function createHotReloaderTurbopack(
       serverHmr: serverFastRefresh,
     },
     {
-      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
+      turbopackMemoryEviction:
+        opts.nextConfig.experimental.turbopackMemoryEvictionMode,
       isShortSession: false,
     }
   )
@@ -422,12 +529,21 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'FilesystemSettlingEvent',
       'TraceEvent',
     ],
     parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
-    getSourceMapFromTurbopack.bind(null, project, projectPath)
+    getSourceMapFromTurbopack.bind(null, project)
+  )
+
+  let canonicalDistDir = distDir
+  try {
+    canonicalDistDir = realpathSync(distDir)
+  } catch {}
+  setBundlerFindSourceMapURLImplementation(
+    getSourceMapURLFromTurbopack.bind(null, canonicalDistDir)
   )
 
   // Set up code frame renderer using native bindings
@@ -437,6 +553,7 @@ export async function createHotReloaderTurbopack(
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
+    setBundlerFindSourceMapURLImplementation(() => null)
     await project.onExit()
     await lockfile?.unlock()
   })
@@ -567,9 +684,11 @@ export async function createHotReloaderTurbopack(
     } else {
       // Figure out if the server files have changed
       let hasChange = false
+      const currentPaths = new Set<string>()
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps
         if (path.endsWith('.map')) continue
+        currentPaths.add(path)
         const localKey = `${key}:${path}`
         const localHash = serverPathState.get(localKey)
         const globalHash = serverPathState.get(path)
@@ -590,9 +709,25 @@ export async function createHotReloaderTurbopack(
         }
       }
 
+      const localKeyPrefix = `${key}:`
+      for (const pathKey of serverPathState.keys()) {
+        if (
+          pathKey.startsWith(localKeyPrefix) &&
+          !currentPaths.has(pathKey.slice(localKeyPrefix.length))
+        ) {
+          serverPathState.delete(pathKey)
+          hasChange = true
+        }
+      }
+
       if (!hasChange) {
         return false
       }
+    }
+
+    // Edge does not participate in server HMR.
+    if (writtenEndpoint.type === 'edge') {
+      void clearAllModuleContexts()
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -609,6 +744,7 @@ export async function createHotReloaderTurbopack(
       entryType === 'app' &&
       writtenEndpoint.type !== 'edge'
 
+    const serverChunksPrefix = SERVER_HMR_CHUNKS_DIR + sep
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
       clearModuleContext(file)
@@ -621,7 +757,7 @@ export async function createHotReloaderTurbopack(
         // contexts.
         force ||
         !usesServerHmr ||
-        !serverHmrSubscriptions?.has(relativePath)
+        !relativePath.startsWith(serverChunksPrefix)
       ) {
         filesToDelete.push(file)
       }
@@ -684,10 +820,25 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
-
   let hmrEventHappened = false
+  // A counter identifying the current version of the compiled output, included
+  // by `"use cache"` in dev cache keys so that cached entries revalidate after
+  // an edit. It advances once per HMR change event (for App Router pages that
+  // is an RSC change, which is what a cached render depends on), independent of
+  // how many clients are connected. It deliberately does not advance on `BUILT`
+  // messages: those are sent per connected client on every compilation, so
+  // advancing there would both churn the hash without an edit and fail to
+  // advance it at all when no client is connected.
   let hmrHash = 0
+  // Undefined until the first entrypoints emission. That one has nothing to
+  // compare against, so every route it lists would look added.
+  let previousRouteKeys: Set<string> | undefined
+
+  // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
+  // foreground-job cycle, including empty no-op recompiles scheduled by
+  // request/render activity that changed no files. This allows us to prevent
+  // sending them if we quickly get a `built` message after a `building` message.
+  const pendingBuilding = new DeferredEmit()
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
@@ -703,15 +854,41 @@ export async function createHotReloaderTurbopack(
     client.send(data)
   }
 
-  function sendEnqueuedMessages() {
+  let updateInProgress = false
+  let pendingServerComponentChanges = false
+
+  function sendServerComponentChanges() {
+    sendHmr('server-component-changes', {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+    })
+  }
+
+  // Each announcement makes every client refetch its page, so an update's
+  // changes are announced once, on the update's end.
+  function handleServerComponentChanges() {
+    if (updateInProgress) {
+      pendingServerComponentChanges = true
+    } else {
+      sendServerComponentChanges()
+    }
+  }
+
+  function hasCompilationErrors() {
     for (const [, issueMap] of currentEntryIssues) {
       if (
         [...issueMap.values()].filter((i) => i.severity !== 'warning').length >
         0
       ) {
-        // During compilation errors we want to delay the HMR events until errors are fixed
-        return
+        return true
       }
+    }
+    return false
+  }
+
+  function sendEnqueuedMessages() {
+    if (hasCompilationErrors()) {
+      // During compilation errors we want to delay the HMR events until errors are fixed
+      return
     }
 
     for (const client of [
@@ -750,6 +927,7 @@ export async function createHotReloaderTurbopack(
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
+    pendingBuilding.flush()
     for (const client of [
       ...clientsWithoutHtmlRequestId,
       ...clientsByHtmlRequestId.values(),
@@ -767,6 +945,7 @@ export async function createHotReloaderTurbopack(
     //   They are currently not handled on the client at all, so might as well not send them for now.
     payload.diagnostics = []
     payload.issues = []
+    pendingBuilding.flush()
 
     for (const client of [
       ...clientsWithoutHtmlRequestId,
@@ -842,7 +1021,7 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id, HmrTarget.Client)
+    const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
@@ -906,18 +1085,14 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.routes
-      const existingRoutes = [
-        ...currentEntrypoints.app.keys(),
-        ...currentEntrypoints.page.keys(),
-      ]
-      const newRoutes = [...routes.keys()]
-
-      const addedRoutes = newRoutes.filter(
-        (route) =>
-          !currentEntrypoints.app.has(route) &&
-          !currentEntrypoints.page.has(route)
-      )
-      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
+      const prevRouteKeys = previousRouteKeys
+      const addedRoutes = prevRouteKeys
+        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
+        : []
+      const removedRoutes = prevRouteKeys
+        ? [...prevRouteKeys].filter((route) => !routes.has(route))
+        : []
+      previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
         entrypoints: entrypoints as any,
@@ -954,9 +1129,6 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
-
-      // Reload matchers when the files have been compiled
-      await propagateServerField(opts, 'reloadMatchers', undefined)
 
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
@@ -1009,7 +1181,6 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
-    getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
     getRestartDevServerMiddleware({
@@ -1039,6 +1210,116 @@ export async function createHotReloaderTurbopack(
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             getTurbopackProject: () => project,
+            compileRoute: async ({ routeSpecifier, path }) => {
+              // Resolve the caller's input to a concrete route specifier. The
+              // path-mode branch reuses the dev router's own live route table
+              // (opts.fsChecker) — the same one resolve-routes.ts consults on
+              // every incoming HTTP request — so first-match ordering and live
+              // route updates are inherited for free.
+              let page: string
+              if (routeSpecifier != null) {
+                page = routeSpecifier
+              } else if (path != null) {
+                const resolved = resolvePathToRoute(path, {
+                  appFiles: opts.fsChecker.appFiles,
+                  pageFiles: opts.fsChecker.pageFiles,
+                  dynamicRoutes: opts.fsChecker.getDynamicRoutes(),
+                })
+                if ('notFound' in resolved) {
+                  const err: NodeJS.ErrnoException = new Error(
+                    `no route matched for path "${resolved.pathname}"`
+                  )
+                  err.code = 'ENOENT'
+                  throw err
+                }
+                page = resolved.routeSpecifier
+              } else {
+                // Tool handler rejects the empty case; defend the boundary.
+                throw new Error(
+                  'compileRoute: either routeSpecifier or path is required'
+                )
+              }
+
+              // ensurePage uses findPagePathData when no definition is provided,
+              // which calls normalizePagePath("/") → "/index" then findPageFile
+              // looking for "index.tsx" — neither of which matches "page.tsx" in
+              // the app dir. Pass a synthetic definition instead.
+              //
+              // currentEntrypoints.app is keyed by originalName which includes the
+              // trailing /page or /route segment (e.g. "/page" for the root route,
+              // "/blog/[slug]/page" for a dynamic page). Use normalizeAppPath to
+              // strip that suffix and find the entry matching the user-facing route.
+              let extraOptions: object | undefined = undefined
+              for (const [name] of currentEntrypoints.app) {
+                if (normalizeAppPath(name) === page) {
+                  extraOptions = {
+                    // Synthesize a definition so ensurePage bypasses findPagePathData.
+                    // Only page and bundlePath are used from the definition:
+                    // - page: the originalName used as the route key for currentEntrypoints lookup
+                    // - bundlePath: must start with "app/" to set isInsideAppDir=true
+                    definition: {
+                      page: name,
+                      bundlePath: `app${name}`,
+                      filename: '',
+                    } as any,
+                  }
+                  break
+                }
+              }
+              const ensureOpts = {
+                page,
+                // Compile both server and client bundles, matching what happens
+                // on a real page navigation. Client-only compilation isn't a
+                // meaningful MCP use case so we don't expose it as a knob.
+                clientOnly: false,
+                // Skip wiring HMR subscriptions: there is no client to receive
+                // updates for routes compiled this way, and these subscriptions
+                // are never unsubscribed (see TODOs in handleRouteType).
+                subscribeToChanges: false,
+                ...extraOptions,
+              }
+
+              // Snapshot the current issue maps before compilation so we can
+              // identify which entry keys were added or updated by this call.
+              // processIssues always creates a new Map() reference, so identity
+              // comparison detects changes even for re-compilations.
+              const snapshotBefore = new Map(currentEntryIssues)
+
+              // For app-page routes, processIssues is called with throwIssue=true,
+              // meaning it throws ModuleBuildError when there are compile errors—but
+              // it still writes the issues into currentEntryIssues before throwing.
+              // Catch ModuleBuildError so we can read those issues and return them
+              // as structured output rather than propagating the throw.
+              let moduleBuildError: ModuleBuildError | undefined
+              try {
+                await hotReloader.ensurePage(ensureOpts)
+              } catch (err) {
+                if (err instanceof ModuleBuildError) {
+                  moduleBuildError = err
+                } else {
+                  throw err
+                }
+              }
+
+              const rawIssues = []
+              for (const [key, issueMap] of currentEntryIssues) {
+                if (snapshotBefore.get(key) !== issueMap) {
+                  rawIssues.push(...issueMap.values())
+                }
+              }
+
+              // If ensurePage threw ModuleBuildError but we found no new issues in
+              // the map (shouldn't happen, but be safe), re-surface the original
+              // error so its message and stack are preserved.
+              if (moduleBuildError && rawIssues.length === 0) {
+                throw moduleBuildError
+              }
+
+              return {
+                routeSpecifier: page,
+                issues: formatCompilationIssues(rawIssues),
+              }
+            },
           }),
         ]
       : []),
@@ -1353,6 +1634,11 @@ export async function createHotReloaderTurbopack(
             },
             devIndicator: devIndicatorServerState,
             devToolsConfig,
+            requestInsights:
+              nextConfig.experimental.requestInsights ||
+              isRequestInsightsEnabled()
+                ? getRequestInsightsSnapshot()
+                : undefined,
           }
 
           sendToClient(client, syncMessage)
@@ -1369,6 +1655,16 @@ export async function createHotReloaderTurbopack(
       ]) {
         client.send(payload)
       }
+    },
+
+    getServerComponentsHmrRefreshHash() {
+      // Only the change subscription (an actual recompile) advances `hmrHash`;
+      // reloads and config invalidations don't, so the value stays stable
+      // across requests until a real edit. `sessionId` stands in for a key
+      // derived from the compiled implementation, which would let entries
+      // outlive a restart when the code didn't change (see the note on Action
+      // IDs in `use-cache-wrapper.ts`).
+      return `${sessionId}-${hmrHash}`
     },
 
     sendToLegacyClients(action) {
@@ -1505,10 +1801,7 @@ export async function createHotReloaderTurbopack(
       }
       return errors
     },
-    async invalidate({
-      // .env files or tsconfig/jsconfig change
-      reloadAfterInvalidation,
-    }) {
+    async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
@@ -1517,7 +1810,6 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
         })
       }
     },
@@ -1532,9 +1824,10 @@ export async function createHotReloaderTurbopack(
       definition,
       isApp,
       url: requestUrl,
+      subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
-      // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
+      // Middleware and instrumentation are handled in turbopack-utils.ts handleEntrypoints instead.
       if (!definition) {
         if (inputPage === '/middleware') return
         if (inputPage === '/src/middleware') return
@@ -1682,7 +1975,12 @@ export async function createHotReloaderTurbopack(
               logErrors: true,
 
               hooks: {
-                subscribeToChanges: subscribeToClientChanges,
+                // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
+                // one-shot compilations (e.g. compile_route MCP tool).
+                subscribeToChanges: subscribeToChanges
+                  ? subscribeToClientChanges
+                  : ((async () => {}) as StartChangeSubscription),
+                handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
@@ -1690,6 +1988,7 @@ export async function createHotReloaderTurbopack(
                     force: forceDeleteCache,
                   })
                 },
+                serverFastRefresh,
               },
             })
           } finally {
@@ -1731,10 +2030,14 @@ export async function createHotReloaderTurbopack(
   })
 
   async function handleProjectUpdates() {
+    const BUILDING_MESSAGE_DEFER_MS = 100
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
-          hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+          updateInProgress = true
+          pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
+            hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+          })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
           if (hasDeferredEntriesConfig) {
@@ -1745,6 +2048,12 @@ export async function createHotReloaderTurbopack(
           break
         }
         case 'end': {
+          updateInProgress = false
+          pendingBuilding.cancel()
+          if (pendingServerComponentChanges) {
+            pendingServerComponentChanges = false
+            sendServerComponentChanges()
+          }
           sendEnqueuedMessages()
 
           function addToErrorsMap(
@@ -1793,7 +2102,10 @@ export async function createHotReloaderTurbopack(
 
             sendToClient(client, {
               type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
-              hash: String(++hmrHash),
+              // Report the current version without advancing it: a completed
+              // compilation is not itself an edit, and this hash is not
+              // consumed by the Turbopack client.
+              hash: String(hmrHash),
               errors: [...clientErrors.values()],
               warnings: [],
             })
@@ -1825,12 +2137,26 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
+  // Tell browsers to refetch RSC (soft refresh, not full page reload).
+  // Skip while there are outstanding compilation errors: an RSC refetch would
+  // 500 and force a full-page navigation, losing client state (e.g. recovering
+  // from a syntax error). A subsequent successful compile/apply fires this
+  // again to refresh.
+  function notifyServerComponentChanges() {
+    if (hasCompilationErrors()) return
+    hotReloader.send({
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+    })
+  }
+
   if (serverFastRefresh) {
-    serverHmrSubscriptions = setupServerHmr(project, {
-      clear: async () => {
-        // Clear Node's require cache of all Turbopack-built modules
-        const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
-          (chunkPath) => join(distDir, chunkPath)
+    setupServerHmr(project, {
+      reEvaluateAllModulesExpensive: async () => {
+        // Evict every server-HMR-managed chunk from `require.cache`.
+        // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
+        const serverChunksDir = join(distDir, SERVER_HMR_CHUNKS_DIR) + sep
+        const chunkPaths = Object.keys(require.cache).filter((p) =>
+          p.startsWith(serverChunksDir)
         )
         deleteCache(chunkPaths)
 
@@ -1842,18 +2168,43 @@ export async function createHotReloaderTurbopack(
         // Reset the server HMR handler registry. All server runtime chunks are
         // cleared from require.cache above; when they're next required they'll
         // re-register into this Map and reinstall the routing dispatcher.
-        ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
+        globalThis.__turbopack_server_hmr_handlers__ = new Map()
 
         // Clear all edge contexts
         await clearAllModuleContexts()
 
         resetFetch()
 
-        // Tell browsers to refetch RSC (soft refresh, not full page reload)
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
+        // This thread gave up on repairing its module graph in place. The
+        // validation worker cannot repair its own either, so it is dropped and
+        // the next validation loads the build output afresh.
+        dropDevValidationWorker()
+
+        notifyServerComponentChanges()
+      },
+      onApplied: (chunkPaths: string[]) => {
+        // Clear the evalManifest() shared cache for each updated chunk so the
+        // next RSC render picks up the HMR-applied module changes. Unlike
+        // a full restart, this does NOT clear require.cache — the HMR-applied
+        // modules in devModuleCache must persist for dep preservation.
+        const manifestPaths = chunkPaths.map((chunkPath) =>
+          join(distDir, chunkPath)
+        )
+
+        for (const manifestPath of manifestPaths) {
+          clearManifestCache(manifestPath)
+        }
+
+        // This path clears the manifest cache without going through
+        // `deleteCache`, so `onCacheInvalidation` does not report it to the
+        // validation worker. Report it here instead.
+        mirrorModuleStateToDevValidationWorker({
+          type: 'invalidate',
+          filePaths: manifestPaths,
+          evictModules: false,
         })
+
+        notifyServerComponentChanges()
       },
     })
   }

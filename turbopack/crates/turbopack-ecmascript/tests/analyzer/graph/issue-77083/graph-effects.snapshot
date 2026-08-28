@@ -84,6 +84,12 @@
                                 ModuleValue {
                                     module: "./assert",
                                     annotations: None,
+                                    analyze_for_constants: false,
+                                    reference: Some(
+                                        ModuleReferenceIndex(
+                                            2,
+                                        ),
+                                    ),
                                 },
                             ),
                             Constant(
@@ -99,9 +105,7 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            TotalOrderF64(
-                                                1.0,
-                                            ),
+                                            1.0,
                                         ),
                                     ),
                                 ),
@@ -110,9 +114,7 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            TotalOrderF64(
-                                                1.0,
-                                            ),
+                                            1.0,
                                         ),
                                     ),
                                 ),
@@ -370,6 +372,12 @@
                 ModuleValue {
                     module: "./assert",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -385,9 +393,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                2.0,
-                            ),
+                            2.0,
                         ),
                     ),
                 ),
@@ -396,9 +402,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                2.0,
-                            ),
+                            2.0,
                         ),
                     ),
                 ),
@@ -517,6 +521,12 @@
                 ModuleValue {
                     module: "./assert",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -532,9 +542,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                3.0,
-                            ),
+                            3.0,
                         ),
                     ),
                 ),
@@ -543,9 +551,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                3.0,
-                            ),
+                            3.0,
                         ),
                     ),
                 ),

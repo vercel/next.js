@@ -1,16 +1,15 @@
-import { createNext, isNextDeploy } from 'e2e-utils'
-import type { NextInstance } from 'e2e-utils'
-import { findPort, retry } from 'next-test-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 // `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
-const isTurbopack = !process.env.IS_WEBPACK_TEST
+const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
 const describeTurbopack =
   isTurbopack && !isNextDeploy ? describe : describe.skip
 
 // CORS so cross-origin script tags from `assetPrefix` can be fetched. Workers
 // are NOT covered by CORS — `new Worker(crossOriginUrl)` is rejected
 // regardless — so this only unblocks regular script loading.
-const corsHeaders = () => ({
+const corsHeadersConfig = `
   async headers() {
     return [
       {
@@ -18,8 +17,7 @@ const corsHeaders = () => ({
         headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
       },
     ]
-  },
-})
+  },`
 
 /**
  * Real cross-origin setup: the page is served at `http://localhost:PORT/`,
@@ -33,24 +31,26 @@ const corsHeaders = () => ({
  */
 describeTurbopack('turbopack-worker-asset-prefix', () => {
   describe('without turbopackWorkerAssetPrefix (cross-origin assetPrefix)', () => {
-    let next: NextInstance
-    let forcedPort: string
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      forcedPort: 'random',
+    })
 
     beforeAll(async () => {
-      forcedPort = String((await findPort()) ?? '54321')
-      next = await createNext({
-        files: __dirname,
-        forcedPort,
-        nextConfig: {
-          assetPrefix: `http://127.0.0.1:${forcedPort}`,
-          ...corsHeaders(),
-        },
-      })
+      const port = next.forcedPort
+      await next.patchFile(
+        'next.config.js',
+        `module.exports = {
+  assetPrefix: 'http://127.0.0.1:${port}',${corsHeadersConfig}
+}`
+      )
+      await next.start()
     })
-    afterAll(() => next.destroy())
 
     it('Worker URL inherits assetPrefix and the browser rejects construction', async () => {
       const browser = await next.browser('/')
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const url = await browser.elementByCss('#worker-ctor-url').text()
@@ -67,29 +67,31 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
   })
 
   describe('with turbopackWorkerAssetPrefix overriding assetPrefix', () => {
-    let next: NextInstance
-    let forcedPort: string
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      forcedPort: 'random',
+    })
 
     beforeAll(async () => {
-      forcedPort = String((await findPort()) ?? '54322')
-      next = await createNext({
-        files: __dirname,
-        forcedPort,
-        nextConfig: {
-          assetPrefix: `http://127.0.0.1:${forcedPort}`,
-          experimental: {
-            // Route Worker URLs through the page's own origin
-            // (`http://localhost:PORT`) instead of the cross-origin assetPrefix.
-            turbopackWorkerAssetPrefix: `http://localhost:${forcedPort}`,
-          },
-          ...corsHeaders(),
-        },
-      })
+      const port = next.forcedPort
+      await next.patchFile(
+        'next.config.js',
+        `module.exports = {
+  assetPrefix: 'http://127.0.0.1:${port}',
+  experimental: {
+    // Route Worker URLs through the page's own origin
+    // ('http://localhost:PORT') instead of the cross-origin assetPrefix.
+    turbopackWorkerAssetPrefix: 'http://localhost:${port}',
+  },${corsHeadersConfig}
+}`
+      )
+      await next.start()
     })
-    afterAll(() => next.destroy())
 
     it('Worker URL uses the override origin and construction succeeds', async () => {
       const browser = await next.browser('/')
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const pageOrigin = await browser.elementByCss('#page-origin').text()
@@ -101,34 +103,41 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+
+      await retry(async () => {
+        const reply = await browser.elementByCss('#worker-reply').text()
+        expect(reply).toBe('pong: ping')
+      })
     })
   })
 
   describe('with turbopackWorkerAssetPrefix: "" (literal empty prefix)', () => {
-    let next: NextInstance
-    let forcedPort: string
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      forcedPort: 'random',
+    })
 
     beforeAll(async () => {
-      forcedPort = String((await findPort()) ?? '54323')
-      next = await createNext({
-        files: __dirname,
-        forcedPort,
-        nextConfig: {
-          assetPrefix: `http://127.0.0.1:${forcedPort}`,
-          experimental: {
-            // Empty string is a literal empty prefix (only `/_next/` is
-            // appended). It does NOT fall back to assetPrefix — only
-            // `undefined` does.
-            turbopackWorkerAssetPrefix: '',
-          },
-          ...corsHeaders(),
-        },
-      })
+      const port = next.forcedPort
+      await next.patchFile(
+        'next.config.js',
+        `module.exports = {
+  assetPrefix: 'http://127.0.0.1:${port}',
+  experimental: {
+    // Empty string is a literal empty prefix (only '/_next/' is
+    // appended). It does NOT fall back to assetPrefix — only
+    // 'undefined' does.
+    turbopackWorkerAssetPrefix: '',
+  },${corsHeadersConfig}
+}`
+      )
+      await next.start()
     })
-    afterAll(() => next.destroy())
 
     it('Worker URL is a relative /_next/ URL (resolved same-origin)', async () => {
       const browser = await next.browser('/')
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const pageOrigin = await browser.elementByCss('#page-origin').text()
@@ -143,6 +152,15 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+    })
+
+    it('executes the worker and receives a reply', async () => {
+      const browser = await next.browser('/')
+
+      await retry(async () => {
+        const reply = await browser.elementByCss('#worker-reply').text()
+        expect(reply).toBe('pong: ping')
+      })
     })
   })
 })

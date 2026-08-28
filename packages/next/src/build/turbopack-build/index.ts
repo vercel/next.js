@@ -36,7 +36,7 @@ async function turbopackBuildWithWorker(): ReturnType<
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    const { buildTraceContext, duration } = await worker.workerMain({
+    const { buildTraceContext, duration, warnings } = await worker.workerMain({
       buildContext: prunedBuildContext,
       traceState: {
         ...exportTraceState(),
@@ -56,6 +56,7 @@ async function turbopackBuildWithWorker(): ReturnType<
       }),
       buildTraceContext,
       duration,
+      warnings,
     }
   } catch (err: any) {
     // When the error is a serialized `Error` object we need to recreate the `Error` instance

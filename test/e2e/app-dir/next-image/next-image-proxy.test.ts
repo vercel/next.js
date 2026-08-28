@@ -3,7 +3,6 @@ import { findPort, retry } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 
 let proxyPort
@@ -55,7 +54,8 @@ describe('next-image-proxy', () => {
     let failCount = 0
     let fulfilledCount = 0
 
-    const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: `https://localhost:${proxyPort}`,
       ignoreHTTPSErrors: true,
       beforePageLoad(page) {
         page.on('response', (response) => {

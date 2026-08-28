@@ -155,7 +155,7 @@ async fn test_struct_transparent_debug() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_option_debug() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let a = StructWithOption { option: None }.resolved_cell();
         assert_eq!(
             format!(
@@ -189,7 +189,7 @@ async fn test_struct_option_debug() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_vec_debug() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let a = StructWithVec { vec: Vec::new() }.resolved_cell();
         assert_eq!(
             format!(
@@ -223,7 +223,7 @@ async fn test_struct_vec_debug() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_ignore_debug() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let a = StructWithIgnore {
             dont_ignore: 42,
             ignore: Mutex::new(()),

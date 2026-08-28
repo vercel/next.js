@@ -96,6 +96,16 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     })
   })
 
+  it('runs callbacks from nested after calls that happened within a slow promise', async () => {
+    await next.browser(pathPrefix + '/nested-after-from-slow-promise')
+
+    await retry(() => {
+      expect(getLogs()).toContainEqual({
+        source: `[page] /nested-after-from-slow-promise`,
+      })
+    })
+  })
+
   describe('interrupted RSC renders', () => {
     // This is currently broken with Turbopack.
     // https://github.com/vercel/next.js/pull/75989

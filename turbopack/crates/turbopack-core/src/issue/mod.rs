@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString,
-    ValueToStringRef, Vc, emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -36,10 +36,8 @@ use crate::{
     source_pos::SourcePos,
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(
-    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
-)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
@@ -282,43 +280,60 @@ pub struct IssueFilter {
     /// The minimum severity for issues in node_modules
     foreign_severity: IssueSeverity,
     /// Issues matching any of these rules are ignored (dropped from results).
-    ignore_rules: Vec<IgnoreIssue>,
+    ignore_rules: Box<[IgnoreIssue]>,
 }
 
-#[turbo_tasks::value_impl]
 impl IssueFilter {
     /// A filter that lets everything through.
-    #[turbo_tasks::function]
-    pub fn everything() -> Vc<Self> {
+    pub fn everything() -> Self {
         IssueFilter {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
-            ignore_rules: Vec::new(),
+            ignore_rules: Box::from([]),
         }
-        .cell()
+    }
+
+    /// Construct a filter with the standard warning/foreign-error severities.
+    pub fn warnings_and_foreign_errors() -> Self {
+        IssueFilter {
+            severity: IssueSeverity::Warning,
+            foreign_severity: IssueSeverity::Error,
+            ignore_rules: Box::from([]),
+        }
+    }
+
+    /// Set the ignore rules for this filter.
+    pub fn with_ignore_rules(mut self, rules: Box<[IgnoreIssue]>) -> Self {
+        self.ignore_rules = rules;
+        self
     }
 
     /// Returns true if the issue is allowed by this filter.
-    #[turbo_tasks::function]
-    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<Vc<bool>> {
-        let has_no_ignore_rules = self.ignore_rules.is_empty();
-        let is_everything = self.severity == IssueSeverity::Info
+    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+        Ok(self.matches_all_fast_path()
+            || self
+                .matches_ref_slow_path(&*issue.into_trait_ref().await?)
+                .await?)
+    }
+
+    pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
+        Ok(self.matches_all_fast_path() || self.matches_ref_slow_path(issue).await?)
+    }
+
+    fn matches_all_fast_path(&self) -> bool {
+        self.severity == IssueSeverity::Info
             && self.foreign_severity == IssueSeverity::Info
-            && has_no_ignore_rules;
+            && self.ignore_rules.is_empty()
+    }
 
-        if is_everything {
-            return Ok(Vc::cell(true));
-        }
-
-        let trait_ref = issue.into_trait_ref().await?;
-
+    async fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
         // Fetch the file path once — it's used by both severity and ignore-rule
         // checks.
-        let file_path = trait_ref.file_path().await?;
+        let file_path = issue.file_path().await?;
 
         // Check severity first — this is cheap and avoids fetching
         // title/description for issues that would be filtered out anyway.
-        let severity = trait_ref.severity();
+        let severity = issue.severity();
         // NOTE: Lower severities are _more_ severe
         let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
             // we need to check the path to see if it is foreign or not.  Only await the
@@ -337,13 +352,13 @@ impl IssueFilter {
         };
 
         if !severity_allowed {
-            return Ok(Vc::cell(false));
+            return Ok(false);
         }
 
         // Check ignore rules — if any rule matches, the issue is dropped.
         // Title and description are fetched lazily: only when a rule's path
         // matches and the rule also specifies a title/description pattern.
-        if !has_no_ignore_rules {
+        if !self.ignore_rules.is_empty() {
             let file_path_str = file_path.to_string();
             let mut title_str: Option<String> = None;
             let mut description_text: Option<Option<String>> = None;
@@ -354,7 +369,7 @@ impl IssueFilter {
                 }
                 if let Some(ref title_pat) = rule.title {
                     if title_str.is_none() {
-                        title_str = Some(trait_ref.title().await?.to_unstyled_string());
+                        title_str = Some(issue.title().await?.to_unstyled_string());
                     }
                     if !title_pat.matches(title_str.as_deref().unwrap()) {
                         continue;
@@ -362,12 +377,8 @@ impl IssueFilter {
                 }
                 if let Some(ref desc_pat) = rule.description {
                     if description_text.is_none() {
-                        description_text = Some(
-                            trait_ref
-                                .description()
-                                .await?
-                                .map(|s| s.to_unstyled_string()),
-                        );
+                        description_text =
+                            Some(issue.description().await?.map(|s| s.to_unstyled_string()));
                     }
                     match description_text.as_ref().unwrap().as_deref() {
                         Some(desc) if desc_pat.matches(desc) => {}
@@ -375,28 +386,11 @@ impl IssueFilter {
                     }
                 }
                 // All specified fields matched — ignore this issue.
-                return Ok(Vc::cell(false));
+                return Ok(false);
             }
         }
 
-        Ok(Vc::cell(true))
-    }
-}
-
-impl IssueFilter {
-    /// Construct a filter with the standard warning/foreign-error severities.
-    pub fn warnings_and_foreign_errors() -> Self {
-        IssueFilter {
-            severity: IssueSeverity::Warning,
-            foreign_severity: IssueSeverity::Error,
-            ignore_rules: Vec::new(),
-        }
-    }
-
-    /// Set the ignore rules for this filter.
-    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
-        self.ignore_rules = rules;
-        self
+        Ok(true)
     }
 }
 
@@ -415,15 +409,12 @@ impl CapturedIssues {
     }
 
     // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(
-        &self,
-        filter: Vc<IssueFilter>,
-    ) -> Result<Vec<ReadRef<PlainIssue>>> {
+    pub async fn get_plain_issues(&self, filter: &IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
             .map(async |issue| {
-                if *filter.matches(**issue).await? {
+                if filter.matches(*issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))
@@ -438,18 +429,16 @@ impl CapturedIssues {
     }
 }
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
     range: Option<SourceRange>,
 }
 
 /// The end position is the first character after the range
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(u32, u32),
@@ -497,7 +486,12 @@ impl IssueSource {
             let mut range = match range {
                 SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    // Defensively read the content, an error there should not prevent all issue
+                    // formatting.  Best practice is for `content` to return `NotFound` instead of
+                    // an error.
+                    if let Ok(content) = self.source.content().lines().await
+                        && let FileLinesContent::Lines(lines) = &*content
+                    {
                         let start = find_line_and_column(lines.as_ref(), start);
                         let end = find_line_and_column(lines.as_ref(), end);
                         Some((start, end))
@@ -774,7 +768,7 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
+        .map(async |trace| {
             let mut plain_trace = trace
                 .into_iter()
                 .filter(|asset| {
@@ -910,6 +904,14 @@ pub struct PlainIssue {
     pub import_traces: Vec<PlainTrace>,
 }
 
+/// A collection of [`PlainIssue`]s collected from a single source.
+///
+/// Returned by [`collect_issues`] so that the (plain) issues can be read strongly
+/// consistently from a top-level task and handed to a non-turbo-task [`IssueReporter`].
+#[turbo_tasks::value(serialization = "skip")]
+#[derive(Debug)]
+pub struct PlainIssues(pub Vec<ReadRef<PlainIssue>>);
+
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainAdditionalIssueSource {
@@ -970,12 +972,24 @@ impl PlainIssue {
         issue: ResolvedVc<Box<dyn Issue>>,
         import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
     ) -> Result<Vc<Self>> {
-        let trait_ref = issue.into_trait_ref().await?;
+        Ok(
+            Self::from_issue_ref(&*issue.into_trait_ref().await?, import_tracer)
+                .await?
+                .cell(),
+        )
+    }
+}
+
+impl PlainIssue {
+    pub async fn from_issue_ref(
+        trait_ref: &dyn Issue,
+        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
+    ) -> Result<Self> {
         let severity = trait_ref.severity();
         let file_path = trait_ref.file_path().await?;
         let file_path_str = file_path.to_string_ref().await?;
 
-        Ok(Self::cell(Self {
+        Ok(Self {
             severity,
             file_path: file_path_str,
             stage: trait_ref.stage(),
@@ -1010,7 +1024,7 @@ impl PlainIssue {
                 }
                 None => vec![],
             },
-        }))
+        })
     }
 }
 
@@ -1034,39 +1048,52 @@ pub struct PlainSource {
 impl PlainSource {
     #[turbo_tasks::function]
     pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
-        let asset_content = asset.content().await?;
-        let content = match *asset_content {
-            AssetContent::File(file_content) => file_content.await?,
-            AssetContent::Redirect { .. } => ReadRef::new_owned(FileContent::NotFound),
+        // Defensively read the content, an error there should not prevent all issue
+        // formatting.  Best practice is for `content` to return `NotFound` instead of
+        // an error.
+        let content = if let Ok(asset_content) = asset.content().await
+            && let AssetContent::File(file_content) = &*asset_content
+            && let Ok(file_content) = file_content.await
+        {
+            file_content
+        } else {
+            ReadRef::new_owned(FileContent::NotFound)
         };
+        let ident = asset.ident();
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().owned().await?,
-            file_path: asset.ident().await?.path.to_string_ref().await?,
+            ident: ident.to_string().owned().await?,
+            file_path: ident.await?.path.to_string_ref().await?,
             content,
         }
         .cell())
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
-    /// Reports issues to the user (e.g. to stdio). Returns whether fatal
+    /// Reports already-collected issues to the user (e.g. to stdio). Returns whether fatal
     /// (program-ending) issues were present.
+    ///
+    /// This is intentionally *not* a `#[turbo_tasks::function]`: it performs no turbo-tasks
+    /// reads of its own (the issues are collected ahead of time by [`collect_issues`]), so it
+    /// is safe to call from a top-level task.
     ///
     /// # Arguments:
     ///
-    /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
-    ///   determine which issues are new.  This must be derived from the OperationVc so issues can
-    ///   be collected.
-    /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
-    ///  The minimum issue severity level considered to fatally end the program.
-    #[turbo_tasks::function]
-    fn report_issues(
-        self: Vc<Self>,
-        source: TransientValue<RawVc>,
+    /// * `issues` - The plain issues already collected from the source.
+    /// * `source` - The root [`RawVc`] from which the issues were traced. Can be used by
+    ///   implementers as a dedup key to determine which issues are new. This must be derived from
+    ///   the `OperationVc` the issues were collected from.
+    /// * `min_failing_severity` - The minimum issue severity level considered to fatally end the
+    ///   program.
+    async fn report_issues(
+        &self,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
         min_failing_severity: IssueSeverity,
-    ) -> Vc<bool>;
+    ) -> Result<bool>;
 }
 
 pub trait CollectibleIssuesExt
@@ -1104,6 +1131,21 @@ where
     }
 }
 
+/// Collects all issues emitted by `source` as resolved [`PlainIssue`]s.
+///
+/// This is an `operation` function so its (plain) result can be read *strongly consistently* (via
+/// [`OperationVc::read_strongly_consistent`]) from a top-level task without tripping the
+/// eventually-consistent-read assertion. The per-issue `PlainIssue::from_issue` reads happen
+/// *inside* this task, where eventually-consistent reads are legal.
+#[turbo_tasks::function(operation, root)]
+async fn collect_issues(source: OperationVc<()>) -> Result<Vc<PlainIssues>> {
+    let plain = source
+        .peek_issues()
+        .get_plain_issues(&IssueFilter::everything())
+        .await?;
+    Ok(PlainIssues(plain).cell())
+}
+
 /// A helper function to print out issues to the console.
 ///
 /// Must be called in a turbo-task as this constructs a `cell`
@@ -1116,13 +1158,31 @@ pub async fn handle_issues<T: Send>(
 ) -> Result<()> {
     let source_vc = source_op.connect();
     let _ = source_op.resolve().strongly_consistent().await?;
+    let source_raw = Vc::into_raw(source_vc);
 
-    let has_fatal = issue_reporter.report_issues(
-        TransientValue::new(Vc::into_raw(source_vc)),
-        min_failing_severity,
-    );
+    // Collect the issues in a dedicated `operation` task and read its *plain* result strongly
+    // consistently. This is safe at the top level (unlike an eventually-consistent read), while
+    // the per-issue reads happen inside `collect_issues`. The source is type-erased to
+    // `OperationVc<()>` so a single non-generic task can collect issues for any source.
+    let erased_source = OperationVc::<()>::try_from(source_raw)?;
+    let issues = collect_issues(erased_source)
+        .read_strongly_consistent()
+        .await?;
 
-    if *has_fatal.await? {
+    // `report_issues` is a plain async method; reach it via a `TraitRef`. Resolve the reporter
+    // strongly consistently first so that `into_trait_ref` is a plain cell read (rather than an
+    // eventually-consistent task-output read) at the top level.
+    let reporter = issue_reporter
+        .to_resolved()
+        .strongly_consistent()
+        .await?
+        .into_trait_ref()
+        .await?;
+    let has_fatal = reporter
+        .report_issues(issues, source_raw, min_failing_severity)
+        .await?;
+
+    if has_fatal {
         let mut message = "Fatal issue(s) occurred".to_owned();
         if let Some(path) = path.as_ref() {
             message += &format!(" in {path}");

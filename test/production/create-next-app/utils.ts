@@ -1,6 +1,8 @@
 import execa from 'execa'
 import { join } from 'path'
-import { createNext } from 'e2e-utils'
+import { spawn } from 'child_process'
+import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import {
   resolveTestPkgPaths,
   serializeTestPkgPathsEnv,
@@ -83,56 +85,129 @@ export async function tryNextDev({
   isApp = true,
   isApi = false,
   isEmpty = false,
+  tailwind = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
   isApi?: boolean
   isEmpty?: boolean
+  tailwind?: boolean
 }) {
+  // The caller wraps this in `useTempDir`, so `cwd` (and the CNA project
+  // inside it) is already an isolated temp directory that gets removed
+  // after the test. Running `next build`/`next start` directly inside it
+  // is safe — `.next/` artifacts are cleaned up with the temp dir.
   const dir = join(cwd, projectName)
+
   // CNA installs `eslint-config-next` from the same `packed.tgz` path as
   // `next` (both come from `NEXT_PRIVATE_TEST_VERSION`), which causes npm to
   // unpack next's tarball into `node_modules/eslint-config-next` and to
   // create a `node_modules/.bin/next` shim pointing at that copy. Invoke
   // next's bin directly so webpack loaders resolve under `node_modules/next`.
-  const nextBin = 'node_modules/next/dist/bin/next'
-  const next = await createNext({
-    files: dir,
-    installCommand: 'true',
-    skipStart: false,
-    // Freshly installed CNA projects (with tailwind, eslint plugins, etc.)
-    // can take well over the default 10s to boot `next start`, especially
-    // under webpack where the built output is larger. Give them generous
-    // headroom so these tests aren't flaky on loaded CI machines.
-    startServerTimeout: 60_000,
-    buildCommand: `node ${nextBin} build`,
-    startCommand: `node ${nextBin} start`,
+  const nextBin = join(dir, 'node_modules/next/dist/bin/next')
+
+  const buildResult = await execa('node', [nextBin, 'build'], {
+    cwd: dir,
+    stdio: 'inherit',
+    env: { ...process.env },
+    reject: false,
   })
+  expect(buildResult.exitCode).toBe(0)
+
+  const port = await findPort()
+  const server = spawn(
+    'node',
+    [nextBin, 'start', '-p', String(port), '-H', '127.0.0.1'],
+    {
+      cwd: dir,
+      env: { ...process.env, HOSTNAME: '127.0.0.1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+
+  // Freshly installed CNA projects (with tailwind, eslint plugins, etc.)
+  // can take well over the default 10s to boot `next start`, especially
+  // under webpack where the built output is larger. Give them generous
+  // headroom so these tests aren't flaky on loaded CI machines.
+  const startServerTimeout = 60_000
+
+  let browser: Awaited<ReturnType<typeof webdriver>> | undefined
 
   try {
-    const res = await next.fetch('/')
+    await new Promise<void>((resolve, reject) => {
+      const onTimeout = setTimeout(() => {
+        reject(
+          new Error(
+            `next start did not become ready within ${startServerTimeout}ms`
+          )
+        )
+      }, startServerTimeout)
+
+      const onReady = () => {
+        clearTimeout(onTimeout)
+        resolve()
+      }
+
+      const handleData = (chunk: Buffer) => {
+        const msg = chunk.toString()
+        process.stdout.write(msg)
+        if (/- Local:|Ready in|✓ Ready/i.test(msg)) {
+          onReady()
+        }
+      }
+
+      server.stdout!.on('data', handleData)
+      server.stderr!.on('data', (chunk: Buffer) => {
+        process.stderr.write(chunk.toString())
+      })
+      server.on('exit', (code) => {
+        clearTimeout(onTimeout)
+        reject(
+          new Error(`next start exited before becoming ready (code=${code})`)
+        )
+      })
+    })
+
+    // The webpack test matrix forces generated apps to build with webpack,
+    // but create-next-app only exposes Turbopack and Rspack as bundler choices.
+    // Only assert rendered Tailwind styles when the generated bundler matches
+    // the test bundler.
+    if (tailwind && !process.env.IS_WEBPACK_TEST) {
+      browser = await webdriver(port, '/')
+      expect(await browser.elementByCss('main').getComputedCss('display')).toBe(
+        'flex'
+      )
+    }
+
+    const res = await fetchViaHTTP(port, '/')
     if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
     } else {
       const responseText = await res.text()
+      // The filename in the intro line is wrapped in a `<code>` element, so
+      // strip HTML tags and collapse whitespace before matching the copy.
+      const textContent = responseText
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
       const hasAppRouterText =
-        responseText.includes('To get started, edit the page.tsx file.') ||
-        responseText.includes('To get started, edit the page.js file.')
+        textContent.includes('To get started, edit the page.tsx file.') ||
+        textContent.includes('To get started, edit the page.js file.')
       const hasPagesRouterText =
-        responseText.includes('To get started, edit the index.tsx file.') ||
-        responseText.includes('To get started, edit the index.js file.')
+        textContent.includes('To get started, edit the index.tsx file.') ||
+        textContent.includes('To get started, edit the index.js file.')
       expect(hasAppRouterText || hasPagesRouterText).toBe(true)
     }
     expect(res.status).toBe(200)
 
     if (!isApp && !isEmpty) {
-      const apiRes = await next.fetch('/api/hello')
+      const apiRes = await fetchViaHTTP(port, '/api/hello')
       expect(await apiRes.json()).toEqual({ name: 'John Doe' })
       expect(apiRes.status).toBe(200)
     }
   } finally {
-    await next.destroy()
+    await browser?.close()
+    await killApp(server).catch(() => {})
   }
 }
 

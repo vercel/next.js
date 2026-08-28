@@ -45,7 +45,7 @@
                                     },
                                 ),
                             ],
-                            mutable: true,
+                            mutability: Mutable,
                         },
                         Constant(
                             Str(
@@ -58,9 +58,7 @@
                     Constant(
                         Num(
                             ConstantNumber(
-                                TotalOrderF64(
-                                    0.0,
-                                ),
+                                0.0,
                             ),
                         ),
                     ),
@@ -91,7 +89,7 @@
                                     },
                                 ),
                             ],
-                            mutable: true,
+                            mutability: Mutable,
                         },
                         Constant(
                             Str(
@@ -104,9 +102,7 @@
                     Constant(
                         Num(
                             ConstantNumber(
-                                TotalOrderF64(
-                                    0.0,
-                                ),
+                                0.0,
                             ),
                         ),
                     ),
@@ -138,7 +134,7 @@
                                 ),
                             ),
                         ],
-                        mutable: true,
+                        mutability: Mutable,
                     },
                     Constant(
                         Str(
@@ -166,7 +162,7 @@
                                 ),
                             ),
                         ],
-                        mutable: true,
+                        mutability: Mutable,
                     },
                     Constant(
                         Str(
@@ -200,7 +196,7 @@
                         ),
                     ),
                 ],
-                mutable: true,
+                mutability: Mutable,
             },
             Constant(
                 Str(

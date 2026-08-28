@@ -8,7 +8,10 @@ import { retry, waitFor } from 'next-test-utils'
     'ENABLE_CACHING=1',
     'TURBO_ENGINE_IGNORE_DIRTY=1',
     'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
-    'TURBO_ENGINE_EVICT_AFTER_SNAPSHOT=1',
+    // Persist even tiny snapshots so the test doesn't depend on the
+    // minimum-compilation-time threshold.
+    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
+    'ENABLE_EVICTION=1',
   ].join(' ')
 
   const { skipped, next } = nextTestSetup({

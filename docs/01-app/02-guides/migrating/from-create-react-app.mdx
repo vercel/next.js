@@ -355,7 +355,7 @@ This tells Next.js to generate a single route for the empty slug (`/`), effectiv
 
 ### Step 7: Add a Client-Only Entrypoint
 
-Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/getting-started/server-and-client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that clients components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
+Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/getting-started/server-and-client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that Client Components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
 
 Create a `client.tsx` (or `client.js`) in `app/[[...slug]]/`:
 
@@ -529,7 +529,13 @@ export default nextConfig
 
 ### Handling a Custom `Service Worker`
 
-If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can learn how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
+If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can register this service worker using the following syntax:
+
+```ts
+await navigator.serviceWorker.register(new URL('../serviceWorker.js', import.meta.url), ...)
+```
+
+Learn more about how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
 
 ### Proxying API Requests
 

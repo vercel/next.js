@@ -1,1 +1,1 @@
-export const unstable_instant = true
+export const instant = true

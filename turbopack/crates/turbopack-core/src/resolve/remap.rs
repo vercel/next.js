@@ -16,7 +16,7 @@ use crate::resolve::{
 
 /// A small helper type to differentiate parsing exports and imports fields.
 #[derive(Copy, Clone)]
-enum ExportImport {
+pub(crate) enum ExportImport {
     Export,
     Import,
 }

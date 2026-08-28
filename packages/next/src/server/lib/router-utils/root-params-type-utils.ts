@@ -1,7 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 import type { RouteTypesManifest } from './route-types-utils'
-import type { NextConfigComplete } from '../../config-shared'
 
 export type RootParamValueType = 'string' | 'string[]' | 'undefined'
 
@@ -45,23 +44,14 @@ function getRootParamReturnType(valueTypes: RootParamInfo): string {
 }
 
 /**
- * Writes root-params type definitions to a file if the feature is enabled
- * and root params were collected from layouts.
+ * Writes root-params type definitions to a file if root params were collected
+ * from layouts.
  */
 export async function writeRootParamsTypes(
   manifest: RouteTypesManifest,
-  filePath: string,
-  config: NextConfigComplete
+  filePath: string
 ) {
   const rootParams = manifest.rootParams
-
-  const featureEnabled =
-    !!config.experimental.rootParams || !!config.cacheComponents
-
-  if (!featureEnabled) {
-    await fs.promises.rm(filePath, { force: true })
-    return
-  }
 
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
 

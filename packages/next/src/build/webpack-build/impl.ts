@@ -110,6 +110,7 @@ export async function webpackBuildImpl(
         appDir: NextBuildContext.appDir!,
         pages: NextBuildContext.mappedPages!,
         appPaths: NextBuildContext.mappedAppPages!,
+        appDefaultPaths: NextBuildContext.mappedAppDefaults,
         previewMode: NextBuildContext.previewProps!,
         rootPaths: NextBuildContext.mappedRootPaths!,
         hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -133,6 +134,7 @@ export async function webpackBuildImpl(
             appDir: NextBuildContext.appDir!,
             pages: NextBuildContext.mappedPages!,
             appPaths: NextBuildContext.mappedAppPages!,
+            appDefaultPaths: NextBuildContext.mappedAppDefaults,
             previewMode: NextBuildContext.previewProps!,
             rootPaths: NextBuildContext.mappedRootPaths!,
             hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -175,6 +177,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
           deferredEntrypoints: deferredEntrypoints?.client,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -184,6 +188,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
           deferredEntrypoints: deferredEntrypoints?.server,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -193,6 +199,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
           deferredEntrypoints: deferredEntrypoints?.edgeServer,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
       ])

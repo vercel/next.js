@@ -1,7 +1,6 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
-    fs::File,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -9,6 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+use fs_err::File;
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
@@ -48,6 +48,9 @@ impl Display for MetaEntryFlags {
         }
     }
 }
+
+/// Magic number identifying a `.meta` file.
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -137,6 +140,10 @@ impl MetaEntry {
 
     pub fn amqf_size(&self) -> u32 {
         self.amqf_data_offset.end - self.amqf_data_offset.start
+    }
+
+    pub fn amqf(&self) -> &qfilter::FilterRef<'static> {
+        &self.amqf
     }
 
     /// Returns the raw serialized AMQF bytes from the mmap.
@@ -267,8 +274,8 @@ impl MetaFile {
     }
 
     fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let file = File::open(path).context("Failed to open meta file")?;
-        let mmap = unsafe { MmapOptions::new().map(&file) }.context("Failed to mmap")?;
+        let file = File::open(path)?;
+        let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)
             .context("Failed to advise mmap")?;
@@ -276,7 +283,7 @@ impl MetaFile {
         // Parse the header from the mmap via ReadBytesExt on &[u8].
         let mut reader: &[u8] = &mmap;
         let magic = reader.read_u32::<BE>()?;
-        if magic != 0xFE4ADA4A {
+        if magic != META_FILE_MAGIC {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
@@ -379,6 +386,11 @@ impl MetaFile {
         self.family
     }
 
+    /// The on-disk size of this meta file in bytes (the length of its memory map).
+    pub fn byte_size(&self) -> u64 {
+        self.mmap.len() as u64
+    }
+
     pub fn entries(&self) -> &[MetaEntry] {
         &self.entries
     }
@@ -475,10 +487,12 @@ impl MetaFile {
                         // Return immediately with the first result
                         return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
                     }
-                    // Check for tombstone — stops search across older SSTs within this meta file.
-                    // Since tombstones sort last within a key group, if the last value is Deleted,
-                    // we have a tombstone.
-                    let has_tombstone = values.last().is_some_and(|v| *v == LookupValue::Deleted);
+                    // A key tombstone stops the search across older SSTs within this meta file.
+                    // It sorts last within a key group, so it is the last value if present.
+                    // Key-value tombstones do not stop the search: they delete a single value,
+                    // and older SSTs may hold others for this key.
+                    let has_tombstone =
+                        values.last().is_some_and(|v| *v == LookupValue::KeyDeleted);
                     all_results.extend(values);
                     if has_tombstone {
                         return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(

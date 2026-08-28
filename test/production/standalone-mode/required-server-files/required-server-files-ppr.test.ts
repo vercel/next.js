@@ -57,6 +57,9 @@ describe.skip('required server files app router', () => {
       cacheComponents: true,
       output: 'standalone',
     },
+    dependencies: {
+      'is-even': '1.0.0',
+    },
   })
 
   beforeAll(async () => {

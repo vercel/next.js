@@ -25,6 +25,8 @@ use bincode::{
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use rustc_hash::FxBuildHasher;
+#[cfg(not(target_family = "wasm"))]
+use scattered_collect::slice::ScatteredSlice;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;
@@ -32,7 +34,10 @@ use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, hash_bytes, new_atom, new_atom_from_prehashed, new_static_atom},
+    dynamic::{
+        DynamicPrehashedString, deref_dynamic, deref_static, hash_bytes, new_atom,
+        new_atom_from_prehashed, new_static_atom,
+    },
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
@@ -96,15 +101,12 @@ unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
 const DYNAMIC_TAG: u8 = 0b_10;
-const PREHASHED_STRING_LOCATION: u8 = 0b_0;
 // Marks a payload that has been leaked since it has a static lifetime
 const STATIC_TAG: u8 = 0b_00;
 // The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
-const INLINE_LOCATION: u8 = 0b_1;
 const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
-const LOCATION_MASK: u8 = 0b_1;
 // For inline tags the length is stored in the upper 4 bits of the tag byte
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
@@ -114,31 +116,22 @@ impl RcStr {
     fn tag(&self) -> u8 {
         self.unsafe_data.tag_byte() & TAG_MASK
     }
-    #[inline(always)]
-    fn location(&self) -> u8 {
-        self.unsafe_data.tag_byte() & LOCATION_MASK
-    }
 
     #[inline(never)]
     pub fn as_str(&self) -> &str {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => self.prehashed_string_as_str(),
-            INLINE_LOCATION => self.inline_as_str(),
+        match self.tag() {
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value },
+            DYNAMIC_TAG => unsafe { &deref_dynamic(self.unsafe_data).value },
+            INLINE_TAG => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     fn inline_as_str(&self) -> &str {
-        debug_assert!(self.location() == INLINE_LOCATION);
+        debug_assert!(self.tag() == INLINE_TAG);
         let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
         let src = self.unsafe_data.data();
         unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-    }
-
-    // Extract the str reference from a string stored in a PrehashedString
-    fn prehashed_string_as_str(&self) -> &str {
-        debug_assert!(self.location() == PREHASHED_STRING_LOCATION);
-        unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
     /// Returns an owned mutable [`String`].
@@ -154,12 +147,13 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v.value.into_string(),
-                    Err(arc) => arc.value.as_str().to_string(),
+                    // `String::from(Box<str>)` reuses the boxed allocation, so this is O(1).
+                    Ok(v) => String::from(v.value),
+                    Err(arc) => arc.value.to_string(),
                 }
             }
             INLINE_TAG => self.inline_as_str().to_string(),
-            STATIC_TAG => self.prehashed_string_as_str().to_string(),
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value.to_string() },
             _ => unsafe { debug_unreachable!() },
         }
     }
@@ -179,13 +173,13 @@ impl RcStr {
             let hash = hash_bytes(s.as_bytes());
             // Check the static table
             if let Some(entries) = STATIC_TABLE.get(&hash)
-                && let Some(static_phs) = entries.iter().find(|phs| phs.value.as_str() == s)
+                && let Some(static_phs) = entries.iter().find(|phs| phs.value == s)
             {
                 new_static_atom(static_phs)
             } else {
-                new_atom_from_prehashed(PrehashedString {
+                new_atom_from_prehashed(DynamicPrehashedString {
                     hash,
-                    value: dynamic::Payload::String(s.into()),
+                    value: s.into(),
                 })
             }
         } else {
@@ -330,18 +324,19 @@ impl From<RcStr> for PathBuf {
 impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
-        let alias = self.unsafe_data;
-        // We only need to increment the ref count for DYNAMIC_TAG values
+        // We only need to increment the ref count for DYNAMIC_TAG values.
         // For STATIC_TAG and INLINE_TAG we can just copy the value.
-        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+        if self.tag() == DYNAMIC_TAG {
             unsafe {
-                let arc = dynamic::restore_arc(alias);
+                let arc = dynamic::restore_arc(self.unsafe_data);
                 forget(arc.clone());
                 forget(arc);
             }
         }
 
-        RcStr { unsafe_data: alias }
+        RcStr {
+            unsafe_data: self.unsafe_data,
+        }
     }
 }
 
@@ -358,17 +353,33 @@ impl PartialEq for RcStr {
         if self.unsafe_data == other.unsafe_data {
             return true;
         }
-        // They can still be equal if they are both stored on the heap
-        match (self.location(), other.location()) {
-            (PREHASHED_STRING_LOCATION, PREHASHED_STRING_LOCATION) => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                let r = unsafe { deref_from(other.unsafe_data) };
-                l.hash == r.hash && l.value == r.value
-            }
-            // NOTE: it is never possible for an inline storage string to compare equal to a dynamic
-            // allocated string, the construction routines separate the strings based on length.
-            _ => false,
+        // If either side is inline, they can't be equal: an inline string is always shorter than
+        // any heap-allocated one (construction splits on length), and two inline strings would
+        // have been caught by the `unsafe_data == unsafe_data` check above.
+        if self.tag() == INLINE_TAG || other.tag() == INLINE_TAG {
+            return false;
         }
+
+        // slow path compare precomputed hashes and string refs
+        let (l_hash, l_str) = unsafe { heap_hash_and_str(self) };
+        let (r_hash, r_str) = unsafe { heap_hash_and_str(other) };
+        l_hash == r_hash && l_str == r_str
+    }
+}
+
+/// Caller must ensure `s.tag()` is `STATIC_TAG` or `DYNAMIC_TAG`.
+#[inline]
+unsafe fn heap_hash_and_str(s: &RcStr) -> (u64, &str) {
+    match s.tag() {
+        STATIC_TAG => {
+            let p = unsafe { deref_static(s.unsafe_data) };
+            (p.hash, p.value)
+        }
+        DYNAMIC_TAG => {
+            let p = unsafe { deref_dynamic(s.unsafe_data) };
+            (p.hash, &p.value)
+        }
+        _ => unsafe { debug_unreachable!() },
     }
 }
 
@@ -388,13 +399,16 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                state.write_u64(l.hash);
+        match self.tag() {
+            STATIC_TAG => {
+                state.write_u64(unsafe { deref_static(self.unsafe_data).hash });
                 state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
-            INLINE_LOCATION => {
+            DYNAMIC_TAG => {
+                state.write_u64(unsafe { deref_dynamic(self.unsafe_data).hash });
+                state.write_u8(0xff); // matches the implementation of the `str` Hash impl
+            }
+            INLINE_TAG => {
                 self.inline_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
@@ -472,11 +486,8 @@ impl Drop for RcStr {
     fn drop(&mut self) {
         match self.tag() {
             DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
-            STATIC_TAG => {
-                // do nothing, these are never deallocated
-            }
-            INLINE_TAG => {
-                // do nothing, these payloads need no drop logic
+            INLINE_TAG | STATIC_TAG => {
+                // no-ops
             }
             _ => unsafe { debug_unreachable!() },
         }
@@ -497,59 +508,73 @@ pub const fn is_atom_inlineable(s: &str) -> bool {
 
 #[doc(hidden)]
 #[inline(always)]
-pub const fn from_static(s: &'static PrehashedString) -> RcStr {
+pub const fn from_static(s: &'static StaticPrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
-pub use dynamic::PrehashedString;
+pub use dynamic::StaticPrehashedString;
 
 #[doc(hidden)]
-pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString {
-    PrehashedString {
-        value: dynamic::Payload::Ref(text),
+pub const fn make_const_prehashed_string(text: &'static str) -> StaticPrehashedString {
+    StaticPrehashedString {
+        value: text,
         hash: hash_bytes(text.as_bytes()),
     }
 }
 
-// Re-export inventory so the rcstr! macro can reference it via $crate::inventory
+// Re-export scattered-collect so the `rcstr!` macro can reference it via
+// `$crate::scattered_collect`.
+#[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
-pub use inventory;
+pub use scattered_collect;
 
-/// Wrapper for collecting `rcstr!` static constants via `inventory`.
+/// Wrapper for collecting `rcstr!` static constants at link time.
 #[doc(hidden)]
-pub struct StaticRcStr(pub &'static PrehashedString);
+pub struct StaticRcStr(pub &'static StaticPrehashedString);
 
-inventory::collect!(StaticRcStr);
+// Link-time collection of every `rcstr!` static.
+//
+// Disabled under wasm because scattered-collect relies on a environment provided function
+// described in <https://docs.rs/link-section/latest/link_section/#wasm> and installing it is tricky
+// using wasm-bindgen. Also this is only here to support deserialization of rcstrs which shouldn't
+// happen under wasm anyway.
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static STATIC_RCSTRS: ScatteredSlice<StaticRcStr>;
+// stubbed out for wasm
+#[cfg(target_family = "wasm")]
+const STATIC_RCSTRS: [StaticRcStr; 0] = [];
 
-/// Forwarder around [`inventory::submit!`] that lets the `rcstr!` proc macro
-/// emit a single path it can rely on, without depending on whether
-/// `turbo_rcstr::inventory` is reachable as a macro path in the call site
-/// crate. Macros emitted from a proc macro lose access to the proc macro
-/// crate's deps, so the submission has to bounce through this declarative
-/// macro defined where `inventory::submit!` is in scope.
+/// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __rcstr_inventory_submit {
+macro_rules! __rcstr_static_submit {
     ($value:expr) => {
-        $crate::inventory::submit!($value);
+        #[cfg(not(target_family = "wasm"))]
+        $crate::scattered_collect::declarative::scatter! {
+            #[scatter($crate::STATIC_RCSTRS)]
+            const _: $crate::StaticRcStr = $value;
+        }
     };
 }
 
-/// Read-only lookup table mapping precomputed hash -> static PrehashedString.
-/// Built once on first access from all `rcstr!` constants collected by `inventory`.
+/// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
+/// Built once on first access from all `rcstr!` constants gathered at link time into
+/// [`STATIC_RCSTRS`].
 ///
-/// Multiple `rcstr!` calls with the same string content will each submit to
-/// inventory, but we deduplicate by content here so only one entry per unique
-/// string is stored.
+/// Multiple `rcstr!` calls with the same string content will each scatter an entry, but we
+/// deduplicate by content here so only one entry per unique string is stored.
 static STATIC_TABLE: LazyLock<
-    HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher>,
+    HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher>,
 > = LazyLock::new(|| {
-    let mut map: HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher> =
+    let mut map: HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher> =
         HashMap::with_hasher(FxBuildHasher);
-    for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
-        if phs.value.as_str().len() <= MAX_INLINE_LEN {
+    for &StaticRcStr(phs) in STATIC_RCSTRS.iter() {
+        if phs.value.len() <= MAX_INLINE_LEN {
             // This is rare, but possible if our macro cannot determine the length of the string at
-            // macro time we may end up with a wasted PrehashedString submitted to inventory.
+            // macro time we may end up with a wasted StaticPrehashedString scattered into the
+            // collection.
 
             // Just skip it
             continue;
@@ -558,10 +583,7 @@ static STATIC_TABLE: LazyLock<
         // Deduplicate: skip if an entry with the same string content exists
         // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
         // on pointer equality.
-        if !entries
-            .iter()
-            .any(|e| e.value.as_str() == phs.value.as_str())
-        {
+        if !entries.iter().any(|e| e.value == phs.value) {
             entries.push(phs);
         }
     }
@@ -580,10 +602,7 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
-#[cfg(all(feature = "napi", target_family = "wasm"))]
-compile_error!("The napi feature cannot be enabled for wasm targets");
-
-#[cfg(all(feature = "napi", not(target_family = "wasm")))]
+#[cfg(feature = "napi")]
 mod napi_impl {
     use napi::{
         bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},
@@ -759,6 +778,65 @@ mod tests {
             }
         };
         assert_eq!(STR, RcStr::from("hello"));
+
+        // A literal one byte past the capacity must not inline, on either width.
+        let too_long = "x".repeat(MAX_INLINE_LEN + 1);
+        assert!(inline_atom(&too_long).is_none());
+    }
+
+    /// The inline capacity must be the same on every target. `turbo-rcstr-macros` runs on the
+    /// *host*, so it decides inline-vs-static using a host-side constant; if the target disagreed,
+    /// the macro would emit `inline_atom(..).unwrap()` for a literal that does not fit and panic at
+    /// runtime. This is the regression guard for that.
+    #[test]
+    #[cfg(not(feature = "atom_size_128"))]
+    fn max_inline_len_is_uniform_across_targets() {
+        assert_eq!(
+            MAX_INLINE_LEN, 7,
+            "MAX_INLINE_LEN must be 7 on every target, including 32-bit/wasm"
+        );
+        assert_eq!(size_of::<crate::tagged_value::TaggedValue>(), 8);
+        // The non-zero niche must survive, or `Option<RcStr>` silently doubles in size.
+        assert_eq!(size_of::<Option<RcStr>>(), size_of::<RcStr>());
+    }
+
+    /// `rcstr!` expands to a `const`, so it must stay const-evaluable on every target. On 32-bit
+    /// this only works because `TaggedValue` holds the address in a real pointer field: a bare
+    /// integer representation would need a pointer→integer cast, which const evaluation forbids,
+    /// and every literal taking the static path would fail with `E0080`.
+    #[test]
+    fn rcstr_macro_is_const_on_every_target() {
+        // Short enough to be stored inline.
+        const SHORT: RcStr = rcstr!("abc");
+        // Longer than the inline capacity, so this takes the static path — the one that needs the
+        // pointer to survive const evaluation.
+        const LONG: RcStr = rcstr!("a string that is definitely not inline");
+
+        assert_eq!(SHORT, RcStr::from("abc"));
+        assert_eq!(LONG, RcStr::from("a string that is definitely not inline"));
+        assert_eq!(SHORT.tag(), INLINE_TAG);
+        assert_eq!(LONG.tag(), STATIC_TAG);
+    }
+
+    /// Round-trips across the inline/static boundary. Lengths 4..=7 are the interesting band: they
+    /// are inline at capacity 7 but would spill to the static path at capacity 3, so this fails if
+    /// the representation ever diverges by target again.
+    #[test]
+    fn round_trip_across_the_inline_boundary() {
+        for len in 0..=9usize {
+            let s = "abcdefghi"[..len].to_string();
+            let r = RcStr::from(s.as_str());
+            assert_eq!(r.as_str(), s, "round trip failed at len {len}");
+            assert_eq!(r.len(), len);
+
+            let expected_inline = len <= MAX_INLINE_LEN;
+            assert_eq!(
+                r.tag() == INLINE_TAG,
+                expected_inline,
+                "len {len} should {} be inline (MAX_INLINE_LEN = {MAX_INLINE_LEN})",
+                if expected_inline { "" } else { "not" }
+            );
+        }
     }
 
     #[test]
@@ -814,6 +892,9 @@ mod tests {
     }
 
     #[test]
+    // `STATIC_RCSTRS` is an empty array on wasm (see its definition above), so there is no static
+    // registry for the decoder to resolve against and the value comes back as `DYNAMIC_TAG`.
+    #[cfg_attr(target_family = "wasm", ignore = "no static RcStr registry on wasm")]
     fn test_bincode_roundtrip() {
         use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
 

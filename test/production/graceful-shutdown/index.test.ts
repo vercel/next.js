@@ -1,6 +1,6 @@
 import { join } from 'path'
 import type { ChildProcess } from 'child_process'
-import { NextInstance, createNext, FileRef, nextTestSetup } from 'e2e-utils'
+import { NextInstance, FileRef, nextTestSetup } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -119,9 +119,6 @@ describe('Graceful Shutdown', () => {
   ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('production (standalone mode)', () => {
-    let next: NextInstance
-    let serverFile: string
-
     const projectFiles: Record<string, string | FileRef> = {
       'next.config.mjs': `export default { output: 'standalone' }`,
     }
@@ -130,15 +127,21 @@ describe('Graceful Shutdown', () => {
       projectFiles[file] = new FileRef(join(appDir, file))
     }
 
-    beforeAll(async () => {
-      next = await createNext({
-        files: projectFiles,
-        dependencies: {
-          swr: 'latest',
-        },
-      })
+    const { next } = nextTestSetup({
+      files: projectFiles,
+      dependencies: {
+        swr: 'latest',
+      },
+      skipStart: true,
+    })
 
-      await next.stop()
+    let serverFile: string
+
+    beforeAll(async () => {
+      const { exitCode } = await next.build()
+      if (exitCode !== 0) {
+        throw new Error(`Failed to build next: ${exitCode}`)
+      }
 
       await fs.move(
         join(next.testDir, '.next/standalone'),
@@ -179,8 +182,6 @@ describe('Graceful Shutdown', () => {
       )
     })
     afterEach(() => killApp(app))
-
-    afterAll(() => next.destroy())
 
     runTests()
   })

@@ -12,8 +12,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -29,9 +29,10 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
@@ -300,6 +301,7 @@ impl WebpackLoadersProcessedAsset {
                     project_path
                 );
             };
+            let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
@@ -320,6 +322,7 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
+                loader_names,
             })
             .await?;
 
@@ -435,9 +438,8 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(
-    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -493,7 +495,8 @@ pub enum ResponseMessage {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
@@ -507,6 +510,34 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
+    /// Names of the loaders being applied to the source, in pipeline order.
+    /// Used to enrich error messages and issue details so users know which
+    /// loader chain was running when an error occurred.
+    pub loader_names: Vec<RcStr>,
+}
+
+impl WebpackLoaderContext {
+    /// Format the loader chain as "loaders [a, b, c]" for inclusion in
+    /// error messages and issue detail text. Returns `None` if there are
+    /// no loaders, which should not normally happen but keeps the helper
+    /// well-defined.
+    fn loader_chain_description(&self) -> Option<RcStr> {
+        if self.loader_names.is_empty() {
+            None
+        } else {
+            Some(
+                format!(
+                    "loaders [{}]",
+                    self.loader_names
+                        .iter()
+                        .map(|n| n.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .into(),
+            )
+        }
+    }
 }
 
 impl EvaluateContext for WebpackLoaderContext {
@@ -544,6 +575,10 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
     async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
@@ -551,6 +586,7 @@ impl EvaluateContext for WebpackLoaderContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: self.loader_chain_description(),
         }
         .resolved_cell()
         .emit();
@@ -586,11 +622,11 @@ impl EvaluateContext for WebpackLoaderContext {
                         .try_join();
                     let file_subscriptions = file_paths
                         .iter()
-                        .map(|p| async move { self.cwd.join(p)?.read().await })
+                        .map(async |p| self.cwd.join(p)?.read().await)
                         .try_join();
                     let directory_subscriptions = directories
                         .iter()
-                        .map(|(dir, glob)| async move {
+                        .map(async |(dir, glob)| {
                             self.cwd
                                 .join(dir)?
                                 .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
@@ -717,7 +753,10 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
                 let single_graph = SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![module]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![module],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     false,
                     false,
                 );
@@ -727,8 +766,16 @@ impl EvaluateContext for WebpackLoaderContext {
                     .await?;
 
                 // Generate a full Node.js bundle using the real runtime
-                let output_root = self.chunking_context.output_root().owned().await?;
-                let entry_path = output_root.join("importModule.js")?;
+                let entry_path = self
+                    .chunking_context
+                    .chunk_path(
+                        None,
+                        module.ident(),
+                        Some(rcstr!("importModule")),
+                        rcstr!(".js"),
+                    )
+                    .owned()
+                    .await?;
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
@@ -745,6 +792,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     true,
                 )
                 .await?;
+                let output_root = self.chunking_context.output_root().owned().await?;
 
                 let mut chunks = Vec::new();
                 for asset in all_assets {

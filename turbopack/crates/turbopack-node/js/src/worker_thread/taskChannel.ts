@@ -10,7 +10,7 @@ export interface TaskMessage {
 
 export interface Binding {
   recvTaskMessageInWorker(workerId: number): Promise<TaskMessage>
-  sendTaskMessage(msg: TaskMessage): Promise<void>
+  sendTaskMessage(msg: TaskMessage): void
   workerCreated(workerId: number): void
 }
 
@@ -44,14 +44,17 @@ export class TaskChannel {
       reject = rej
     })
     TaskChannel.requests.set(id, { resolve, reject })
-    return await this.binding
-      .sendTaskMessage({
-        taskId: this.taskId,
-        data: TEXT_ENCODER.encode(
-          JSON.stringify({ type: 'request', id, data: message })
-        ),
-      })
-      .then(() => promise)
+    // sendTaskMessage used to be async, but ran into issues with
+    // napi-rs#3357.
+    // Now we send this message sync.
+    // But the resolve still happens async.
+    this.binding.sendTaskMessage({
+      taskId: this.taskId,
+      data: TEXT_ENCODER.encode(
+        JSON.stringify({ type: 'request', id, data: message })
+      ),
+    })
+    return await promise
   }
 
   async sendError(error: Error) {

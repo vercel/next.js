@@ -9,33 +9,33 @@ on:
     workflows: ['build-and-deploy']
     types: [completed]
 
-env:
-  NODE_LTS_VERSION: 20
-
 permissions:
   actions: read
   contents: read
+  # Minting GitHub OIDC tokens to authorize uploads at vercel-packages.
+  id-token: write
 
 jobs:
   upload:
     name: Upload preview tarballs to Blob
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
-    environment: preview-builds
     steps:
-      - name: Setup node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
       # Checkout from the default branch (canary) -- workflow_run always uses
       # the default branch's version of the workflow file and this checkout
       # matches that, ensuring the upload script is trusted.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: canary
           fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
 
       - name: Enable corepack
         run: corepack enable
@@ -44,7 +44,7 @@ jobs:
         run: corepack prepare
 
       - name: Cache dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3.5.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-${{ runner.arch }}-pnpm-v2-${{
@@ -67,5 +67,4 @@ jobs:
           github.event.workflow_run.head_sha }}" "${{ runner.temp
           }}/preview-tarballs"
         env:
-          BLOB_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREVIEW_BUILDS_BLOB_READ_WRITE_TOKEN }}
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}

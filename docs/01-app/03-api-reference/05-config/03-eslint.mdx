@@ -139,7 +139,7 @@ const eslintConfig = defineConfig([
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
-      next: eslintNextPlugin,
+      '@next/next': eslintNextPlugin,
     },
     settings: {
       next: {

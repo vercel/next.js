@@ -26,7 +26,6 @@ import type {
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // This is replaced by webpack alias
@@ -116,6 +115,8 @@ function handleLoading(
       onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
+      const { warnOnce } =
+        require('../shared/lib/utils/warn-once') as typeof import('../shared/lib/utils/warn-once')
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
         if (!unoptimized && (!sizesInput || sizesInput === '100vw')) {

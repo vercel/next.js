@@ -43,7 +43,7 @@ export function runTests(
       ),
       packageJson: {
         // Bootstrap with classic yarn; the install command below runs
-        // `yarn set version berry` which rewrites this to the berry version.
+        // `yarn set version` which rewrites this to the berry version.
         packageManager: 'yarn@1.22.22',
       },
       dependencies: {
@@ -55,9 +55,12 @@ export function runTests(
           prev.push(`${cur}@${dependencies[cur]}`)
           return prev
         }, [] as string[])
-        return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
-          ' '
-        )}`
+        return [
+          `yarn set version 4.15.0`,
+          `yarn config set enableGlobalCache true`,
+          `yarn config set compressionLevel 0`,
+          `yarn add ${pkgs.join(' ')}`,
+        ].join(' && ')
       },
       buildCommand: `yarn next build`,
       startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,

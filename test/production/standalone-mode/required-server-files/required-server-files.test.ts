@@ -3,8 +3,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import { nanoid } from 'nanoid'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   check,
   createNowRouteMatches,
@@ -20,7 +19,65 @@ import {
 import { ChildProcess } from 'child_process'
 
 describe('required server files', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'pages')),
+      lib: new FileRef(join(__dirname, 'lib')),
+      'middleware.js': new FileRef(
+        join(
+          __dirname,
+          process.env.TEST_NODE_MIDDLEWARE
+            ? 'middleware-node.js'
+            : 'middleware.js'
+        )
+      ),
+      'instrumentation.js': new FileRef(join(__dirname, 'instrumentation.js')),
+      'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
+      'data.txt': new FileRef(join(__dirname, 'data.txt')),
+      '.env': new FileRef(join(__dirname, '.env')),
+      '.env.local': new FileRef(join(__dirname, '.env.local')),
+      '.env.production': new FileRef(join(__dirname, '.env.production')),
+    },
+    nextConfig: {
+      cacheHandler: './cache-handler.js',
+      cacheMaxMemorySize: 0,
+      output: 'standalone',
+      async rewrites() {
+        return {
+          beforeFiles: [],
+          fallback: [
+            {
+              source: '/an-ssg-path',
+              destination: '/hello.txt',
+            },
+            {
+              source: '/fallback-false/:path',
+              destination: '/hello.txt',
+            },
+          ],
+          afterFiles: [
+            {
+              source: '/some-catch-all/:path*',
+              destination: '/',
+            },
+            {
+              source: '/to-dynamic/post-2',
+              destination: '/dynamic/post-2?hello=world',
+            },
+            {
+              source: '/to-dynamic/:path',
+              destination: '/dynamic/:path',
+            },
+          ],
+        }
+      },
+    },
+    dependencies: {
+      'is-even': '1.0.0',
+    },
+    skipStart: true,
+  })
+
   let server: ChildProcess
   let appPort: number | string
   let errors = []
@@ -28,71 +85,15 @@ describe('required server files', () => {
   let requiredFilesManifest
   let minimalMode = true
 
-  const setupNext = async ({ nextEnv }: { nextEnv?: boolean }) => {
+  beforeAll(async () => {
     // test build against environment with next support
-    process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'pages')),
-        lib: new FileRef(join(__dirname, 'lib')),
-        'middleware.js': new FileRef(
-          join(
-            __dirname,
-            process.env.TEST_NODE_MIDDLEWARE
-              ? 'middleware-node.js'
-              : 'middleware.js'
-          )
-        ),
-        'instrumentation.js': new FileRef(
-          join(__dirname, 'instrumentation.js')
-        ),
-        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
-        'data.txt': new FileRef(join(__dirname, 'data.txt')),
-        '.env': new FileRef(join(__dirname, '.env')),
-        '.env.local': new FileRef(join(__dirname, '.env.local')),
-        '.env.production': new FileRef(join(__dirname, '.env.production')),
-      },
-      nextConfig: {
-        cacheHandler: './cache-handler.js',
-        cacheMaxMemorySize: 0,
-        output: 'standalone',
-        async rewrites() {
-          return {
-            beforeFiles: [],
-            fallback: [
-              {
-                source: '/an-ssg-path',
-                destination: '/hello.txt',
-              },
-              {
-                source: '/fallback-false/:path',
-                destination: '/hello.txt',
-              },
-            ],
-            afterFiles: [
-              {
-                source: '/some-catch-all/:path*',
-                destination: '/',
-              },
-              {
-                source: '/to-dynamic/post-2',
-                destination: '/dynamic/post-2?hello=world',
-              },
-              {
-                source: '/to-dynamic/:path',
-                destination: '/dynamic/:path',
-              },
-            ],
-          }
-        },
-      },
-      skipStart: true,
-    })
-
     let { exitCode } = await next.build()
-    expect(exitCode).toBe(0)
+    if (exitCode !== 0) {
+      throw new Error(`Failed to build next: ${exitCode}`)
+    }
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -117,10 +118,6 @@ describe('required server files', () => {
         await fs.remove(join(next.testDir, '.next/server', file))
       }
     }
-  }
-
-  beforeAll(async () => {
-    await setupNext({ nextEnv: true })
   })
 
   beforeEach(async () => {
@@ -168,7 +165,6 @@ describe('required server files', () => {
   afterAll(async () => {
     delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
-    await next.destroy()
   })
 
   it('should resolve correctly when a redirect is returned', async () => {
@@ -519,8 +515,8 @@ describe('required server files', () => {
 
   it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
-      await next.readFile('standalone/.next/prerender-manifest.json')
-    ).preview
+      await next.readFile('standalone/.next/server/preview-props.json')
+    )
 
     const res = await fetchViaHTTP(
       appPort,

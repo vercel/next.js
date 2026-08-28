@@ -97,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  partialPrefetching?: NextConfigComplete['partialPrefetching']
   validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
@@ -110,9 +111,7 @@ export interface RenderOptsPartial {
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  cacheLifeProfiles?: {
-    [profile: string]: import('../use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
@@ -146,7 +145,6 @@ export interface RenderOptsPartial {
   logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -168,7 +166,10 @@ export interface RenderOptsPartial {
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    reactBrowserBailout: boolean
+    serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     cachedNavigations: boolean
 
     /**
@@ -176,14 +177,21 @@ export interface RenderOptsPartial {
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Resume Data Cache should be persisted without compression.
+     */
+    disableResumeDataCacheCompression: boolean
+
+    /**
+     * Whether the Instant Navigation Testing API is exposed (dev mode or the
+     * `exposeTestingApiInProductionBuild` flag). When true, the prerendered
+     * shell and dynamic renders embed a cookie-guarded bootstrap script that
+     * drives instant navigation tests.
+     */
+    exposeTestingApi: boolean
   }
   postponed?: string
-
-  /**
-   * Should wait for react stream allReady to resolve all suspense boundaries,
-   * in order to perform a full page render.
-   */
-  shouldWaitOnAllReady?: boolean
 
   /**
    * A prefilled resume data cache. This was either generated for this page
@@ -212,8 +220,6 @@ export interface RenderOptsPartial {
    */
   prefetchHints?: Record<string, PrefetchHints>
 
-  isStaticGeneration?: boolean
-
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any
    * dynamic accesses to result in an empty shell. This is the case when there
@@ -225,9 +231,18 @@ export interface RenderOptsPartial {
   /**
    * When true, attempt to run build-time instant validation for this prerender.
    * Only the first prerender per page sets this, since validation uses
-   * unstable_instant.unstable_samples and is independent of actual route params.
+   * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
+
+  /**
+   * When true, a fallback shell produced for this render could later be
+   * upgraded to a concrete version (at least one of its fallback params is a
+   * candidate enumerated by `generateStaticParams`). Only such shells are
+   * flagged `isUpgradeableISRFallback` so the client retries the prefetch; a route that
+   * can never upgrade (no `generateStaticParams`) is left unflagged.
+   */
+  isFallbackUpgradeable?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

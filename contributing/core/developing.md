@@ -129,6 +129,12 @@ Or without running the build:
 pnpm pack-next --no-js-build --tar && pnpm unpack-next path/to/project
 ```
 
+To create tarballs inside the project directory with deployable relative `file:` references:
+
+```bash
+pnpm pack-next --project path/to/project --deployable-tar
+```
+
 Without going through a tarball (only works if you've added the overrides from `pack-next`):
 
 ```bash
@@ -162,7 +168,7 @@ $ pnpm unpack-next path/to/project
 
 ## Developing the Dev Overlay
 
-The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
+The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/next-devtools/README.md).
 
 ## `NODE_ENV` vs `__NEXT_DEV_SERVER`
 

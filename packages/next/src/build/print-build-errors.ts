@@ -1,19 +1,26 @@
 import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
 
+export function formatWarningsHeader(count: number): string {
+  return `Turbopack build encountered ${count} ${count === 1 ? 'warning' : 'warnings'}:`
+}
+
 /**
  * Processes and reports build issues from Turbopack entrypoints.
  *
  * @param entrypoints - The result object containing build issues to process.
  * @param isDev - A flag indicating if the build is running in development mode.
- * @return This function does not return a value but logs or throws errors based on the issues.
+ * @param opts.deferWarnings - When true, warnings are returned instead of
+ *                             printed so the caller can print them later.
+ * @return The formatted warnings when `deferWarnings` is set and nothing threw.
  * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
  *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
  */
 export function printBuildErrors(
   entrypoints: TurbopackResult,
-  isDev: boolean
-): void {
+  isDev: boolean,
+  opts?: { deferWarnings?: boolean }
+): { warnings: string[] } {
   // Issues that we want to stop the server from executing
   const topLevelFatalIssues = []
   // Issues that are true errors, but we believe we can keep running and allow the user to address the issue
@@ -60,11 +67,11 @@ export function printBuildErrors(
     }
   }
   // TODO: print in order by source location so issues from the same file are displayed together and then add a summary at the end about the number of warnings/errors
-  if (topLevelWarnings.length > 0) {
+  const deferWarnings =
+    (opts?.deferWarnings ?? false) && topLevelFatalIssues.length === 0
+  if (topLevelWarnings.length > 0 && !deferWarnings) {
     console.warn(
-      `Turbopack build encountered ${
-        topLevelWarnings.length
-      } warnings:\n${topLevelWarnings.join('\n')}`
+      `${formatWarningsHeader(topLevelWarnings.length)}\n${topLevelWarnings.join('\n')}`
     )
   }
 
@@ -72,7 +79,7 @@ export function printBuildErrors(
     console.error(
       `Turbopack build encountered ${
         topLevelErrors.length
-      } errors:\n${topLevelErrors.join('\n')}`
+      } ${topLevelErrors.length === 1 ? 'error' : 'errors'}:\n${topLevelErrors.join('\n')}`
     )
   }
 
@@ -80,7 +87,9 @@ export function printBuildErrors(
     throw new Error(
       `Turbopack build failed with ${
         topLevelFatalIssues.length
-      } errors:\n${topLevelFatalIssues.join('\n')}`
+      } ${topLevelFatalIssues.length === 1 ? 'error' : 'errors'}:\n${topLevelFatalIssues.join('\n')}`
     )
   }
+
+  return { warnings: deferWarnings ? topLevelWarnings : [] }
 }

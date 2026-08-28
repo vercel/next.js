@@ -17,8 +17,6 @@ pnpm-lock.yaml
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/wasm/@next
-packages/next/errors.json
-
 .github/actions/next-stats-action/.work
 
 crates/**/tests/**/output*
@@ -54,6 +52,7 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+test/**/*.graphql.ts
 test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/page.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js

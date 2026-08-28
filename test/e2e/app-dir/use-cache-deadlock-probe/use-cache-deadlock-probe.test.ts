@@ -8,7 +8,15 @@ const expectedTimeoutErrorMessage =
 const expectedDeadlockMessage =
   'Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.'
 
-describe('use-cache-deadlock-probe', () => {
+// TODO: The `'use cache'` deadlock probe is disabled in dev for now. The
+// streaming dev render now advances to the dynamic stage without waiting for
+// cache fills, so dynamic content streams to the browser immediately instead of
+// being withheld until the slowest cache fills. A fill that depends on
+// dynamic-stage IO is therefore unblocked by reaching the dynamic stage rather
+// than detected as a deadlock. Revisit by surfacing these deadlocks at build
+// time via `next build --debug-prerender`, then re-enable (and retarget) this
+// suite.
+describe.skip('use-cache-deadlock-probe', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -31,12 +39,11 @@ describe('use-cache-deadlock-probe', () => {
       const outputIndex = next.cliOutput.length
       const browser = await next.browser('/static')
 
-      await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
+         "environmentLabel": "Server",
+         "label": "Console Error",
          "source": "app/static/page.tsx (6:1) @ getCachedData
        > 6 | async function getCachedData(): Promise<string> {
            | ^",
@@ -59,12 +66,11 @@ describe('use-cache-deadlock-probe', () => {
       const outputIndex = next.cliOutput.length
       const browser = await next.browser('/runtime')
 
-      await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
+         "environmentLabel": "Server",
+         "label": "Console Error",
          "source": "app/runtime/page.tsx (8:1) @ getCachedData
        >  8 | async function getCachedData(): Promise<string> {
             | ^",
@@ -97,7 +103,6 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -129,7 +134,6 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -170,12 +174,11 @@ describe('use-cache-deadlock-probe', () => {
       // 30s default `page.goto` timeout.
       const browser = await next.browser('/also-hangs', { waitUntil: 'commit' })
 
-      await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E236",
          "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
-         "environmentLabel": null,
-         "label": "Runtime Error",
+         "environmentLabel": "Server",
+         "label": "Console Error",
          "source": "app/also-hangs/page.tsx (5:1) @ getCachedData
        > 5 | async function getCachedData(): Promise<string> {
            | ^",
@@ -230,9 +233,8 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
-         "environmentLabel": null,
+         "environmentLabel": "Cache",
          "label": "Runtime Error",
          "source": "app/recovery-stuck/page.tsx (24:1) @ getCachedData
        > 24 | async function getCachedData() {
@@ -257,12 +259,11 @@ describe('use-cache-deadlock-probe', () => {
       const outputIndex = next.cliOutput.length
       const browser = await next.browser('/private-cookies')
 
-      await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
+         "environmentLabel": "Server",
+         "label": "Console Error",
          "source": "app/private-cookies/page.tsx (20:1) @ getCachedData
        > 20 | async function getCachedData(): Promise<string> {
             | ^",

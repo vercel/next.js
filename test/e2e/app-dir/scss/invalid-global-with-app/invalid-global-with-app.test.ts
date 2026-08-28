@@ -41,7 +41,7 @@ describe('Invalid Global CSS with Custom App', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./pages/index.js
-         Global CSS cannot be imported from files other than your Custom <App>.
+         Error: Global CSS cannot be imported from files other than your Custom <App>.
          Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
          Location: pages/index.js
          Import path: ../styles/global.scss

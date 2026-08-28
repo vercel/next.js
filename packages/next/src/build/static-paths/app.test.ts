@@ -44,7 +44,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [])
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
   })
@@ -76,7 +76,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'), true)
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
@@ -150,11 +150,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments('id', 'name'),
-      true
-    )
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id', 'name'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
@@ -210,8 +206,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('id', ['name', true], 'extra'),
-      true
+      pathnameSegments('id', ['name', true], 'extra')
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
@@ -234,43 +229,8 @@ describe('assignStaticShellMetadata', () => {
 
   it('should handle empty input', () => {
     const prerenderedRoutes: PrerenderedRoute[] = []
-    assignStaticShellMetadata(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [])
     expect(prerenderedRoutes).toEqual([])
-  })
-
-  it('should skip remaining prerenderable params when partial fallbacks are disabled', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[id]',
-        encodedPathname: '/[id]',
-        fallbackRouteParams: [
-          {
-            paramName: 'id',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { id: '1' },
-        pathname: '/1',
-        encodedPathname: '/1',
-        fallbackRouteParams: [],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
-
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'), false)
-
-    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
-    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toBeUndefined()
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
   })
 
   it('should handle blog/[slug] not throwing when concrete routes exist (from docs example)', () => {
@@ -309,7 +269,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('slug'), true)
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('slug'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has concrete children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true) // Should throw - concrete route
@@ -361,11 +321,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments('id', 'slug'),
-      true
-    )
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id', 'slug'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
@@ -445,8 +401,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('category', 'subcategory', 'item'),
-      true
+      pathnameSegments('category', 'subcategory', 'item')
     )
 
     // All except the last one should not throw on empty static shell
@@ -485,8 +440,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('locale', 'segments'),
-      true
+      pathnameSegments('locale', 'segments')
     )
 
     // The route with more fallback params should not throw on empty static shell
@@ -532,8 +486,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['one', true], 'two'),
-      true
+      pathnameSegments(['one', true], 'two')
     )
 
     expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
@@ -591,8 +544,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['one', true], 'two', ['three', true]),
-      true
+      pathnameSegments(['one', true], 'two', ['three', true])
     )
 
     expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
@@ -973,7 +925,19 @@ describe('generateParamPrefixCombinations', () => {
   })
 })
 
-type TestAppSegment = Pick<AppSegment, 'config' | 'generateStaticParams'>
+type TestAppSegment = Pick<
+  AppSegment,
+  'config' | 'generateStaticParams' | 'createEmptyParamsError'
+>
+
+// Mirrors the factory the SWC transform injects for pages exporting
+// `generateStaticParams`, which the runtime throws on an empty result.
+const createEmptyParamsError = () =>
+  new Error(
+    'When using Cache Components, all `generateStaticParams` functions must return at least one result. ' +
+      'This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.\n\n' +
+      'Learn more: https://nextjs.org/docs/messages/empty-generate-static-params'
+  )
 
 // Mock WorkStore for testing
 const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
@@ -984,10 +948,12 @@ const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
 // Helper to create mock segments
 const createMockSegment = (
   generateStaticParams?: (options: { params?: Params }) => Promise<Params[]>,
-  config?: TestAppSegment['config']
+  config?: TestAppSegment['config'],
+  emptyParamsError?: TestAppSegment['createEmptyParamsError']
 ): TestAppSegment => ({
   config,
   generateStaticParams,
+  createEmptyParamsError: emptyParamsError,
 })
 
 describe('generateRouteStaticParams', () => {
@@ -999,7 +965,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([])
     })
@@ -1015,7 +982,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([])
     })
@@ -1030,7 +998,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ id: '1' }, { id: '2' }])
     })
@@ -1052,7 +1021,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([
         { category: 'tech', slug: 'tech-post-1' },
@@ -1077,7 +1047,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([
         { lang: 'en', category: 'en-tech' },
@@ -1099,7 +1070,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ lang: 'en', slug: 'en-slug' }])
     })
@@ -1114,7 +1086,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([])
     })
@@ -1130,7 +1103,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ lang: 'en' }])
     })
@@ -1148,7 +1122,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([
         { lang: 'en', category: 'en-tech' },
@@ -1170,7 +1145,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(store.fetchCache).toBe('force-cache')
     })
@@ -1185,7 +1161,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(store.fetchCache).toBe('force-cache')
     })
@@ -1205,7 +1182,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       // Should have the last fetchCache value
       expect(store.fetchCache).toBe('default-cache')
@@ -1226,7 +1204,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ slug: ['a', 'b'] }, { slug: ['c', 'd', 'e'] }])
     })
@@ -1244,7 +1223,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ lang: 'en', slug: ['en', 'post'] }])
     })
@@ -1264,7 +1244,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ a: '1', b: '1-2', c: '1-2-3', d: '1-2-3-4' }])
     })
@@ -1281,7 +1262,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([
         { x: '1', y: 'a', z: 'i' },
@@ -1310,7 +1292,8 @@ describe('generateRouteStaticParams', () => {
           store,
 
           false,
-          []
+          [],
+          false
         )
       ).rejects.toThrow('Test error')
     })
@@ -1328,9 +1311,257 @@ describe('generateRouteStaticParams', () => {
           store,
 
           false,
-          []
+          [],
+          false
         )
       ).rejects.toThrow('Async error')
+    })
+
+    it('should reject a non-array object return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => ({ id: '1' }) as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a null return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => null as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an undefined return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => undefined as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a non-array return value from a nested generateStaticParams', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ category: 'tech' }]),
+        createMockSegment(async () => undefined as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a null array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [null] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a string array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [''] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type string. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [[]] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type array. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an undefined array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [undefined] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a number array entry from Date.now()', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [Date.now()] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type number. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Date array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [new Date()] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Map array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new Map([['slug', 'post']])] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Set array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new Set(['post'])] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a RegExp array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [/post/] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Promise array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [Promise.resolve({ slug: 'post' })] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a class instance array entry', async () => {
+      class StaticParams {
+        slug = 'post'
+      }
+
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new StaticParams()] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an object with a custom prototype', async () => {
+      const params = Object.assign(Object.create({ inherited: true }), {
+        slug: 'post',
+      })
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [params] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an invalid array entry from a nested generateStaticParams', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ category: 'tech' }]),
+        createMockSegment(async () => [null] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should allow an empty params object', async () => {
+      const segments: TestAppSegment[] = [createMockSegment(async () => [{}])]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], false)
+      ).resolves.toEqual([{}])
     })
 
     it('should handle partially failing generateStaticParams', async () => {
@@ -1350,15 +1581,41 @@ describe('generateRouteStaticParams', () => {
           store,
 
           false,
-          []
+          [],
+          false
         )
       ).rejects.toThrow('Tech not allowed')
+    })
+
+    it('should reject an empty array in export mode', async () => {
+      const segments: TestAppSegment[] = [createMockSegment(async () => [])]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], true)
+      ).rejects.toThrow(
+        'Page "/test-page" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an empty array from a nested generateStaticParams in export mode', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ lang: 'en' }]),
+        createMockSegment(async () => []),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [], true)
+      ).rejects.toThrow(
+        'Page "/test-page" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
     })
 
     it('should throw error when generateStaticParams returns empty array with isRoutePPREnabled=true', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }]),
-        createMockSegment(async () => []), // Empty result
+        createMockSegment(async () => [], undefined, createEmptyParamsError), // Empty result
       ]
       const store = createMockWorkStore()
       await expect(
@@ -1367,7 +1624,8 @@ describe('generateRouteStaticParams', () => {
           store,
 
           true,
-          []
+          [],
+          false
         )
       ).rejects.toThrow(
         'When using Cache Components, all `generateStaticParams` functions must return at least one result'
@@ -1376,7 +1634,7 @@ describe('generateRouteStaticParams', () => {
 
     it('should throw error when first segment returns empty array with isRoutePPREnabled=true', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => []), // Empty result at root level
+        createMockSegment(async () => [], undefined, createEmptyParamsError), // Empty result at root level
       ]
       const store = createMockWorkStore()
       await expect(
@@ -1385,7 +1643,8 @@ describe('generateRouteStaticParams', () => {
           store,
 
           true,
-          []
+          [],
+          false
         )
       ).rejects.toThrow(
         'When using Cache Components, all `generateStaticParams` functions must return at least one result'
@@ -1403,7 +1662,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([{ lang: 'en' }])
     })
@@ -1418,7 +1678,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([])
     })
@@ -1447,7 +1708,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toHaveLength(12) // 3 langs × 2 categories × 2 slugs
       expect(result).toContainEqual({
@@ -1485,7 +1747,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toEqual([
         {
@@ -1526,7 +1789,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toHaveLength(8) // 2 years × 2 months × 2 slug variations
       expect(result).toContainEqual({
@@ -1552,7 +1816,8 @@ describe('generateRouteStaticParams', () => {
         store,
 
         false,
-        []
+        [],
+        false
       )
       expect(result).toHaveLength(1)
       expect(Object.keys(result[0])).toHaveLength(5000)

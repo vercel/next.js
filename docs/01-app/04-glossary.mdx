@@ -10,6 +10,10 @@ description: A glossary of common terms used in Next.js.
 
 The Next.js router introduced in version 13, built on top of React Server Components. It uses file-system based routing and supports layouts, nested routing, loading states, error handling, and more. Learn more in the [App Router documentation](/docs/app).
 
+## App Shell
+
+A per-route prerender containing the parts of a page that don't depend on URL data. Cached content is included when its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is at least 5 minutes, since the shell is reused for longer than shorter-lived content stays fresh. Routes that read `cookies()` or `headers()` produce one that also includes session data, cached per session on the client. Used as the default prefetch payload during client navigations, the loading state when a [per-link prefetch](/docs/app/guides/optimizing-prefetching) is not ready, and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
 # B
 
 ## Build time
@@ -94,7 +98,7 @@ Custom path mappings that provide shorthand references for frequently used direc
 
 ## Incremental Static Regeneration (ISR)
 
-A technique that allows you to update static content without rebuilding the entire site. ISR enables you to use static generation on a per-page basis while revalidating pages in the background as traffic comes in. Learn more in the [ISR guide](/docs/app/guides/incremental-static-regeneration).
+A technique that allows you to update static content without rebuilding the entire site. ISR enables you to use static generation on a per-page basis while revalidating pages in the background as traffic comes in. Learn more in the [ISR guide](/docs/app/guides/incremental-static-regeneration) or, when using Cache Components, [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 > **Good to know**: In Next.js, ISR is also known as [Revalidation](#revalidation).
 
@@ -156,6 +160,10 @@ UI that is unique to a route. Defined by exporting a React component from a [`pa
 
 A pattern that allows simultaneously or conditionally rendering multiple pages within the same layout. Created using named slots with the `@folder` convention, useful for dashboards, modals, and complex layouts. Learn more in [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
 
+## Partial Prefetching
+
+A prefetching strategy for [Cache Components](#cache-components) routes where a `<Link>` prefetches a per-route [App Shell](#app-shell) by default instead of the full page. Enable it with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
+
 ## Partial Prerendering (PPR)
 
 A rendering optimization that combines prerendering and dynamic rendering in a single route. The static shell is served immediately while dynamic content streams in when ready, providing the best of both rendering strategies. Learn more in [Cache Components](/docs/app/getting-started/caching).
@@ -213,7 +221,7 @@ A part of the URL path (between two slashes) defined by a folder in the `app` di
 
 ## RSC Payload
 
-The React Server Component Payload—a compact binary representation of the rendered React Server Components tree. Contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
+The React Server Component Payload is a compact binary representation of the rendered React Server Components tree. It contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
 
 # S
 
@@ -223,7 +231,7 @@ The default component type in the App Router. Server Components render on the se
 
 ## Server Action
 
-A [Server Function](#server-function) that is passed to a Client Component as a prop or bound to a form action. Server Actions are commonly used for form submissions and data mutations. Learn more in [Server Actions and Mutations](/docs/app/getting-started/mutating-data).
+A [Server Function](#server-function) that is passed to a Client Component as a prop or bound to a form action. Server Actions are commonly used for form submissions and data mutations. Learn more in [Server Actions and Mutations](/docs/app/guides/server-actions).
 
 ## Server Function
 
@@ -264,6 +272,10 @@ A fast, Rust-based bundler built for Next.js. Turbopack is the default bundler f
 The process of removing unused code from your JavaScript bundles during the build process. Next.js automatically tree-shakes your code to reduce bundle sizes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
 
 # U
+
+## URL data
+
+Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per session, so it can't be part of a shared [App Shell](#app-shell).
 
 ## `"use cache"` Directive
 

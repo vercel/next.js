@@ -92,8 +92,7 @@ export const styles = `
   }
 
   .error-cause-message {
-    margin: 0;
-    margin-left: 4px;
+    margin: 0 0 16px 4px;
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-16);

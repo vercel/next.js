@@ -1,6 +1,18 @@
+import { connection } from 'next/server'
 import { cacheLife } from 'next/cache'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
+
+export function HackilyPreventFullyStaticServerPrerender() {
+  // FIXME(NAR-800)
+  return <Suspense>{connection().then(() => null)}</Suspense>
+}
+
+export function RootLayoutTimestamp() {
+  const timestamp = performance.timeOrigin + performance.now()
+  return <div id="root-layout-timestamp">{timestamp}</div>
+}
 
 export function DebugLinks({ href }: { href: string }) {
   return (

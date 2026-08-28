@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import path from 'path'
-import webdriver from 'next-webdriver'
 
 describe('next-image-forward-ref', () => {
   const appDir = path.join(__dirname, 'app')
@@ -14,7 +13,7 @@ describe('next-image-forward-ref', () => {
   })
 
   it('allows framer-motion to animate opacity', async () => {
-    const browser = await webdriver(next.url, '/framer-motion')
+    const browser = await next.browser('/framer-motion')
     expect(
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(1)

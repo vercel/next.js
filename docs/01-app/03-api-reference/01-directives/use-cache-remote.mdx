@@ -44,7 +44,7 @@ const nextConfig = {
   cacheComponents: true,
 }
 
-export default nextConfig
+module.exports = nextConfig
 ```
 
 Then add `'use cache: remote'` to the functions or components where you've determined remote caching is justified. The handler implementation is configured via [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers), though hosting providers should typically provide this automatically. If you're self-hosting, see the `cacheHandlers` configuration reference to set up your cache storage.
@@ -87,6 +87,15 @@ Next.js provides three caching directives, each designed for different use cases
 | **Server cache utilization**            | May be low outside static shell | High (shared across instances)    | N/A                    |
 | **Additional costs**                    | None                            | Infrastructure (storage, network) | None                   |
 | **Latency impact**                      | None                            | Cache handler lookup              | None                   |
+| **Persists across deploys**             | No                              | No                                | N/A                    |
+
+### Persistence across deploys
+
+Remote cache entries do not persist across deploys. The cache key includes the `deploymentId` (when configured) or the `buildId`, so a new build produces new keys and the previous build's entries are no longer reachable. See [Cache keys](/docs/app/api-reference/directives/use-cache#cache-keys) for the full key composition.
+
+This is intentional. Between builds, the function's identity hash or the shape of its return value can change. Upgrading a CMS client, refactoring a cached function, or changing a dependency could produce a value that doesn't match what older callers expect, so reusing entries across deploys risks serving stale or malformed data.
+
+If you need entries that persist across deploys, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions, or rely on the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
 ### Caching with runtime data
 

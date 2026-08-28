@@ -8,7 +8,6 @@ import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
@@ -21,6 +20,7 @@ import {
   ErrorOverlayNav,
   styles as floatingHeaderStyles,
 } from '../error-overlay-nav/error-overlay-nav'
+import type { ErrorOverlayTabBarRenderer } from '../error-overlay-pagination/error-overlay-pagination'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
@@ -29,12 +29,10 @@ import {
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
-import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
-import { Fader } from '../../fader'
 import { Resizer } from '../../resizer'
 import { OverlayBackdrop } from '../../overlay'
 
@@ -42,7 +40,12 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
-  errorCode?: string
+  headerChildren?: React.ReactNode
+  renderTabBar?: ErrorOverlayTabBarRenderer
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
@@ -59,8 +62,13 @@ export function ErrorOverlayLayout({
   errorMessage,
   errorType,
   children,
-  errorCode,
-  errorCount,
+  headerChildren,
+  renderTabBar,
+  canGoPrevious,
+  canGoNext,
+  onPrevious,
+  onNext,
+  errorCount: _errorCount,
   error,
   debugInfo,
   isBuildError,
@@ -69,7 +77,6 @@ export function ErrorOverlayLayout({
   runtimeErrors,
   activeIdx,
   setActiveIndex,
-  isTurbopack,
   dialogResizerRef,
   generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
@@ -89,17 +96,8 @@ export function ErrorOverlayLayout({
     Boolean(transitionDurationMs)
   )
 
-  const faderRef = React.useRef<HTMLDivElement | null>(null)
-  const hasFooter = Boolean(errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
-
-  function onScroll(e: React.UIEvent<HTMLDivElement>) {
-    if (faderRef.current) {
-      const opacity = clamp(e.currentTarget.scrollTop / 17, [0, 1])
-      faderRef.current.style.opacity = String(opacity)
-    }
-  }
 
   function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
     // We can only measure height after the `scale` transition ends,
@@ -123,15 +121,14 @@ export function ErrorOverlayLayout({
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={onPrevious}
+          onNext={onNext}
           versionInfo={versionInfo}
-          isTurbopack={isTurbopack}
+          renderTabBar={renderTabBar}
         />
-        <ErrorOverlayDialog
-          onClose={onClose}
-          data-has-footer={hasFooter}
-          onScroll={onScroll}
-          footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
-        >
+        <ErrorOverlayDialog onClose={onClose}>
           <Resizer
             ref={dialogResizerRef}
             measure={!animating}
@@ -139,48 +136,36 @@ export function ErrorOverlayLayout({
           >
             <DialogContent>
               <ErrorOverlayDialogHeader>
-                <div
-                  className="nextjs__container_errors__error_title"
-                  // allow assertion in tests before error rating is implemented
-                  data-nextjs-error-code={errorCode}
-                >
-                  <span data-nextjs-error-label-group>
-                    <ErrorTypeLabel errorType={errorType} />
-                    {error.environmentName && (
-                      <EnvironmentNameLabel
-                        environmentName={error.environmentName}
-                      />
-                    )}
-                  </span>
-                  <ErrorOverlayToolbar
-                    error={error}
-                    debugInfo={debugInfo}
-                    generateErrorInfo={generateErrorInfo}
+                <div className="nextjs__container_errors__error_title">
+                  <div className="nextjs__container_errors__error_title__row">
+                    <span data-nextjs-error-label-group>
+                      <ErrorTypeLabel errorType={errorType} />
+                      {error.environmentName && (
+                        <EnvironmentNameLabel
+                          environmentName={error.environmentName}
+                        />
+                      )}
+                    </span>
+                    <ErrorOverlayToolbar
+                      error={error}
+                      debugInfo={debugInfo}
+                      generateErrorInfo={generateErrorInfo}
+                    />
+                  </div>
+                  <ErrorMessage
+                    errorMessage={errorMessage}
+                    errorType={errorType}
                   />
                 </div>
-                <ErrorMessage
-                  errorMessage={errorMessage}
-                  errorType={errorType}
-                />
+                {headerChildren}
               </ErrorOverlayDialogHeader>
-
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
             </DialogContent>
           </Resizer>
-
-          <ErrorOverlayBottomStack
-            errorCount={errorCount}
-            activeIdx={activeIdx ?? 0}
-          />
         </ErrorOverlayDialog>
-        <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>
     </ErrorOverlayOverlay>
   )
-}
-
-function clamp(value: number, [min, max]: [number, number]) {
-  return Math.min(Math.max(value, min), max)
 }
 
 export const styles = `
@@ -198,5 +183,7 @@ export const styles = `
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 `

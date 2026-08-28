@@ -148,6 +148,10 @@ impl ModuleReference for ImportAssetReference {
             hoisted: false,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 #[turbo_tasks::value_impl]

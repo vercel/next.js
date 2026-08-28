@@ -240,7 +240,6 @@ declare module 'react-server-dom-webpack/server.node' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      signal?: AbortSignal
       // React's Node API expects debugChannel to be a Node.js Writable
       // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
       // This differs from the web API which expects { readable?, writable? }.
@@ -279,17 +278,17 @@ declare module 'react-server-dom-webpack/server.node' {
     ...args: unknown[]
   ): TemporaryReferenceSet
 
-  export function decodeReplyFromBusboy(
+  export function decodeReplyFromBusboy<T>(
     busboyStream: Busboy,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<unknown[]>
+  ): Promise<T>
 
   export function decodeReply<T>(
     body: string | FormData,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<T[]>
+  ): Promise<T>
 
   export function decodeAction(
     body: FormData,
@@ -683,8 +682,8 @@ declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
 }
-declare module 'next/dist/compiled/http-proxy' {
-  import m from 'http-proxy'
+declare module 'next/dist/compiled/httpxy' {
+  import * as m from 'httpxy'
   export = m
 }
 declare module 'next/dist/compiled/is-docker' {
@@ -815,6 +814,10 @@ declare module 'next/dist/compiled/ws' {
 declare module 'next/dist/compiled/@vercel/routing-utils' {
   import m from '@vercel/routing-utils/dist/superstatic'
   export = m
+}
+
+declare module 'next/dist/compiled/@vercel/detect-agent' {
+  export * from '@vercel/detect-agent'
 }
 
 declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {

@@ -1,6 +1,6 @@
 import assert from 'assert'
+import http from 'http'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import {
   waitForNoRedbox,
@@ -8,7 +8,6 @@ import {
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 describe('basePath', () => {
@@ -58,21 +57,62 @@ describe('basePath', () => {
     },
   })
 
+  let externalServer: http.Server | undefined
+  let externalUrl = 'https://example.vercel.sh'
+
+  beforeAll(async () => {
+    // Avoid third-party network and DOM dependencies when the browser can reach
+    // the test runner. Deployed tests cannot reach a server on this process.
+    if (isNextDeploy) return
+
+    externalServer = http.createServer((_req, res) => {
+      res.setHeader('Content-Type', 'text/html')
+      res.end('<!doctype html><p data-external-page>external page</p>')
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.once('error', reject)
+      externalServer!.listen(0, '127.0.0.1', () => {
+        externalServer!.off('error', reject)
+        const address = externalServer!.address()
+        if (!address || typeof address === 'string') {
+          reject(new Error('Failed to determine the external server port'))
+          return
+        }
+        externalUrl = `http://127.0.0.1:${address.port}`
+        resolve()
+      })
+    })
+  })
+
+  afterAll(async () => {
+    if (!externalServer) return
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.close((err) => (err ? reject(err) : resolve()))
+    })
+  })
+
   it('should navigate to external site and back', async () => {
-    const browser = await webdriver(next.url, `${basePath}/external-and-back`)
-    const initialText = await browser.elementByCss('p').text()
-    expect(initialText).toBe('server')
+    const browser = await next.browser(
+      `${basePath}/external-and-back?external=${encodeURIComponent(externalUrl)}`
+    )
+    const initialUrl = await browser.url()
+    expect(await browser.elementById('from').text()).toBe('server')
 
-    await browser
-      .elementByCss('a')
-      .click()
-      .waitForElementByCss('input', { state: 'attached' })
-      .back()
-      .waitForElementByCss('p')
+    await browser.elementByCss('a').click()
+    await browser.waitForCondition(
+      `window.location.origin !== ${JSON.stringify(new URL(initialUrl).origin)}`
+    )
+    if (!isNextDeploy) {
+      await browser.waitForElementByCss('[data-external-page]')
+    }
 
-    await waitFor(1000)
-    const newText = await browser.elementByCss('p').text()
-    expect(newText).toBe('server')
+    await browser.back()
+    await browser.waitForCondition(
+      `window.location.href === ${JSON.stringify(initialUrl)} && document.querySelector('#from')`
+    )
+    expect(await browser.elementById('from').text()).toBe('server')
   })
 
   if (process.env.BROWSER_NAME === 'safari') {
@@ -82,7 +122,7 @@ describe('basePath', () => {
   }
 
   it('should navigate back correctly to a dynamic route', async () => {
-    const browser = await webdriver(next.url, `${basePath}`)
+    const browser = await next.browser(`${basePath}`)
 
     expect(await browser.elementByCss('#index-page').text()).toContain(
       'index page'
@@ -117,7 +157,7 @@ describe('basePath', () => {
       })
 
       it('should prefetch pages correctly when manually called', async () => {
-        const browser = await webdriver(next.url, `${basePath}/other-page`)
+        const browser = await next.browser(`${basePath}/other-page`)
         await browser.eval('window.next.router.prefetch("/gssp")')
 
         let chunk = getClientBuildManifestLoaderChunkUrlPath(
@@ -148,7 +188,7 @@ describe('basePath', () => {
       })
 
       it('should prefetch pages correctly in viewport with <Link>', async () => {
-        const browser = await webdriver(next.url, `${basePath}/hello`)
+        const browser = await next.browser(`${basePath}/hello`)
         await browser.eval('window.next.router.prefetch("/gssp")')
 
         await check(async () => {
@@ -230,7 +270,7 @@ describe('basePath', () => {
   })
 
   it('should update dynamic params after mount correctly', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello-dynamic`)
+    const browser = await next.browser(`${basePath}/hello-dynamic`)
     await check(
       () => browser.elementByCss('#slug').text(),
       /slug: hello-dynamic/
@@ -238,7 +278,7 @@ describe('basePath', () => {
   })
 
   it('should navigate to index page with getStaticProps', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.eval('window.beforeNavigate = "hi"')
 
     await browser.elementByCss('#index-gsp').click()
@@ -269,7 +309,7 @@ describe('basePath', () => {
   // TODO: investigate index/index seems this shouldn't work
   // as pages/index.js conflicts with pages/index/index.js
   it.skip('should navigate to nested index page with getStaticProps', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.eval('window.beforeNavigate = "hi"')
 
     await browser.elementByCss('#nested-index-gsp').click()
@@ -301,14 +341,14 @@ describe('basePath', () => {
     const html = await renderViaHTTP(next.url, `${basePath}/docs/another`)
     expect(html).toContain('hello from another')
 
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.eval('window.next.router.push("/docs/another")')
 
     await check(() => browser.elementByCss('p').text(), /hello from another/)
   })
 
   it('should work with normal dynamic page', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.elementByCss('#dynamic-link').click()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
@@ -317,7 +357,7 @@ describe('basePath', () => {
   })
 
   it('should work with catch-all page', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.elementByCss('#catchall-link').click()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
@@ -354,7 +394,7 @@ describe('basePath', () => {
   })
 
   it('should navigate an absolute url', async () => {
-    const browser = await webdriver(next.url, `${basePath}/absolute-url`)
+    const browser = await next.browser(`${basePath}/absolute-url`)
     await browser.waitForElementByCss('#absolute-link').click()
     await check(
       () => browser.eval(() => window.location.origin),
@@ -364,8 +404,7 @@ describe('basePath', () => {
 
   if (!isNextDeploy) {
     it('should navigate an absolute local url with basePath', async () => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         `${basePath}/absolute-url-basepath?port=${next.appPort}`
       )
       await browser.eval('window._didNotNavigate = true')
@@ -379,8 +418,7 @@ describe('basePath', () => {
     })
 
     it('should navigate an absolute local url without basePath', async () => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
       )
       await browser.waitForElementByCss('#absolute-link').click()
@@ -395,7 +433,7 @@ describe('basePath', () => {
   }
 
   it('should show the hello page under the /docs prefix', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     try {
       const text = await browser.elementByCss('h1').text()
       expect(text).toBe('Hello World')
@@ -405,7 +443,7 @@ describe('basePath', () => {
   })
 
   it('should have correct router paths on first load of /', async () => {
-    const browser = await webdriver(next.url, `${basePath}`)
+    const browser = await next.browser(`${basePath}`)
     await browser.waitForElementByCss('#pathname')
     const pathname = await browser.elementByCss('#pathname').text()
     expect(pathname).toBe('/')
@@ -414,7 +452,7 @@ describe('basePath', () => {
   })
 
   it('should have correct router paths on first load of /hello', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.waitForElementByCss('#pathname')
     const pathname = await browser.elementByCss('#pathname').text()
     expect(pathname).toBe('/hello')
@@ -423,7 +461,7 @@ describe('basePath', () => {
   })
 
   it('should fetch data for getStaticProps without reloading', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.eval('window.beforeNavigate = true')
     await browser.elementByCss('#gsp-link').click()
     await browser.waitForElementByCss('#gsp')
@@ -437,7 +475,7 @@ describe('basePath', () => {
   })
 
   it('should fetch data for getServerSideProps without reloading', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.eval('window.beforeNavigate = true')
     await browser.elementByCss('#gssp-link').click()
     await browser.waitForElementByCss('#gssp')
@@ -453,14 +491,14 @@ describe('basePath', () => {
   })
 
   it('should have correct href for a link', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     const href = await browser.elementByCss('a').getAttribute('href')
     const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}/other-page`)
   })
 
   it('should have correct href for a link to /', async () => {
-    const browser = await webdriver(next.url, `${basePath}/link-to-root`)
+    const browser = await next.browser(`${basePath}/link-to-root`)
     const href = await browser.elementByCss('#link-back').getAttribute('href')
     const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}`)
@@ -477,7 +515,7 @@ describe('basePath', () => {
   })
 
   it('should show the other-page page under the /docs prefix', async () => {
-    const browser = await webdriver(next.url, `${basePath}/other-page`)
+    const browser = await next.browser(`${basePath}/other-page`)
     try {
       const text = await browser.elementByCss('h1').text()
       expect(text).toBe('Hello Other')
@@ -493,7 +531,7 @@ describe('basePath', () => {
   })
 
   it('should navigate to the page without refresh', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     try {
       await browser.eval('window.itdidnotrefresh = "hello"')
       const text = await browser
@@ -511,7 +549,7 @@ describe('basePath', () => {
   })
 
   it('should allow URL query strings without refresh', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello?query=true`)
+    const browser = await next.browser(`${basePath}/hello?query=true`)
     try {
       await browser.eval('window.itdidnotrefresh = "hello"')
       await new Promise((resolve, reject) => {
@@ -537,7 +575,7 @@ describe('basePath', () => {
   })
 
   it('should allow URL query strings on index without refresh', async () => {
-    const browser = await webdriver(next.url, `${basePath}?query=true`)
+    const browser = await next.browser(`${basePath}?query=true`)
     try {
       await browser.eval('window.itdidnotrefresh = "hello"')
       await new Promise((resolve, reject) => {
@@ -561,7 +599,7 @@ describe('basePath', () => {
   })
 
   it('should correctly replace state when same asPath but different url', async () => {
-    const browser = await webdriver(next.url, `${basePath}`)
+    const browser = await next.browser(`${basePath}`)
     try {
       await browser.elementByCss('#hello-link').click()
       await browser.waitForElementByCss('#something-else-link')

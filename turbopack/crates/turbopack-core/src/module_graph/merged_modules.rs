@@ -20,7 +20,7 @@ use crate::{
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[allow(clippy::type_complexity)]
 pub struct MergedModulesReplacements(
-    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    FxHashMap<ResolvedVc<Box<dyn Module>>, Option<ResolvedVc<Box<dyn ChunkableModule>>>>,
 );
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -29,27 +29,30 @@ pub struct MergedModulesOriginalModules(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
 );
 
-#[turbo_tasks::value(transparent, cell = "keyed")]
-#[allow(clippy::type_complexity)]
-pub struct MergedModulesIncluded(FxHashSet<ResolvedVc<Box<dyn Module>>>);
-
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
-    /// A map of modules to the merged module containing the module plus additional modules.
+    /// A map of modules describing how they participate in module merging:
+    /// - Not present: the module is not affected by merging and a regular chunk item should be
+    ///   created for it.
+    /// - Present with `Some(replacement)`: the module should be replaced with the given merged
+    ///   module when creating a chunk item.
+    /// - Present with `None`: the module is already included in some other merged module returned
+    ///   by a `Some(replacement)` entry and no chunk item should be created for it.
     pub replacements: ResolvedVc<MergedModulesReplacements>,
     /// A map of replacement modules to their corresponding chunk group info (which is the same as
     /// the chunk group info of the original module it replaced).
     pub replacements_to_original: ResolvedVc<MergedModulesOriginalModules>,
-    /// A map of modules that are already contained as values in replacements.
-    pub included: ResolvedVc<MergedModulesIncluded>,
 }
 
 impl MergedModuleInfo {
-    /// Whether the given module should be replaced with a merged module.
+    /// Returns the merging decision for the given module:
+    /// - `None`: the module is not affected by merging, keep it as-is.
+    /// - `Some(None)`: the module is already included in another merged module, skip it.
+    /// - `Some(Some(replacement))`: the module should be replaced with `replacement`.
     pub async fn should_replace_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Option<ResolvedVc<Box<dyn ChunkableModule>>>> {
+    ) -> Result<Option<Option<ResolvedVc<Box<dyn ChunkableModule>>>>> {
         Ok(self.replacements.get(&module).await?.as_deref().copied())
     }
 
@@ -65,15 +68,6 @@ impl MergedModuleInfo {
             .await?
             .as_deref()
             .copied())
-    }
-
-    // Whether the given module should be skipped during chunking, as it is already included in a
-    // module returned by some `should_replace_module` call.
-    pub async fn should_create_chunk_item_for(
-        &self,
-        module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<bool> {
-        Ok(!self.included.contains_key(&module).await?)
     }
 }
 
@@ -102,10 +96,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("module_count", module_count);
 
         // Use all entries from all graphs
-        let entries = graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|g| g.entries())
+        let entries = module_graph
+            .all_chunk_group_entry_modules()
             .collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
@@ -179,6 +171,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
+             _,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
@@ -429,6 +422,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
                                 Ok(())
                             },
+                            false,
                         )?;
 
                         list_lists.push(lists);
@@ -549,6 +543,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 }
                 Ok(())
             },
+            false,
         )?;
 
         drop(inner_span);
@@ -774,28 +769,32 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         #[allow(clippy::type_complexity)]
         let mut replacements: FxHashMap<
             ResolvedVc<Box<dyn Module>>,
-            ResolvedVc<Box<dyn ChunkableModule>>,
+            Option<ResolvedVc<Box<dyn ChunkableModule>>>,
         > = Default::default();
         #[allow(clippy::type_complexity)]
         let mut replacements_to_original: FxHashMap<
             ResolvedVc<Box<dyn Module>>,
             ResolvedVc<Box<dyn Module>>,
         > = Default::default();
-        let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+        let mut merged_groups = 0;
+        let mut included_modules = 0;
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
-            replacements.insert(original, replacement);
+            replacements.insert(original, Some(replacement));
             replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
-            included.extend(replacement_included);
+            merged_groups += 1;
+            included_modules += replacement_included.len();
+            for included in replacement_included {
+                replacements.insert(included, None);
+            }
         }
 
-        span.record("merged_groups", replacements.len());
-        span.record("included_modules", included.len());
+        span.record("merged_groups", merged_groups);
+        span.record("included_modules", included_modules);
 
         Ok(MergedModuleInfo {
             replacements: ResolvedVc::cell(replacements),
             replacements_to_original: ResolvedVc::cell(replacements_to_original),
-            included: ResolvedVc::cell(included),
         }
         .cell())
     }

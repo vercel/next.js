@@ -8,8 +8,6 @@ related:
     - app/guides/prefetching
 ---
 
-{/* AI agent hint: To ensure client-side navigations are instant, export `unstable_instant` from the route in addition to using Suspense. See docs/01-app/02-guides/instant-navigation.mdx */}
-
 In Next.js, routes are rendered on the server by default. This often means the client has to wait for a server response before a new route can be shown. Next.js comes with built-in [prefetching](#prefetching), [streaming](#streaming), and [client-side transitions](#client-side-transitions) ensuring navigation stays fast and responsive.
 
 This guide explains how navigation works in Next.js and how you can optimize it for [dynamic routes](#dynamic-routes-without-loadingtsx) and [slow networks](#slow-networks).
@@ -65,7 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
-export default function Layout() {
+export default function Layout({ children }) {
   return (
     <html>
       <body>
@@ -96,6 +94,8 @@ By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary 
   width="1600"
   height="748"
 />
+
+> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to control prefetching per link and how it changes when you adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
 To improve the navigation experience to dynamic routes, you can use [streaming](#streaming).
 
@@ -158,7 +158,7 @@ Next.js avoids this with client-side transitions using the `<Link>` component. I
 - Keeping any shared layouts and UI.
 - Replacing the current page with the prefetched loading state or a new page if available.
 
-Client-side transitions are what makes a server-rendered apps _feel_ like client-rendered apps. And when paired with [prefetching](#prefetching) and [streaming](#streaming), it enables fast transitions, even for dynamic routes.
+Client-side transitions make server-rendered apps _feel_ like client-rendered apps. And when paired with [prefetching](#prefetching) and [streaming](#streaming), they enable fast transitions, even for dynamic routes.
 
 Next.js also handles [scrolling to the top of the page](/docs/app/api-reference/components/link#scroll) during client-side transitions. If content scrolls behind a sticky or fixed header after navigation, you can fix this with CSS [`scroll-padding-top`](/docs/app/api-reference/components/link#scroll-offset-with-sticky-headers).
 
@@ -259,6 +259,8 @@ export default function LoadingIndicator() {
 ```
 
 You can "debounce" the hint by adding an initial animation delay (e.g. 100ms) and starting as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay. See the [`useLinkStatus` reference](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) for a CSS example.
+
+> **Good to know**: An **experimental** [`useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) hook can keep prefetched routes navigable during connectivity drops. See the [offline support guide](/docs/app/guides/offline-support).
 
 > **Good to know**: You can use other visual feedback patterns like a progress bar. View an example [here](https://github.com/vercel/react-transition-progress).
 

@@ -648,7 +648,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -1334,7 +1334,7 @@
             Variable(
                 (
                     "res",
-                    #5,
+                    #6,
                 ),
             ),
             Constant(
@@ -1348,9 +1348,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                200.0,
-                            ),
+                            200.0,
                         ),
                     ),
                 ),
@@ -1492,7 +1490,7 @@
         obj: Variable(
             (
                 "res",
-                #5,
+                #6,
             ),
         ),
         prop: Constant(
@@ -1646,7 +1644,7 @@
         obj: Variable(
             (
                 "res",
-                #5,
+                #6,
             ),
         ),
         prop: Constant(
@@ -1661,9 +1659,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                200.0,
-                            ),
+                            200.0,
                         ),
                     ),
                 ),
@@ -1808,7 +1804,7 @@
             Variable(
                 (
                     "res",
-                    #5,
+                    #6,
                 ),
             ),
             Constant(
@@ -1822,9 +1818,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                200.0,
-                            ),
+                            200.0,
                         ),
                     ),
                 ),
@@ -1868,12 +1862,12 @@
                             Variable(
                                 (
                                     "hello",
-                                    #5,
+                                    #6,
                                 ),
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -2528,9 +2522,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                5166.0,
-                            ),
+                            5166.0,
                         ),
                     ),
                 ),

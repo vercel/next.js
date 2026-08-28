@@ -2,7 +2,7 @@ use std::{env, fmt::Debug, future::Future, sync::Arc};
 
 use anyhow::Result;
 use turbo_tasks::{TurboTasks, TurboTasksApi, trace::TraceRawVcs};
-use turbo_tasks_backend::{BackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
 
 /// A freshly created test instance: the `TurboTasks` handle (type-erased to
 /// `Arc<dyn TurboTasksApi>`) and a closure that, when called, takes a
@@ -34,19 +34,16 @@ impl Registration {
     }
 }
 
-/// Wrap a concrete `Arc<TurboTasks<TurboTasksBackend<B>>>` into a
+/// Wrap a concrete `Arc<TurboTasks<TurboTasksBackend>>` into a
 /// [`TestInstance`]. Called from the `register!` macro — the `.trs` closure
-/// returns a concrete backend-parameterized `TurboTasks`, and this function
-/// erases the type while retaining eviction access via a capturing closure.
-pub fn test_instance<B>(tt: Arc<TurboTasks<TurboTasksBackend<B>>>) -> TestInstance
-where
-    B: BackingStorage + 'static,
-{
+/// returns a concrete `TurboTasks`, and this function erases the type while
+/// retaining eviction access via a capturing closure.
+pub fn test_instance(tt: Arc<TurboTasks<TurboTasksBackend>>) -> TestInstance {
     let tt_for_evict = tt.clone();
     let snapshot_and_evict = Box::new(move || {
         let _ = tt_for_evict
             .backend()
-            .snapshot_and_evict_for_testing(&*tt_for_evict);
+            .snapshot_and_evict_for_testing(&tt_for_evict);
     });
     TestInstance {
         tt: tt as Arc<dyn TurboTasksApi>,

@@ -4,7 +4,7 @@ import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -34,6 +34,8 @@ function createSplitHTMLFetcher(next: NextInstance) {
 
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
+    // Deployed shell upgrades require `partialFallback` metadata, which the
+    // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
@@ -169,9 +171,9 @@ describe('partial-fallback-shell-upgrade', () => {
   })
 })
 
-describe('partial-fallback-shell-upgrade when disabled', () => {
+describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
   const { next, isNextDev } = nextTestSetup({
-    files: path.join(__dirname, 'fixtures', 'disabled'),
+    files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
     skipDeployment: !isAdapterTest,
@@ -184,14 +186,32 @@ describe('partial-fallback-shell-upgrade when disabled', () => {
 
   const fetchSplitHTML = createSplitHTMLFetcher(next)
 
-  it('should keep serving the generic shell when partialFallbacks is disabled', async () => {
+  it('should not upgrade the fallback shell to a route shell', async () => {
+    const pathname = '/two'
+    const start = Date.now()
+
+    await retry(
+      async () => {
+        const $ = await next.render$(pathname)
+        expect($('#fallback').text()).toBe('loading...')
+        expect($('#slug').closest('[hidden]').length).toBe(1)
+
+        if (Date.now() - start < 5000) {
+          throw new Error('continue polling fallback shell')
+        }
+      },
+      6000,
+      500,
+      'fallback shell should remain unupgraded without partialPrefetching'
+    )
+  })
+
+  it('should not specialize a generic shell into a more specific shell', async () => {
     const firstResult = await fetchSplitHTML('/prefix/c/foo')
 
     expect(firstResult.response.status).toBe(200)
     expect(firstResult.static$('#one').length).toBe(0)
     expect(firstResult.static$('#one-fallback').text()).toBe('loading one...')
-    expect(firstResult.static$('#two-fallback').length).toBe(0)
-    expect(firstResult.static$('#two').length).toBe(0)
     expect(firstResult.dynamicPart).toContain('<div id="one">c</div>')
     expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
 
@@ -202,17 +222,14 @@ describe('partial-fallback-shell-upgrade when disabled', () => {
         const secondResult = await fetchSplitHTML('/prefix/c/bar')
 
         expect(secondResult.response.status).toBe(200)
+        // The generic shell stays shared: `#one` is never baked into the
+        // static part the way it is when Partial Prefetching is enabled.
         expect(secondResult.static$('#one').length).toBe(0)
         expect(secondResult.static$('#one-fallback').text()).toBe(
           'loading one...'
         )
-        expect(secondResult.static$('#two-fallback').length).toBe(0)
-        expect(secondResult.static$('#two').length).toBe(0)
         expect(secondResult.dynamicPart).toContain('<div id="one">c</div>')
         expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
-        expect(secondResult.dynamicPart).not.toContain(
-          '<div id="two">foo</div>'
-        )
 
         if (Date.now() - start < 5000) {
           throw new Error('continue polling generic shell')
@@ -220,7 +237,7 @@ describe('partial-fallback-shell-upgrade when disabled', () => {
       },
       6000,
       500,
-      'generic shell should remain unupgraded when partialFallbacks is disabled'
+      'generic shell should remain shared without partialPrefetching'
     )
   })
 })

@@ -22,10 +22,10 @@ use tracing::span::Span;
     feature = "trace_find_and_schedule"
 ))]
 use tracing::trace_span;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory,
@@ -280,12 +280,21 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
+    AdjustTransientRefCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+        #[bincode(skip, default = "unreachable_decode")]
+        delta: i32,
+    },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
     InvalidateDueToCollectiblesChange {
         task_ids: TaskIdVec,
-        #[cfg(feature = "trace_task_dirty")]
+        #[cfg(feature = "task_dirty_cause")]
         collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
@@ -439,6 +448,7 @@ impl AggregatedDataUpdate {
 
     /// Applies the update to the task. It may return an aggregated update that should be applied to
     /// upper tasks.
+    #[allow(clippy::needless_late_init)]
     fn apply(
         &self,
         task: &mut impl TaskGuard,
@@ -616,7 +626,7 @@ impl AggregatedDataUpdate {
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
-                        #[cfg(feature = "trace_task_dirty")]
+                        #[cfg(feature = "task_dirty_cause")]
                         collectible_type: ty,
                     })
                 }
@@ -879,7 +889,8 @@ mod encode_jobs {
                 AggregationUpdateJob::IncreaseActiveCount { .. }
                 | AggregationUpdateJob::IncreaseActiveCounts { .. }
                 | AggregationUpdateJob::DecreaseActiveCount { .. }
-                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::AdjustTransientRefCount { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
                         #[cfg(feature = "trace_aggregation_update_queue")]
@@ -1420,7 +1431,7 @@ impl AggregationUpdateQueue {
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                     }
                 }
-                AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
+                AggregationUpdateJob::AggregatedDataUpdate(AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {
@@ -1432,18 +1443,32 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                     task_ids,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     collectible_type,
                 } => {
                     for task_id in task_ids {
                         make_task_dirty(
                             task_id,
-                            #[cfg(feature = "trace_task_dirty")]
+                            #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CollectiblesChange { collectible_type },
                             self,
                             ctx,
                         );
                     }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
+                        task.update_and_get_parent_count(delta);
+                    });
+                }
+                AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
@@ -3431,16 +3456,6 @@ impl AggregationUpdateQueue {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
                 return self.stats;
-            }
-        }
-    }
-
-    #[cfg(not(feature = "trace_aggregation_update_stats"))]
-    pub fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            if self.process(ctx) {
-                return;
             }
         }
     }

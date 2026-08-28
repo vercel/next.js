@@ -45,10 +45,9 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/blocking-page-below-static/page.tsx (6:19) @ Page
          > 6 |   await connection()
              |                   ^",
@@ -69,7 +68,7 @@ describe('instant validation', () => {
       })
       it('errors during build', () => {
         expect(didBuildError).toBe(true)
-        expect(next.cliOutput).toContain('during the initial render')
+        expect(next.cliOutput).toContain('during prerendering')
       })
     }
   })

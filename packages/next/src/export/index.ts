@@ -8,6 +8,7 @@ import type {
 import {
   createStaticWorker,
   type PrerenderManifest,
+  type PreviewPropsManifest,
   type StaticWorker,
 } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -43,6 +44,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -260,6 +262,11 @@ async function exportAppImpl(
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
 
+  let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
+  try {
+    previewProps = require(join(distDir, 'server', PREVIEW_PROPS_MANIFEST))
+  } catch {}
+
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
@@ -345,8 +352,10 @@ async function exportAppImpl(
     )
   }
 
-  await fs.rm(outDir, { recursive: true, force: true })
-  await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  if (!options.buildExport) {
+    await fs.rm(outDir, { recursive: true, force: true })
+    await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  }
 
   await fs.writeFile(
     join(distDir, EXPORT_DETAIL),
@@ -474,12 +483,13 @@ async function exportAppImpl(
 
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
-    previewProps: prerenderManifest?.preview,
+    previewProps,
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
     validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
@@ -502,7 +512,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -514,11 +523,19 @@ async function exportAppImpl(
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      durableUseCacheEntries: Boolean(
+        nextConfig.experimental.durableUseCacheEntries
+      ),
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      disableResumeDataCacheCompression:
+        nextConfig.experimental.disableResumeDataCacheCompression ?? false,
+      exposeTestingApi:
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -653,7 +670,7 @@ async function exportAppImpl(
   }
 
   const pagesDataDir = options.buildExport
-    ? outDir
+    ? join(distDir, 'server', 'pages')
     : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
@@ -710,7 +727,7 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+            clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,
@@ -720,7 +737,9 @@ async function exportAppImpl(
             options,
             dir,
             distDir,
-            outDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
             nextConfig,
             cacheHandler: nextConfig.cacheHandler,
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
@@ -849,6 +868,14 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
+      }
+
       if (typeof result.hasStaticRsc !== 'undefined') {
         info.hasStaticRsc = result.hasStaticRsc
       }
@@ -874,7 +901,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
@@ -937,19 +964,25 @@ async function exportAppImpl(
         // realizing the implications.
         const route = normalizePagePath(unnormalizedRoute)
 
-        const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
-        const distPagesDir = join(
-          pagePath,
-          // strip leading / and then recurse number of nested dirs
-          // to place from base folder
-          pageName
-            .slice(1)
-            .split('/')
-            .map(() => '..')
-            .join('/')
-        )
-
-        const orig = join(distPagesDir, route)
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 

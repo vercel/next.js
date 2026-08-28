@@ -2,12 +2,16 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
-        ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
+        ast::{
+            ArrowExpr, BlockStmtOrExpr, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
+            Stmt,
+        },
         preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
@@ -18,13 +22,18 @@ use swc_core::{
             typescript::{Config, typescript},
         },
         utils::IsDirective,
+        visit::{Visit, VisitWith},
     },
     quote,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{environment::Environment, source::Source};
+use turbopack_core::{
+    environment::Environment,
+    issue::{Issue, IssueSeverity, IssueSource, IssueStage, StyledString},
+    source::Source,
+};
 
 use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
@@ -82,6 +91,52 @@ pub enum EcmascriptInputTransform {
         emit_decorators_metadata: bool,
         use_define_for_class_fields: bool,
     },
+    ReactCompilerRust {
+        compilation_mode: ReactCompilerCompilationMode,
+        target: ReactCompilerTarget,
+    },
+}
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReactCompilerCompilationMode {
+    #[default]
+    Infer,
+    Annotation,
+    All,
+}
+
+impl ReactCompilerCompilationMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReactCompilerCompilationMode::Infer => "infer",
+            ReactCompilerCompilationMode::Annotation => "annotation",
+            ReactCompilerCompilationMode::All => "all",
+        }
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionReactCompilerCompilationMode(Option<ReactCompilerCompilationMode>);
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+pub enum ReactCompilerTarget {
+    #[default]
+    #[serde(rename = "19")]
+    React19,
+    #[serde(rename = "18")]
+    React18,
+}
+
+impl ReactCompilerTarget {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReactCompilerTarget::React19 => "19",
+            ReactCompilerTarget::React18 => "18",
+        }
+    }
 }
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
@@ -134,6 +189,9 @@ pub struct TransformContext<'a> {
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
+    /// Original source text; used by transforms that need the raw text (e.g.
+    /// `swc_ecma_react_compiler`).
+    pub source_text: &'a str,
     /// The value of `process.env.NODE_ENV` for this compilation
     /// (e.g. `"development"` or `"production"`).
     pub node_env: RcStr,
@@ -343,12 +401,216 @@ impl EcmascriptInputTransform {
 
                 apply_transform(program, helpers, decorators(config))
             }
+            EcmascriptInputTransform::ReactCompilerRust {
+                compilation_mode,
+                target,
+            } => {
+                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode, *target).await?
+            }
             EcmascriptInputTransform::Plugin(transform) => {
                 // We cannot pass helpers to plugins, so we return them as is
                 transform.await?.transform(program, ctx).await?;
                 helpers
             }
         })
+    }
+}
+
+#[turbo_tasks::value]
+struct ReactCompilerIssue {
+    source: IssueSource,
+    message: RcStr,
+    severity: IssueSeverity,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ReactCompilerIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    async fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("React Compiler")))
+    }
+
+    async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+}
+
+// Keep this in sync with React Compiler's annotation-mode opt-ins. Next.js does not configure
+// `dynamic_gating`, so only the standard `use memo` and legacy `use forget` directives enable a
+// function.
+fn has_react_compiler_opt_in_directive(statements: &[Stmt]) -> bool {
+    for statement in statements {
+        if !statement.directive_continue() {
+            break;
+        }
+
+        let Stmt::Expr(expression) = statement else {
+            continue;
+        };
+        let Expr::Lit(Lit::Str(value)) = &*expression.expr else {
+            continue;
+        };
+        if value
+            .value
+            .as_str()
+            .is_some_and(|value| matches!(value, "use memo" | "use forget"))
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+#[derive(Default)]
+struct ReactCompilerAnnotationFinder {
+    found: bool,
+}
+
+impl Visit for ReactCompilerAnnotationFinder {
+    fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
+        if self.found {
+            return;
+        }
+        if let BlockStmtOrExpr::BlockStmt(body) = &*node.body
+            && has_react_compiler_opt_in_directive(&body.stmts)
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, node: &Function) {
+        if self.found {
+            return;
+        }
+        if node
+            .body
+            .as_ref()
+            .is_some_and(|body| has_react_compiler_opt_in_directive(&body.stmts))
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+}
+
+fn has_react_compiler_annotation(program: &Program) -> bool {
+    let mut finder = ReactCompilerAnnotationFinder::default();
+    finder.visit_program(program);
+    finder.found
+}
+
+fn should_run_rust_react_compiler(
+    program: &Program,
+    compilation_mode: ReactCompilerCompilationMode,
+) -> bool {
+    match compilation_mode {
+        ReactCompilerCompilationMode::Infer => {
+            swc_ecma_react_compiler::fast_check::is_required(program)
+        }
+        ReactCompilerCompilationMode::Annotation => has_react_compiler_annotation(program),
+        ReactCompilerCompilationMode::All => true,
+    }
+}
+
+async fn apply_rust_react_compiler(
+    program: &mut Program,
+    ctx: &TransformContext<'_>,
+    helpers: HelperData,
+    compilation_mode: ReactCompilerCompilationMode,
+    target: ReactCompilerTarget,
+) -> Result<HelperData> {
+    let Program::Module(_) = program else {
+        return Ok(helpers);
+    };
+
+    // Avoid invoking the compiler when the selected mode cannot change this module. These checks
+    // run on the SWC AST we already parsed, before converting it to the compiler AST. `All` mode
+    // remains unconditional because every function is eligible.
+    if !should_run_rust_react_compiler(program, compilation_mode) {
+        return Ok(helpers);
+    }
+
+    let single_threaded_comments =
+        crate::swc_comments::swc_comments_to_single_threaded(ctx.comments);
+    let result = swc_ecma_react_compiler::transform(
+        program,
+        swc_ecma_react_compiler::SourceType::from_program(program),
+        ctx.source_text,
+        Some(&single_threaded_comments),
+        react_compiler_options(ctx, compilation_mode, target),
+    );
+
+    // TODO: Emit these diagnostics with an Info level once there's a way of adjusting log levels in
+    //       general. By default React Compiler is silent, as de-opts align closely with feedback
+    //       from tools like React's lint rules.
+
+    if let Some(compiled_program) = result.program {
+        *program = compiled_program;
+
+        // TODO(react-compiler-swc): The Rust React Compiler emits every identifier with
+        // `SyntaxContext::empty()` in `convert_ast_reverse.rs`.
+        //
+        // Remove this once `swc_ecma_react_compiler`
+        // preserves/assigns contexts on the converted AST.
+        program.mutate(swc_core::ecma::transforms::base::resolver(
+            ctx.unresolved_mark,
+            ctx.top_level_mark,
+            true,
+        ));
+    }
+
+    Ok(helpers)
+}
+
+fn react_compiler_options(
+    ctx: &TransformContext<'_>,
+    compilation_mode: ReactCompilerCompilationMode,
+    target: ReactCompilerTarget,
+) -> react_compiler::entrypoint::plugin_options::PluginOptions {
+    use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
+
+    PluginOptions {
+        should_compile: true,
+        enable_reanimated: false,
+        is_dev: ctx.node_env != "production",
+        filename: Some(ctx.file_name_str.to_string()),
+        compilation_mode: compilation_mode.as_str().to_string(),
+        panic_threshold: "none".to_string(),
+        target: CompilerTarget::Version(target.as_str().to_string()),
+        gating: None,
+        dynamic_gating: None,
+        no_emit: false,
+        output_mode: None,
+        eslint_suppression_rules: None,
+        flow_suppressions: false,
+        ignore_use_no_forget: false,
+        custom_opt_out_directives: None,
+        environment: Default::default(),
+        source_code: None,
+        profiling: false,
+        debug: false,
     }
 }
 
@@ -412,6 +674,129 @@ pub fn remove_directives(program: &mut Program) {
                 })
                 .count();
             script.body.drain(0..directive_count);
+        }
+    }
+}
+
+#[cfg(test)]
+mod react_compiler_tests {
+    use swc_core::{
+        common::{DUMMY_SP, FileName, GLOBALS, SourceMap},
+        ecma::{
+            ast::{EsVersion, Module},
+            parser::{Syntax, TsSyntax, parse_file_as_program},
+        },
+    };
+
+    use super::*;
+
+    fn parse_program(source: &str) -> Program {
+        GLOBALS.set(&Default::default(), || {
+            let cm = SourceMap::default();
+            let fm = cm.new_source_file(
+                FileName::Custom("test.tsx".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let program = parse_file_as_program(
+                &fm,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                EsVersion::EsNext,
+                None,
+                &mut errors,
+            )
+            .expect("test fixture should parse");
+            assert!(errors.is_empty(), "test fixture should not recover errors");
+            program
+        })
+    }
+
+    #[test]
+    fn compilation_modes_use_their_respective_fast_checks() {
+        let program = Program::Module(Module {
+            span: DUMMY_SP,
+            body: Vec::new(),
+            shebang: None,
+        });
+
+        for mode in [
+            ReactCompilerCompilationMode::Infer,
+            ReactCompilerCompilationMode::Annotation,
+        ] {
+            assert!(!should_run_rust_react_compiler(&program, mode));
+        }
+        assert!(should_run_rust_react_compiler(
+            &program,
+            ReactCompilerCompilationMode::All,
+        ));
+    }
+
+    #[test]
+    fn infer_mode_uses_upstream_conservative_fast_check() {
+        for source in [
+            "const Button = React.forwardRef((props, ref) => <button ref={ref} />);",
+            "function useCounter() { return React.useState(0); }",
+            "function helper() { 'use memo'; return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
+
+        for source in [
+            "export const answer = 42;",
+            "const user = getUser();",
+            "function helper() { log(); 'use memo'; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
+    }
+
+    #[test]
+    fn annotation_mode_only_runs_for_function_opt_in_directives() {
+        for source in [
+            "function helper() { 'use memo'; return 1; }",
+            "const helper = () => { 'use forget'; return 1; };",
+            "function outer() { function inner() { 'use memo'; return 1; } }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+
+        for source in [
+            "function Component() { return <div />; }",
+            "function useCounter() { return useState(0); }",
+            "function helper() { log(); 'use memo'; }",
+            "'use memo'; export const answer = 42;",
+            "function helper() { 'use memo if(featureFlag)'; return 1; }",
+            "function helper() { 'use no memo'; return 1; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+    }
+
+    #[test]
+    fn all_mode_remains_unconditional() {
+        for source in [
+            "export const answer = 42;",
+            "function helper() { return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::All,
+            ));
         }
     }
 }

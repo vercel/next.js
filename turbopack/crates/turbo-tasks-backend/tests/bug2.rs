@@ -6,14 +6,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, State, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{State, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct TaskReferenceSpec {
     task: u16,
     chain: u8,
@@ -21,9 +20,8 @@ pub struct TaskReferenceSpec {
     read_strongly_consistent: bool,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
     children: u8,

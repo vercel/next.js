@@ -40,8 +40,13 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     }
     let (impl_generics_debug, _, where_clause_debug) = derive_input.generics.split_for_impl();
 
-    let formatting_logic =
-        match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
+    let formatting_logic = match_expansion(
+        ident,
+        &derive_input.data,
+        &format_named,
+        &format_unnamed,
+        &format_unit,
+    );
 
     let debug_impl = quote! {
         #[cfg(debug_assertions)]

@@ -10,7 +10,6 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -41,7 +40,8 @@ use crate::{
 /// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
 /// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module.hot.accept/decline {request}")]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -70,9 +70,10 @@ impl ModuleHotReferenceAssetReference {
     }
 }
 
-impl ModuleHotReferenceAssetReference {
-    /// Shared resolve logic used by both `resolve_reference` and code generation.
-    pub async fn resolve(&self) -> Result<Vc<ModuleResolveResult>> {
+#[turbo_tasks::value_impl]
+impl ModuleReference for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
             esm_resolve(
                 *self.origin,
@@ -91,25 +92,6 @@ impl ModuleHotReferenceAssetReference {
                 self.error_mode,
             ))
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        self.resolve().await
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -153,15 +135,16 @@ impl ModuleHotReferenceCodeGen {
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
             .references
             .iter()
-            .map(|reference| async move {
+            .map(async |reference| {
                 let r = reference.await?;
-                let resolve_result = r.resolve().await?;
+                let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
                     *r.request,
                     *r.origin,
                     chunking_context,
                     resolve_result,
                     ResolveType::ChunkItem,
+                    None,
                 )
                 .await
             })
@@ -173,7 +156,7 @@ impl ModuleHotReferenceCodeGen {
         let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
             .esm_references
             .iter()
-            .map(|esm_ref| async move {
+            .map(async |esm_ref| {
                 let Some(esm_ref) = esm_ref else {
                     return Ok(None);
                 };

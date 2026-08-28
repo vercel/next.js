@@ -3,7 +3,7 @@ import {
   stringToUint8Array,
 } from '../app-render/encryption-utils'
 import type { CachedFetchValue } from '../response-cache/types'
-import { DYNAMIC_EXPIRE } from '../use-cache/constants'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -29,6 +29,16 @@ export type EncryptedBoundArgsCacheStore = CacheStore<string>
  * functions.
  */
 export type DecryptedBoundArgsCacheStore = CacheStore<string>
+
+/**
+ * An in-memory-only cache store for rendered `ImageResponse` array buffers,
+ * keyed by a serialization of the `ImageResponse` constructor args. This lets
+ * the prospective prerender render the image once and hand the array buffer to
+ * the final prerender within microtasks, so that metadata image routes can be
+ * statically prerendered under Cache Components. Never serialized into the
+ * resume store.
+ */
+export type ImageResponseCacheStore = CacheStore<Promise<ArrayBuffer>>
 
 /**
  * Serialized format for "use cache" entries
@@ -92,6 +102,11 @@ export function parseUseCacheCacheStore(
         readRootParamNames: readRootParamNames
           ? new Set(readRootParamNames)
           : undefined,
+        // Serialized RDC entries are non-dynamic by construction (the
+        // serializer drops dynamic entries), so this is never produced from the
+        // wire — the throw path that consumes it is only reachable for dynamic
+        // entries, which only exist in the in-memory RDC.
+        dynamicNestedCacheError: undefined,
       })
     )
   }
@@ -120,7 +135,8 @@ export async function serializeUseCacheCacheStore(
           }) => {
             if (
               isCacheComponentsEnabled &&
-              (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+              (entry.revalidate === 0 ||
+                entry.expire < MIN_PRERENDERABLE_EXPIRE)
             ) {
               // The entry was omitted from the prerender result, and subsequently
               // does not need to be included in the serialized RDC.

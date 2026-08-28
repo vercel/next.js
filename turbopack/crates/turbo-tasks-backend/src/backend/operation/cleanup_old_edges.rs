@@ -48,7 +48,8 @@ impl Default for CleanupOldEdgesOperation {
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),
-    CellDependency(CellRef, Option<u64>),
+    CellDependency(CellRef),
+    HashedCellDependency(CellRef, u64),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
 }
@@ -95,10 +96,31 @@ impl CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                for task_id in children.iter() {
-                                    task.remove_children(task_id);
+
+                                let mut removed_persistent_children =
+                                    SmallVec::<[TaskId; 4]>::new();
+                                for child_id in children.iter() {
+                                    if task.remove_children(child_id) && !child_id.is_transient() {
+                                        removed_persistent_children.push(*child_id);
+                                    }
+                                }
+                                // Each removed persistent child loses a parent.
+                                if !removed_persistent_children.is_empty() {
+                                    let job = if task_id.is_transient() {
+                                        AggregationUpdateJob::AdjustTransientRefCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    } else {
+                                        AggregationUpdateJob::AdjustParentCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    };
+                                    queue.push(job);
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
+                                    drop(task);
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
                                         lost_follower_ids: children,
@@ -156,7 +178,7 @@ impl CleanupOldEdgesOperation {
                                     queue.push(
                                         AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                                             task_ids,
-                                            #[cfg(feature = "trace_task_dirty")]
+                                            #[cfg(feature = "task_dirty_cause")]
                                             collectible_type: ty,
                                         },
                                     );
@@ -166,26 +188,42 @@ impl CleanupOldEdgesOperation {
                                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                                 ));
                             }
-                            OutdatedEdge::CellDependency(
-                                CellRef {
+                            OutdatedEdge::CellDependency(forward) => {
+                                let CellRef {
                                     task: cell_task_id,
                                     cell,
-                                },
-                                key,
-                            ) => {
+                                } = forward;
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents(&(cell, key, task_id));
+                                    task.remove_cell_dependents(&CellRef {
+                                        task: task_id,
+                                        cell,
+                                    });
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependencies(&(
+                                    task.remove_cell_dependencies(&forward);
+                                }
+                            }
+                            OutdatedEdge::HashedCellDependency(forward, key) => {
+                                // ame as above but in the `_hashed` sets.
+                                let CellRef {
+                                    task: cell_task_id,
+                                    cell,
+                                } = forward;
+                                {
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependents_hashed(&(
                                         CellRef {
-                                            task: cell_task_id,
+                                            task: task_id,
                                             cell,
                                         },
                                         key,
                                     ));
+                                }
+                                {
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependencies_hashed(&(forward, key));
                                 }
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {

@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const locales = ['', '/en', '/sv', '/nl']
 
@@ -50,7 +49,7 @@ describe('i18n-ignore-redirect-source-locale', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: sv',
     async (locale) => {
-      const browser = await webdriver(next.url, `${locale}/to-sv`)
+      const browser = await next.browser(`${locale}/to-sv`)
       await check(() => browser.elementById('current-locale').text(), 'sv')
     }
   )
@@ -58,7 +57,7 @@ describe('i18n-ignore-redirect-source-locale', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: en',
     async (locale) => {
-      const browser = await webdriver(next.url, `${locale}/to-en`)
+      const browser = await next.browser(`${locale}/to-en`)
       await check(() => browser.elementById('current-locale').text(), 'en')
     }
   )
@@ -66,7 +65,7 @@ describe('i18n-ignore-redirect-source-locale', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: /',
     async (locale) => {
-      const browser = await webdriver(next.url, `${locale}/to-slash`)
+      const browser = await next.browser(`${locale}/to-slash`)
       await check(() => browser.elementById('current-locale').text(), 'en')
     }
   )
@@ -74,7 +73,7 @@ describe('i18n-ignore-redirect-source-locale', () => {
   test.each(locales)(
     'get redirected to the new page, from and to: %s',
     async (locale) => {
-      const browser = await webdriver(next.url, `${locale}/to-same`)
+      const browser = await next.browser(`${locale}/to-same`)
       await check(
         () => browser.elementById('current-locale').text(),
         locale === '' ? 'en' : locale.slice(1)

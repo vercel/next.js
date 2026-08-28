@@ -2,7 +2,10 @@ use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use futures_util::TryFutureExt;
-use napi::{JsFunction, bindgen_prelude::External};
+use napi::{
+    Env,
+    bindgen_prelude::{External, FunctionRef},
+};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
@@ -14,7 +17,9 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbo_tasks::{
+    Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+};
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
@@ -101,14 +106,22 @@ impl Deref for ExternalEndpoint {
 
 /// Build an `IssueFilter` by reading the project from the endpoint's
 /// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
+///
+/// If the upstream endpoint operation fails to resolve (e.g. because the build
+/// graph cannot be evaluated transiently — for example during a mid-session
+/// `node_modules` reshuffle), this falls back to a default filter rather than
+/// propagating the error.  In this scenario we believe the caller will already be observing the
+/// same error
 async fn issue_filter_from_endpoint(
     endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<IssueFilter>> {
-    let endpoint_option = endpoint_op.connect().await?;
-    if let Some(ep) = &*endpoint_option {
-        Ok(ep.project().issue_filter())
+) -> ReadRef<IssueFilter> {
+    if let Ok(ep_option) = endpoint_op.connect().await
+        && let Some(ep) = &*ep_option
+        && let Ok(filter) = ep.project().issue_filter().await
+    {
+        filter
     } else {
-        Ok(IssueFilter::warnings_and_foreign_errors().cell())
+        ReadRef::new_owned(IssueFilter::warnings_and_foreign_errors())
     }
 }
 
@@ -124,9 +137,9 @@ async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
-    let filter = issue_filter_from_endpoint(endpoint_op).await?;
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -138,24 +151,23 @@ async fn get_written_endpoint_with_issues_operation(
 #[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
 pub async fn endpoint_write_to_disk(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
-    let endpoint_op = ***endpoint;
-    let (written, issues) = endpoint
-        .turbopack_ctx()
+    let endpoint_op = ****endpoint;
+    let (written, issues) = ctx
         .turbo_tasks()
         .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_strongly_consistent_and_apply_effects(
+                written_entrypoint_with_issues_op,
+                |v| &v.effects,
+            )
+            .await?;
             let WrittenEndpointWithIssues {
-                written,
-                issues,
-                effects,
-            } = &*written_entrypoint_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
+                written, issues, ..
+            } = &*read;
 
             Ok((written.clone(), issues.clone()))
         })
@@ -170,20 +182,26 @@ pub async fn endpoint_write_to_disk(
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
     issues: bool,
-    func: JsFunction,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult) => void")] func: FunctionRef<
+        TurbopackResult<()>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint = ***endpoint;
+    let endpoint = ****endpoint;
     subscribe(
         turbopack_ctx,
-        func,
+        &env,
+        &func,
         move || {
             async move {
                 let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
-                let result = issues_and_diags_op.read_strongly_consistent().await?;
-                result.effects.apply().await?;
+                let result =
+                    read_strongly_consistent_and_apply_effects(issues_and_diags_op, |v| &v.effects)
+                        .await?;
                 Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
@@ -195,10 +213,10 @@ pub fn endpoint_server_changed_subscribe(
                 effects: _,
             } = &*ctx.value;
 
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-            }])
+            })
         },
     )
 }
@@ -229,57 +247,63 @@ async fn subscribe_issues_and_diags_operation(
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
-    if should_include_issues {
-        let filter = issue_filter_from_endpoint(endpoint_op).await?;
-        let (changed_value, issues, effects) =
-            strongly_consistent_catch_collectables(changed_op, filter).await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: changed_value,
-            issues,
-            effects,
-        }
-        .cell())
-    } else {
-        let changed_value = changed_op.read_strongly_consistent().await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: Some(changed_value),
-            issues: Arc::new(vec![]),
-            effects: Arc::new(Effects::default()),
-        }
-        .cell())
+    // Use catch-collectables in both branches so transient build-graph errors
+    // (e.g. missing `node_modules/next` during a concurrent install) surface as
+    // Issues rather than killing the subscription with a `TurbopackInternalError`.
+    // When `should_include_issues` is false the caller doesn't need the Issue
+    // payload, but we still need the catch path to avoid the FATAL.
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
+    let (changed_value, issues, effects) =
+        strongly_consistent_catch_collectables(changed_op, &filter).await?;
+    Ok(EndpointIssuesAndDiags {
+        changed: changed_value,
+        issues: if should_include_issues {
+            issues
+        } else {
+            Arc::new(vec![])
+        },
+        effects,
     }
+    .cell())
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-    func: JsFunction,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult) => void")] func: FunctionRef<
+        TurbopackResult<()>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint_op = ***endpoint;
+    let endpoint_op = ****endpoint;
     subscribe(
         turbopack_ctx,
-        func,
+        &env,
+        &func,
         move || {
             async move {
                 let changed_op = endpoint_client_changed_operation(endpoint_op);
                 // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change
+                // notified when they change.  We also want errors to propagate so we don't use
+                // strongly_consistent_catch_collectibles either.
                 //
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
+                //
                 let _ = changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
         },
         |_| {
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: vec![],
-            }])
+            })
         },
     )
 }

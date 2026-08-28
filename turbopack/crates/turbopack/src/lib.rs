@@ -36,8 +36,11 @@ use turbopack_core::{
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
-        parse::Request, resolve,
+        ResolveResult, ResolveResultItem,
+        options::{ConditionValue, ResolveOptions},
+        origin::PlainResolveOrigin,
+        parse::Request,
+        resolve,
     },
     source::Source,
     source_transform::SourceTransforms,
@@ -45,8 +48,9 @@ use turbopack_core::{
 use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    EcmascriptOptions, TreeShakingMode,
+    EcmascriptOptions,
     chunk::EcmascriptChunkPlaceable,
+    module_fragments::part::module::EcmascriptModulePartAsset,
     references::{
         FollowExportsResult,
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
@@ -56,7 +60,6 @@ use turbopack_ecmascript::{
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
     },
-    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
@@ -82,10 +85,9 @@ async fn apply_module_type(
     reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 ) -> Result<Vc<ProcessResult>> {
-    let tree_shaking_mode = module_asset_context
-        .module_options_context()
-        .await?
-        .tree_shaking_mode;
+    let module_options = module_asset_context.module_options_context().await?;
+    let follow_reexports = module_options.follow_reexports;
+    let module_fragments_enabled = module_options.module_fragments_enabled;
     let part = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
             Some(part)
@@ -189,7 +191,7 @@ async fn apply_module_type(
                 // This can skip the module earlier and could skip more modules than only doing it
                 // at the end. Also we avoid parsing/analyzing the module in this
                 // case, because we would need to parse/analyze it for reexports.
-                if tree_shaking_mode.is_some() && is_evaluation {
+                if (follow_reexports || module_fragments_enabled) && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
                     if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
@@ -197,47 +199,43 @@ async fn apply_module_type(
                     }
                 }
 
-                match tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(EcmascriptModulePartAsset::select_part(
-                            *module,
-                            part.cloned().unwrap_or(ModulePart::facade()),
-                        ))
-                    }
-                    Some(TreeShakingMode::ReexportsOnly) => {
-                        if *module.get_exports().split_locals_and_reexports().await? {
-                            if let Some(part) = part {
-                                match part {
-                                    ModulePart::Evaluation => {
-                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                    }
-                                    ModulePart::Export(_) => {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(
-                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
-                                                    *module,
-                                                ))
+                if module_fragments_enabled {
+                    Vc::upcast(EcmascriptModulePartAsset::select_part(
+                        *module,
+                        part.cloned().unwrap_or(ModulePart::facade()),
+                    ))
+                } else if follow_reexports {
+                    if *module.get_exports().split_locals_and_reexports().await? {
+                        if let Some(part) = part {
+                            match part {
+                                ModulePart::Evaluation => {
+                                    Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
+                                }
+                                ModulePart::Export(_) => {
+                                    apply_reexport_tree_shaking(
+                                        Vc::upcast(
+                                            *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
                                                 .to_resolved()
                                                 .await?,
-                                            ),
-                                            part.clone(),
-                                        )
-                                        .await?
-                                    }
-                                    _ => bail!(
-                                        "Invalid module part \"{}\" for reexports only tree \
-                                         shaking mode",
-                                        part
-                                    ),
+                                        ),
+                                        part.clone(),
+                                    )
+                                    .await?
                                 }
-                            } else {
-                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
+                                _ => bail!(
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part
+                                ),
                             }
                         } else {
-                            Vc::upcast(*module)
+                            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                         }
+                    } else {
+                        Vc::upcast(*module)
                     }
-                    None => Vc::upcast(*module),
+                } else {
+                    Vc::upcast(*module)
                 }
                 .to_resolved()
                 .await?
@@ -257,6 +255,7 @@ async fn apply_module_type(
             ty,
             environment,
             lightningcss_features,
+            module_css_debuggable_idents,
         } => ResolvedVc::upcast(
             CssModule::new(
                 *source,
@@ -265,6 +264,7 @@ async fn apply_module_type(
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
                 *lightningcss_features,
+                *module_css_debuggable_idents,
             )
             .to_resolved()
             .await?,
@@ -295,7 +295,7 @@ async fn apply_module_type(
         }
     };
 
-    if tree_shaking_mode.is_some() && is_evaluation {
+    if (follow_reexports || module_fragments_enabled) && is_evaluation {
         // If we are tree shaking, skip the evaluation part if the module is marked as
         // side effect free.
         if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
@@ -926,6 +926,7 @@ pub async fn externals_tracing_module_context(
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
+        module_sync: ConditionValue::Unknown,
         ..Default::default()
     };
 
@@ -958,7 +959,6 @@ pub async fn externals_tracing_module_context(
             analyze_mode: AnalyzeMode::Tracing,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),

@@ -1,10 +1,10 @@
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   await connection()

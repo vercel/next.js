@@ -36,13 +36,11 @@ describe('Middleware Production Prefetch', () => {
       const attrs = await Promise.all(
         scripts.map((script) => script.getAttribute('src'))
       )
-      expect(
-        attrs.some(
-          (src) =>
-            src &&
-            src.includes('/ssg-page-2' + (process.env.NEXT_RSPACK ? '-' : ''))
-        )
-      ).toBe(false)
+      const chunk = getClientBuildManifestLoaderChunkUrlPath(
+        next.testDir,
+        '/ssg-page-2'
+      )
+      expect(attrs.some((src) => src && src.includes(chunk))).toBe(false)
     })
   })
 })
