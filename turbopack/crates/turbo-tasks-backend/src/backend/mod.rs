@@ -23,6 +23,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use gc::DEFAULT_GC_ROOT_TTL;
+pub use gc::TtlCounter;
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
@@ -67,8 +69,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -147,12 +149,16 @@ pub struct BackendOptions {
 
     /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
-    /// This is an EXPERIMENTAL FEATURE under development
     pub eviction_mode: EvictionMode,
 
     /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
     /// it from the `TURBO_ENGINE_GC` env var;
     pub gc: Option<bool>,
+
+    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
+    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// [`DEFAULT_GC_ROOT_TTL`].
+    pub gc_root_ttl: Option<Duration>,
 }
 
 impl Default for BackendOptions {
@@ -165,6 +171,7 @@ impl Default for BackendOptions {
             small_preallocation: false,
             eviction_mode: EvictionMode::Off,
             gc: None,
+            gc_root_ttl: None,
         }
     }
 }
@@ -234,6 +241,17 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
+    /// How long a GC root may go un-anchored before it ages out, resolved once at construction
+    /// from [`BackendOptions::gc_root_ttl`] / the `TURBO_ENGINE_GC_ROOT_TTL_MS` env /
+    /// [`DEFAULT_GC_ROOT_TTL`].
+    gc_root_ttl: Duration,
+
+    /// `true` until the first GC pass of this session runs. Only that pass may demote a live root
+    /// to `TtlCounter::FirstStale` — GC runs many times per session (on the snapshot cadence), and
+    /// a single pass can easily miss a root that is still live (evicted, or not yet re-requested).
+    /// Demoting on every pass would make the TTL measure idleness within a session rather than
+    /// "was not live in a whole session". See `gc_roots_refresh_and_age_out`.
+    first_gc_pass_of_session: AtomicBool,
 
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
@@ -275,6 +293,22 @@ impl TurboTasksBackend {
             gc_enabled = false;
         }
 
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
+            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
+                Ok(v) => match v.parse::<u64>() {
+                    Ok(ms) => Duration::from_millis(ms),
+                    Err(e) => {
+                        eprintln!(
+                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
+                             Using the default instead."
+                        );
+                        DEFAULT_GC_ROOT_TTL
+                    }
+                },
+                Err(_) => DEFAULT_GC_ROOT_TTL,
+            }
+        });
+
         Self {
             options,
             gc_enabled,
@@ -298,6 +332,8 @@ impl TurboTasksBackend {
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
+            gc_root_ttl,
+            first_gc_pass_of_session: AtomicBool::new(true),
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
         }
@@ -382,6 +418,15 @@ impl TurboTasksBackend {
         self.storage
             .with_task(task, |t| t.gc_transient_ref_count())
             .unwrap_or(0)
+    }
+
+    /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]). Reads the
+    /// `GcRoots` infra key directly, so it reflects the last committed snapshot — not any in-flight
+    /// pass. Test-only hook for asserting that a root seeded for collection but *not* collected
+    /// stays tracked (see `gc_roots_refresh_and_age_out`'s monotonicity note).
+    #[doc(hidden)]
+    pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
+        self.backing_storage.roots().unwrap_or_default()
     }
 
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
@@ -1070,19 +1115,18 @@ impl TurboTasksBackend {
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
-        let gc_elapsed = if self.gc_enabled {
+        let (gc_elapsed, gc_roots_to_persist) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
-                edges_deleted = tracing::field::Empty,
             )
             .entered();
-            let stats = self.gc_collect(turbo_tasks, &snapshot_phase);
+            let (stats, roots) = self.gc_collect(turbo_tasks, &snapshot_phase);
             gc_span.record("stats", display(stats));
-            Some(start.elapsed())
+            (Some(start.elapsed()), roots)
         } else {
-            None
+            (None, None)
         };
 
         debug_assert!(self.should_persist());
@@ -1095,7 +1139,7 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications {
+        if !has_modifications && gc_roots_to_persist.is_none() {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
@@ -1389,9 +1433,10 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() {
-            // This should be impossible — if we got here, modified_count was nonzero, and every
-            // modification that increments the count also failed during encoding.
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
+            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
+            // was present, and every modification that increments the count also failed
+            // during encoding.
             std::hint::cold_path();
             return Ok((snapshot_time, false));
         }
@@ -1407,9 +1452,11 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
-        let snapshot_meta = self
-            .backing_storage
-            .save_snapshot(suspended_operations, task_snapshots)?;
+        let snapshot_meta = self.backing_storage.save_snapshot(
+            suspended_operations,
+            gc_roots_to_persist,
+            task_snapshots,
+        )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -3394,6 +3441,11 @@ impl TurboTasksBackend {
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // Once stopping, it is too late to tear down tasks safely
+        if self.stopping.load(Ordering::Acquire) {
+            return;
+        }
+
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
@@ -3407,10 +3459,24 @@ impl TurboTasksBackend {
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = task.take_activeness() {
-            // Technically nobody should be listening to this event, but just in case
-            // we notify it anyway
-            activeness_state.all_clean_event.notify(usize::MAX);
+        } else {
+            if let Some(activeness_state) = task.take_activeness() {
+                // Technically nobody should be listening to this event, but just in case
+                // we notify it anyway
+                activeness_state.all_clean_event.notify(usize::MAX);
+            }
+            // Remove all the outgoing edges of this task.
+            let old_edges = capture_all_outgoing_edges(&task);
+            drop(task);
+
+            if !old_edges.is_empty() {
+                CleanupOldEdgesOperation::run(
+                    task_id,
+                    old_edges,
+                    AggregationUpdateQueue::new(),
+                    &mut ctx,
+                );
+            }
         }
     }
 

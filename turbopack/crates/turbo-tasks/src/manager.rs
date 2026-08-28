@@ -2262,6 +2262,33 @@ pub fn prevent_gc() {
     }
 }
 
+/// An RAII guard that pins a task against garbage collection.
+/// Not `Clone`: each guard owns exactly one pin. To share one pin across several owners, wrap the
+/// guard in an [`Arc`].
+pub struct GcRoot {
+    tt: Arc<dyn TurboTasksApi>,
+    task: TaskId,
+}
+
+impl GcRoot {
+    /// Pins `task`, returning a guard that unpins it on drop.
+    pub fn pin(tt: Arc<dyn TurboTasksApi>, task: TaskId) -> Self {
+        tt.pin_task_for_gc(task);
+        Self { tt, task }
+    }
+
+    /// The task this guard is pinning.
+    pub fn task_id(&self) -> TaskId {
+        self.task
+    }
+}
+
+impl Drop for GcRoot {
+    fn drop(&mut self) {
+        self.tt.unpin_task_for_gc(self.task);
+    }
+}
+
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     with_turbo_tasks(|tt| {
         let raw_vc = collectible.node.node;

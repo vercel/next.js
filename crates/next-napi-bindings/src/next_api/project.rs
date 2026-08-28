@@ -52,9 +52,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
-    mark_top_level_task,
+    Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
+    Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
@@ -419,6 +419,8 @@ pub struct ProjectInstance {
     container: ResolvedVc<ProjectContainer>,
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
+    // Pin the ProjectContainer for as long as this struct survives.
+    _container_gc_root: GcRoot,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -613,14 +615,17 @@ pub fn project_new<'env>(
             let options = ProjectOptions::from(options);
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
-            let container = turbo_tasks
+            let (container, container_root_task) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve().strongly_consistent().await
+                    let container = container_op.resolve().strongly_consistent().await?;
+                    // Capture the container task id so we can pin it below
+                    Ok((container, container_op.task_id()))
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
+            let container_gc_root = GcRoot::pin(turbo_tasks.clone(), container_root_task);
 
             if is_dev {
                 Handle::current().spawn({
@@ -661,6 +666,7 @@ pub fn project_new<'env>(
                 turbopack_ctx,
                 container,
                 exit_receiver: Mutex::new(Some(exit_receiver)),
+                _container_gc_root: container_gc_root,
             }))
         }
         .instrument(tracing::info_span!("create project")),
