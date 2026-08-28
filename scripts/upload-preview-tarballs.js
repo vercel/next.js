@@ -1,5 +1,4 @@
 // @ts-check
-const { put } = require('@vercel/blob/client')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 
@@ -116,12 +115,6 @@ async function main() {
     )
   }
 
-  const blobAccess = process.env.BLOB_ACCESS
-  if (blobAccess !== 'private' && blobAccess !== 'public') {
-    throw new Error(
-      `BLOB_ACCESS environment variable can only be "private" or "public" but got "${blobAccess}".`
-    )
-  }
   const baseUrl =
     process.env.PREVIEW_BUILDS_BASE_URL || DEFAULT_PREVIEW_BUILDS_BASE_URL
   const getOidcToken = createGitHubOidcTokenGetter()
@@ -129,8 +122,8 @@ async function main() {
   for await (const { packageName, tarballPath } of findTarballs(
     tarballDirectory
   )) {
-    // vercel-packages authorizes the OIDC token and answers with a client
-    // token scoped to this exact blob path. The bytes then flow directly to
+    // vercel-packages authorizes the OIDC token and answers with a presigned
+    // upload URL scoped to this exact blob path. The bytes flow directly to
     // the store, so the tarball size is not limited by a function's request
     // body limit.
     const response = await fetch(
@@ -146,20 +139,21 @@ async function main() {
           `Response headers: ${JSON.stringify(Object.fromEntries(response.headers))}`
       )
     }
-    const { clientToken } = await response.json()
+    const body = await response.json()
 
     const fileBuffer = await fs.readFile(tarballPath)
-    const { url } = await put(
-      `next/commits/${githubHeadSha}/${packageName}.tgz`,
-      fileBuffer,
-      {
-        access: blobAccess,
-        token: clientToken,
-        contentType: 'application/gzip',
-        multipart: true,
-      }
-    )
-    console.info(`Uploaded ${packageName} -> ${url}`)
+    const putResponse = await fetch(body.url, {
+      method: 'PUT',
+      body: new Uint8Array(fileBuffer),
+      headers: { 'content-type': 'application/gzip' },
+    })
+    if (!putResponse.ok) {
+      throw new Error(
+        `Failed to upload ${packageName}: ${putResponse.status}. ` +
+          `Response headers: ${JSON.stringify(Object.fromEntries(putResponse.headers))}`
+      )
+    }
+    console.info(`Uploaded ${packageName} -> ${body.downloadUrl}`)
   }
 
   console.info('All tarballs uploaded')
