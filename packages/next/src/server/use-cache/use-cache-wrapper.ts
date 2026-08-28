@@ -1849,7 +1849,9 @@ export async function cache(
     return cacheImpl(kind, id, boundArgsLength, originalFn, args)
   }
 
-  return getTracer().trace(
+  // Keep `cache` in the async stack. Errors created later in the cache state
+  // machine use it to remove framework frames and preserve the user callsite.
+  return await getTracer().trace(
     UseCacheSpan.execute,
     {
       spanName: 'use cache',
