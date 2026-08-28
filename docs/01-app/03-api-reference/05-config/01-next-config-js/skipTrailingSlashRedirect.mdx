@@ -5,7 +5,7 @@ description: Disable the automatic trailing slash redirects so you can handle tr
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Enabling `skipTrailingSlashRedirect` stops Next.js from redirecting to add or remove trailing slashes. Requests keep the trailing slash you sent, and you handle any redirecting you still want in [Proxy](/docs/app/api-reference/file-conventions/proxy).
+Enabling `skipTrailingSlashRedirect` turns off the automatic redirects that add or remove a trailing slash. You handle any redirecting you still want in [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 **Most projects don't need this option.** It is one of the [advanced Proxy flags](/docs/app/api-reference/file-conventions/proxy#advanced-proxy-flags), meant for specific routing cases and debugging.
 
@@ -73,7 +73,7 @@ With `skipTrailingSlashRedirect` enabled, none of these redirects are generated 
 
 ### Handling trailing slashes in Proxy
 
-Add trailing slashes to your own routes while leaving a set of legacy prefixes untouched, which makes an incremental migration easier.
+With `skipTrailingSlashRedirect` enabled, Next.js no longer adds trailing slashes, so Proxy can add them selectively. This example adds a trailing slash to your own routes while leaving a set of legacy prefixes untouched, which makes an incremental migration easier.
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
