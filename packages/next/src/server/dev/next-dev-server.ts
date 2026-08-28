@@ -236,16 +236,10 @@ export default class DevServer extends Server {
     // spawned lazily on the first navigation that validates, so this install is
     // free when a project doesn't use Cache Components.
     //
-    // Turbopack only, because the worker's thread has source maps just for the
-    // chunks it loaded itself, and resolves the rest by reading the `.map`
-    // Turbopack writes next to each chunk. Webpack keeps its dev source maps in
-    // the compiler, which the worker's thread cannot reach, so validation
-    // errors would be reported without a source location. Running validation on
-    // the main thread costs dev performance but keeps those frames intact.
-    if (
-      process.env.TURBOPACK &&
-      this.nextConfig.experimental.devValidationWorker !== false
-    ) {
+    // Turbopack logs validation errors in the worker using the `.map` files it
+    // emits beside chunks. Webpack keeps its development source maps on this
+    // thread, so the pool returns unsourcemapped stacks and logs them here.
+    if (this.nextConfig.experimental.devValidationWorker !== false) {
       installDevValidationWorker({
         distDir: this.distDir,
         buildId: this.buildId,
