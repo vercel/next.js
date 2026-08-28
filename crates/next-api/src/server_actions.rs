@@ -584,7 +584,9 @@ async fn module_hash(
             || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.dev.js")
             || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js"))
     {
-        bail!("use cache subtree shouldn't contain app-page-turbo.");
+        // This isn't exactly a fatal error, but it makes cross-deployment caching completely
+        // ineffective.
+        bail!("use cache subtree shouldn't contain {}", ident_str);
     }
 
     let env_var_info =
@@ -606,8 +608,8 @@ async fn module_hash(
             .as_chunk_item(*module_graph, *chunking_context)
             .to_resolved()
             .await?;
-        let chunk_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).unwrap();
+        let chunk_item = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+            .context("expected EcmascriptChunkItem")?;
         let async_info = if async_module_info.is_async(m).await? {
             Some(module_graph.referenced_async_modules(*m))
         } else {
