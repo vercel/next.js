@@ -3,9 +3,8 @@ import path from 'path'
 
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(lubieowoce): reenable when the cause of flakiness is found and fixed
-// (seems to have increased sharply around 2026-08-24/25)
-describe.skip('sync IO that blocks the root', () => {
+describe('sync IO that blocks the root', () => {
+  const traceDir = path.join(__dirname, '../../../..', 'test/traces')
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -63,13 +62,12 @@ describe.skip('sync IO that blocks the root', () => {
             .split('\n')
             .filter(Boolean)
             .map((line) => JSON.parse(line))
-          await fs.mkdir(path.join(process.cwd(), 'test/traces'), {
+          await fs.mkdir(traceDir, {
             recursive: true,
           })
           await fs.writeFile(
             path.join(
-              process.cwd(),
-              'test/traces',
+              traceDir,
               `sync-io-blocks-root-${route.slice(1).replaceAll('/', '-')}.json`
             ),
             JSON.stringify(
