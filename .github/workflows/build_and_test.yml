@@ -621,26 +621,80 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
-  #[NOTE] currently this only checks building wasi target
+  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
+  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # See https://github.com/vercel/next.js/issues/96960.
+  #
+  # This is a compile check only. A full `napi build` additionally has to link against emnapi, and
+  # `napi-build` requires emnapi v2 (for the `emnapi_create_env` / `emnapi_delete_env` exports),
+  # which is still unreleased — so linking cannot be gated on yet.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
-    # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
-    # Specifically, the `platform` value is now `threads` in
-    # https://github.com/napi-rs/napi-rs/blob/e4ad4767efaf093fdff3dc768856f6100a6e3f72/cli/src/api/build.ts#L530
-    if: false
-    # if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
+        set -euo pipefail
+
         rustup target add wasm32-wasip1-threads
-        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi ${TURBO_ARGS}
+
+        # `lzzzz` (LZ4, via turbo-persistence) and `zstd-sys` have C build scripts, so a WASI
+        # clang and sysroot are required on top of the Rust target. Pick the SDK build matching the
+        # runner: build_reusable.yml defaults to an arm64 runner, and an x86_64 clang fails there
+        # with "Exec format error".
+        WASI_SDK_VERSION=33.0
+        case "$RUNNER_ARCH" in
+          X64)   WASI_SDK_ARCH=x86_64; WASI_SDK_SHA256=0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce ;;
+          ARM64) WASI_SDK_ARCH=arm64;  WASI_SDK_SHA256=4f98ee738c7abb45c81a94d1461fc53cc569d1cd01498951c8184d841a027844 ;;
+          *) echo "::error::Unsupported RUNNER_ARCH for the WASI SDK: $RUNNER_ARCH"; exit 1 ;;
+        esac
+        WASI_SDK_TAR="wasi-sdk-${WASI_SDK_VERSION}-${WASI_SDK_ARCH}-linux.tar.gz"
+        curl --retry 3 --fail --location --silent --show-error --output "$RUNNER_TEMP/$WASI_SDK_TAR" \
+          "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION%%.*}/${WASI_SDK_TAR}"
+        echo "${WASI_SDK_SHA256}  $RUNNER_TEMP/${WASI_SDK_TAR}" | sha256sum --check --strict
+        tar xzf "$RUNNER_TEMP/$WASI_SDK_TAR" -C "$RUNNER_TEMP"
+
+        WASI_SDK="$RUNNER_TEMP/wasi-sdk-${WASI_SDK_VERSION}-${WASI_SDK_ARCH}-linux"
+        export WASI_SDK_PATH="$WASI_SDK"
+        export CC_wasm32_wasip1_threads="$WASI_SDK/bin/clang"
+        export AR_wasm32_wasip1_threads="$WASI_SDK/bin/llvm-ar"
+        export CFLAGS_wasm32_wasip1_threads="--target=wasm32-wasip1-threads --sysroot=$WASI_SDK/share/wasi-sysroot"
+
+        # next-napi-bindings' build script calls napi_build::setup(), whose wasi path links against
+        # emnapi and panics without EMNAPI_LINK_DIR — so this is needed even for `cargo check`.
+        #
+        # The archive must define emnapi_create_env / emnapi_delete_env, which only exists in
+        # emnapi v2. That is still a prerelease, hence the exact alpha pin; move to the stable
+        # release once it ships. The archives are wasm objects, so they are arch-independent.
+        #
+        # Installed into a scratch directory rather than added to the root package.json, because
+        # this job runs with skipInstallBuild and build_reusable.yml therefore never runs
+        # `pnpm install`.
+        #
+        # pnpm is invoked from the repository root with --dir, not by cd'ing into the scratch
+        # directory: corepack resolves the pnpm version from the nearest package.json, and outside
+        # the repo there is none, so it picks the latest pnpm (11.x) which cannot run on the pinned
+        # Node 20 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`). Staying in the repo keeps the pinned
+        # pnpm from the root package.json's packageManager field.
+        EMNAPI_DIR="$RUNNER_TEMP/emnapi"
+        mkdir -p "$EMNAPI_DIR"
+        printf '{\n  "name": "emnapi-scratch",\n  "private": true\n}\n' > "$EMNAPI_DIR/package.json"
+        pnpm --dir "$EMNAPI_DIR" add emnapi@2.0.0-alpha.4
+        export EMNAPI_LINK_DIR="$EMNAPI_DIR/node_modules/emnapi/lib/wasm32-wasip1-threads"
+
+        # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
+        # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
+        # compile is simply never built.
+        cargo check -p next-napi-bindings --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
@@ -1219,6 +1273,7 @@ jobs:
       - rust-check
       - rustdoc-check
       - test-next-swc-wasm
+      - test-next-napi-bindings-wasi
       - test-turbopack-dev
       - test-new-tests-dev
       - test-new-tests-start
