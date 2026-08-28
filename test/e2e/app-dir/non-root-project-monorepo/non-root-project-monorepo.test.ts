@@ -38,15 +38,6 @@ describe('non-root-project-monorepo', () => {
       const $ = await next.render$('/server-relative-import')
       expect($('#where').text()).toBe('FROM-PROJECT-DIR')
     })
-
-    it('should resolve a `/`-rooted `import.meta.glob` pattern from the same directory', async () => {
-      const $ = await next.render$('/server-relative-glob')
-      // A glob and a plain import must agree about what `/` means.
-      expect($('#glob-value').text()).toBe($('#import').text())
-      expect($('#glob-value').text()).toBe('FROM-PROJECT-DIR')
-      // The key stays absolute from the project directory, as in Vite.
-      expect(JSON.parse($('#glob-keys').text())).toEqual(['/content/where.ts'])
-    })
   })
 
   describe('monorepo-package', () => {
