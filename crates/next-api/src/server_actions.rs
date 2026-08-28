@@ -7,6 +7,7 @@ use itertools::Itertools;
 use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
+    next_config::OptionDurableUseCacheEntriesConfig,
     next_manifests::{
         ActionLayer, ActionManifestEntryDurability, ActionManifestModuleId,
         ActionManifestWorkerEntry, ServerReferenceManifest,
@@ -247,12 +248,13 @@ impl Asset for ServerActionManifestAsset {
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
         let next_config = self.project.next_config();
-        let durable_use_cache_entries = *next_config
+        let durable_use_cache_entries_enabled = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
         let static_root_param_tracking_enabled = *next_config
             .enable_use_cache_static_root_param_tracking(self.project.next_mode())
             .await?;
+        let durable_use_cache_entries_config = next_config.durable_use_cache_entries_config();
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -281,13 +283,14 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/image-config-context.shared-runtime
         // - next/dist/shared/lib/router-context.shared-runtime
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
-        let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
+        let modules_to_ignore = (durable_use_cache_entries_enabled
+            || static_root_param_tracking_enabled)
             .then(|| get_use_cache_modules_to_ignore(*self.project));
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
-            data: Option<ReadRef<ModulesInformation>>,
+            data: Option<ReadRef<OptionModulesInformation>>,
             root_param_dependencies: Option<ReadRef<Vec<RcStr>>>,
         }
 
@@ -310,7 +313,7 @@ impl Asset for ServerActionManifestAsset {
                     Cow::Owned(module.ident().await?.path.to_string())
                 };
 
-                let data = if durable_use_cache_entries
+                let data = if durable_use_cache_entries_enabled
                     && extract_type_from_server_reference_id(hash_id)
                         == ServerReferenceType::UseCache
                 {
@@ -322,6 +325,7 @@ impl Asset for ServerActionManifestAsset {
                             hash_salt,
                             modules_to_ignore
                                 .expect("cache metadata collection requires module exclusions"),
+                            durable_use_cache_entries_config,
                         )
                         .await?,
                     )
@@ -371,7 +375,7 @@ impl Asset for ServerActionManifestAsset {
         {
             let entry = mapping.entry(hash_id).or_default();
 
-            let durability = data.as_ref().map(|d| {
+            let durability = data.as_ref().and_then(|v| v.as_ref()).map(|d| {
                 let key = d.durability_key.as_str();
                 entry.durability.insert(
                     key,
@@ -442,8 +446,7 @@ pub async fn to_rsc_context(
 }
 
 /// Merged information about a module graph subgraph
-#[turbo_tasks::value]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, NonLocalValue, Encode, Decode)]
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph.
     pub path_code_hash: RcStr,
@@ -557,6 +560,10 @@ async fn collect_root_param_dependencies_from_graph(
     .await
 }
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+struct OptionModulesInformation(Option<ModulesInformation>);
+
 #[turbo_tasks::function]
 async fn compute_subtree_content_hash(
     module_graph: ResolvedVc<ModuleGraph>,
@@ -564,7 +571,8 @@ async fn compute_subtree_content_hash(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
-) -> Result<Vc<ModulesInformation>> {
+    durable_use_cache_entries_config: Vc<OptionDurableUseCacheEntriesConfig>,
+) -> Result<Vc<OptionModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
         entry = display(entry.ident_string().await?)
@@ -572,6 +580,12 @@ async fn compute_subtree_content_hash(
     match async {
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
+
+        let durable_use_cache_entries_config = durable_use_cache_entries_config.await?;
+        let default_config = Default::default();
+        let durable_use_cache_entries_config = durable_use_cache_entries_config
+            .as_ref()
+            .unwrap_or(&default_config);
 
         let modules_to_ignore = modules_to_ignore.await?;
         let modules = collect_cache_modules(&module_graph_value, entry, &modules_to_ignore)?;
@@ -647,12 +661,26 @@ async fn compute_subtree_content_hash(
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
                 for (name, access) in &env.runtime {
+                    if durable_use_cache_entries_config
+                        .ignored_env_vars
+                        .contains(name)
+                    {
+                        continue;
+                    }
                     runtime_env_vars
                         .entry(name.clone())
                         .and_modify(|existing| *existing = existing.merge(access.mode))
                         .or_insert(access.mode);
                 }
             }
+        }
+
+        if runtime_env_vars.keys().any(|name| {
+            durable_use_cache_entries_config
+                .unstable_env_vars
+                .contains(name)
+        }) {
+            return anyhow::Ok(Vc::cell(None));
         }
 
         let hash: RcStr = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
@@ -674,15 +702,12 @@ async fn compute_subtree_content_hash(
             HashAlgorithm::Xxh3Hash128Hex,
         )
         .into();
-        anyhow::Ok(
-            ModulesInformation {
-                path_code_hash: hash,
-                durability_key,
-                runtime_env_vars_read: runtime_read,
-                runtime_env_vars_existence: runtime_existence,
-            }
-            .cell(),
-        )
+        anyhow::Ok(Vc::cell(Some(ModulesInformation {
+            path_code_hash: hash,
+            durability_key,
+            runtime_env_vars_read: runtime_read,
+            runtime_env_vars_existence: runtime_existence,
+        })))
     }
     .instrument(span)
     .await
