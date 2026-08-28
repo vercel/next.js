@@ -334,6 +334,7 @@
       }
     },
     "patchedDependencies": {
+      "webpack@5.109.2": "patches/webpack@5.109.2.patch",
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
