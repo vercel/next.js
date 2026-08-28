@@ -163,8 +163,11 @@ test('no hand-rolled in-process caches (multi-instance deployment)', () => {
 
 test('the endpoint is fed by framework caching', () => {
   const files = [...sourceFiles('app'), ...sourceFiles('lib')]
+  // Accept every directive variant: plain, ': private', and ': remote'
+  // (self-hosted, 'remote' aliases the default handler, so it behaves like
+  // the plain form — a run showed an agent legitimately choosing it).
   const hasDirective = files.some((f) =>
-    /['"]use cache(?:: private)?['"]/.test(readFileSync(f, 'utf-8'))
+    /['"]use cache(?:: (?:private|remote))?['"]/.test(readFileSync(f, 'utf-8'))
   )
   // unstable_cache is a legacy but still-functional framework cache; accept it
   // as an alternate path (behavioral tests above prove whichever mechanism is
