@@ -242,6 +242,10 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
+    /// reduce output size. Defaults to false. See
+    /// `references::esm::mangle::mangled_export_names`.
+    pub mangle_export_names: bool,
     /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
     /// Whether to enable cross-module constant inlining. Defaults to false.

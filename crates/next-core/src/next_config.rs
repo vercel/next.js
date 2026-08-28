@@ -1446,6 +1446,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    turbopack_mangle_export_names: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -2585,6 +2587,22 @@ impl NextConfig {
                 .turbopack_cjs_tree_shaking
                 .unwrap_or(false),
         )
+    }
+
+    /// Whether Turbopack should shorten ("mangle") the export names modules expose to each other.
+    ///
+    /// An explicit value always wins, in either direction — setting this to `true` in development
+    /// is honoured. `mode` only supplies the default when the option is unset: on in production
+    /// builds, off in development, where the extra module splitting costs rebuild time and the
+    /// short names make debugging harder for no benefit.
+    #[turbo_tasks::function]
+    pub async fn turbopack_mangle_export_names(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            match self.experimental.turbopack_mangle_export_names {
+                Some(explicit) => explicit,
+                None => !mode.await?.is_development(),
+            },
+        ))
     }
 
     #[turbo_tasks::function]
