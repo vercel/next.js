@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
+    get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
@@ -10,7 +11,6 @@ use next_core::{
     },
     util::NextRuntime,
 };
-use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::{Atom, atom},
     common::comments::Comments,
@@ -38,12 +38,11 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
     },
     output::{OutputAsset, OutputAssetsReference},
-    reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
@@ -53,7 +52,6 @@ use turbopack_ecmascript::{
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
-    references::esm::EsmAssetReference,
 };
 
 use crate::project::Project;
@@ -251,6 +249,42 @@ impl Asset for ServerActionManifestAsset {
             NextRuntime::NodeJs => &mut manifest.node,
         };
 
+        // These modules end up pulling in a lot of env vars and would always cause invalidations.
+        // But they don't actually read the env vars for the imports that are used. Their code is
+        // versioned anyway via the Next.js version in the cache key.
+        //
+        // `module.compiled.js -> app-page-turbo.runtime.prod.js` is imported by the following
+        // modules. But none of them have values whose runtime value depends on the runtime env
+        // vars.
+        // - react
+        // - react-dom
+        // - react-server-dom-*
+        // - next/dist/shared/lib/app-router-context.shared-runtime
+        // - next/dist/shared/lib/head-manager-context.shared-runtime
+        // - next/dist/shared/lib/hooks-client-context.shared-runtime
+        // - next/dist/shared/lib/image-config-context.shared-runtime
+        // - next/dist/shared/lib/router-context.shared-runtime
+        // - next/dist/shared/lib/server-inserted-html.shared-runtime
+        let app_project = self.project.app_project().await?.unwrap();
+        let next_dir = get_next_package(self.project.project_path().owned().await?).await?;
+        let source_to_ignore = FileSource::new(
+            next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?,
+        );
+        let modules_to_ignore = Vc::cell(
+            [
+                app_project.rsc_module_context(),
+                app_project.route_module_context(),
+            ]
+            .iter()
+            .map(|c| {
+                c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
+                    .module()
+                    .to_resolved()
+            })
+            .try_join()
+            .await?,
+        );
+
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
@@ -279,6 +313,7 @@ impl Asset for ServerActionManifestAsset {
                             **module,
                             *self.chunking_context,
                             hash_salt,
+                            modules_to_ignore,
                         )
                         .await?,
                     )
@@ -385,6 +420,7 @@ async fn compute_subtree_content_hash(
     entry: ResolvedVc<Box<dyn Module>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
+    modules_to_ignore: Vc<Modules>,
 ) -> Result<Vc<ModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -396,45 +432,7 @@ async fn compute_subtree_content_hash(
 
         let mut references_client_component = false;
 
-        // These modules shouldn't be traversed. They end up pulling in a lot of env vars. But they
-        // don't actually read the env vars for the imports that are used. Their code is versioned
-        // anyway via the Next.js version in the cache key.
-        let modules_to_ignore: FxHashSet<_> = entry
-            .references()
-            .await?
-            .into_iter()
-            .filter_map(ResolvedVc::try_downcast_type::<EsmAssetReference>)
-            .map(async |reference| {
-                let reference_value = reference.await?;
-                Ok(
-                    // These pull in app-page-turbo.runtime.prod.js which reads basically all env
-                    // vars that exist and would always cause a deopt.
-                    if reference_value.request == "private-next-rsc-server-reference"
-                        || reference_value.request == "private-next-rsc-cache-wrapper"
-                        || reference_value.request == "react"
-                        || reference_value.request.starts_with("react/")
-                        || reference_value.request == "react-dom"
-                        || reference_value.request.starts_with("react-dom/")
-                    {
-                        reference
-                            .resolve_reference()
-                            .await?
-                            .primary_modules()
-                            .await?
-                    } else {
-                        vec![]
-                    },
-                )
-            })
-            .try_flat_join()
-            .await?
-            .into_iter()
-            .collect();
-        debug_assert!(
-            !modules_to_ignore.is_empty(),
-            "at least private-next-rsc-server-reference should have been detected"
-        );
-
+        let modules_to_ignore = modules_to_ignore.await?;
         let mut modules = FxIndexSet::default();
         module_graph_value.traverse_edges_dfs(
             std::iter::once(entry),

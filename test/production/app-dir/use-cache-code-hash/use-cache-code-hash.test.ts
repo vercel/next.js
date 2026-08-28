@@ -55,19 +55,32 @@ async function getCodeHashes(
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
 
-        expect(
-          data.filter((e) => e.page === 'app/use-cache/page')[0].runtimeEnvVars
-        ).toMatchInlineSnapshot(`
+        expect(data.find((e) => e.page === 'app/use-cache/page').runtimeEnvVars)
+          .toMatchInlineSnapshot(`
          [
            "BUNDLED_NON_INLINED_ENVVAR",
+           "NEXT_PRIVATE_DEBUG_CACHE",
+           "__NEXT_DEV_SERVER",
+           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+           "NEXT_OTEL_VERBOSE",
+           "NEXT_OTEL_PERFORMANCE_PREFIX",
+           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
            "EXTERNAL_ENV_VAR",
          ]
         `)
 
         expect(
-          data.filter((e) => e.page === 'app/env-dynamic/page')[0]
-            .runtimeEnvVars
-        ).toMatchInlineSnapshot(`[]`)
+          data.find((e) => e.page === 'app/env-dynamic/page').runtimeEnvVars
+        ).toMatchInlineSnapshot(`
+         [
+           "NEXT_PRIVATE_DEBUG_CACHE",
+           "__NEXT_DEV_SERVER",
+           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+           "NEXT_OTEL_VERBOSE",
+           "NEXT_OTEL_PERFORMANCE_PREFIX",
+           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+         ]
+        `)
       })
     })
 
