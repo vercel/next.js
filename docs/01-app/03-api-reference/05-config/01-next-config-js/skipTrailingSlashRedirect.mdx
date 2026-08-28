@@ -48,7 +48,7 @@ Your own `redirects` and `rewrites` from `next.config.js` still apply.
 
 ### Paths that contain a dot
 
-The default redirects decide by looking at the last path segment. If it contains a dot, Next.js treats the path as a file and removes the trailing slash instead of adding one, so a route that happens to contain a dot in its last path segment behaves as if `trailingSlash` were `false`. A dot in an earlier segment has no effect.
+If the last path segment contains a dot, Next.js treats the path as a file and removes the trailing slash, regardless of the `trailingSlash` setting. A dot in an earlier segment has no effect, except under `.well-known/`, which is exempt from the default redirects when `trailingSlash` is `true`.
 
 | Request                   | `trailingSlash: true`              | `trailingSlash: false`                     | `skipTrailingSlashRedirect: true` |
 | ------------------------- | ---------------------------------- | ------------------------------------------ | --------------------------------- |
@@ -58,8 +58,6 @@ The default redirects decide by looking at the last path segment. If it contains
 | `/version/1.2.3/`         | `308` redirect to `/version/1.2.3` | `308` redirect to `/version/1.2.3`         | `200`                             |
 | `/version/1.2.3/my-page/` | `200`                              | `308` redirect to `/version/1.2.3/my-page` | `200`                             |
 | `/.well-known/x/`         | `200`                              | `308` redirect to `/.well-known/x`         | `200`                             |
-
-Paths under `.well-known/` are exempt from the default redirects when `trailingSlash` is `true`. When it is `false` there is no exemption and they redirect like any other path.
 
 With `skipTrailingSlashRedirect` enabled, none of these redirects are generated and every path is served at whichever form was requested.
 
@@ -73,7 +71,7 @@ With `skipTrailingSlashRedirect` enabled, none of these redirects are generated 
 
 ### Handling trailing slashes in Proxy
 
-With `skipTrailingSlashRedirect` enabled, Next.js no longer adds trailing slashes, so Proxy can add them selectively. This example adds a trailing slash to your own routes while leaving a set of legacy prefixes untouched, which makes an incremental migration easier.
+With `skipTrailingSlashRedirect` enabled, Next.js no longer adds trailing slashes, but Proxy can still add them selectively. This example adds a trailing slash to your own routes while leaving a set of legacy prefixes untouched, which makes an incremental migration easier.
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
