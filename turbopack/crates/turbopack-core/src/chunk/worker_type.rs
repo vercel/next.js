@@ -6,7 +6,9 @@ use turbo_tasks::trace::TraceRawVcs;
 use crate::reference_type::{ReferenceType, WorkerReferenceSubType};
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, TraceRawVcs)]
+#[derive(
+    Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, TraceRawVcs,
+)]
 pub enum WorkerType {
     WebWorker,
     SharedWebWorker,
