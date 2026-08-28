@@ -614,9 +614,7 @@ jobs:
   test-new-tests-dev:
     name: Test new tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
-    if: false
-    # test-new-tests-end-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -642,9 +640,7 @@ jobs:
   test-new-tests-start:
     name: Test new tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
-    if: false
-    # test-new-tests-end-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -668,10 +664,8 @@ jobs:
 
   test-new-tests-deploy:
     name: Test new tests when deployed
-    needs: ['optimize-ci', 'test-prod', 'test-new-tests-start']
-    # test-new-tests-if
-    if: false
-    # test-new-tests-end-if
+    needs: ['optimize-ci', 'changes', 'test-prod', 'test-new-tests-start']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
 
     strategy:
       fail-fast: false
