@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "ridgeline-anorak",
+    "name": "Ridgeline Anorak",
+    "price": 189,
+    "description": "Weatherproof shell for shoulder-season summits."
+  },
+  {
+    "slug": "basecamp-flask",
+    "name": "Basecamp Flask",
+    "price": 32,
+    "description": "Vacuum-insulated 750ml flask that keeps tea hot overnight."
+  },
+  {
+    "slug": "switchback-pants",
+    "name": "Switchback Pants",
+    "price": 98,
+    "description": "Zip-off hiking pants with articulated knees."
+  },
+  {
+    "slug": "cloudrest-quilt",
+    "name": "Cloudrest Quilt",
+    "price": 249,
+    "description": "Down camping quilt rated to minus five."
+  }
+]
