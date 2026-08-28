@@ -243,14 +243,9 @@ pub struct StaticSortedFile {
 }
 
 impl StaticSortedFile {
-    /// Opens an LZ4-compressed SST file at the given path. This memory maps the file, but does not
-    /// read it yet. Databases with per-family compression use the configuration-aware internal
-    /// constructor instead.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
-        Self::open_with_compression(db_path, meta, Compression::Lz4)
-    }
-
-    pub(crate) fn open_with_compression(
+    /// Opens an SST file at the given path with the compression algorithm specified by its meta
+    /// file. This memory maps the file, but does not read it yet.
+    pub fn open(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,
@@ -838,15 +833,10 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
-    /// Opens an LZ4-compressed SST file for sequential iteration. Uses `MADV_SEQUENTIAL` for
-    /// read-ahead and wraps the mmap in `Rc<Mmap>` directly (no `Arc`), eliminating all atomic
-    /// refcounting during iteration. Database compaction uses the configuration-aware internal
-    /// constructor instead.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
-        Self::open_with_compression(db_path, meta, Compression::Lz4)
-    }
-
-    pub(crate) fn open_with_compression(
+    /// Opens an SST file for sequential iteration with the compression algorithm specified by its
+    /// meta file. Uses `MADV_SEQUENTIAL` for read-ahead and wraps the mmap in `Rc<Mmap>` directly
+    /// (no `Arc`), eliminating all atomic refcounting during iteration.
+    pub fn open(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,

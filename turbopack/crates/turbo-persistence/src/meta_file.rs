@@ -155,13 +155,14 @@ impl MetaEntry {
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open_with_compression(&meta.db_path, self.sst_data, self.compression)
-                .with_context(|| {
+            StaticSortedFile::open(&meta.db_path, self.sst_data, self.compression).with_context(
+                || {
                     format!(
                         "Unable to open static sorted file referenced from {:08}.meta",
                         meta.sequence_number()
                     )
-                })
+                },
+            )
         })
     }
 

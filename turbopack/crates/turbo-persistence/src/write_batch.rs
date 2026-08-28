@@ -547,7 +547,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             };
 
             file.sync_all()?;
-            let sst = StaticSortedFile::open_with_compression(
+            let sst = StaticSortedFile::open(
                 &self.db_path,
                 StaticSortedFileMetaData {
                     sequence_number: seq,

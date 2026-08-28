@@ -1212,7 +1212,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 sequence_number: 1,
                 block_count: meta.block_count,
             };
-            let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
+            let sst = StaticSortedFile::open(tempdir.path(), sst_meta, Compression::Lz4).unwrap();
 
             // Create block caches
             let key_block_cache: BlockCache = BlockCache::with(

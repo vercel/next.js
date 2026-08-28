@@ -1601,7 +1601,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFileIter::open_with_compression(
+                                    StaticSortedFileIter::open(
                                         path,
                                         entry.sst_metadata(),
                                         self.config.family_configs[family as usize].compression,
