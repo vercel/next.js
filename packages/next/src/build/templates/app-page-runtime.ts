@@ -964,6 +964,8 @@ export function createAppPageEntrypoint({
                 nextConfig.experimental.disableResumeDataCacheCompression ??
                 false,
               exposeTestingApi,
+              externalBrowserRuntime:
+                nextConfig.experimental.externalBrowserRuntime === true,
             },
 
             waitUntil: ctx.waitUntil,

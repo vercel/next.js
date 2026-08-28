@@ -630,6 +630,8 @@ export default abstract class Server<
           (this.dev === true ||
             this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
               true),
+        externalBrowserRuntime:
+          this.nextConfig.experimental.externalBrowserRuntime === true,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),

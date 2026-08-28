@@ -102,12 +102,17 @@ pub async fn get_next_client_import_map(
             let taint = *next_config.enable_taint().await?;
             let transition_indicator = *next_config.enable_transition_indicator().await?;
             let gesture_transition = *next_config.enable_gesture_transition().await?;
-            let react_channel =
-                if blocking_ssr || taint || transition_indicator || gesture_transition {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let external_browser_runtime = *next_config.enable_external_browser_runtime().await?;
+            let react_channel = if blocking_ssr
+                || taint
+                || transition_indicator
+                || gesture_transition
+                || external_browser_runtime
+            {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
@@ -887,7 +892,13 @@ async fn apply_vendored_react_aliases_server(
     let taint = *next_config.enable_taint().await?;
     let transition_indicator = *next_config.enable_transition_indicator().await?;
     let gesture_transition = *next_config.enable_gesture_transition().await?;
-    let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
+    let external_browser_runtime = *next_config.enable_external_browser_runtime().await?;
+    let react_channel = if blocking_ssr
+        || taint
+        || transition_indicator
+        || gesture_transition
+        || external_browser_runtime
+    {
         "-experimental"
     } else {
         ""

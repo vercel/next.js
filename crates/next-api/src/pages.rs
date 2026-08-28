@@ -1313,6 +1313,8 @@ impl PageEndpoint {
             client_relative_path,
             pages,
             polyfill_files: Default::default(),
+            // App Router only for now; the Pages Router still inlines React's instructions.
+            external_browser_runtime_file: None,
             root_main_files: Default::default(),
             root_main_files_per_page: Default::default(),
             pages_chunk_group_bootstrap_params,

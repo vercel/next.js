@@ -197,6 +197,8 @@ async function requestHandler(
           nextConfig.cacheComponents === true &&
           (pageRouteModule.isDev === true ||
             nextConfig.experimental.exposeTestingApiInProductionBuild === true),
+        externalBrowserRuntime:
+          nextConfig.experimental.externalBrowserRuntime === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

@@ -1385,6 +1385,9 @@ pub struct ExperimentalConfig {
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
     blocking_ssr: Option<bool>,
+    /// Streams React's instruction set as data plus a standalone browser runtime
+    /// asset instead of inline `<script>` tags.
+    external_browser_runtime: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -2442,6 +2445,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_blocking_ssr(&self) -> Vc<bool> {
         Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_external_browser_runtime(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.external_browser_runtime.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
