@@ -9,7 +9,6 @@ related:
     - app/guides/instant-navigation
     - app/guides/view-transitions
     - app/guides/interactive-apps
-    - app/guides/profiling-performance
 ---
 
 Loading UI goes wrong in a small number of recognizable ways. A route-level `loading.tsx` ends up competing with a page skeleton and a per-query spinner, or one coarse boundary hides a header that could have painted immediately. Sections reveal in whatever order their data returns and push the ones below them down, and a skeleton that reserves the wrong height makes the page jump when the real rows arrive.
@@ -290,7 +289,7 @@ Both queries still run in parallel. Nesting delays the reveal of a finished sect
 
 Sibling boundaries are right when the regions are visually independent, such as dashboard cards in a grid, because each card can appear as soon as its data is ready and nothing below it has to move. One boundary around the whole stack is right when per-section reveals aren't worth the extra fallbacks.
 
-> **Good to know**: The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows these sections streaming in the Performance panel, so you can confirm the queries run in parallel and spot a boundary that gates too much content.
+> **Good to know**: The Chrome Performance panel shows these sections streaming, so you can confirm the queries really do run in parallel and spot a boundary that gates too much content.
 
 ### Stable labels that disappear and reappear
 
@@ -539,4 +538,3 @@ Next, learn how to:
 - [Stream a page](/docs/app/guides/streaming) and see how the HTML arrives.
 - [Ensure instant navigations](/docs/app/guides/instant-navigation) so the shell is already on screen when the user clicks.
 - [Build interactive apps](/docs/app/guides/interactive-apps) with transitions, optimistic UI, and form feedback.
-- [Profile performance](/docs/app/guides/profiling-performance) to find a boundary that gates too much content.
