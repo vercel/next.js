@@ -8,10 +8,7 @@ use std::{
 
 use memmap2::Mmap;
 
-use crate::{
-    compression::decompress_into_arc,
-    shared_bytes::{SharedBytes, is_subslice_of},
-};
+use crate::compression::decompress_into_arc;
 
 /// The backing storage for an `ArcBytes`.
 #[derive(Clone)]
@@ -88,6 +85,12 @@ impl Debug for ArcBytes<'_> {
 
 impl Eq for ArcBytes<'_> {}
 
+fn is_subslice_of(subslice: &[u8], backing: &[u8]) -> bool {
+    let backing = backing.as_ptr_range();
+    let subslice = subslice.as_ptr_range();
+    subslice.start >= backing.start && subslice.end <= backing.end
+}
+
 fn backing_as_slice<'a>(backing: &'a Backing<'a>) -> &'a [u8] {
     match backing {
         Backing::Arc { _backing } => _backing,
@@ -159,24 +162,10 @@ impl<'l> ArcBytes<'l> {
             backing: Backing::MmapRef { _backing: mmap },
         }
     }
-}
-
-impl SharedBytes for ArcBytes<'static> {
-    type MmapHandle = Arc<Mmap>;
-
-    fn slice(self, range: Range<usize>) -> Self {
-        ArcBytes::slice(self, range)
-    }
-
-    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
-        unsafe { ArcBytes::slice_from_subslice(self, subslice) }
-    }
-
-    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
-        unsafe { ArcBytes::from_mmap(mmap.clone(), subslice) }
-    }
-
-    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+    pub(crate) fn from_decompressed(
+        uncompressed_length: u32,
+        block: &[u8],
+    ) -> anyhow::Result<ArcBytes<'static>> {
         Ok(ArcBytes::from(decompress_into_arc(
             uncompressed_length,
             block,
