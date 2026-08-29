@@ -124,7 +124,17 @@ function rscPayload(): string {
 
 /** Source files the agent controls (excludes deps, build output, content, EVAL). */
 function sourceFiles(): string[] {
-  const skip = new Set(['node_modules', '.next', 'content', '.git'])
+  // __agent_eval__ is the harness's own in-sandbox runtime dir; its helper
+  // files use fs and must never count against the agent's solution. Its
+  // absence here made the eval structurally unpassable in-sandbox (found via
+  // the b20 docs-arm arbitration) — baseline reruns required after this fix.
+  const skip = new Set([
+    'node_modules',
+    '.next',
+    'content',
+    '.git',
+    '__agent_eval__',
+  ])
   const files: string[] = []
   for (const entry of readdirSync(ROOT, { withFileTypes: true })) {
     if (skip.has(entry.name)) continue
