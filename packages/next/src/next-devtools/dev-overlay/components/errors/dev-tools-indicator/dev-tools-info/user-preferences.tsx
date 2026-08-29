@@ -10,6 +10,7 @@ import { NEXT_DEV_TOOLS_SCALE } from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
+import * as React from 'react'
 import { ShortcutRecorder } from './shortcut-recorder'
 import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
 import { saveDevToolsConfig } from '../../../../utils/save-devtools-config'
@@ -230,16 +231,146 @@ export function UserPreferencesBody({
 function Select({
   children,
   prefix,
-  ...props
+  value,
+  onChange,
+  id,
+  name,
 }: {
   prefix?: React.ReactNode
-} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix'>) {
+  value: string | number
+  onChange: (e: any) => void
+  id?: string
+  name?: string
+  children: React.ReactNode
+}) {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const [focusedIndex, setFocusedIndex] = React.useState(-1)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  const options = React.Children.toArray(children)
+    .filter(
+      (child): child is React.ReactElement =>
+        React.isValidElement(child) && child.type === 'option'
+    )
+    .map((child) => {
+      const props = child.props as {
+        value: string | number
+        children: React.ReactNode
+      }
+      return {
+        value: props.value,
+        label: props.children,
+      }
+    })
+
+  const selectedOption =
+    options.find((opt) => opt.value === value) || options[0]
+
+  React.useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const path = e.composedPath()
+      if (containerRef.current && !path.includes(containerRef.current)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      window.addEventListener('click', handleOutsideClick)
+    }
+    return () => window.removeEventListener('click', handleOutsideClick)
+  }, [isOpen])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!isOpen) {
+        setIsOpen(true)
+        setFocusedIndex(options.findIndex((opt) => opt.value === value))
+        e.preventDefault()
+      } else if (focusedIndex !== -1) {
+        selectValue(options[focusedIndex].value)
+        e.preventDefault()
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!isOpen) {
+        setIsOpen(true)
+        setFocusedIndex(options.findIndex((opt) => opt.value === value))
+      } else {
+        setFocusedIndex((prev) => (prev < options.length - 1 ? prev + 1 : prev))
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!isOpen) {
+        setIsOpen(true)
+        setFocusedIndex(options.findIndex((opt) => opt.value === value))
+      } else {
+        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : prev))
+      }
+    }
+  }
+
+  const selectValue = (newValue: string | number | undefined) => {
+    if (newValue === undefined) return
+    const mockEvent = {
+      target: { value: newValue, name, id },
+    }
+    onChange(mockEvent)
+    setIsOpen(false)
+  }
+
   return (
-    <div className="select-button">
-      {prefix}
-      <select {...props}>{children}</select>
-      <ChevronDownIcon />
+    <div
+      className="select-container"
+      ref={containerRef}
+      onKeyDown={handleKeyDown}
+    >
+      <button
+        type="button"
+        className="select-button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        id={id}
+        name={name}
+      >
+        {prefix}
+        <span className="select-value">{selectedOption?.label}</span>
+        <ChevronDownIcon />
+      </button>
+
+      {isOpen && (
+        <ul className="select-dropdown" role="listbox">
+          {options.map((opt, index) => (
+            <li
+              key={String(opt.value)}
+              role="option"
+              aria-selected={opt.value === value}
+              className={`select-option ${focusedIndex === index ? 'focused' : ''}`}
+              onClick={() => selectValue(opt.value)}
+              onMouseEnter={() => setFocusedIndex(index)}
+            >
+              {opt.label}
+              {opt.value === value && <CheckIcon />}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 
@@ -327,20 +458,62 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     }
   }
 
+  .select-container {
+    position: relative;
+  }
+
   .select-button {
-    &:focus-within {
+    &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: -1px;
     }
 
-    select {
-      all: unset;
-    }
+    cursor: pointer;
+    min-width: 140px;
+    justify-content: space-between;
+  }
 
-    option {
-      color: var(--color-gray-1000);
-      background: var(--color-background-100);
-    }
+  .select-value {
+    flex: 1;
+    text-align: left;
+  }
+
+  .select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 100%;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--rounded-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .select-option {
+    padding: 6px 8px;
+    border-radius: var(--rounded-md);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--size-14);
+    color: var(--color-gray-1000);
+    transition: background-color 150ms var(--timing-swift);
+  }
+
+  .select-option:hover,
+  .select-option.focused {
+    background: var(--color-gray-400);
+  }
+
+  .select-option[aria-selected='true'] {
+    font-weight: 500;
   }
 
   .preference-section button:disabled {
