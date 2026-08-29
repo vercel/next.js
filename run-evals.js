@@ -72,8 +72,8 @@ function writeExperiments(evalName) {
 ${v.imports}
 
 const config: ExperimentConfig = {
-  agent: 'claude-code',
-  model: 'claude-opus-4-6',${evalsField}
+  agent: 'vercel-ai-gateway/claude-code',
+  model: 'claude-opus-4-8',${evalsField}
   scripts: ['build'],
   runs: 1,
   earlyExit: true,
@@ -136,9 +136,6 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
-  // Flags not consumed here are forwarded to agent-eval.
-  const forward = argv.dry ? ['--dry'] : []
-
   if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
     console.error(
       'packages/next/dist not found. Run `pnpm --filter=next build` first.'
@@ -180,7 +177,10 @@ function main() {
   // the bin directly rather than via `pnpm exec` because pnpm resets cwd to
   // the workspace root, but agent-eval resolves experiments/ from process.cwd().
   const bin = path.join(ROOT, 'node_modules/.bin/agent-eval')
-  const result = spawnSync(bin, ['run-all', '--force', ...forward], {
+  const command = argv.dry
+    ? ['status', 'baseline', 'agents-md']
+    : ['run', 'baseline', 'agents-md', '--force']
+  const result = spawnSync(bin, command, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
     env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },
