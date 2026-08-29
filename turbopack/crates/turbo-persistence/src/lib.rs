@@ -1,3 +1,4 @@
+#![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![feature(once_cell_try)]
 #![feature(sync_unsafe_cell)]
 
@@ -35,6 +36,15 @@ pub use db::{
     TurboPersistence, read_current_version,
 };
 
+/// Controls how SST and meta files are read from disk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AccessMode {
+    /// Memory-map the file and access blocks via the mapped region.
+    Mmap,
+    /// Read blocks directly from the file via pread (no mmap).
+    File,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {
     /// Each key maps to a single value (default LSM behavior).
@@ -63,21 +73,48 @@ pub struct FamilyConfig {
 #[derive(Clone, Debug)]
 pub struct DbConfig<const FAMILIES: usize> {
     pub family_configs: [FamilyConfig; FAMILIES],
+    /// How SST and meta files are read from disk.
+    pub access_mode: AccessMode,
 }
 
-impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
-    fn default() -> Self {
+/// Reads the `TURBO_PERSISTENCE_MMAP` env var (cached). Returns `AccessMode::File` when the var
+/// is set to `"0"`, `AccessMode::Mmap` otherwise.
+fn access_mode_env_var() -> AccessMode {
+    static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
+        if std::env::var("TURBO_PERSISTENCE_MMAP")
+            .ok()
+            .is_some_and(|v| v == "0")
+        {
+            AccessMode::File
+        } else {
+            AccessMode::Mmap
+        }
+    });
+    *ACCESS_MODE_ENV
+}
+
+impl<const FAMILIES: usize> DbConfig<FAMILIES> {
+    /// Returns a config with all defaults, reading the `TURBO_PERSISTENCE_MMAP` env var
+    /// to determine the access mode.
+    pub fn new() -> Self {
         Self {
             family_configs: [FamilyConfig {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
             }; FAMILIES],
+            access_mode: access_mode_env_var(),
         }
     }
 }
 /// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
 /// a copy of the value inline.
 pub use constants::MAX_INLINE_VALUE_SIZE;
+
+impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
