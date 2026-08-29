@@ -12,30 +12,34 @@ use crate::{
     compression::decompress_into_arc,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
+
 /// The backing storage for an `ArcBytes`.
-///
-/// The inner values are never read directly — they exist solely to keep the
-/// backing memory alive while the raw `data` pointer in `ArcBytes` references it.
 #[derive(Clone)]
-enum Backing {
-    Arc { _backing: Arc<[u8]> },
-    Mmap { _backing: Arc<Mmap> },
+enum Backing<'l> {
+    Arc {
+        _backing: Arc<[u8]>,
+    },
+    Mmap {
+        _backing: Arc<Mmap>,
+    },
+    /// Borrows an mmap handle when the byte view cannot escape the caller's scope.
+    MmapRef {
+        _backing: &'l Arc<Mmap>,
+    },
 }
 
-/// An owned byte slice backed by either an `Arc<[u8]>` or a memory-mapped file.
+/// A byte slice backed by owned bytes, an owned mmap handle, or a borrowed mmap handle.
 #[derive(Clone)]
-pub struct ArcBytes {
+pub struct ArcBytes<'l> {
     data: *const [u8],
-    // Safety: Backing should come last so that it is dropped after the data pointer so we don't
-    // create a dangling pointer.  This isn't really a problem since it is technically ok to have
-    // dangling _pointers_.
-    backing: Backing,
+    // Keep the backing after the raw pointer so it is dropped last.
+    backing: Backing<'l>,
 }
 
-unsafe impl Send for ArcBytes {}
-unsafe impl Sync for ArcBytes {}
+unsafe impl Send for ArcBytes<'_> {}
+unsafe impl Sync for ArcBytes<'_> {}
 
-impl From<Arc<[u8]>> for ArcBytes {
+impl From<Arc<[u8]>> for ArcBytes<'static> {
     fn from(arc: Arc<[u8]>) -> Self {
         Self {
             data: &*arc as *const [u8],
@@ -44,13 +48,13 @@ impl From<Arc<[u8]>> for ArcBytes {
     }
 }
 
-impl From<Box<[u8]>> for ArcBytes {
-    fn from(b: Box<[u8]>) -> Self {
-        Self::from(Arc::from(b))
+impl From<Box<[u8]>> for ArcBytes<'static> {
+    fn from(bytes: Box<[u8]>) -> Self {
+        Self::from(Arc::from(bytes))
     }
 }
 
-impl Deref for ArcBytes {
+impl Deref for ArcBytes<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -58,90 +62,118 @@ impl Deref for ArcBytes {
     }
 }
 
-impl Borrow<[u8]> for ArcBytes {
+impl Borrow<[u8]> for ArcBytes<'_> {
     fn borrow(&self) -> &[u8] {
         self
     }
 }
 
-impl Hash for ArcBytes {
+impl Hash for ArcBytes<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.deref().hash(state)
     }
 }
 
-impl PartialEq for ArcBytes {
+impl PartialEq for ArcBytes<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.deref().eq(other.deref())
     }
 }
 
-impl Debug for ArcBytes {
+impl Debug for ArcBytes<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         Debug::fmt(&**self, f)
     }
 }
 
-impl Eq for ArcBytes {}
+impl Eq for ArcBytes<'_> {}
 
-impl ArcBytes {
-    /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
-    pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.backing, Backing::Mmap { .. })
-    }
-
-    /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
-    /// are other `Arc` clones referencing the same data outside the cache).
-    /// Always returns `false` for mmap-backed bytes, since the mmap `Arc` is
-    /// shared across all slices from the same file and is not a useful signal.
-    pub fn is_shared_arc(&self) -> bool {
-        match &self.backing {
-            Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
-            Backing::Mmap { .. } => false,
-        }
+fn backing_as_slice<'a>(backing: &'a Backing<'a>) -> &'a [u8] {
+    match backing {
+        Backing::Arc { _backing } => _backing,
+        Backing::Mmap { _backing } => _backing,
+        Backing::MmapRef { _backing } => _backing,
     }
 }
 
-impl SharedBytes for ArcBytes {
-    type MmapHandle = Arc<Mmap>;
-
-    fn slice(self, range: Range<usize>) -> Self {
-        let data = &*self;
-        let data = &data[range] as *const [u8];
+impl<'l> ArcBytes<'l> {
+    pub fn slice(self, range: Range<usize>) -> Self {
+        let data = &self[range] as *const [u8];
         Self {
             data,
             backing: self.backing,
         }
     }
 
-    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
-        debug_assert!(
-            is_subslice_of(
-                subslice,
-                match &self.backing {
-                    Backing::Arc { _backing } => _backing,
-                    Backing::Mmap { _backing } => _backing,
-                }
-            ),
-            "slice_from_subslice: subslice is not within the backing storage"
-        );
+    /// # Safety
+    /// `subslice` must point into this value's backing storage.
+    pub unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
+        debug_assert!(is_subslice_of(subslice, backing_as_slice(&self.backing)));
         Self {
             data: subslice as *const [u8],
             backing: self.backing.clone(),
         }
     }
 
-    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
-        debug_assert!(
-            is_subslice_of(subslice, mmap),
-            "from_mmap: subslice is not within the mmap"
-        );
+    /// Promotes a borrowed mmap view by cloning its mmap handle.
+    pub fn into_static(self) -> ArcBytes<'static> {
         ArcBytes {
-            data: subslice as *const [u8],
-            backing: Backing::Mmap {
-                _backing: mmap.clone(),
+            data: self.data,
+            backing: match self.backing {
+                Backing::Arc { _backing } => Backing::Arc { _backing },
+                Backing::Mmap { _backing } => Backing::Mmap { _backing },
+                Backing::MmapRef { _backing } => Backing::Mmap {
+                    _backing: _backing.clone(),
+                },
             },
         }
+    }
+
+    pub fn is_mmap_backed(&self) -> bool {
+        matches!(self.backing, Backing::Mmap { .. } | Backing::MmapRef { .. })
+    }
+
+    pub fn is_shared_arc(&self) -> bool {
+        match &self.backing {
+            Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
+            Backing::Mmap { .. } | Backing::MmapRef { .. } => false,
+        }
+    }
+
+    /// # Safety
+    /// `subslice` must point into `mmap`.
+    pub unsafe fn from_mmap(mmap: Arc<Mmap>, subslice: &[u8]) -> ArcBytes<'static> {
+        debug_assert!(is_subslice_of(subslice, &mmap));
+        ArcBytes {
+            data: subslice as *const [u8],
+            backing: Backing::Mmap { _backing: mmap },
+        }
+    }
+
+    /// # Safety
+    /// `subslice` must point into `mmap`.
+    pub unsafe fn from_mmap_ref(mmap: &'l Arc<Mmap>, subslice: &[u8]) -> Self {
+        debug_assert!(is_subslice_of(subslice, mmap));
+        Self {
+            data: subslice as *const [u8],
+            backing: Backing::MmapRef { _backing: mmap },
+        }
+    }
+}
+
+impl SharedBytes for ArcBytes<'static> {
+    type MmapHandle = Arc<Mmap>;
+
+    fn slice(self, range: Range<usize>) -> Self {
+        ArcBytes::slice(self, range)
+    }
+
+    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
+        unsafe { ArcBytes::slice_from_subslice(self, subslice) }
+    }
+
+    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
+        unsafe { ArcBytes::from_mmap(mmap.clone(), subslice) }
     }
 
     fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
@@ -149,5 +181,24 @@ impl SharedBytes for ArcBytes {
             uncompressed_length,
             block,
         )?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use super::*;
+
+    #[test]
+    fn borrowed_mmap_can_be_sliced_and_promoted() -> anyhow::Result<()> {
+        let mut file = tempfile::tempfile()?;
+        file.write_all(b"0123456789")?;
+        let mmap = Arc::new(unsafe { Mmap::map(&file)? });
+        let borrowed = unsafe { ArcBytes::from_mmap_ref(&mmap, &mmap[2..8]) };
+        let promoted = borrowed.slice(1..5).into_static();
+        drop(mmap);
+        assert_eq!(&*promoted, b"3456");
+        Ok(())
     }
 }

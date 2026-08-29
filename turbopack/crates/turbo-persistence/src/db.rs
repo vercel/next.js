@@ -654,7 +654,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
+    fn read_blob(&self, seq: u32) -> Result<ArcBytes<'static>> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)?;
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
@@ -1961,7 +1961,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
-    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes<'static>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -1993,7 +1993,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         key: &K,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+    ) -> Result<SmallVec<[ArcBytes<'static>; 1]>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::MultiValue {
             // This is an error in our caller so just panic
@@ -2019,10 +2019,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         family: usize,
         key: &K,
         span: &EnteredSpan,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+    ) -> Result<SmallVec<[ArcBytes<'static>; 1]>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
-        let mut output: SmallVec<[ArcBytes; 1]> = SmallVec::new();
+        let mut output: SmallVec<[ArcBytes<'static>; 1]> = SmallVec::new();
         // Track whether we found the key in any SST (even if deleted).
         // Used for miss_global stat: only fires if key was never found anywhere.
         #[cfg(feature = "stats")]
@@ -2031,7 +2031,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // Values deleted by key-value tombstones seen so far. Because we walk meta files newest
         // first, and tombstones sort first within a key group, every tombstone that could apply to
         // a value has already been seen by the time we reach that value.
-        let mut deleted_values: AutoSet<ArcBytes, BuildHasherDefault<FxHasher>, 1> =
+        let mut deleted_values: AutoSet<ArcBytes<'static>, BuildHasherDefault<FxHasher>, 1> =
             AutoSet::default();
 
         let mut size = 0;
@@ -2147,7 +2147,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcBytes>>> {
+    ) -> Result<Vec<Option<ArcBytes<'static>>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic

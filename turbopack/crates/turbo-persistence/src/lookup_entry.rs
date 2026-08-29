@@ -9,7 +9,7 @@ use crate::{
 /// `ArcBytes` for the lookup path. The compaction/iteration path uses
 /// `LookupValue<RcBytes>` which is convertible to `IterValue`.
 #[derive(PartialEq)]
-pub enum LookupValue<B = ArcBytes> {
+pub enum LookupValue<B = ArcBytes<'static>> {
     /// The value was deleted.
     KeyDeleted,
     /// A single value was deleted from this key's group (MultiValue families only). Other values
