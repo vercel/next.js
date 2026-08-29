@@ -133,10 +133,7 @@ stored in:
 See [Entry ordering](#entry-ordering) for why the two differ.
 
 The hash lives in the offset table rather than beside its key so that a lookup's binary search reads
-only that dense array. A probe would otherwise load the table word and then chase a data-dependent
-position into the payload; with the hash hoisted, the payload is touched once on a match and never
-on a miss. Total bytes are unchanged — the table grows by 8 per entry and the payload shrinks by the
-same — so this is a permutation, not a size change. Fixed-size key blocks apply the same idea; see
+only that dense array. Fixed-size key blocks apply the same idea; see
 [Two regions, not interleaved](#two-regions-not-interleaved).
 
 Depending on the `type` field entry has a different format:
@@ -173,7 +170,7 @@ the inline range.
 
 ##### Entry ordering
 
-Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a single key block, however, the order is chosen per block type:
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a key block, the order may be different
 
 - **With hash (types 1 and 3):** sorted by `(key hash, key)`.
 - **No hash (types 2 and 4):** sorted by **key** alone.
@@ -223,26 +220,19 @@ mixed marker because it is not itself a valid entry type.
 
 ##### Two regions, not interleaved
 
-Entries are split into a **search region** and a **tail region**, both indexed by the same entry
-number, rather than being stored as one interleaved record per entry. The search region holds
-exactly the bytes a lookup's binary search compares *first* — the hash for block type 3, the key for
-block type 4 (see [Entry ordering](#entry-ordering)) — and the tail region holds everything else.
-
-This exists for cache behaviour. A probe only needs the leading comparison bytes, so interleaving
-forces each probe to pull a cache line that is mostly key and value payload it will not read. With
-the regions split, a probe walks a dense array: 8 bytes per entry for a hashed block regardless of
-how long the keys are. For a block of 75 entries with 200-byte keys, the searched span shrinks from
-about 16 kB to 480 bytes.
-
-Byte count is unchanged — this is a permutation, not a size change, so it does not affect how many
-entries fit in a block. Note the split point follows the *comparison*, not the key/value boundary:
-for a hashed block the key moves into the tail with the value, because the search reads the key only
-when two hashes are equal, which for a 64-bit hash is vanishingly rare.
+Rather than one interleaved record per entry, entries are split into a **search region** and a
+**tail region**, indexed by the same entry number. The search region holds only the bytes binary
+search compares first — the hash for block type `3`, the key for block type `4` (see
+[Entry ordering](#entry-ordering)) — so a probe searches the dense prefix region. The _values_ are then found by index in the **tail**
+after the search succeeds.
 
 Entry positions for index `i` are `header_size + i * search_stride` and
-`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection. The writer
-automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to
-the variable-size format above, which is still interleaved behind an offset table.
+`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection.
+
+The search region must be in ascending order for that binary search to be valid. This is inherited
+from the `(key hash, key)` order the writer requires of its input, not established per block, so
+reordering entries within a block is a format violation rather than a free choice — see
+[Entry ordering](#entry-ordering).
 
 #### Value Block
 

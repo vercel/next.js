@@ -445,7 +445,6 @@ impl StaticSortedFile {
         layout: KeyBlockLayout,
         reader: ArcBlockCacheReader<'_>,
     ) -> Result<SstLookupResult> {
-        let hash_len = layout.hash_len();
         ensure!(block.len() >= 6, "fixed key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let key_size = be::read_u8(&block[4..]) as usize;
@@ -455,7 +454,7 @@ impl StaticSortedFile {
             val_size,
             header_size,
         } = fixed_value_layout(&block, header_type)?;
-        let regions = FixedRegions::new(entry_count, hash_len, key_size, val_size);
+        let regions = FixedRegions::new(entry_count, layout, key_size, val_size);
         let entries = &block[header_size..];
         ensure!(
             entries.len() == regions.total_len(entry_count),
@@ -984,7 +983,7 @@ impl StaticSortedFileIter {
                 val_size,
                 header_size,
             } = fixed_value_layout(data, data[5])?;
-            let regions = FixedRegions::new(entry_count as usize, hash_len, key_size, val_size);
+            let regions = FixedRegions::new(entry_count as usize, layout, key_size, val_size);
             let entries = block.slice(header_size..block_len);
             ensure!(
                 entries.len() == regions.total_len(entry_count as usize),
@@ -1253,37 +1252,70 @@ fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout>
 ///
 /// A fixed block stores the bytes the binary search probes in a dense leading region and everything
 /// else in a trailing region at the same entry index, so a probe touches one small stride rather
-/// than a full interleaved entry. See [`FixedRegions::new`].
+/// than a full interleaved entry.
+///
+/// This is the single owner of that geometry: the reader, the writer, and `sst_inspect` all derive
+/// their offsets from here, so a change to which bytes go in the search region is made once. It is
+/// the fixed-block counterpart to [`key_block_table_stride`] for variable-size blocks.
 #[derive(Clone, Copy)]
-struct FixedRegions {
-    /// Bytes per entry in the search region: the hash (`HashThenKey`) or the key (`KeyOnly`).
+pub struct FixedRegions {
+    /// Which bytes the search region holds: the hash (`HashThenKey`) or the key (`KeyOnly`).
+    layout: KeyBlockLayout,
+    /// Bytes per entry in the search region.
     search_stride: usize,
     /// Offset of the tail region, relative to the start of the entry data.
     tail_start: usize,
     /// Bytes per entry in the tail region.
     tail_stride: usize,
     key_size: usize,
-    hash_len: usize,
 }
 
 impl FixedRegions {
-    /// `val_size` is the tail's per-entry value footprint as reported by [`fixed_value_layout`],
-    /// which already includes the per-entry type byte of a mixed-type block.
-    fn new(entry_count: usize, hash_len: u8, key_size: usize, val_size: usize) -> Self {
-        let hash_len = hash_len as usize;
+    /// `val_size` is the tail's per-entry value footprint: the value bytes plus the per-entry type
+    /// byte of a mixed-type block. [`fixed_value_layout`] already folds that byte in; a caller
+    /// computing it from a block header must add it itself.
+    pub fn new(
+        entry_count: usize,
+        layout: KeyBlockLayout,
+        key_size: usize,
+        val_size: usize,
+    ) -> Self {
         // `HashThenKey` searches the hashes and keeps the key with the value; `KeyOnly` has no
         // hash, so the key itself is the search region.
-        let (search_stride, tail_stride) = if hash_len > 0 {
-            (hash_len, key_size + val_size)
-        } else {
-            (key_size, val_size)
+        let (search_stride, tail_stride) = match layout {
+            KeyBlockLayout::HashThenKey => (layout.hash_len() as usize, key_size + val_size),
+            KeyBlockLayout::KeyOnly => (key_size, val_size),
         };
         Self {
+            layout,
             search_stride,
             tail_start: entry_count * search_stride,
             tail_stride,
             key_size,
-            hash_len,
+        }
+    }
+
+    /// Bytes per entry in the search region, for sizing that region.
+    pub fn search_stride(&self) -> usize {
+        self.search_stride
+    }
+
+    /// Bytes per entry in the tail region, for sizing that region.
+    pub fn tail_stride(&self) -> usize {
+        self.tail_stride
+    }
+
+    /// Offset of the tail region, relative to the start of the entry data.
+    pub fn tail_start(&self) -> usize {
+        self.tail_start
+    }
+
+    /// Bytes of a tail entry that precede its value: the key for `HashThenKey`, nothing for
+    /// `KeyOnly`, which keeps its key in the search region.
+    pub fn tail_key_size(&self) -> usize {
+        match self.layout {
+            KeyBlockLayout::HashThenKey => self.key_size,
+            KeyBlockLayout::KeyOnly => 0,
         }
     }
 
@@ -1300,26 +1332,24 @@ fn get_fixed_key_entry<'l>(
     value_type: Option<u8>,
 ) -> Result<GetKeyEntryResult<'l>> {
     let FixedRegions {
+        layout,
         search_stride,
         tail_start,
         tail_stride,
         key_size,
-        hash_len,
     } = regions;
     // The search region holds only what the binary search compares first: the hash for
     // `HashThenKey` blocks, the key for `KeyOnly` blocks. Everything else lives in the tail region
     // at the same entry index.
     let search = index * search_stride;
     let tail = tail_start + index * tail_stride;
-    let (hash, key_from_tail) = if hash_len > 0 {
-        (&entries[search..search + hash_len], true)
-    } else {
-        (&entries[..0], false)
-    };
-    let (key, tail_rest) = if key_from_tail {
-        (&entries[tail..tail + key_size], tail + key_size)
-    } else {
-        (&entries[search..search + key_size], tail)
+    let (hash, key, tail_rest) = match layout {
+        KeyBlockLayout::HashThenKey => (
+            &entries[search..search + search_stride],
+            &entries[tail..tail + key_size],
+            tail + key_size,
+        ),
+        KeyBlockLayout::KeyOnly => (&entries[..0], &entries[search..search + key_size], tail),
     };
     // In a mixed-type block the entry's type byte precedes its value in the tail region.
     let (ty, val_start) = match value_type {

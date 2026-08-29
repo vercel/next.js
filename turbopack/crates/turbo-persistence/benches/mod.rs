@@ -1195,8 +1195,8 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 })
                 .collect();
 
-            // Sort by hash (required by write_static_stored_file)
-            entries.sort_by_key(|e| e.hash);
+            // Sort by (hash, key) order, as required by write_static_stored_file
+            entries.sort_by_key(|e| (e.hash, e.key));
 
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
