@@ -291,7 +291,13 @@ function Select({
         e.preventDefault()
       }
     } else if (e.key === 'Escape') {
-      setIsOpen(false)
+      if (isOpen) {
+        // Only close the dropdown, and prevent the Escape from bubbling to the
+        // panel's document-level keydown handler, which would otherwise also
+        // close the entire Preferences panel.
+        e.stopPropagation()
+        setIsOpen(false)
+      }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       if (!isOpen) {
