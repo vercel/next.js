@@ -223,21 +223,15 @@ mixed marker because it is not itself a valid entry type.
 
 ##### Two regions, not interleaved
 
-Entries are split into a **search region** and a **tail region**, both indexed by the same entry
-number, rather than being stored as one interleaved record per entry. The search region holds
-exactly the bytes a lookup's binary search compares *first* — the hash for block type 3, the key for
-block type 4 (see [Entry ordering](#entry-ordering)) — and the tail region holds everything else.
-
-This exists for cache behaviour. A probe only needs the leading comparison bytes, so interleaving
-forces each probe to pull a cache line that is mostly key and value payload it will not read. With
-the regions split, a probe walks a dense array: 8 bytes per entry for a hashed block regardless of
-how long the keys are. For a block of 75 entries with 200-byte keys, the searched span shrinks from
-about 16 kB to 480 bytes.
-
-Byte count is unchanged — this is a permutation, not a size change, so it does not affect how many
-entries fit in a block. Note the split point follows the *comparison*, not the key/value boundary:
-for a hashed block the key moves into the tail with the value, because the search reads the key only
-when two hashes are equal, which for a 64-bit hash is vanishingly rare.
+Rather than one interleaved record per entry, entries are split into a **search region** and a
+**tail region**, indexed by the same entry number. The search region holds only the bytes binary
+search compares first — the hash for block type 3, the key for block type 4 (see
+[Entry ordering](#entry-ordering)) — so a probe walks a dense array instead of pulling cache lines
+that are mostly payload it will not read: 8 bytes per entry for a hashed block, whatever the key
+length. For 75 entries with 200-byte keys, the searched span drops from about 16 kB to 480 bytes.
+The split follows the comparison rather than the key/value boundary, so a hashed block's key sits in
+the tail; the search reads it only to break a hash tie. Total bytes are unchanged, so block capacity
+is unaffected.
 
 Entry positions for index `i` are `header_size + i * search_stride` and
 `header_size + entry_count * search_stride + i * tail_stride`, both with no indirection. The writer

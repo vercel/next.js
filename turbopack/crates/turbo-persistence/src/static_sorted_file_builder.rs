@@ -578,9 +578,9 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // Reusable buffer for the tail region of a key block (the bytes the binary search never
-    // probes), appended to `key_buffer` when the block is finished.
-    key_tail_buffer: Vec<u8>,
+    // Reusable buffer for the tail region of a key block: the key (when the search region holds
+    // hashes) and the value. Appended to `key_buffer` when the block is finished.
+    key_value_buffer: Vec<u8>,
 
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
@@ -641,8 +641,11 @@ impl<E: Entry> StreamingSstWriter<E> {
             pending_small_value_block: Vec::with_capacity(
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
-            key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
-            key_tail_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
+            // The two regions partition one block's bytes between them, so together they need
+            // about MAX_KEY_BLOCK_SIZE. Both are `reserve`d to the exact region size per block,
+            // so these are only first-block hints.
+            key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE / 2),
+            key_value_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE / 2),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
@@ -935,7 +938,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         // loops read `pending_keys`.
         let Self {
             key_buffer,
-            key_tail_buffer,
+            key_value_buffer,
             pending_keys,
             ..
         } = self;
@@ -960,7 +963,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         {
             let mut builder = FixedKeyBlockBuilder::new(
                 key_buffer,
-                key_tail_buffer,
+                key_value_buffer,
                 entry_count as u32,
                 layout,
                 key_size,
@@ -1280,8 +1283,9 @@ struct FixedKeyBlockBuilder<'l> {
     tail: &'l mut Vec<u8>,
     /// Whether each entry writes its own type byte (set for mixed-type blocks).
     per_entry_type: bool,
-    /// Whether the search region holds hashes (`HashThenKey`) rather than keys (`KeyOnly`).
-    search_region_is_hash: bool,
+    /// Which of the two regions the key goes in: the search region for `KeyOnly`, the tail for
+    /// `HashThenKey`.
+    layout: KeyBlockLayout,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
@@ -1294,11 +1298,18 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         val_size: u8,
         value_type: Option<EntryType>,
     ) -> Self {
-        let hash_len = layout.hash_len() as usize;
         let per_entry_type = value_type.is_none();
-        let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
-        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
+        // The two regions partition the entry bytes: the search region takes the bytes compared
+        // first, the tail takes the rest. For `HashThenKey` that puts the hash in the search
+        // region and the key in the tail; for `KeyOnly` the key is itself the search region.
+        let (search_stride, key_in_tail) = match layout {
+            KeyBlockLayout::HashThenKey => (layout.hash_len() as usize, key_size as usize),
+            KeyBlockLayout::KeyOnly => (key_size as usize, 0),
+        };
+        let tail_stride = key_in_tail + val_size as usize + usize::from(per_entry_type);
+        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * search_stride);
         tail.clear();
+        tail.reserve(entry_count as usize * tail_stride);
 
         let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[
@@ -1319,14 +1330,15 @@ impl<'l> FixedKeyBlockBuilder<'l> {
             buffer,
             tail,
             per_entry_type,
-            search_region_is_hash: hash_len > 0,
+            layout,
         }
     }
 
     /// Writes a single entry to a `KeyOnly` block: key into the search region, value into the tail.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
-        debug_assert!(
-            !self.search_region_is_hash,
+        debug_assert_eq!(
+            self.layout,
+            KeyBlockLayout::KeyOnly,
             "put() is for KeyOnly blocks; HashThenKey must use put_with_hash()"
         );
         entry.write_key_to(self.buffer);
@@ -1336,8 +1348,9 @@ impl<'l> FixedKeyBlockBuilder<'l> {
     /// Writes a single entry to a `HashThenKey` block: hash into the search region, key and value
     /// into the tail.
     fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
-        debug_assert!(
-            self.search_region_is_hash,
+        debug_assert_eq!(
+            self.layout,
+            KeyBlockLayout::HashThenKey,
             "put_with_hash() is for HashThenKey blocks; KeyOnly must use put()"
         );
         self.buffer
