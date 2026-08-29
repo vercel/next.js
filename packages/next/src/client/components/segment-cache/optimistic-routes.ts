@@ -774,8 +774,12 @@ export function matchKnownRoute(
     resolvedParams,
     search,
     null, // Start with null partial vary path at the root
+    false, // The root is always part of the active route.
     acc
   )
+  if (reifiedTree === null) {
+    return null
+  }
 
   // The metadata tree is a flat page node without the intermediate layout
   // structure. Clone it with the updated metadata vary path collected during
@@ -1015,9 +1019,11 @@ function reifyRouteTree(
   resolvedParams: ResolvedParams,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
+  parentIsInactive: boolean,
   acc: ReifyAccumulator
-): RouteTree<null> {
+): RouteTree<null> | null {
   const originalSegment = pattern.segment
+  const isInactive = parentIsInactive || pattern.refreshState !== null
 
   // This segment's param (if any) is a root param iff the segment is at or
   // above the root layout, which the server marks directly.
@@ -1045,8 +1051,15 @@ function reifyRouteTree(
         isRootParam
       )
     } else {
-      // Param not found in resolvedParams - keep original and inherit partial
-      // TODO: This should never happen. Bail out with null.
+      // Matching a URL only resolves params along the trie branch that led to
+      // the pattern. A whole route tree may also contain dynamic params in
+      // active parallel branches. Reusing their values from the pattern would
+      // create a tree that mixes params from two different URLs, so deopt to a
+      // server-resolved route tree instead.
+      if (!isInactive) {
+        return null
+      }
+      // Inactive parallel routes intentionally retain their previous state.
       partialVaryPath = parentPartialVaryPath
     }
   } else {
@@ -1060,16 +1073,18 @@ function reifyRouteTree(
   if (patternSlots !== null) {
     newSlots = new Map()
     for (const [key, childPattern] of patternSlots) {
-      newSlots.set(
-        key,
-        reifyRouteTree(
-          childPattern,
-          resolvedParams,
-          search,
-          partialVaryPath,
-          acc
-        )
+      const childTree = reifyRouteTree(
+        childPattern,
+        resolvedParams,
+        search,
+        partialVaryPath,
+        isInactive,
+        acc
       )
+      if (childTree === null) {
+        return null
+      }
+      newSlots.set(key, childTree)
     }
   }
 
