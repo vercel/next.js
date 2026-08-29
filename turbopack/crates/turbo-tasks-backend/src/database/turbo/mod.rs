@@ -272,8 +272,8 @@ impl KeyBase for WriteBuffer<'_> {
 }
 
 impl StoreKey for WriteBuffer<'_> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
