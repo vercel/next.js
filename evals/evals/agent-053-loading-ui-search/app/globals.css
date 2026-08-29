@@ -1,0 +1,45 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+input {
+  width: 100%;
+  padding: 0.65rem;
+  font: inherit;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  margin: 2rem auto;
+  border: 3px solid #ddd;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

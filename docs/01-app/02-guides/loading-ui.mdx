@@ -1,11 +1,12 @@
 ---
 title: Designing loading UI
-description: Design loading states with skeleton screens, spinners, and loading.tsx so they don't flash, jitter, or shift layout.
+description: Fix the loading UI problems that show up most often in real apps, including popcorn loading, competing spinners, false empty states, skeletons that shift the layout, and pending indicators that flash on fast responses.
 nav_title: Loading UI
 related:
   description: Learn more with these related guides.
   links:
     - app/guides/streaming
+    - app/guides/rendering-philosophy
     - app/guides/instant-navigation
     - app/guides/view-transitions
     - app/guides/interactive-apps
@@ -13,118 +14,257 @@ related:
     - app/guides/forms
 ---
 
-While part of a page loads, the user sees a loading state, such as a skeleton or a spinner. A careless one makes the wait worse. It can flash for a response that was already fast, jump when content arrives at a different size, or replace results the user was reading.
+Loading UI goes wrong in a small number of recognizable ways. A route-level `loading.tsx` competes with a page skeleton and a per-query spinner. One coarse boundary hides a header that could have painted immediately. Sections reveal in whatever order their data returns and shove each other around. A skeleton reserves the wrong height, so the page jumps when the real rows arrive.
 
-This guide shows how to design loading states that avoid these problems.
-
-For the interactions these loading states respond to, such as transitions and optimistic UI, see [Building interactive apps](/docs/app/guides/interactive-apps).
-
-> **Good to know:** Loading states affect [Core Web Vitals](https://web.dev/articles/vitals). Sized placeholders and top-down reveals keep [CLS](https://web.dev/articles/cls) at 0, and delayed indicators keep loading states from flashing.
+This guide fixes each of those problems in one app. The sections are independent, so read it start to finish or jump to the problem you have.
 
 ## Example
 
-This guide builds the loading states for a team directory, a searchable member list where each member links to a profile page. It works through how content first appears, then how it updates in place, and finally how a list grows.
+As an example, we'll fix the loading UI of a team directory that lists members, searches them, paginates them, and links to each member's profile.
 
-The companion [team directory demo](https://loading-ui-demo.labs.vercel.dev) ([source](https://github.com/vercel-labs/loading-ui-demo)) shows each pattern in action.
+You can find the resources used in this example here:
 
-### Step 1: Choose a fallback or a pending indicator
+- [Demo](https://loading-ui-demo.labs.vercel.dev)
+- [Code](https://github.com/vercel-labs/loading-ui-demo)
 
-The fastest loading state is none. Content that renders in the [static shell](/docs/app/guides/streaming#the-static-shell) is on screen from the first paint, and a [prefetched](/docs/app/guides/prefetching) navigation lands on that shell, so a loading state is only for content that arrives later. Wrapping content that's already fast only makes it flash, because React holds a shown fallback for a moment.
+> **Good to know**: The demo runs with [Cache Components](/docs/app/guides/migrating-to-cache-components) and [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) enabled, which is why the shell appears instantly on navigation. The fixes below don't depend on either.
 
-A loading state comes in two forms. A [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback replaces content that isn't on screen yet. A pending indicator keeps content that's already there and signals activity over it (Step 5). Pick by whether anything meaningful is on screen.
+## Getting the shell to paint
 
-> **Good to know:** With [Cache Components](/docs/app/getting-started/caching), a `<Suspense>` boundary is required around anything dynamic, such as content that reads [`cookies`](/docs/app/api-reference/functions/cookies), [`headers`](/docs/app/api-reference/functions/headers), or `searchParams`, or awaits an uncached fetch. It can't be prerendered, so [reading it outside a boundary](/docs/messages/blocking-prerender-dynamic) keeps the route from prerendering a static shell. The fallback prerenders in its place.
+### Top-level awaits that block the shell
 
-The directory page renders a static header immediately and reserves the fallback for the dynamic member list:
+Awaiting anything at the top of a page component blocks the entire route. Nothing renders, including the parts that never needed data, so the user gets a blank screen for as long as the slowest await takes.
 
-```tsx filename="app/page.tsx"
-import { Suspense } from 'react'
-import { Stats } from './stats'
-import { Directory } from './directory'
-import { DirectorySkeleton } from './skeletons'
+The awaits are usually `params`, `searchParams`, a query, an authorization check, or a [`notFound()`](/docs/app/api-reference/functions/not-found) decision:
 
-export default function Page() {
+```tsx filename="app/member/[id]/page.tsx"
+// Blocks the shell. The back link can't paint until the member query resolves.
+export default async function MemberPage({
+  params,
+}: PageProps<'/member/[id]'>) {
+  const { id } = await params
+  const member = await getMember(Number(id))
+  if (!member) notFound()
+
   return (
     <main>
-      <header>
-        <h1>Team directory</h1>
-        {/* Fast and synchronous, never behind a fallback. */}
-        <Stats />
-      </header>
+      <Link href="/">Directory</Link>
+      <ProfileHeader member={member} />
+    </main>
+  )
+}
+```
 
-      <Suspense fallback={<DirectorySkeleton />}>
-        <Directory />
+Keep the page component synchronous and push each read down into the component that needs it. The page becomes a layout of static markup and boundaries, which is exactly what can be prerendered:
+
+```tsx filename="app/member/[id]/page.tsx"
+export default function MemberPage({ params }: PageProps<'/member/[id]'>) {
+  return (
+    <main>
+      {/* Static, so it goes out with the first HTML */}
+      <Link href="/">Directory</Link>
+
+      <Suspense fallback={<ProfileHeaderSkeleton />}>
+        {params.then(({ id }) => (
+          <ProfileHeader id={Number(id)} />
+        ))}
       </Suspense>
     </main>
   )
 }
 ```
 
-The header paints immediately, the skeleton stands in for the list, and the list streams in when its data resolves.
+The `notFound()` check moves inside `ProfileHeader`, where it runs against data that component already has. A 404 decision at the page level gates every byte of the response on a query that only one section needs.
 
-[`loading.tsx`](/docs/app/api-reference/file-conventions/loading) wraps the whole route in one boundary, which fits a page whose entire first render waits on data. When only part of the page is slow, place `<Suspense>` around that part instead.
+We can confirm the result with [`next build`](/docs/app/api-reference/cli/next#next-build-options). The route is now prerendered up to its boundaries:
 
-> **Good to know:** A boundary is for the initial load of a region. Retriggering it on fast client navigations (changing its `key`, or adding a `loading.tsx` to a route that renders in milliseconds) replaces a page that would have appeared instantly with a fallback.
+```bash filename="Terminal"
+Route (app)
+┌ ◐ /
+└ ◐ /member/[id]
 
-#### Skeleton or spinner
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
 
-- **Skeleton**: Use when you know the shape, like a list of rows or a card. It previews the layout and doubles as the reserved space that prevents layout shift (Step 2). A slow, subtle animation, a pulse or a shimmer sweep, signals the page is still working, where a static skeleton can read as frozen (Step 4).
-- **Spinner**: Use when you don't know the shape, or for a small inline action.
+With an `await` back at the top of the page, the same route reports no static content, because there is nothing the framework can generate ahead of the request.
 
-### Step 2: Size the placeholder to the content
+> **Good to know**: With [Cache Components](/docs/app/getting-started/caching), awaiting uncached data outside a boundary is a [build-time error](/docs/messages/blocking-prerender-dynamic) rather than a silent performance cliff, because the route can no longer prerender a shell.
 
-A placeholder has to occupy the box its content will fill. When a fallback is replaced by content of a different size, the browser reflows the page and everything below it moves. That jump is [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+### Stable UI hidden behind one coarse boundary
 
-Measure one real row, mirror its box in the skeleton, and render as many skeleton rows as a full result set. A minimum height on the container reserves the full space before any data arrives:
+A boundary hides everything inside it until its slowest child is ready, so anything that could have rendered immediately and ends up inside one is wasted. Headers, titles, navigation, search controls, and empty containers all belong outside.
 
-```tsx filename="app/skeletons.tsx"
-// Same row count and row height as a full result set, so the swap to real
-// content shifts nothing.
-export function DirectorySkeleton({ rows = 8 }: { rows?: number }) {
+Put the boundary around the part that's actually slow:
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { Stats } from './stats'
+import { MemberList, DirectorySkeleton } from './member-list'
+
+export default function Page({ searchParams }: PageProps<'/'>) {
   return (
-    <div aria-hidden className="min-h-[512px]">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex h-16 items-center gap-3.5 px-4">
-          <span className="skeleton size-9 rounded-full" />
-          <span className="flex flex-col gap-[3px]">
-            <span className="skeleton h-[14px] w-[140px]" />
-            <span className="skeleton h-3 w-[100px]" />
-          </span>
-        </div>
-      ))}
-    </div>
+    <main>
+      <header>
+        <h1>Team directory</h1>
+        {/* Synchronous, so it never sits behind a fallback */}
+        <Stats />
+      </header>
+
+      <Suspense fallback={<DirectorySkeleton />}>
+        {searchParams.then(({ q, page }) => (
+          <MemberList
+            query={typeof q === 'string' ? q : ''}
+            pageCount={Math.max(1, Number(page) || 1)}
+          />
+        ))}
+      </Suspense>
+    </main>
   )
 }
 ```
 
-The skeleton is a decorative placeholder, so it's `aria-hidden` and built from plain `<div>`s. Screen readers skip it, and only its box dimensions need to match the real rows, which they do through the same classes.
+The header and the skeleton go out with the first HTML, and the list replaces the skeleton when its query resolves. If `<Stats />` sat inside the boundary, it would wait behind the skeleton too.
 
-If you build the skeleton from the component's own sub-skeletons, like an avatar or a text line, and keep it beside the component, the two stay in sync as the component changes.
+The page's largest element belongs outside for a second reason. A skeleton is not a [Largest Contentful Paint](/docs/app/guides/streaming#lcp-largest-contentful-paint) candidate, because LCP only counts images, video posters, background images, and blocks that contain text. A placeholder built from empty sized boxes never registers as one, so the LCP timestamp waits for the real content and streaming a hero image or a headline delays it by that query's full duration. Keep the largest above-the-fold element in the [static shell](/docs/app/guides/streaming#the-static-shell), and if it's an image, give it [`priority`](/docs/app/api-reference/components/image#priority) so it isn't lazy-loaded.
 
-> **Good to know:** Media shifts the layout the same way. Give images and video explicit dimensions, and use [`next/image`](/docs/app/api-reference/components/image) with [`placeholder="blur"`](/docs/app/api-reference/components/image#placeholder) so the box is reserved before the file loads.
+### Competing loading signals
 
-To verify, reload with the layout-shift-regions overlay enabled in your browser's dev tools. The skeleton occupies the same space the list will, so CLS stays at 0. In CI, the `@next/playwright` [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) helper asserts on the UI that's immediately visible on navigation, so a boundary drifting to the wrong place fails the test.
+One region should produce one loading signal. Apps accumulate them by adding each in isolation, and the user ends up watching a route-level `loading.tsx`, then a page-level skeleton, then a spinner inside a card, for a single page load.
 
-### Step 3: Reveal sections top to bottom
+[`loading.tsx`](/docs/app/api-reference/file-conventions/loading) is one boundary around the whole route, so it fits a page whose entire first render waits on data. Once any part of the page can paint sooner, `<Suspense>` around the slow part replaces it rather than joining it. A full-page skeleton also has to be maintained alongside the real page, and it drifts out of sync as the layout changes. See [When to use `loading.js` vs `<Suspense>`](/docs/app/guides/streaming#when-to-use-loadingjs-vs-suspense).
 
-Sizing the skeleton works for a fixed shape like a row. But some pages stack sections of unknown height, like the profile each member links to, where the bio can be one paragraph or three and the activity feed two rows or eight. No skeleton can reserve the right height there, and the sections should reveal top to bottom, not in whatever order their data resolves.
+Layouts add signals the same way. A `loading.tsx` above a shared layout doesn't show on client navigations, because React re-enters the tree at that layout, so an overlay added to compensate ends up firing on the first load when the fallback already covers it. See [Ensuring instant navigations](/docs/app/guides/instant-navigation).
 
-With sibling `<Suspense>` boundaries, the sections reveal in whatever order their data arrives. If the feed resolves before the bio above it, the feed paints high on the page, then gets pushed down when the bio arrives. Nesting the feed's boundary inside the bio's fixes this, because a nested boundary can't reveal before its parent. The sections appear top-down, and a long bio grows into skeleton space below it.
+Nested queries are the last source. A section that already shows a skeleton doesn't need a second spinner for a query inside it, and a `<Link>` pointing at a destination that has its own shell doesn't need one either, because the click lands on that shell and the destination's skeletons are the feedback. When the destination has no shell, [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) gives the link its own pending state.
+
+### Data fetching split across client effects
+
+Fetching in a client effect puts every request behind the JavaScript bundle. The shell paints empty, the requests start after hydration, and each component that fetches for itself adds a round trip and its own `isLoading` spinner:
+
+```tsx filename="app/member-list.tsx"
+'use client'
+
+// The request can't start until this component has downloaded and hydrated.
+export function MemberList() {
+  const [members, setMembers] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/members')
+      .then((res) => res.json())
+      .then(setMembers)
+  }, [])
+
+  if (!members) return <Spinner />
+  return <List items={members} />
+}
+```
+
+Nesting components like this produces a waterfall of dependent requests and scatters the loading UI across whichever components happen to fetch. Reading the data in a Server Component behind one boundary starts the query on the server before the bundle has downloaded, and puts the loading state where you chose to put it.
+
+## Designing the fallback
+
+### Skeletons that don't match the final geometry
+
+A fallback that's smaller or larger than the content replacing it makes the browser reflow the page, and everything below it moves. That jump is [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). The usual causes are a wrong row count, a wrong row height, a button or input narrower than the real one, missing icons, and a spinner standing in for a card.
+
+Define the row box once and use it on both sides, so the two can't drift. Give the container a minimum height as well, and the full space is reserved before any data arrives:
+
+```tsx filename="app/member-list.tsx"
+const LIST_BOX = 'mt-4 min-h-[512px] divide-y divide-border'
+const ROW_BOX = 'h-16'
+const ROW_INNER = 'flex h-full items-center gap-3.5 px-4'
+
+export function MemberRowsSkeleton({ rows = PAGE_SIZE }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <li key={i} className={ROW_BOX} aria-hidden>
+          <div className={ROW_INNER}>
+            <span className="skeleton size-9 rounded-full" />
+            <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+              <span className="skeleton h-[14px] w-[140px]" />
+              <span className="skeleton h-3 w-[100px]" />
+            </span>
+          </div>
+        </li>
+      ))}
+    </>
+  )
+}
+```
+
+Put the height on the same element in both, and give the placeholder the same DOM shape as the real row. Moving the height inward is enough to break it: with `h-16` on the row's inner `<a>` instead of its `<li>`, the real row comes out one pixel taller than its skeleton, because the `<li>` adds the list divider on top of a full-height child. One pixel per row is eight pixels of shift on a page of eight rows. Reload with the layout shift regions overlay enabled in your browser's dev tools and the list reports a shift on every load.
+
+The placeholder is decorative, so it's `aria-hidden` and carries no text for a screen reader to announce. Keeping it in the same file as the component, built from the same box constants, is what keeps the two matched as the component changes.
+
+Space outside the fallback shifts the page the same way, and a correct skeleton won't save a layout that leaves it unreserved. An image, video, or iframe without `width` and `height` or an `aspect-ratio` collapses until its file loads, which is why [`next/image`](/docs/app/api-reference/components/image) requires dimensions and why [`placeholder="blur"`](/docs/app/api-reference/components/image#placeholder) fills the box beforehand. A web font whose metrics differ from its fallback reflows every line of text when it swaps in, which [`next/font`](/docs/app/api-reference/components/font) handles through [`adjustFontFallback`](/docs/app/api-reference/components/font#adjustfontfallback), on by default. Anything inserted above existing content, such as a cookie banner or an alert bar, moves the whole page down after it looked settled, so reserve that space in the initial HTML or take the element out of flow.
+
+> **Good to know**: Long lists have a related trap. [`content-visibility: auto`](https://developer.mozilla.org/en-US/docs/Web/CSS/content-visibility) skips rendering rows outside the viewport, but it needs a [`contain-intrinsic-size`](https://developer.mozilla.org/en-US/docs/Web/CSS/contain-intrinsic-size) matching the real row height. Without one, the scroll height changes as rows enter the viewport, which produces CLS from the optimization rather than the problem.
+
+### False empty states
+
+Rendering a real state from data you don't have yet is worse than rendering a placeholder. "No members yet" while the query is in flight tells the user the team is empty, and the UI then flips to a full list a moment later. The same failure produces a default product type, a zero count, or a logged-out header that corrects itself.
+
+The distinction is between "resolved and empty" and "not resolved yet". Decide the empty state from a value that has actually resolved. A count is cheap next to fetching rows, so it can settle the question before any row arrives:
+
+```tsx filename="app/member-list.tsx"
+export function MemberList({
+  query,
+  pageCount,
+}: {
+  query: string
+  pageCount: number
+}) {
+  const total = countMembers(query)
+
+  if (total === 0) {
+    return <p>No members match “{query}”.</p>
+  }
+
+  return <MemberPages query={query} pageCount={pageCount} total={total} />
+}
+```
+
+A Server Component that awaits its rows instead gets the same guarantee for free, because the code after the `await` only runs once the data exists. The failure is specific to the client, where the pending state and the resolved value share one variable and `undefined` gets treated as empty. Check for pending before checking the value, and let the fallback cover it rather than rendering a plausible alternative.
+
+The resolved count is worth passing down. It tells each page's fallback how many rows that page will hold, which is what the next section needs.
+
+### Fallbacks that never resolve
+
+A loading state promises that content is coming, so it has to end in either content or an error. A section whose query throws leaves a skeleton pulsing forever unless something catches it.
+
+Wrap a slow section in an [error boundary](/docs/app/getting-started/error-handling) at the same granularity as its `<Suspense>` boundary. A failure then shows an error in that section, and one failed section doesn't blank the rest of the page. See [error handling mid-stream](/docs/app/guides/streaming#error-handling-mid-stream) for how status codes behave once the stream has started.
+
+A skeleton or spinner also reads as broken past about [10 seconds](https://www.nngroup.com/articles/response-times-3-important-limits/). For an operation you know runs long, show determinate progress such as a percent-done bar, and let the user keep working while it finishes.
+
+## Ordering the reveal
+
+### Popcorn loading
+
+Popcorn loading is what happens when every section gets its own boundary. Each region appears the moment its own data arrives, in network order, and sections of unknown height push each other around as they land.
+
+A member profile stacks two sections whose height nobody can predict. The bio might be one paragraph or three, and the activity feed might be two rows or eight, so no skeleton can reserve the right height for either. As siblings, the feed often paints high on the page and then gets shoved down when the bio above it arrives.
+
+Nesting the feed's boundary inside the bio's fixes the order. A nested boundary can't reveal before its parent, so the sections appear top-down and a long bio grows into the space below it:
 
 ```tsx filename="app/member/[id]/page.tsx"
 import { Suspense } from 'react'
-import { Bio, Activity } from './profile'
-import { BioSkeleton, ActivitySkeleton } from './skeletons'
+import {
+  BioText,
+  BioTextSkeleton,
+  ActivityRows,
+  ActivityRowsSkeleton,
+} from './profile'
 
 export default function MemberPage({ params }: PageProps<'/member/[id]'>) {
   return (
     <main>
-      <Suspense fallback={<BioSkeleton />}>
+      <Suspense fallback={<BioTextSkeleton />}>
         {params.then(({ id }) => (
           <>
-            <Bio id={id} />
-            <Suspense fallback={<ActivitySkeleton />}>
-              <Activity id={id} />
+            <BioText id={Number(id)} />
+            <Suspense fallback={<ActivityRowsSkeleton />}>
+              <ActivityRows id={Number(id)} />
             </Suspense>
           </>
         ))}
@@ -134,50 +274,54 @@ export default function MemberPage({ params }: PageProps<'/member/[id]'>) {
 }
 ```
 
-Both queries still run in parallel, so the page settles as fast as its slowest section. Nesting only delays the reveal of a finished section, not its query.
+Both queries still run in parallel. Nesting delays the reveal of a finished section, not its query.
 
-> **Good to know:** The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows these sections streaming in the Performance panel, so you can confirm they run in parallel and find a boundary that gates too much content.
+Sibling boundaries are right when the regions are visually independent, such as dashboard cards in a grid, because each card can appear as soon as its data is ready and nothing below it has to move. One boundary around the whole stack is right when per-section reveals aren't worth the extra fallbacks.
 
-That hold is the trade-off, since a fast feed now waits for a slow bio. Use sibling boundaries for sections that are visually independent, like dashboard cards in a grid, or a single boundary around all the sections when per-section reveals aren't worth it.
+> **Good to know**: The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows these sections streaming in the Performance panel, so you can confirm the queries run in parallel and spot a boundary that gates too much content.
 
-### Step 4: Animate the swap to content
+### Stable labels that disappear and reappear
 
-The reveal is the moment a skeleton is replaced by real content. By default that swap happens in a single frame, which reads as an abrupt cut. React's [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) component animates it as a crossfade instead. Enable the [`viewTransition`](/docs/app/api-reference/config/next-config-js/viewTransition) option in your Next.js config:
+A label the app already knows doesn't belong in the fallback. When a section heading is drawn as a skeleton bar and then rendered again as real text, the same word leaves the DOM and re-enters it a frame later, and any reveal animation on that region animates a label that never changed.
 
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
+Render the label as real text and let the fallback cover only what's actually unknown:
 
-const nextConfig: NextConfig = {
-  experimental: {
-    viewTransition: true,
-  },
-}
+```tsx filename="app/member/[id]/page.tsx"
+<SectionHeading>About</SectionHeading>
 
-export default nextConfig
-```
-
-Then wrap the content that streams in. A bare `<ViewTransition>` uses the browser's built-in crossfade, so content that reveals once, like the profile sections from Step 3, needs no view-transition CSS:
-
-```tsx filename="app/member/[id]/page.tsx" highlight={3,6}
-<Suspense fallback={<BioSkeleton />}>
+<Suspense fallback={<BioTextSkeleton />}>
   {params.then(({ id }) => (
-    <ViewTransition>
-      <Bio id={id} />
-      <Suspense fallback={<ActivitySkeleton />}>
-        <ViewTransition>
-          <Activity id={id} />
-        </ViewTransition>
-      </Suspense>
-    </ViewTransition>
+    <BioText id={Number(id)} />
   ))}
 </Suspense>
 ```
 
-> **Good to know:** The reveal animates whenever the skeleton is replaced by streamed content, on a refresh as much as after a navigation. Content fast enough to arrive in the initial response has no skeleton, so there is nothing to reveal.
+Where the label goes depends on whether its position is settled. "About" sits under a profile header whose skeleton is the same size as the real header, so its position is fixed from the first paint and it belongs in the shell. A heading below a variable-height section is different: its position isn't known until that section resolves, so putting it in the shell would only move it later. Render it inside the parent's boundary, still as real text, next to the fallback for its own rows:
 
-#### Refine and reuse
+```tsx filename="app/member/[id]/page.tsx"
+<Suspense fallback={<BioTextSkeleton />}>
+  {params.then(({ id }) => (
+    <>
+      <BioText id={Number(id)} />
 
-Wrap the fallback in a `<ViewTransition exit="auto">` so the outgoing skeleton fades too. For content a navigation re-renders, add `default="none"` so nothing animates by default and `enter="auto"` so only the first reveal does. Once the same props repeat across reveals, extract a component. The demo wraps every reveal in a single `<Crossfade>`:
+      <SectionHeading>Recent activity</SectionHeading>
+      <Suspense fallback={<ActivityRowsSkeleton />}>
+        <ActivityRows id={Number(id)} />
+      </Suspense>
+    </>
+  ))}
+</Suspense>
+```
+
+Either way the label is never a skeleton bar. The rule is about what the fallback contains, not about how far up the tree the label goes.
+
+This applies to container chrome as well as headings. Cards, borders, table headers, and empty list containers can all render immediately, leaving the fallback responsible for rows alone.
+
+### Content that pops in
+
+By default a fallback is replaced by real content in a single frame. Wrapping the streamed content in React's [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) crossfades the two instead. View transitions work in the App Router with no configuration.
+
+Reuse one wrapper for every reveal. `enter="auto"` animates the first time content appears, and `default="none"` skips animating later updates of the same region:
 
 ```tsx filename="app/crossfade.tsx"
 import { ViewTransition } from 'react'
@@ -191,27 +335,51 @@ export function Crossfade({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [Designing view transitions](/docs/app/guides/view-transitions) for the full API, including directional and shared-element transitions.
+Wrap the fallback in a matching `exit="auto"` so the skeleton fades out as the content fades in:
 
-> **Good to know:** A reveal animation runs while the page is still streaming and hydrating, when the main thread is busiest. Animate only `opacity` and `transform`, which run on the compositor off the main thread, so the reveal doesn't stutter, and honor [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) for users who ask for less motion.
+```tsx filename="app/member/[id]/page.tsx"
+<Suspense
+  fallback={
+    <ViewTransition exit="auto" default="none">
+      <BioTextSkeleton />
+    </ViewTransition>
+  }
+>
+  {params.then(({ id }) => (
+    <Crossfade>
+      <BioText id={Number(id)} />
+    </Crossfade>
+  ))}
+</Suspense>
+```
 
-### Step 5: Keep working UI on screen while it updates
+Content that's already in the static shell has nothing to reveal, so don't animate it, and don't wrap a subtree that re-renders on every keystroke or the enter animation fires on every character.
 
-When content is already on screen, an update should not replace it with a fallback. Re-rendering it behind a boundary swaps working UI for a skeleton, and results that resolve out of order flicker past. A [transition](https://react.dev/reference/react/useTransition) keeps the current content on screen, interrupts the in-flight render when a newer update arrives, and exposes an `isPending` flag for the feedback you add yourself. In the directory's search, that feedback is a dim on the held results and a spinner that appears only once the wait is real (Step 6):
+A reveal runs while the page is still streaming and hydrating, when the main thread is busiest. Animate only `opacity` and `transform`, which the compositor runs on its own thread. A shimmer that animates `background-position`, or a skeleton that animates `height`, forces paint or layout on every frame and competes with hydration for the same thread. Keep the placeholder animation quiet for the same reason. A slow opacity pulse marks the region as loading without competing with content that has already arrived beside it.
 
-```tsx filename="app/search.tsx"
+> **Good to know**: Honor [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) for users who ask for less motion. See [Respecting reduced motion](/docs/app/guides/view-transitions#respecting-reduced-motion) for the CSS, and [Designing view transitions](/docs/app/guides/view-transitions) for directional navigation and shared-element morphs.
+
+## Handling updates
+
+### Updates that wipe the current results
+
+The first-load fallback is for the first load. Reusing it when the user searches or filters replaces results they're reading with a skeleton, and every keystroke does it again.
+
+Next.js wraps App Router navigations in a transition, and during a transition `<Suspense>` keeps content it has already revealed. The current rows stay on screen until the next result is ready, which leaves the pending signal to the control that started the update:
+
+```tsx filename="app/search-shell.tsx"
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-export function Search({ children }: { children: React.ReactNode }) {
+export function SearchShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
   function onSearch(value: string) {
     startTransition(() => {
-      // `scroll: false` keeps focus in the input during the navigation.
       router.replace(value ? `/?q=${encodeURIComponent(value)}` : '/', {
         scroll: false,
       })
@@ -222,12 +390,13 @@ export function Search({ children }: { children: React.ReactNode }) {
     <div>
       <input
         type="search"
+        defaultValue={searchParams.get('q') ?? ''}
         onChange={(e) => onSearch(e.target.value)}
         aria-label="Search members"
       />
       <span className="pending" data-active={isPending ? '' : undefined} />
       <div
-        className="transition-opacity duration-200 data-[pending]:opacity-60"
+        className="transition-opacity data-[pending]:opacity-60"
         data-pending={isPending ? '' : undefined}
       >
         {children}
@@ -237,17 +406,17 @@ export function Search({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Typing now keeps the last complete result set on screen, dimmed, and updates once to the final matches.
+The wrapper sets `data-pending`, which dims the stale rows until the next results replace them. Changing the `key` on the `<Suspense>` boundary would remount it and bring the first-load skeleton back, so leave the key alone.
 
-Give the results a single `<Suspense>` boundary so its skeleton shows on the first load only, and don't retrigger it per search. If a query per keystroke is too chatty for your server, add a short debounce before the navigation. The debounce delays the transition's `isPending`, so derive the pending flag by comparing the input value to the URL instead.
+The input stays uncontrolled, which also protects [INP](/docs/app/guides/streaming#inp-interaction-to-next-paint). A controlled input that re-renders a large subtree on every keystroke delays the keypress itself, while an uncontrolled field paired with a transition keeps typing off that path.
 
-The same applies to navigations. When the destination has its own `<Suspense>` shell, the click lands on that shell instantly, and its skeletons are the feedback. For links whose destination has no shell, [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) exposes the link's `pending` state to drive the delayed indicator from the next step.
+See [Building interactive apps](/docs/app/guides/interactive-apps) for the mutation side of this, including optimistic updates and form feedback.
 
-This is the same pattern as [filter with pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) in the interactive apps guide.
+### Spinners that flash on fast operations
 
-### Step 6: Delay the pending indicator
+An indicator bound straight to a pending flag appears the instant the update starts, even when the response arrives a few milliseconds later. The spinner appears and disappears within a few frames, on an operation that was already fast.
 
-A pending indicator bound to `isPending` shows the instant an update starts, even when the response arrives within milliseconds, so it flashes on every fast update. Start it invisible and reveal it only after a short delay, so a fast response resolves before it is ever seen:
+Start the indicator invisible and reveal it only after a short delay, so a fast response resolves before it's ever seen:
 
 ```css filename="app/globals.css"
 /* Invisible for 150ms, so a fast search resolves before it is ever seen. */
@@ -274,156 +443,114 @@ A pending indicator bound to `isPending` shows the instant an update starts, eve
 }
 ```
 
-A search that resolves in under 150ms never shows the spinner.
+A search that resolves in under 150ms never shows the spinner. `<Suspense>` applies a similar window of its own before showing a fallback, so a fast stream doesn't flash a skeleton either.
 
-### Step 7: Grow a list without shifting it
+Once the spinner is visible, hold it. Clearing `data-active` the moment the pending flag turns false still flickers when the response is only slightly slower than the delay. And when the surrounding UI already communicates the wait, such as rows dimming during a search, an indicator can be dropped entirely.
 
-A long list loads its first page, then grows on demand. A careless "load more" remounts or reloads the rows already on screen, so they flash or the page jumps. Drive the page count from the URL and give each page its own boundary, so a new page appends below the existing ones without touching them.
+### Pagination that remounts the list
 
-Keep the page component synchronous and resolve the count inline with `searchParams.then()`, passing the value to the list:
+"Load more" should add rows, not replace them. Rekeying the list, or widening one boundary so it now covers page two as well, unmounts rows the user is already looking at, resets scroll position, and animates content that never changed.
 
-```tsx filename="app/page.tsx"
-import { Suspense } from 'react'
-import { MemberPages } from './member-list'
-import { DirectorySkeleton } from './skeletons'
-
-export default function Page({ searchParams }: PageProps<'/'>) {
-  return (
-    <main>
-      <header>
-        <h1>Team directory</h1>
-      </header>
-
-      <Suspense fallback={<DirectorySkeleton />}>
-        {searchParams.then(({ page }) => (
-          <MemberPages pageCount={Math.max(1, Number(page) || 1)} />
-        ))}
-      </Suspense>
-    </main>
-  )
-}
-```
-
-> **Good to know:** Awaiting `searchParams` at the top of the page opts the whole page out of the static shell under [Cache Components](/docs/app/getting-started/caching). Resolving it inside the boundary with `searchParams.then()` keeps the shell static.
-
-`MemberPages` reads the count and renders every page into one shared `<ul>`. The first page shares the boundary above. Each later page gets its own `<Suspense>` with a rows-only skeleton, so loading a new page shows skeletons only for that page while the earlier rows stay put:
+Give each page its own boundary and a stable key. Earlier pages keep their DOM nodes, and on a fresh load each page's fallback reserves exactly the rows that page will hold:
 
 ```tsx filename="app/member-list.tsx"
-import { Suspense } from 'react'
-import { getMembers } from './members'
-import { MemberRowsSkeleton } from './skeletons'
-import { LoadMore } from './load-more'
-
-export function MemberPages({ pageCount }: { pageCount: number }) {
-  const pages = Array.from({ length: pageCount }, (_, i) => i + 1)
-
+function MemberPages({ query, pageCount, total }: Props) {
   return (
-    <ul>
-      {pages.map((p) =>
-        p === 1 ? (
-          <MemberRows key={p} page={p} isLast={p === pageCount} />
-        ) : (
-          <Suspense key={p} fallback={<MemberRowsSkeleton />}>
-            <MemberRows page={p} isLast={p === pageCount} />
-          </Suspense>
-        )
-      )}
+    <ul className={LIST_BOX}>
+      {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
+        // Stable key per page, so page 1 is untouched when page 2 arrives
+        <Suspense
+          key={page}
+          fallback={
+            <MemberRowsSkeleton
+              rows={Math.min(PAGE_SIZE, total - (page - 1) * PAGE_SIZE)}
+            />
+          }
+        >
+          <MemberRows query={query} page={page} />
+        </Suspense>
+      ))}
     </ul>
   )
 }
-
-async function MemberRows({ page, isLast }: { page: number; isLast: boolean }) {
-  const { members, hasMore } = await getMembers(page)
-
-  return (
-    <>
-      {members.map((member) => (
-        <li key={member.id}>
-          <a href={`/member/${member.id}`}>{member.name}</a>
-        </li>
-      ))}
-      {isLast && hasMore && (
-        <li>
-          <LoadMore nextPage={page + 1} />
-        </li>
-      )}
-    </>
-  )
-}
 ```
 
-`MemberRowsSkeleton` renders the same skeleton rows as `DirectorySkeleton` from Step 2, but as bare `<li>`s so it drops into the shared `<ul>` while a page loads. Fetching one row past the page size tells you whether another page exists, so the button's visibility needs no separate count query:
+Size the last page's fallback to the rows that page actually holds, not a full `PAGE_SIZE`. A partial final page whose fallback reserves eight rows for four shifts the moment it resolves.
 
-```ts filename="app/members.ts"
-export const PAGE_SIZE = 8
+Where the pending feedback comes from depends on where the page count lives.
 
-export async function getMembers(page: number) {
-  // Fetch one extra row to learn whether another page exists.
-  const rows = await db.member.findMany({
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE + 1,
-  })
+With the count in the URL, pressing "Load more" is a navigation, so it runs as a transition, and the server re-renders pages 1 through N rather than only the new page. React commits nothing until the pages already on screen have re-resolved, so the new boundary's fallback never gets a window on screen. The button is the only thing that can report the wait. Keep its label centered in a fixed-width control so swapping the text can't resize it.
 
-  return {
-    members: rows.slice(0, PAGE_SIZE),
-    hasMore: rows.length > PAGE_SIZE,
-  }
-}
-```
+Accumulating the pages in client state instead keeps each resolved page as settled state that is never re-fetched. Appending one more page mounts a new boundary against a pending promise, so that boundary shows its fallback immediately, below rows that never moved:
 
-The button is a small client component. It advances `?page=` inside a transition, disables and relabels itself while pending, and passes `scroll: false` so the viewport stays put as rows append below:
-
-```tsx filename="app/load-more.tsx"
+```tsx filename="app/paginator.tsx"
 'use client'
 
-import { useTransition } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-
-export function LoadMore({ nextPage }: { nextPage: number }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+export function Paginator({ initialPage, renderPage, skeleton }: Props) {
+  const [pages, setPages] = useState([initialPage])
 
   function loadMore() {
-    const params = new URLSearchParams(searchParams)
-    params.set('page', String(nextPage))
-    startTransition(() => {
-      router.push(`?${params.toString()}`, { scroll: false })
-    })
+    // A promise, appended unresolved. Earlier pages are already settled.
+    setPages((prev) => [...prev, renderPage(prev.length + 1)])
   }
 
-  return (
-    <button type="button" onClick={loadMore} disabled={isPending}>
-      {isPending ? 'Loading…' : 'Load more'}
-    </button>
-  )
+  return pages.map((page, i) => (
+    <Suspense key={i} fallback={skeleton}>
+      <PageContent page={page} onLoadMore={loadMore} />
+    </Suspense>
+  ))
 }
 ```
 
-Clicking Load more advances the URL, the server renders the new page, and its `<Suspense>` shows the rows-only skeleton while its data resolves. The pages already on screen keep their stable keys, so the client never remounts them, and wrapping each page in the `<Crossfade>` from Step 4 fades the new rows in. Cache each page's read so rendering the next page does not recompute the earlier ones.
+The trade is real in both directions. The URL version is shareable and survives a reload, and it costs a re-render of every page on screen. The client version fetches only the new page and can show its fallback, and it gives up the shareable URL, loses its pages on reload, and sits outside revalidation. Pick per feed, not per app.
 
-Because the count lives in the URL, the list is shareable and the back button steps through it. None of the pagination runs on the client beyond the button's navigation.
+A "Load more" button also shouldn't outrun the list it belongs to. Whether the button is needed depends on data, so it belongs behind its own boundary, nested in the loading hierarchy under the list rather than inside the list markup. Have it read the same query the last page's rows read, so it can never resolve first and appear above rows that haven't arrived:
 
-> **Good to know:** When the full list is already loaded and small, progressive disclosure needs no pagination. Render every item and reveal the overflow with a native [`<details>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details) element, so "show more" works without client JavaScript or another request.
+```tsx filename="app/member-list.tsx"
+<Suspense fallback={<LoadMoreSlot />}>
+  <LoadMoreGate page={pageCount} />
+</Suspense>
+```
 
-## When loading fails or drags on
+Give that boundary a fallback with the button's dimensions. Its presence is unknown until the query resolves, and an unreserved control appearing under a list pushes the page down when it arrives, then again when it turns out not to be needed.
 
-A loading state promises that content is coming, so make sure it always resolves to something.
+## Verifying the sequence
 
-A read can fail. Wrap a slow section in an [error boundary](/docs/app/getting-started/error-handling) at the same granularity as its `<Suspense>` boundary, so a failure shows an error in that section instead of a skeleton that never resolves, and one failed section doesn't blank the rest of the page. See [error handling mid-stream](/docs/app/guides/streaming#error-handling-mid-stream) for how status codes behave once the stream has started.
+Fallbacks are hard to review because a good one flashes by. The [React Developer Tools](https://react.dev/learn/react-developer-tools) let you suspend a selected `<Suspense>` boundary so its fallback stays on screen while you check its sizing, contrast, and dark mode. The Next.js DevTools freeze the initial and prefetched UI for a route, which shows exactly which parts are fallback. See [Visualize loading states with the Next.js DevTools](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools).
 
-A read can also be slow. A skeleton or spinner reads as broken past about [10 seconds](https://www.nngroup.com/articles/response-times-3-important-limits/). For an operation you know runs long, show determinate progress, such as a percent-done bar, and let the user keep working while it finishes.
+Then throttle the network and CPU. Fallbacks that never appear on a local machine appear on a mid-range phone, and that's the sequence most of your users get.
 
-## Summary
+Tests usually cover the final loaded page and skip the frame that these problems live in. The `@next/playwright` [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) helper asserts on the UI that's visible immediately, before dynamic content streams in, so a boundary that drifts to the wrong place fails the test:
 
-The patterns in this guide come down to a handful of techniques:
+```typescript filename="e2e/loading.test.ts"
+import { test, expect } from '@playwright/test'
+import { instant } from '@next/playwright'
 
-| Situation                                                     | Use                                                                                                                          |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Content streams in and isn't on screen yet                    | A [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback (skeleton if you know the shape, spinner if you don't) |
-| A placeholder is replaced by content of a different size      | A skeleton sized to the real content, so nothing shifts                                                                      |
-| Variable-height sections reveal out of order and jump         | Nested [`<Suspense>`](https://react.dev/reference/react/Suspense) so they reveal top-down                                    |
-| The swap from placeholder to content looks abrupt             | [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) to crossfade the reveal                               |
-| Content already on screen is updating, like search or filters | A [transition](https://react.dev/reference/react/useTransition) that keeps the old UI visible, with a pending indicator      |
-| A pending indicator would flash on a fast response            | A CSS `animation-delay` so it appears only after about 150ms                                                                 |
-| A list should grow without shifting what's on screen          | URL pagination with a per-page [`<Suspense>`](https://react.dev/reference/react/Suspense)                                    |
+test('the directory shell is instant', async ({ page }) => {
+  await page.goto('/')
+
+  await instant(page, async () => {
+    // Stable UI is in the shell
+    await expect(page.locator('h1')).toContainText('Team directory')
+    // The fallback reserves the space the rows will occupy
+    const skeleton = page.locator('ul[aria-hidden]')
+    await expect(skeleton).toBeVisible()
+    expect((await skeleton.boundingBox())?.height).toBeGreaterThanOrEqual(512)
+  })
+
+  await expect(page.getByRole('listitem').first()).toBeVisible()
+})
+```
+
+Assert on both halves. A marker proves the right content is in the shell, and a dimension proves the fallback reserves the space, which is the part that regresses silently when a skeleton and its component drift apart.
+
+## Next steps
+
+You now know how to keep a shell painting, size a fallback so nothing moves, order the reveals top-down, and report an update without discarding what the user is reading.
+
+Next, learn how to:
+
+- [Stream a page](/docs/app/guides/streaming) and see how the HTML arrives.
+- [Ensure instant navigations](/docs/app/guides/instant-navigation) so the shell is already on screen when the user clicks.
+- [Build interactive apps](/docs/app/guides/interactive-apps) with transitions, optimistic UI, and form feedback.
+- [Profile performance](/docs/app/guides/profiling-performance) to find a boundary that gates too much content.

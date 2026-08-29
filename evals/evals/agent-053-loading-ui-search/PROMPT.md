@@ -1,0 +1,1 @@
+Searching the team directory feels broken. Every keystroke clears the members I was reading and flashes a spinner, and an older response can replace a newer search. Keep the search responsive and useful without removing the delayed search or its empty result state.

@@ -1,0 +1,1 @@
+This team directory feels broken on first load. A layout overlay and a route spinner compete with each other, then "No members yet" appears before the request finishes. The existing skeleton is only three short bars even though the result is eight full member rows. Make the first load stable and honest without removing the stats, members, or artificial latency.
