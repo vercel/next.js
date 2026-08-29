@@ -268,7 +268,7 @@ criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
 ctor = "1.0.7"
 crossbeam-channel = "0.5.8"
 crossbeam-utils = "0.8"
-dashmap = "6.1.0"
+dashmap = "7.0.0-rc2"
 data-encoding = "2.3.3"
 dhat = { version = "0.3.2" }
 dunce = "1.0.3"
@@ -280,7 +280,7 @@ fs-err = "3.1.1"
 futures = "0.3.31"
 futures-retry = "0.6.0"
 futures-util = "0.3.31"
-hashbrown = "0.14.5"
+hashbrown = "0.15.4"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"

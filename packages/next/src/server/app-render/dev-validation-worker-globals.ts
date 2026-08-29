@@ -98,6 +98,7 @@ export interface DevValidationSnapshot {
    * rare renders that React's I/O tracking carries a reference into.
    */
   additionalClientReferenceManifestPages: string[]
+  reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
   renderOpts: {
     images: ImageConfigComplete
@@ -121,6 +122,7 @@ export interface DevValidationInstallFields {
     httpAgentOptions: NextConfigComplete['httpAgentOptions']
     cacheLifeProfiles: NextConfigComplete['cacheLife']
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     staticPageGenerationTimeout: number
   }
 }

@@ -42,6 +42,7 @@ import type { ServerRuntime } from '../types'
 import {
   normalizeAppPath,
   compareAppPaths,
+  selectAppPageEntry,
 } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
@@ -100,6 +101,7 @@ export interface CreateEntrypointsParams {
   rootPaths?: MappedPages
   appDir?: string
   appPaths?: MappedPages
+  appDefaultPaths?: MappedPages
   pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
   /**
@@ -393,6 +395,7 @@ export async function createEntrypoints(
     rootPaths,
     appDir,
     appPaths,
+    appDefaultPaths,
     pageExtensions,
     deferredEntriesFilter,
   } = params
@@ -419,7 +422,10 @@ export async function createEntrypoints(
     }
 
     // TODO: find a better place to do this
-    normalizeCatchAllRoutes(appPathsPerRoute)
+    normalizeCatchAllRoutes(appPathsPerRoute, {
+      strictRouteMatching: config.experimental.strictRouteMatching,
+      defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+    })
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
@@ -433,6 +439,14 @@ export async function createEntrypoints(
   const getEntryHandler =
     (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
+      if (
+        pagesType === PAGE_TYPES.APP &&
+        config.experimental.strictRouteMatching &&
+        !(normalizeAppPath(page) in appPathsPerRoute)
+      ) {
+        return
+      }
+
       // Apply deferred entries filter if specified
       if (deferredEntriesFilter) {
         const isDeferred = isDeferredEntry(page, deferredEntries)
@@ -497,6 +511,19 @@ export async function createEntrypoints(
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
 
+      const matchedAppPaths =
+        pagesType === PAGE_TYPES.APP
+          ? (appPathsPerRoute[normalizeAppPath(page)] ?? null)
+          : null
+      const normalizedAppPage = normalizeAppPath(page)
+      const isFinalRouteMatcher =
+        config.experimental.strictRouteMatching &&
+        matchedAppPaths?.length &&
+        matchedAppPaths.some(
+          (appPath) => normalizeAppPath(appPath) === normalizedAppPage
+        ) &&
+        selectAppPageEntry(normalizedAppPage, matchedAppPaths) === page
+
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -514,7 +541,6 @@ export async function createEntrypoints(
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
-            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             server[serverBundlePath] = getAppEntry({
               page,
               name: serverBundlePath,
@@ -531,6 +557,14 @@ export async function createEntrypoints(
               isGlobalNotFoundEnabled: config.experimental.globalNotFound
                 ? true
                 : undefined,
+              explicitParallelRouteChildren: config.experimental
+                .explicitParallelRouteChildren
+                ? true
+                : undefined,
+              strictRouteMatching: config.experimental.strictRouteMatching
+                ? true
+                : undefined,
+              isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -593,7 +627,6 @@ export async function createEntrypoints(
               })
           } else {
             if (pagesType === 'app') {
-              const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
               appDirLoader = getAppEntry({
                 name: serverBundlePath,
                 page,
@@ -614,6 +647,14 @@ export async function createEntrypoints(
                 isGlobalNotFoundEnabled: config.experimental.globalNotFound
                   ? true
                   : undefined,
+                explicitParallelRouteChildren: config.experimental
+                  .explicitParallelRouteChildren
+                  ? true
+                  : undefined,
+                strictRouteMatching: config.experimental.strictRouteMatching
+                  ? true
+                  : undefined,
+                isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,
               }).import
             }
             edgeServer[serverBundlePath] = getEdgeServerEntry({

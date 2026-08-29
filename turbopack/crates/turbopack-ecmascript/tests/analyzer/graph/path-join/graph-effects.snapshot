@@ -1164,6 +1164,34 @@
         ],
         span: 514..519,
     },
+    DestructuredMember {
+        obj: Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "path",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        span: 529..533,
+    },
     DynamicImport {
         args: [
             Value(

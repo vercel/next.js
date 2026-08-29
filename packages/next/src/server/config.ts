@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -60,6 +61,38 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
+
+const REACT_18_DEPRECATION_WARNING =
+  'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
+
+function getInstalledPackageVersion(dir: string, name: 'react' | 'react-dom') {
+  try {
+    const projectRequire = createRequire(join(dir, 'package.json'))
+    return (projectRequire(name) as { version?: string }).version
+  } catch {
+    return undefined
+  }
+}
+
+function warnIfReact18IsInstalled(
+  phase: PHASE_TYPE,
+  dir: string,
+  silent: boolean | undefined
+) {
+  if (
+    silent !== false ||
+    (phase !== PHASE_DEVELOPMENT_SERVER && phase !== PHASE_PRODUCTION_BUILD)
+  ) {
+    return
+  }
+
+  const reactVersion = getInstalledPackageVersion(dir, 'react')
+  const reactDomVersion = getInstalledPackageVersion(dir, 'react-dom')
+
+  if (reactVersion?.startsWith('18.') || reactDomVersion?.startsWith('18.')) {
+    Log.warnOnce(REACT_18_DEPRECATION_WARNING)
+  }
+}
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
@@ -421,6 +454,13 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Pruning assumes that children only exists when it is backed by an
+  // ordinary route branch. Restoring the legacy implicit children slot must
+  // therefore also restore the legacy matcher behavior.
+  if (!result.experimental.explicitParallelRouteChildren) {
+    result.experimental.strictRouteMatching = false
+  }
+
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
   // resolved object with concrete defaults, so consumers don't have to
   // resolve the values themselves.
@@ -515,6 +555,13 @@ function assignDefaultsAndValidate(
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
   if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+    if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
@@ -1699,14 +1746,10 @@ function finalizeConfig(
     config.supportsImmutableAssets = false
   }
 
-  if (
-    config.supportsImmutableAssets &&
-    (config.output === 'export' || config.output === 'standalone')
-  ) {
-    // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
-    // output=standalone, which are currently using a non-adapter codepath.
-    // Particularly output=export should just run through the adapter, with only static assets.
-    // TODO remove again once output=export (and output=standalone) are using adapters.
+  if (config.supportsImmutableAssets && config.output === 'standalone') {
+    // supportsImmutableAssets is designed to work with adapters. Disable it for output=standalone,
+    // which is currently using a non-adapter codepath.
+    // TODO remove again once output=standalone is using adapters.
     config.supportsImmutableAssets = false
   }
 
@@ -1817,6 +1860,8 @@ export default async function loadConfig(
   const logTiming = opts.silent === false
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
+
+  warnIfReact18IsInstalled(phase, dir, opts.silent)
 
   if (!meta.cacheHit && logTiming) {
     const durationNanos = process.hrtime.bigint() - startTimeNanos!

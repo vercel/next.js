@@ -68,6 +68,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -137,6 +138,7 @@ import {
 } from './create-transport-tree-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { getReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 import { warn, error } from '../../build/output/log'
 import {
   appendMutableCookies,
@@ -179,7 +181,6 @@ import {
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
-  createRenderInBrowserAbortSignal,
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
@@ -1597,17 +1598,6 @@ async function generateRuntimePrefetchResult(
   // but we're not going to persist this anywhere.
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-  await prospectiveRuntimeServerPrerender(
-    ctx,
-    isShellPrefetch,
-    generateDynamicRSCPayload.bind(null, ctx),
-    prerenderResumeDataCache,
-    rootParams,
-    requestStore.headers,
-    requestStore.cookies,
-    requestStore.draftMode
-  )
-
   const mode: RuntimePrerenderMode = isShellPrefetch
     ? {
         type: 'session-shell-only',
@@ -1618,6 +1608,17 @@ async function generateRuntimePrefetchResult(
         shellUsedSessionDataDeferred: createPromiseWithResolvers(),
         shellByteLengthDeferred: createPromiseWithResolvers(),
       }
+
+  await prospectiveRuntimeServerPrerender(
+    ctx,
+    getFinalStageForRuntimePrerenderMode(mode),
+    generateDynamicRSCPayload.bind(null, ctx),
+    prerenderResumeDataCache,
+    rootParams,
+    requestStore.headers,
+    requestStore.cookies,
+    requestStore.draftMode
+  )
 
   const debugChannel = setReactDebugChannel
     ? createWebDebugChannel()
@@ -1655,7 +1656,7 @@ async function generateRuntimePrefetchResult(
 
 async function prospectiveRuntimeServerPrerender(
   ctx: AppRenderContext,
-  isShellPrefetch: boolean,
+  finalStage: AdvanceableRenderStage,
   getPayload: () => Promise<RSCPayload>,
   resumeDataCache: PrerenderResumeDataCache | null,
   rootParams: Params,
@@ -1704,9 +1705,10 @@ async function prospectiveRuntimeServerPrerender(
     hmrRefreshHash: undefined,
     // We don't track vary params during initial prerender, only the final one
     varyParamsAccumulator: null,
-    // No stage sequencing needed for prospective renders.
+    // We don't use sequencing needed for prospective renders, but we need to
+    // track where the final prerender is going to end to avoid warming too much.
     stagedRendering: null,
-    isSessionShell: isShellPrefetch,
+    finalStage,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     // Any cache keyed on headers() or cookies() needs to be invalidated.
@@ -1853,19 +1855,8 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
-  let finalStage: AdvanceableRenderStage
-  switch (mode.type) {
-    case 'session-shell-only':
-      finalStage = RenderStage.ShellRuntime
-      break
-    case 'rewindable-session-shell':
-      finalStage = RenderStage.Runtime
-      break
-    case 'navigation':
-      finalStage = RenderStage.NavigationRuntime
-      break
-  }
-  const finalStageController = new StagedRenderingController({
+  const finalStage = getFinalStageForRuntimePrerenderMode(mode)
+  const stageController = new StagedRenderingController({
     abortSignal: finalServerController.signal,
     abandonController: null,
     // In dynamic renders, we allow Sync IO in the Runtime stage
@@ -1897,8 +1888,8 @@ async function finalRuntimeServerPrerender(
     resumeDataCache,
     hmrRefreshHash: undefined,
     varyParamsAccumulator,
-    stagedRendering: finalStageController,
-    isSessionShell: mode.type === 'session-shell-only',
+    stagedRendering: stageController,
+    finalStage,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     headers: HeadersAdapter.fresh(headers),
@@ -1922,7 +1913,7 @@ async function finalRuntimeServerPrerender(
     collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
     increaseChunkByteLengths(
       stageByteLengths,
-      finalStageController.currentStage,
+      stageController.currentStage,
       chunk.byteLength
     )
   }
@@ -1962,7 +1953,7 @@ async function finalRuntimeServerPrerender(
 
   await runInSequentialTasks(
     async () => {
-      finalStageController.advanceStage(RenderStage.ShellStatic)
+      stageController.advanceStage(RenderStage.ShellStatic)
 
       let stream = workUnitAsyncStorage.run(
         finalServerPrerenderStore,
@@ -1988,19 +1979,19 @@ async function finalRuntimeServerPrerender(
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.PrefetchStatic)
+      stageController.advanceStage(RenderStage.PrefetchStatic)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.NavigationStatic)
+      stageController.advanceStage(RenderStage.NavigationStatic)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.Static)
+      stageController.advanceStage(RenderStage.Static)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.ShellRuntime)
+      stageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -2008,7 +1999,7 @@ async function finalRuntimeServerPrerender(
       // We may not reach this stage depending on the mode.
       if (finalStage < RenderStage.Runtime) return
 
-      finalStageController.advanceStage(RenderStage.Runtime)
+      stageController.advanceStage(RenderStage.Runtime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -2039,7 +2030,7 @@ async function finalRuntimeServerPrerender(
       // We may not reach this stage depending on the mode.
       if (finalStage < RenderStage.NavigationRuntime) return
 
-      finalStageController.advanceStage(RenderStage.NavigationRuntime)
+      stageController.advanceStage(RenderStage.NavigationRuntime)
     },
     () => {
       // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
@@ -2086,6 +2077,19 @@ async function finalRuntimeServerPrerender(
     collectedExpire: finalServerPrerenderStore.expire,
     collectedStale: staleTimeIterable.currentValue,
     collectedTags: finalServerPrerenderStore.tags,
+  }
+}
+
+function getFinalStageForRuntimePrerenderMode(
+  mode: RuntimePrerenderMode
+): AdvanceableRenderStage {
+  switch (mode.type) {
+    case 'session-shell-only':
+      return RenderStage.ShellRuntime
+    case 'rewindable-session-shell':
+      return RenderStage.Runtime
+    case 'navigation':
+      return RenderStage.NavigationRuntime
   }
 }
 
@@ -2919,7 +2923,7 @@ async function prerenderAppPage({
   // Pick first userland SSR error, which is also not a RSC error.
   if (response.ssrErrors.length) {
     const buildFailingError = response.ssrErrors.find((err) =>
-      isUserLandError(err)
+      isUserLandError(err, ctx.renderOpts.experimental.reactBrowserBailout)
     )
     if (buildFailingError) throw buildFailingError
   }
@@ -3698,6 +3702,7 @@ async function renderToStream(
     const htmlRendererErrorHandler = createHTMLErrorHandler(
       process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
+      ctx.renderOpts.experimental.reactBrowserBailout,
       reactServerErrorsByDigest,
       allCapturedErrors,
       onHTMLRenderSSRError,
@@ -6519,6 +6524,7 @@ export type ValidationRenderContext = Pick<
   | 'workStore'
 > & {
   renderOpts: Pick<RenderOpts, 'images' | 'allowEmptyStaticShell'>
+  reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
 }
 
@@ -6542,6 +6548,7 @@ export function toValidationRenderContext(
       images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
     },
+    reactBrowserBailout: ctx.renderOpts.experimental.reactBrowserBailout,
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
   }
 }
@@ -6573,6 +6580,8 @@ function buildDevValidationWorkStore(
     forceStatic: message.forceStatic,
     isDraftMode: message.request.isDraftMode,
     useCacheTimeout: message.nextConfigSerializable.useCacheTimeout,
+    durableUseCacheEntries:
+      message.nextConfigSerializable.durableUseCacheEntries,
     staticPageGenerationTimeout:
       message.nextConfigSerializable.staticPageGenerationTimeout,
     cacheLifeProfiles: message.nextConfigSerializable.cacheLifeProfiles,
@@ -6666,6 +6675,7 @@ export async function runValidationInDevFromSnapshot(
       images: message.renderOpts.images,
       allowEmptyStaticShell: message.renderOpts.allowEmptyStaticShell,
     },
+    reactBrowserBailout: message.reactBrowserBailout,
     isDebugChannelEnabled: message.isDebugChannelEnabled,
   }
 
@@ -7584,6 +7594,20 @@ async function validateInstantConfigs(
             />,
             {
               signal: reactSignal,
+              onBrowserBailout: (err: unknown, errorInfo: ErrorInfo) => {
+                if (!reactSignal.aborted) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackThrownErrorInNavigation(
+                      workStore,
+                      instantValidationState,
+                      err,
+                      componentStack,
+                      ctx.reactBrowserBailout
+                    )
+                  }
+                }
+              },
               onError: (err: unknown, errorInfo: ErrorInfo) => {
                 if (isPrerenderInterruptedError(err) || reactSignal.aborted) {
                   const componentStack = errorInfo.componentStack
@@ -7625,7 +7649,8 @@ async function validateInstantConfigs(
                       workStore,
                       instantValidationState,
                       errorForDisplay,
-                      componentStack
+                      componentStack,
+                      ctx.reactBrowserBailout
                     )
                   }
                 }
@@ -8204,6 +8229,7 @@ async function validateInstantConfigInBuildWithSample(
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
     useCacheTimeout: outerWorkStore.useCacheTimeout,
+    durableUseCacheEntries: outerWorkStore.durableUseCacheEntries,
     staticPageGenerationTimeout: outerWorkStore.staticPageGenerationTimeout,
     isBuildTimePrerendering: false,
     fetchCache: outerWorkStore.fetchCache,
@@ -8671,6 +8697,7 @@ async function prerenderToStream(
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
+    ctx.renderOpts.experimental.reactBrowserBailout,
     reactServerErrorsByDigest,
     allCapturedErrors,
     onHTMLRenderSSRError
@@ -9560,7 +9587,9 @@ async function prerenderToStream(
           />,
           JSON.parse(JSON.stringify(postponed)),
           {
-            signal: createRenderInBrowserAbortSignal(),
+            signal: createRenderInBrowserAbortSignal(
+              ctx.renderOpts.experimental.reactBrowserBailout
+            ),
             onError: htmlRendererErrorHandler,
             nonce,
           }
@@ -9735,6 +9764,19 @@ async function prerenderToStream(
       )
 
       throw err
+    }
+
+    if (ctx.renderOpts.experimental.reactBrowserBailout) {
+      // React preserves the reason passed to browser() as the fatal error's cause.
+      const browserBailoutReason = getReactBrowserBailoutReason(err)
+      if (browserBailoutReason !== undefined) {
+        const stack = getStackWithoutErrorMessage(err as Error)
+        error(
+          `${browserBailoutReason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        )
+
+        throw new StaticGenBailoutError()
+      }
     }
 
     // If we errored when we did not have an RSC stream to read from. This is
@@ -10086,7 +10128,9 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(errorPostponed)),
             {
-              signal: createRenderInBrowserAbortSignal(),
+              signal: createRenderInBrowserAbortSignal(
+                ctx.renderOpts.experimental.reactBrowserBailout
+              ),
               onError: htmlRendererErrorHandler,
               nonce,
             }

@@ -22,6 +22,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -80,7 +81,7 @@ use crate::{
     error::TaskError,
     kv_backing_storage::TurboBackingStorage,
     utils::{
-        dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
+        dash_map_entry::{get_in_shard, get_shard, with_entry_in_shard},
         shard_amount::compute_shard_amount,
         stopwatch::Stopwatch,
     },
@@ -330,6 +331,23 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
+    /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
+    /// hook for verifying incremental refcount maintenance.
+    #[doc(hidden)]
+    pub fn parent_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_parent_count())
+            .unwrap_or(0)
+    }
+
+    /// The transient `transient_ref_count` of a resident task (0 if absent or not resident).
+    #[doc(hidden)]
+    pub fn transient_ref_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_transient_ref_count())
+            .unwrap_or(0)
+    }
+
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics (debug builds) if
     /// `task` exists in neither memory nor persistent storage (rather than fabricating a
@@ -534,13 +552,13 @@ impl TurboTasksBackend {
                         done_event,
                     ))))
                 }
-                Some(InProgressState::InProgress(box InProgressStateInner {
-                    done_event, ..
-                })) => Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
-                    reader_description,
-                    tracking,
-                    done_event,
-                )))),
+                Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) => {
+                    Some(Ok(ReadOutcome::InProgress(listen_to_done_event(
+                        reader_description,
+                        tracking,
+                        done_event,
+                    ))))
+                }
                 Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
                     "{} was canceled",
                     task.get_task_description()
@@ -1567,7 +1585,7 @@ impl TurboTasksBackend {
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
         if let Some(task_id) =
-            raw_get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
+            get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
             operation::ConnectChildOperation::run(parent_task, task_id, ctx);
@@ -1584,76 +1602,88 @@ impl TurboTasksBackend {
             self.track_cache_hit_by_fn(native_fn);
             // Step 3a: Insert into in-memory cache using the pre-located shard.
             // Use the existing Arc from storage to avoid a duplicate allocation.
-            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
-                k.eq_components(native_fn, this, arg_ref)
-            }) {
-                RawEntry::Occupied(_) => {}
-                RawEntry::Vacant(e) => {
-                    e.insert(stored_type, task_id);
-                }
-            };
+            with_entry_in_shard(
+                shard,
+                self.storage.task_cache.hasher(),
+                hash,
+                arg,
+                |k, arg| k.eq_components(native_fn, this, arg.as_ref()),
+                |entry, _arg| {
+                    if let Entry::Vacant(entry) = entry {
+                        entry.insert((stored_type, task_id));
+                    }
+                },
+            );
             task_id
         } else {
-            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
-                k.eq_components(native_fn, this, arg_ref)
-            }) {
-                RawEntry::Occupied(e) => {
-                    // Another thread beat us to creating this task — use their task_id.
-                    // They will handle logging the new task as modified.
-                    let task_id = *e.get();
-                    drop(e);
-                    self.track_cache_hit_by_fn(native_fn);
-                    task_id
-                }
-                RawEntry::Vacant(e) => {
-                    // Only now do we force the allocation.
-                    // NOTE: if our caller had to perform resolution, then this will have already
-                    // been boxed and take_box just takes it.
-                    let task_type = CachedTaskTypeArc::new(CachedTaskType {
-                        native_fn,
-                        this,
-                        arg: arg.take_box(),
-                    });
-                    let task_id = if transient {
-                        self.transient_task_id_factory.get()
-                    } else {
-                        self.persisted_task_id_factory.get()
-                    };
-                    // Initialize storage BEFORE making task_id visible in the cache.
-                    // This ensures any thread that reads task_id from the cache sees
-                    // the storage entry already initialized (restored flags set).
-                    self.storage
-                        .initialize_new_task(task_id, Some(task_type.clone()));
-                    // insert() consumes e, releasing the shard write lock.
-                    e.insert(task_type, task_id);
-                    self.track_cache_miss_by_fn(native_fn);
-                    // Update the aggregation number before connecting the child
-                    // We don't need this on any of the task recovery paths above because the
-                    // aggregation number will already be set.
-                    if is_root {
-                        AggregationUpdateQueue::run(
-                            AggregationUpdateJob::UpdateAggregationNumber {
-                                task_id,
-                                base_aggregation_number: u32::MAX,
-                                distance: None,
-                            },
-                            &mut ctx,
-                        );
-                    } else if native_fn.is_session_dependent && self.should_track_dependencies() {
-                        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
-                        AggregationUpdateQueue::run(
-                            AggregationUpdateJob::UpdateAggregationNumber {
-                                task_id,
-                                base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
-                                distance: None,
-                            },
-                            &mut ctx,
-                        );
-                    };
+            let (task_id, created) = with_entry_in_shard(
+                shard,
+                self.storage.task_cache.hasher(),
+                hash,
+                arg,
+                |k, arg| k.eq_components(native_fn, this, arg.as_ref()),
+                |entry, arg| match entry {
+                    Entry::Occupied(entry) => {
+                        // Another thread beat us to creating this task — use their task_id.
+                        // They will handle logging the new task as modified.
+                        (entry.get().1, false)
+                    }
+                    Entry::Vacant(entry) => {
+                        // Only now do we force the allocation.
+                        // NOTE: if our caller had to perform resolution, then this will have
+                        // already been boxed and take_box just takes it.
+                        let task_type = CachedTaskTypeArc::new(CachedTaskType {
+                            native_fn,
+                            this,
+                            arg: arg.take_box(),
+                        });
+                        let task_id = if transient {
+                            self.transient_task_id_factory.get()
+                        } else {
+                            self.persisted_task_id_factory.get()
+                        };
+                        // Initialize storage BEFORE making task_id visible in the cache.
+                        // This ensures any thread that reads task_id from the cache sees
+                        // the storage entry already initialized (restored flags set).
+                        self.storage
+                            .initialize_new_task(task_id, Some(task_type.clone()));
+                        entry.insert((task_type, task_id));
+                        (task_id, true)
+                    }
+                },
+            );
 
-                    task_id
+            // The entry closure has returned, so the task_cache shard lock is released before
+            // cache tracking or aggregation updates can re-enter the backend.
+            if created {
+                self.track_cache_miss_by_fn(native_fn);
+                // Update the aggregation number before connecting the child. We don't need this on
+                // recovery paths because the aggregation number will already be set.
+                if is_root {
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                } else if native_fn.is_session_dependent && self.should_track_dependencies() {
+                    const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
                 }
+            } else {
+                self.track_cache_hit_by_fn(native_fn);
             }
+
+            task_id
         };
 
         operation::ConnectChildOperation::run(parent_task, task_id, ctx);
@@ -1852,7 +1882,7 @@ impl TurboTasksBackend {
                     done_event,
                     reason: _,
                 } => done_event.notify(usize::MAX),
-                InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
+                InProgressState::InProgress(InProgressStateInner { done_event, .. }) => {
                     done_event.notify(usize::MAX)
                 }
                 InProgressState::Canceled => {}
@@ -2119,10 +2149,6 @@ impl TurboTasksBackend {
         let has_new_children = !new_children.is_empty();
         span.record("new_children", new_children.len());
 
-        if has_new_children {
-            self.task_execution_completed_unfinished_children_dirty(&mut ctx, &new_children)
-        }
-
         if has_new_children
             && let Some(stale_priority) =
                 self.task_execution_completed_connect(&mut ctx, task_id, new_children)
@@ -2197,7 +2223,7 @@ impl TurboTasksBackend {
                 is_session_dependent,
             });
         }
-        let &mut InProgressState::InProgress(box InProgressStateInner {
+        let &mut InProgressState::InProgress(InProgressStateInner {
             stale,
             ref mut new_children,
             once_task: is_once_task,
@@ -2211,7 +2237,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner {
+            let Some(InProgressState::InProgress(InProgressStateInner {
                 done_event,
                 mut new_children,
                 ..
@@ -2580,36 +2606,6 @@ impl TurboTasksBackend {
         }
     }
 
-    fn task_execution_completed_unfinished_children_dirty(
-        &self,
-        ctx: &mut impl ExecuteContext<'_>,
-        new_children: &FxHashSet<TaskId>,
-    ) {
-        debug_assert!(!new_children.is_empty());
-
-        let mut queue = AggregationUpdateQueue::new();
-        ctx.for_each_task_all(
-            new_children.iter().copied(),
-            "unfinished children dirty",
-            |child_task, ctx| {
-                if !child_task.has_output() {
-                    let child_id = child_task.id();
-                    make_task_dirty_internal(
-                        child_task,
-                        child_id,
-                        false,
-                        #[cfg(feature = "task_dirty_cause")]
-                        TaskDirtyCause::InitialDirty,
-                        &mut queue,
-                        ctx,
-                    );
-                }
-            },
-        );
-
-        queue.execute(ctx);
-    }
-
     fn task_execution_completed_connect(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
@@ -2626,7 +2622,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't connect the children
             return None;
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
             stale,
             once_task: is_once_task,
@@ -2640,7 +2636,7 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
+            let Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) =
                 task.take_in_progress()
             else {
                 unreachable!();
@@ -2702,7 +2698,7 @@ impl TurboTasksBackend {
             // Task was canceled in the meantime, so we don't finish it
             return (None, None);
         }
-        let InProgressState::InProgress(box InProgressStateInner {
+        let InProgressState::InProgress(InProgressStateInner {
             done_event,
             once_task: is_once_task,
             stale,
@@ -3267,7 +3263,7 @@ impl TurboTasksBackend {
     fn mark_own_task_as_finished(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress(box InProgressStateInner {
+        if let Some(InProgressState::InProgress(InProgressStateInner {
             marked_as_completed,
             ..
         })) = task.get_in_progress_mut()

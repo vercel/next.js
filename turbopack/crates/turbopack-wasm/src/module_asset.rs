@@ -212,7 +212,9 @@ impl ChunkableModule for WebAssemblyModuleAsset {
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.loader().get_exports()
+        // This module hands out the *loader* module's exports as its own, so they must not carry
+        // a mangling decision — see `EcmascriptExports::borrowed`.
+        self.loader().get_exports().borrowed()
     }
 
     #[turbo_tasks::function]

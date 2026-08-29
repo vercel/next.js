@@ -33,7 +33,12 @@ export function getTypeScriptPackageInfo(
   const packageDir = path.dirname(packageJsonPath)
   const apiPath = path.join(packageDir, 'lib', 'typescript.js')
   const tscBin =
-    typeof packageJson.bin === 'string' ? packageJson.bin : packageJson.bin?.tsc
+    typeof packageJson.bin === 'string'
+      ? packageJson.bin
+      : (packageJson.bin?.tsc ??
+        Object.entries(packageJson.bin ?? {}).find(([name]) =>
+          /^tsc\d+$/.test(name)
+        )?.[1])
   const tscBinPath = tscBin ? path.resolve(packageDir, tscBin) : undefined
   let tscPath = tscBinPath
 
