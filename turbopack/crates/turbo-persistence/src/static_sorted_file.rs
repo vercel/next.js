@@ -851,6 +851,13 @@ impl CurrentKeyBlockKind {
     }
 }
 
+/// One entry of a [`CurrentKeyBlock::hash_order`] plan: the key's hash and the index of the entry
+/// it was computed from.
+struct HashOrderEntry {
+    hash: u64,
+    entry_index: u32,
+}
+
 struct CurrentKeyBlock {
     kind: CurrentKeyBlockKind,
     /// Whether entries carry a hash, and so what order they are stored in.
@@ -858,11 +865,12 @@ struct CurrentKeyBlock {
     entries: RcBytes,
     /// Number of entries in this key block (max ~819 per 16 KiB block).
     entry_count: u32,
-    /// Current position within the key block.
+    /// Current iteration position. Indexes `hash_order` when that is present, and the block's
+    /// entries directly otherwise.
     index: u32,
-    /// Iteration plan for a [`KeyBlockLayout::KeyOnly`] block
-    /// hash to key index sequence
-    hash_order: Vec<(u64, u32)>,
+    /// Iteration plan for a [`KeyBlockLayout::KeyOnly`] block, in `(hash, key)` order.
+    /// `None` for [`KeyBlockLayout::HashThenKey`], whose entries are already stored in that order.
+    hash_order: Option<Vec<HashOrderEntry>>,
 }
 
 impl Iterator for StaticSortedFileIter {
@@ -947,6 +955,8 @@ impl StaticSortedFileIter {
 
         let (kind, entries) = if fixed {
             ensure!(data.len() >= 6, "fixed key block too short");
+            // In fixed blocks the size of the keys (<=32) is stored immediately after the block len
+            // (retrieved above)
             let key_size = data[4] as usize;
             let FixedValueLayout {
                 value_type,
@@ -964,18 +974,20 @@ impl StaticSortedFileIter {
                 entries,
             )
         } else {
-            let n = entry_count as usize;
-            let offsets = block.clone().slice(4..4 + n * 4);
-            let entries = block.slice(4 + n * 4..block_len);
+            let offset_table_begin = 4usize;
+            let offset_table_end = offset_table_begin + (entry_count as usize) * 4;
+            // In variable blocks the offsets table starts immediately after the entry count
+            let offsets = block.clone().slice(offset_table_begin..offset_table_end);
+            let entries = block.slice(offset_table_end..block_len);
             (CurrentKeyBlockKind::Variable { offsets }, entries)
         };
 
         // Compute the hash order if needed
         let hash_order = match layout {
-            KeyBlockLayout::HashThenKey => Vec::new(),
-            KeyBlockLayout::KeyOnly => hash_order_for_block(entry_count, |i| {
+            KeyBlockLayout::HashThenKey => None,
+            KeyBlockLayout::KeyOnly => Some(hash_order_for_block(entry_count, |i| {
                 kind.entry(&entries, entry_count, i, hash_len)
-            })?,
+            })?),
         };
 
         Ok(CurrentKeyBlock {
@@ -993,11 +1005,11 @@ impl StaticSortedFileIter {
         loop {
             let kb = &mut self.current_key_block;
             if kb.index < kb.entry_count {
-                let (precomputed_hash, index) = match kb.layout {
-                    KeyBlockLayout::HashThenKey => (None, kb.index as usize),
-                    KeyBlockLayout::KeyOnly => {
-                        let (hash, index) = kb.hash_order[kb.index as usize];
-                        (Some(hash), index as usize)
+                let (precomputed_hash, index) = match &kb.hash_order {
+                    None => (None, kb.index as usize),
+                    Some(hash_order) => {
+                        let HashOrderEntry { hash, entry_index } = hash_order[kb.index as usize];
+                        (Some(hash), entry_index as usize)
                     }
                 };
                 let GetKeyEntryResult { hash, key, ty, val } =
@@ -1060,27 +1072,23 @@ struct GetKeyEntryResult<'l> {
 fn hash_order_for_block<'l>(
     entry_count: u32,
     get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'l>>,
-) -> Result<Vec<(u64, u32)>> {
+) -> Result<Vec<HashOrderEntry>> {
     let mut order = Vec::with_capacity(entry_count as usize);
-    for i in 0..entry_count {
-        let key = get_entry(i as usize)?.key;
-        order.push((crate::key::hash_key(&key), i));
+    for entry_index in 0..entry_count {
+        let key = get_entry(entry_index as usize)?.key;
+        order.push(HashOrderEntry {
+            hash: crate::key::hash_key(&key),
+            entry_index,
+        });
     }
     // Stable sort by hash, stability is important to preserve the original hash order
     // This keeps tombstones in their correct relative positions.
-    order.sort_by_key(|&(hash, _)| hash);
+    order.sort_by_key(|entry| entry.hash);
     Ok(order)
 }
 
 /// Compares a query against an entry, returning the ordering of the query relative to the entry in
 /// the block's own sort order.
-///
-/// Each arm matches the order its layout is stored in, so the binary search in
-/// [`StaticSortedFile::lookup_block_inner`] agrees with the writer:
-///
-/// - [`KeyBlockLayout::HashThenKey`]: compare the stored 8-byte hash first, key only on a tie.
-/// - [`KeyBlockLayout::KeyOnly`]: compare the key directly. This is the point of key ordering —
-///   otherwise the entry's hash would have to be recomputed on every probe.
 fn compare_hash_key<K: QueryKey>(
     layout: KeyBlockLayout,
     entry_hash: &[u8],
