@@ -7,6 +7,7 @@ related:
   links:
     - app/getting-started/fetching-data
     - app/guides/streaming
+    - app/guides/loading-ui
     - app/guides/interactive-apps
 ---
 
@@ -150,7 +151,7 @@ Record again. The waterfall is gone: the reads now start together instead of one
 
 Notice that after the fix the track shows `getUser` then `getTeams`, with no `getNotifications` span even though it still ran. In this app `getNotifications` finishes in 250ms while `getTeams` takes 300ms, so `getTeams` is the one holding up the render, and the span takes its name.
 
-Often the better structure is to move each read into the component that uses it, so the read starts when that component renders instead of blocking the page up front. 
+Often the better structure is to move each read into the component that uses it, so the read starts when that component renders instead of blocking the page up front.
 
 The demo does this for its content sections: `ActivityFeed` awaits its own data, so it can sit behind its own boundary and stream independently.
 
@@ -283,7 +284,7 @@ The same reasoning covers the other reads: cache the ones that change rarely, an
 
 ```tsx filename="app/dashboard/page.tsx"
 {/* cached: in the static shell, no fallback */}
-<Stats />                                
+<Stats />
 <Suspense fallback={<WhoIsOnlineSkeleton />}>
   {/* live: streams per request */}
   <WhoIsOnline teamIds={user.teamIds} />

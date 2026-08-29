@@ -1,1 +1,0 @@
-Opening a member feels chaotic. The bio, activity, and related people each flash their own spinner, then appear in response order and push the page around. Make the profile reveal feel intentional without removing any section, delayed data, or missing-member behavior.

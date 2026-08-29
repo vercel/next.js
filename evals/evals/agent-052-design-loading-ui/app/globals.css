@@ -19,6 +19,23 @@ main {
   color: #666;
 }
 
+input,
+button {
+  font: inherit;
+}
+
+input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+}
+
 .member-list {
   list-style: none;
   margin: 1rem 0 0;
@@ -38,6 +55,11 @@ main {
 .member-row small {
   display: block;
   color: #666;
+}
+
+.member-row a {
+  color: inherit;
+  font-weight: 650;
 }
 
 .avatar {
