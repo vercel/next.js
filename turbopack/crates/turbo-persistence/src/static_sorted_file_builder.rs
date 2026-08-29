@@ -17,8 +17,10 @@ use crate::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE,
-        KeyBlockLayout, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH,
+        KEY_DELETED_REF_SIZE, KeyBlockLayout, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        key_block_table_stride,
     },
 };
 
@@ -576,6 +578,10 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
+    // Reusable buffer for the tail region of a key block: the key (when the search region holds
+    // hashes) and the value. Appended to `key_buffer` when the block is finished.
+    key_value_buffer: Vec<u8>,
+
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
     collected_fingerprints: Vec<u32>,
@@ -635,7 +641,11 @@ impl<E: Entry> StreamingSstWriter<E> {
             pending_small_value_block: Vec::with_capacity(
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
-            key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
+            // The two regions partition one block's bytes between them, so together they need
+            // about MAX_KEY_BLOCK_SIZE. Both are `reserve`d to the exact region size per block,
+            // so these are only first-block hints.
+            key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE / 2),
+            key_value_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE / 2),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
@@ -928,6 +938,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         // loops read `pending_keys`.
         let Self {
             key_buffer,
+            key_value_buffer,
             pending_keys,
             ..
         } = self;
@@ -952,6 +963,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         {
             let mut builder = FixedKeyBlockBuilder::new(
                 key_buffer,
+                key_value_buffer,
                 entry_count as u32,
                 layout,
                 key_size,
@@ -1173,6 +1185,8 @@ impl<E: Entry> Drop for StreamingSstWriter<E> {
 struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
+    /// Bytes per offset table entry, which is wider when the block stores hashes.
+    table_stride: usize,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -1185,40 +1199,54 @@ impl<'l> KeyBlockBuilder<'l> {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
-        buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
+        let table_stride = key_block_table_stride(layout.hash_len());
+        buffer.reserve(entry_count as usize * (ESTIMATED_KEY_SIZE + table_stride));
         let block_type = layout.block_type(false);
         buffer.write_u8(block_type).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
-        for _ in 0..entry_count {
-            buffer.write_u32::<BE>(0).unwrap();
-        }
+        // Reserve the offset table; each entry's slot is filled in as it is written.
+        buffer.resize(buffer.len() + entry_count as usize * table_stride, 0);
         Self {
             current_entry: 0,
             header_size: buffer.len(),
+            table_stride,
             buffer,
         }
     }
 
-    /// Writes the entry header (position + type) for the current entry.
+    /// Writes the type and payload position into the current entry's table slot.
+    ///
+    /// The word sits at the end of the slot, after the hash for a `HashThenKey` block.
     fn write_entry_header(&mut self, entry_type: EntryType) {
         let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        let word_offset = slot + self.table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH;
         let header = (pos as u32) | ((entry_type.0 as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+        BE::write_u32(&mut self.buffer[word_offset..word_offset + 4], header);
     }
 
-    /// Writes a single entry (header +  key + value data) to the block.
+    /// Writes a single entry (table slot + key + value data) to the block.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.table_stride, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH,
+            "put() is for KeyOnly blocks; HashThenKey must use put_with_hash()"
+        );
         self.write_entry_header(value_ref.entry_type());
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
     }
-    /// Writes a single entry (header + hash + key + value data) to the block.
+
+    /// Writes a single entry to a `HashThenKey` block, with the hash hoisted into the table slot so
+    /// that a lookup's binary search reads only the table.
     fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.table_stride, KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH,
+            "put_with_hash() is for HashThenKey blocks; KeyOnly must use put()"
+        );
         self.write_entry_header(value_ref.entry_type());
-        self.buffer
-            .extend_from_slice(&entry.key_hash().to_be_bytes());
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        self.buffer[slot..slot + size_of::<u64>()].copy_from_slice(&entry.key_hash().to_be_bytes());
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
@@ -1242,25 +1270,46 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// No offset table is written — entry positions are computed arithmetically from the stride. When
 /// entries share a value size but not a value type, the header records
 /// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
+///
+/// Entries are written as two regions rather than interleaved, so that the bytes a lookup's binary
+/// search probes are contiguous: the search region holds only what
+/// [`compare_hash_key`][crate::static_sorted_file::KeyBlockLayout] compares first (the hash for
+/// `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region, addressed
+/// by the same entry index. See the module docs on key block layout.
 struct FixedKeyBlockBuilder<'l> {
+    /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
+    /// Accumulates the tail region, appended to `buffer` by [`Self::finish`].
+    tail: &'l mut Vec<u8>,
     /// Whether each entry writes its own type byte (set for mixed-type blocks).
     per_entry_type: bool,
+    /// Which of the two regions the key goes in: the search region for `KeyOnly`, the tail for
+    /// `HashThenKey`.
+    layout: KeyBlockLayout,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
     fn new(
         buffer: &'l mut Vec<u8>,
+        tail: &'l mut Vec<u8>,
         entry_count: u32,
         layout: KeyBlockLayout,
         key_size: u8,
         val_size: u8,
         value_type: Option<EntryType>,
     ) -> Self {
-        let hash_len = layout.hash_len() as usize;
         let per_entry_type = value_type.is_none();
-        let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
-        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
+        // The two regions partition the entry bytes: the search region takes the bytes compared
+        // first, the tail takes the rest. For `HashThenKey` that puts the hash in the search
+        // region and the key in the tail; for `KeyOnly` the key is itself the search region.
+        let (search_stride, key_in_tail) = match layout {
+            KeyBlockLayout::HashThenKey => (layout.hash_len() as usize, key_size as usize),
+            KeyBlockLayout::KeyOnly => (key_size as usize, 0),
+        };
+        let tail_stride = key_in_tail + val_size as usize + usize::from(per_entry_type);
+        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * search_stride);
+        tail.clear();
+        tail.reserve(entry_count as usize * tail_stride);
 
         let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[
@@ -1279,30 +1328,47 @@ impl<'l> FixedKeyBlockBuilder<'l> {
 
         Self {
             buffer,
+            tail,
             per_entry_type,
+            layout,
         }
     }
 
-    /// Writes a single entry (key + optional type byte + value data) to the block.
+    /// Writes a single entry to a `KeyOnly` block: key into the search region, value into the tail.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.layout,
+            KeyBlockLayout::KeyOnly,
+            "put() is for KeyOnly blocks; HashThenKey must use put_with_hash()"
+        );
         entry.write_key_to(self.buffer);
-        if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
-        }
-        value_ref.write_value_to(self.buffer);
+        self.put_tail(value_ref);
     }
 
-    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
+    /// Writes a single entry to a `HashThenKey` block: hash into the search region, key and value
+    /// into the tail.
     fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        debug_assert_eq!(
+            self.layout,
+            KeyBlockLayout::HashThenKey,
+            "put_with_hash() is for HashThenKey blocks; KeyOnly must use put()"
+        );
         self.buffer
             .extend_from_slice(&entry.key_hash().to_be_bytes());
-        entry.write_key_to(self.buffer);
-        if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
-        }
-        value_ref.write_value_to(self.buffer);
+        entry.write_key_to(self.tail);
+        self.put_tail(value_ref);
     }
+
+    /// Appends the parts of an entry that the search never reads.
+    fn put_tail(&mut self, value_ref: &ValueRef) {
+        if self.per_entry_type {
+            self.tail.push(value_ref.entry_type().0);
+        }
+        value_ref.write_value_to(self.tail);
+    }
+
     fn finish(self) -> &'l mut Vec<u8> {
+        self.buffer.extend_from_slice(self.tail);
         self.buffer
     }
 }

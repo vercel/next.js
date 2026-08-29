@@ -30,7 +30,7 @@ use turbo_persistence::{
         BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
         KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, key_block_table_stride,
     },
 };
 
@@ -384,18 +384,23 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 enum KeyBlockHeader {
     Variable {
         entry_count: u32,
+        /// Bytes per offset table entry, wider when the block hoists hashes into the table.
+        table_stride: usize,
     },
     Fixed {
         entry_count: u32,
         value_type: u8,
     },
     /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte between its key and its value.
+    /// its own type byte ahead of its value in the block's tail region.
     FixedMixedType {
         entry_count: u32,
-        hash_len: usize,
-        key_size: usize,
-        stride: usize,
+        /// Offset of the tail region, measured from the start of the entry data.
+        tail_start: usize,
+        /// Bytes per entry in the tail region.
+        tail_stride: usize,
+        /// Bytes of the tail entry that precede its type byte (the key, for `HashThenKey` blocks).
+        tail_key_size: usize,
     },
 }
 
@@ -405,9 +410,14 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
     let block_type = block[0];
     let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
     match block_type {
-        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-            Ok(KeyBlockHeader::Variable { entry_count })
-        }
+        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => Ok(KeyBlockHeader::Variable {
+            entry_count,
+            table_stride: key_block_table_stride(if block_type == BLOCK_TYPE_KEY_WITH_HASH {
+                8
+            } else {
+                0
+            }),
+        }),
         BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
             assert!(block.len() >= 6, "Fixed key block header too small");
             if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
@@ -418,13 +428,20 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
                     0
                 };
                 let key_size = block[4] as usize;
-                let val_size = block[6] as usize;
+                // +1 for the per-entry type byte.
+                let val_size = block[6] as usize + 1;
+                // Entries are split into a search region (hash for `HashThenKey`, key for
+                // `KeyOnly`) and a tail region holding everything else, both indexed by entry.
+                let (search_stride, tail_stride, tail_key_size) = if hash_len > 0 {
+                    (hash_len, key_size + val_size, key_size)
+                } else {
+                    (key_size, val_size, 0)
+                };
                 Ok(KeyBlockHeader::FixedMixedType {
                     entry_count,
-                    hash_len,
-                    key_size,
-                    // +1 for the per-entry type byte.
-                    stride: hash_len + key_size + val_size + 1,
+                    tail_start: entry_count as usize * search_stride,
+                    tail_stride,
+                    tail_key_size,
                 })
             } else {
                 Ok(KeyBlockHeader::Fixed {
@@ -447,24 +464,28 @@ fn iter_key_block_entry_types(
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
-        KeyBlockHeader::Variable { entry_count }
+        KeyBlockHeader::Variable { entry_count, .. }
         | KeyBlockHeader::Fixed { entry_count, .. }
         | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
-        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
-        // each entry is 4 bytes, first byte is the entry type.
-        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
+        // leads the trailing type/position word, which follows any hoisted hash.
+        KeyBlockHeader::Variable { table_stride, .. } => {
+            block[KEY_BLOCK_HEADER_SIZE
+                + i as usize * table_stride
+                + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
+        }
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
         KeyBlockHeader::FixedMixedType {
-            hash_len,
-            key_size,
-            stride,
+            tail_start,
+            tail_stride,
+            tail_key_size,
             ..
         } => {
-            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
-            // the entry's key and its value.
-            block[7 + i as usize * stride + hash_len + key_size]
+            // Entry data starts after the 7-byte mixed-type header; within the tail region the
+            // type byte precedes the value, after the key for `HashThenKey` blocks.
+            block[7 + tail_start + i as usize * tail_stride + tail_key_size]
         }
     })
 }

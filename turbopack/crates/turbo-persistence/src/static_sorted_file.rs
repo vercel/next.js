@@ -109,6 +109,25 @@ pub const KEY_BLOCK_ENTRY_TYPE_INLINE_MIN: u8 = 8;
 pub const KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN: u8 =
     KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8 + 1;
 
+/// Size of one variable-size key block offset table entry when the block stores no hash:
+/// 1 byte entry type packed into the top of a 3-byte in-block position.
+pub const KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH: usize = 4;
+/// Size of one variable-size key block offset table entry when the block stores a hash: the key's
+/// 8-byte hash followed by the type/position word.
+///
+/// The hash lives in the table rather than beside the key so that a binary search reads only this
+/// dense array — [`compare_hash_key`] compares the hash first and reaches for the key only when two
+/// hashes are equal, so the payload is touched once on a match and never on a miss. Total bytes are
+/// unchanged: the table grows by 8 per entry and the payload shrinks by the same.
+pub const KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH: usize =
+    KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH + size_of::<u64>();
+
+/// Bytes per offset table entry for a variable-size key block with the given hash length.
+#[inline(always)]
+pub fn key_block_table_stride(hash_len: u8) -> usize {
+    KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH + hash_len as usize
+}
+
 /// Encoded size of a small value reference: 2B block index + 2B size + 4B offset.
 pub(crate) const SMALL_VALUE_REF_SIZE: usize = 8;
 /// Encoded size of a medium value reference: 2B block index.
@@ -395,12 +414,13 @@ impl StaticSortedFile {
         ensure!(block.len() >= 4, "key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let data = &block[4..];
+        let table_len = entry_count * key_block_table_stride(hash_len);
         ensure!(
-            data.len() >= entry_count * 4,
+            data.len() >= table_len,
             "key block too short for {entry_count} entries"
         );
-        let offsets = &data[..entry_count * 4];
-        let entries = &data[entry_count * 4..];
+        let offsets = &data[..table_len];
+        let entries = &data[table_len..];
 
         self.lookup_block_inner::<K, FIND_ALL>(
             &block,
@@ -435,11 +455,11 @@ impl StaticSortedFile {
             val_size,
             header_size,
         } = fixed_value_layout(&block, header_type)?;
-        let stride = hash_len as usize + key_size + val_size;
+        let regions = FixedRegions::new(entry_count, hash_len, key_size, val_size);
         let entries = &block[header_size..];
         ensure!(
-            entries.len() == entry_count * stride,
-            "fixed key block for {entry_count} entries must is the wrong size"
+            entries.len() == regions.total_len(entry_count),
+            "fixed key block for {entry_count} entries is the wrong size"
         );
 
         self.lookup_block_inner::<K, FIND_ALL>(
@@ -449,7 +469,7 @@ impl StaticSortedFile {
             key,
             layout,
             reader,
-            |i| get_fixed_key_entry(entries, i, hash_len, key_size, value_type, stride),
+            |i| get_fixed_key_entry(entries, i, regions, value_type),
         )
     }
 
@@ -822,17 +842,19 @@ enum CurrentKeyBlockKind {
     Variable { offsets: RcBytes },
     /// Fixed-size entries with uniform key size and value size (no offset table).
     Fixed {
-        key_size: usize,
         /// The type shared by every entry, or `None` if each entry carries its own type byte.
         value_type: Option<u8>,
-        stride: usize,
+        regions: FixedRegions,
     },
 }
 
 impl CurrentKeyBlockKind {
     /// Decodes entry `index`, dispatching on the block's entry layout.
+    ///
+    /// The result borrows from `entries` and, for a variable block storing hashes, from the offset
+    /// table held by `self` — hence the shared lifetime.
     fn entry<'l>(
-        &self,
+        &'l self,
         entries: &'l [u8],
         entry_count: u32,
         index: usize,
@@ -843,10 +865,9 @@ impl CurrentKeyBlockKind {
                 get_key_entry(offsets, entries, entry_count as usize, index, hash_len)
             }
             CurrentKeyBlockKind::Fixed {
-                key_size,
                 value_type,
-                stride,
-            } => get_fixed_key_entry(entries, index, hash_len, *key_size, *value_type, *stride),
+                regions,
+            } => get_fixed_key_entry(entries, index, *regions, *value_type),
         }
     }
 }
@@ -963,20 +984,26 @@ impl StaticSortedFileIter {
                 val_size,
                 header_size,
             } = fixed_value_layout(data, data[5])?;
-            let stride = hash_len as usize + key_size + val_size;
+            let regions = FixedRegions::new(entry_count as usize, hash_len, key_size, val_size);
             let entries = block.slice(header_size..block_len);
+            ensure!(
+                entries.len() == regions.total_len(entry_count as usize),
+                "fixed key block for {entry_count} entries is the wrong size"
+            );
             (
                 CurrentKeyBlockKind::Fixed {
-                    key_size,
                     value_type,
-                    stride,
+                    regions,
                 },
                 entries,
             )
         } else {
             let offset_table_begin = 4usize;
-            let offset_table_end = offset_table_begin + (entry_count as usize) * 4;
-            // In variable blocks the offsets table starts immediately after the entry count
+            let offset_table_end = 4 + (entry_count as usize) * key_block_table_stride(hash_len);
+            ensure!(
+                block_len >= offset_table_end,
+                "key block too short for {entry_count} entries"
+            );
             let offsets = block.clone().slice(offset_table_begin..offset_table_end);
             let entries = block.slice(offset_table_end..block_len);
             (CurrentKeyBlockKind::Variable { offsets }, entries)
@@ -1146,10 +1173,14 @@ fn entry_val_size(ty: u8) -> Result<usize> {
 }
 
 /// Reads the type and start offset from an offset table entry.
-/// Each entry is 4 bytes: 1 byte type + 3 bytes BE offset.
+///
+/// The trailing 4 bytes of every entry pack 1 byte of type into the top of a 3-byte BE offset.
+/// `HashThenKey` entries carry the key's 8-byte hash ahead of that word — see
+/// [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`].
 #[inline(always)]
-fn read_offset_entry(offsets: &[u8], index: usize) -> (u8, usize) {
-    let base = index * 4;
+fn read_offset_entry(offsets: &[u8], index: usize, table_stride: usize) -> (u8, usize) {
+    // The offset word is last, so skip any hash that precedes it.
+    let base = index * table_stride + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH);
     let word = be::read_u32(&offsets[base..]);
     let ty = (word >> 24) as u8;
     let offset = (word & 0x00FF_FFFF) as usize;
@@ -1158,26 +1189,26 @@ fn read_offset_entry(offsets: &[u8], index: usize) -> (u8, usize) {
 
 /// Reads a key entry from a key block.
 fn get_key_entry<'l>(
-    offsets: &[u8],
+    offsets: &'l [u8],
     entries: &'l [u8],
     entry_count: usize,
     index: usize,
     hash_len: u8,
 ) -> Result<GetKeyEntryResult<'l>> {
-    let hash_len_usize = hash_len as usize;
-    let (ty, start) = read_offset_entry(offsets, index);
+    let table_stride = key_block_table_stride(hash_len);
+    let (ty, start) = read_offset_entry(offsets, index, table_stride);
     let end = if index == entry_count - 1 {
         entries.len()
     } else {
-        let (_, next_start) = read_offset_entry(offsets, index + 1);
+        let (_, next_start) = read_offset_entry(offsets, index + 1, table_stride);
         next_start
     };
-    // Return the raw hash bytes slice (0-8 bytes depending on hash_len)
-    let hash = &entries[start..start + hash_len_usize];
+    // Hoisted into the table, so the search never reaches into the payload; empty for `KeyOnly`.
+    let hash = &offsets[index * table_stride..index * table_stride + hash_len as usize];
     let val_size = entry_val_size(ty)?;
     Ok(GetKeyEntryResult {
         hash,
-        key: &entries[start + hash_len_usize..end - val_size],
+        key: &entries[start..end - val_size],
         ty,
         val: &entries[end - val_size..end],
     })
@@ -1218,28 +1249,88 @@ fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout>
     }
 }
 
+/// Where the two regions of a fixed-size key block sit, computed once per block.
+///
+/// A fixed block stores the bytes the binary search probes in a dense leading region and everything
+/// else in a trailing region at the same entry index, so a probe touches one small stride rather
+/// than a full interleaved entry. See [`FixedRegions::new`].
+#[derive(Clone, Copy)]
+struct FixedRegions {
+    /// Bytes per entry in the search region: the hash (`HashThenKey`) or the key (`KeyOnly`).
+    search_stride: usize,
+    /// Offset of the tail region, relative to the start of the entry data.
+    tail_start: usize,
+    /// Bytes per entry in the tail region.
+    tail_stride: usize,
+    key_size: usize,
+    hash_len: usize,
+}
+
+impl FixedRegions {
+    /// `val_size` is the tail's per-entry value footprint as reported by [`fixed_value_layout`],
+    /// which already includes the per-entry type byte of a mixed-type block.
+    fn new(entry_count: usize, hash_len: u8, key_size: usize, val_size: usize) -> Self {
+        let hash_len = hash_len as usize;
+        // `HashThenKey` searches the hashes and keeps the key with the value; `KeyOnly` has no
+        // hash, so the key itself is the search region.
+        let (search_stride, tail_stride) = if hash_len > 0 {
+            (hash_len, key_size + val_size)
+        } else {
+            (key_size, val_size)
+        };
+        Self {
+            search_stride,
+            tail_start: entry_count * search_stride,
+            tail_stride,
+            key_size,
+            hash_len,
+        }
+    }
+
+    /// Total entry-data length implied by these regions, for bounds checking.
+    fn total_len(&self, entry_count: usize) -> usize {
+        self.tail_start + entry_count * self.tail_stride
+    }
+}
+
 fn get_fixed_key_entry<'l>(
     entries: &'l [u8],
     index: usize,
-    hash_len: u8,
-    key_size: usize,
+    regions: FixedRegions,
     value_type: Option<u8>,
-    stride: usize,
 ) -> Result<GetKeyEntryResult<'l>> {
-    let hash_len_usize = hash_len as usize;
-    let start = index * stride;
-    let key_start = start + hash_len_usize;
-    let key_end = key_start + key_size;
-    // In a mixed-type block the entry's type byte sits between its key and its value.
+    let FixedRegions {
+        search_stride,
+        tail_start,
+        tail_stride,
+        key_size,
+        hash_len,
+    } = regions;
+    // The search region holds only what the binary search compares first: the hash for
+    // `HashThenKey` blocks, the key for `KeyOnly` blocks. Everything else lives in the tail region
+    // at the same entry index.
+    let search = index * search_stride;
+    let tail = tail_start + index * tail_stride;
+    let (hash, key_from_tail) = if hash_len > 0 {
+        (&entries[search..search + hash_len], true)
+    } else {
+        (&entries[..0], false)
+    };
+    let (key, tail_rest) = if key_from_tail {
+        (&entries[tail..tail + key_size], tail + key_size)
+    } else {
+        (&entries[search..search + key_size], tail)
+    };
+    // In a mixed-type block the entry's type byte precedes its value in the tail region.
     let (ty, val_start) = match value_type {
-        Some(ty) => (ty, key_end),
-        None => (be::read_u8(&entries[key_end..]), key_end + 1),
+        Some(ty) => (ty, tail_rest),
+        None => (be::read_u8(&entries[tail_rest..]), tail_rest + 1),
     };
     Ok(GetKeyEntryResult {
-        hash: &entries[start..key_start],
-        key: &entries[key_start..key_end],
+        hash,
+        key,
         ty,
-        val: &entries[val_start..(index + 1) * stride],
+        val: &entries[val_start..tail + tail_stride],
     })
 }
 
