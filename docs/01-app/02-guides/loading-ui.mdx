@@ -132,13 +132,13 @@ When `Stats` has to await something, even 250ms, it can't render in the shell, a
 <header>
   <h1>Team directory</h1>
 
-  <Suspense fallback={<StatsPlaceholder />}>
+  <Suspense fallback={<p className="h-5" aria-hidden />}>
     <Stats />
   </Suspense>
 </header>
 ```
 
-The placeholder only has to hold the space the real stats will occupy, which for a single line of text means matching its line height. The header still paints with the first HTML, and the two reads resolve on their own schedules instead of the faster one inheriting the slower one's wait.
+The placeholder only has to hold the space the real stats will occupy. Here, `h-5` matches the line height of the final text. The header still paints with the first HTML, and the two reads resolve on their own schedules instead of the faster one inheriting the slower one's wait.
 
 When the likely [Largest Contentful Paint](/docs/app/guides/streaming#lcp-largest-contentful-paint) element doesn't depend on slow data, keep it in the [static shell](/docs/app/guides/streaming#the-static-shell). Empty skeleton boxes aren't LCP candidates, so streaming a prominent image or headline delays LCP until the real content arrives.
 
@@ -148,7 +148,7 @@ For an above-the-fold image, use [`loading="eager"`](/docs/app/api-reference/com
 
 One region should produce one loading signal. Apps accumulate them by adding each in isolation, and the user ends up watching a route-level `loading.tsx`, then a page-level skeleton, then a spinner inside a card, for a single page load.
 
-[`loading.tsx`](/docs/app/api-reference/file-conventions/loading) wraps the page and child segments below its folder. It doesn't wrap the layout, template, or error boundary in the same segment.
+A route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) wraps the page and child segments below its folder. It doesn't wrap the layout, template, or error boundary in the same segment.
 
 Once part of the page can paint sooner, place `<Suspense>` around the slow region instead. See [When to use `loading.js` vs `<Suspense>`](/docs/app/guides/streaming#when-to-use-loadingjs-vs-suspense).
 
@@ -270,7 +270,17 @@ Pass the resolved count down. Each page's fallback uses it to reserve the number
 
 A loading state should end in content or an error. A query that throws should reach an error boundary at the same granularity as its `<Suspense>` boundary. A promise that never settles needs a timeout or cancellation in the data layer.
 
-An [error boundary](/docs/app/getting-started/error-handling) lets one section show an error without blanking the rest of the page. See [error handling mid-stream](/docs/app/guides/streaming#error-handling-mid-stream) for how status codes behave after streaming starts.
+A component-level error boundary created with [`catchError`](/docs/app/api-reference/functions/catchError) lets one section show an error without blanking the rest of the page. Wrap the boundary around the same region as its loading state:
+
+```tsx filename="app/page.tsx"
+<ErrorBoundary title="Directory unavailable">
+  <Suspense fallback={<DirectorySkeleton />}>
+    <MemberList />
+  </Suspense>
+</ErrorBoundary>
+```
+
+See [error handling mid-stream](/docs/app/guides/streaming#error-handling-mid-stream) for how status codes behave after streaming starts.
 
 For work expected to exceed about [10 seconds](https://www.nngroup.com/articles/response-times-3-important-limits/), show progress and let the user continue or interrupt it.
 
@@ -486,7 +496,7 @@ Start the indicator invisible and reveal it only after a short delay, so a fast 
 
 A search that resolves inside the delay never shows the spinner. The exact delay is a design choice. A range of 100ms to 200ms keeps fast responses silent without leaving a slower one unacknowledged.
 
-[`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) uses the same CSS treatment for a link's pending hint.
+A delayed pending hint is also useful with [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) when a navigation may finish before the indicator becomes helpful.
 
 If the surrounding UI already communicates the wait, such as rows dimming during a search, omit the indicator.
 
@@ -550,7 +560,7 @@ test('the directory shell is instant', async ({ page, baseURL }) => {
       // The fallback reserves the space the rows will occupy
       const skeleton = page.locator('ul[aria-hidden]')
       await expect(skeleton).toBeVisible()
-      expect((await skeleton.boundingBox())?.height).toBeGreaterThanOrEqual(512)
+      await expect(skeleton).toHaveCSS('min-height', '512px')
     },
     { baseURL }
   )
@@ -559,7 +569,7 @@ test('the directory shell is instant', async ({ page, baseURL }) => {
 })
 ```
 
-A marker proves the right content is in the shell, and a dimension proves the fallback reserves the space, which is the half that regresses silently when a skeleton and its component drift apart.
+A marker proves the right content is in the shell, and the CSS assertion proves the fallback reserves its space. That second half can regress silently when a skeleton and its component drift apart.
 
 ## Next steps
 
