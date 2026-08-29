@@ -426,7 +426,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    pub(crate) fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             self.get_rsc_transitions(
                 self.ecmascript_client_reference_transition(),
@@ -459,7 +459,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 AppProject::client_transition_name(),

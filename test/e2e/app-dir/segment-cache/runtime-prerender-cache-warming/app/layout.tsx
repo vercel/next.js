@@ -2,12 +2,10 @@ import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
 // Reading a cookie makes the shell depend on session data, so a prefetch
-// renders a runtime App Shell. This is what exercises the prospective/final
-// runtime prerender where params are a hanging input in a cached page.
+// renders a runtime App Shell.
 async function SessionData() {
-  const cookieStore = await cookies()
-  const value = cookieStore.get('testCookie')?.value ?? 'none'
-  return <p id="cookie-value">{`Cookie: ${value}`}</p>
+  await cookies()
+  return null
 }
 
 export default async function Layout({ children }: LayoutProps<'/'>) {
@@ -17,7 +15,7 @@ export default async function Layout({ children }: LayoutProps<'/'>) {
         <Suspense fallback={<p id="cookie-loading">Loading cookie...</p>}>
           <SessionData />
         </Suspense>
-        {children}
+        <Suspense>{children}</Suspense>
       </body>
     </html>
   )

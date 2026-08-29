@@ -2430,21 +2430,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_transition_indicator(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_gesture_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_blocking_ssr(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -2484,6 +2469,16 @@ impl NextConfig {
                 Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
             }
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn use_react_experimental(&self) -> Vc<bool> {
+        // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+        let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
+        let taint = self.experimental.taint.unwrap_or(false);
+        let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
+        let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
+        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
     }
 
     #[turbo_tasks::function]
