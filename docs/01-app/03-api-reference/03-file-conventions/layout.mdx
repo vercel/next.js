@@ -327,6 +327,8 @@ In both cases, to ensure instant navigation, either:
 - Wrap runtime data access in your layout in its own `<Suspense>` boundary with a fallback.
 - Move uncached data fetching from `layout.js` into `page.js` where `loading.js` can show a fallback.
 
+A layout-level fallback shows on the first load but not on client navigations, because React re-enters the tree at the layout. See [Designing loading UI](/docs/app/guides/loading-ui#competing-loading-signals) for what that means when a route also has a `loading.js` or its own page-level fallbacks.
+
 ```tsx filename="app/dashboard/layout.tsx" switcher highlight={8-10}
 import { Suspense } from 'react'
 import { NavSkeleton } from './nav-skeleton'

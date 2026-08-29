@@ -6,12 +6,10 @@ related:
   description: Learn more with these related guides.
   links:
     - app/guides/streaming
-    - app/guides/rendering-philosophy
     - app/guides/instant-navigation
     - app/guides/view-transitions
     - app/guides/interactive-apps
     - app/guides/profiling-performance
-    - app/guides/forms
 ---
 
 Loading UI goes wrong in a small number of recognizable ways. A route-level `loading.tsx` ends up competing with a page skeleton and a per-query spinner, or one coarse boundary hides a header that could have painted immediately. Sections reveal in whatever order their data returns and push the ones below them down, and a skeleton that reserves the wrong height makes the page jump when the real rows arrive.
@@ -457,7 +455,7 @@ Start the indicator invisible and reveal it only after a short delay, so a fast 
 }
 ```
 
-A search that resolves in under 150ms never shows the spinner. `<Suspense>` applies a similar window of its own before showing a fallback, so a fast stream doesn't flash a skeleton either. [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) has the same treatment written for a link's own pending hint.
+A search that resolves inside the delay never shows the spinner. The exact figure is a design choice, and anything in the 100ms to 200ms range keeps genuinely fast responses silent without making a slow one feel unacknowledged. `<Suspense>` applies a window of its own before showing a fallback, so a fast stream doesn't flash a skeleton either, and [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) has the same treatment written for a link's own pending hint.
 
 Hold the spinner for a minimum time once it is visible, because clearing `data-active` the moment the pending flag turns false still flickers when the response is only slightly slower than the delay. And when the surrounding UI already communicates the wait, such as rows dimming during a search, an indicator can be dropped entirely.
 
