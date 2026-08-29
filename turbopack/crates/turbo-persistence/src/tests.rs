@@ -8,7 +8,7 @@ use crate::{
     AccessMode, DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
-    lookup_entry::IterValue,
+    lookup_entry::{LazyLookupValue, LookupValue},
     parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
@@ -2419,7 +2419,9 @@ fn count_tombstones(
             for item in StaticSortedFileIter::open(path, sst, AccessMode::Mmap)? {
                 if matches!(
                     item?.value,
-                    IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
+                    LazyLookupValue::Eager(
+                        LookupValue::KeyDeleted | LookupValue::KeyValueDeleted { .. }
+                    )
                 ) {
                     count += 1;
                 }

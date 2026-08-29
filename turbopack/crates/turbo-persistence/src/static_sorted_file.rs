@@ -3,7 +3,6 @@ use std::{
     hash::BuildHasherDefault,
     io,
     path::Path,
-    rc::Rc,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering as AtomicOrdering},
@@ -23,10 +22,8 @@ use crate::{
     be,
     compression::checksum_block,
     constants::MAX_INLINE_VALUE_SIZE,
-    lookup_entry::{IterValue, LookupEntry, LookupValue},
+    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
     mmap_helper::advise_mmap_for_persistence,
-    rc_bytes::RcBytes,
-    shared_bytes::SharedBytes,
     static_sorted_file_builder::{BLOCK_HEADER_SIZE, INDEX_BLOCK_ENTRY_SIZE},
 };
 
@@ -190,9 +187,17 @@ pub type BlockCache = quick_cache::sync::Cache<
 >;
 
 /// Trait abstracting value block reading for `handle_key_match_generic`.
-trait ValueBlockCache<B: SharedBytes> {
-    fn get_or_read(self, meta: &StaticSortedFileMetaData, block_index: u16) -> Result<B>;
-    fn read_uncached(self, meta: &StaticSortedFileMetaData, block_index: u16) -> Result<B>;
+trait ValueBlockCache {
+    fn get_or_read(
+        self,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<ArcBytes<'static>>;
+    fn read_uncached(
+        self,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<ArcBytes<'static>>;
 }
 
 /// Bundles the lookup backing with the shared block cache and per-file CRC bitmap.
@@ -203,7 +208,7 @@ struct ArcBlockCacheReader<'a> {
     verified_blocks: &'a [AtomicU64],
 }
 
-impl ValueBlockCache<ArcBytes<'static>> for ArcBlockCacheReader<'_> {
+impl ValueBlockCache for ArcBlockCacheReader<'_> {
     fn get_or_read(
         self,
         meta: &StaticSortedFileMetaData,
@@ -228,13 +233,17 @@ impl ValueBlockCache<ArcBytes<'static>> for ArcBlockCacheReader<'_> {
 }
 
 /// Iteration-path reader with a lightweight single-entry cache for sequential reads.
-struct RcBlockCacheReader<'a> {
+struct IterBlockCacheReader<'a> {
     backing: &'a StaticSortedFileIterBacking,
-    cache: &'a mut Option<(u16, RcBytes)>,
+    cache: &'a mut Option<(u16, ArcBytes<'static>)>,
 }
 
-impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
-    fn get_or_read(self, meta: &StaticSortedFileMetaData, block_index: u16) -> Result<RcBytes> {
+impl ValueBlockCache for IterBlockCacheReader<'_> {
+    fn get_or_read(
+        self,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<ArcBytes<'static>> {
         if let Some((idx, block)) = self.cache.as_ref()
             && *idx == block_index
         {
@@ -245,7 +254,11 @@ impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
         Ok(block)
     }
 
-    fn read_uncached(self, meta: &StaticSortedFileMetaData, block_index: u16) -> Result<RcBytes> {
+    fn read_uncached(
+        self,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<ArcBytes<'static>> {
         read_block_iter(self.backing, meta, block_index)
     }
 }
@@ -867,19 +880,19 @@ fn read_block_lookup(
 }
 
 /// Returns `(uncompressed_length, checksum, block)` wrapping the raw on-disk data as
-/// `RcBytes` for the single-threaded iteration path.
+/// `ArcBytes` for the iteration path.
 fn get_raw_block_iter(
     backing: &StaticSortedFileIterBacking,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
-) -> Result<(u32, u32, RcBytes)> {
+) -> Result<(u32, u32, ArcBytes<'static>)> {
     match backing {
         StaticSortedFileIterBacking::Mmap(mmap) => {
             let (uncompressed_length, checksum, block) =
                 get_raw_block_slice(mmap, meta, block_index)?;
             // SAFETY: block points into mmap.
             Ok((uncompressed_length, checksum, unsafe {
-                RcBytes::from_mmap(mmap, block)
+                ArcBytes::from_mmap(mmap.clone(), block)
             }))
         }
         StaticSortedFileIterBacking::File {
@@ -913,7 +926,7 @@ fn get_raw_block_iter(
             Ok((
                 uncompressed_length,
                 checksum,
-                RcBytes::from(block.into_boxed_slice()),
+                ArcBytes::from(block.into_boxed_slice()),
             ))
         }
     }
@@ -924,23 +937,23 @@ fn read_block_iter(
     backing: &StaticSortedFileIterBacking,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
-) -> Result<RcBytes> {
+) -> Result<ArcBytes<'static>> {
     let (uncompressed_length, checksum, block) = get_raw_block_iter(backing, meta, block_index)?;
     verify_checksum(meta, &block, checksum, block_index)?;
     if uncompressed_length == 0 {
         return Ok(block);
     }
-    RcBytes::from_decompressed(uncompressed_length, &block)
+    ArcBytes::from_decompressed(uncompressed_length, &block)
 }
 
-/// Handles a key match by resolving the value reference. Generic over byte type.
-fn handle_key_match_generic<B: SharedBytes>(
+/// Handles a key match by resolving the value reference.
+fn handle_key_match_generic(
     meta: &StaticSortedFileMetaData,
     ty: u8,
     val: &[u8],
-    key_block: &B,
-    reader: impl ValueBlockCache<B>,
-) -> Result<LookupValue<B>> {
+    key_block: &ArcBytes<'static>,
+    reader: impl ValueBlockCache,
+) -> Result<LookupValue> {
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => {
             let block = be::read_u16(val);
@@ -978,11 +991,11 @@ fn handle_key_match_generic<B: SharedBytes>(
 }
 
 enum StaticSortedFileIterBacking {
-    Mmap(Rc<Mmap>),
+    Mmap(Arc<Mmap>),
     File {
-        file: Rc<File>,
+        file: Arc<File>,
         file_len: usize,
-        block_offsets: Rc<[u32]>,
+        block_offsets: Arc<[u32]>,
     },
 }
 
@@ -994,7 +1007,7 @@ pub struct StaticSortedFileIter {
 
     /// The root index block entries (body bytes starting after the type byte).
     /// SST files have exactly one index level.
-    index_entries: RcBytes,
+    index_entries: ArcBytes<'static>,
     /// Total key block references in the index block (first_child + boundary entries).
     num_index_entries: usize,
     /// Next index entry to read from the index block.
@@ -1003,12 +1016,12 @@ pub struct StaticSortedFileIter {
     /// Single-entry value block cache. Within a key block, entries reference
     /// value blocks sequentially and don't revisit earlier blocks, so caching
     /// just the current one avoids redundant decompression.
-    value_block_cache: Option<(u16, RcBytes)>,
+    value_block_cache: Option<(u16, ArcBytes<'static>)>,
 }
 
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
-    Variable { offsets: RcBytes },
+    Variable { offsets: ArcBytes<'static> },
     /// Fixed-size entries with uniform key size and value size (no offset table).
     Fixed {
         key_size: usize,
@@ -1051,7 +1064,7 @@ struct CurrentKeyBlock {
     kind: CurrentKeyBlockKind,
     /// Whether entries carry a hash, and so what order they are stored in.
     layout: KeyBlockLayout,
-    entries: RcBytes,
+    entries: ArcBytes<'static>,
     /// Number of entries in this key block (max ~819 per 16 KiB block).
     entry_count: u32,
     /// Current iteration position. Indexes `hash_order` when that is present, and the block's
@@ -1092,7 +1105,7 @@ impl StaticSortedFileIter {
                 #[cfg(unix)]
                 mmap.advise(memmap2::Advice::Sequential)?;
                 advise_mmap_for_persistence(&mmap)?;
-                StaticSortedFileIterBacking::Mmap(Rc::new(mmap))
+                StaticSortedFileIterBacking::Mmap(Arc::new(mmap))
             }
             AccessMode::File => {
                 let file_len: usize = file.metadata()?.len().try_into()?;
@@ -1107,7 +1120,7 @@ impl StaticSortedFileIter {
                     .collect::<Vec<_>>()
                     .into();
                 StaticSortedFileIterBacking::File {
-                    file: Rc::new(file),
+                    file: Arc::new(file),
                     file_len,
                     block_offsets,
                 }
@@ -1150,7 +1163,7 @@ impl StaticSortedFileIter {
         })
     }
 
-    /// Parses a key block at the given index, returning `RcBytes`-backed data.
+    /// Parses a key block at the given index, returning `ArcBytes<'static>`-backed data.
     fn parse_key_block(
         backing: &StaticSortedFileIterBacking,
         meta: &StaticSortedFileMetaData,
@@ -1237,23 +1250,22 @@ impl StaticSortedFileIter {
                     let block = be::read_u16(val);
                     let (uncompressed_size, checksum, block) =
                         get_raw_block_iter(&self.backing, &self.meta, block)?;
-                    IterValue::Medium {
+                    LazyLookupValue::Medium {
                         uncompressed_size,
                         checksum,
                         block,
                     }
                 } else {
-                    handle_key_match_generic(
+                    LazyLookupValue::Eager(handle_key_match_generic(
                         &self.meta,
                         ty,
                         val,
                         &kb.entries,
-                        RcBlockCacheReader {
+                        IterBlockCacheReader {
                             backing: &self.backing,
                             cache: &mut self.value_block_cache,
                         },
-                    )?
-                    .into()
+                    )?)
                 };
                 let entry = LookupEntry {
                     hash: full_hash,

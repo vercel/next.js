@@ -39,13 +39,12 @@ use crate::{
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
-    lookup_entry::{IterValue, LookupEntry, LookupValue},
+    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
-    rc_bytes::RcBytes,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
@@ -1716,7 +1715,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let mut used_collector = Collector::new(MetaEntryFlags::WARM);
                             let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                            let mut current_key: Option<RcBytes> = None;
+                            let mut current_key: Option<ArcBytes<'static>> = None;
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
@@ -1729,7 +1728,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             // Values deleted by key-value tombstones in the current key group.
                             // Reset at each key boundary.
                             let mut deleted_values_for_this_key: AutoSet<
-                                RcBytes,
+                                ArcBytes<'static>,
                                 BuildHasherDefault<FxHasher>,
                                 1,
                             > = AutoSet::default();
@@ -1746,7 +1745,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 // Key-value tombstones sort first within a group, so each is
                                 // recorded before the values it might delete.
                                 // See: `crate::collector_entry::sort_rank`
-                                if let IterValue::KeyValueDeleted { value } = &entry.value {
+                                if let LazyLookupValue::Eager(LookupValue::KeyValueDeleted { value }) =
+                                    &entry.value {
                                     deleted_values_for_this_key.insert(value.clone());
                                     // Applied to this job's values above; keep it only if an SST
                                     // outside the job could still hold a matching key.
@@ -1755,7 +1755,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                 } else if !deleted_values_for_this_key.is_empty()
                                     // Deleted values cannot match blobs, just normal payloads.
-                                    && let IterValue::Slice { value } = &entry.value
+                                    && let LazyLookupValue::Eager(LookupValue::Slice { value }) = &entry.value
                                     && deleted_values_for_this_key.contains(value)
                                 {
                                     // Deleted by a key-value tombstone seen earlier in this group.
@@ -1775,7 +1775,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             // For MultiValue families we only skip remaining if we
                                             // see a key tombstone. Key-value tombstones are
                                             // handled above and never reach here.
-                                            if matches!(entry.value, IterValue::KeyDeleted) {
+                                            if matches!(
+                                                entry.value,
+                                                LazyLookupValue::Eager(LookupValue::KeyDeleted)
+                                            ) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1786,7 +1789,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         }
                                     }
                                     // If this is a tombstone, see if we need to retain it or not.
-                                    if matches!(entry.value, IterValue::KeyDeleted)
+                                    if matches!(
+                                                entry.value,
+                                                LazyLookupValue::Eager(LookupValue::KeyDeleted)
+                                            )
                                         && tombstone_is_dead(entry.hash)
                                     {
                                         continue;
@@ -1801,7 +1807,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     // Entry is being dropped (superseded by newer entry or
                                     // pruned by tombstone). If it references a blob file,
                                     // mark that blob for deletion.
-                                    if let IterValue::Blob { sequence_number } = &entry.value {
+                                    if let LazyLookupValue::Eager(LookupValue::Blob { sequence_number }) =
+                                        &entry.value {
                                         blob_seq_numbers_to_delete.push(*sequence_number);
                                     }
                                 }
