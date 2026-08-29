@@ -225,6 +225,8 @@ export default async function Page() {
 
 The fallback is prerendered alongside the rest of our static and cached content. The inner component streams in later, once its async work completes.
 
+Size the fallback to match the content that replaces it, or the page shifts when the promotion arrives. See [Designing loading UI](/docs/app/guides/loading-ui) for fallback geometry and reveal order.
+
 With this change, Next.js can separate prerenderable work from request-time work and the route becomes [partially prerendered](/docs/app/glossary#partial-prerendering-ppr).
 
 Again, we can confirm this by running `next build`:

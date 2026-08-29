@@ -1,1 +1,0 @@
-Load more feels broken in this member list. Clicking it replaces the members already on screen with a spinner, then remounts the list with only the next page. Make the list grow in place without removing the delayed pagination.
