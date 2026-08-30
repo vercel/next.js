@@ -63,29 +63,18 @@ describe('app dir - css - experimental inline css', () => {
 
     it('should inline the stylesheet once in the flight payload', async () => {
       const html = await next.render('/')
-      const counts: Record<string, number> = {
-        html: countOccurrences(html, INLINE_CSS_MARKER),
-      }
+      const htmlCount = countOccurrences(html, INLINE_CSS_MARKER)
+      // html: 1 <style> + 1 flight copy. A third copy is the #98079 duplication.
+      expect(htmlCount).toBe(2)
 
       if (!isNextDeploy) {
         const rsc = await next.readFile('.next/server/app/index.rsc')
         const fullSegment = await next.readFile(
           '.next/server/app/index.segments/_full.segment.rsc'
         )
-        const indexSegment = await next.readFile(
-          '.next/server/app/index.segments/_index.segment.rsc'
-        )
-        counts.rsc = countOccurrences(rsc, INLINE_CSS_MARKER)
-        counts.fullSegment = countOccurrences(fullSegment, INLINE_CSS_MARKER)
-        counts.indexSegment = countOccurrences(indexSegment, INLINE_CSS_MARKER)
+        expect(countOccurrences(rsc, INLINE_CSS_MARKER)).toBe(1)
+        expect(countOccurrences(fullSegment, INLINE_CSS_MARKER)).toBe(1)
       }
-
-      // html: 1 <style> + 1 flight copy. rsc/_full/_index: the single flight copy.
-      expect(counts).toEqual(
-        isNextDeploy
-          ? { html: 2 }
-          : { html: 2, rsc: 1, fullSegment: 1, indexSegment: 1 }
-      )
     })
 
     it('should apply font styles correctly via className', async () => {

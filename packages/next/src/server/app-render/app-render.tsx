@@ -414,6 +414,13 @@ export type AppRenderContext = {
    * work unit store.
    */
   implicitTags: ImplicitTags
+  /**
+   * CSS text already emitted as an inlined `<style>` in this render. Same
+   * stylesheet can be looked up from more than one manifest entry (layout vs
+   * GlobalError, concatenated chunks, etc.); without this, Flight serializes
+   * the text twice (#98079).
+   */
+  inlinedCssContent: Set<string>
 }
 
 function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
@@ -2855,6 +2862,7 @@ async function prepareAppPageRender(
     res,
     sharedContext,
     implicitTags,
+    inlinedCssContent: new Set<string>(),
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
@@ -8301,6 +8309,7 @@ async function validateInstantConfigInBuildWithSample(
       res: outerCtx.res,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
+      inlinedCssContent: new Set<string>(),
     }
 
     const validationSamples: InstantValidationSamples = {
