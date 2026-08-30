@@ -51,6 +51,10 @@ describe('runtimeServerDeploymentId prerendered flight payload', () => {
     )
   })
 
+  // Turbopack's __NEXT_TEST_MODE static-asset gate 404s `?dpl=<build-id>`
+  // chunks when NEXT_DEPLOYMENT_ID changes at start, so the page never
+  // hydrates. Webpack does not apply that gate.
+  // @force-gate webpack
   it('navigates from a prerendered page to a dynamic page without an MPA reload', async () => {
     const documentRequests: string[] = []
     const browser = await next.browser('/', {
