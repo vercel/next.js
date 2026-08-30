@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { environment } from '@vercel/agent-eval/eval'
 
-test('makes the first load stable and honest', async () => {
+test.concurrent('makes the first load stable and honest', async () => {
   await expect(environment).toSatisfyCriterion(`
     The final app must preserve the delayed stats and eight-member directory.
     First load should present one understandable loading hierarchy, retain stable
@@ -15,7 +15,7 @@ test('makes the first load stable and honest', async () => {
   `)
 })
 
-test('keeps search results useful and current', async () => {
+test.concurrent('keeps search results useful and current', async () => {
   await expect(environment).toSatisfyCriterion(`
     The delayed member search must still work. While a replacement search is
     pending, useful existing results should remain visible instead of being
@@ -27,8 +27,10 @@ test('keeps search results useful and current', async () => {
   `)
 })
 
-test('ends a failed activity request with a useful error', async () => {
-  await expect(environment).toSatisfyCriterion(`
+test.concurrent(
+  'ends a failed activity request with a useful error',
+  async () => {
+    await expect(environment).toSatisfyCriterion(`
     Grace Hopper's activity read must remain a delayed rejection. Once it rejects,
     the profile must show a clear activity-specific error instead of remaining in
     a loading state or blanking the route. Stable profile content, including the
@@ -36,9 +38,10 @@ test('ends a failed activity request with a useful error', async () => {
     or any other implementation that achieves those outcomes; do not require a
     particular React or Next.js API.
   `)
-})
+  }
+)
 
-test('coordinates related profile content', async () => {
+test.concurrent('coordinates related profile content', async () => {
   await expect(environment).toSatisfyCriterion(`
     Member profiles must preserve the delayed bio, activity, and related-people
     reads, as well as the missing-member behavior. A profile should reveal those

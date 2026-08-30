@@ -21,12 +21,17 @@ async function isNextApp(sandbox: Sandbox): Promise<boolean> {
 }
 
 /**
- * Install the locally-built Next.js into the sandbox.
+ * Stage the locally-built Next.js for the sandbox dependency install.
  *
  * The tarball path comes from run-evals.js via NEXT_EVAL_TARBALL, the same
  * env-var handoff that run-tests.js uses for NEXT_TEST_PKG_PATHS. We hard-fail
  * if it's missing rather than falling back to npm — silently testing the
  * published canary instead of your local build defeats the point.
+ *
+ * The agent adapter runs `npm install` after this setup hook. Pointing the
+ * fixture's existing Next.js dependency at the tarball lets that one install do
+ * all the work. Running `npm install ./next.tgz` here would install the entire
+ * project twice in every eval sandbox.
  *
  * A fixture that does not already depend on Next.js is left alone. Such an eval
  * measures whether the agent picks Next.js at all, so it has to reach npm itself,
@@ -44,20 +49,17 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
       'NEXT_EVAL_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
     )
   }
+
+  const packageJson = JSON.parse(await sandbox.readFile('package.json'))
+  const dependencyGroup = packageJson.dependencies?.next
+    ? 'dependencies'
+    : 'devDependencies'
+  packageJson[dependencyGroup].next = 'file:./next.tgz'
+
   await sandbox.writeFiles({
-    // @ts-expect-error — upstream types writeFiles as Record<string, string>
-    // but the runtime accepts Buffer. Tarballs are binary; can't send as string.
     'next.tgz': readFileSync(tarball),
+    'package.json': `${JSON.stringify(packageJson, null, 2)}\n`,
   })
-  const { exitCode, stderr } = await sandbox.runCommand('npm', [
-    'install',
-    './next.tgz',
-  ])
-  if (exitCode !== 0) {
-    throw new Error(
-      `npm install ./next.tgz failed (exit ${exitCode}):\n${stderr}`
-    )
-  }
 }
 
 /**
