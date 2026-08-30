@@ -622,6 +622,12 @@ describe('app-custom-routes', () => {
 
       const url = 'http://localhost:3000/dynamic'
 
+      if (res.status !== 200) {
+        throw new Error(
+          `Unexpected status ${res.status}, headers: ${JSON.stringify(Object.fromEntries(res.headers.entries()))}, body: ${(await res.text()).slice(0, 500)}`
+        )
+      }
+
       expect(res.status).toEqual(200)
       expect(await res.json()).toEqual({
         nextUrl: {
