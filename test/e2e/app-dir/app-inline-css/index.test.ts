@@ -1,7 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+
+const INLINE_CSS_MARKER = '--inline-css-marker-98079'
+
+function countOccurrences(haystack: string, needle: string) {
+  if (!needle) return 0
+  return haystack.split(needle).length - 1
+}
+
 describe('app dir - css - experimental inline css', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -51,6 +59,33 @@ describe('app dir - css - experimental inline css', () => {
 
       expect(styleTags).toHaveLength(1)
       expect(linkTags).toHaveLength(0)
+    })
+
+    it('should inline the stylesheet once in the flight payload', async () => {
+      const html = await next.render('/')
+      const counts: Record<string, number> = {
+        html: countOccurrences(html, INLINE_CSS_MARKER),
+      }
+
+      if (!isNextDeploy) {
+        const rsc = await next.readFile('.next/server/app/index.rsc')
+        const fullSegment = await next.readFile(
+          '.next/server/app/index.segments/_full.segment.rsc'
+        )
+        const indexSegment = await next.readFile(
+          '.next/server/app/index.segments/_index.segment.rsc'
+        )
+        counts.rsc = countOccurrences(rsc, INLINE_CSS_MARKER)
+        counts.fullSegment = countOccurrences(fullSegment, INLINE_CSS_MARKER)
+        counts.indexSegment = countOccurrences(indexSegment, INLINE_CSS_MARKER)
+      }
+
+      // html: 1 <style> + 1 flight copy. rsc/_full/_index: the single flight copy.
+      expect(counts).toEqual(
+        isNextDeploy
+          ? { html: 2 }
+          : { html: 2, rsc: 1, fullSegment: 1, indexSegment: 1 }
+      )
     })
 
     it('should apply font styles correctly via className', async () => {

@@ -2247,7 +2247,8 @@ async function getRSCPayload(
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
-    ctx
+    ctx,
+    injectedCSS
   )
 
   // Assume the head we're rendering contains only partial data if PPR is
@@ -10439,7 +10440,8 @@ async function iterateStreamingPrerenderChunks(
 
 const getGlobalErrorStyles = async (
   tree: LoaderTree,
-  ctx: AppRenderContext
+  ctx: AppRenderContext,
+  injectedCSS: Set<string> = new Set()
 ): Promise<{
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
@@ -10456,12 +10458,15 @@ const getGlobalErrorStyles = async (
     componentMod: { createElement },
   } = ctx
 
-  // Get the GlobalError component and styles from the loader tree
+  // Reuse the page's injectedCSS set so stylesheets already inlined into the
+  // document/flight tree (typically the root layout) are not serialized again
+  // on `G` (GlobalError). A fresh set was re-inlining the same CSS text into
+  // the payload (#98079).
   const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
     ctx,
     filePath: globalErrorModule[1],
     getComponent: globalErrorModule[0],
-    injectedCSS: new Set(),
+    injectedCSS,
     injectedJS: new Set(),
   })
 
