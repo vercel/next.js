@@ -40,7 +40,7 @@ describe('Telemetry flushDetached', () => {
     expect(args[0]).toContain('detached-flush')
     expect(args[1]).toBe('build')
     expect(args[2]).toBe(tmpDir)
-    expect(args[3]).toMatch(/^_events_\d+\.json$/)
+    expect(args[3]).toMatch(/^_events_\d+_[a-f0-9]+\.json$/)
     expect(options.detached).toBe(true)
 
     const eventsFile = path.join(distDir, args[3])
@@ -63,6 +63,40 @@ describe('Telemetry flushDetached', () => {
     const [, args] = spawnSpy.mock.calls[0]
     expect(args[1]).toBe('dev')
     expect(args[2]).toBe(tmpDir)
+    expect(args[3]).toMatch(/^_events_\d+_[a-f0-9]+\.json$/)
+  })
+
+  it('generates unique event files for consecutive flushes without collisions', async () => {
+    const telemetry = new Telemetry({ distDir })
+    telemetry.record({
+      eventName: 'NEXT_EVENT_1' as any,
+      fields: { step: 1 },
+    })
+    telemetry.flushDetached('build', tmpDir)
+
+    telemetry.record({
+      eventName: 'NEXT_EVENT_2' as any,
+      fields: { step: 2 },
+    })
+    telemetry.flushDetached('build', tmpDir)
+
+    expect(spawnSpy).toHaveBeenCalledTimes(2)
+    const firstFile = spawnSpy.mock.calls[0][1][3]
+    const secondFile = spawnSpy.mock.calls[1][1][3]
+
+    expect(firstFile).not.toBe(secondFile)
+    expect(fs.existsSync(path.join(distDir, firstFile))).toBe(true)
+    expect(fs.existsSync(path.join(distDir, secondFile))).toBe(true)
+
+    const firstEvents = JSON.parse(
+      fs.readFileSync(path.join(distDir, firstFile), 'utf8')
+    )
+    const secondEvents = JSON.parse(
+      fs.readFileSync(path.join(distDir, secondFile), 'utf8')
+    )
+
+    expect(firstEvents[0].eventName).toBe('NEXT_EVENT_1')
+    expect(secondEvents[0].eventName).toBe('NEXT_EVENT_2')
   })
 
   it('clears queue and does not re-spawn on subsequent flushDetached calls', async () => {

@@ -34,7 +34,9 @@ import {
   // Support both old format (no eventsFile arg) and new format (with eventsFile arg)
   const eventsPath = path.join(
     distDir,
-    eventsFile && !eventsFile.includes('/') ? eventsFile : '_events.json'
+    eventsFile && !eventsFile.includes('/') && !eventsFile.includes('\\')
+      ? eventsFile
+      : '_events.json'
   )
 
   let events: TelemetryEvent[]
@@ -53,7 +55,9 @@ import {
   await telemetry.flush()
 
   // finished flushing events clean-up
-  fs.unlinkSync(eventsPath)
+  try {
+    fs.unlinkSync(eventsPath)
+  } catch (_) {}
   // Don't call process.exit() here - let Node.js exit naturally after
   // all pending work completes (e.g., setTimeout in debug telemetry)
 })()

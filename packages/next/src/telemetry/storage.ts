@@ -243,8 +243,9 @@ export class Telemetry {
     }
 
     fs.mkdirSync(this.distDir, { recursive: true })
-    // Use unique filename per process to avoid race conditions between parent/child
-    const eventsFile = `_events_${process.pid}.json`
+    // Use unique filename per flush to avoid race conditions between parent/child
+    // and prevent collisions between multiple flushes in the same process
+    const eventsFile = `_events_${process.pid}_${randomBytes(6).toString('hex')}.json`
     fs.writeFileSync(
       path.join(this.distDir, eventsFile),
       JSON.stringify(allEvents)
