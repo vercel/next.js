@@ -175,10 +175,12 @@ export async function buildPagesStaticPaths({
         }
 
         if (repeat && Array.isArray(paramValue)) {
-          const invalidItem = paramValue.find((item) => typeof item !== 'string')
-          if (typeof invalidItem !== 'undefined') {
+          const invalidItemIndex = paramValue.findIndex(
+            (item) => typeof item !== 'string'
+          )
+          if (invalidItemIndex !== -1) {
             throw new Error(
-              `A required parameter (${validParamKey}) was not provided as an array of strings received ${typeof invalidItem} in getStaticPaths for ${page}`
+              `A required parameter (${validParamKey}) was not provided as an array of strings received ${typeof paramValue[invalidItemIndex]} in getStaticPaths for ${page}`
             )
           }
         }
