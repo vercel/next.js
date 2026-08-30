@@ -6,6 +6,7 @@ async function Gate() {
   const h = await headers()
   h.get('cookie')
   redirect('/redirect-result')
+  return null
 }
 
 export default function RedirectSuspense() {

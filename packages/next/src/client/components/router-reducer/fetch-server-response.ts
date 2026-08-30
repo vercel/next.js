@@ -44,6 +44,7 @@ import {
   bufferPrefetchResponseBody,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import { findRedirectHrefInTransportData } from './find-flight-redirect'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -268,6 +269,18 @@ export async function fetchServerResponse(
       // The server responded with an MPA navigation URL instead of a
       // SPA payload.
       return doMpaNavigation(flightResponse.n)
+    }
+
+    // Soft redirect() in a fully-dynamic segment arrives as NEXT_REDIRECT
+    // inside the Flight tree (RSC status stays 200). RedirectBoundary can
+    // catch that during render, but on a ƒ route there is no committable
+    // fallback, so HandleRedirect's effect never runs. Treat it like a hard
+    // redirect href and convert to MPA here. See issue #97898.
+    const softRedirectHref = findRedirectHrefInTransportData(
+      flightResponse.t ?? null
+    )
+    if (softRedirectHref !== null) {
+      return doMpaNavigation(softRedirectHref)
     }
 
     const staticStageResponse =
