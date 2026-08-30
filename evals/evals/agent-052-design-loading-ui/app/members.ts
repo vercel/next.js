@@ -5,7 +5,7 @@ export type Member = {
   bio: string
 }
 
-export type MemberPage = { members: Member[]; hasMore: boolean }
+export type MemberResult = { members: Member[] }
 export type ActivityItem = { id: string; label: string }
 
 const MEMBERS: Member[] = [
@@ -68,13 +68,12 @@ export async function getStats() {
   return { people: MEMBERS.length, teams: 4 }
 }
 
-export async function getMembers(page = 1, query = ''): Promise<MemberPage> {
+export async function getMembers(query = ''): Promise<MemberResult> {
   await delay(query.length === 1 ? 700 : 450)
   const matches = MEMBERS.filter((member) =>
     `${member.name} ${member.role}`.toLowerCase().includes(query.toLowerCase())
   )
-  const end = page * 4
-  return { members: matches.slice(0, end), hasMore: end < matches.length }
+  return { members: matches }
 }
 
 export async function getMember(id: string) {
@@ -84,6 +83,9 @@ export async function getMember(id: string) {
 
 export async function getActivity(id: string): Promise<ActivityItem[]> {
   await delay(300)
+  if (id === 'grace') {
+    throw new Error('Activity unavailable')
+  }
   return [{ id: '1', label: `${id} shipped a design document` }]
 }
 

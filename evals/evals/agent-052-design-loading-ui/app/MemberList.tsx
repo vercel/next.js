@@ -7,37 +7,21 @@ import { getMembers, type Member } from './members'
 export function MemberList() {
   const [members, setMembers] = useState<Member[]>([])
   const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     getMembers().then((result) => {
       setMembers(result.members)
-      setHasMore(result.hasMore)
       setIsLoading(false)
     })
   }, [])
 
   function search(nextQuery: string) {
     setQuery(nextQuery)
-    setPage(1)
     setIsLoading(true)
     setMembers([])
-    getMembers(1, nextQuery).then((result) => {
+    getMembers(nextQuery).then((result) => {
       setMembers(result.members)
-      setHasMore(result.hasMore)
-      setIsLoading(false)
-    })
-  }
-
-  function loadMore() {
-    const nextPage = page + 1
-    setIsLoading(true)
-    getMembers(nextPage, query).then((result) => {
-      setMembers(result.members)
-      setPage(nextPage)
-      setHasMore(result.hasMore)
       setIsLoading(false)
     })
   }
@@ -54,7 +38,7 @@ export function MemberList() {
         value={query}
         onChange={(event) => search(event.target.value)}
       />
-      <ul className="member-list" key={`${query}-${page}`}>
+      <ul className="member-list" key={query}>
         {members.map((member) => (
           <li key={member.id} className="member-row">
             <span className="avatar" />
@@ -65,11 +49,6 @@ export function MemberList() {
           </li>
         ))}
       </ul>
-      {hasMore ? (
-        <button type="button" onClick={loadMore}>
-          Load more
-        </button>
-      ) : null}
     </section>
   )
 }

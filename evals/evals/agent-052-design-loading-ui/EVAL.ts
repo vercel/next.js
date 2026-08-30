@@ -27,13 +27,14 @@ test('keeps search results useful and current', async () => {
   `)
 })
 
-test('grows the directory without resetting it', async () => {
+test('ends a failed activity request with a useful error', async () => {
   await expect(environment).toSatisfyCriterion(`
-    Pagination, all eight members, and its artificial delay must remain. Choosing
-    Load more should keep the existing member rows mounted and visible while the
-    next members load, then extend the directory rather than replace or remount it.
-    Pending feedback may be local to the control or appended region. Accept any
-    implementation that preserves the stable list and prevents a full-list reset.
+    Grace Hopper's activity read must remain a delayed rejection. Once it rejects,
+    the profile must show a clear activity-specific error instead of remaining in
+    a loading state or blanking the route. Stable profile content, including the
+    member's bio, must remain visible. Accept a local error state, an error boundary,
+    or any other implementation that achieves those outcomes; do not require a
+    particular React or Next.js API.
   `)
 })
 
