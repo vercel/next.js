@@ -1,6 +1,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { execSync } from 'child_process'
 
 const appDir = join(__dirname, 'app')
 
@@ -39,6 +40,15 @@ describe.each([
       w: '256',
       q: '75',
     })
+    require('console').log(
+      'node',
+      execSync('node --version', {
+        cwd: next.testDir,
+        stdio: 'pipe',
+        encoding: 'utf-8',
+      })
+    )
+    require('console').log(await (await next.fetch('/versions')).json())
     const res = await next.fetch(`/_next/image?${query}`, {
       headers: { accept: 'image/webp' },
     })
