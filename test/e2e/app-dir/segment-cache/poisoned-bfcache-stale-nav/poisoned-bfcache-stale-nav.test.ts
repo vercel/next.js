@@ -61,23 +61,43 @@ describe('segment cache (poisoned BFCache / staleTimes.dynamic)', () => {
     })
     expect(await browser.url()).not.toContain('/stalled-page')
 
-    // Network is fully restored. A later click must issue a request and
-    // commit — not reuse the poisoned BFCache entry with
-    // needsDynamicRequest: false (zero requests until staleAt).
+    // Hide the poisoned link so it cannot re-prefetch outside an act scope.
+    await browser
+      .elementByCss('input[data-link-accordion="/stalled-page"]')
+      .click()
+
+    // Network is fully restored. Other routes must keep working, and a later
+    // click to the poisoned route must issue a request and commit — not reuse
+    // the BFCache entry with needsDynamicRequest: false.
     await page.evaluate(() => {
       ;(window as any).__restoreFetch()
     })
 
-    await act(
-      async () => {
-        await browser.elementByCss('a[href="/stalled-page"]').click()
-      },
-      { includes: 'Stalled page' }
+    await act(async () => {
+      await browser.elementByCss('input[data-link-accordion="/other"]').click()
+      const link = await browser.elementByCss('a[href="/other"]')
+      await link.click()
+    })
+    expect(await browser.elementById('other-heading').text()).toBe(
+      'Issue 98066 other page'
     )
 
-    expect(await browser.elementById('stalled-page-heading').text()).toBe(
-      'Stalled page'
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/stalled-page"]')
+          .click()
+        const link = await browser.elementByCss('a[href="/stalled-page"]')
+        await link.click()
+      },
+      { includes: 'Issue 98066 stalled page' }
     )
+
+    await retry(async () => {
+      expect(await browser.elementById('stalled-page-heading').text()).toBe(
+        'Issue 98066 stalled page'
+      )
+    })
     expect(await browser.url()).toContain('/stalled-page')
   })
 })
