@@ -1,6 +1,6 @@
 /* eslint-env jest */
-import { readFileSync } from 'fs'
-import { join } from 'path'
+const { readFileSync } = require('fs')
+const { join } = require('path')
 
 const gtmSource = readFileSync(
   join(__dirname, '../../packages/third-parties/src/google/gtm.tsx'),
