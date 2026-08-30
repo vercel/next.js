@@ -75,6 +75,10 @@ import {
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  stampFlightNavigationBuildId,
+  stampRuntimeDeploymentIdOnHtml,
+} from '../../server/lib/stamp-runtime-deployment-id' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -91,6 +95,38 @@ import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-trans
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
+
+function stampCachedAppPageDeploymentId(
+  cachedData: CachedAppPageValue,
+  deploymentId: string
+): CachedAppPageValue {
+  const html = cachedData.html
+  if (html.isDynamic) {
+    return cachedData
+  }
+
+  const htmlString = html.toUnchunkedString()
+  const previousId = htmlString.match(/data-dpl-id="([^"]*)"/)?.[1]
+  const stampedHtml = stampRuntimeDeploymentIdOnHtml(htmlString, deploymentId)
+
+  let rscData = cachedData.rscData
+  if (rscData && previousId && previousId !== deploymentId) {
+    rscData = Buffer.from(
+      stampFlightNavigationBuildId(
+        rscData.toString('utf8'),
+        previousId,
+        deploymentId
+      ),
+      'utf8'
+    )
+  }
+
+  return {
+    ...cachedData,
+    html: RenderResult.fromStatic(stampedHtml, HTML_CONTENT_TYPE_HEADER),
+    rscData,
+  }
+}
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -1699,7 +1735,16 @@ export function createAppPageEntrypoint({
           // and should respect the `static` cache staleTime value.
           res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
         }
-        const { value: cachedData } = cacheEntry
+        let { value: cachedData } = cacheEntry
+
+        // Prerendered HTML/RSC bake the build-time deployment id into
+        // `data-dpl-id` and the Flight `b` field. When the process is serving
+        // under a different NEXT_DEPLOYMENT_ID (runtimeServerDeploymentId),
+        // rewrite those to the runtime id so the client navigation build id
+        // matches `x-nextjs-deployment-id`.
+        if (deploymentId && cachedData.kind === CachedRouteKind.APP_PAGE) {
+          cachedData = stampCachedAppPageDeploymentId(cachedData, deploymentId)
+        }
 
         // Coerce the cache control parameter from the render.
         let cacheControl: CacheControl | undefined
