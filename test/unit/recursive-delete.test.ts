@@ -37,11 +37,41 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
       await recursiveCopy(resolveDataDir, testpreservefileDir, {
         overwrite: true,
       })
-      // preserve cache dir
-      await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir, /^cache/)
+      await recursiveDeleteSyncWithAsyncRetries(
+        testpreservefileDir,
+        new Set(['cache'])
+      )
 
       const result = await recursiveReadDir(testpreservefileDir)
-      expect(result.length).toBe(1)
+      expect(result).toEqual(['/cache/test.txt'])
+    } finally {
+      // Ensure test cleanup
+      await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir)
+
+      const cleanupResult = await recursiveReadDir(testpreservefileDir)
+      expect(cleanupResult.length).toBe(0)
+    }
+  })
+
+  it('should exclude a nested path', async () => {
+    expect.assertions(4)
+    try {
+      await recursiveCopy(resolveDataDir, testpreservefileDir, {
+        overwrite: true,
+      })
+      await recursiveDeleteSyncWithAsyncRetries(
+        testpreservefileDir,
+        new Set([join('aa', 'cache.js')])
+      )
+
+      const result = await recursiveReadDir(testpreservefileDir)
+      expect(result).toEqual(['/aa/cache.js'])
+      expect(
+        await fs.pathExists(join(testpreservefileDir, 'aa', 'cache.js'))
+      ).toBe(true)
+      expect(
+        await fs.pathExists(join(testpreservefileDir, 'aa', 'index.js'))
+      ).toBe(false)
     } finally {
       // Ensure test cleanup
       await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir)

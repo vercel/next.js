@@ -489,6 +489,11 @@ function getPreambleOutput(cliOutput: string): string {
   const lines: string[] = []
 
   for (const line of cliOutput.split('\n')) {
+    // React version warnings are covered by the dedicated React version test.
+    if (line.includes('React 18 support is deprecated')) {
+      continue
+    }
+
     if (line.includes('Creating an optimized production build')) {
       break
     }

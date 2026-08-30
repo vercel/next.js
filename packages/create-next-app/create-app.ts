@@ -43,6 +43,7 @@ export async function createApp({
   bundler,
   disableGit,
   reactCompiler,
+  cacheComponents,
   agentsMd,
 }: {
   appPath: string
@@ -62,6 +63,7 @@ export async function createApp({
   bundler: Bundler
   disableGit?: boolean
   reactCompiler: boolean
+  cacheComponents: boolean
   agentsMd: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
@@ -255,6 +257,7 @@ export async function createApp({
       skipInstall,
       bundler,
       reactCompiler,
+      cacheComponents,
     })
   }
 

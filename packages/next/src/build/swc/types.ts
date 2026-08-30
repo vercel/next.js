@@ -384,6 +384,7 @@ export type Route =
   | {
       type: 'app-route'
       originalName: string
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
   | {
@@ -528,6 +529,7 @@ export type AppRoute =
     }
   | {
       type: 'app-route'
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
 

@@ -226,6 +226,7 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
+  reactBrowserBailout: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   concurrentRouterQueue: z.boolean().optional(),
@@ -266,7 +267,6 @@ export const experimentalSchema = {
   forceSwcTransforms: z.boolean().optional(),
   fullySpecified: z.boolean().optional(),
   gzipSize: z.boolean().optional(),
-  imgOptDangerouslyAllowAVIF: z.boolean().optional(),
   imgOptConcurrency: z.number().int().optional().nullable(),
   imgOptOperationCache: z.boolean().optional().nullable(),
   imgOptTimeoutInSeconds: z.number().int().optional(),
@@ -423,6 +423,7 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackMangleExportNames: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -475,6 +476,8 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  explicitParallelRouteChildren: z.boolean().optional(),
+  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([

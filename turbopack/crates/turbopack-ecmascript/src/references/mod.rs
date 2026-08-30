@@ -20,6 +20,8 @@ pub mod raw;
 pub mod removal;
 pub mod require_context;
 pub mod service_worker;
+#[cfg(test)]
+mod tests;
 pub mod type_issue;
 pub mod typescript;
 pub mod util;
@@ -78,7 +80,7 @@ use turbopack_core::{
     },
     environment::Rendering,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
-    module::{Module, ModuleSideEffects},
+    module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
@@ -97,7 +99,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable, EnvVarInfo,
     ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
@@ -107,13 +109,12 @@ use crate::{
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
-        parse_require_context, side_effects,
+        parse_require_context,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
     chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
-    directive::parse_module_turbopack_directives,
     errors,
     module_fragments::{part_of_module, split_module},
     parse::ParseResult,
@@ -168,13 +169,14 @@ pub struct AnalyzeEcmascriptModuleResult {
 
     pub code_generation: ResolvedVc<CodeGens>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
-    pub side_effects: ModuleSideEffects,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     /// Present when the module is a statically-analyzable CommonJS module;
     /// carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
+
+    pub env_var_info: ResolvedVc<EnvVarInfo>,
 }
 
 #[turbo_tasks::value_impl]
@@ -231,8 +233,10 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    side_effects: ModuleSideEffects,
     cjs_static_exports: Option<CjsStaticExports>,
+
+    env_var_info_runtime: FxIndexSet<RcStr>,
+
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -251,8 +255,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            side_effects: ModuleSideEffects::SideEffectful,
             cjs_static_exports: None,
+            env_var_info_runtime: Default::default(),
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -324,14 +328,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.async_module = ResolvedVc::cell(Some(async_module));
     }
 
-    /// Set whether this module is side-effect free according to a user-provided directive.
-    pub fn set_side_effects_mode(&mut self, value: ModuleSideEffects) {
-        self.side_effects = value;
-    }
-
     /// Sets whether the analysis was successful.
     pub fn set_successful(&mut self, successful: bool) {
         self.successful = successful;
+    }
+
+    /// Adds a runtime environment variable reference to the analysis result.
+    pub fn add_runtime_env_var_reference(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime.insert(runtime_env);
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -436,10 +440,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 ),
                 code_generation: ResolvedVc::cell(code_generation),
                 async_module: self.async_module,
-                side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
+                env_var_info: EnvVarInfo {
+                    runtime: self.env_var_info_runtime.into_iter().collect(),
+                }
+                .resolved_cell(),
             },
         ))
     }
@@ -692,28 +699,6 @@ async fn analyze_ecmascript_module_internal(
     for i in esm_evaluation_reference_idxs {
         analysis.add_esm_evaluation_reference(*i);
     }
-
-    let directives = parse_module_turbopack_directives(program);
-    analysis.set_side_effects_mode(if directives.no_side_effects {
-        ModuleSideEffects::SideEffectFree
-    } else if directives.constants_module && options.cross_module_constants {
-        // If the module is marked as a constants module, it must be side effect free, otherwise
-        // the constant folding would not be safe. This makes a difference when doing `import *
-        // as foo from 'constants-module'`
-        ModuleSideEffects::SideEffectFree
-    } else if options.infer_module_side_effects {
-        // Analyze the AST to infer side effects
-        GLOBALS.set(globals, || {
-            side_effects::compute_module_evaluation_side_effects(
-                program,
-                comments,
-                eval_context.unresolved_mark,
-            )
-        })
-    } else {
-        // If inference is disabled, assume side effects
-        ModuleSideEffects::SideEffectful
-    });
 
     let is_esm = eval_context.is_esm(specified_type);
 
@@ -1277,11 +1262,6 @@ async fn analyze_ecmascript_module_internal(
                     ast_path,
                     span,
                 } => {
-                    debug_assert!(
-                        analyze_mode.is_code_gen(),
-                        "unexpected Effect::Member in tracing mode"
-                    );
-
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
                         analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
@@ -1290,20 +1270,60 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
+                    handle_membership(
+                        &ast_path,
+                        obj,
+                        prop,
+                        span,
+                        &analysis_state,
+                        &mut analysis,
+                        MembershipType::Member,
+                    )
+                    .await?;
+                }
+                Effect::DestructuredMember {
+                    mut obj,
+                    mut prop,
+                    span: _,
+                } => {
+                    // TODO add an inlining codegen here
+
+                    let prop = analysis_state
+                        .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
+                    if let Some(prop) = prop.as_str() {
+                        // This is only used for env var tracking. The more robust solution would be
+                        // an `Effect::Ident` but that would be even more
+                        // expensive.
+                        let obj = analysis_state
+                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
+                            .await?;
+
+                        if obj
+                            .get_definable_name(Some(&analysis_state.var_graph))
+                            .iter()
+                            .flatten()
+                            .any(|(name, reassigned)| {
+                                !reassigned
+                                    && matches!(
+                                        name.0.as_slice(),
+                                        [
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env")
+                                        ]
+                                    )
+                            })
+                        {
+                            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+                        }
+                    }
                 }
                 Effect::In {
                     mut left,
                     mut right,
                     ast_path,
-                    span: _,
+                    span,
                 } => {
-                    debug_assert!(
-                        analyze_mode.is_code_gen(),
-                        "unexpected Effect::In in tracing mode"
-                    );
-
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let right =
                         analysis_state.link_value(take(&mut *right), ImportAttributes::empty_ref());
@@ -1312,7 +1332,16 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *left), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_in(&ast_path, right, left, &analysis_state, &mut analysis).await?;
+                    handle_membership(
+                        &ast_path,
+                        right,
+                        left,
+                        span,
+                        &analysis_state,
+                        &mut analysis,
+                        MembershipType::In,
+                    )
+                    .await?;
                 }
                 Effect::ImportedBinding {
                     esm_reference_index,
@@ -3399,101 +3428,93 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
     None
 }
 
-async fn handle_member<'a>(
+enum MembershipType {
+    Member,
+    In,
+}
+async fn handle_membership<'a>(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
     prop: JsValue<'a>,
     span: Span,
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    ty: MembershipType,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
-        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
-        let obj = if has_member || is_prop_cache {
-            Some(link_obj.await?)
-        } else {
-            None
-        };
+        let obj = link_obj.await?;
+        let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
-        if has_member {
-            let obj = obj.as_ref().unwrap();
-            if let Some((mut name, false)) = obj.get_definable_name(Some(&state.var_graph)) {
+        if let [obj_name] = &*obj_name {
+            // Exactly one name. We can potentially inline
+            if has_member && let Some((mut name, false)) = obj_name.clone() {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
-                if let Some(value) = state
-                    .compile_time_info_ref
-                    .free_var_references
-                    .get(&name)
-                    .await?
-                {
-                    handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
-                    return Ok(());
+                match ty {
+                    MembershipType::Member => {
+                        if let Some(value) = state
+                            .compile_time_info_ref
+                            .free_var_references
+                            .get(&name)
+                            .await?
+                        {
+                            // Inline env var
+                            handle_free_var_reference(ast_path, &value, span, state, analysis)
+                                .await?;
+                            return Ok(());
+                        }
+                    }
+                    MembershipType::In => {
+                        if state
+                            .compile_time_info_ref
+                            .free_var_references
+                            .get(&name)
+                            .await?
+                            .is_some()
+                        {
+                            analysis.add_code_gen(ConstantValueCodeGen::new(
+                                CompileTimeDefineValue::Bool(true),
+                                ast_path.to_vec().into(),
+                            ));
+                            return Ok(());
+                        }
+                    }
                 }
             }
-        }
-
-        if is_prop_cache
-            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
-                obj.as_ref().unwrap()
-        {
-            analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
-        }
-    }
-
-    Ok(())
-}
-
-async fn handle_in<'a>(
-    ast_path: &[AstParentKind],
-    link_right: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
-    left: JsValue<'a>,
-    state: &AnalysisState<'a>,
-    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-) -> Result<()> {
-    if let Some(left) = left.as_str() {
-        let has_member = state.free_var_references_members.contains_key(left).await?;
-        let is_left_cache = left == "cache";
-
-        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
-        let right = if has_member || is_left_cache {
-            Some(link_right.await?)
-        } else {
-            None
-        };
-
-        if has_member {
-            let right = right.as_ref().unwrap();
-            if let Some((mut name, false)) = right.get_definable_name(Some(&state.var_graph)) {
-                name.0.push(DefinableNameSegmentRef::Name(left));
-                if state
-                    .compile_time_info_ref
-                    .free_var_references
-                    .get(&name)
-                    .await?
-                    .is_some()
-                {
-                    analysis.add_code_gen(ConstantValueCodeGen::new(
+            if is_prop_cache
+                && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
+            {
+                analysis.add_code_gen::<CodeGen>(match ty {
+                    MembershipType::Member => {
+                        CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
+                    }
+                    MembershipType::In => ConstantValueCodeGen::new(
                         CompileTimeDefineValue::Bool(true),
                         ast_path.to_vec().into(),
-                    ));
-                    return Ok(());
-                }
+                    )
+                    .into(),
+                });
+                return Ok(());
             }
         }
 
-        if is_left_cache
-            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
-                right.as_ref().unwrap()
-        {
-            analysis.add_code_gen(ConstantValueCodeGen::new(
-                CompileTimeDefineValue::Bool(true),
-                ast_path.to_vec().into(),
-            ));
+        // Not inlined, potentially register as runtime env var.
+        if obj_name.iter().flatten().any(|(name, reassigned)| {
+            !reassigned
+                && matches!(
+                    name.0.as_slice(),
+                    [
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ]
+                )
+        }) {
+            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+            return Ok(());
         }
     }
-
     Ok(())
 }
 
@@ -3504,7 +3525,11 @@ async fn handle_typeof<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some((mut name, false)) = arg.get_definable_name(Some(&state.var_graph)) {
+    let arg_name = arg.get_definable_name(Some(&state.var_graph));
+    if arg_name.len() == 1
+        && let Some((mut name, false)) = arg_name.into_iter().next().unwrap()
+    {
+        // Exactly one name. We can potentially inline
         name.0.push(DefinableNameSegmentRef::TypeOf);
         if let Some(value) = state
             .compile_time_info_ref
@@ -3527,11 +3552,12 @@ async fn handle_free_var<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some((name, _)) = var.get_definable_name(None)
+    // Exactly one name. We can potentially inline
+    if let [Some((name, _))] = &*var.get_definable_name(None)
         && let Some(value) = state
             .compile_time_info_ref
             .free_var_references
-            .get(&name)
+            .get(name)
             .await?
     {
         handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
@@ -3949,16 +3975,22 @@ async fn value_visitor_inner<'a>(
 ) -> Result<(JsValue<'a>, Modified)> {
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
-        && let Some((mut name, _)) = right.get_definable_name(Some(var_graph))
+        && let right_name = right.get_definable_name(Some(var_graph))
+        && right_name.len() == 1
+        && let Some((mut right_name, false)) = right_name.into_iter().next().unwrap()
     {
-        name.0.push(DefinableNameSegmentRef::Name(left));
-        if compile_time_info_ref.defines.contains_key(&name).await? {
+        right_name.0.push(DefinableNameSegmentRef::Name(left));
+        if compile_time_info_ref
+            .defines
+            .contains_key(&right_name)
+            .await?
+        {
             return Ok((JsValue::Constant(JsConstantValue::True), Modified::Yes));
         }
     }
 
-    if let Some((name, _)) = v.get_definable_name(Some(var_graph))
-        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+    if let [Some((name, false))] = &*v.get_definable_name(Some(var_graph))
+        && let Some(value) = compile_time_info_ref.defines.get(name).await?
     {
         return Ok((
             JsValue::from_compile_time_define_value_in(arena.get_or_default(), &value)?,

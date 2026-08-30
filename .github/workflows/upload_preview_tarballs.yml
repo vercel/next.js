@@ -67,5 +67,4 @@ jobs:
           github.event.workflow_run.head_sha }}" "${{ runner.temp
           }}/preview-tarballs"
         env:
-          BLOB_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
           PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}

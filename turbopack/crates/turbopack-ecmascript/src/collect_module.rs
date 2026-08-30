@@ -22,10 +22,19 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::esm::{EsmExport, EsmExports, Liveness},
+    references::esm::{EsmExport, EsmExports, Liveness, mangle::generated_export_key},
     runtime_functions::{TURBOPACK_ESM, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
+
+/// The single export of the generated collect module.
+///
+/// Both the producer below and the read side in `references::emit_collect` resolve the key this is
+/// actually *emitted* under through `generated_export_key`, rather than assuming the source name,
+/// so the two cannot drift apart. Today that always resolves back to this name — see
+/// `get_exports` for why — but wiring it through means mangling starts applying to both sides
+/// together the moment it becomes possible, with no further change here.
+pub const COLLECT_LIST_EXPORT: RcStr = rcstr!("getList");
 
 #[turbo_tasks::value]
 pub struct EcmascriptCollectModule {
@@ -165,11 +174,20 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
         EcmascriptExports::EsmExports(
             EsmExports {
                 exports: [(
-                    "getList".into(),
-                    EsmExport::LocalBinding(rcstr!("getList"), Liveness::Constant),
+                    COLLECT_LIST_EXPORT,
+                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT, Liveness::Constant),
                 )]
                 .into(),
                 star_exports: vec![],
+                // This module is code-generated but never referenced in the module graph (it is
+                // reached through `collected_modules`), so it has no entry in the graph's
+                // used-export map and `module_export_usage` cannot answer for it — the same class
+                // of module as the wasm loader and the client-reference proxy, which
+                // `BindingUsageInfo::used_exports` special-cases by ident with a `TODO fix these
+                // cases`. Mangling therefore cannot be computed here at all, rather than being
+                // merely undesirable. Keeping this `false` makes `mangled_export_names` answer
+                // before it consults the graph; flip it once this module is graph-tracked.
+                mangle_export_names: false,
             }
             .resolved_cell(),
         )
@@ -204,15 +222,16 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        &self,
+        self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
         let chunk_item_id_strategy = chunking_context.chunk_item_id_strategy().await?;
 
-        let entries = self
+        let entries = this
             .entry_chunk_group
             .await?
             .into_iter()
@@ -220,7 +239,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
 
         let collected_modules = module_graph.collected_modules();
         let items = collected_modules
-            .get(&ResolvedVc::upcast(self.module))
+            .get(&ResolvedVc::upcast(this.module))
             .await?;
         let items = items
             .iter()
@@ -262,11 +281,19 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
         code += "]);";
         code += "function getList() { return data; }";
 
+        // The *key* this is exposed under may be mangled; the local binding keeps its own name.
+        // `references::emit_collect` resolves the same key for the read side, so both agree.
+        let export = generated_export_key(
+            ResolvedVc::upcast(self.to_resolved().await?),
+            chunking_context,
+            &COLLECT_LIST_EXPORT,
+        )
+        .await?;
+
         writeln!(
             code,
-            "{TURBOPACK_ESM}([
-    'getList', ()=>getList
-]);"
+            "{TURBOPACK_ESM}([\n    {}, ()=>getList\n]);",
+            StringifyJs(&export),
         )?;
 
         Ok(EcmascriptChunkItemContent {

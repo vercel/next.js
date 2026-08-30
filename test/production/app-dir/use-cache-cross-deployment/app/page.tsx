@@ -1,16 +1,17 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { getDate } from './logic'
 
 async function getData() {
-  'use cache'
+  'use cache: remote'
 
-  return new Date().toISOString()
+  return getDate()
 }
 
 async function AsyncComp() {
   let data = await getData()
 
-  return <p id="data">{data}</p>
+  return <span id="data">{data}</span>
 }
 
 export default async function Home() {
@@ -18,7 +19,7 @@ export default async function Home() {
 
   return (
     <main>
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense fallback={<div>Loading...</div>}>
         <AsyncComp />
       </Suspense>
     </main>

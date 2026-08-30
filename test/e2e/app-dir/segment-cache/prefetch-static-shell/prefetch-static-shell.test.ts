@@ -254,6 +254,249 @@ describe('static App Shell prefetch attempt', () => {
     ])
   })
 
+  it("uses a static app shell for a partial segment that calls runtime APIs but doesn't await them", async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /runtime-called-but-not-awaited.
+    // No runtime data was awaited, so a static app shell is sufficient
+    // (a runtime app shell would not provide more data)
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/runtime-called-but-not-awaited"]'
+        )
+        .click()
+    }, [
+      { includes: 'Runtime APIs called but not awaited', kind: 'static' },
+      // We only expect a static prefetch.
+      {
+        includes: 'Runtime APIs called but not awaited',
+        kind: 'runtime',
+        block: 'reject',
+      },
+      { includes: 'Dynamic content', kind: 'runtime', block: 'reject' },
+    ])
+
+    // Navigate. The prefetched shell renders instantly, and the dynamic data arrives
+    // later, as part of the navigation request.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/runtime-called-but-not-awaited"]')
+          .click()
+
+        // While the navigation response is blocked (we're still inside the
+        // `act` scope), the prefetched shell is already visible, with the
+        // loading fallback in place of the dynamic content.
+        expect(await browser.elementById('page-content').text()).toBe(
+          'Runtime APIs called but not awaited'
+        )
+        expect(await browser.elementById('dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      },
+      // The dynamic content streams in with the navigation response.
+      { includes: 'Dynamic content' }
+    )
+
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+  })
+
+  it('uses a static app shell for a partial segment that only awaits params after dynamic data', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /params-used-after-dynamic/1.
+    // No runtime data was awaited, so a static app shell is sufficient
+    // (a runtime app shell would not provide more data)
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/params-used-after-dynamic/1"]'
+        )
+        .click()
+    }, [
+      { includes: 'Params awaited after dynamic data', kind: 'static' },
+      // We only expect a static prefetch, no runtime requests.
+      {
+        includes: 'Params awaited after dynamic data',
+        kind: 'runtime',
+        block: 'reject',
+      },
+      { includes: 'Dynamic content', kind: 'runtime', block: 'reject' },
+    ])
+
+    // Navigate to an unprefetched link with a different param value.
+    // This should re-use the app shell that we got when we prefetched /1.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/params-used-after-dynamic/2"]')
+          .click()
+
+        // While the navigation response is blocked (we're still inside the
+        // `act` scope), the prefetched shell is already visible, with the
+        // loading fallback in place of the dynamic content.
+        expect(await browser.elementById('page-content').text()).toBe(
+          'Params awaited after dynamic data'
+        )
+        expect(await browser.elementById('dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      },
+      // The dynamic content streams in with the navigation response.
+      { includes: 'Dynamic content' }
+    )
+
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+    expect(await browser.elementById('param-value').text()).toBe('Post: 2')
+  })
+
+  it('uses a static app shell for a partial segment that only awaits params after navigation()', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /params-used-after-navigation/1.
+    // No runtime data was awaited, so a static app shell is sufficient
+    // (a runtime app shell would not provide more data)
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/params-used-after-navigation/1"]'
+        )
+        .click()
+    }, [
+      { includes: 'Params awaited after navigation', kind: 'static' },
+      // We only expect a static prefetch, no runtime requests.
+      {
+        includes: 'Params awaited after navigation',
+        kind: 'runtime',
+        block: 'reject',
+      },
+    ])
+
+    // Navigate to an unprefetched link with a different param value.
+    // This should re-use the app shell that we got when we prefetched /1.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/params-used-after-navigation/2"]')
+          .click()
+
+        expect(await browser.elementById('page-content').text()).toBe(
+          'Params awaited after navigation'
+        )
+
+        // `navigation()` *does* resolve in static prefetches so we have navigation-gated
+        // content for /1. However, it is not considered part of the app shell, so it should
+        // not be visible here.
+        expect(await browser.elementById('navigation-loading').text()).toBe(
+          'Loading navigation content...'
+        )
+      },
+      // The navigation content streams in with the navigation response.
+      { includes: 'Navigation content' }
+    )
+
+    expect(await browser.elementById('navigation-content').text()).toBe(
+      'Navigation content'
+    )
+    expect(await browser.elementById('param-value').text()).toBe('Post: 2')
+  })
+
+  it('uses a runtime shell for a partial segment that has a param-dependent icon.tsx', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /params-used-in-icon/1.
+    // No runtime data was awaited in the page itself during the prerender,
+    // but the head is param-dependent because it needs to link to the
+    // param-dependent icon:
+    //
+    //   <link rel="icon" href="/params-only-in-icon/1/icon">
+    //
+    // which is tracked as a runtime data access and deopts the page
+    // to runtime requests.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/params-used-in-icon/1"]')
+        .click()
+    }, [
+      {
+        includes: 'Params awaited in icon.tsx and after dynamic data',
+        kind: 'runtime',
+      },
+      {
+        includes: 'Params awaited in icon.tsx and after dynamic data',
+        kind: 'static',
+        block: 'reject',
+      },
+      { includes: 'Dynamic content', kind: 'static', block: 'reject' },
+    ])
+
+    // Navigate to an unprefetched link with a different param value.
+    // This should re-use the app shell that we got when we prefetched /1.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/params-used-in-icon/2"]').click()
+
+        // While the navigation response is blocked (we're still inside the
+        // `act` scope), the prefetched shell is already visible, with the
+        // loading fallback in place of the dynamic content.
+        expect(await browser.elementById('page-content').text()).toBe(
+          'Params awaited in icon.tsx and after dynamic data'
+        )
+
+        // The icon is param-dependent and should not be part of the shell.
+        expect(await browser.locator('link[rel="icon"]').count()).toBe(0)
+
+        expect(await browser.elementById('dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      },
+      // The dynamic content streams in with the navigation response.
+      { includes: 'Dynamic content' }
+    )
+
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+
+    expect(
+      new URL(
+        await browser.elementByCss('link[rel="icon"]').getAttribute('href'),
+        'http://__n'
+      ).pathname
+    ).toEqual('/params-used-in-icon/2/icon')
+
+    expect(await browser.elementById('param-value').text()).toBe('Post: 2')
+  })
+
   it('does not fall back to a runtime shell prefetch for a partial segment whose holes are dynamic (connection)', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {

@@ -260,8 +260,8 @@ pub async fn get_constants(
                 value.clone_in(arena.get_or_default()),
                 &|value| early_value_visitor(&arena, value),
                 &async |v| {
-                    if let Some((name, _)) = v.get_definable_name(Some(&var_graph))
-                        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+                    if let [Some((name, _))] = &*v.get_definable_name(Some(&var_graph))
+                        && let Some(value) = compile_time_info_ref.defines.get(name).await?
                     {
                         return Ok((
                             JsValue::from_compile_time_define_value_in(

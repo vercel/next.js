@@ -204,6 +204,7 @@ pub async fn render_routes(
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
+                            ..
                         } => {
                             endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
