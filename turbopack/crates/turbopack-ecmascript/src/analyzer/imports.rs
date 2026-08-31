@@ -1400,7 +1400,7 @@ impl Visit for Analyzer<'_> {
             MemberProp::Ident(..)
                 | MemberProp::PrivateName(..)
                 | MemberProp::Computed(ComputedPropName {
-                    expr: box Expr::Lit(Lit::Str(_)),
+                    expr: Expr::Lit(Lit::Str(_)),
                     ..
                 })
         ) && let Expr::Ident(ident) = &*node.obj

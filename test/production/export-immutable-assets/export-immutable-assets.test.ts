@@ -1,10 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
+import type { NextAdapter } from 'next'
 import { listClientChunks } from 'next-test-utils'
 
-// Immutable static files are only supported with Turbopack anywy
+// Immutable static files are only supported with Turbopack anyway
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
-  'output: export - immutable assets disabled',
+  'output: export - immutable assets',
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
@@ -13,19 +14,40 @@ import { listClientChunks } from 'next-test-utils'
       disableAutoSkewProtection: true,
     })
 
-    // supportsImmutableAssets is designed to work with adapters. It must be
-    // force-disabled for `output: 'export'`, so even though it is requested here
-    // the build should not emit any `_next/static/immutable` assets.
-    // We can loosen this requirement in the future when using output=export together with an adapter
-    it('does not emit any _next/static/immutable files', async () => {
+    it('emits immutable assets and reports their hashes', async () => {
       const { exitCode } = await next.build()
       expect(exitCode).toBe(0)
 
-      const files = await listClientChunks(join(next.testDir, next.distDir))
+      const files = await listClientChunks(join(next.testDir, 'out', '_next'))
+      expect(files).toContainEqual(expect.stringContaining('static/immutable/'))
+      expect(files).not.toContainEqual(
+        expect.stringMatching(/^static\/chunks\//)
+      )
 
-      expect(files).not.toBeEmpty()
-      expect(files).toSatisfyAll((f) => f.includes('static/'))
-      expect(files).toSatisfyAll((f) => !f.includes('static/immutable/'))
+      const html = await next.readFile('out/index.html')
+      expect(html).toContain('/_next/static/immutable/')
+      expect(html).not.toContain('?dpl=test-deployment-id')
+
+      const hashes = await next.readJSON(
+        join(next.distDir, 'immutable-static-hashes.json')
+      )
+      const staticFiles: Parameters<
+        NextAdapter['onBuildComplete']
+      >[0]['outputs']['staticFiles'] = await next.readJSON(
+        'build-complete.json'
+      )
+
+      let immutableFileCount = 0
+      for (const output of staticFiles) {
+        const id = output.id
+          .replace(/^[/\\]?_next[/\\]/, '')
+          .replaceAll('\\', '/')
+        expect(output.immutableHash).toBe(hashes[id])
+        if (output.immutableHash) {
+          immutableFileCount++
+        }
+      }
+      expect(immutableFileCount).toBeGreaterThan(0)
     })
   }
 )

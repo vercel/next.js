@@ -88,7 +88,7 @@ use turbopack_core::{
         VersionState, VersionedContent,
     },
 };
-#[cfg(feature = "process_pool")]
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
@@ -1233,7 +1233,7 @@ impl Project {
         let node_backend = match strategy {
             #[cfg(feature = "worker_pool")]
             TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
-            #[cfg(feature = "process_pool")]
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
             TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 
@@ -1370,6 +1370,7 @@ impl Project {
                 Route::AppRoute {
                     original_name: _,
                     endpoint,
+                    ..
                 } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),

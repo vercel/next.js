@@ -135,7 +135,7 @@ impl<T> SelfTimeTree<T> {
     }
 
     fn rebalance(&mut self) {
-        if let Some(box SelfTimeChildren {
+        if let Some(SelfTimeChildren {
             left,
             split_point,
             right,
@@ -159,7 +159,7 @@ impl<T> SelfTimeTree<T> {
                 // right' = (left.right, right) with self.split_point
                 // split_point' = left.split_point
                 // direct entries in self and left are put in self and are redistributed
-                if let Some(box SelfTimeChildren {
+                if let Some(SelfTimeChildren {
                     left: left_left,
                     split_point: left_split_point,
                     right: left_right,
@@ -189,7 +189,7 @@ impl<T> SelfTimeTree<T> {
                 // right' = right.right
                 // split_point' = right.split_point
                 // direct entries in self and right are put in self and are redistributed
-                if let Some(box SelfTimeChildren {
+                if let Some(SelfTimeChildren {
                     left: right_left,
                     split_point: right_split_point,
                     right: right_right,

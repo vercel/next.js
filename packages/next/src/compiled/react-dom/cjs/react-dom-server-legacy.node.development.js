@@ -4635,6 +4635,7 @@
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
       this.onShellError = void 0 === onShellError ? noop : onShellError;
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+      this.renderLifetimeController = null;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
     }
@@ -5135,6 +5136,7 @@
         ? (shellComplete || debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
         : (shellComplete || errorInfo(error), onFatalError(error));
+      endRenderLifetime(request);
       null !== request.destination
         ? ((request.status = CLOSED), request.destination.destroy(error))
         : ((request.status = 12),
@@ -8794,6 +8796,7 @@
               console.error(
                 "There was still abortable task at the root when we closed. This is a bug in React."
               ),
+            endRenderLifetime(request),
             (request.status = CLOSED),
             destination.push(null),
             (request.destination = null));
@@ -8854,10 +8857,15 @@
           fatalError(request, error$5, abortableTasks, null);
       }
     }
+    function endRenderLifetime(request) {
+      request = request.renderLifetimeController;
+      null !== request && request.abort(RENDER_ENDED);
+    }
     function abort(request, reason) {
       if (
         !(request.aborted || (11 !== request.status && 10 !== request.status))
       ) {
+        endRenderLifetime(request);
         var isRecoverableReason =
           "object" === typeof reason &&
           null !== reason &&
@@ -10403,6 +10411,7 @@
       ERRORED = 4,
       POSTPONED = 5,
       CLOSED = 13,
+      RENDER_ENDED = "The render ended.",
       currentRequest = null,
       didWarnAboutBadClass = {},
       didWarnAboutContextTypes = {},
@@ -10429,5 +10438,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-canary-eafeac09-20260819";
+    exports.version = "19.3.0-canary-29d9d318-20260826";
   })();

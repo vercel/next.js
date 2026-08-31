@@ -5,6 +5,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   applyOwnerStack,
+  makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
   trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
@@ -52,6 +53,7 @@ export function unstable_prefetch(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (!stagedRendering) {
         // Prospective prerender
+        // `unstable_prefetch()` will resolve in the final prerender, so resolve it here as well.
         return Promise.resolve(undefined)
       } else {
         // Final prerender
@@ -69,13 +71,23 @@ export function unstable_prefetch(): Promise<void> {
       // Note that this does not mark the subtree as dynamic -- content guarded by
       // prefetch() is still considered cacheable.
       const { stagedRendering } = workUnitStore
+      const prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       if (!stagedRendering) {
         // Prospective prerender
-        return Promise.resolve(undefined)
+        // Make sure we don't unblock content that won't be reached in the final prerender.
+        if (workUnitStore.finalStage < prefetchStage) {
+          return makeUntrackedHangingPromise(
+            workUnitStore.renderSignal,
+            workStore.route,
+            '`unstable_prefetch()`'
+          )
+        } else {
+          return Promise.resolve(undefined)
+        }
       } else {
         // Final prerender
         return stagedRendering.delayUntilStage(
-          RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
+          prefetchStage,
           'unstable_prefetch',
           undefined
         )
@@ -194,6 +206,7 @@ export function unstable_navigation(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (!stagedRendering) {
         // Prospective prerender
+        // `unstable_navigation()` will resolve in the final prerender, so resolve it here as well.
         return Promise.resolve(undefined)
       } else {
         // Final prerender
@@ -211,13 +224,23 @@ export function unstable_navigation(): Promise<void> {
       // Note that this does not mark the subtree as dynamic -- content guarded by
       // navigation() is still considered cacheable.
       const { stagedRendering } = workUnitStore
+      const navigationStage = RenderStage.NavigationRuntime
       if (!stagedRendering) {
         // Prospective prerender
-        return Promise.resolve(undefined)
+        // Make sure we don't unblock content that won't be reached in the final prerender.
+        if (workUnitStore.finalStage < navigationStage) {
+          return makeUntrackedHangingPromise(
+            workUnitStore.renderSignal,
+            workStore.route,
+            '`unstable_navigation()`'
+          )
+        } else {
+          return Promise.resolve(undefined)
+        }
       } else {
         // Final prerender
         return stagedRendering.delayUntilStage(
-          RenderStage.NavigationRuntime,
+          navigationStage,
           'unstable_navigation',
           undefined
         )
