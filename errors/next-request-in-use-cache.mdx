@@ -12,7 +12,7 @@ A cached function can also stall if it awaits a promise stored outside the funct
 
 Read and resolve request data outside the cached function, then pass only the values you need as arguments. Call `connection()` and enable or disable draft mode outside the cached function as well.
 
-If a module-scoped cache or deduplication layer stores promises, remove it and let `use cache` deduplicate calls with the same arguments.
+If a module-scoped cache or deduplication layer stores promises, remove it. The `use cache` directive already deduplicates calls with the same arguments within a render pass and across requests for as long as the cache entry lasts.
 
 Before:
 
@@ -54,3 +54,4 @@ export default async function Page() {
 - [`cookies()` function](/docs/app/api-reference/functions/cookies)
 - [`connection()` function](/docs/app/api-reference/functions/connection)
 - [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
