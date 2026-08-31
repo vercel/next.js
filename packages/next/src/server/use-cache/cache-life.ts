@@ -43,7 +43,9 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw createCacheLifeOutsideUseCacheError()
+      throw createCacheLifeOutsideUseCacheError(
+        workAsyncStorage.getStore()?.route
+      )
     case 'cache':
     case 'private-cache':
       break

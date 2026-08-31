@@ -1870,12 +1870,12 @@ export async function cache(
         )
       case 'unstable-cache': {
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateInsideUnstableCacheError()
+          createUseCachePrivateInsideUnstableCacheError(workStore.route)
         )
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateInsidePublicUseCacheError()
+          createUseCachePrivateInsidePublicUseCacheError(workStore.route)
         )
       }
       case 'request':
@@ -1892,7 +1892,7 @@ export async function cache(
         break
       case 'generate-static-params':
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateOutsideRequestContextError()
+          createUseCachePrivateOutsideRequestContextError(workStore.route)
         )
       default:
         workUnitStore satisfies never
@@ -2409,6 +2409,7 @@ export async function cache(
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     createNestedCacheZeroRevalidateError(
+                      workStore.route,
                       rdcResult.dynamicNestedCacheError
                     )
                   )
@@ -2426,6 +2427,7 @@ export async function cache(
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     createNestedCacheShortExpireError(
+                      workStore.route,
                       rdcResult.dynamicNestedCacheError
                     )
                   )
@@ -2475,6 +2477,7 @@ export async function cache(
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     createNestedCacheZeroRevalidateError(
+                      workStore.route,
                       rdcResult.dynamicNestedCacheError
                     )
                   )
@@ -2486,6 +2489,7 @@ export async function cache(
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     createNestedCacheShortExpireError(
+                      workStore.route,
                       rdcResult.dynamicNestedCacheError
                     )
                   )

@@ -717,7 +717,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    ],
                  },
                ],
-               "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+               "description": "Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1114,7 +1114,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    ],
                  },
                ],
-               "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+               "description": "Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
              Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                "environmentLabel": "Server",
                "label": "Console Error",

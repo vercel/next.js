@@ -129,52 +129,68 @@ export function createRevalidateDuringRenderError(
 
 // Cache configuration and nesting
 
-export function createCacheTagOutsideUseCacheError(): Error {
+function routePrefix(route: string | undefined): string {
+  return route === undefined ? '' : `Route "${route}": `
+}
+
+export function createCacheTagOutsideUseCacheError(
+  route: string | undefined
+): Error {
   return new Error(
-    `\`cacheTag()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
+    `${routePrefix(route)}\`cacheTag()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
   )
 }
 
-export function createCacheLifeOutsideUseCacheError(): Error {
+export function createCacheLifeOutsideUseCacheError(
+  route: string | undefined
+): Error {
   return new Error(
-    `\`cacheLife()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
+    `${routePrefix(route)}\`cacheLife()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
   )
 }
 
 export function createNestedCacheZeroRevalidateError(
+  route: string,
   cause: Error | undefined
 ): Error {
   return new Error(
-    `A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `Route "${route}": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
     { cause }
   )
 }
 
 export function createNestedCacheShortExpireError(
+  route: string,
   cause: Error | undefined
 ): Error {
   return new Error(
-    `A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `Route "${route}": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
     { cause }
   )
 }
 
 // Private cache composition and request context
 
-export function createUseCachePrivateInsidePublicUseCacheError(): Error {
+export function createUseCachePrivateInsidePublicUseCacheError(
+  route: string
+): Error {
   return new Error(
-    `\`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `Route "${route}": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
-export function createUseCachePrivateInsideUnstableCacheError(): Error {
+export function createUseCachePrivateInsideUnstableCacheError(
+  route: string
+): Error {
   return new Error(
-    `\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `Route "${route}": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
-export function createUseCachePrivateOutsideRequestContextError(): Error {
+export function createUseCachePrivateOutsideRequestContextError(
+  route: string
+): Error {
   return new Error(
-    `\`"use cache: private"\` needs an active request, so it can't be used during \`generateStaticParams\` or other build-time contexts. Move it to a request-time component or function.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `Route "${route}": \`"use cache: private"\` needs an active request, so it can't be used during \`generateStaticParams\` or other build-time contexts. Move it to a request-time component or function.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }

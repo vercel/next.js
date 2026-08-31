@@ -22,24 +22,24 @@ export function registerUseCachePrivateTests(
 
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
-               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
-                 "environmentLabel": "Server",
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
-               > 21 | const getCachedData = unstable_cache(async () => {
-                    |                                      ^",
-                 "stack": [
-                   "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
-                 ],
-               }
-              `)
+             {
+               "description": "Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+             Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
+               "environmentLabel": "Server",
+               "label": "Runtime Error",
+               "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
+             > 21 | const getCachedData = unstable_cache(async () => {
+                  |                                      ^",
+               "stack": [
+                 "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                 "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+               ],
+             }
+            `)
           } else {
             await expect(browser).toDisplayRedbox(`
              {
-               "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+               "description": "Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
              Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
                "environmentLabel": "Server",
                "label": "Runtime Error",
@@ -153,7 +153,7 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+             "description": "Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
            Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
              "environmentLabel": "Cache",
              "label": "Runtime Error",
