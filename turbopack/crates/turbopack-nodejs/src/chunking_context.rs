@@ -729,7 +729,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let loader_module = ManifestLoaderModule::new(*manifest_asset);
             loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
-            let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
+            let module = AsyncLoaderModule::new(module, *chunking_context);
             module.as_chunk_item(module_graph, *chunking_context)
         })
     }
