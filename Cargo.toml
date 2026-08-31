@@ -207,6 +207,7 @@ turbopack-static = { path = "turbopack/crates/turbopack-static" }
 turbopack-swc-utils = { path = "turbopack/crates/turbopack-swc-utils" }
 turbopack-test-utils = { path = "turbopack/crates/turbopack-test-utils" }
 turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
+turbopack-trace-server-wasm = { path = "turbopack/crates/turbopack-trace-server-wasm" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 

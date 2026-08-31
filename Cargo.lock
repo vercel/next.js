@@ -10995,6 +10995,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-trace-server-wasm"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "turbopack-trace-server",
+]
+
+[[package]]
 name = "turbopack-trace-utils"
 version = "0.1.0"
 dependencies = [
