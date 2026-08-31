@@ -174,7 +174,7 @@ export function BaselinePicker({
                 {snapshots.map((snapshot) => (
                   <CommandItem
                     key={snapshot.id}
-                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotLabel ?? ''}`}
+                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.baselineName ?? ''}`}
                     onSelect={() => {
                       onSelectionChange(snapshot)
                       setOpen(false)
