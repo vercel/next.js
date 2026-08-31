@@ -821,7 +821,7 @@ export async function createHotReloaderTurbopack(
   }
 
   let hmrEventHappened = false
-  // A counter identifying the current version of the compiled output, included
+  // A counter identifying the current version of the server component output, included
   // by `"use cache"` in dev cache keys so that cached entries revalidate after
   // an edit. It advances once per HMR change event (for App Router pages that
   // is an RSC change, which is what a cached render depends on), independent of
@@ -829,7 +829,9 @@ export async function createHotReloaderTurbopack(
   // messages: those are sent per connected client on every compilation, so
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
-  let hmrHash = 0
+  let serverComponentsHmrRefreshVersion = 0
+  let clientHmrVersion = 0
+  let clientHmrEventHappened = false
   // Undefined until the first entrypoints emission. That one has nothing to
   // compare against, so every route it lists would look added.
   let previousRouteKeys: Set<string> | undefined
@@ -919,6 +921,7 @@ export async function createHotReloaderTurbopack(
         sendToClient(client, {
           type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data: state.turbopackUpdates,
+          hmrVersion: String(clientHmrVersion),
         })
         state.turbopackUpdates.length = 0
       }
@@ -928,14 +931,23 @@ export async function createHotReloaderTurbopack(
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
     pendingBuilding.flush()
+
+    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES) {
+      if (!clientHmrEventHappened) {
+        clientHmrVersion++
+        clientHmrEventHappened = true
+      }
+      message.hmrVersion = String(clientHmrVersion)
+    }
+
+    hmrEventHappened = true
+
     for (const client of [
       ...clientsWithoutHtmlRequestId,
       ...clientsByHtmlRequestId.values(),
     ]) {
       clientStates.get(client)?.messages.set(id, message)
     }
-
-    hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
@@ -954,6 +966,10 @@ export async function createHotReloaderTurbopack(
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
 
+    if (!clientHmrEventHappened) {
+      clientHmrVersion++
+      clientHmrEventHappened = true
+    }
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
@@ -984,7 +1000,10 @@ export async function createHotReloaderTurbopack(
       for await (const change of changed) {
         processIssues(currentEntryIssues, key, change, false, true)
         // TODO: Get an actual content hash from Turbopack.
-        const message = await createMessage(change, String(++hmrHash))
+        const message = await createMessage(
+          change,
+          String(++serverComponentsHmrRefreshVersion)
+        )
         if (message) {
           sendHmr(key, message)
         }
@@ -1581,6 +1600,16 @@ export async function createHotReloaderTurbopack(
           // Turbopack messages
           switch (parsedData.type) {
             case 'turbopack-subscribe':
+              if (
+                parsedData.hmrVersion !== undefined &&
+                parsedData.hmrVersion !== String(clientHmrVersion)
+              ) {
+                sendToClient(client, {
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                  data: 'HMR hash mismatch',
+                })
+                break
+              }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
 
@@ -1597,7 +1626,7 @@ export async function createHotReloaderTurbopack(
 
         const turbopackConnectedMessage: TurbopackConnectedMessage = {
           type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
-          data: { sessionId },
+          data: { sessionId, hmrVersion: String(clientHmrVersion) },
         }
         sendToClient(client, turbopackConnectedMessage)
 
@@ -1658,13 +1687,9 @@ export async function createHotReloaderTurbopack(
     },
 
     getServerComponentsHmrRefreshHash() {
-      // Only the change subscription (an actual recompile) advances `hmrHash`;
-      // reloads and config invalidations don't, so the value stays stable
-      // across requests until a real edit. `sessionId` stands in for a key
-      // derived from the compiled implementation, which would let entries
-      // outlive a restart when the code didn't change (see the note on Action
-      // IDs in `use-cache-wrapper.ts`).
-      return `${sessionId}-${hmrHash}`
+      // Only a change subscription advances the refresh version, so reloads
+      // and config invalidations leave cache keys stable until a real edit.
+      return `${sessionId}-${serverComponentsHmrRefreshVersion}`
     },
 
     sendToLegacyClients(action) {
@@ -2105,7 +2130,7 @@ export async function createHotReloaderTurbopack(
               // Report the current version without advancing it: a completed
               // compilation is not itself an edit, and this hash is not
               // consumed by the Turbopack client.
-              hash: String(hmrHash),
+              hash: String(serverComponentsHmrRefreshVersion),
               errors: [...clientErrors.values()],
               warnings: [],
             })
@@ -2118,6 +2143,7 @@ export async function createHotReloaderTurbopack(
             Log.event(`Compiled in ${timeMessage}`)
             hmrEventHappened = false
           }
+          clientHmrEventHappened = false
 
           // Call onBeforeDeferredEntries after compilation completes during HMR
           // This ensures the callback is invoked even when non-deferred entries change
