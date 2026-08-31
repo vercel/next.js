@@ -1,31 +1,46 @@
 /**
- * Enable PPR
+ * Cache Components: route config semantics
  *
- * Tests whether the agent knows that partial pre-rendering is enabled via
- * `cacheComponents: true` in next.config.ts, NOT the old
- * `experimental: { ppr: true }` flag.
- *
- * Tricky because most training data and older docs reference the experimental
- * flag. The current way to enable PPR in Next.js 16 is `cacheComponents: true`.
+ * Verifies that adoption translates legacy configuration instead of deleting
+ * behavior or silencing validation.
  */
 
 import { expect, test } from 'vitest'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
-test('Enables PPR via cacheComponents in next.config', () => {
-  const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
+const IGNORE_DIRS = new Set(['.git', '.next', 'node_modules', 'dist', 'build'])
 
+function readSource(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).flatMap((entry) => {
+    if (IGNORE_DIRS.has(entry)) return []
+    const path = join(dir, entry)
+    if (statSync(path).isDirectory()) return readSource(path)
+    if (entry === 'EVAL.ts' || !/\.(ts|tsx|js|jsx)$/.test(entry)) return []
+    return readFileSync(path, 'utf8')
+  })
+}
+
+const source = readSource(process.cwd()).join('\n')
+const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
+
+test('enables the current Cache Components config only', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
+  expect(config).not.toMatch(/dynamicIO\s*:/)
+  expect(config).not.toMatch(/useCache\s*:/)
 })
 
-test('Does not use the old experimental.ppr flag', () => {
-  const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
+test('removes route opt-outs and incompatible segment config', () => {
+  expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
+  expect(source).not.toMatch(
+    /export\s+(?:const|var|let)\s+(?:dynamic|revalidate|fetchCache)\s*=/
+  )
+})
 
-  // Strip comments to avoid false positives from explanatory comments
-  const stripped = config
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/.*$/gm, '')
-
-  expect(stripped).not.toMatch(/ppr\s*:\s*true/)
+test('preserves the hourly feed and request-specific preview', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The newsroom feed is cached with an explicit approximately-hourly cache lifetime. A focused data-level cache is valid, and a page-level cache is also valid because the Newsroom page contains only the feed and stable framing with the same lifetime. The editor preview still reads its cookie at request time outside any public cache, is placed below Suspense or equivalent meaningful loading UI, and leaves useful stable preview framing in the static shell.`
+  )
 })
