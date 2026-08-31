@@ -38,7 +38,11 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
   } else if (typeof profile === 'object') {
     profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
-  return revalidate([encodeHeaderSafe(tag)], `revalidateTag ${tag}`, profile)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `revalidateTag(${JSON.stringify(tag)})`,
+    profile
+  )
 }
 
 /**
@@ -60,7 +64,11 @@ export function updateTag(tag: string) {
     )
   }
   // updateTag uses immediate expiration (no profile) without deprecation warning
-  return revalidate([encodeHeaderSafe(tag)], `updateTag ${tag}`, undefined)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `updateTag(${JSON.stringify(tag)})`,
+    undefined
+  )
 }
 
 /**
@@ -120,7 +128,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
   }
 
-  return revalidate(tags, `revalidatePath ${originalPath}`)
+  return revalidate(tags, `revalidatePath(${JSON.stringify(originalPath)})`)
 }
 
 function revalidate(

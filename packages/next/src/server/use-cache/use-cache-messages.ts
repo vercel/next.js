@@ -25,6 +25,9 @@ const USE_CACHE_PRIVATE_COMPOSITION =
 const REVALIDATE_IN_USE_CACHE =
   'https://nextjs.org/docs/messages/revalidate-in-use-cache'
 
+const NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE =
+  'https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife'
+
 // Request data accessed in caches
 
 export function createCookiesInUseCacheError(route: string): Error {
@@ -154,7 +157,7 @@ export function createNestedCacheZeroRevalidateError(
   cause: Error | undefined
 ): Error {
   return new Error(
-    `Route "${route}": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `Route "${route}": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.\nLearn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`,
     { cause }
   )
 }
@@ -164,7 +167,7 @@ export function createNestedCacheShortExpireError(
   cause: Error | undefined
 ): Error {
   return new Error(
-    `Route "${route}": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    `Route "${route}": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.\nLearn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`,
     { cause }
   )
 }
