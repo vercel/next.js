@@ -50,7 +50,7 @@ const BMP = 'image/bmp'
 const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC, AVIF]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -103,6 +103,9 @@ export function getSharp(concurrency: number | null | undefined) {
         'VipsForeignLoadWebp',
       ],
     })
+    if (isAvifDecodeSafe(_sharp.versions?.heif ?? null)) {
+      _sharp.unblock({ operation: ['VipsForeignLoadHeif'] })
+    }
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
@@ -121,6 +124,47 @@ export function getSharp(concurrency: number | null | undefined) {
     throw e
   }
   return _sharp
+}
+
+// libheif before 1.23.2 has critical memory safety vulnerabilities in AVIF
+// decoding (GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545). sharp only bundles
+// a patched libheif starting with 0.35.4, and Node 18 installs always resolve
+// the vulnerable 0.34 line, so the decoder version is checked at runtime
+// instead of relying on the sharp version.
+// Exported for test integration only.
+export function isAvifDecodeSafe(heifVersion: string | null): boolean {
+  if (heifVersion === null) {
+    return false
+  }
+  const [major = Number.NaN, minor = Number.NaN, patch = Number.NaN] =
+    heifVersion.split('.').map((part) => Number.parseInt(part, 10))
+  if (Number.isNaN(major) || Number.isNaN(minor) || Number.isNaN(patch)) {
+    return false
+  }
+  return (
+    major > 1 ||
+    (major === 1 && minor > 23) ||
+    (major === 1 && minor === 23 && patch >= 2)
+  )
+}
+
+let _avifDecodeSafe: boolean | null = null
+
+export function canDecodeAvif(concurrency: number | null | undefined): boolean {
+  if (_avifDecodeSafe === null) {
+    let heifVersion: string | null = null
+    try {
+      // Custom libvips builds do not report dependency versions, so the
+      // absence of a heif version is treated as unsafe.
+      heifVersion = getSharp(concurrency).versions?.heif ?? null
+    } catch {
+      // Without sharp no AVIF can be decoded either, so treat it as unsafe
+      // and let the image pass through unoptimized.
+      heifVersion = null
+    }
+    _avifDecodeSafe = isAvifDecodeSafe(heifVersion)
+  }
+  return _avifDecodeSafe
 }
 
 export interface ImageParamsResult {
@@ -993,7 +1037,11 @@ export async function imageOptimizer(
       upstreamEtag,
     }
   }
-  if (BYPASS_TYPES.includes(upstreamType)) {
+  if (
+    BYPASS_TYPES.includes(upstreamType) ||
+    (upstreamType === AVIF &&
+      !canDecodeAvif(nextConfig.experimental.imgOptConcurrency))
+  ) {
     return {
       buffer: upstreamBuffer,
       contentType: upstreamType,
