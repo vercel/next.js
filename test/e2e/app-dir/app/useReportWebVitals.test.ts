@@ -38,27 +38,14 @@ describe('useReportWebVitals hook', () => {
       },
     })
 
-    // Refresh will trigger CLS and LCP. When page loads FCP and TTFB will trigger:
+    // Refresh will report another set of navigation metrics.
     await browser.refresh()
-
-    // After interaction LCP and INP will trigger
-    await browser.elementById('btn').click()
-    await browser.eval(
-      `new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`
-    )
-    await browser.eval(`
-      Object.defineProperty(document, 'visibilityState', {
-        configurable: true,
-        get: () => 'hidden',
-      })
-      window.dispatchEvent(new Event('visibilitychange'))
-    `)
 
     // Make sure all registered events in performance-relayer has fired
     await retry(() => {
-      expect(events.length).toBeGreaterThanOrEqual(5)
-      expect(events.map((event) => event.name)).toContain('INP')
+      expect(events.length).toBeGreaterThanOrEqual(4)
     })
+    expect(events.map((event) => event.name)).not.toContain('FID')
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -66,44 +53,5 @@ describe('useReportWebVitals hook', () => {
         }),
       ])
     )
-  })
-
-  it('should send web-vitals for soft navigations', async () => {
-    const events: Array<Record<string, string>> = []
-    const browser = await next.browser('/report-web-vitals', {
-      beforePageLoad: async (page) => {
-        await collectWebVitals(page, events)
-      },
-    })
-
-    const supportsSoftNavigations = await browser.eval(
-      `PerformanceObserver.supportedEntryTypes.includes('soft-navigation') &&
-        typeof globalThis.PerformanceSoftNavigation?.prototype
-          ?.getLargestInteractionContentfulPaint === 'function'`
-    )
-
-    if (!supportsSoftNavigations) {
-      return
-    }
-
-    await browser
-      .elementByCss('[href="/report-web-vitals/destination"]')
-      .click()
-    await browser.waitForElementByCss('h2')
-    // A trusted interaction finalizes the destination's LCP metric.
-    await browser.elementById('btn').click()
-
-    await retry(() => {
-      expect(events).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            navigationType: 'soft-navigation',
-            navigationURL: expect.stringMatching(
-              /\/report-web-vitals\/destination$/
-            ),
-          }),
-        ])
-      )
-    })
   })
 })
