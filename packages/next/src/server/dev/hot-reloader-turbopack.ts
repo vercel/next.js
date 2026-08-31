@@ -18,6 +18,7 @@ import type {
   TurbopackConnectedMessage,
 } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -160,6 +161,26 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+
+const TURBOPACK_OUTPUT_DIRS = [
+  join('static', 'chunks'),
+  join('static', 'media'),
+  join('static', 'service-worker'),
+  join('server', 'app'),
+  join('server', 'pages'),
+  SERVER_HMR_CHUNKS_DIR,
+  join('server', 'assets'),
+  join('server', 'edge', 'chunks'),
+  join('server', 'edge', 'assets'),
+  join('server', 'middleware'),
+  join('server', 'instrumentation'),
+]
+
+const RETAINED_OUTPUT_PATHS = new Set([
+  'cache',
+  'lock',
+  ...TURBOPACK_OUTPUT_DIRS,
+])
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -389,6 +410,19 @@ export async function createHotReloaderTurbopack(
         `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
     )
   }
+
+  // This must finish before Turbopack records any writes. Once turbo-tasks has
+  // recorded a write effect, it dedups by hash without checking the file.
+  await recursiveDeleteSyncWithAsyncRetries(distDir, RETAINED_OUTPUT_PATHS)
+  await Promise.all(
+    TURBOPACK_OUTPUT_DIRS.map((subDir) =>
+      recursiveDeleteSyncWithAsyncRetries(
+        join(distDir, subDir),
+        undefined,
+        nextConfig.experimental.turbopackStaleOutputMaxAge
+      )
+    )
+  )
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.

@@ -4,7 +4,10 @@ use bitfield::bitfield;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, trace::TraceRawVcs};
 
-use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
+use crate::{
+    chunk::available_modules::{AvailableModules, AvailableModulesSet},
+    module::Modules,
+};
 
 bitfield! {
     #[turbo_tasks::task_input]
@@ -20,6 +23,8 @@ pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.
     available_modules: Option<ResolvedVc<AvailableModules>>,
+    /// The root ChunkGroup::Entry
+    entry_group: Option<ResolvedVc<Modules>>,
 }
 
 impl AvailabilityInfo {
@@ -27,6 +32,7 @@ impl AvailabilityInfo {
         Self {
             flags: AvailabilityFlags::default(),
             available_modules: None,
+            entry_group: None,
         }
     }
 
@@ -44,11 +50,13 @@ impl AvailabilityInfo {
                         .to_resolved()
                         .await?,
                 ),
+                entry_group: self.entry_group,
             }
         } else {
             Self {
                 flags: self.flags,
                 available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+                entry_group: self.entry_group,
             }
         })
     }
@@ -59,11 +67,24 @@ impl AvailabilityInfo {
         Self {
             flags,
             available_modules: self.available_modules,
+            entry_group: self.entry_group,
         }
     }
 
     pub fn is_in_async_module(&self) -> bool {
         self.flags.is_in_async_module()
+    }
+
+    pub fn with_entry_group(self, entry_group: ResolvedVc<Modules>) -> Self {
+        Self {
+            flags: self.flags,
+            available_modules: self.available_modules,
+            entry_group: Some(entry_group),
+        }
+    }
+
+    pub fn entry_group(&self) -> Option<ResolvedVc<Modules>> {
+        self.entry_group
     }
 
     pub async fn ident(&self) -> Result<Option<RcStr>> {

@@ -9084,23 +9084,7 @@ b#863 = ???*0*
   ⚠️  function calls are not analyzed yet
 
 b#868 = ???*0*
-- *0* (
-      | ???*1*
-      | (...) => (
-          | ???*2*
-          | b
-          | pj(a, b, c)
-          | cj(a, b, b["type"], b["pendingProps"], c)
-          | yj(a, b, c)
-          | ej(a, b, c)
-          | undefined
-        )
-    )(a["alternate"], a, gj)
-  ⚠️  non-function callee
-- *1* Wk
-  ⚠️  pattern without value
-- *2* zj(a, b, c)
-  ⚠️  sequence with side effects
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 b#869 = (???*0* | ???*1*)
