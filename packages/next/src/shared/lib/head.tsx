@@ -119,8 +119,43 @@ function unique() {
 function reduceComponents(
   headChildrenElements: Array<React.ReactElement<any>>
 ) {
+  const validHeadTags = new Set([
+    'title',
+    'base',
+    'meta',
+    'link',
+    'style',
+    'script',
+    'noscript',
+    'template',
+  ])
+
   return headChildrenElements
     .reduce(onlyReactElement, [])
+    .filter((c: React.ReactElement<any>) => {
+      if (process.env.NODE_ENV === 'development') {
+        if (
+          typeof c.type === 'string' &&
+          !validHeadTags.has(c.type as string)
+        ) {
+          const { warnOnce } =
+            require('./utils/warn-once') as typeof import('./utils/warn-once')
+          warnOnce(
+            `Do not add <${c.type}> tags using next/head. Use Document instead. ` +
+              `See more info here: https://nextjs.org/docs/messages/no-head-element`
+          )
+          return false
+        }
+      } else {
+        if (
+          typeof c.type === 'string' &&
+          !validHeadTags.has(c.type as string)
+        ) {
+          return false
+        }
+      }
+      return true
+    })
     .reverse()
     .concat(defaultHead().reverse())
     .filter(unique())
