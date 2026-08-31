@@ -47,10 +47,6 @@ const CACHE_VERSION = 4
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-function isValidMime(contentType: string) {
-  return Boolean(getExtension(contentType))
-}
-
 async function initCacheEntries(
   cacheDir: string
 ): Promise<Array<{ key: string; size: number; expireAt: number }>> {
@@ -769,7 +765,6 @@ export async function imageOptimizer(
   )
 
   return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    isValidMime,
     previousOutput: previouslyCachedImage
       ? {
           buffer: previouslyCachedImage.buffer,
