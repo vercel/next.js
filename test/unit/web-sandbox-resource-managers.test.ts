@@ -1,4 +1,5 @@
 /* eslint-env jest */
+import { wait } from '../../packages/next/src/lib/wait'
 import {
   IntervalsManager,
   TimeoutsManager,
@@ -8,13 +9,13 @@ import {
 // value passed to timer callbacks.
 const globalObject = {} as any
 
-async function waitFor(condition: () => boolean, timeoutMs = 1000) {
+async function waitForCondition(condition: () => boolean, timeoutMs = 1000) {
   const start = Date.now()
   while (!condition()) {
     if (Date.now() - start > timeoutMs) {
-      throw new Error('waitFor timed out')
+      throw new Error('waitForCondition timed out')
     }
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    await wait(5)
   }
 }
 
@@ -38,8 +39,8 @@ describe('web sandbox TimeoutsManager', () => {
 
     // After they complete naturally, tracking must drop back to zero even
     // though user code never called clearTimeout.
-    await waitFor(() => ran === count)
-    await waitFor(() => manager.size === 0)
+    await waitForCondition(() => ran === count)
+    await waitForCondition(() => manager.size === 0)
     expect(manager.size).toBe(0)
   })
 
@@ -50,7 +51,7 @@ describe('web sandbox TimeoutsManager', () => {
       for (let i = 0; i < 20; i++) {
         manager.add([globalObject, () => {}, 0])
       }
-      await waitFor(() => manager.size === 0)
+      await waitForCondition(() => manager.size === 0)
     }
 
     expect(manager.size).toBe(0)
@@ -72,7 +73,7 @@ describe('web sandbox TimeoutsManager', () => {
       'b',
     ])
 
-    await waitFor(() => observedArgs.length > 0)
+    await waitForCondition(() => observedArgs.length > 0)
     expect(observedThis).toBe(globalObject)
     expect(observedArgs).toEqual(['a', 'b'])
     expect(manager.size).toBe(0)
@@ -105,8 +106,8 @@ describe('web sandbox TimeoutsManager', () => {
     let ran = false
     const firedId = manager.add([globalObject, () => (ran = true), 0])
     const pendingId = manager.add([globalObject, () => {}, 1000])
-    await waitFor(() => ran)
-    await waitFor(() => manager.size === 1)
+    await waitForCondition(() => ran)
+    await waitForCondition(() => manager.size === 1)
 
     // Matches user code that calls clearTimeout inside the callback (the
     // documented workaround for #95094); must not throw or affect other
@@ -129,7 +130,7 @@ describe('web sandbox TimeoutsManager', () => {
     expect(manager.size).toBe(0)
 
     // Give the original delay time to elapse; the callback must not run.
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await wait(100)
     expect(ran).toBe(false)
   })
 
@@ -154,7 +155,7 @@ describe('web sandbox IntervalsManager', () => {
 
     // Intervals fire repeatedly, so they must remain tracked (unlike one-shot
     // timeouts) even after several ticks have run.
-    await waitFor(() => ticks >= 3)
+    await waitForCondition(() => ticks >= 3)
     expect(manager.size).toBe(1)
 
     manager.remove(id)

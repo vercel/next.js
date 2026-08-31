@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
 import { Response } from 'node-fetch'
@@ -70,7 +70,7 @@ async function expectPngResponse(res: Response) {
 }
 
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return waitFor(ms)
 }
 
 async function waitForCallbackTimestampToStabilize(
@@ -510,7 +510,7 @@ describe('deferred-entries', () => {
       })
 
       // Wait a bit to ensure timestamps will be different
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await waitFor(100)
 
       // Modify the home page (non-deferred entry) to trigger HMR
       await next.patchFile('app/page.tsx', (content) =>
@@ -553,7 +553,7 @@ describe('deferred-entries', () => {
       })
 
       // Ensure callback timestamp changes after a non-deferred edit.
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await waitFor(100)
       await next.patchFile('app/page.tsx', (content) =>
         content.includes('Home Page Updated')
           ? content.replace('Home Page Updated', 'Home Page Updated Again')

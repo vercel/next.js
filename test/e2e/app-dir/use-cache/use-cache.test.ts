@@ -814,21 +814,21 @@ describe('use-cache', () => {
       // Click 1: revalidateTag with profile - should NOT cause immediate refresh
       await browser.elementByCss('#revalidate-tag-with-profile').click()
       // Wait for the action to complete
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const afterClick1 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 1:', afterClick1)
       expect(afterClick1).toBe(initial) // No change - stale-while-revalidate
 
       // Click 2: Same as click 1 - should still show stale data
       await browser.elementByCss('#revalidate-tag-with-profile').click()
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const afterClick2 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 2:', afterClick2)
       expect(afterClick2).toBe(initial) // Still no change
 
       // Click 3: Same as before - should still show stale data (not data from click 1)
       await browser.elementByCss('#revalidate-tag-with-profile').click()
-      await new Promise((r) => setTimeout(r, 1000))
+      await waitFor(1000)
       const afterClick3 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 3:', afterClick3)
       expect(afterClick3).toBe(initial) // Still no change - no read-your-own-writes

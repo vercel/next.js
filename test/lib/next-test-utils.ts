@@ -29,6 +29,7 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { wait } from 'next/dist/lib/wait'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -723,11 +724,18 @@ export async function stopApp(server: http.Server | undefined) {
   await promisify(server.close).apply(server)
 }
 
+/**
+ * Wait for a fixed number of milliseconds, or poll until a condition holds.
+ *
+ * Prefer `retry()` when you are waiting for something to become true — a fixed
+ * sleep is a common source of flakiness. The `@next/internal/no-adhoc-sleep`
+ * lint rule points hand-rolled sleep promises here.
+ */
 export async function waitFor(
   millisOrCondition: number | (() => boolean)
 ): Promise<void> {
   if (typeof millisOrCondition === 'number') {
-    return new Promise((resolve) => setTimeout(resolve, millisOrCondition))
+    return wait(millisOrCondition)
   }
 
   return new Promise((resolve) => {

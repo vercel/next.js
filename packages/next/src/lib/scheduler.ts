@@ -1,3 +1,5 @@
+import { wait } from './wait'
+
 export type ScheduledFn<T = void> = () => T | PromiseLike<T>
 export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void
 
@@ -57,7 +59,7 @@ export function atLeastOneTask() {
  */
 export function waitAtLeastOneReactRenderTask(): Promise<void> {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    return new Promise((r) => setTimeout(r, 0))
+    return wait(0)
   } else {
     return new Promise((r) => setImmediate(r))
   }
