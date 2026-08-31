@@ -11,7 +11,7 @@ related:
 
 Awaiting `unstable_prefetch()` defers the code below it to a per-link prefetch or a navigation, instead of rendering it in the route's [App Shell](/docs/app/glossary#app-shell). The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the shell, and the deferred content renders once one of those happens.
 
-It is for content that the App Shell would otherwise render, which in practice means content that depends on session data. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_prefetch()` is prerendered as usual.
+It is meant to defer content that the App Shell would otherwise render, typically content that depends on session data and is expensive to generate. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_prefetch()` is prerendered as usual.
 
 ## Usage
 
@@ -63,7 +63,7 @@ async function Recommendations() {
 async function getRecommendations(session?: string) {
   'use cache: private'
   cacheLife('hours')
-  return rank(session)
+  return db.recommendations.rank({ session })
 }
 ```
 
@@ -101,7 +101,7 @@ async function Recommendations() {
 async function getRecommendations(session) {
   'use cache: private'
   cacheLife('hours')
-  return rank(session)
+  return db.recommendations.rank({ session })
 }
 ```
 
@@ -111,9 +111,9 @@ It cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-re
 
 ## When to use it
 
-Most routes do not need this. The App Shell resolves session data, so content that depends on `cookies()` or `headers()` renders in it by default, once for every `<Link>` into the route that a visitor sees. This keeps the code below it from running there, which is worth doing when that code reaches an upstream service.
+Most routes do not need this. The App Shell resolves session data, so content that depends on `cookies()` or `headers()` is part of the shell by default, and the shell is what every `<Link>` into the route prefetches. This keeps that content out of it, so the shell stays small and the content arrives on a per-link prefetch or on the navigation instead.
 
-Without `unstable_prefetch()`, keeping that content out of the shell would mean leaving it uncached. With it, the content can carry [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) and a lifetime and still be deferred.
+Keeping that content out of the shell would otherwise mean leaving it uncached. With `unstable_prefetch()` it can carry [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) and a lifetime and still be deferred.
 
 Leave it out for content that does not depend on session data. Uncached reads, values with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time, and anything behind `params` or `searchParams` are already left out of the shell on their own.
 
@@ -122,7 +122,7 @@ Leave it out for content that does not depend on session data. Uncached reads, v
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
 - Content that depends on the URL, through `params` or `searchParams`, is already left out of the App Shell on its own.
-- A call outside a `<Suspense>` boundary surfaces a validation insight in development, reported even on a page that is currently prerendered in full, because the same page starts excluding content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 
 ## Reference
