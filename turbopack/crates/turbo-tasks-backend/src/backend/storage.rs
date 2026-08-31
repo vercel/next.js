@@ -633,7 +633,11 @@ impl Storage {
     /// - `No`: skip
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+    /// Returns the eviction counts and the ids of the GC-deleted tasks this sweep erased. Those
+    /// ids are gone from both the resident map and the task cache, so they are candidates for
+    /// reuse — see [`DeferredIdReuse`](crate::backend::id_reuse::DeferredIdReuse) for why they are
+    /// not handed back immediately.
+    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> (EvictionCounts, Vec<TaskId>) {
         let span = tracing::trace_span!(
             parent: parent_span,
             "evict_after_snapshot",
@@ -647,9 +651,15 @@ impl Storage {
             "evict_after_snapshot must not be called during snapshot mode"
         );
 
-        let counts: Vec<EvictionCounts> = parallel::map_collect(self.map.shards(), |shard| {
+        type ShardResult = (EvictionCounts, Vec<TaskId>);
+        let counts: Vec<ShardResult> = parallel::map_collect(self.map.shards(), |shard| {
             let mut shard = shard.write();
             let mut evicted = EvictionCounts::default();
+            // Ids of GC-deleted tasks erased below. Collected rather than released inline: an
+            // id is only safe to reuse once its `task_cache` entry is gone too,
+            // and a contended removal is deferred to after this shard's lock is
+            // dropped.
+            let mut freed_ids: Vec<TaskId> = Vec::new();
             // task_cache removals that we couldn't perform inline because the target shard
             // was contended. We defer them until after the map shard lock is released to
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
@@ -690,6 +700,7 @@ impl Storage {
                         &mut deferred_task_cache_removals,
                         task_type,
                     );
+                    freed_ids.push(*task_id);
                     evicted.full += 1;
                     return false;
                 }
@@ -701,8 +712,9 @@ impl Storage {
                         // re-populated by task_by_type() on the next cache miss.
                         let task_type = task.get_persistent_task_type().unwrap();
                         // Only try to acquire the lock, if we cannot just remove at the end
-                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
-                        // we do the opposite we need to be defensive here.  Attempting here is just
+                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map`
+                        // and we do the opposite we need to be
+                        // defensive here.  Attempting here is just
                         // an optimization to avoid pushing into `deferred_task_cache_removals`
                         remove_from_task_cache(
                             &mut evicted,
@@ -752,12 +764,15 @@ impl Storage {
                     evicted.key_evictions += 1;
                 }
             }
-            evicted
+            // Only now is every freed id absent from the task cache as well as the map.
+            (evicted, freed_ids)
         });
 
         let mut totals = EvictionCounts::default();
-        for evicted in counts {
+        let mut freed_ids = Vec::new();
+        for (evicted, mut ids) in counts {
             totals += evicted;
+            freed_ids.append(&mut ids);
         }
         // Shrink task_cache only when we evicted more entries than remain — i.e. the map
         // is less than half full. Rehashing each surviving CachedTaskType isn't free, so
@@ -774,7 +789,7 @@ impl Storage {
         }
         span.record("counts", tracing::field::display(&totals));
 
-        totals
+        (totals, freed_ids)
     }
 }
 
