@@ -17,7 +17,13 @@ The HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/v
 ```jsx filename="app/ui/video.jsx"
 export function Video() {
   return (
-    <video width="320" height="240" controls preload="none">
+    <video
+      width="320"
+      height="240"
+      poster="/path/to/poster.jpg"
+      controls
+      preload="none"
+    >
       <source src="/path/to/video.mp4" type="video/mp4" />
       <track
         src="/path/to/captions.vtt"
@@ -42,6 +48,7 @@ export function Video() {
 | `autoPlay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoPlay />`                 |
 | `loop`        | Loops the video playback.                                                                                 | `<video loop />`                     |
 | `muted`       | Mutes the audio by default. Often used with `autoPlay`.                                                   | `<video muted />`                    |
+| `poster`      | An image shown in the video's box until the first frame is available.                                     | `<video poster="/poster.jpg" />`     |
 | `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`           |
 | `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`              |
 
@@ -51,6 +58,8 @@ For a comprehensive list of video attributes, refer to the [MDN documentation](h
 
 ### Video best practices
 
+- **Dimensions:** Set `width` and `height`, or a CSS `aspect-ratio`, so the browser reserves the box before the file loads. A video without dimensions collapses and then pushes the rest of the page down, which counts against [Cumulative Layout Shift](https://web.dev/articles/cls).
+- **Poster Image:** Use `poster` to fill that reserved box while the video loads, especially with `preload="none"`, where no frame is fetched until playback starts.
 - **Fallback Content:** When using the `<video>` tag, include fallback content inside the tag for browsers that do not support video playback.
 - **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the [`<track>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track) tag with your `<video>` elements to specify caption file sources.
 - **Accessible Controls:** Standard HTML5 video controls are recommended for keyboard navigation and screen reader compatibility. For advanced needs, consider third-party players like [react-player](https://github.com/cookpete/react-player) or [video.js](https://videojs.com/), which offer accessible controls and consistent browser experience.
@@ -77,7 +86,10 @@ export default function Page() {
 | `allowFullScreen` | Allows the iframe content to be displayed in full-screen mode.         | `<iframe allowFullScreen />`           |
 | `sandbox`         | Enables an extra set of restrictions on the content within the iframe. | `<iframe sandbox />`                   |
 | `loading`         | Optimize loading behavior (e.g., lazy loading).                        | `<iframe loading="lazy" />`            |
+| `style`           | Apply CSS, such as an `aspect-ratio` to keep the box a fixed shape.    | `<iframe style={{ border: 0 }} />`     |
 | `title`           | Provides a title for the iframe to support accessibility.              | `<iframe title="Description" />`       |
+
+An iframe without dimensions collapses until its content loads, the same as a video. Give it `width` and `height` or an `aspect-ratio`, particularly with `loading="lazy"`, where the embed can resolve long after the surrounding page has painted.
 
 For a comprehensive list of iframe attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attributes).
 
