@@ -550,8 +550,8 @@ pub trait ChunkItem: OutputAssetsReference {
 
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
     /// It is usually identical to [ChunkItem::asset_ident] but can be
-    /// different when the chunk item content depends on available modules e. g.
-    /// for chunk loaders.
+    /// different when the chunk item content depends on inputs that are not
+    /// part of its asset ident.
     #[turbo_tasks::function]
     fn content_ident(self: Vc<Self>) -> Vc<AssetIdent> {
         self.asset_ident()
