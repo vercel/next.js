@@ -101,10 +101,9 @@ module.exports = {
     let revalidate = entry.revalidate
     for (const tag of entry.tags) {
       const tagManifestEntry = await getTagManifestEntry(tag)
-      const now = now()
       if (
         tagManifestEntry.expired !== undefined &&
-        tagManifestEntry.expired <= now &&
+        tagManifestEntry.expired <= now() &&
         tagManifestEntry.expired > entry.timestamp
       ) {
         return undefined
@@ -192,18 +191,18 @@ module.exports = {
   },
 
   async updateTags(tags, durations) {
-    const now = now()
+    const currentTime = now()
 
     await Promise.all(
       tags.map(async (tag) => {
         const entry = await getTagManifestEntry(tag)
         if (durations) {
-          entry.stale = now
+          entry.stale = currentTime
           if (durations.expire !== undefined) {
-            entry.expired = now + durations.expire * 1000
+            entry.expired = currentTime + durations.expire * 1000
           }
         } else {
-          entry.expired = now
+          entry.expired = currentTime
         }
         await client.set(tagKey(tag), JSON.stringify(entry), undefined)
       })
