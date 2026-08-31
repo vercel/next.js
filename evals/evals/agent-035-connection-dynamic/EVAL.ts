@@ -31,8 +31,20 @@ test('uses an explicit synchronous I/O boundary', () => {
   expect(source).toMatch(/<Suspense[\s>]/)
 })
 
-test('preserves fresh metadata without sacrificing the shared frame', async () => {
+test('keeps the operations frame useful while metadata loads', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The stable Operations navigation and page frame remain outside the Suspense boundary. The request metadata is rendered in a focused async child that awaits io() or connection() before calling new Date or Date.now, Math.random, and randomUUID, so those values remain request-specific. The metadata subtree is not cached or evaluated at module scope, and it has meaningful loading UI. Prefer io() unless the implementation specifically needs to wait for a real user request.`
+    `The stable Operations navigation and page frame must remain outside the Suspense boundary used for request metadata. The boundary must provide visible, meaningful loading UI rather than a null or empty fallback. Accept equivalent component and file organization.`
+  )
+})
+
+test('keeps request metadata fresh', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The request identifier, current time, and sampling value must remain request-specific. Render them in a focused async child that awaits io() or connection() before calling randomUUID, new Date or Date.now, and Math.random. Prefer io() unless the implementation specifically needs to wait for a real user request. Accept equivalent component and file organization.`
+  )
+})
+
+test('does not reuse request metadata', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The request identifier, current time, and sampling value must not be cached, evaluated at module scope, or replaced with static values. Reject any solution that can reuse those values across requests. Accept equivalent component and file organization.`
   )
 })

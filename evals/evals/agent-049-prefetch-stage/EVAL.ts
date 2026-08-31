@@ -70,12 +70,18 @@ test('uses the prefetch cache stage', () => {
   expect(source).toMatch(new RegExp(`await\\s+${localName}\\s*\\(`))
 })
 
-test('keeps related products out of the shell but in the selected prefetch', async () => {
+test('keeps stable product content in the reusable shell', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The implementation must keep the related-products section out of the reusable product App Shell while making it available before navigation from the featured-product Link.
+    `The product title and description must remain in the reusable product App Shell. The related-products section must remain outside that shell, beneath its own Suspense boundary. Reject solutions that put the whole product page behind the prefetch stage or move related products into the App Shell. Accept equivalent component and file organization.`
+  )
+})
 
-A correct solution enables Partial Prefetching globally or on the product route and adds prefetch={true} to the featured-product Link. The product title and description stay in the reusable App Shell. The related-products section is inside Suspense and rendered by an async component that awaits unstable_prefetch() before calling the cached getRelatedProducts() function.
+test('includes related products only in the selected prefetch', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The related-products section must be available before navigation from the featured-product Link without joining the default product App Shell.
 
-The unstable_prefetch() call must be outside every use cache scope; the existing cached data function belongs below it. Reject solutions that put the whole product page behind the stage, move related products into the App Shell, replace the stage with connection() or unstable_navigation(), make the related-products data uncached, or defer it until after navigation.`
+Render related products through an async component that awaits unstable_prefetch() before calling the cached getRelatedProducts() function. The unstable_prefetch() call must be outside every use cache scope, while the existing cached data function stays below it.
+
+Reject solutions that replace the stage with connection() or unstable_navigation(), make the related-products data uncached, or defer it until after navigation. Accept equivalent component and file organization.`
   )
 })

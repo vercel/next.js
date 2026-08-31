@@ -39,8 +39,14 @@ test('removes route opt-outs and incompatible segment config', () => {
   )
 })
 
-test('preserves the hourly feed and request-specific preview', async () => {
+test('preserves the hourly newsroom feed', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The newsroom feed is cached with an explicit approximately-hourly cache lifetime. A focused data-level cache is valid, and a page-level cache is also valid because the Newsroom page contains only the feed and stable framing with the same lifetime. The editor preview still reads its cookie at request time outside any public cache, is placed below Suspense or equivalent meaningful loading UI, and leaves useful stable preview framing in the static shell.`
+    `The newsroom feed must remain cached with an explicit approximately-hourly cache lifetime. A focused data-level cache is valid, and a page-level cache is also valid because the Newsroom page contains only the feed and stable framing with the same lifetime. Reject solutions that remove or materially change the feed's hourly refresh behavior.`
+  )
+})
+
+test('keeps editor preview request-specific', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The editor preview must still read its cookie at request time outside every public cache. Place the request-specific preview below Suspense or equivalent meaningful loading UI while leaving useful stable preview framing in the static shell. Reject solutions that cache the cookie value, hide the entire preview page behind one fallback, or remove the request-specific behavior.`
   )
 })
