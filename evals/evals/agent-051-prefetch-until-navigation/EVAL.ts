@@ -57,6 +57,10 @@ test('enables Partial Prefetching globally or for the project route', () => {
   ).toBe(true)
 })
 
+test('opts the project link into per-link prefetching', () => {
+  expect(source).toMatch(/<Link\b[^>]*\bprefetch\s*=\s*\{true\}/)
+})
+
 test('uses the navigation cache stage', () => {
   const navigationImport = source.match(
     /\bunstable_navigation(?:\s+as\s+([A-Za-z_$][\w$]*))?/
@@ -67,14 +71,18 @@ test('uses the navigation cache stage', () => {
   expect(source).toMatch(new RegExp(`await\\s+${localName}\\s*\\(`))
 })
 
-test('the title is prefetched and project details wait for navigation', async () => {
+test('includes the project title in the selected prefetch', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The implementation must make the selected project's title available before the click without prefetching the rest of the project page.
+    `The selected project's title must be available before the click from the dashboard's per-link prefetch. Keep the params-dependent title inside Suspense so the reusable App Shell can show a fallback while the selected prefetch resolves the title. The title must render before the nested boundary that waits for navigation.
 
-A correct solution uses Partial Prefetching globally or on the project destination, and opts the dashboard's project Link into a per-link prefetch with prefetch={true}. The project route keeps its params-dependent title inside Suspense so the reusable App Shell can show a fallback while the per-link prefetch resolves the title.
+Accept equivalent component and file organization. Reject solutions that leave the title behind the reusable shell fallback, put it behind unstable_navigation(), disable prefetching, or prefetch the entire page.`
+  )
+})
 
-The rendered project title must appear before a nested Suspense boundary. Inside that boundary, an async component must await unstable_navigation() before it loads or renders the project activity, deployments, description, or other detail content. The unstable_navigation() call must be outside any use cache scope; cached data functions may be called after it.
+test('waits until navigation for project details', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `Project activity, deployments, description, and other detail content must not join the prefetch. Render those details inside a nested Suspense boundary through an async component that awaits unstable_navigation() before loading or rendering them.
 
-Accept equivalent component and file organization. Reject solutions that put the title behind unstable_navigation(), fetch project details before reaching unstable_navigation(), replace unstable_navigation() with connection() or an uncached fetch, disable prefetching, or prefetch the entire page.`
+The unstable_navigation() call must remain outside every use cache scope; cached data functions may be called after it. Reject solutions that fetch project details before reaching unstable_navigation(), replace it with connection() or an uncached fetch, or prefetch the entire page. Accept equivalent component and file organization.`
   )
 })
