@@ -44,3 +44,17 @@ export function getGitCommit(cwd: string): string | undefined {
     return undefined
   }
 }
+
+/**
+ * Returns true if the working tree has uncommitted changes. Returns undefined
+ * when the dirty status cannot be determined (not a git repo, git not
+ * installed, etc.).
+ */
+export function getGitDirty(cwd: string): boolean | undefined {
+  try {
+    const output = gitExec('status --porcelain', cwd)
+    return output.length > 0
+  } catch {
+    return undefined
+  }
+}

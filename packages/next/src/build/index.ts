@@ -4658,27 +4658,34 @@ export default async function build(
       await shutdownPromise
 
       if (NextBuildContext.analyze) {
-        await cp(
-          path.join(__dirname, '../bundle-analyzer'),
-          path.join(dir, '.next/diagnostics/analyze'),
-          { recursive: true }
-        )
+        const analyzeDir = path.join(dir, '.next/diagnostics/analyze')
+        await cp(path.join(__dirname, '../bundle-analyzer'), analyzeDir, {
+          recursive: true,
+        })
 
-        await mkdir(path.join(dir, '.next/diagnostics/analyze/data'), {
+        await mkdir(path.join(analyzeDir, 'data'), {
           recursive: true,
         })
 
         // Write an index of routes for the route picker
+        const routes = routesManifest.dynamicRoutes
+          .map((r) => r.page)
+          .concat(routesManifest.staticRoutes.map((r) => r.page))
         await writeFile(
-          path.join(dir, '.next/diagnostics/analyze/data/routes.json'),
-          JSON.stringify(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page)),
-            null,
-            2
-          )
+          path.join(analyzeDir, 'data/routes.json'),
+          JSON.stringify(routes, null, 2)
         )
+
+        // Capture this build alongside any prior builds so the analyzer UI
+        // can offer it as a comparison baseline in the future.
+        const { writeAnalyzeSnapshot } = await import('./analyze/snapshot')
+        await writeAnalyzeSnapshot({
+          projectDir: dir,
+          analyzeDir,
+          routes,
+          appDirOnly,
+          noMangling: NextBuildContext.noMangling ?? false,
+        })
       }
     })
   } catch (e) {
