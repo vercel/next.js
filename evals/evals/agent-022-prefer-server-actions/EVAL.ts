@@ -69,7 +69,12 @@ test('uses server action instead of client-side submission', () => {
   // Must have 'use server' directive somewhere in the ContactForm or its imports
   expect(allRelated).toMatch(/['"]use server['"];?/)
   // Must have an async server action function that accepts FormData
-  expect(allRelated).toMatch(/async\s+function\s+\w+.*FormData/)
+  // Accept both declaration forms of a server action taking FormData:
+  // `async function send(formData: FormData)` and
+  // `const send = async (formData: FormData) => …`.
+  expect(allRelated).toMatch(
+    /async\s+function\s+\w+.*FormData|=\s*async\s*\([^)]*FormData/
+  )
 })
 
 test('processes form data using FormData API', () => {
@@ -99,5 +104,7 @@ test('includes form validation', () => {
 test('does not use API routes pattern', () => {
   const content = readContactFormAndImports()
 
-  expect(content).not.toMatch(/\/api\/\w+|JSON\.stringify|response\.json\(\)/)
+  // Only ban the API-route round trip itself; JSON.stringify has legitimate
+  // uses inside a server action (logging, persistence).
+  expect(content).not.toMatch(/\/api\/\w+|response\.json\(\)/)
 })

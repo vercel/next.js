@@ -115,7 +115,11 @@ test('Suspense content uses ViewTransition with enter or exit', () => {
 test('default="none" prevents unintended animations', () => {
   const allSource = readAllSourceFiles()
 
-  expect(allSource).toMatch(/default\s*=\s*["']none["']/)
+  // Accept both spellings: the string prop (default="none") and the
+  // type-keyed object form (default={{ …, default: 'none' }}).
+  expect(allSource).toMatch(
+    /default\s*[=:]\s*\{?\{?\s*["']none["']|default\s*:\s*["']none["']/
+  )
 })
 
 test('CSS handles prefers-reduced-motion', () => {

@@ -1,24 +1,13 @@
-import { Suspense } from 'react'
-import { getRecommendations } from '../lib/recommendations'
-
-async function RecommendationsList() {
-  const recs = await getRecommendations()
-  return (
-    <ul>
-      {recs.map((r) => (
-        <li key={r}>{r}</li>
-      ))}
-    </ul>
-  )
-}
+import Link from 'next/link'
 
 export default function Home() {
   return (
     <main>
       <h1>Your store</h1>
-      <Suspense fallback={<p>Loading recommendations…</p>}>
-        <RecommendationsList />
-      </Suspense>
+      <p>Deals refreshed daily.</p>
+      <Link id="to-recommendations" href="/recommendations">
+        Recommendations
+      </Link>
     </main>
   )
 }

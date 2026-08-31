@@ -1,1 +1,1 @@
-Navigating from home to the product page is slow. The title should appear immediately.
+Navigating from home to the product page is slow — nothing shows up until the inventory lookup finishes. Make the product title appear immediately when navigating, while stock numbers keep being fetched fresh on every request (don't cache them, and don't drop them from the page).
