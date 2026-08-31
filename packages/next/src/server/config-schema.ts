@@ -10,6 +10,7 @@ import {
   type ExportPathMap,
   type TurbopackLoaderItem,
   type TurbopackOptions,
+  type TurbopackModuleFederationOptions,
   type TurbopackRuleConfigItem,
   type TurbopackRuleConfigCollection,
   type TurbopackRuleCondition,
@@ -163,6 +164,105 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
     zTurbopackRuleConfigItem,
     z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
   ])
+
+const zTurbopackModuleFederationRemoteConfig = z.union([
+  z.string(),
+  z.array(z.string()),
+  z.strictObject({
+    external: z.union([z.string(), z.array(z.string())]),
+    shareScope: z.string().optional(),
+  }),
+])
+
+const zTurbopackModuleFederationExposeConfig = z.union([
+  z.string(),
+  z.array(z.string()),
+  z.strictObject({
+    import: z.union([z.string(), z.array(z.string())]),
+    name: z.string().optional(),
+  }),
+])
+
+const zTurbopackModuleFederationSharedConfig = z.union([
+  z.string(),
+  z.strictObject({
+    eager: z.boolean().optional(),
+    import: z.union([z.string(), z.literal(false)]).optional(),
+    packageName: z.string().optional(),
+    requiredVersion: z.union([z.string(), z.literal(false)]).optional(),
+    shareKey: z.string().optional(),
+    shareScope: z.string().optional(),
+    singleton: z.boolean().optional(),
+    strictVersion: z.boolean().optional(),
+    version: z.union([z.string(), z.literal(false)]).optional(),
+  }),
+])
+
+const zTurbopackModuleFederationFilename = z
+  .string()
+  .refine(
+    (filename) =>
+      filename.length > 0 &&
+      !filename.startsWith('/') &&
+      !filename.startsWith('\\') &&
+      !filename.includes('?') &&
+      !filename.includes('#') &&
+      !filename.includes('://') &&
+      !filename.split(/[\\/]/).some((segment) => !segment || segment === '..'),
+    'Module Federation filename must be a safe relative path without empty or ".." segments'
+  )
+
+const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOptions> =
+  z
+    .strictObject({
+      name: z.string().min(1).optional(),
+      filename: zTurbopackModuleFederationFilename.optional(),
+      remotes: z
+        .union([
+          z.record(z.string(), zTurbopackModuleFederationRemoteConfig),
+          z.array(
+            z.union([
+              z.string(),
+              z.record(z.string(), zTurbopackModuleFederationRemoteConfig),
+            ])
+          ),
+        ])
+        .optional(),
+      exposes: z
+        .union([
+          z.record(z.string(), zTurbopackModuleFederationExposeConfig),
+          z.array(
+            z.union([
+              z.string(),
+              z.record(z.string(), zTurbopackModuleFederationExposeConfig),
+            ])
+          ),
+        ])
+        .optional(),
+      shared: z
+        .union([
+          z.record(z.string(), zTurbopackModuleFederationSharedConfig),
+          z.array(
+            z.union([
+              z.string(),
+              z.record(z.string(), zTurbopackModuleFederationSharedConfig),
+            ])
+          ),
+        ])
+        .optional(),
+      shareScope: z.string().optional(),
+      remoteType: z.literal('script').optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.exposes && !config.name) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['name'],
+          message:
+            'Module Federation exposes require a non-empty container name',
+        })
+      }
+    })
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
@@ -399,6 +499,7 @@ export const experimentalSchema = {
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
   turbopackSharedRuntime: z.boolean().optional(),
+  turbopackModuleFederation: zTurbopackModuleFederationConfig.optional(),
   turbopackChunking: z
     .object({
       clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
