@@ -192,8 +192,28 @@ describe('searchparams-reuse-loading', () => {
         const nonPrefetchRscRequests = new Set<string>()
         let interceptRequests = false
         let shouldStallDynamicRequests = true
+        let id3FullPrefetchResponse: Promise<void> | undefined
         const browser = await next.browser(path, {
           beforePageLoad(page) {
+            page.on('response', (response) => {
+              const requestHeaders = response.request().headers()
+              const url = new URL(response.url())
+              const normalizedPath = url.pathname.replace(/\/someValue$/, '')
+              const expectedPath =
+                path === '/' ? '/search-params' : `${path}/search-params`
+
+              if (
+                requestHeaders['next-router-prefetch'] &&
+                normalizedPath === expectedPath &&
+                url.searchParams.get('id') === '3' &&
+                response.ok()
+              ) {
+                id3FullPrefetchResponse = response.finished().then((error) => {
+                  if (error) throw error
+                })
+              }
+            })
+
             page.route(
               (url) => {
                 return url.pathname.includes('search-params')
@@ -273,8 +293,17 @@ describe('searchparams-reuse-loading', () => {
         const basePath = path === '/' ? '' : path
         const searchParamsPagePath = `${basePath}/search-params`
 
-        // Wait for all expected prefetch requests to complete
+        // Wait for the full id=3 prefetch response, including any middleware
+        // redirect, before intercepting navigations. Counting requests alone is
+        // racy because the redirect response can still be in flight.
         await prefetchPromise
+        await retry(
+          () => expect(id3FullPrefetchResponse).toBeDefined(),
+          30_000,
+          500,
+          'Waiting for id=3 full prefetch response'
+        )
+        await id3FullPrefetchResponse
         interceptRequests = true
         // The first link we click is "auto" prefetched.
         await browser
