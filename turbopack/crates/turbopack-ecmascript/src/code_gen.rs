@@ -27,6 +27,7 @@ use crate::{
         constant_condition::ConstantConditionCodeGen,
         constant_value::ConstantValueCodeGen,
         dynamic_expression::DynamicExpression,
+        emit_collect::CollectReferenceCodeGen,
         esm::{
             EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
             dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
@@ -37,9 +38,9 @@ use crate::{
         ident::IdentReplacement,
         import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
+        removal::RemovalCodeGen,
         require_context::RequireContextAssetReferenceCodeGen,
         service_worker::ServiceWorkerAssetReferenceCodeGen,
-        unreachable::Unreachable,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
@@ -182,6 +183,7 @@ impl_modify!(visit_mut_program, Program);
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
+    CollectReferenceCodeGen(CollectReferenceCodeGen),
     CjsRequireCacheAccess(CjsRequireCacheAccess),
     ConstantConditionCodeGen(ConstantConditionCodeGen),
     ConstantValueCodeGen(ConstantValueCodeGen),
@@ -195,7 +197,7 @@ pub enum CodeGen {
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
     MemberReplacement(MemberReplacement),
-    Unreachable(Unreachable),
+    RemovalCodeGen(RemovalCodeGen),
     CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen),
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
     EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
@@ -221,6 +223,7 @@ impl CodeGen {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
             Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::CollectReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
@@ -232,7 +235,7 @@ impl CodeGen {
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
             Self::MemberReplacement(v) => v.code_generation(ctx).await,
-            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::RemovalCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,

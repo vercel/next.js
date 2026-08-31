@@ -17,7 +17,10 @@ use turbo_tasks::{
     turbo_tasks,
 };
 
-use crate::database::{key_value_database::KeySpace, write_batch::WriteBuffer};
+use crate::{
+    BackingStorageOptions,
+    database::{key_value_database::KeySpace, write_batch::WriteBuffer},
+};
 
 mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
@@ -49,31 +52,22 @@ pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
 
 pub struct TurboKeyValueDatabase {
     db: TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
-    is_ci: bool,
-    is_short_session: bool,
+    options: BackingStorageOptions,
     is_fresh: bool,
-    skip_compaction: bool,
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(
-        versioned_path: PathBuf,
-        is_ci: bool,
-        is_short_session: bool,
-        skip_compaction: bool,
-    ) -> Result<Self> {
+    pub fn new(versioned_path: PathBuf, options: BackingStorageOptions) -> Result<Self> {
         assert!(
-            !skip_compaction || is_short_session,
+            !options.skip_compaction || options.is_short_session,
             "skip_compaction=true requires is_short_session=true"
         );
         let db = TurboPersistence::open_with_config(versioned_path, db_config())?;
         let is_fresh = db.is_empty();
         Ok(Self {
             db,
-            is_ci,
-            is_short_session,
+            options,
             is_fresh,
-            skip_compaction,
         })
     }
 
@@ -83,10 +77,12 @@ impl TurboKeyValueDatabase {
     pub fn empty_in_memory() -> Self {
         Self {
             db: TurboPersistence::empty_in_memory_with_config(db_config()),
-            is_ci: false,
-            is_short_session: true,
+            options: BackingStorageOptions {
+                is_ci: false,
+                is_short_session: true,
+                skip_compaction: true,
+            },
             is_fresh: true,
-            skip_compaction: true,
         }
     }
 
@@ -129,7 +125,7 @@ impl TurboKeyValueDatabase {
     /// Returns `Ok(Some(stats))` with the bytes written/deleted if compaction actually merged
     /// files, `Ok(None)` if there was nothing to compact.
     pub fn compact(&self) -> Result<Option<CommitStats>> {
-        if self.is_short_session || self.db.is_empty() {
+        if self.options.is_short_session || self.db.is_empty() {
             return Ok(None);
         }
         do_compact(
@@ -148,8 +144,8 @@ impl TurboKeyValueDatabase {
     pub fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
-        if !self.is_fresh && !self.skip_compaction {
-            if self.is_ci {
+        if !self.is_fresh && !self.options.skip_compaction {
+            if self.options.is_ci {
                 // Fully compact in CI to reduce cache size
                 do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;
             } else {
@@ -234,6 +230,25 @@ impl<'a> TurboWriteBatch<'a> {
             .put(key_space as u32, key.into_static(), value.into())
     }
 
+    /// Writes a delete (tombstone) for `key` into the write batch.
+    ///
+    /// Use [`Self::delete_value`] to remove a single mapping from a MultiValue KeySpace
+    pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
+        self.batch.delete(key_space as u32, key.into_static())
+    }
+
+    /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
+    /// intact. Only valid for `MultiValue` families (`TaskCache`).
+    pub fn delete_value(
+        &self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
+        self.batch
+            .delete_value(key_space as u32, key.into_static(), value.into())
+    }
+
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///
@@ -257,8 +272,8 @@ impl KeyBase for WriteBuffer<'_> {
 }
 
 impl StoreKey for WriteBuffer<'_> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 

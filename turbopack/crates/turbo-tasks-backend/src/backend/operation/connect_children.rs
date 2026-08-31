@@ -1,15 +1,21 @@
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     TaskId,
-    scope::scope_and_block,
+    scope_bounded::scope_bounded,
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::backend::operation::{
-    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
-    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
-    get_uppers, is_aggregating_node,
+use crate::backend::{
+    operation::{
+        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
+        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
+        get_aggregation_number, get_uppers, invalidate::make_task_dirty_internal,
+        is_aggregating_node,
+    },
+    storage_schema::TaskStorageAccessors,
 };
 
 pub fn connect_children(
@@ -51,6 +57,41 @@ pub fn connect_children(
         debug_assert!(!new_follower_ids.is_empty());
 
         let mut queue = AggregationUpdateQueue::new();
+
+        // Single pass over the newly-connected children, two things per child under one guard:
+        //
+        // 1. Bump the child-side parent reference count. it is important to do this before any
+        //    suspend points persistence/GC cannot run
+        //
+        // 2. Make any child that has not produced output yet dirty, so it gets scheduled and
+        //    computes.
+        let parent_is_transient = parent_task_id.is_transient();
+        ctx.for_each_task_all(
+            new_follower_ids.iter().copied(),
+            "connect_children parent_count + dirty",
+            |mut child, ctx| {
+                // Bump before `make_task_dirty_internal`, which consumes the guard.
+                if !child.id().is_transient() {
+                    if parent_is_transient {
+                        child.update_and_get_transient_ref_count(1);
+                    } else {
+                        child.update_and_get_parent_count(1);
+                    }
+                }
+                if !child.has_output() {
+                    let child_id = child.id();
+                    make_task_dirty_internal(
+                        child,
+                        child_id,
+                        false,
+                        #[cfg(feature = "task_dirty_cause")]
+                        TaskDirtyCause::InitialDirty,
+                        &mut queue,
+                        ctx,
+                    );
+                }
+            },
+        );
 
         if let Some(upper_ids) = upper_ids {
             // We need to add new followers when there are upper ids as the parent is a leaf node
@@ -133,13 +174,13 @@ pub fn connect_children(
     // This avoids long pauses of more than 30µs * 10k = 300ms.
     // We don't want to parallelize too eagerly as spawning tasks and the temporary allocations have
     // a cost as well.
-    const CONNECT_CHILDREN_PARALLIZATION_THRESHOLD: usize = 10000;
+    const CONNECT_CHILDREN_PARALLELIZATION_THRESHOLD: usize = 10000;
 
     let len = new_follower_ids.len();
-    if len >= CONNECT_CHILDREN_PARALLIZATION_THRESHOLD {
+    if len >= CONNECT_CHILDREN_PARALLELIZATION_THRESHOLD {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
-        let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {
+        let _ = scope_bounded(len.div_ceil(chunk_size), |scope| {
             for chunk in into_chunks(new_follower_ids, chunk_size) {
                 let upper_ids = &upper_ids;
                 let child_ctx = ctx.child_context();

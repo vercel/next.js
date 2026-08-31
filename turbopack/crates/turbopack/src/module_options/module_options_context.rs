@@ -284,8 +284,17 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+
+    /// Whether to shorten ("mangle") the export names a module exposes to other modules, to
+    /// reduce output size. Only affects the keys used to link modules together, never a name that
+    /// is observable from user code — modules whose export names can escape keep their original
+    /// names. Defaults to false.
+    pub mangle_export_names: bool,
     /// Whether to scope-hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
+
+    /// Whether to enable cross-module constant inlining. Defaults to false.
+    pub cross_module_constants: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
@@ -313,6 +322,9 @@ pub struct CssOptionsContext {
 
     /// User-specified lightningcss feature flags (include/exclude bitmasks).
     pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+
+    /// Include the file name in CSS Module class names for easier debugging.
+    pub module_css_debuggable_idents: bool,
 
     pub placeholder_for_future_extensions: (),
 }

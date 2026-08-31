@@ -38,7 +38,7 @@ impl Version for ChunkListVersion {
                 .by_path
                 .iter()
                 .map(|(path, version)| (path, TraitRef::cell(version.clone())))
-                .map(|(path, version)| async move {
+                .map(async |(path, version)| {
                     let id = version.id().owned().await?;
                     Ok((path, id))
                 })

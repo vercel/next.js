@@ -18,9 +18,7 @@ metrics = ((clientComponentLoadTimes === 0) ? undefined : {
     "clientComponentLoadTimes": clientComponentLoadTimes
 })
 
-options = ???*0*
-- *0* options
-  ⚠️  pattern without value
+options = (arguments[0] | {})
 
 startTime = FreeVar(performance)["now"]()
 

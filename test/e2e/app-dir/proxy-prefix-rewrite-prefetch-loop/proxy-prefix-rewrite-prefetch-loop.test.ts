@@ -119,7 +119,7 @@ describe('proxy-prefix-rewrite-prefetch-loop', () => {
         )
         await toggle.click()
       },
-      { includes: '"name":"pages"', kind: 'static' }
+      { includes: '"n":"pages"', kind: 'static' }
     )
 
     // Navigate to the prefetched ancestor. The navigation response must

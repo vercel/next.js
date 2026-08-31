@@ -280,6 +280,15 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
+    AdjustTransientRefCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+        #[bincode(skip, default = "unreachable_decode")]
+        delta: i32,
+    },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
@@ -439,6 +448,7 @@ impl AggregatedDataUpdate {
 
     /// Applies the update to the task. It may return an aggregated update that should be applied to
     /// upper tasks.
+    #[allow(clippy::needless_late_init)]
     fn apply(
         &self,
         task: &mut impl TaskGuard,
@@ -491,22 +501,25 @@ impl AggregatedDataUpdate {
             }
 
             // Update AggregatedSessionDependentCleanContainer
+            let old_single_container_current_session_clean_count;
             let new_single_container_current_session_clean_count;
-            let old_single_container_current_session_clean_count =
-                if *current_session_clean_update != 0 {
-                    new_single_container_current_session_clean_count = task
-                        .update_and_get_aggregated_current_session_clean_containers(
-                            dirty_container_id,
-                            *current_session_clean_update,
-                        );
-                    new_single_container_current_session_clean_count - *current_session_clean_update
-                } else {
-                    new_single_container_current_session_clean_count = task
-                        .get_aggregated_current_session_clean_containers(&dirty_container_id)
-                        .copied()
-                        .unwrap_or_default();
+            if *current_session_clean_update != 0 {
+                new_single_container_current_session_clean_count = task
+                    .update_and_get_aggregated_current_session_clean_containers(
+                        dirty_container_id,
+                        *current_session_clean_update,
+                    );
+                old_single_container_current_session_clean_count =
                     new_single_container_current_session_clean_count
-                };
+                        - *current_session_clean_update;
+            } else {
+                new_single_container_current_session_clean_count = task
+                    .get_aggregated_current_session_clean_containers(&dirty_container_id)
+                    .copied()
+                    .unwrap_or_default();
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count;
+            }
 
             // compute aggregated update
             let was_single_container_clean = old_dirty_single_container_count > 0
@@ -524,36 +537,40 @@ impl AggregatedDataUpdate {
                 let task_id = task.id();
 
                 // Update AggregatedDirtyContainerCount and compute aggregate value
+                let old_dirty_container_count;
                 let new_dirty_container_count;
-                let old_dirty_container_count = if dirty_container_count_update != 0 {
+                if dirty_container_count_update != 0 {
                     new_dirty_container_count = task
                         .update_and_get_aggregated_dirty_container_count(
                             dirty_container_count_update,
                         );
-                    new_dirty_container_count - dirty_container_count_update
+                    old_dirty_container_count =
+                        new_dirty_container_count - dirty_container_count_update;
                 } else {
                     new_dirty_container_count = task
                         .get_aggregated_dirty_container_count()
                         .copied()
                         .unwrap_or_default();
-                    new_dirty_container_count
+                    old_dirty_container_count = new_dirty_container_count;
                 };
 
                 // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
                 let new_current_session_clean_container_count;
-                let old_current_session_clean_container_count = if current_session_clean_update != 0
-                {
+                let old_current_session_clean_container_count;
+                if current_session_clean_update != 0 {
                     new_current_session_clean_container_count = task
                         .update_and_get_aggregated_current_session_clean_container_count(
                             current_session_clean_update,
                         );
-                    new_current_session_clean_container_count - current_session_clean_update
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count - current_session_clean_update;
                 } else {
                     new_current_session_clean_container_count = task
                         .get_aggregated_current_session_clean_container_count()
                         .copied()
                         .unwrap_or_default();
-                    new_current_session_clean_container_count
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count;
                 };
 
                 let compute_result = ComputeDirtyAndCleanUpdate {
@@ -872,7 +889,8 @@ mod encode_jobs {
                 AggregationUpdateJob::IncreaseActiveCount { .. }
                 | AggregationUpdateJob::IncreaseActiveCounts { .. }
                 | AggregationUpdateJob::DecreaseActiveCount { .. }
-                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::AdjustTransientRefCount { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
                         #[cfg(feature = "trace_aggregation_update_queue")]
@@ -1413,7 +1431,7 @@ impl AggregationUpdateQueue {
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                     }
                 }
-                AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
+                AggregationUpdateJob::AggregatedDataUpdate(AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {
@@ -1437,6 +1455,20 @@ impl AggregationUpdateQueue {
                             ctx,
                         );
                     }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
+                        task.update_and_get_parent_count(delta);
+                    });
+                }
+                AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);

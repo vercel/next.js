@@ -12,13 +12,14 @@ on:
 permissions:
   actions: read
   contents: read
+  # Minting GitHub OIDC tokens to authorize uploads at vercel-packages.
+  id-token: write
 
 jobs:
   upload:
     name: Upload preview tarballs to Blob
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
-    environment: preview-builds
     steps:
       # Checkout from the default branch (canary) -- workflow_run always uses
       # the default branch's version of the workflow file and this checkout
@@ -66,5 +67,4 @@ jobs:
           github.event.workflow_run.head_sha }}" "${{ runner.temp
           }}/preview-tarballs"
         env:
-          BLOB_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREVIEW_BUILDS_BLOB_READ_WRITE_TOKEN }}
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}

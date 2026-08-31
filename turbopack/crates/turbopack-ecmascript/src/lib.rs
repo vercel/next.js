@@ -1,6 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
@@ -14,6 +14,8 @@ pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
 pub mod code_gen;
+mod collect_module;
+mod directive;
 pub mod embed_js;
 mod errors;
 pub mod hmr;
@@ -104,13 +106,14 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -239,7 +242,14 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+    /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
+    /// reduce output size. Defaults to false. See
+    /// `references::esm::mangle::mangled_export_names`.
+    pub mangle_export_names: bool,
+    /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
+    /// Whether to enable cross-module constant inlining. Defaults to false.
+    pub cross_module_constants: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -418,10 +428,32 @@ pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Default, Debug)]
+pub struct EnvVarInfo {
+    /// List of environment variables that are referenced (but not inlined) in the module.
+    pub runtime: Vec<RcStr>,
+    // TODO add this back once we can do it without regressing performance
+    // Whether the module potentially references all environment variables (because of a
+    // non-statically analyzeable `process.env`).
+    // pub runtime_all: Option<IssueSource>,
+}
+
+#[turbo_tasks::value_impl]
+impl EnvVarInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
@@ -585,6 +617,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         analyze_ecmascript_module(self, None)
     }
 
+    #[turbo_tasks::function]
+    async fn env_var_info(self: Vc<Self>) -> Result<Vc<EnvVarInfo>> {
+        Ok(*self.analyze().await?.env_var_info)
+    }
+
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     #[turbo_tasks::function]
@@ -741,6 +778,45 @@ impl EcmascriptModuleAsset {
     }
 }
 
+/// Computes a module's side effects from parse data only.
+///
+/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
+/// information is needed while resolving references during analysis.
+#[turbo_tasks::function]
+async fn compute_ecmascript_module_side_effects(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<ModuleSideEffects>> {
+    let options = module.options().await?;
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        globals,
+        eval_context,
+        comments,
+        ..
+    } = &*parsed
+    else {
+        return Ok(ModuleSideEffects::SideEffectful.cell());
+    };
+
+    let directives = parse_module_turbopack_directives(program);
+    let side_effects = if directives.no_side_effects {
+        ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module && options.cross_module_constants {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // constant folding would not be safe.
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        GLOBALS.set(globals, || {
+            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
+        })
+    } else {
+        ModuleSideEffects::SideEffectful
+    };
+
+    Ok(side_effects.cell())
+}
+
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -832,7 +908,7 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
+            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
         })
         .cell())
     }
@@ -1307,10 +1383,12 @@ async fn merge_modules(
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-        /// For a given module, the `eval_context.imports.exports`. So for a given export, this
+        /// For a given module, the `eval_context.imports.exports_ids`. So for a given export, this
         /// allows looking up the corresponding local binding's name and context.
-        export_contexts:
-            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a FxHashMap<RcStr, Id>>,
+        export_contexts: &'a FxHashMap<
+            ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+            &'a FxHashMap<RcStr, (Id, Span)>,
+        >,
         /// A fresh global SyntaxContext for each module-local context, so that we can merge them
         /// into a single global AST.
         unique_contexts_cache: &'a mut FxHashMap<
@@ -1351,7 +1429,7 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
+                let (local, local_ctxt) = if let Some(((local, local_ctxt), _)) =
                     eval_context_exports.get(&sym_rc_str)
                 {
                     (Some(local), *local_ctxt)
@@ -1783,10 +1861,10 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     #[allow(clippy::type_complexity)]
-    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
         FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
-        FxHashMap<RcStr, Id>,
+        FxHashMap<RcStr, (Id, Span)>,
     )>,
 }
 
@@ -1865,7 +1943,7 @@ async fn process_parse_result(
                                 .iter()
                                 .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
                                 .map(|(name, e)| {
-                                    if let Some((sym, ctxt)) = export_contexts.get(name) {
+                                    if let Some(((sym, ctxt), _)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))
                                     } else {
                                         bail!("Couldn't find export {} for binding {:?}", name, e);

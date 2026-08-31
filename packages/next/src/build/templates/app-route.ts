@@ -156,6 +156,7 @@ export async function handler(
     resolvedPathname,
     clientReferenceManifest,
     serverActionsManifest,
+    previewProps,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -221,6 +222,7 @@ export async function handler(
     (await routeModule.getIncrementalCache(
       req,
       nextConfig,
+      previewProps,
       prerenderManifest,
       isMinimalMode
     ))
@@ -230,11 +232,14 @@ export async function handler(
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    previewProps: prerenderManifest.preview,
+    previewProps,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
@@ -401,6 +406,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
+        previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,

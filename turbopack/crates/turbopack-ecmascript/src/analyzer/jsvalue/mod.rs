@@ -5,10 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bumpalo::boxed::Box as BumpBox;
 use num_bigint::BigInt;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use swc_core::ecma::{ast::Id, atoms::Atom};
 use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::compile_time_info::{
@@ -130,7 +130,7 @@ pub enum JsValue<'a> {
     Object {
         total_nodes: u32,
         parts: BumpVec<'a, ObjectPart<'a>>,
-        mutable: bool,
+        mutability: ObjectMutability,
     },
     /// A list of alternative values
     Alternatives {
@@ -577,7 +577,7 @@ impl<'a> JsValue<'a> {
                 let mut js_value = JsValue::Object {
                     total_nodes: m.len() as u32,
                     parts,
-                    mutable: false,
+                    mutability: ObjectMutability::Frozen,
                 };
                 js_value.update_total_nodes();
                 return Ok(js_value);
@@ -607,6 +607,42 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
                 RcStr::from(regex.0.as_str()),
                 RcStr::from(regex.1.as_str()),
+            ),
+        })
+    }
+}
+
+impl TryFrom<&'_ JsValue<'_>> for CompileTimeDefineValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &JsValue) -> Result<Self> {
+        Ok(match value {
+            JsValue::Constant(v) => return Self::try_from(v),
+            JsValue::Array { items, .. } => {
+                let mut arr = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    arr.push(Self::try_from(item)?);
+                }
+                CompileTimeDefineValue::Array(arr)
+            }
+            JsValue::Object { parts, .. } => {
+                let mut obj = Vec::with_capacity(parts.len());
+                for part in parts.iter() {
+                    if let ObjectPart::KeyValue(key, value) = part {
+                        obj.push((
+                            key.as_str()
+                                .context("JsValue object key is not a string")?
+                                .into(),
+                            Self::try_from(value)?,
+                        ));
+                    } else {
+                        bail!("JsValue object contains non-key-value part");
+                    }
+                }
+                CompileTimeDefineValue::Object(obj)
+            }
+            _ => bail!(
+                "JsValue is not constant and could not be converted to CompileTimeDefineValue"
             ),
         })
     }
@@ -859,11 +895,14 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: true,
+            mutability: ObjectMutability::Mutable,
         }
     }
 
-    pub fn frozen_object(list: BumpVec<'a, ObjectPart<'a>>) -> Self {
+    pub fn object_with_mutability(
+        list: BumpVec<'a, ObjectPart<'a>>,
+        mutability: ObjectMutability,
+    ) -> Self {
         Self::Object {
             total_nodes: 1 + list
                 .iter()
@@ -873,7 +912,7 @@ impl<'a> JsValue<'a> {
                 })
                 .sum::<u32>(),
             parts: list,
-            mutable: false,
+            mutability,
         }
     }
 
@@ -1115,7 +1154,7 @@ impl JsValue<'_> {
             JsValue::Object {
                 total_nodes: c,
                 parts,
-                mutable: _,
+                mutability: _,
             } => {
                 *c = 1 + parts
                     .iter()
@@ -1218,6 +1257,8 @@ impl<'a> JsValue<'a> {
 
 // Definable name management
 impl JsValue<'_> {
+    // Clippy is wrong. It's not the same lifetime
+    #[allow(mismatched_lifetime_syntaxes)]
     /// When the value has a user-definable name, return it in segments. Otherwise
     /// returns None.
     /// It also returns a boolean whether the variable was potentially reassigned.
@@ -1226,65 +1267,76 @@ impl JsValue<'_> {
     /// - some well-known objects/functions have a user-definable names: ["import"]
     /// - member calls without arguments also have a user-definable name: ["foo", Call("func")]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_definable_name(
-        &self,
+    pub fn get_definable_name<'v>(
+        &'v self,
         var_graph: Option<&VarGraph<'_>>,
-    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
-        let mut current = self;
-        let mut segments = SmallVec::new();
-        let mut potentially_reassigned = false;
-        loop {
-            match current {
-                JsValue::FreeVar(name) => {
-                    if var_graph.is_some_and(|var_graph| {
-                        var_graph
-                            .free_var_ids
-                            .get(name)
-                            .is_some_and(|id| var_graph.values.contains_key(id))
-                    }) {
-                        // `foo` was potentially reassigned
-                        potentially_reassigned = true;
+    ) -> SmallVec<[Option<(DefinableNameSegmentRefs<'_>, bool)>; 1]> {
+        let inner = |value: &'v JsValue| {
+            let mut current = value;
+            let mut segments = SmallVec::new();
+            let mut potentially_reassigned = false;
+            loop {
+                match current {
+                    JsValue::FreeVar(name) => {
+                        if var_graph.is_some_and(|var_graph| {
+                            var_graph
+                                .free_var_ids
+                                .get(name)
+                                .is_some_and(|id| var_graph.values.contains_key(id))
+                        }) {
+                            // `foo` was potentially reassigned
+                            potentially_reassigned = true;
+                        }
+                        segments.push(DefinableNameSegmentRef::Name(name));
+                        break;
                     }
-                    segments.push(DefinableNameSegmentRef::Name(name));
-                    break;
+                    JsValue::Member(_, obj, prop) => {
+                        segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
+                        current = obj;
+                    }
+                    JsValue::WellKnownObject(obj) => {
+                        segments.extend(
+                            obj.as_define_name()?
+                                .iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    }
+                    JsValue::WellKnownFunction(func) => {
+                        segments.extend(
+                            func.as_define_name()?
+                                .iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    }
+                    JsValue::MemberCall(_, call) if call.args().is_empty() => {
+                        let Some(call_prop) = call.prop().as_str() else {
+                            return Default::default();
+                        };
+                        segments.push(DefinableNameSegmentRef::Call(call_prop));
+                        current = call.obj();
+                    }
+                    JsValue::TypeOf(_, arg) => {
+                        segments.push(DefinableNameSegmentRef::TypeOf);
+                        current = arg;
+                    }
+                    _ => return None,
                 }
-                JsValue::Member(_, obj, prop) => {
-                    segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
-                    current = obj;
-                }
-                JsValue::WellKnownObject(obj) => {
-                    segments.extend(
-                        obj.as_define_name()?
-                            .iter()
-                            .rev()
-                            .copied()
-                            .map(DefinableNameSegmentRef::Name),
-                    );
-                    break;
-                }
-                JsValue::WellKnownFunction(func) => {
-                    segments.extend(
-                        func.as_define_name()?
-                            .iter()
-                            .rev()
-                            .copied()
-                            .map(DefinableNameSegmentRef::Name),
-                    );
-                    break;
-                }
-                JsValue::MemberCall(_, call) if call.args().is_empty() => {
-                    segments.push(DefinableNameSegmentRef::Call(call.prop().as_str()?));
-                    current = call.obj();
-                }
-                JsValue::TypeOf(_, arg) => {
-                    segments.push(DefinableNameSegmentRef::TypeOf);
-                    current = arg;
-                }
-                _ => return None,
             }
+            segments.reverse();
+            Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
+        };
+
+        if let JsValue::Alternatives { values, .. } = self {
+            values.iter().map(inner).collect()
+        } else {
+            smallvec![inner(self)]
         }
-        segments.reverse();
-        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
     }
 }
 
@@ -1319,11 +1371,11 @@ impl<'a> JsValue<'a> {
             JsValue::Object {
                 total_nodes,
                 parts,
-                mutable,
+                mutability,
             } => JsValue::Object {
                 total_nodes: *total_nodes,
                 parts: BumpVec::from_iter_in(arena, parts.iter().map(|p| p.clone_in(arena))),
-                mutable: *mutable,
+                mutability: *mutability,
             },
             JsValue::Alternatives {
                 total_nodes,

@@ -241,8 +241,7 @@ impl Asset for NftJsonAsset {
                             relative_path,
                             Either::Left(
                                 file_path
-                                    .read()
-                                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                                     .await?,
                             ),
                         ))

@@ -7,7 +7,7 @@ use either::Either;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_esregex::EsRegex;
+use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
@@ -923,7 +923,7 @@ pub enum ModuleIds {
 pub enum TurbopackPluginRuntimeStrategy {
     #[cfg(feature = "worker_pool")]
     WorkerThreads,
-    #[cfg(feature = "process_pool")]
+    #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
     ChildProcesses,
 }
 
@@ -1150,6 +1150,9 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackChunkingConfig {
+    /// Groups of pages commonly visited together, each defined by a list of regular expressions
+    /// matched against the route pathname. The cluster ID is the index in this list.
+    clusters: Option<Vec<Vec<RegexComponents>>>,
     /// A number between `0.0..=1.0`. Higher values weight the benefit of merging
     /// chunks for a single page load more heavily. A site's bounce rate is a good
     /// approximation if you don't have a better value.
@@ -1183,10 +1186,12 @@ pub struct TurbopackChunkingConfig {
 
 #[turbo_tasks::value]
 pub struct TurbopackChunking {
+    /// The route-matching regexes for each user-defined cluster.
+    clusters: Vec<EsRegexSet>,
     /// First-page-load priority as an integer percentage (`0..=100`), or `None` if unset.
     pub first_page_load_priority: Option<u32>,
     /// Route-matching regexes for priority routes.
-    priority_routes: Vec<EsRegex>,
+    priority_routes: EsRegexSet,
     /// Priority-route boost as an integer percentage (e.g. `150` for a 1.5x boost), or
     /// `None` to use the default.
     pub priority_boost_percent: Option<u32>,
@@ -1206,33 +1211,35 @@ pub struct TurbopackChunking {
 
 impl TurbopackChunking {
     /// Compute the [`EntryHeuristics`] for a route `pathname` by matching it against the configured
-    /// priority-route regexes.
+    /// cluster and priority-route regexes.
     pub fn entry_heuristics_for(&self, pathname: &str) -> EntryHeuristics {
-        let high_priority = self
-            .priority_routes
+        let clusters = self
+            .clusters
             .iter()
-            .filter(|regex| regex.as_regex_str().is_none())
-            .any(|regex| regex.is_match(pathname))
-            || regex::RegexSet::new(
-                self.priority_routes
-                    .iter()
-                    .filter_map(|regex| regex.as_regex_str()),
-            )
-            .is_ok_and(|set| set.is_match(pathname));
-        EntryHeuristics { high_priority }
+            .enumerate()
+            .filter(|(_, regexes)| regexes.is_match(pathname))
+            .map(|(index, _)| index as u16)
+            .collect();
+        let high_priority = self.priority_routes.is_match(pathname);
+        EntryHeuristics {
+            clusters,
+            high_priority,
+        }
     }
 }
 
-/// Compile a list of route-matching [`RegexComponents`] into [`EsRegex`]es.
-fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<Vec<EsRegex>> {
-    patterns
+/// Compile a list of route-matching [`RegexComponents`] into an [`EsRegexSet`], which builds the
+/// combined [`regex::RegexSet`] up front so that matching a route doesn't have to.
+fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<EsRegexSet> {
+    let regexes = patterns
         .iter()
         .cloned()
         .map(|pattern| {
             EsRegex::try_from(pattern)
                 .context("Invalid route pattern in `experimental.turbopackChunking`")
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    Ok(EsRegexSet::new(regexes))
 }
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
@@ -1371,6 +1378,9 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    /// Forks the client router's entry-point modules to the experimental
+    /// concurrent router queue implementation via the import map.
+    concurrent_router_queue: Option<bool>,
     // `rename_all = "camelCase"` would lowercase the acronym to `blockingSsr`;
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
@@ -1421,6 +1431,11 @@ pub struct ExperimentalConfig {
     turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Only include children in a parallel route layout when ordinary route content declares it.
+    explicit_parallel_route_children: Option<bool>,
+    /// Omit catch-all-derived route matchers whose loader trees contain an unmatched parallel
+    /// route.
+    strict_route_matching: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1431,8 +1446,12 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    turbopack_mangle_export_names: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
+    /// Enable cross-module constant inlining. Defaults to false.
+    turbopack_cross_module_constants: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -1871,12 +1890,11 @@ impl OutputFileTracingIncludesExcludes {
                             .iter()
                             .flat_map(|pattern| pattern.iter())
                             .filter_map(|pattern| pattern.as_str())
-                            .map(async |pattern_str| {
+                            .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
                             })
-                            .try_join()
-                            .await?;
+                            .collect::<Result<Vec<_>>>()?;
                         Ok((route_pattern, file_patterns))
                     })
                     .try_join()
@@ -2004,6 +2022,20 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn is_global_not_found_enabled(&self) -> Vc<bool> {
         Vc::cell(self.experimental.global_not_found.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn explicit_parallel_route_children(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .explicit_parallel_route_children
+                .unwrap_or(true),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn strict_route_matching(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
@@ -2165,12 +2197,19 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn turbopack_chunking(&self) -> Result<Vc<TurbopackChunking>> {
         let config = self.experimental.turbopack_chunking.as_ref();
+        let clusters = config
+            .and_then(|c| c.clusters.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .map(|patterns| parse_route_regexes(patterns))
+            .collect::<Result<Vec<_>>>()?;
         let priority_routes = parse_route_regexes(
             config
                 .and_then(|c| c.priority_routes.as_deref())
                 .unwrap_or_default(),
         )?;
         Ok(TurbopackChunking {
+            clusters,
             first_page_load_priority: config
                 .and_then(|c| c.first_page_load_priority)
                 .map(|priority| (priority.clamp(0.0, 1.0) * 100.0).round() as u32),
@@ -2391,27 +2430,17 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_transition_indicator(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_gesture_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_blocking_ssr(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
                 .expose_testing_api_in_production_build
                 .unwrap_or(false),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_concurrent_router_queue(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.concurrent_router_queue.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -2440,6 +2469,16 @@ impl NextConfig {
                 Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
             }
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn use_react_experimental(&self) -> Vc<bool> {
+        // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+        let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
+        let taint = self.experimental.taint.unwrap_or(false);
+        let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
+        let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
+        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
     }
 
     #[turbo_tasks::function]
@@ -2545,6 +2584,22 @@ impl NextConfig {
         )
     }
 
+    /// Whether Turbopack should shorten ("mangle") the export names modules expose to each other.
+    ///
+    /// An explicit value always wins, in either direction — setting this to `true` in development
+    /// is honoured. `mode` only supplies the default when the option is unset: on in production
+    /// builds, off in development, where the extra module splitting costs rebuild time and the
+    /// short names make debugging harder for no benefit.
+    #[turbo_tasks::function]
+    pub async fn turbopack_mangle_export_names(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            match self.experimental.turbopack_mangle_export_names {
+                Some(explicit) => explicit,
+                None => !mode.await?.is_development(),
+            },
+        ))
+    }
+
     #[turbo_tasks::function]
     pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
         Vc::cell(
@@ -2555,10 +2610,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_cross_module_constants(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cross_module_constants
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
-        #[cfg(feature = "process_pool")]
+        // Child processes cannot be spawned from inside wasm, so worker threads are the only
+        // available runtime there.
+        #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
-        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        #[cfg(all(
+            feature = "worker_pool",
+            any(not(feature = "process_pool"), target_family = "wasm")
+        ))]
         let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
 
         self.experimental

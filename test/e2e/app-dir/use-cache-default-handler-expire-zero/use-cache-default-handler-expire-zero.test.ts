@@ -28,17 +28,17 @@ describe('use-cache-default-handler-expire-zero', () => {
       // The default handler skips storing the `expire: 0` entry (it would never
       // be served back in production)...
       expect(next.cliOutput).toMatch(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}]\] skipped dynamic entry/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] skipped dynamic entry/
       )
 
       // ...and never reports it as stored.
       expect(next.cliOutput).not.toMatch(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}]\] done/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] done/
       )
 
       // The short-lived (`expire: 60`) cache is still stored.
       expect(next.cliOutput).toMatch(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"short-lived"}]\] done/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"short-lived"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] done/
       )
     })
   } else {
@@ -50,16 +50,16 @@ describe('use-cache-default-handler-expire-zero', () => {
 
       // In development the default handler keeps `expire: 0` entries (its
       // minimum retention serves them warm across reloads), so it stores rather
-      // than skips. The dev cache key always carries a trailing HMR refresh
-      // hash element after the args array.
+      // than skips. The implementation parts include the build ID and a
+      // trailing HMR refresh hash.
       await retry(async () => {
         expect(next.cliOutput).toMatch(
-          /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}],"[^"]+"\] done/
+          /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")+\]\] done/
         )
       })
 
       expect(next.cliOutput).not.toMatch(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}],"[^"]+"\] skipped/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")+\]\] skipped/
       )
     })
   }

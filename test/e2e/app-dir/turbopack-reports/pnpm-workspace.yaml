@@ -1,0 +1,5 @@
+# `native-addon` is compiled by node-gyp during install, and pnpm does
+# not run a dependency's build scripts unless they are approved here. The repo
+# root uses the same key for the one package it allows to build.
+allowBuilds:
+  native-addon: true
