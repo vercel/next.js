@@ -73,6 +73,51 @@ describe('getParamsFromRouteMatches', () => {
 })
 
 describe('normalizeDynamicRouteParams', () => {
+  it('should omit an encoded default placeholder for a missing optional catch-all param', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+    const query = {
+      locale: 'en',
+      filterSlugs: ['%5B%5B...filterSlugs%5D%5D'],
+    }
+
+    expect(normalizeDynamicRouteParams(query, true)).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+    expect(query).toEqual({ locale: 'en' })
+  })
+
+  it('should omit a doubly encoded default placeholder for a missing optional catch-all param', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[locale]/[[...filterSlugs]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    expect(
+      normalizeDynamicRouteParams(
+        {
+          locale: 'en',
+          filterSlugs: '%255B%255B...filterSlugs%255D%255D',
+        },
+        true
+      )
+    ).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+  })
+
   it('should reject encoded default placeholders for dynamic params', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
       page: '/[teamSlug]/[project]',

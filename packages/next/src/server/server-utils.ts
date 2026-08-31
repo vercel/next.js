@@ -157,7 +157,6 @@ export function normalizeDynamicRouteParams(
     // to parse x-now-route-matches or not
     const defaultValue = defaultRouteMatches![key]
     const isOptional = defaultRouteRegex!.groups[key].optional
-
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
@@ -167,6 +166,13 @@ export function normalizeDynamicRouteParams(
       : Array.isArray(value)
         ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
         : isDefaultValueMatch(value, defaultValue as string)
+
+    // An optional route placeholder represents an omitted param. Remove it
+    // before validating defaults so the raw params object is normalized too.
+    if (isOptional && ignoreMissingOptional && isDefaultValue) {
+      delete query[key]
+      continue
+    }
 
     if (
       isDefaultValue ||
