@@ -1020,7 +1020,9 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
+        let mut result =
+            process_resolve_result_inner(self, *result.to_resolved().await?, reference_type)
+                .await?;
         let this = self.await?;
         if this.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
@@ -1040,114 +1042,7 @@ impl AssetContext for ModuleAssetContext {
         result: Vc<ResolveResult>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
-        let this = self.await?;
-
-        let replace_externals = this.replace_externals;
-        let import_externals = this
-            .module_options_context
-            .await?
-            .ecmascript
-            .import_externals;
-
-        let result = result.await?;
-
-        let result = result
-            .map_primary_items(|item| {
-                let reference_type = reference_type.clone();
-                async move {
-                    Ok(match item {
-                        ResolveResultItem::Source(source) => {
-                            match &*self.process(*source, reference_type).await? {
-                                ProcessResult::Module(module) => {
-                                    ModuleResolveResultItem::Module(*module)
-                                }
-                                ProcessResult::Unknown(source) => {
-                                    ModuleResolveResultItem::Unknown(*source)
-                                }
-                                ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
-                            }
-                        }
-                        ResolveResultItem::External {
-                            name,
-                            ty,
-                            traced,
-                            target,
-                        } => {
-                            let replacement = if replace_externals {
-                                // Determine the package folder, `target` is the full path to the
-                                // resolved file.
-                                let target = if let Some(mut target) = target {
-                                    loop {
-                                        let parent = target.parent();
-                                        if parent.is_root() {
-                                            break;
-                                        }
-                                        if parent.file_name() == "node_modules" {
-                                            break;
-                                        }
-                                        if parent.file_name().starts_with("@")
-                                            && parent.parent().file_name() == "node_modules"
-                                        {
-                                            break;
-                                        }
-                                        target = parent;
-                                    }
-                                    Some(target)
-                                } else {
-                                    None
-                                };
-
-                                let analyze_mode = if traced == ExternalTraced::Traced
-                                    && let Some(options) = &self
-                                        .module_options_context()
-                                        .await?
-                                        .enable_externals_tracing
-                                {
-                                    // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root (or
-                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
-
-                                    let options = options.await?;
-                                    let origin = PlainResolveOrigin::new(
-                                        Vc::upcast(externals_tracing_module_context(
-                                            *options.compile_time_info,
-                                            false,
-                                        )),
-                                        // If target is specified, a symlink will be created to
-                                        // make the folder
-                                        // itself available, but we still need to trace
-                                        // resolving the individual file(s) inside the package.
-                                        target
-                                            .as_ref()
-                                            .unwrap_or(&options.tracing_root)
-                                            .join("_")?,
-                                    );
-                                    CachedExternalTracingMode::Traced {
-                                        origin: ResolvedVc::upcast(origin.to_resolved().await?),
-                                    }
-                                } else {
-                                    CachedExternalTracingMode::Untraced
-                                };
-
-                                replace_external(&name, ty, target, import_externals, analyze_mode)
-                                    .await?
-                            } else {
-                                None
-                            };
-
-                            replacement
-                                .unwrap_or_else(|| ModuleResolveResultItem::External { name, ty })
-                        }
-                        ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
-                        ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                        ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
-                        ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
-                    })
-                }
-            })
-            .await?;
-
-        Ok(result.cell())
+        process_resolve_result_inner(self, result, reference_type).await
     }
 
     #[turbo_tasks::function]
@@ -1261,4 +1156,121 @@ pub async fn replace_external(
     Ok(Some(ModuleResolveResultItem::Module(ResolvedVc::upcast(
         module,
     ))))
+}
+
+/// The body of [`ModuleAssetContext::process_resolve_result`], as a plain async fn.
+///
+/// Callers that hold a concrete [`ModuleAssetContext`] call this directly. The task boundary on
+/// the trait method is not worth its bookkeeping here: on a large app the function runs ~223k
+/// times per production build with a near-zero cache-hit rate, so almost every call allocated a
+/// task, a cell and dependency edges for a value nothing read twice. The `process()` boundary
+/// inside still deduplicates module creation, which is the part that does get reused.
+async fn process_resolve_result_inner(
+    ctx: Vc<ModuleAssetContext>,
+    result: Vc<ResolveResult>,
+    reference_type: ReferenceType,
+) -> Result<Vc<ModuleResolveResult>> {
+    let this = ctx.await?;
+
+    let replace_externals = this.replace_externals;
+    let import_externals = this
+        .module_options_context
+        .await?
+        .ecmascript
+        .import_externals;
+
+    let result = result.await?;
+
+    let result = result
+        .map_primary_items(|item| {
+            let reference_type = reference_type.clone();
+            async move {
+                Ok(match item {
+                    ResolveResultItem::Source(source) => {
+                        match &*ctx.process(*source, reference_type).await? {
+                            ProcessResult::Module(module) => {
+                                ModuleResolveResultItem::Module(*module)
+                            }
+                            ProcessResult::Unknown(source) => {
+                                ModuleResolveResultItem::Unknown(*source)
+                            }
+                            ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+                        }
+                    }
+                    ResolveResultItem::External {
+                        name,
+                        ty,
+                        traced,
+                        target,
+                    } => {
+                        let replacement = if replace_externals {
+                            // Determine the package folder, `target` is the full path to the
+                            // resolved file.
+                            let target = if let Some(mut target) = target {
+                                loop {
+                                    let parent = target.parent();
+                                    if parent.is_root() {
+                                        break;
+                                    }
+                                    if parent.file_name() == "node_modules" {
+                                        break;
+                                    }
+                                    if parent.file_name().starts_with("@")
+                                        && parent.parent().file_name() == "node_modules"
+                                    {
+                                        break;
+                                    }
+                                    target = parent;
+                                }
+                                Some(target)
+                            } else {
+                                None
+                            };
+
+                            let analyze_mode = if traced == ExternalTraced::Traced
+                                && let Some(options) =
+                                    &ctx.module_options_context().await?.enable_externals_tracing
+                            {
+                                // result.affecting_sources can be ignored for tracing, as this
+                                // request will later be resolved relative to tracing_root (or
+                                // the .next/node_modules/lodash-1238123 symlink) anyway.
+
+                                let options = options.await?;
+                                let origin = PlainResolveOrigin::new(
+                                    Vc::upcast(externals_tracing_module_context(
+                                        *options.compile_time_info,
+                                        false,
+                                    )),
+                                    // If target is specified, a symlink will be created to
+                                    // make the folder
+                                    // itself available, but we still need to trace
+                                    // resolving the individual file(s) inside the package.
+                                    target.as_ref().unwrap_or(&options.tracing_root).join("_")?,
+                                );
+                                CachedExternalTracingMode::Traced {
+                                    origin: ResolvedVc::upcast(origin.to_resolved().await?),
+                                }
+                            } else {
+                                CachedExternalTracingMode::Untraced
+                            };
+
+                            replace_external(&name, ty, target, import_externals, analyze_mode)
+                                .await?
+                        } else {
+                            None
+                        };
+
+                        replacement
+                            .unwrap_or_else(|| ModuleResolveResultItem::External { name, ty })
+                    }
+                    ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+                    ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+                    ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
+                    ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
+                })
+            }
+        })
+        .await?;
+
+    Ok(result.cell())
 }
