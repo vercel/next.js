@@ -1,10 +1,11 @@
 ---
-title: navigation
+title: unstable_navigation
 description: API Reference for the unstable_navigation function, which keeps a subtree out of a route's prefetches so it renders when the user navigates.
 version: experimental
 related:
   links:
     - app/api-reference/functions/prefetch
+    - app/guides/adopting-partial-prefetching
     - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
     - app/api-reference/config/next-config-js/cacheComponents
@@ -12,13 +13,13 @@ related:
 
 Awaiting `unstable_navigation()` defers the code below it to the navigation, instead of rendering it when a link to the route is prefetched. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the prefetch, and the deferred content renders when the user navigates.
 
-It is meant to defer content that a prefetch would otherwise render, typically content that is gated by a runtime API and expensive to generate. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_navigation()` is prerendered as usual.
+It is meant to defer content that a prefetch would otherwise render, typically content that depends on session data or URL data and is expensive to generate. During a build-time prerender nothing is deferred, so content below `unstable_navigation()` is prerendered as usual.
 
 ## Usage
 
-The function requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and throws without it.
+The function requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and throws without it. It is meant for routes using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which you can enable globally or one route at a time by [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a route is rendered in stages, and content can arrive at any of three:
+A route is then rendered in stages, and content can arrive at any of three:
 
 1. The [App Shell](/docs/app/glossary#app-shell), which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
 2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
@@ -26,9 +27,23 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 
 Calling `unstable_navigation()` keeps content out of the App Shell and out of per-link prefetches, including the ones [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) requests, so it appears on the navigation.
 
-Enable Partial Prefetching globally with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial). Without that opt-in a default `<Link>` still defers the content, but [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) prefetches the route in a single step that includes it.
+Without Partial Prefetching, `unstable_navigation()` still defers the content for a default `<Link>`, but [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) fetches the whole route, deferred content included, the same as a navigation.
 
 To keep content out of the App Shell while still including it in a per-link prefetch, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch).
+
+The example assumes the post is linked with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), so the route receives a per-link prefetch:
+
+```tsx filename="app/page.tsx"
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/post/hello-world" prefetch={true}>
+      Hello world
+    </Link>
+  )
+}
+```
 
 Everything above `unstable_navigation()` renders in the prefetch, and everything below renders on the navigation. Place it above the code to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
@@ -100,21 +115,19 @@ async function getComments(slug, sort) {
 }
 ```
 
-The comments depend on the URL, so on their own they belong to a per-link prefetch. `unstable_navigation()` keeps them out of it, so they arrive on the navigation instead.
+The comments depend on the URL, so on their own they belong to a per-link prefetch. Awaiting `unstable_navigation()` keeps them out of it, so they render when the user navigates.
 
-The slug and the cookie are both read below `unstable_navigation()` and passed as arguments, so `getComments` caches per post and sort order rather than per visitor. Reading `params` there is safe, because the URL is resolved by the time the deferred content renders.
+The slug and the cookie are both read below `unstable_navigation()` and passed as arguments, so `getComments` caches per post and sort order rather than per visitor. The URL is resolved by the time the deferred content renders, so `params` is available below the call.
 
-Placement relative to a runtime API decides how the route is prefetched, and that decision is made once, when the route is built. A `cookies()` or `headers()` read above the call resolves when the route is prefetched, and only what depends on it is deferred. A read below the call is not counted, because a prefetch would never have resolved the call and so would never have reached it.
-
-It cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private). Put the directive on a function called below it, as `getComments` does here.
+Put the directive on a function called below it, as `getComments` does here. `unstable_navigation()` cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
 ## When to use it
 
-Most routes do not need this. Reach for it when a route reads session data and you want its prefetches to stay static, so that one build-time render serves every visitor rather than each prefetch being rendered for the visitor who asked.
+Reach for it when the content below `unstable_navigation()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want every prefetch of the route to generate it.
 
-Keeping that content out of a prefetch would otherwise mean leaving it uncached. With `unstable_navigation()` it can carry [`use cache`](/docs/app/api-reference/directives/use-cache) and a lifetime and still be deferred.
+Without `unstable_navigation`, keeping that content out of a prefetch would otherwise mean leaving it uncached.
 
-Leave it out when the content should already be on screen the moment the route commits.
+With `unstable_navigation()` the content can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache), given a lifetime, deferred to the navigation, and reused by the client-side router after the first time a user navigates into the route.
 
 ## Good to know
 

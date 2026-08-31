@@ -1,33 +1,37 @@
 ---
-title: prefetch
-description: API Reference for the unstable_prefetch function, which keeps a subtree out of a route's App Shell so it renders on a prefetch or a navigation.
+title: unstable_prefetch
+description: API Reference for the unstable_prefetch function, which keeps a subtree out of a route's App Shell so it renders on a per-link prefetch or a navigation.
 version: experimental
 related:
   links:
     - app/api-reference/functions/navigation
+    - app/guides/adopting-partial-prefetching
+    - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 Awaiting `unstable_prefetch()` defers the code below it to a per-link prefetch or a navigation, instead of rendering it in the route's [App Shell](/docs/app/glossary#app-shell). The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the shell, and the deferred content renders once one of those happens.
 
-It is meant to defer content that the App Shell would otherwise render, typically content that depends on session data and is expensive to generate. Uncached data is left out of a prefetch already, so it gains nothing. During a build-time prerender nothing is deferred, so content below `unstable_prefetch()` is prerendered as usual.
+It is meant to defer content that the App Shell would otherwise render, typically content that depends on session data and is expensive to generate. During a build-time prerender nothing is deferred, so content below `unstable_prefetch()` is prerendered as usual.
 
 ## Usage
 
-The function requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and throws without it. It also requires Partial Prefetching, without which it has no effect.
+The function requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and throws without it. It also requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which you can enable globally or one route at a time by [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a route is rendered in stages, and content can arrive at any of three:
+A route is then rendered in stages, and content can arrive at any of three:
 
 1. The App Shell, which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
 2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
 3. The navigation itself, which covers everything left.
 
-Calling `unstable_prefetch()` keeps content out of the App Shell, so it renders on a per-link prefetch or on the navigation. Enable Partial Prefetching globally with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial). Without that opt-in a route has no App Shell, so there is nothing to keep content out of.
+Calling `unstable_prefetch()` keeps content out of the App Shell, so it renders on a per-link prefetch or on the navigation.
+
+Without Partial Prefetching, a route has no App Shell, so there is nothing to keep content out of.
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`unstable_navigation()`](/docs/app/api-reference/functions/navigation).
 
-Everything above `unstable_prefetch()` renders in the App Shell, and everything below renders on the prefetch. Place it above the work to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
+Everything above `unstable_prefetch()` renders in the App Shell, and everything below renders on a per-link prefetch or on the navigation. Place it above the work to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
 ```tsx filename="app/dashboard/page.tsx" highlight={26} switcher
 import { Suspense } from 'react'
@@ -55,7 +59,7 @@ async function Greeting() {
 
 async function Recommendations() {
   const session = (await cookies()).get('session')?.value
-  await unstable_prefetch() // everything below renders on the prefetch
+  await unstable_prefetch() // everything below renders on a per-link prefetch
   const items = await getRecommendations(session)
   return <List items={items} />
 }
@@ -93,7 +97,7 @@ async function Greeting() {
 
 async function Recommendations() {
   const session = (await cookies()).get('session')?.value
-  await unstable_prefetch() // everything below renders on the prefetch
+  await unstable_prefetch() // everything below renders on a per-link prefetch
   const items = await getRecommendations(session)
   return <List items={items} />
 }
@@ -105,23 +109,22 @@ async function getRecommendations(session) {
 }
 ```
 
-Both components read the session themselves, and only the greeting stays in the shell. The session is read above `unstable_prefetch()`, so it resolves in the shell like any other session data, and only the content that depends on it is left out. Remove the call and the recommendations become part of the App Shell that every link into the route prefetches.
+Both components read the session themselves, and only the greeting stays in the shell. The session is read above `unstable_prefetch()`, so it resolves in the shell like any other session data, and only the content that depends on it is left out. Remove `unstable_prefetch()` and the recommendations become part of the App Shell that every link into the route prefetches.
 
-It cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private). Put the directive on a function called below it, as `getRecommendations` does here.
+Put the directive on a function called below it, as `getRecommendations` does here. `unstable_prefetch()` cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
 ## When to use it
 
-Most routes do not need this. The App Shell resolves session data, so content that depends on `cookies()` or `headers()` is part of the shell by default, and the shell is what every `<Link>` into the route prefetches. This keeps that content out of it, so the shell stays small and the content arrives on a per-link prefetch or on the navigation instead.
+Reach for it when the content below `unstable_prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route prefetches.
 
-Keeping that content out of the shell would otherwise mean leaving it uncached. With `unstable_prefetch()` it can carry [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) and a lifetime and still be deferred.
+Keeping that content out of the shell would otherwise mean leaving it uncached. With `unstable_prefetch()` it can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), given a lifetime, and deferred to a per-link prefetch or the navigation.
 
-Leave it out for content that does not depend on session data. Uncached reads, values with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time, and anything behind `params` or `searchParams` are already left out of the shell on their own.
+Uncached reads, values with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time, and anything behind `params` or `searchParams` are already left out of the shell on their own.
 
 ## Good to know
 
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
-- Content that depends on the URL, through `params` or `searchParams`, is already left out of the App Shell on its own.
 - A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 
