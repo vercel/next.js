@@ -18,9 +18,12 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{
+        ChunkableModule, ChunkingType,
+        available_modules::{AvailableModuleItem, AvailableModulesSet},
+    },
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData, module_batches::BatchingConfig},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
@@ -95,7 +98,130 @@ pub struct ChunkGroupInfo {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    /// Direct parent chunk groups for each chunk group, indexed like `chunk_groups`.
+    pub chunk_group_parents: Vec<RoaringBitmapWrapper>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
+}
+
+#[turbo_tasks::value]
+struct CanonicalChunkGroupAvailability {
+    items: Vec<AvailableModuleItem>,
+    available_before: Vec<RoaringBitmapWrapper>,
+}
+
+#[turbo_tasks::function]
+async fn canonical_chunk_group_availability(
+    module_graph: ResolvedVc<ModuleGraph>,
+    batching_config: ResolvedVc<BatchingConfig>,
+) -> Result<Vc<CanonicalChunkGroupAvailability>> {
+    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+    let module_batches = module_graph.module_batches(*batching_config).await?;
+    let item_chunk_groups = module_batches
+        .available_items_with_chunk_groups(&module_chunk_groups)
+        .await?;
+
+    let mut items = Vec::with_capacity(item_chunk_groups.len());
+    // These are items available after the group, even when caller availability lets emission omit
+    // one. In that case the item was already available before the group on that caller's path.
+    let mut own_items = vec![RoaringBitmap::new(); chunk_group_info.chunk_groups.len()];
+    for (item, chunk_groups) in item_chunk_groups {
+        let item_index = items.len() as u32;
+        items.push(item);
+        for chunk_group in chunk_groups.iter() {
+            own_items[chunk_group as usize].insert(item_index);
+        }
+    }
+
+    // An async loader is emitted in every direct parent of its target group. Treat it like any
+    // other item so nested async groups can reuse a loader that is available on every path.
+    for (index, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+        let ChunkGroup::Async(module) = chunk_group else {
+            continue;
+        };
+        let Some(module) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module) else {
+            continue;
+        };
+        let item_index = items.len() as u32;
+        items.push(AvailableModuleItem::AsyncLoader(module));
+        for parent in chunk_group_info.chunk_group_parents[index].iter() {
+            own_items[parent as usize].insert(item_index);
+        }
+    }
+
+    // This is a forward must-analysis. A module is available before a group only when it is
+    // available after every parent. Starting non-root groups at the top value also handles cycles:
+    // reachable root information removes assumptions until the fixed point is reached.
+    let all_items = RoaringBitmap::from_iter(0..items.len() as u32);
+    let mut available_after = vec![all_items.clone(); chunk_group_info.chunk_groups.len()];
+    let mut chunk_group_children = vec![RoaringBitmap::new(); chunk_group_info.chunk_groups.len()];
+    let mut pending = RoaringBitmap::new();
+    for (index, parents) in chunk_group_info.chunk_group_parents.iter().enumerate() {
+        if parents.is_empty() {
+            available_after[index] = own_items[index].clone();
+            pending.insert(index as u32);
+        }
+        for parent in parents.iter() {
+            chunk_group_children[parent as usize].insert(index as u32);
+        }
+    }
+
+    while let Some(index) = pending.min() {
+        pending.remove(index);
+        for child in chunk_group_children[index as usize].iter() {
+            let child_index = child as usize;
+            let parents = &chunk_group_info.chunk_group_parents[child_index];
+            let mut next = all_items.clone();
+            for parent in parents.iter() {
+                next &= &available_after[parent as usize];
+            }
+            next |= &own_items[child_index];
+            if next != available_after[child_index] {
+                available_after[child_index] = next;
+                pending.insert(child);
+            }
+        }
+    }
+
+    let available_before = chunk_group_info
+        .chunk_group_parents
+        .iter()
+        .map(|parents| {
+            let mut available = all_items.clone();
+            if parents.is_empty() {
+                available.clear();
+            } else {
+                for parent in parents.iter() {
+                    available &= &available_after[parent as usize];
+                }
+            }
+            RoaringBitmapWrapper(available)
+        })
+        .collect();
+
+    Ok(CanonicalChunkGroupAvailability {
+        items,
+        available_before,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn canonical_async_available_modules(
+    module_graph: ResolvedVc<ModuleGraph>,
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    batching_config: ResolvedVc<BatchingConfig>,
+) -> Result<Vc<AvailableModulesSet>> {
+    let chunk_group_info = module_graph.chunk_group_info();
+    let chunk_group_index = *chunk_group_info
+        .get_index_of(ChunkGroup::Async(ResolvedVc::upcast(module)))
+        .await?;
+    let availability = canonical_chunk_group_availability(*module_graph, *batching_config).await?;
+    let available = availability.available_before[chunk_group_index]
+        .iter()
+        .map(|index| availability.items[index as usize])
+        .collect();
+    Ok(AvailableModulesSet::new(available).cell())
 }
 
 /// Chunking heuristics computed by [`compute_chunk_group_info`]. `clusters` is indexed by
@@ -586,8 +712,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             })
             .collect::<FxHashMap<_, _>>();
 
-        // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
-        let mut inherits_from: FxHashMap<u32, RoaringBitmap> = FxHashMap::default();
+        // `chunk_group_children[source]` contains every chunk group directly referenced from
+        // `source`. The chunking heuristics and canonical async availability both use this graph.
+        let mut chunk_group_children: FxHashMap<u32, RoaringBitmap> = FxHashMap::default();
 
         let visit_count = graph.traverse_edges_fixed_point_with_priority(
             entries
@@ -733,12 +860,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             // groups inherit from their specific parent group; all other groups
                             // inherit from every chunk group of the referencing module.
                             if let Some(parent) = merged_parent {
-                                inherits_from.entry(parent).or_default().insert(id);
+                                chunk_group_children.entry(parent).or_default().insert(id);
                             } else if let Some((parent_module, _, _)) = parent_info
                                 && let Some(parent_groups) = module_chunk_groups.get(&parent_module)
                             {
                                 for source in parent_groups.iter() {
-                                    inherits_from.entry(source).or_default().insert(id);
+                                    chunk_group_children.entry(source).or_default().insert(id);
                                 }
                             }
                             id
@@ -894,7 +1021,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         while let Some(source) = worklist.pop() {
             let source_priority_route = priority_routes.contains(source as u32);
-            let Some(targets) = inherits_from.get(&(source as u32)) else {
+            let Some(targets) = chunk_group_children.get(&(source as u32)) else {
                 continue;
             };
             for target in targets.iter() {
@@ -920,9 +1047,17 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .collect();
         let chunk_group_priority_routes = RoaringBitmapWrapper(priority_routes);
 
+        let mut chunk_group_parents = vec![RoaringBitmapWrapper::default(); chunk_groups_map.len()];
+        for (&source, targets) in &chunk_group_children {
+            for target in targets {
+                chunk_group_parents[target as usize].insert(source);
+            }
+        }
+
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
+            chunk_group_parents,
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
