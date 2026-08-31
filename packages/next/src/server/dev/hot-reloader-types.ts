@@ -65,6 +65,7 @@ export interface ServerErrorMessage {
 export interface TurbopackMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
+  hmrVersion: string
 }
 
 export interface BuildingMessage {
@@ -117,6 +118,7 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  hmrVersion?: string
 }
 
 /**
@@ -151,7 +153,7 @@ export interface DevPagesManifestUpdateMessage {
 
 export interface TurbopackConnectedMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-  data: { sessionId: number }
+  data: { sessionId: number; hmrVersion: string }
 }
 
 export interface AppIsrManifestMessage {
@@ -232,10 +234,15 @@ export type TurbopackMessageSentToBrowser =
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
       data: any
+      hmrVersion: string
     }
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      data: { sessionId: number }
+      data: { sessionId: number; hmrVersion: string }
+    }
+  | {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+      hmrVersion?: string
     }
 
 export interface NextJsHotReloaderInterface {

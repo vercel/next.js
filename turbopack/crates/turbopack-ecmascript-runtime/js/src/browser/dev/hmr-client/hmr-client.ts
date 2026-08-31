@@ -7,10 +7,16 @@ type SendMessage = (msg: any) => void
 export type WebSocketMessage =
   | {
       type: 'turbopack-connected'
+      data?: { hmrVersion: string }
     }
   | {
       type: 'turbopack-message'
       data: Record<string, any>
+      hmrVersion?: string
+    }
+  | {
+      type: 'server-component-changes'
+      hmrVersion?: string
     }
 
 export type ClientOptions = {
@@ -23,6 +29,8 @@ export type ClientOptions = {
 export const TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL =
   'TURBOPACK_CHUNK_UPDATE_LISTENERS'
 
+let lastSeenHmrVersion: string | undefined
+
 export function connect({
   addMessageListener,
   sendMessage,
@@ -32,9 +40,13 @@ export function connect({
   addMessageListener((msg) => {
     switch (msg.type) {
       case 'turbopack-connected':
+        if (lastSeenHmrVersion === undefined && msg.data !== undefined) {
+          lastSeenHmrVersion = msg.data.hmrVersion
+        }
         handleSocketConnected(sendMessage)
         break
-      default:
+      case 'turbopack-message':
+        lastSeenHmrVersion = msg.hmrVersion
         try {
           if (Array.isArray(msg.data)) {
             for (let i = 0; i < msg.data.length; i++) {
@@ -56,6 +68,11 @@ export function connect({
           onUpdateError(e)
           location.reload()
         }
+        break
+      case 'server-component-changes':
+        lastSeenHmrVersion = msg.hmrVersion
+        break
+      default:
         break
     }
   })
@@ -108,6 +125,7 @@ function subscribeToUpdates(
   sendJSON(sendMessage, {
     type: 'turbopack-subscribe',
     ...resource,
+    hmrVersion: lastSeenHmrVersion,
   })
 
   return () => {
