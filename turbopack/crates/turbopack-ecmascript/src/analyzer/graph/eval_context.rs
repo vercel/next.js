@@ -175,13 +175,13 @@ impl EvalContext {
                 // Only treat literals as constant undefined, allowing arbitrary values inside here
                 // would mean that they can have sideeffects, and `JsValue::Constant` can't model
                 // that.
-                arg: box Expr::Lit(_),
+                arg: Expr::Lit(_),
                 ..
             }) => JsValue::Constant(ConstantValue::Undefined),
 
             Expr::Unary(UnaryExpr {
                 op: op!(unary, "-"),
-                arg: box Expr::Lit(Lit::Num(n)),
+                arg: Expr::Lit(Lit::Num(n)),
                 ..
             }) => JsValue::Constant(ConstantValue::Num(ConstantNumber(-n.value))),
 
@@ -288,9 +288,9 @@ impl EvalContext {
             }) => JsValue::r#in(arena, self.eval(arena, left), self.eval(arena, right)),
 
             &Expr::Cond(CondExpr {
-                box ref cons,
-                box ref alt,
-                box ref test,
+                ref cons,
+                ref alt,
+                ref test,
                 ..
             }) => {
                 let test = self.eval(arena, test);
@@ -309,8 +309,8 @@ impl EvalContext {
 
             Expr::TaggedTpl(TaggedTpl {
                 tag:
-                    box Expr::Member(MemberExpr {
-                        obj: box Expr::Ident(tag_obj),
+                    Expr::Member(MemberExpr {
+                        obj: Expr::Ident(tag_obj),
                         prop: MemberProp::Ident(tag_prop),
                         ..
                     }),
@@ -380,11 +380,7 @@ impl EvalContext {
                 JsValue::member(arena, obj, prop)
             }
 
-            Expr::New(NewExpr {
-                callee: box callee,
-                args,
-                ..
-            }) => {
+            Expr::New(NewExpr { callee, args, .. }) => {
                 let args = args.as_deref().unwrap_or(&[]);
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
@@ -402,7 +398,7 @@ impl EvalContext {
             }
 
             Expr::Call(CallExpr {
-                callee: Callee::Expr(box callee),
+                callee: Callee::Expr(callee),
                 args,
                 ..
             }) => {
@@ -505,13 +501,13 @@ impl EvalContext {
                     PropOrSpread::Spread(SpreadElement { expr, .. }) => {
                         ObjectPart::Spread(self.eval(arena, expr))
                     }
-                    PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
+                    PropOrSpread::Prop(Prop::KeyValue(KeyValueProp { key, value })) => {
                         ObjectPart::KeyValue(
                             self.eval_prop_name(arena, key),
                             self.eval(arena, value),
                         )
                     }
-                    PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
+                    PropOrSpread::Prop(Prop::Shorthand(ident)) => ObjectPart::KeyValue(
                         ident.sym.clone().into(),
                         self.eval(arena, &Expr::Ident(ident.clone())),
                     ),

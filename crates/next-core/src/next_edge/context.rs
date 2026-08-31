@@ -139,6 +139,9 @@ pub async fn get_edge_resolve_options_context(
         fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
 
         ..Default::default()

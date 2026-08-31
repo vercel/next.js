@@ -51,7 +51,7 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
     if let Expr::Array(arr) = &*call.args[1].expr {
         for elem in arr.elems.iter().flatten() {
             if let ExprOrSpread {
-                expr: box Expr::Call(_),
+                expr: Expr::Call(_),
                 ..
             } = elem
             {
@@ -137,7 +137,7 @@ impl Fold for OptimizeServerReact {
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         if let Expr::Call(call) = &expr {
-            if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
+            if let Callee::Expr(Expr::Ident(f)) = &call.callee {
                 // Mark `useEffect` as DCE'able
                 if let Some(use_effect_ident) = &self.use_effect_ident
                     && &f.to_id() == use_effect_ident
@@ -154,7 +154,7 @@ impl Fold for OptimizeServerReact {
                     return wrap_expr_with_env_prod_condition(call.clone());
                 }
             } else if let Some(react_ident) = &self.react_ident
-                && let Callee::Expr(box Expr::Member(member)) = &call.callee
+                && let Callee::Expr(Expr::Member(member)) = &call.callee
                 && let Expr::Ident(f) = &*member.obj
                 && &f.to_id() == react_ident
                 && let MemberProp::Ident(i) = &member.prop
@@ -179,8 +179,8 @@ impl Fold for OptimizeServerReact {
 
         if let Pat::Array(array_pat) = &decl.name
             && array_pat.elems.len() == 2
-            && let Some(box Expr::Call(call)) = &decl.init
-            && let Callee::Expr(box Expr::Ident(f)) = &call.callee
+            && let Some(Expr::Call(call)) = &decl.init
+            && let Callee::Expr(Expr::Ident(f)) = &call.callee
             && let Some(use_state_ident) = &self.use_state_ident
             && &f.to_id() == use_state_ident
             && call.args.len() == 1

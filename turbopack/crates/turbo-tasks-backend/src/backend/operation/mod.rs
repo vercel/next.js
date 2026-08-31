@@ -796,6 +796,22 @@ fn restored_from_disk(result: &Option<Result<Option<TaskStorage>>>) -> bool {
     matches!(result, Some(Ok(Some(_))))
 }
 
+/// The priority a task is scheduled with: an already computed task is a re-computation of a
+/// (possibly deep) dependency, everything else starts at the initial priority.
+fn schedule_priority(task: &impl TaskGuard, parent_priority: TaskPriority) -> TaskPriority {
+    let priority = if task.has_output() {
+        TaskPriority::invalidation(
+            task.get_leaf_distance()
+                .copied()
+                .unwrap_or_default()
+                .distance,
+        )
+    } else {
+        TaskPriority::initial()
+    };
+    priority.in_parent(parent_priority)
+}
+
 /// Combines per-category booleans into a single `TaskDataCategory` for waiting.
 fn wait_category(wait_data: bool, wait_meta: bool) -> Option<TaskDataCategory> {
     match (wait_data, wait_meta) {
@@ -1095,18 +1111,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
-        let priority = if task.has_output() {
-            TaskPriority::invalidation(
-                task.get_leaf_distance()
-                    .copied()
-                    .unwrap_or_default()
-                    .distance,
-            )
-        } else {
-            TaskPriority::initial()
-        };
-        self.turbo_tasks
-            .schedule(task.id(), priority.in_parent(parent_priority));
+        let priority = schedule_priority(&task, parent_priority);
+        self.turbo_tasks.schedule(task.id(), priority);
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {
@@ -1261,6 +1267,30 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         } else {
             self.set_aggregated_current_session_clean_container_count(new_value);
         }
+        new_value
+    }
+
+    /// Adjust the count of persistent parents referencing this task by `delta`
+    ///
+    /// Panics on underflow/overflow
+    fn update_and_get_parent_count(&mut self, delta: i32) -> u32 {
+        let current = self.get_parent_count().copied().unwrap_or(0);
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("parent_count underflow: decremented below the number of persistent parents");
+        self.set_parent_count(new_value);
+        new_value
+    }
+
+    /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
+    /// reference count
+    /// Panics on underflow/overflow.
+    fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
+        let current = self.get_transient_ref_count().copied().unwrap_or(0);
+        let new_value = current
+            .checked_add_signed(delta)
+            .expect("transient_ref_count underflow");
+        self.set_transient_ref_count(new_value);
         new_value
     }
 
@@ -1651,6 +1681,7 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
         self.task.undo_track_modification(outcome);
     }
 
+    #[track_caller]
     fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
         self.check_access(category);
     }

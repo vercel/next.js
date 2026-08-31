@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
                         })
                     }
                 })
-                .map(|glob| async move {
+                .map(async |glob| {
                     Ok(match glob {
                         Either::Left(glob) => {
                             match glob.to_resolved().await {
@@ -288,6 +288,38 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// A view of these exports for a module that *borrows* them from another module, i.e. whose
+    /// `get_exports` hands out the exports value of some other module verbatim.
+    ///
+    /// Export mangling is decided per module: the producing side keys on the module whose code
+    /// generation emits the export object, and the consuming side on the module it imports from.
+    /// An exports value shared by two module identities would let those two sides compute
+    /// different keys for the same export, so a borrowed view is always unmangled — which both
+    /// sides agree on.
+    #[turbo_tasks::function]
+    pub async fn borrowed(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        let this = self.await?;
+        Ok(match &*this {
+            EcmascriptExports::EsmExports(exports) => {
+                let exports = exports.await?;
+                if !exports.mangle_export_names {
+                    return Ok(self);
+                }
+                EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: exports.exports.clone(),
+                        star_exports: exports.star_exports.clone(),
+                        mangle_export_names: false,
+                    }
+                    .resolved_cell(),
+                )
+                .cell()
+            }
+            // Nothing else carries a mangling decision.
+            _ => self,
+        })
+    }
+
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
     /// Splitting is enabled when the module has re-exports (star exports or imported bindings),

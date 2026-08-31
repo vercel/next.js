@@ -405,8 +405,7 @@ export default class DevServer extends Server {
         request.url.includes('/_next/static') ||
         request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
-        request.url.includes('/__nextjs_source-map') ||
-        request.url.includes('/__nextjs_error_feedback')
+        request.url.includes('/__nextjs_source-map')
       ) {
         return { finished: false }
       }
@@ -773,6 +772,9 @@ export default class DevServer extends Server {
           deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),

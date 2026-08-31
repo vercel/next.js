@@ -1,5 +1,5 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 
 mod backend;
 mod backing_storage;
@@ -25,19 +25,33 @@ pub use crate::{
     kv_backing_storage::TurboBackingStorage,
 };
 
+/// Options controlling how the on-disk persistent cache database is opened and compacted.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BackingStorageOptions {
+    /// Whether the process is running in a CI environment. Enables more aggressive (full)
+    /// compaction on shutdown to reduce the size of the cache that gets uploaded.
+    pub is_ci: bool,
+    /// Whether this is a short-lived session (e.g. a single build). Disables background
+    /// persistence during the session
+    pub is_short_session: bool,
+    /// Whether to skip database compaction on shutdown entirely
+    pub skip_compaction: bool,
+}
+
 /// Creates a `BackingStorage` to be passed to [`TurboTasksBackend::new`].
 ///
 /// Information about the state of the on-disk cache is returned using [`StartupCacheState`].
 pub fn turbo_backing_storage(
     base_path: &Path,
     version_info: &GitVersionInfo,
-    is_ci: bool,
-    is_short_session: bool,
-    skip_compaction: bool,
+    options: BackingStorageOptions,
 ) -> Result<(TurboBackingStorage, StartupCacheState)> {
-    TurboBackingStorage::open_versioned_on_disk(base_path.to_owned(), version_info, is_ci, |path| {
-        TurboKeyValueDatabase::new(path, is_ci, is_short_session, skip_compaction)
-    })
+    TurboBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        options.is_ci,
+        |path| TurboKeyValueDatabase::new(path, options),
+    )
 }
 
 /// Creates an in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`]. Backed by

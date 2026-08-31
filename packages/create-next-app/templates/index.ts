@@ -60,6 +60,7 @@ export const installTemplate = async ({
   skipInstall,
   bundler,
   reactCompiler,
+  cacheComponents,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -145,6 +146,24 @@ export const installTemplate = async ({
     configContent = configContent.replace(
       "/* config options here */\n",
       "/* config options here */\n  reactCompiler: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
+  if (cacheComponents) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    // `partialPrefetching` is enabled alongside `cacheComponents` because the
+    // only reason to disable it is when adopting `cacheComponents` from before
+    // the option existed.
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  cacheComponents: true,\n  partialPrefetching: true,\n",
     );
 
     await fs.writeFile(nextConfigFile, configContent);

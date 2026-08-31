@@ -43,7 +43,7 @@ bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
-hashbrown = { workspace = true, features = ["raw"] }
+hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
 lzzzz = { workspace = true, optional = true }
@@ -77,6 +77,9 @@ thiserror = { workspace = true }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }
+# The read-outcome tests assert on the counters, so they need them compiled in. Only for tests —
+# normal builds of this crate get the default (disabled) turbo-tasks.
+turbo-tasks = { workspace = true, features = ["inline_execution_stats"] }
 
 
 [[bench]]
