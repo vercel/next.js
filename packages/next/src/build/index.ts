@@ -4658,7 +4658,7 @@ export default async function build(
       await shutdownPromise
 
       if (NextBuildContext.analyze) {
-        const analyzeDir = path.join(dir, '.next/diagnostics/analyze')
+        const analyzeDir = path.join(distDir, 'diagnostics/analyze')
         await cp(path.join(__dirname, '../bundle-analyzer'), analyzeDir, {
           recursive: true,
         })

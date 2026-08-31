@@ -34,8 +34,9 @@ export function formatSnapshotLabel(metadata: SnapshotMetadata): string {
   if (metadata.baselineName) return metadata.baselineName
   const sha = metadata.gitShortSha ? metadata.gitShortSha : null
   const branch = metadata.gitBranch ?? null
-  if (branch && sha) return `${branch}@${sha}${metadata.gitDirty ? '*' : ''}`
-  if (sha) return `${sha}${metadata.gitDirty ? '*' : ''}`
+  if (branch && sha)
+    return `${branch}@${sha}${metadata.gitDirty ? ' (dirty)' : ''}`
+  if (sha) return `${sha}${metadata.gitDirty ? ' (dirty)' : ''}`
   if (branch) return branch
   return formatRelativeTime(metadata.createdAt)
 }

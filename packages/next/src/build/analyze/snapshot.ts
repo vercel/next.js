@@ -1,6 +1,5 @@
 import * as path from 'node:path'
-import * as fs from 'node:fs'
-import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 
 import {
   getGitBranch,
@@ -8,8 +7,6 @@ import {
   getGitDirty,
   getGitMessage,
 } from '../../lib/helpers/git'
-import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
-
 /**
  * Maximum number of historical snapshots to keep on disk by default. When the
  * history exceeds this number, the oldest snapshots are pruned.
@@ -66,7 +63,7 @@ const HISTORY_INDEX_FILENAME = 'history.json'
 interface BuildSnapshotInputs {
   /** Absolute path to the Next.js project root (the directory containing `next.config.*`). */
   projectDir: string
-  /** Absolute path of the analyzer output directory (`.next/diagnostics/analyze`). */
+  /** Absolute path of the analyzer output directory (`<distDir>/diagnostics/analyze`). */
   analyzeDir: string
   /** List of route page paths captured in this snapshot. */
   routes: string[]
@@ -140,12 +137,9 @@ export async function writeAnalyzeSnapshot({
   // 2. Snapshot the entire data dir into history/<id>/.
   const snapshotDir = path.join(historyDir, id)
   await mkdir(historyDir, { recursive: true })
-  // If the same id already exists (same second + same sha) replace it so the
-  // latest run wins. Use Windows-safe deletion with retry logic.
-  if (fs.existsSync(snapshotDir)) {
-    await recursiveDeleteSyncWithAsyncRetries(snapshotDir)
-    fs.rmdirSync(snapshotDir)
-  }
+  // If the same id already exists (same second + same sha), replace it so the
+  // latest run wins. maxRetries handles transient Windows filesystem locks.
+  await rm(snapshotDir, { recursive: true, force: true, maxRetries: 3 })
   await cp(dataDir, snapshotDir, { recursive: true })
 
   // 3. Rebuild the history index.
@@ -195,9 +189,7 @@ async function rewriteHistoryIndex(
     try {
       const text = await readFile(metadataPath, 'utf8')
       const parsed = JSON.parse(text) as SnapshotMetadata
-      // Trust the on-disk metadata's id if present, otherwise fall back to
-      // the directory name (backwards compat / hand-edited cases).
-      snapshots.push({ ...parsed, id: parsed.id ?? entry })
+      snapshots.push(parsed)
     } catch {
       // Ignore unreadable / non-snapshot entries.
     }
@@ -210,15 +202,13 @@ async function rewriteHistoryIndex(
   const kept = snapshots.slice(0, maxHistory)
   const pruned = snapshots.slice(maxHistory)
   await Promise.all(
-    pruned.map(async (snapshot) => {
-      const snapshotDir = path.join(historyDir, snapshot.id)
-      await recursiveDeleteSyncWithAsyncRetries(snapshotDir)
-      try {
-        fs.rmdirSync(snapshotDir)
-      } catch {
-        // Already gone or non-empty due to a race — not fatal.
-      }
-    })
+    pruned.map((snapshot) =>
+      rm(path.join(historyDir, snapshot.id), {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+      })
+    )
   )
 
   const index: HistoryIndex = { snapshots: kept }

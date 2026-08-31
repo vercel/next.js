@@ -1,13 +1,17 @@
-import { execSync } from 'child_process'
+import { spawnSync } from 'node:child_process'
 
-function gitExec(args: string, cwd: string): string {
-  return execSync(`git ${args}`, {
+function gitExec(args: string[], cwd: string): string {
+  const result = spawnSync('git', args, {
     cwd,
     timeout: 2000,
     stdio: ['ignore', 'pipe', 'ignore'],
+    encoding: 'utf8',
   })
-    .toString()
-    .trim()
+  if (result.error) throw result.error
+  if (result.status !== 0) {
+    throw new Error(`git ${args[0]} exited with status ${result.status}`)
+  }
+  return result.stdout.trim()
 }
 
 /**
@@ -23,7 +27,7 @@ export function getGitBranch(cwd: string): string | undefined {
     // symbolic-ref --short HEAD: returns the branch name for regular branches,
     // works on repos with no commits, and exits non-zero in detached HEAD state
     // (caught below and treated as unknown).
-    return gitExec('symbolic-ref --short HEAD', cwd)
+    return gitExec(['symbolic-ref', '--short', 'HEAD'], cwd)
   } catch {
     return undefined
   }
@@ -39,7 +43,7 @@ export function getGitCommit(cwd: string): string | undefined {
     return process.env.VERCEL_GIT_COMMIT_SHA
   }
   try {
-    return gitExec('rev-parse HEAD', cwd)
+    return gitExec(['rev-parse', 'HEAD'], cwd)
   } catch {
     return undefined
   }
@@ -52,8 +56,7 @@ export function getGitCommit(cwd: string): string | undefined {
  */
 export function getGitDirty(cwd: string): boolean | undefined {
   try {
-    const output = gitExec('status --porcelain', cwd)
-    return output.length > 0
+    return gitExec(['status', '--porcelain'], cwd).length > 0
   } catch {
     return undefined
   }
@@ -68,7 +71,7 @@ export function getGitMessage(cwd: string): string | undefined {
     return process.env.VERCEL_GIT_COMMIT_MESSAGE.split('\n')[0].trim()
   }
   try {
-    return gitExec('log -1 --pretty=%s', cwd)
+    return gitExec(['log', '-1', '--pretty=%s'], cwd)
   } catch {
     return undefined
   }
