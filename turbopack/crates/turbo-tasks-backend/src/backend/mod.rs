@@ -2,6 +2,7 @@ mod cell_data;
 mod counter_map;
 mod eviction;
 mod gc;
+mod id_reuse;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -27,6 +28,7 @@ use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
+use id_reuse::{DEFAULT_ID_REUSE_DELAY_CYCLES, DeferredIdReuse};
 use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -169,6 +171,11 @@ pub struct BackendOptions {
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
     /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
+
+    /// How many snapshot cycles a GC-freed task id waits before it may be reused. `None`
+    /// (default) uses [`DEFAULT_ID_REUSE_DELAY_CYCLES`]. `0` reuses as soon as the next cycle
+    /// ends, which is what tests use to maximize aliasing pressure.
+    pub id_reuse_delay_cycles: Option<u32>,
 }
 
 impl Default for BackendOptions {
@@ -181,8 +188,9 @@ impl Default for BackendOptions {
             small_preallocation: false,
             eviction_mode: EvictionMode::Off,
             gc: None,
-            gc_root_ttl: None,
             gc_min_progress: None,
+            gc_root_ttl: None,
+            id_reuse_delay_cycles: None,
         }
     }
 }
@@ -231,6 +239,9 @@ pub struct TurboTasksBackend {
     start_time: Instant,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
+    /// Task ids freed by GC that are waiting out their deferral window before being handed back to
+    /// `persisted_task_id_factory`. See [`DeferredIdReuse`].
+    deferred_id_reuse: DeferredIdReuse,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
     storage: Storage,
@@ -314,6 +325,9 @@ impl TurboTasksBackend {
         let small_preallocation = options.small_preallocation;
         let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
         let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
+        let id_reuse_delay_cycles = options
+            .id_reuse_delay_cycles
+            .unwrap_or(DEFAULT_ID_REUSE_DELAY_CYCLES);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
@@ -335,6 +349,7 @@ impl TurboTasksBackend {
             options,
             gc_enabled,
             start_time: Instant::now(),
+            deferred_id_reuse: DeferredIdReuse::new(id_reuse_delay_cycles),
             persisted_task_id_factory: IdFactoryWithReuse::new(
                 next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
@@ -410,6 +425,38 @@ impl TurboTasksBackend {
         )
     }
 
+    /// Hands the ids an eviction sweep freed to the deferral queue, ends the cycle, and returns
+    /// whatever has now waited long enough to the id factory.
+    ///
+    /// # Safety of the `reuse` calls
+    ///
+    /// Each id released here named a GC-deleted task that `evict_after_snapshot` erased from the
+    /// resident map and the task cache, whose tombstone was committed by the snapshot that ran
+    /// immediately before, and which has since sat out its deferral window. Nothing can resolve it
+    /// any more, which is what [`IdFactoryWithReuse::reuse`] requires.
+    fn recycle_freed_task_ids(&self, freed: Vec<TaskId>) {
+        let freed_count = freed.len();
+        self.deferred_id_reuse.defer(freed);
+        let released = self.deferred_id_reuse.advance_cycle();
+        // The headline number for this feature is density: peak allocated id vs. peak live tasks.
+        // A ratio that climbs over a long session means ids are not coming back.
+        tracing::trace!(
+            target: "turbo_tasks_backend::id_reuse",
+            freed = freed_count,
+            released = released.len(),
+            pending = self.deferred_id_reuse.pending(),
+            resident = self.storage.resident_persistent_task_count_for_testing(),
+        );
+        for id in released {
+            debug_assert!(
+                !id.is_transient(),
+                "only persistent task ids are collected by GC"
+            );
+            // SAFETY: see the doc comment above.
+            unsafe { self.persisted_task_id_factory.reuse(id) };
+        }
+    }
+
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
     /// This is exposed for integration tests that need to verify the
@@ -437,7 +484,8 @@ impl TurboTasksBackend {
                 return TestSnapshotOutcome::default();
             }
         };
-        let eviction_counts = self.storage.evict_after_snapshot(None);
+        let (eviction_counts, freed_ids) = self.storage.evict_after_snapshot(None);
+        self.recycle_freed_task_ids(freed_ids);
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
@@ -448,6 +496,18 @@ impl TurboTasksBackend {
     /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
     /// [`Storage::resident_persistent_task_count_for_testing`] for why the metric excludes
     /// transient tasks.
+    #[doc(hidden)]
+    /// `(pending_deferral, next_fresh_id)`: how many freed ids are waiting out their window, and
+    /// the next id the factory would mint if its free list were empty. The second is the density
+    /// watermark — if reuse is working, it stops climbing once a workload reaches steady state.
+    #[doc(hidden)]
+    pub fn id_reuse_state_for_testing(&self) -> (usize, u64) {
+        (
+            self.deferred_id_reuse.pending(),
+            self.persisted_task_id_factory.peek_next_fresh(),
+        )
+    }
+
     #[doc(hidden)]
     pub fn resident_persistent_task_count_for_testing(&self) -> usize {
         self.storage.resident_persistent_task_count_for_testing()
@@ -3255,6 +3315,9 @@ impl TurboTasksBackend {
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
+                                    let (_counts, freed_ids) =
+                                        self.storage.evict_after_snapshot(background_span.id());
+                                    self.recycle_freed_task_ids(freed_ids);
                                     true
                                 } else {
                                     false

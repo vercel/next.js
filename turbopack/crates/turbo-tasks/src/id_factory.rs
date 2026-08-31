@@ -164,6 +164,15 @@ where
         self.free_ids.pop().unwrap_or_else(|_| self.factory.get())
     }
 
+    /// The next id this factory would mint from its counter, ignoring the free list.
+    ///
+    /// A watermark, not an allocation: it is the high-water mark of the id space this factory has
+    /// consumed, which is what "are ids being reused" is measured against. Only meaningful as an
+    /// observation — a racing `get` can advance it immediately.
+    pub fn peek_next_fresh(&self) -> u64 {
+        self.factory.counter.load(Ordering::Relaxed) + self.factory.id_offset
+    }
+
     /// Add an id to the free list, allowing it to be re-used on a subsequent call to
     /// [`IdFactoryWithReuse::get`].
     ///

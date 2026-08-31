@@ -118,5 +118,34 @@ pub fn create_tt_with_gc_min_progress(
 ) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let dir = create_persistence_dir(name);
     let tt = open_tt_at_with_gc(dir.path(), 2, Some(true), None, Some(gc_min_progress));
+
+    (tt, dir)
+}
+
+/// A fresh persistent backend built from caller-supplied [`BackendOptions`], for tests that need
+/// to pin an option the helpers above don't expose. The caller owns every option, including `gc`
+/// — the other helpers' GC-on default does not apply.
+pub fn create_tt_with_options(
+    name: &str,
+    options: BackendOptions,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        options,
+        turbo_tasks_backend::turbo_backing_storage(
+            dir.path(),
+            &GitVersionInfo {
+                describe: "test-unversioned",
+                dirty: false,
+            },
+            BackingStorageOptions {
+                is_short_session: true,
+                skip_compaction: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .0,
+    ));
     (tt, dir)
 }
