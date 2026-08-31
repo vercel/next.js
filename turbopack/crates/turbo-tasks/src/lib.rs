@@ -75,6 +75,8 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "inline_execution_stats")]
+pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]
 pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
@@ -101,15 +103,15 @@ pub use crate::{
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
         CurrentCellRef, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
-        TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused,
-        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
+        ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
+        Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
         trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    read_options::{ReadCellOptions, ReadOutputOptions},
+    read_options::{ReadCellOptions, ReadOutcome, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},

@@ -33,4 +33,4 @@
 0 -> 17 call = require*0*("path")
 - *0* require: The require method from CommonJS
 
-0 -> 22 dynamic import = FreeVar(import)("path")
+0 -> 23 dynamic import = FreeVar(import)("path")

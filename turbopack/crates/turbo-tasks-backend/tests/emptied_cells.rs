@@ -10,7 +10,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_emptied_cells() {
-    run(&REGISTRATION, || async {
+    run(&REGISTRATION, async || {
         let input_op = get_state_operation();
         let input_vc = input_op.resolve().strongly_consistent().await?;
         let input = input_op.read_strongly_consistent().await?;

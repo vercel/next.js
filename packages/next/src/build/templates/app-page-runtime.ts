@@ -942,10 +942,16 @@ export function createAppPageEntrypoint({
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
               authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+              reactBrowserBailout: Boolean(
+                nextConfig.experimental.reactBrowserBailout
+              ),
               serverComponentsHmrCancellation: Boolean(
                 nextConfig.experimental.serverComponentsHmrCancellation
               ),
               useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                nextConfig.experimental.durableUseCacheEntries
+              ),
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:

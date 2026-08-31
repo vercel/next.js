@@ -1,0 +1,21 @@
+warning - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-outside/input/index.js:10:4  Module not found: Can't resolve '/package.json'
+  
+       6 | 
+       7 | it('should not resolve a `/`-rooted import from outside the project directory', () => {
+       8 |   let resolved = true
+       9 |   try {
+         +     v----------------------v
+      10 +     require('/package.json')
+         +     ^----------------------^
+      11 |   } catch {
+      12 |     resolved = false
+      13 |   }
+      14 |   expect(resolved).toBe(false)
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: server relative '/package.json'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-outside/input/index.js
+  | Type of request: commonjs request
+  |
