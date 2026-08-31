@@ -465,6 +465,7 @@ export interface CacheFs {
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+  rename?(oldPath: string, newPath: string): Promise<void>
 }
 
 export function stringifyError(error: Error) {
