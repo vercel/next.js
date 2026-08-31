@@ -841,6 +841,8 @@ pub struct NapiRoute {
 
     pub pages: Option<Vec<AppPageNapiRoute>>,
 
+    pub has_action_manifest: Option<bool>,
+
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
     pub html_endpoint: Option<External<ExternalEndpoint>>,
@@ -895,11 +897,13 @@ impl NapiRoute {
             RouteOperation::AppRoute {
                 original_name,
                 endpoint,
+                has_action_manifest,
             } => NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
+                has_action_manifest: Some(has_action_manifest),
                 ..Default::default()
             },
             RouteOperation::Conflict => NapiRoute {
