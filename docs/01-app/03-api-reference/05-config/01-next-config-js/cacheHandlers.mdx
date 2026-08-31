@@ -92,7 +92,7 @@ get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
 
 Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 
-Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `revalidate` time, and return `undefined` for missing or expired entries.
+Your `get` method should retrieve the cache entry from storage and return `undefined` only for missing entries or entries past their `expire` time. Return entries that are only past `revalidate`, since those are stale rather than expired, and returning them lets Next.js serve them while refreshing in the background.
 
 ```js
 const cacheHandler = {
@@ -102,7 +102,7 @@ const cacheHandler = {
 
     // Check if expired
     const now = Date.now()
-    if (now > entry.timestamp + entry.revalidate * 1000) {
+    if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
     }
 
@@ -205,12 +205,17 @@ Called when tags are revalidated or expired.
 updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
 ```
 
-| Parameter   | Type                  | Description                              |
-| ----------- | --------------------- | ---------------------------------------- |
-| `tags`      | `string[]`            | Array of tags to update.                 |
-| `durations` | `{ expire?: number }` | Optional expiration duration in seconds. |
+| Parameter   | Type                  | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                                                        |
+| `durations` | `{ expire?: number }` | Present for profile-based revalidation; carries the profile's `expire` seconds. |
 
 Your handler should update its internal state to mark these tags as invalidated.
+
+Whether `durations` is present tells you which kind of invalidation this is:
+
+- **Absent** — invalidate immediately. Entries carrying these tags should not be served again. `updateTag()` and a single-argument `revalidateTag()` take this path, and the caller expects its own next read to miss.
+- **Present** — the tags go stale now, but entries carrying them may still be served while they refresh in the background, until `durations.expire` seconds have passed. `revalidateTag(tag, 'max')` takes this path.
 
 Returns `Promise<void>`.
 
@@ -283,7 +288,7 @@ module.exports = {
 
     // Check if entry has expired
     const now = Date.now()
-    if (now > entry.timestamp + entry.revalidate * 1000) {
+    if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
     }
 
@@ -349,6 +354,17 @@ module.exports = {
     // Deserialize the entry
     const data = JSON.parse(stored)
 
+    // Check tags: explicit tags travel inside the stored entry, while soft
+    // tags (implicit route tags, see [Soft Tags](#soft-tags)) arrive as the
+    // second argument. A tag revalidated after this entry was stored
+    // invalidates the entry.
+    const tags = [...data.tags, ...softTags]
+    if (tags.length > 0) {
+      const stamps = await client.mGet(tags.map((tag) => `tag:${tag}`))
+      const latest = Math.max(...stamps.map((stamp) => Number(stamp) || 0))
+      if (latest > data.timestamp) return undefined
+    }
+
     // Reconstruct the ReadableStream from stored data
     return {
       value: new ReadableStream({
@@ -395,7 +411,12 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      { EX: entry.expire } // Use Redis TTL for automatic expiration
+      // `EX` needs a positive integer.
+      // By definition `expire: Infinity` ("never expire")
+      // maps to no TTL at all, so omit `EX` and let Redis persist the key.
+      Number.isFinite(entry.expire)
+        ? { EX: Math.max(1, Math.ceil(entry.expire)) }
+        : {}
     )
   },
 
@@ -405,14 +426,16 @@ module.exports = {
   },
 
   async getExpiration(tags) {
-    // Return 0 to indicate no tags have been revalidated
-    // Could query Redis for tag expiration timestamps if tracking them
-    return 0
+    // `Infinity` tells Next.js that soft tags are checked in `get()`
+    // instead (see the tag check there), so no lookup is needed here
+    return Infinity
   },
 
-  async updateTags(tags, durations) {
-    // Implement tag-based invalidation if needed
-    // Could iterate over keys with matching tags and delete them
+  async updateTags(tags) {
+    // Record when each tag was revalidated; `get()` compares these
+    // stamps against each entry's `timestamp`
+    const now = String(Date.now())
+    await Promise.all(tags.map((tag) => client.set(`tag:${tag}`, now)))
   },
 }
 ```
@@ -426,6 +449,8 @@ To coordinate tags across instances:
 1. **`updateTags()`** is called when `revalidateTag()` is invoked. Your handler should write the invalidation timestamp to shared storage.
 2. **`refreshTags()`** is called before each request. Your handler should read recent invalidation events from shared storage and update its local tag state.
 3. **`getExpiration()`** returns the most recent revalidation timestamp across all provided tags. The default implementation returns `Math.max(...timestamps, 0)`.
+
+Both this pattern and the in-`get()` tag check shown in the [external storage example](#external-storage-pattern) keep Redis as the single source of truth — the difference is where reads pay for it. Checking tags inside `get()` adds a storage round-trip to every cache read, which is the simplest correct setup. The local mirror instead syncs tag state once per request via `refreshTags()` (which is why that method exists), letting every cache read and `getExpiration()` call in the request check tags at memory speed. The trade-off is a propagation window of at most one request boundary for invalidations issued by other instances.
 
 Here's an example using Redis for distributed tag coordination:
 
@@ -458,7 +483,10 @@ module.exports = {
     return Math.max(...timestamps, 0)
   },
 
-  async updateTags(tags, durations) {
+  async updateTags(tags) {
+    // This example invalidates immediately in every case. See
+    // [`updateTags()`](#updatetags) for how the `durations` argument
+    // separates immediate invalidation from stale-while-revalidate.
     const now = Date.now()
     const pipeline = client.multi()
     for (const tag of tags) {
