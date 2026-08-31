@@ -42,6 +42,7 @@ describe('unrecognized server actions', () => {
       {
         idType: 'malformed',
         actionId: '123',
+        expectedStatus: 400,
         expectedError: outdent`
           The Server Reference ID did not match the expected format. Received "123".
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
@@ -50,6 +51,7 @@ describe('unrecognized server actions', () => {
       {
         idType: 'plausible but missing',
         actionId: unrecognizedActionId,
+        expectedStatus: 409,
         expectedError: outdent`
           Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
@@ -62,12 +64,13 @@ describe('unrecognized server actions', () => {
         // We should still surface a diagnosable error instead of a TypeError.
         idType: 'well-known property name',
         actionId: 'toString',
+        expectedStatus: 400,
         expectedError: outdent`
           The Server Reference ID did not match the expected format. Received "toString".
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
         `,
       },
-    ])('with a $idType id', ({ actionId, expectedError }) => {
+    ])('with a $idType id', ({ actionId, expectedStatus, expectedError }) => {
       it.each([
         {
           // encodeReply encodes simple args as plaintext.
@@ -87,7 +90,7 @@ describe('unrecognized server actions', () => {
           },
         },
       ])(
-        'should 404 when POSTing a server action to a nonexistent page: $name',
+        'should reject a server action POST to a nonexistent page: $name',
         async ({ request: { contentType, body } }) => {
           const res = await next.fetch('/non-existent-route', {
             method: 'POST',
@@ -99,7 +102,7 @@ describe('unrecognized server actions', () => {
             body,
           })
 
-          expect(res.status).toBe(404)
+          expect(res.status).toBe(expectedStatus)
 
           const cliOutput = getLogs()
           expect(cliOutput).not.toContain('TypeError')
@@ -156,7 +159,7 @@ describe('unrecognized server actions', () => {
 
         if (!disableJavaScript) {
           // A fetch action, sent via the router.
-          expect(response.status()).toBe(404)
+          expect(response.status()).toBe(409)
           // NOTE: we cannot validate the response text, because playwright hangs on `response.text()` for some reason.
           expect(response.headers()['content-type']).toStartWith('text/plain')
 
@@ -165,7 +168,7 @@ describe('unrecognized server actions', () => {
             /Error boundary: Server Action ".+?" was not found on the server\./
           )
 
-          // We responded with a 404, but we shouldn't trigger a not-found (either a custom or a default one)
+          // We responded with a 409, but we shouldn't trigger a not-found (either a custom or a default one)
           expect(await browser.elementByCss('body').text()).not.toContain(
             'Not found'
           )

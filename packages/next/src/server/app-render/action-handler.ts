@@ -306,7 +306,7 @@ async function createForwardedActionResponse(
     if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
       res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
       res.setHeader('content-type', 'text/plain')
-      res.statusCode = 404
+      res.statusCode = response.status
       return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
   } catch (err) {
@@ -622,7 +622,10 @@ export async function handleAction({
     // (i.e. without needing to invoke a lambda)
     res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
     res.setHeader('content-type', 'text/plain')
-    res.statusCode = 404
+    // A malformed ID is a bad request. A well-formed but unknown ID can be
+    // caused by deployment skew, so it conflicts with the current app state.
+    res.statusCode =
+      actionId !== null && !mightBeServerReferenceId(actionId) ? 400 : 409
     return {
       type: 'done',
       result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
@@ -649,7 +652,7 @@ export async function handleAction({
     }
   }
 
-  // If the app has no server actions at all, we can 404 early.
+  // If the app has no server actions at all, we can reject the request early.
   if (!hasServerActions()) {
     const error =
       actionId !== null && !mightBeServerReferenceId(actionId)
