@@ -1221,7 +1221,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        await flushAllTraces()
+        flushAllTraces()
         teardownTraceSubscriber()
         process.exit(0)
       }
@@ -1282,7 +1282,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              /^(cache|dev|lock|trace)/
+              new Set(['cache', 'dev', 'lock', 'trace'])
             )
           )
       }
@@ -1473,6 +1473,7 @@ export default async function build(
 
       NextBuildContext.mappedPages = discovery.mappedPages || {}
       NextBuildContext.mappedAppPages = discovery.mappedAppPages
+      NextBuildContext.mappedAppDefaults = discovery.mappedAppDefaults
       NextBuildContext.mappedRootPaths = await nextBuildSpan
         .traceChild('create-root-mapping')
         .traceAsyncFn(() =>
@@ -2218,6 +2219,18 @@ export default async function build(
           }
         }
 
+        if (config.experimental.strictRouteMatching && pageKeys.app) {
+          const emittedAppPaths = new Set(
+            emittedAppPageKeys?.map((appPageKey) =>
+              normalizeAppPath(appPageKey)
+            )
+          )
+          const retainedAppPaths = pageKeys.app.filter((appPath) =>
+            emittedAppPaths.has(appPath)
+          )
+          pageKeys.app = retainedAppPaths.length ? retainedAppPaths : undefined
+        }
+
         await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
@@ -2285,6 +2298,9 @@ export default async function build(
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                config.experimental.durableUseCacheEntries
+              ),
               staticPageGenerationTimeout: config.staticPageGenerationTimeout,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2517,6 +2533,9 @@ export default async function build(
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
+                            durableUseCacheEntries: Boolean(
+                              config.experimental.durableUseCacheEntries
+                            ),
                             staticPageGenerationTimeout:
                               config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,
@@ -4691,8 +4710,8 @@ export default async function build(
       await telemetry.flush()
     }
 
-    // Ensure all traces are flushed before finishing the command
-    await flushAllTraces()
+    // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
+    flushAllTraces()
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {

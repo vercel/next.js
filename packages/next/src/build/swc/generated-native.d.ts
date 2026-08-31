@@ -487,6 +487,7 @@ export interface NapiRoute {
   /** The type of route, eg a Page or App */
   type: string
   pages?: Array<AppPageNapiRoute>
+  hasActionManifest?: boolean
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
   rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
