@@ -134,19 +134,12 @@ async fn gc_does_not_interrupt_without_a_waiter() {
         build_generation(&tt, gen_value).await;
         tt.backend().snapshot_and_evict_for_testing(&tt);
 
-        let (collected, abandoned, interrupted) = tt
+        let (collected, interrupted) = tt
             .backend()
             .last_gc_stats_for_testing()
             .expect("a GC pass should have run");
-        println!(
-            "no-waiter round {gen_value}: collected={collected} abandoned={abandoned} \
-             interrupted={interrupted}"
-        );
+        println!("no-waiter round {gen_value}: collected={collected} interrupted={interrupted}");
         if !interrupted {
-            assert_eq!(
-                abandoned, 0,
-                "an uninterrupted pass must abandon nothing (round {gen_value})"
-            );
             saw_uninterrupted = true;
         }
     }
@@ -193,19 +186,14 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
     tt.backend().snapshot_and_evict_for_testing(&tt);
     waiter.await.unwrap();
 
-    let (collected, abandoned, interrupted) = tt
+    let (collected, interrupted) = tt
         .backend()
         .last_gc_stats_for_testing()
         .expect("a GC pass should have run");
-    println!("floor: collected={collected} abandoned={abandoned} interrupted={interrupted}");
+    println!("floor: collected={collected} interrupted={interrupted}");
     assert!(
         !interrupted,
-        "the min-progress floor must suppress the interrupt (collected={collected}, \
-         abandoned={abandoned})"
-    );
-    assert_eq!(
-        abandoned, 0,
-        "a pass held by the floor abandons nothing, even with an operation waiting"
+        "the min-progress floor must suppress the interrupt (collected={collected})"
     );
 
     tt.stop_and_wait().await;
@@ -235,14 +223,11 @@ async fn gc_interrupt_is_self_healing() {
         // Each round disconnects the previous generation: 2*WIDTH tasks of fresh garbage.
         build_generation(&tt, gen_value).await;
         tt.backend().snapshot_and_evict_for_testing(&tt);
-        let (collected, abandoned, interrupted) = tt
+        let (collected, interrupted) = tt
             .backend()
             .last_gc_stats_for_testing()
             .expect("a GC pass should have run");
-        println!(
-            "round {gen_value}: collected={collected} abandoned={abandoned} \
-             interrupted={interrupted}"
-        );
+        println!("round {gen_value}: collected={collected} interrupted={interrupted}");
         total_collected += collected;
         if interrupted {
             interrupted_rounds += 1;
@@ -250,9 +235,9 @@ async fn gc_interrupt_is_self_healing() {
     }
 
     // Each round produces 2*WIDTH garbage tasks, so ROUNDS rounds produce 2*WIDTH*ROUNDS. GC must
-    // have collected the bulk of that: an interrupted pass leaves work for the next one, but across
-    // ROUNDS rounds the totals have to add up. If interruption lost garbage permanently, this would
-    // fall short by roughly the amount abandoned.
+    // have collected the bulk of that: an interrupted pass's whole cycle is skipped and retried by
+    // the next one, but across ROUNDS rounds the totals have to add up. If interruption lost
+    // garbage permanently, this would fall short.
     let produced = (2 * WIDTH as usize) * (ROUNDS as usize);
     let expected_min = produced / 2;
     println!(

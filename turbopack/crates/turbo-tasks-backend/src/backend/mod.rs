@@ -220,6 +220,16 @@ impl SnapshotReason {
         }
     }
 
+    /// Whether a GC pass run for this reason may wind down early when an operation is waiting.
+    ///
+    /// False only for `Stop`. An interrupted pass leaves tasks unexamined and its cycle is
+    /// therefore skipped entirely (see `snapshot_and_persist`); at shutdown that would mean not
+    /// persisting at all, and there is no later cycle to retry. Nothing is waiting on a
+    /// shutting-down backend anyway, so running to completion costs nothing.
+    fn gc_is_interruptible(self) -> bool {
+        !matches!(self, SnapshotReason::Stop)
+    }
+
     /// True only for `Stop`: at shutdown the whole map is dropped right after, so each task
     /// entry can be drained from the map and freed as it is serialized instead of after the
     /// whole batch is written. This reduces peak memory during `next build` shutdown.
@@ -476,16 +486,16 @@ impl TurboTasksBackend {
             .store(min_progress_ms, Ordering::Relaxed);
     }
 
-    /// `(collected, abandoned, interrupted)` for the most recent GC pass run inside
+    /// `(collected, interrupted)` for the most recent GC pass run inside
     /// `snapshot_and_persist`, or `None` if none has run. Test-only: production reads these off the
     /// `gc` span. Lets a test assert on the pass itself rather than on the resident task count,
     /// which eviction also moves and which therefore can't distinguish "GC collected it" from "GC
     /// skipped it and eviction dropped it to disk".
     #[doc(hidden)]
-    pub fn last_gc_stats_for_testing(&self) -> Option<(usize, usize, bool)> {
+    pub fn last_gc_stats_for_testing(&self) -> Option<(usize, bool)> {
         self.last_gc_stats
             .lock()
-            .map(|s| (s.collected, s.abandoned, s.interrupted))
+            .map(|s| (s.collected, s.interrupted))
     }
 
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
@@ -1186,9 +1196,35 @@ impl TurboTasksBackend {
                 stats = tracing::field::Empty,
             )
             .entered();
-            let (stats, roots) = self.gc_collect(turbo_tasks, &snapshot_phase);
+            // Shutdown is the last pass there will ever be, so a partial one has no successor to
+            // finish its work. Run it to completion regardless of contention.
+            let (stats, roots) =
+                self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
+            let interrupted = stats.interrupted;
             *self.last_gc_stats.lock() = Some((&stats).into());
             gc_span.record("stats", display(stats));
+            // `interruptible = false` makes this structurally impossible; the assert guards the
+            // wiring, not the runtime, so a future change that reintroduces a way to interrupt a
+            // shutdown pass fails loudly instead of silently skipping the final persist.
+            debug_assert!(
+                !(interrupted && !reason.gc_is_interruptible()),
+                "a shutdown GC pass must never be interrupted: it has no successor to finish its \
+                 work"
+            );
+            if interrupted {
+                // Persisting now would write the tasks this pass never examined as live, and the
+                // eviction that follows would drop them from the resident map. `evictability` does
+                // not consult `parent_count`, so an unexamined orphan evicts like any other clean
+                // task — and once it is gone from memory, neither the resident shard scan nor
+                // `note_gc_collectible` can ever reach it again. It would leak for the lifetime of
+                // the cache. Skip the whole cycle instead; the next one retries from a clean slate.
+                // Release the exclusion without handing it to a snapshot: dropping the phase is
+                // what lets the operations parked behind this pass (the waiter that interrupted
+                // it) through.
+                drop(snapshot_phase);
+                drop(gc_span);
+                return Ok((start, false));
+            }
             (Some(start.elapsed()), roots)
         } else {
             (None, None)
