@@ -10809,6 +10809,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-nft-napi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-malloc",
+ "turbopack-nft",
+]
+
+[[package]]
 name = "turbopack-node"
 version = "0.1.0"
 dependencies = [

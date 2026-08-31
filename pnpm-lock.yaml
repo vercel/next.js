@@ -1995,6 +1995,18 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
 
+  packages/tracing-napi:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: 3.4.1
+        version: 3.4.1(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+      '@types/node':
+        specifier: 20.17.7
+        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+
   turbopack/crates/turbopack-cli/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
@@ -4607,6 +4619,16 @@ packages:
   '@mswjs/interceptors@0.42.0':
     resolution: {integrity: sha512-HFjFa93wzY++HEC50SpTRMGCAlzA2y71a0H2io3vysc/QYQ0PJVrJuo3CXKcVPe5mOxT7FMwKBNuCouAoIeLxQ==}
     engines: {node: '>=22'}
+
+  '@napi-rs/cli@3.4.1':
+    resolution: {integrity: sha512-ayhm+NfrP5Hmh7vy5pfyYm/ktYtLh2PrgdLuqHTAubO7RoO2JkUE4F991AtgYxNewwXI8+guZLxU8itV7QnDrQ==}
+    engines: {node: '>= 16'}
+    hasBin: true
+    peerDependencies:
+      '@emnapi/runtime': ^1.5.0
+    peerDependenciesMeta:
+      '@emnapi/runtime':
+        optional: true
 
   '@napi-rs/cli@3.7.2':
     resolution: {integrity: sha512-shDW0Td/XZQpP04Yy+OsMt1ILMKGGkoLcy1zVAsSAK0fLfWm0Upgkmfs/NOV2ZhMQwkgpR3ZEdyHmTwgrUDQuA==}
@@ -21868,6 +21890,37 @@ snapshots:
       outvariant: 1.4.3
       rettime: 0.11.11
     transitivePeerDependencies:
+      - supports-color
+
+  '@napi-rs/cli@3.4.1(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+    dependencies:
+      '@inquirer/prompts': 7.10.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
+      '@napi-rs/cross-toolchain': 1.0.3
+      '@napi-rs/wasm-tools': 1.1.0
+      '@octokit/rest': 22.0.1
+      clipanion: 4.0.0-rc.4(typanion@3.14.0)
+      colorette: 2.0.20
+      debug: 4.4.3
+      emnapi: 1.11.3(node-addon-api@6.1.0)
+      es-toolkit: 1.50.0
+      js-yaml: 4.2.0
+      semver: 7.8.5
+      typanion: 3.14.0
+    optionalDependencies:
+      '@emnapi/runtime': 1.9.2
+    transitivePeerDependencies:
+      - '@napi-rs/cross-toolchain-arm64-target-aarch64'
+      - '@napi-rs/cross-toolchain-arm64-target-armv7'
+      - '@napi-rs/cross-toolchain-arm64-target-ppc64le'
+      - '@napi-rs/cross-toolchain-arm64-target-s390x'
+      - '@napi-rs/cross-toolchain-arm64-target-x86_64'
+      - '@napi-rs/cross-toolchain-x64-target-aarch64'
+      - '@napi-rs/cross-toolchain-x64-target-armv7'
+      - '@napi-rs/cross-toolchain-x64-target-ppc64le'
+      - '@napi-rs/cross-toolchain-x64-target-s390x'
+      - '@napi-rs/cross-toolchain-x64-target-x86_64'
+      - '@types/node'
+      - node-addon-api
       - supports-color
 
   '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
