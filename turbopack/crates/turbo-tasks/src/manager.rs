@@ -423,6 +423,22 @@ pub enum TaskPriority {
     Recomputation,
 }
 
+impl crate::priority_runner::PriorityBits for TaskPriority {
+    /// Order-preserving projection. The variant order (`Initial < Invalidation < Recomputation`)
+    /// goes in the high bits; within `Invalidation`, `Reverse(p)` grows as `p` shrinks, so the
+    /// payload is inverted to match. The largest value produced is `2 << 32`, far below the
+    /// `u64::MAX` the trait forbids.
+    fn priority_bits(&self) -> u64 {
+        match self {
+            TaskPriority::Initial => 0,
+            TaskPriority::Invalidation { priority } => {
+                (1u64 << 32) | ((u32::MAX - priority.0) as u64)
+            }
+            TaskPriority::Recomputation => 2u64 << 32,
+        }
+    }
+}
+
 impl TaskPriority {
     pub fn invalidation(priority: u32) -> Self {
         Self::Invalidation {
