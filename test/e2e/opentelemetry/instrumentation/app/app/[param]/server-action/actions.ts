@@ -4,6 +4,13 @@ import { notFound, redirect } from 'next/navigation'
 
 export async function exportedServerAction() {}
 
+export async function statefulServerAction(
+  _previousState: string,
+  _formData: FormData
+) {
+  return 'stateful action complete'
+}
+
 export async function redirectServerAction() {
   redirect('/app/param/server-action')
 }

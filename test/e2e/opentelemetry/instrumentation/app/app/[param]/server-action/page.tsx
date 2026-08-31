@@ -4,6 +4,7 @@ import {
   notFoundServerAction,
   redirectServerAction,
 } from './actions'
+import { StatefulServerActionForm } from './stateful-form'
 
 export default function Page() {
   async function inlineServerAction() {
@@ -20,6 +21,7 @@ export default function Page() {
           Run exported Server Action
         </button>
       </form>
+      <StatefulServerActionForm />
       <form action={redirectServerAction}>
         <button id="run-redirect-server-action">
           Run redirect Server Action
