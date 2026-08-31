@@ -17,7 +17,7 @@ function persistData() {
   fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2))
 }
 
-// Date.now is considered async IO by cache components
+// Date.now is considered sync IO by cache components
 const now = () => performance.timeOrigin + performance.now()
 
 // This is a Redis-like interface.
