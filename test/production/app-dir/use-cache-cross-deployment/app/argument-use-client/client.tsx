@@ -1,5 +1,21 @@
 'use client'
 
-export function client() {
-  return 'first'
+import { useState } from 'react'
+
+export function Client() {
+  const [text, setText] = useState('')
+
+  return (
+    <div>
+      <div id="title">Client Component A</div>
+      <button
+        onClick={() => {
+          setText('Button clicked')
+        }}
+      >
+        Click me
+      </button>
+      <span id="state">{text}</span>
+    </div>
+  )
 }
