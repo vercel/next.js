@@ -96,6 +96,39 @@ pub fn reopen_tt_with_gc_ttl(
     open_tt_at_with_gc(dir.path(), 2, Some(true), Some(gc_root_ttl), None)
 }
 
+/// Reopens a backend on an existing persistence directory with GC on and the id-reuse window
+/// pinned, for tests that assert on ids surviving a restart.
+pub fn reopen_tt_with_id_reuse(
+    dir: &tempfile::TempDir,
+    id_reuse_delay_cycles: u32,
+) -> Arc<TurboTasks<TurboTasksBackend>> {
+    TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            num_workers: Some(2),
+            small_preallocation: true,
+            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
+            eviction_mode: EvictionMode::Full,
+            gc: Some(true),
+            id_reuse_delay_cycles: Some(id_reuse_delay_cycles),
+            ..Default::default()
+        },
+        turbo_tasks_backend::turbo_backing_storage(
+            dir.path(),
+            &GitVersionInfo {
+                describe: "test-unversioned",
+                dirty: false,
+            },
+            BackingStorageOptions {
+                is_short_session: true,
+                skip_compaction: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .0,
+    ))
+}
+
 /// A fresh persistent backend in its own temp directory, with `num_workers` workers.
 pub fn create_tt_with_workers(
     name: &str,

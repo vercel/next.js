@@ -38,6 +38,7 @@
 use std::collections::VecDeque;
 
 use parking_lot::Mutex;
+use rustc_hash::FxHashSet;
 use turbo_tasks::TaskId;
 
 /// How many snapshot cycles a freed id waits before it may be handed out again.
@@ -61,6 +62,10 @@ pub(crate) struct DeferredIdReuse {
     /// Cycles an id must wait. `0` releases immediately, which is what the aliasing-pressure tests
     /// want.
     delay_cycles: u32,
+    /// Ids already handed back to the factory this session. Retained only so that
+    /// [`Self::persistable`] can offer them to the next session too — an id reused in *this*
+    /// session is still free from the perspective of a fresh one, which rebuilds its own graph.
+    released: Mutex<FxHashSet<TaskId>>,
 }
 
 impl DeferredIdReuse {
@@ -69,6 +74,7 @@ impl DeferredIdReuse {
             queue: Mutex::new(VecDeque::new()),
             cycle: Mutex::new(0),
             delay_cycles,
+            released: Mutex::new(FxHashSet::default()),
         }
     }
 
@@ -101,6 +107,7 @@ impl DeferredIdReuse {
             }
             queue.pop_front();
             released.push(id);
+            self.released.lock().insert(id);
         }
         released
     }
@@ -108,6 +115,21 @@ impl DeferredIdReuse {
     /// Number of ids currently waiting out their window. Observability only.
     pub(crate) fn pending(&self) -> usize {
         self.queue.lock().len()
+    }
+
+    /// Every id this session has freed and not since seen resurrected, for persistence.
+    ///
+    /// No retraction path is needed for resurrection: `resurrect_deleted` can only revive a task
+    /// while it is still resident, and eviction is what puts an id in this queue, so a resurrected
+    /// task never reaches [`Self::defer`] in the first place. Includes ids still
+    /// inside their in-memory window: the window exists to protect *this* session's stale
+    /// references, and a fresh session starts with no resident state, so nothing can hold one.
+    pub(crate) fn persistable(&self) -> Vec<TaskId> {
+        let queue = self.queue.lock();
+        let released = self.released.lock();
+        let mut ids: Vec<TaskId> = queue.iter().map(|&(id, _)| id).collect();
+        ids.extend(released.iter().copied());
+        ids
     }
 }
 
@@ -145,6 +167,19 @@ mod tests {
         // Deferred during cycle 1, so it must not come back until cycle 2.
         q.defer([id(2)]);
         assert_eq!(q.advance_cycle(), vec![id(2)]);
+    }
+
+    #[test]
+    fn persistable_covers_both_waiting_and_released_ids() {
+        // The next session has no resident state, so an id that is still inside this session's
+        // window is nonetheless free from its point of view — both halves must be offered.
+        let q = DeferredIdReuse::new(1);
+        q.defer([id(1)]);
+        assert_eq!(q.advance_cycle(), vec![id(1)]);
+        q.defer([id(2)]);
+        let mut persistable = q.persistable();
+        persistable.sort();
+        assert_eq!(persistable, vec![id(1), id(2)]);
     }
 
     #[test]

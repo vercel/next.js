@@ -37,6 +37,8 @@ enum InfraKey {
     Operations = 0,
     NextFreeTaskId = 1,
     GcRoots = 2,
+    /// Task ids that GC freed and eviction erased, available for reuse by the next session.
+    FreeTaskIds = 3,
 }
 
 impl InfraKey {
@@ -263,10 +265,27 @@ impl TurboBackingStorage {
         get(&self.inner.database).context("Unable to read GC roots from database")
     }
 
+    /// Reads the persisted free task id set (see [`InfraKey::FreeTaskIds`]). Empty on a fresh
+    /// database.
+    ///
+    /// The caller must validate the contents before trusting them; a corrupt or stale entry could
+    /// otherwise hand out an id that is still in use.
+    pub(crate) fn free_task_ids(&self) -> Result<Vec<TaskId>> {
+        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<TaskId>> {
+            let Some(ids) = database.get(KeySpace::Infra, InfraKey::FreeTaskIds.key().as_ref())?
+            else {
+                return Ok(Vec::new());
+            };
+            Ok(turbo_bincode_decode(ids.borrow())?)
+        }
+        get(&self.inner.database).context("Unable to read free task ids from database")
+    }
+
     pub(crate) fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
+        free_task_ids: Option<Vec<TaskId>>,
         snapshots: Vec<I>,
     ) -> Result<SnapshotMeta>
     where
@@ -367,7 +386,7 @@ impl TurboBackingStorage {
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
-            save_infra(&batch, next_task_id, operations, roots)?;
+            save_infra(&batch, next_task_id, operations, roots, free_task_ids)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
@@ -496,6 +515,7 @@ fn save_infra(
     next_task_id: u32,
     operations: Vec<Arc<AnyOperation>>,
     roots: Option<Vec<(TaskId, TtlCounter)>>,
+    free_task_ids: Option<Vec<TaskId>>,
 ) -> Result<(), anyhow::Error> {
     batch
         .put(
@@ -527,6 +547,20 @@ fn save_infra(
                 WriteBuffer::SmallVec(roots),
             )
             .context("Unable to write GC roots")?;
+    }
+    if let Some(free_task_ids) = free_task_ids {
+        let _span =
+            tracing::trace_span!("update free task ids", free_task_ids = free_task_ids.len())
+                .entered();
+        let free_task_ids =
+            turbo_bincode_encode(&free_task_ids).context("Unable to serialize free task ids")?;
+        batch
+            .put(
+                KeySpace::Infra,
+                WriteBuffer::Borrowed(InfraKey::FreeTaskIds.key().as_ref()),
+                WriteBuffer::SmallVec(free_task_ids),
+            )
+            .context("Unable to write free task ids")?;
     }
     // Safety: save_infra is called after all concurrent writes to Infra are done.
     unsafe { batch.flush(KeySpace::Infra)? };
@@ -729,6 +763,7 @@ mod tests {
         // Snapshot with no task data, just the one deletion.
         storage.save_snapshot(
             Vec::new(),
+            None,
             None,
             vec![vec![SnapshotItem::Delete {
                 task_id: deleted_id,
