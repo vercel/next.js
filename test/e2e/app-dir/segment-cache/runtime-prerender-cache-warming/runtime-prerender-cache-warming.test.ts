@@ -234,4 +234,156 @@ describe('runtime prerender cache warming', () => {
     // New in this request.
     expect(navigationLogs).toContain('cachedFn :: after navigation')
   })
+
+  describe('hanging props in cached pages in runtime shells', () => {
+    it('a public-cache page that awaits params becomes dynamic during a runtime shell prerender', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Load the shell for the page.
+      // It contains a public cache that reads params, which are not available in a shell.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/params-in-public-cache/1"]'
+          )
+          .click()
+      }, [
+        // The Shell should only the fallback for the page, not the page itself --
+        // The cache entry should be aborted as dynamic during cache filling,
+        // otherwise it would hang and time out.
+        {
+          includes: 'page-loading',
+          kind: 'runtime',
+        },
+        {
+          includes: 'Slug:',
+          block: 'reject',
+        },
+      ])
+
+      expectNoCacheFillTimeout(next.cliOutput)
+
+      // Navigate.
+      await act(async () => {
+        await browser
+          .elementByCss('a[href="/params-in-public-cache/1"]')
+          .click()
+        // The page is blocking, so we should show loading.tsx instead.
+        expect(await browser.elementByCss('#page-loading').text()).toEqual(
+          'Loading page...'
+        )
+      })
+
+      // After navigating, the full cache entry (including the param) should be visible.
+      expect(await browser.elementByCss('#slug').text()).toEqual('Slug: 1')
+    })
+
+    it('a private-cache page that awaits params becomes dynamic during a runtime shell prerender', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Load the shell for the page.
+      // It contains a private cache that reads params, which are not available in a shell.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/params-in-private-cache/1"]'
+          )
+          .click()
+      }, [
+        // The Shell should only the fallback for the page, not the page itself --
+        // The cache entry should be aborted as dynamic during cache filling,
+        // otherwise it would hang and time out.
+        {
+          includes: 'page-loading',
+          kind: 'runtime',
+        },
+        {
+          includes: 'Slug:',
+          block: 'reject',
+        },
+      ])
+
+      expectNoCacheFillTimeout(next.cliOutput)
+
+      // Navigate.
+      await act(async () => {
+        await browser
+          .elementByCss('a[href="/params-in-private-cache/1"]')
+          .click()
+        // The page is blocking, so we should show loading.tsx instead.
+        expect(await browser.elementByCss('#page-loading').text()).toEqual(
+          'Loading page...'
+        )
+      })
+
+      // After navigating, the full cache entry (including the param) should be visible.
+      expect(await browser.elementByCss('#slug').text()).toEqual('Slug: 1')
+    })
+
+    it('a private-cache page that awaits search params becomes dynamic during a runtime shell prerender', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Load the shell for the page.
+      // It contains a private cache that reads params, which are not available in a shell.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/search-params-in-private-cache?foo=bar"]'
+          )
+          .click()
+      }, [
+        // The Shell should only the fallback for the page, not the page itself --
+        // The cache entry should be aborted as dynamic during cache filling,
+        // otherwise it would hang and time out.
+        {
+          includes: 'page-loading',
+          kind: 'runtime',
+        },
+        {
+          includes: 'Search:',
+          block: 'reject',
+        },
+      ])
+
+      expectNoCacheFillTimeout(next.cliOutput)
+
+      // Navigate.
+      await act(async () => {
+        await browser
+          .elementByCss('a[href="/search-params-in-private-cache?foo=bar"]')
+          .click()
+        // The page is blocking, so we should show loading.tsx instead.
+        expect(await browser.elementByCss('#page-loading').text()).toEqual(
+          'Loading page...'
+        )
+      })
+
+      // After navigating, the full cache entry (including the search params) should be visible.
+      expect(await browser.elementByCss('#search').text()).toEqual(
+        `Search: ${JSON.stringify({ foo: 'bar' })}`
+      )
+    })
+  })
 })
+
+function expectNoCacheFillTimeout(cliOutput: string) {
+  expect(cliOutput).not.toContain('Filling a cache during prerender timed out')
+}
