@@ -54,7 +54,7 @@ const BMP = 'image/bmp'
 const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC, AVIF]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -95,6 +95,7 @@ export function getSharp(
     _sharp.block({ operation: ['VipsForeignLoad'] })
     _sharp.unblock({
       operation: [
+        'VipsForeignLoadHeif', // avif
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',

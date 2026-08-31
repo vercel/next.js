@@ -52,4 +52,5 @@ minimumReleaseAgeExclude:
   - react-is
   - react-server-dom-*
   - scheduler
+  - sharp@0.35.4
   - turbo

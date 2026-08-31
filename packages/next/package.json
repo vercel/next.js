@@ -130,7 +130,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@babel/core": "7.26.10",

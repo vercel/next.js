@@ -35,22 +35,4 @@ describe('getBlurImage', () => {
     expect(result).toBeObject()
     expect(result.dataURL).toBeUndefined()
   })
-  it('should not generate a blur placeholder for avif', async () => {
-    const buffer = await getImage('../image-optimizer/images/test.avif')
-    const result = await getBlurImage(
-      buffer,
-      'avif',
-      { width: 400, height: 400 },
-      {
-        ...context,
-        outputPath: '/_next/static/media/test.avif',
-      }
-    )
-    expect(result).toBeObject()
-    expect(result).toStrictEqual({
-      dataURL: undefined,
-      width: 0,
-      height: 0,
-    })
-  })
 })
