@@ -1736,6 +1736,7 @@ impl Endpoint for PageEndpoint {
 
                     EndpointOutputPaths::NodeJs {
                         server_entry_path,
+                        server_hmr_entry_paths: vec![],
                         server_paths,
                         client_paths,
                     }
