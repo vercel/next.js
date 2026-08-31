@@ -5,6 +5,7 @@ nav_title: Interactive apps
 related:
   description: Learn more about the APIs used in this guide.
   links:
+    - app/guides/loading-ui
     - app/api-reference/functions/refresh
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheTag
@@ -15,7 +16,9 @@ When a user interaction requires server-side work, the result is not available i
 
 This guide adds responsive feedback to a task management app called _Taskboard_. Each step handles a different kind of pending work, from streaming slow reads to confirming mutations before the server responds.
 
-> **Good to know:** The patterns in this guide also improve [Core Web Vitals](https://web.dev/articles/vitals). Streaming with [`<Suspense>`](https://react.dev/reference/react/Suspense) lowers [FCP](https://web.dev/articles/fcp) and [LCP](https://web.dev/articles/lcp) by letting the shell paint while slow reads finish. Optimistic UI and transitions lower [INP](https://web.dev/articles/inp) by keeping the click frame fast. Prefetching the next route makes FCP, LCP, and INP on the destination page near-instant. These patterns help, but they don't replace the usual INP work: shipping less client JavaScript and avoiding blocking roundtrips during interactions.
+For the loading reveals themselves, such as sizing skeletons, choosing Suspense boundary granularity, and animating the swap to real content, see [Designing loading UI](/docs/app/guides/loading-ui).
+
+> **Good to know:** The patterns in this guide also improve [Core Web Vitals](https://web.dev/articles/vitals). Streaming with [`<Suspense>`](https://react.dev/reference/react/Suspense) lowers [FCP](https://web.dev/articles/fcp) and [LCP](https://web.dev/articles/lcp) by letting the shell paint while slow reads finish. Optimistic UI and transitions lower [INP](https://web.dev/articles/inp) by keeping the click frame fast. Prefetching the next route makes FCP, LCP, and INP on the destination page near-instant. These patterns help, but they don't replace the usual INP work: shipping less client JavaScript and avoiding blocking roundtrips during interactions. For [CLS](https://web.dev/articles/cls), keeping placeholders and streamed content from shifting the layout as it loads, see [Designing loading UI](/docs/app/guides/loading-ui).
 
 ## Example
 
@@ -53,7 +56,7 @@ import { getTask } from '@/features/task/task-queries'
 import { TaskDetail } from '@/features/task/components/task-detail'
 import { CommentSection } from '@/features/task/components/comment-section'
 
-export default async function TaskPage({ params }) {
+export default async function TaskPage({ params }: PageProps<'/task/[id]'>) {
   const { id } = await params
   const task = await getTask(id)
 
@@ -81,7 +84,7 @@ import {
   CommentSectionSkeleton,
 } from '@/features/task/components/comment-section'
 
-export default function TaskPage({ params }) {
+export default function TaskPage({ params }: PageProps<'/task/[id]'>) {
   return (
     <div>
       <Suspense fallback={<TaskDetailSkeleton />}>
@@ -697,7 +700,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Enabling Cache Components applies prerender validation across every route, not just the ones in this step. A route that reads request data such as `cookies()`, `headers()`, or `searchParams` outside [`<Suspense>`](https://react.dev/reference/react/Suspense) now blocks prerendering and needs the Step 1 treatment. To turn it on in an existing app, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+Enabling Cache Components applies prerender validation across every route, not only the ones in this step. A route that reads request data such as `cookies()`, `headers()`, or `searchParams` outside [`<Suspense>`](https://react.dev/reference/react/Suspense) now blocks prerendering and needs the Step 1 treatment. To turn it on in an existing app, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
 #### Cache reusable reads
 
@@ -770,12 +773,13 @@ The patterns in this guide combine a handful of primitives:
 | Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
 | Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [per-link prefetching](/docs/app/guides/optimizing-prefetching) via `prefetch={true}` for content that depends on URL data    |
 
-Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
+Most patterns mix two or more of these. Reach for whichever one fits the constraint you're solving.
 
 Related guides:
 
 - [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, providing initial data from a Server Component, and client cache coordination
 - [Streaming](/docs/app/guides/streaming) for loading boundaries and `<Suspense>` patterns
 - [Instant Navigation](/docs/app/guides/instant-navigation) for validating that navigations stay instant
+- [Designing loading UI](/docs/app/guides/loading-ui) for sizing fallbacks and ordering their reveals
 - [View Transitions](/docs/app/guides/view-transitions) for animating state changes
 - [Single-page applications](/docs/app/guides/single-page-applications#mutating-data-with-server-actions) for a shared-reducer `useOptimistic` example that keeps client and server list updates in sync

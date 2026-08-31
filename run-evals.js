@@ -75,14 +75,14 @@ const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
   // credential needed (it auths the sandbox, the codegen model, and the judge).
   agent: 'vercel-ai-gateway/claude-code',
-  model: 'claude-opus-4-8',${evalsField}
+  model: 'claude-sonnet-4-6',${evalsField}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
   scripts: ['build'],
   runs: 1,
   earlyExit: true,
-  timeout: 720,
+  timeout: 1200,
   sandbox: 'auto',
   setup: async (sandbox) => {
     ${v.setup}

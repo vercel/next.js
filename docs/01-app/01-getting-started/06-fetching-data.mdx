@@ -6,6 +6,7 @@ related:
   description: Learn more about advanced data-fetching patterns and the features mentioned in this page.
   links:
     - app/guides/single-page-applications
+    - app/guides/loading-ui
     - app/guides/data-security
     - app/api-reference/functions/fetch
     - app/api-reference/file-conventions/loading
@@ -226,6 +227,8 @@ export default function BlogPage() {
 #### Creating meaningful loading states
 
 An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
+
+For guidance on sizing fallbacks, preserving stable UI, and coordinating reveals, see [Designing loading UI](/docs/app/guides/loading-ui).
 
 In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
 

@@ -1,6 +1,10 @@
 ---
 title: loading.js
 description: API reference for the loading.js file.
+
+related:
+  links:
+    - app/guides/loading-ui
 ---
 
 The special file `loading.js` helps you create meaningful Loading UI with [React Suspense](https://react.dev/reference/react/Suspense). With this convention, you can show an [instant loading state](#instant-loading-states) from the server while the content of a route segment streams in. The new content is automatically swapped in once complete.
@@ -48,6 +52,8 @@ Loading UI components do not accept any parameters.
 ### Instant Loading States
 
 An instant loading state is fallback UI that is shown immediately upon navigation. You can prerender loading indicators such as skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc. This helps users understand the app is responding and provides a better user experience.
+
+A fallback that doesn't match the size of the content replacing it shifts the page when it resolves. See [Skeletons that don't match the final geometry](/docs/app/guides/loading-ui#skeletons-that-dont-match-the-final-geometry) for sizing one.
 
 Create a loading state by adding a `loading.js` file inside a folder.
 

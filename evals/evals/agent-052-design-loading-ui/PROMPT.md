@@ -1,0 +1,1 @@
+Improve the loading experience in this team directory. It feels inconsistent across the directory, search, and member profiles. Make it feel polished and coherent while preserving the app's functionality, simulated latency, and failure conditions.

@@ -1,0 +1,114 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #fafafa;
+  color: #111;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+}
+
+.stats {
+  color: #666;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.member-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  background: white;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 64px;
+  padding: 0 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.member-row small {
+  display: block;
+  color: #666;
+}
+
+.member-row a {
+  color: inherit;
+  font-weight: 650;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: #ddd;
+}
+
+.member-row-short {
+  height: 32px;
+  padding: 4px 8px;
+}
+
+.skeleton-bar {
+  display: block;
+  height: 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+  background: #e5e5e5;
+}
+
+.layout-spinner {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 55%);
+}
+
+.route-loading {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #ddd;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
