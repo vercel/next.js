@@ -1680,6 +1680,38 @@ describe.each(
       )
     })
 
+    it('traces a bound progressively enhanced Server Action', async () => {
+      const browser = await next.browser('/app/param/server-action', {
+        disableJavaScript: true,
+      })
+      await browser.elementById('run-stateful-server-action').click()
+
+      await retry(async () => {
+        expect(
+          await browser.elementById('stateful-server-action-state').text()
+        ).toBe('stateful action complete')
+      })
+
+      const span = await findServerActionSpan(
+        getCollector(),
+        'statefulServerAction'
+      )
+      expect(span).toEqual(
+        expect.objectContaining({
+          name: 'run Server Action statefulServerAction',
+          status: { code: 0 },
+        })
+      )
+
+      if (isNextDev) {
+        expect(span.attributes?.['next.server_action.file']).toBe(
+          'app/app/[param]/server-action/actions.ts'
+        )
+      } else {
+        expect(span.attributes?.['next.server_action.file']).toBeUndefined()
+      }
+    })
+
     it('treats Server Action control flow as successful', async () => {
       for (const [buttonId, actionName] of [
         ['run-redirect-server-action', 'redirectServerAction'],
