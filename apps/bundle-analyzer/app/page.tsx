@@ -1,8 +1,6 @@
 'use client'
 
-import type React from 'react'
-
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { CompareLayout } from '@/components/compare-layout'
 import { ErrorState } from '@/components/error-state'
@@ -15,6 +13,7 @@ import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
 import { useRouteTotals } from '@/lib/use-route-totals'
+import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { type SnapshotMetadata } from '@/lib/snapshot'
 import { fetchStrict, jsonFetcher } from '@/lib/utils'
@@ -49,16 +48,22 @@ export default function Home() {
     null
   )
 
-  // Comparison state. When `baselineSnapshot` is set the UI flips into
-  // compare mode and starts fetching from `history/<id>/...`.
+  // Selecting an A snapshot enables compare mode. B defaults to the live
+  // build, but can be set to any other historical snapshot.
   const [baselineSnapshot, setBaselineSnapshot] =
     useState<SnapshotMetadata | null>(null)
+  const [comparisonSnapshot, setComparisonSnapshot] =
+    useState<SnapshotMetadata | null>(null)
+  const isCompareMode = baselineSnapshot != null
+  const comparisonBaseDir = comparisonSnapshot
+    ? `history/${comparisonSnapshot.id}`
+    : 'data'
 
   const {
     data: modulesData,
     isLoading: isModulesLoading,
     error: modulesError,
-  } = useSWR<ModulesData>('data/modules.data', fetchModulesData)
+  } = useSWR<ModulesData>(`${comparisonBaseDir}/modules.data`, fetchModulesData)
 
   // Baseline modules.data, only fetched in compare mode. Used to power the
   // import-chain panel for the baseline ("A") side of the compare sidebar.
@@ -78,10 +83,10 @@ export default function Home() {
     }
   )
 
-  // Always-loaded list of routes in the current build. Used as the route
-  // diff's "B" side and as the existing route picker's source of truth.
+  // Routes for comparison side B. This is the live build by default, or an
+  // independently selected historical snapshot.
   const { data: currentRoutes } = useSWR<string[]>(
-    'data/routes.json',
+    `${comparisonBaseDir}/routes.json`,
     jsonFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
@@ -96,20 +101,17 @@ export default function Home() {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
 
-  // Whether the selected route exists in the *current* build. We only
-  // fetch `data/<route>/analyze.data` when this is true — the analyzer's
-  // output directory can contain stale per-route subdirectories from
-  // previous builds that no longer correspond to real routes (the build
-  // doesn't clean removed routes out of `data/`). Trusting those would
-  // make a `removed` route render as identical-to-itself, hiding the
-  // actual diff. `routes.json` is the source of truth for the live build.
+  // Whether the selected route exists on comparison side B. We only fetch
+  // its analyze.data when this is true because an output directory can contain
+  // stale per-route subdirectories from previous builds. routes.json is the
+  // source of truth for either a live or historical comparison build.
   const currentAnalyzeRouteExists =
     currentRoutes != null &&
     selectedRoute != null &&
     currentRoutes.includes(selectedRoute)
   const analyzeDataPath = !currentAnalyzeRouteExists
     ? null
-    : getAnalyzeDataPath(selectedRoute, 'data')
+    : getAnalyzeDataPath(selectedRoute, comparisonBaseDir)
 
   const {
     data: analyzeData,
@@ -147,8 +149,7 @@ export default function Home() {
     shouldRetryOnError: false,
   })
 
-  const [sidebarWidth, setSidebarWidth] = useState(20) // percentage
-  const [isResizing, setIsResizing] = useState(false)
+  const { sidebarWidth, startResizing } = useSidebarResize()
   const [isMouseInTreemap, setIsMouseInTreemap] = useState(false)
   const [hoveredNodeInfo, setHoveredNodeInfo] = useState<{
     name: string
@@ -165,11 +166,11 @@ export default function Home() {
     null
   )
 
-  // Reset compare selection when the route or baseline changes — the
+  // Reset compare selection when the route or either side changes — the
   // previous selection is unlikely to exist in the new diff.
   useEffect(() => {
     setCompareSelectedKey(null)
-  }, [selectedRoute, baselineSnapshot])
+  }, [selectedRoute, baselineSnapshot, comparisonSnapshot])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -258,15 +259,15 @@ export default function Home() {
   // either side's data or the active filters change.
   //
   // Three cases:
-  // 1. Route exists in both builds → diff(baseline, current).
-  // 2. Route exists only in the baseline (removed) → there is no current
+  // 1. Route exists in both builds → diff(A, B).
+  // 2. Route exists only in the baseline (removed) → there is no B-side
   //    `analyze.data`, but we still want to show the baseline's sources
   //    flagged as `removed`. We synthesize this by passing the baseline
   //    as both A and the empty-stand-in for B, then dropping the B side.
   //    `diffSources` accepts a non-null B, so we feed an empty walk by
   //    using the baseline data with a filter that always returns false
   //    for the B side.
-  // 3. Route exists only in the current build (added) → analyzeData
+  // 3. Route exists only in comparison build B (added) → analyzeData
   //    present, baselineAnalyzeData absent. Already handled below by
   //    passing `null` for A.
   const sourceDiff = useMemo(() => {
@@ -293,7 +294,7 @@ export default function Home() {
   // than `identical`. Only fetched in compare mode.
   const { totals: currentRouteTotals } = useRouteTotals(
     baselineSnapshot ? (currentRoutes ?? null) : null,
-    baselineSnapshot ? 'data' : null
+    baselineSnapshot ? comparisonBaseDir : null
   )
   const { totals: baselineRouteTotals } = useRouteTotals(
     baselineSnapshot ? (baselineRoutes ?? null) : null,
@@ -320,30 +321,107 @@ export default function Home() {
     currentRouteTotals,
   ])
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isResizing) return
-    const newWidth = ((window.innerWidth - e.clientX) / window.innerWidth) * 100
-    setSidebarWidth(Math.max(10, Math.min(50, newWidth))) // Clamp between 10% and 50%
-  }
-
-  const handleMouseUp = () => {
-    setIsResizing(false)
-  }
-
   // The compare panel can render even when the *baseline's* per-route data
   // failed to load (e.g., the route is new). Don't surface that as a top-level
   // error in compare mode.
   const error = analyzeError || modulesError
   const isAnyLoading = isAnalyzeLoading || isModulesLoading
   const rootSourceIndex = getRootSourceIndex(analyzeData)
-  const isCompareMode = baselineSnapshot != null
+
+  let analyzerContent: ReactNode = null
+  if (error && !analyzeData) {
+    analyzerContent = <ErrorState error={error} />
+  } else if (isCompareMode) {
+    analyzerContent = (
+      <CompareLayout
+        baselineSnapshot={baselineSnapshot}
+        comparisonSnapshot={comparisonSnapshot}
+        selectedRoute={selectedRoute}
+        comparisonRouteCount={currentRoutes?.length ?? null}
+        routeDiff={routeDiff}
+        sourceDiff={sourceDiff}
+        analyzeData={analyzeData ?? null}
+        baselineAnalyzeData={baselineAnalyzeData ?? null}
+        isAnalyzeLoading={isAnalyzeLoading}
+        isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
+        baselineAnalyzeError={
+          baselineAnalyzeError && baselineAnalyzeRouteExists
+            ? baselineAnalyzeError
+            : null
+        }
+        compressed
+        compareSelectedKey={compareSelectedKey}
+        setCompareSelectedKey={setCompareSelectedKey}
+        modulesData={modulesData ?? null}
+        baselineModulesData={baselineModulesData ?? null}
+        moduleDepthMap={moduleDepthMap}
+        baselineModuleDepthMap={baselineModuleDepthMap}
+        environmentFilter={environmentFilter}
+      />
+    )
+  } else if (isAnyLoading) {
+    analyzerContent = (
+      <>
+        <div className="flex-1 min-w-0 p-4 bg-background">
+          <TreemapSkeleton />
+        </div>
+        <button
+          type="button"
+          className="flex-none w-1 bg-border cursor-col-resize transition-colors"
+          disabled
+          aria-label="Resize sidebar"
+        />
+        <Sidebar
+          sidebarWidth={sidebarWidth}
+          analyzeData={null}
+          modulesData={null}
+          selectedSourceIndex={null}
+          moduleDepthMap={new Map()}
+          environmentFilter={environmentFilter}
+          isLoading={true}
+        />
+      </>
+    )
+  } else if (analyzeData) {
+    analyzerContent = (
+      <>
+        <div className="flex-1 min-w-0">
+          <TreemapVisualizer
+            analyzeData={analyzeData}
+            sourceIndex={rootSourceIndex}
+            selectedSourceIndex={selectedSourceIndex ?? rootSourceIndex}
+            onSelectSourceIndex={setSelectedSourceIndex}
+            focusedSourceIndex={focusedSourceIndex ?? rootSourceIndex}
+            onFocusSourceIndex={setFocusedSourceIndex}
+            isMouseInTreemap={isMouseInTreemap}
+            onMouseInTreemapChange={setIsMouseInTreemap}
+            onHoveredNodeChange={setHoveredNodeInfo}
+            searchQuery={searchQuery}
+            filterSource={filterSource}
+            sizeMode={SizeMode.Compressed}
+          />
+        </div>
+        <button
+          type="button"
+          className="flex-none w-1 bg-border hover:bg-primary cursor-col-resize transition-colors"
+          onMouseDown={startResizing}
+          aria-label="Resize sidebar"
+        />
+        <Sidebar
+          sidebarWidth={sidebarWidth}
+          analyzeData={analyzeData}
+          modulesData={modulesData ?? null}
+          selectedSourceIndex={selectedSourceIndex}
+          moduleDepthMap={moduleDepthMap}
+          environmentFilter={environmentFilter}
+          filterSource={filterSource}
+        />
+      </>
+    )
+  }
 
   return (
-    <main
-      className="h-screen flex flex-col bg-background"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-    >
+    <main className="h-screen flex flex-col bg-background">
       <TopBar
         hasSourceData={analyzeData != null}
         selectedRoute={selectedRoute}
@@ -357,99 +435,16 @@ export default function Home() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         baselineSnapshot={baselineSnapshot}
-        onBaselineChange={setBaselineSnapshot}
+        onBaselineChange={(snapshot) => {
+          setBaselineSnapshot(snapshot)
+          if (!snapshot) setComparisonSnapshot(null)
+        }}
+        comparisonSnapshot={comparisonSnapshot}
+        onComparisonChange={setComparisonSnapshot}
         routeDiff={routeDiff}
       />
 
-      <div className="flex-1 flex min-h-0">
-        {error && !analyzeData ? (
-          <ErrorState error={error} />
-        ) : isCompareMode ? (
-          <CompareLayout
-            baselineSnapshot={baselineSnapshot!}
-            selectedRoute={selectedRoute}
-            currentRouteCount={currentRoutes?.length ?? null}
-            routeDiff={routeDiff}
-            sourceDiff={sourceDiff}
-            analyzeData={analyzeData ?? null}
-            baselineAnalyzeData={baselineAnalyzeData ?? null}
-            isAnalyzeLoading={isAnalyzeLoading}
-            isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
-            baselineAnalyzeError={
-              baselineAnalyzeError && baselineAnalyzeRouteExists
-                ? baselineAnalyzeError
-                : null
-            }
-            useCompressed
-            compareSelectedKey={compareSelectedKey}
-            setCompareSelectedKey={setCompareSelectedKey}
-            modulesData={modulesData ?? null}
-            baselineModulesData={baselineModulesData ?? null}
-            moduleDepthMap={moduleDepthMap}
-            baselineModuleDepthMap={baselineModuleDepthMap}
-            environmentFilter={environmentFilter}
-          />
-        ) : isAnyLoading ? (
-          <>
-            <div className="flex-1 min-w-0 p-4 bg-background">
-              <TreemapSkeleton />
-            </div>
-
-            <button
-              type="button"
-              className="flex-none w-1 bg-border cursor-col-resize transition-colors"
-              disabled
-              aria-label="Resize sidebar"
-            />
-
-            <Sidebar
-              sidebarWidth={sidebarWidth}
-              analyzeData={null}
-              modulesData={null}
-              selectedSourceIndex={null}
-              moduleDepthMap={new Map()}
-              environmentFilter={environmentFilter}
-              isLoading={true}
-            />
-          </>
-        ) : analyzeData ? (
-          <>
-            <div className="flex-1 min-w-0">
-              <TreemapVisualizer
-                analyzeData={analyzeData}
-                sourceIndex={rootSourceIndex}
-                selectedSourceIndex={selectedSourceIndex ?? rootSourceIndex}
-                onSelectSourceIndex={setSelectedSourceIndex}
-                focusedSourceIndex={focusedSourceIndex ?? rootSourceIndex}
-                onFocusSourceIndex={setFocusedSourceIndex}
-                isMouseInTreemap={isMouseInTreemap}
-                onMouseInTreemapChange={setIsMouseInTreemap}
-                onHoveredNodeChange={setHoveredNodeInfo}
-                searchQuery={searchQuery}
-                filterSource={filterSource}
-                sizeMode={SizeMode.Compressed}
-              />
-            </div>
-
-            <button
-              type="button"
-              className="flex-none w-1 bg-border hover:bg-primary cursor-col-resize transition-colors"
-              onMouseDown={() => setIsResizing(true)}
-              aria-label="Resize sidebar"
-            />
-
-            <Sidebar
-              sidebarWidth={sidebarWidth}
-              analyzeData={analyzeData ?? null}
-              modulesData={modulesData ?? null}
-              selectedSourceIndex={selectedSourceIndex}
-              moduleDepthMap={moduleDepthMap}
-              environmentFilter={environmentFilter}
-              filterSource={filterSource}
-            />
-          </>
-        ) : null}
-      </div>
+      <div className="flex-1 flex min-h-0">{analyzerContent}</div>
 
       {analyzeData && !isCompareMode ? (
         <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
