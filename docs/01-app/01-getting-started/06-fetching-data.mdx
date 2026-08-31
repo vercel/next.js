@@ -605,7 +605,9 @@ Since `getUser` is wrapped with `React.cache`, calls with the same `id` within o
 
 ### Preloading data
 
-Preloading starts a data request before the component that consumes the result renders. Call the data-fetching function without `await` before blocking work, then call the same function in the component.
+When a component renders after other blocking work, its data request starts late even if the request inputs are already available. Preloading starts the request earlier so it can run in parallel with that work and avoid a request waterfall.
+
+To preload data, call the data-fetching function without `await` before blocking work, then call the same function in the component that consumes the result.
 
 The data-fetching function must deduplicate matching calls so the component can reuse the request started during preloading. Use one of the following approaches:
 
