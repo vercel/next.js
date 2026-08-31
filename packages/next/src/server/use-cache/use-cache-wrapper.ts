@@ -2058,18 +2058,16 @@ export async function cache(
     args = [props, ...otherOuterArgs]
 
     fn = {
-      [name]: async (
-        {
-          params: _innerParams,
-          searchParams: innerSearchParams,
-        }: UseCachePageInnerProps,
-        ...otherInnerArgs: unknown[]
-      ) =>
+      [name]: async (_: UseCachePageInnerProps, ...otherInnerArgs: unknown[]) =>
         originalFn.apply(null, [
           {
-            params: outerParams,
+            params: props.params,
             searchParams:
-              innerSearchParams ??
+              // Preserve the original search params, if this cache can access them.
+              // Notably, in a runtime shell private caches can resolve, but search params
+              // will be hanging, and we need to preserve the original proxied promise object
+              // to trigger `dynamicAccessAbortSignal` when they're accessed.
+              props.searchParams ??
               // For public caches, search params are omitted from the cache
               // key (and the serialized args) to avoid mismatches between
               // prerendering and resuming a cached page that does not
@@ -2164,13 +2162,9 @@ export async function cache(
 
   switch (workUnitStore.type) {
     case 'prerender-runtime':
-    // We're currently only using `dynamicAccessAsyncStorage` for params,
-    // which are always available in a runtime prerender, so they will never hang,
-    // effectively making the tracking below a no-op.
-    // However, a runtime prerender shares a lot of the semantics with a static prerender,
-    // and might need to follow this codepath in the future
-    // if we start using `dynamicAccessAsyncStorage` for other APIs.
-    //
+    // A runtime prerender may be a runtime shell, which does not have access to
+    // params/searchParams, so we want to apply the same dynamic access logic
+    // as we do in static prerenders.
     // fallthrough
     case 'prerender':
       if (!isPageOrLayoutSegmentFunction) {
