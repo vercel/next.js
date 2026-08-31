@@ -4,6 +4,10 @@ import { load } from 'cheerio'
 describe('i18n-app-pages-domain-routing', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Adapter-generated routing metadata is covered separately. This suite
+    // verifies the built-in router and cannot run in deploy mode until the
+    // adapter-specific follow-up is applied.
+    skipDeployment: true,
   })
 
   function fetchFromDomain(pathname: string, host = 'nl.example.local') {

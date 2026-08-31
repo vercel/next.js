@@ -1,3 +1,10 @@
+export function generateStaticParams() {
+  return [
+    { lang: 'nl-NL', slug: ['blog', 'post'] },
+    { lang: 'en-US', slug: ['plain', 'static'] },
+  ]
+}
+
 export default async function Page({
   params,
 }: {
