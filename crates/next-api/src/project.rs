@@ -650,7 +650,10 @@ async fn disk_file_system_map_operation(
         })
         .try_join()
         .await?;
-    Ok(DiskFileSystemMap(filesystems.into_iter().collect()).cell())
+    Ok(filesystems
+        .into_iter()
+        .collect::<DiskFileSystemMap>()
+        .cell())
 }
 
 enum EnvDiffType {

@@ -11,8 +11,27 @@ use turbo_unix_path::sys_to_unix;
 use crate::{DiskFileSystem, FileSystemPath};
 
 /// An ordered set of canonical system roots and their owning filesystems.
+///
+/// The roots must not overlap: no root may be an ancestor of another root. [`Self::lookup`]
+/// relies on this invariant when selecting the nearest preceding root in path order.
 #[turbo_tasks::value(shared)]
-pub struct DiskFileSystemMap(pub BTreeMap<PathBuf, ResolvedVc<DiskFileSystem>>);
+pub struct DiskFileSystemMap(BTreeMap<PathBuf, ResolvedVc<DiskFileSystem>>);
+
+impl FromIterator<(PathBuf, ResolvedVc<DiskFileSystem>)> for DiskFileSystemMap {
+    fn from_iter<T: IntoIterator<Item = (PathBuf, ResolvedVc<DiskFileSystem>)>>(iter: T) -> Self {
+        let filesystems = BTreeMap::from_iter(iter);
+        let mut map = DiskFileSystemMap(BTreeMap::new());
+        for (root, fs) in filesystems {
+            assert!(
+                map.lookup(&root).is_none(),
+                "filesystem root {} overlaps another filesystem root",
+                root.display()
+            );
+            map.0.insert(root, fs);
+        }
+        map
+    }
+}
 
 impl DiskFileSystemMap {
     /// Converts an absolute system path into a path owned by one of the installed filesystems.
@@ -53,7 +72,7 @@ mod tests {
             let fs = DiskFileSystem::new(rcstr!("root"), Vc::cell(rcstr!("/tmp/root")))
                 .to_resolved()
                 .await?;
-            let map = DiskFileSystemMap(BTreeMap::from([(PathBuf::from("/tmp/root"), fs)]));
+            let map: DiskFileSystemMap = [(PathBuf::from("/tmp/root"), fs)].into_iter().collect();
             assert_eq!(
                 map.lookup(Path::new("/tmp/root/file")).unwrap().path,
                 "file"
