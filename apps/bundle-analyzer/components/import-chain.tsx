@@ -219,6 +219,7 @@ export function buildImportChain(
         .map((index: number) => ({
           index,
           async: false,
+          traced: false,
           depth: depthMap.get(index) ?? Infinity,
         })),
       ...modulesData
@@ -226,6 +227,15 @@ export function buildImportChain(
         .map((index: number) => ({
           index,
           async: true,
+          traced: false,
+          depth: depthMap.get(index) ?? Infinity,
+        })),
+      ...modulesData
+        .tracedModuleDependents(currentModuleIndex)
+        .map((index: number) => ({
+          index,
+          async: false,
+          traced: true,
           depth: depthMap.get(index) ?? Infinity,
         })),
     ]
@@ -242,7 +252,7 @@ export function buildImportChain(
 
     // Build info for each dependent
     const dependentsInfo: DependentInfo[] = validDependents.map(
-      ({ index: moduleIndex, async: isAsync, depth }) => {
+      ({ index: moduleIndex, async: isAsync, traced: isTraced, depth }) => {
         const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
         let ident = modulesData.module(moduleIndex)?.ident || ''
         return {
@@ -250,6 +260,7 @@ export function buildImportChain(
           sourceIndex,
           ident,
           isAsync,
+          isTraced,
           depth,
         }
       }
