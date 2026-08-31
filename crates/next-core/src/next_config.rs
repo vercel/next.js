@@ -923,7 +923,7 @@ pub enum ModuleIds {
 pub enum TurbopackPluginRuntimeStrategy {
     #[cfg(feature = "worker_pool")]
     WorkerThreads,
-    #[cfg(feature = "process_pool")]
+    #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
     ChildProcesses,
 }
 
@@ -1431,6 +1431,11 @@ pub struct ExperimentalConfig {
     turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Only include children in a parallel route layout when ordinary route content declares it.
+    explicit_parallel_route_children: Option<bool>,
+    /// Omit catch-all-derived route matchers whose loader trees contain an unmatched parallel
+    /// route.
+    strict_route_matching: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1441,6 +1446,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    turbopack_mangle_export_names: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -1883,12 +1890,11 @@ impl OutputFileTracingIncludesExcludes {
                             .iter()
                             .flat_map(|pattern| pattern.iter())
                             .filter_map(|pattern| pattern.as_str())
-                            .map(async |pattern_str| {
+                            .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
                             })
-                            .try_join()
-                            .await?;
+                            .collect::<Result<Vec<_>>>()?;
                         Ok((route_pattern, file_patterns))
                     })
                     .try_join()
@@ -2016,6 +2022,20 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn is_global_not_found_enabled(&self) -> Vc<bool> {
         Vc::cell(self.experimental.global_not_found.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn explicit_parallel_route_children(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .explicit_parallel_route_children
+                .unwrap_or(true),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn strict_route_matching(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
@@ -2410,21 +2430,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_transition_indicator(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_gesture_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_blocking_ssr(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -2464,6 +2469,16 @@ impl NextConfig {
                 Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
             }
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn use_react_experimental(&self) -> Vc<bool> {
+        // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+        let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
+        let taint = self.experimental.taint.unwrap_or(false);
+        let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
+        let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
+        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
     }
 
     #[turbo_tasks::function]
@@ -2569,6 +2584,22 @@ impl NextConfig {
         )
     }
 
+    /// Whether Turbopack should shorten ("mangle") the export names modules expose to each other.
+    ///
+    /// An explicit value always wins, in either direction — setting this to `true` in development
+    /// is honoured. `mode` only supplies the default when the option is unset: on in production
+    /// builds, off in development, where the extra module splitting costs rebuild time and the
+    /// short names make debugging harder for no benefit.
+    #[turbo_tasks::function]
+    pub async fn turbopack_mangle_export_names(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            match self.experimental.turbopack_mangle_export_names {
+                Some(explicit) => explicit,
+                None => !mode.await?.is_development(),
+            },
+        ))
+    }
+
     #[turbo_tasks::function]
     pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
         Vc::cell(
@@ -2589,9 +2620,14 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
-        #[cfg(feature = "process_pool")]
+        // Child processes cannot be spawned from inside wasm, so worker threads are the only
+        // available runtime there.
+        #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
-        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        #[cfg(all(
+            feature = "worker_pool",
+            any(not(feature = "process_pool"), target_family = "wasm")
+        ))]
         let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
 
         self.experimental

@@ -1,5 +1,10 @@
 export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
 
+export type {
+  CacheHandler,
+  CacheEntry,
+} from './dist/server/lib/cache-handlers/types'
+
 export {
   revalidatePath,
   revalidateTag,

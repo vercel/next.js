@@ -38,6 +38,7 @@ pub enum Route {
     AppRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        has_action_manifest: bool,
     },
     Conflict,
 }

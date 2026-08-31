@@ -33,6 +33,9 @@ describe('missing-suspense-with-csr-bailout', () => {
       const { exitCode } = await next.build()
       expect(exitCode).toBe(1)
       expect(next.cliOutput).toContain(message)
+      expect(next.cliOutput).not.toContain(
+        'The server render could not complete because client rendering was requested outside a Suspense boundary'
+      )
       // Can show the trace where the searchParams hook is used
       // TODO: This path is different for Turbopack. Builds need to have sourcemaps support.
       if (!process.env.IS_TURBOPACK_TEST) {
