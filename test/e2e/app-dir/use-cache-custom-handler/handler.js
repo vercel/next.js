@@ -35,9 +35,7 @@ const cacheHandler = {
 
   async getExpiration(tags) {
     console.log('ModernCustomCacheHandler::getExpiration', JSON.stringify(tags))
-    // Expecting soft tags in `get` to be used by the cache handler for checking
-    // the expiration of a cache entry, instead of letting Next.js handle it.
-    return Infinity
+    return defaultCacheHandler.getExpiration(tags)
   },
 
   async updateTags(tags) {
