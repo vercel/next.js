@@ -15,8 +15,8 @@ export interface SnapshotMetadata {
   gitMessage?: string
   appDirOnly?: boolean
   noMangling?: boolean
-  /** Optional label overriding branch/sha in display. See `--snapshot-label`. */
-  snapshotLabel?: string
+  /** User-supplied baseline name, overriding branch/sha in display. See `--baseline-name`. */
+  baselineName?: string
   routeCount: number
 }
 
@@ -31,7 +31,7 @@ export interface HistoryIndex {
  * timestamp when neither is available.
  */
 export function formatSnapshotLabel(metadata: SnapshotMetadata): string {
-  if (metadata.snapshotLabel) return metadata.snapshotLabel
+  if (metadata.baselineName) return metadata.baselineName
   const sha = metadata.gitShortSha ? metadata.gitShortSha : null
   const branch = metadata.gitBranch ?? null
   if (branch && sha) return `${branch}@${sha}${metadata.gitDirty ? '*' : ''}`

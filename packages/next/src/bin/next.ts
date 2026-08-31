@@ -286,8 +286,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--snapshot-label <label>',
-    'Label stored in the snapshot metadata, overriding branch/sha in the comparison UI.'
+    '--baseline-name <name>',
+    'Name this baseline in the snapshot metadata, overriding branch/sha in the comparison UI.'
   )
   .option(
     '-o, --output',
