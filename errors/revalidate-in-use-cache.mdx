@@ -11,7 +11,7 @@ import { revalidateTag } from 'next/cache'
 
 export default async function Page() {
   const products = await db.products.findMany()
-  revalidateTag('products') // Cannot revalidate during render
+  revalidateTag('products', 'max') // Cannot revalidate during render
 
   return <p>{products.length} products</p>
 }
@@ -27,7 +27,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function saveProduct(data) {
   await db.products.create(data)
-  revalidateTag('products') // Runs outside any cached function
+  revalidateTag('products', 'max') // Runs outside any cached function
 }
 ```
 

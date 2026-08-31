@@ -14,12 +14,7 @@ import {
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
-import {
-  createRevalidateDuringRenderError,
-  createRevalidateInGenerateStaticParamsError,
-  createRevalidateInUseCacheError,
-  createRevalidateInUnstableCacheError,
-} from '../../use-cache/use-cache-messages'
+import { createRevalidateDuringRenderError } from '../../use-cache/use-cache-messages'
 import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
@@ -149,14 +144,9 @@ function revalidate(
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
-        throw createRevalidateInUseCacheError(store.route, expression)
       case 'unstable-cache':
-        throw createRevalidateInUnstableCacheError(store.route, expression)
       case 'generate-static-params':
-        throw createRevalidateInGenerateStaticParamsError(
-          store.route,
-          expression
-        )
+        throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender

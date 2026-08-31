@@ -25,6 +25,8 @@ const USE_CACHE_PRIVATE_COMPOSITION =
 const REVALIDATE_IN_USE_CACHE =
   'https://nextjs.org/docs/messages/revalidate-in-use-cache'
 
+// Request data accessed in caches
+
 export function createCookiesInUseCacheError(route: string): Error {
   return new Error(
     `Route "${route}": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
@@ -57,21 +59,41 @@ export function createSearchParamsInUseCacheError(route: string): Error {
 
 export function createConnectionInPublicUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
 export function createConnectionInPrivateUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\` because the cached function can run during prefetching, before a navigation request exists. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\` because private cached functions may run during prefetching, without a navigation request. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
   )
 }
 
 export function createConnectionInUnstableCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\` because the cached function can run before a request exists. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+    `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
+
+export function createRouteHandlerRequestInUseCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createRouteHandlerRequestInUnstableCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+// Mutations inside caches and render
 
 /**
  * Used when `draftMode().enable()` or `.disable()` is called inside
@@ -96,51 +118,6 @@ export function createDraftModeMutationInUnstableCacheError(
   )
 }
 
-export function createRouteHandlerRequestInUseCacheError(
-  route: string,
-  expression: string
-): Error {
-  return new Error(
-    `Route "${route}": \`${expression}\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
-  )
-}
-
-export function createRouteHandlerRequestInUnstableCacheError(
-  route: string,
-  expression: string
-): Error {
-  return new Error(
-    `Route "${route}": \`${expression}\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
-  )
-}
-
-export function createRevalidateInUseCacheError(
-  route: string,
-  expression: string
-): Error {
-  return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
-  )
-}
-
-export function createRevalidateInUnstableCacheError(
-  route: string,
-  expression: string
-): Error {
-  return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
-  )
-}
-
-export function createRevalidateInGenerateStaticParamsError(
-  route: string,
-  expression: string
-): Error {
-  return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`generateStaticParams\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
-  )
-}
-
 export function createRevalidateDuringRenderError(
   route: string,
   expression: string
@@ -149,6 +126,8 @@ export function createRevalidateDuringRenderError(
     `Route "${route}": \`${expression}\` can't be called during render, inside a cached function, or inside \`generateStaticParams\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
+
+// Cache configuration and nesting
 
 export function createCacheTagOutsideUseCacheError(): Error {
   return new Error(
@@ -179,6 +158,8 @@ export function createNestedCacheShortExpireError(
     { cause }
   )
 }
+
+// Private cache composition and request context
 
 export function createUseCachePrivateInsidePublicUseCacheError(): Error {
   return new Error(
