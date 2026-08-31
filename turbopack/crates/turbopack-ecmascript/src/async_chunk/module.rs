@@ -1,28 +1,78 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
+use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
         ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{Module, ModuleSideEffects, Modules},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+        BatchingConfig, ModuleGraph,
+        chunk_group_info::{ChunkGroup, canonical_async_available_modules},
     },
     output::OutputAssetsWithReferenced,
     reference::ModuleReferences,
 };
+
+async fn canonical_async_availability(
+    module_graph: ResolvedVc<ModuleGraph>,
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    batching_config: ResolvedVc<BatchingConfig>,
+) -> Result<AvailabilityInfo> {
+    let chunk_group_info_vc = module_graph.chunk_group_info();
+    let chunk_group_index = *chunk_group_info_vc
+        .get_index_of(ChunkGroup::Async(ResolvedVc::upcast(module)))
+        .await?;
+    let chunk_group_info = chunk_group_info_vc.await?;
+
+    // Availability is the intersection across parent paths, but page-conditional traversal must
+    // stay active for every entry that can reach this shared group. Use the union of those entries
+    // as traversal context without treating that union as module availability.
+    let mut entry_modules = FxIndexSet::default();
+    let mut visited = FxHashSet::default();
+    let mut pending = chunk_group_info.chunk_group_parents[chunk_group_index]
+        .iter()
+        .map(|index| index as usize)
+        .collect::<Vec<_>>();
+    while let Some(index) = pending.pop() {
+        if !visited.insert(index) {
+            continue;
+        }
+        match &chunk_group_info.chunk_groups[index] {
+            ChunkGroup::Entry(modules) => entry_modules.extend(modules.iter().copied()),
+            _ => pending.extend(
+                chunk_group_info.chunk_group_parents[index]
+                    .iter()
+                    .map(|index| index as usize),
+            ),
+        }
+    }
+
+    let available_modules =
+        canonical_async_available_modules(module_graph, module, batching_config);
+    let mut availability_info = AvailabilityInfo::root()
+        .with_modules(available_modules)
+        .await?
+        .in_async_module();
+    if !entry_modules.is_empty() {
+        availability_info = availability_info.with_entry_group(ResolvedVc::<Modules>::cell(
+            entry_modules.into_iter().collect(),
+        ));
+    }
+    Ok(availability_info)
+}
 
 use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_MODULES},
     utils::{StringifyJs, StringifyModuleId},
 };
 
@@ -32,7 +82,6 @@ use crate::{
 pub struct AsyncLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_impl]
@@ -41,12 +90,10 @@ impl AsyncLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(AsyncLoaderModule {
             inner: module,
             chunking_context,
-            availability_info,
         })
     }
 
@@ -65,29 +112,23 @@ impl AsyncLoaderModule {
         &self,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        if let Some(chunk_items) = self.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(self.inner);
-            let batches = module_graph
-                .module_batches(self.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
-            if let Some(chunkable_module_or_batch) =
-                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
-            {
-                return Ok(OutputAssetsWithReferenced {
-                    assets: ResolvedVc::cell(vec![]),
-                    referenced_assets: ResolvedVc::cell(vec![]),
-                    references: ResolvedVc::cell(vec![]),
-                }
-                .cell());
-            }
-        }
+        // A loader has one stable module ID. Use the availability shared by every parent group so
+        // its factory is both entry-independent and able to exclude common parent modules.
+        let module_graph = module_graph.to_resolved().await?;
+        let availability_info = canonical_async_availability(
+            module_graph,
+            self.inner,
+            self.chunking_context
+                .batching_config()
+                .to_resolved()
+                .await?,
+        )
+        .await?;
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
-            module_graph,
-            self.availability_info,
+            *module_graph,
+            availability_info,
         ))
     }
 
@@ -216,10 +257,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                 }
             }
             (Some(id), false) => {
+                // A completed path that installed the target also installed the dependencies used
+                // on that path. The canonical chunk list is the fallback when no path has done so.
                 formatdoc! {
                     r#"
                         {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                            const load = {TURBOPACK_MODULES}.has({id})
+                                ? Promise.resolve()
+                                : Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk)));
+                            return load.then(() => {{
                                 return parentImport({id});
                             }});
                         }});
@@ -255,42 +301,6 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             ..Default::default()
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_content_ident(
-        self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
-
-        let nested_async_availability = this
-            .chunking_context
-            .is_nested_async_availability_enabled()
-            .await?;
-
-        let availability_ident = if *nested_async_availability {
-            Some(
-                self.chunks_data(module_graph)
-                    .hash()
-                    .await?
-                    .to_string()
-                    .into(),
-            )
-        } else {
-            this.availability_info.ident().await?
-        };
-
-        Ok(if let Some(availability_ident) = availability_ident {
-            self.ident()
-                .owned()
-                .await?
-                .with_modifier(availability_ident)
-                .into_vc()
-        } else {
-            self.ident()
-        })
     }
 
     #[turbo_tasks::function]
