@@ -63,6 +63,8 @@ export function TopBar({
   setSearchQuery,
   baselineSnapshot,
   onBaselineChange,
+  comparisonSnapshot,
+  onComparisonChange,
   routeDiff,
   hasSourceData,
 }: {
@@ -79,6 +81,8 @@ export function TopBar({
   setSearchQuery: (query: string) => void
   baselineSnapshot: SnapshotMetadata | null
   onBaselineChange: (snapshot: SnapshotMetadata | null) => void
+  comparisonSnapshot: SnapshotMetadata | null
+  onComparisonChange: (snapshot: SnapshotMetadata | null) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
 }) {
   const isCompareMode = baselineSnapshot != null
@@ -101,7 +105,20 @@ export function TopBar({
         <BaselinePicker
           selectedSnapshotId={baselineSnapshot?.id ?? null}
           onSelectionChange={onBaselineChange}
+          excludedSnapshotId={comparisonSnapshot?.id}
+          prefix="from"
+          placeholder="Compare from…"
         />
+        {isCompareMode ? (
+          <BaselinePicker
+            selectedSnapshotId={comparisonSnapshot?.id ?? null}
+            onSelectionChange={onComparisonChange}
+            excludedSnapshotId={baselineSnapshot?.id}
+            prefix="to"
+            placeholder="to Latest"
+            clearLabel="Compare with latest"
+          />
+        ) : null}
 
         {hasSourceData && (
           <>

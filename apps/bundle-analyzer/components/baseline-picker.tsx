@@ -33,15 +33,18 @@ import {
 } from '@/lib/snapshot'
 
 interface BaselinePickerProps {
-  /** Selected snapshot id, or null when no comparison is active. */
+  /** Selected historical snapshot id, or null for the control's default. */
   selectedSnapshotId: string | null
   onSelectionChange: (snapshot: SnapshotMetadata | null) => void
+  excludedSnapshotId?: string | null
+  prefix?: string
+  placeholder?: string
+  clearLabel?: string
 }
 
 /**
- * Top-bar control that lets the user pick a historical analyze snapshot to
- * compare the latest build against. When no snapshot is selected, the
- * analyzer behaves as before (single-build view).
+ * Top-bar control that lets the user pick one historical analyze snapshot.
+ * Two instances can select arbitrary A and B snapshots for comparison.
  *
  * Snapshots are loaded from `history/history.json` — written by
  * `writeAnalyzeSnapshot` after each `next build --experimental-analyze`.
@@ -49,6 +52,10 @@ interface BaselinePickerProps {
 export function BaselinePicker({
   selectedSnapshotId,
   onSelectionChange,
+  excludedSnapshotId,
+  prefix = 'vs',
+  placeholder = 'Compare with…',
+  clearLabel = 'Stop comparing',
 }: BaselinePickerProps) {
   const [open, setOpen] = useState(false)
 
@@ -79,9 +86,10 @@ export function BaselinePicker({
 
   const allSnapshots = history?.snapshots ?? []
   // Filter out the current build's snapshot — comparing to self is a no-op.
-  const snapshots = currentMetadata
-    ? allSnapshots.filter((s) => s.id !== currentMetadata.id)
-    : allSnapshots
+  const snapshots = allSnapshots.filter(
+    (snapshot) =>
+      snapshot.id !== currentMetadata?.id && snapshot.id !== excludedSnapshotId
+  )
   const selected =
     selectedSnapshotId != null
       ? snapshots.find((s) => s.id === selectedSnapshotId)
@@ -102,14 +110,14 @@ export function BaselinePicker({
   } else if (selected) {
     triggerText = (
       <span className="flex items-center gap-1.5 truncate">
-        <span className="text-muted-foreground text-xs">vs</span>
+        <span className="text-muted-foreground text-xs">{prefix}</span>
         <span className="font-mono truncate">
           {formatSnapshotLabel(selected)}
         </span>
       </span>
     )
   } else {
-    triggerText = 'Compare with…'
+    triggerText = placeholder
   }
 
   return (
@@ -201,7 +209,7 @@ export function BaselinePicker({
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Stop comparing"
+          aria-label={clearLabel}
           onClick={() => onSelectionChange(null)}
           className="h-8 w-8"
         >

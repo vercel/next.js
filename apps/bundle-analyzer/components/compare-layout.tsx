@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { CompareSidebar } from '@/components/sidebar'
 import { DiffTreemap } from '@/components/diff-treemap'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
@@ -18,8 +18,9 @@ import { cn, formatBytes } from '@/lib/utils'
 
 export interface CompareLayoutProps {
   baselineSnapshot: SnapshotMetadata
+  comparisonSnapshot: SnapshotMetadata | null
   selectedRoute: string | null
-  currentRouteCount: number | null
+  comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
@@ -27,7 +28,7 @@ export interface CompareLayoutProps {
   isAnalyzeLoading: boolean
   isBaselineAnalyzeLoading: boolean
   baselineAnalyzeError: unknown | null
-  useCompressed: boolean
+  compressed: boolean
   compareSelectedKey: string | null
   setCompareSelectedKey: (key: string | null) => void
   modulesData: ModulesData | null
@@ -40,7 +41,7 @@ export interface CompareLayoutProps {
 /**
  * Renders the comparison view (treemap) with a context strip at the top
  * showing the two builds being compared. The "before" build (A) is rendered
- * on the left and the "after" build (B) — the latest one — on the right,
+ * on the left and the selected "after" build (B) on the right,
  * matching the user's mental model.
  *
  * Route selection lives in the top-bar route picker (`RouteTypeahead`),
@@ -48,8 +49,9 @@ export interface CompareLayoutProps {
  */
 export function CompareLayout({
   baselineSnapshot,
+  comparisonSnapshot,
   selectedRoute,
-  currentRouteCount,
+  comparisonRouteCount,
   routeDiff,
   sourceDiff,
   analyzeData,
@@ -57,7 +59,7 @@ export function CompareLayout({
   isAnalyzeLoading,
   isBaselineAnalyzeLoading,
   baselineAnalyzeError,
-  useCompressed,
+  compressed,
   compareSelectedKey,
   setCompareSelectedKey,
   modulesData,
@@ -66,24 +68,7 @@ export function CompareLayout({
   baselineModuleDepthMap,
   environmentFilter,
 }: CompareLayoutProps) {
-  const [sidebarWidth, setSidebarWidth] = useState(20)
-  const [isResizing, setIsResizing] = useState(false)
-
-  useEffect(() => {
-    if (!isResizing) return
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth =
-        ((window.innerWidth - e.clientX) / window.innerWidth) * 100
-      setSidebarWidth(Math.max(10, Math.min(50, newWidth)))
-    }
-    const handleMouseUp = () => setIsResizing(false)
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isResizing])
+  const { sidebarWidth, startResizing } = useSidebarResize()
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
@@ -102,14 +87,14 @@ export function CompareLayout({
           isAnalyzeLoading={isAnalyzeLoading}
           isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
           baselineAnalyzeError={baselineAnalyzeError}
-          useCompressed={useCompressed}
+          compressed={compressed}
           className="xl:min-w-0 xl:flex-1 xl:basis-0 xl:border-r xl:border-border"
         />
         <CompareContextStrip
           baselineSnapshot={baselineSnapshot}
-          currentRouteCount={currentRouteCount}
+          comparisonRouteCount={comparisonRouteCount}
           routeDiff={routeDiff}
-          useCompressed={useCompressed}
+          compressed={compressed}
           className="xl:min-w-0 xl:flex-1 xl:basis-0"
         />
       </div>
@@ -127,7 +112,7 @@ export function CompareLayout({
             baselineAnalyzeData={baselineAnalyzeData}
             isAnalyzeLoading={isAnalyzeLoading}
             isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
-            useCompressed={useCompressed}
+            compressed={compressed}
             compareSelectedKey={compareSelectedKey}
             onCompareSelectedKeyChange={setCompareSelectedKey}
           />
@@ -135,7 +120,7 @@ export function CompareLayout({
         <button
           type="button"
           className="flex-none w-1 bg-border hover:bg-primary cursor-col-resize transition-colors"
-          onMouseDown={() => setIsResizing(true)}
+          onMouseDown={startResizing}
           aria-label="Resize sidebar"
         />
         <CompareSidebar
@@ -150,7 +135,11 @@ export function CompareLayout({
           environmentFilter={environmentFilter}
           sidebarWidth={sidebarWidth}
           aLabel={formatSnapshotLabel(baselineSnapshot)}
-          bLabel="Latest"
+          bLabel={
+            comparisonSnapshot
+              ? formatSnapshotLabel(comparisonSnapshot)
+              : 'Latest'
+          }
         />
       </div>
     </div>
@@ -168,30 +157,30 @@ export function CompareLayout({
  */
 function CompareContextStrip({
   baselineSnapshot,
-  currentRouteCount,
+  comparisonRouteCount,
   routeDiff,
-  useCompressed,
+  compressed,
   className,
 }: {
   baselineSnapshot: SnapshotMetadata
-  currentRouteCount: number | null
+  comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
-  useCompressed: boolean
+  compressed: boolean
   className?: string
 }) {
   const baselineRoutes = baselineSnapshot.routeCount
-  const latestRoutes =
-    currentRouteCount ??
+  const comparisonRoutes =
+    comparisonRouteCount ??
     routeDiff?.rows.filter((r) => r.status !== 'removed').length ??
     null
 
   const totalA = routeDiff
-    ? useCompressed
+    ? compressed
       ? routeDiff.totalCompressedA
       : routeDiff.totalA
     : null
   const totalB = routeDiff
-    ? useCompressed
+    ? compressed
       ? routeDiff.totalCompressedB
       : routeDiff.totalB
     : null
@@ -216,7 +205,7 @@ function CompareContextStrip({
         <StatCard
           label="Total routes"
           a={baselineRoutes}
-          b={latestRoutes}
+          b={comparisonRoutes}
           deltaTone="neutral"
         />
         <StatCard
@@ -265,7 +254,7 @@ function RouteStatsCard({
   isAnalyzeLoading,
   isBaselineAnalyzeLoading,
   baselineAnalyzeError,
-  useCompressed,
+  compressed,
   className,
 }: {
   selectedRoute: string | null
@@ -273,7 +262,7 @@ function RouteStatsCard({
   isAnalyzeLoading: boolean
   isBaselineAnalyzeLoading: boolean
   baselineAnalyzeError: unknown | null
-  useCompressed: boolean
+  compressed: boolean
   className?: string
 }) {
   const isLoading = isAnalyzeLoading || isBaselineAnalyzeLoading
@@ -293,7 +282,7 @@ function RouteStatsCard({
       selectedRoute={selectedRoute}
       sourceDiff={sourceDiff}
       baselineAnalyzeError={baselineAnalyzeError}
-      useCompressed={useCompressed}
+      compressed={compressed}
     />
   )
 
@@ -319,17 +308,17 @@ function RouteStatsBody({
   selectedRoute: _selectedRoute,
   sourceDiff,
   baselineAnalyzeError: _baselineAnalyzeError,
-  useCompressed,
+  compressed,
 }: {
   selectedRoute: string
   sourceDiff: DiffSummary<SourceDiffRow>
   baselineAnalyzeError: unknown | null
-  useCompressed: boolean
+  compressed: boolean
 }) {
-  const routeSizeA = useCompressed
+  const routeSizeA = compressed
     ? sourceDiff.totalCompressedA
     : sourceDiff.totalA
-  const routeSizeB = useCompressed
+  const routeSizeB = compressed
     ? sourceDiff.totalCompressedB
     : sourceDiff.totalB
   const routeSizeDelta = routeSizeB - routeSizeA
@@ -382,7 +371,7 @@ function RouteStatsBody({
 
 /**
  * Per-route comparison panel. Shows the diff treemap. Handles missing-route
- * states (the route is new in the latest build, or was removed) with
+ * states (the route is new in the comparison build, or was removed) with
  * friendly messaging.
  */
 function ComparePerRoutePanel({
@@ -392,7 +381,7 @@ function ComparePerRoutePanel({
   baselineAnalyzeData,
   isAnalyzeLoading,
   isBaselineAnalyzeLoading,
-  useCompressed,
+  compressed,
   compareSelectedKey,
   onCompareSelectedKeyChange,
 }: {
@@ -402,7 +391,7 @@ function ComparePerRoutePanel({
   baselineAnalyzeData: AnalyzeData | null
   isAnalyzeLoading: boolean
   isBaselineAnalyzeLoading: boolean
-  useCompressed: boolean
+  compressed: boolean
   compareSelectedKey: string | null
   onCompareSelectedKeyChange: (key: string | null) => void
 }) {
@@ -432,7 +421,7 @@ function ComparePerRoutePanel({
     <div className="flex flex-1 min-h-0 flex-col">
       <DiffTreemap
         summary={sourceDiff}
-        useCompressed={useCompressed}
+        useCompressed={compressed}
         analyzeData={analyzeData}
         baselineAnalyzeData={baselineAnalyzeData}
         selectedKey={compareSelectedKey}

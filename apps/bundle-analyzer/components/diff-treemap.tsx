@@ -10,23 +10,25 @@ import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 /**
  * Threshold (bytes) below which a row's delta is considered "noise" and the
- * row is rendered as neutral grey rather than red/green. This keeps the
+ * row is rendered as neutral grey rather than a directional color. This keeps the
  * visualization legible when the build pipeline produces tiny non-deterministic
  * size deltas (e.g., source-map paths, comments).
  */
 const NEUTRAL_DELTA_THRESHOLD = 4
 
-/** Color palette for diff tiles. Red = more bytes (bad), green = fewer bytes (good). */
-const COLOR_ADDED = '#dc2626' // red-600 — new bytes in bundle
-const COLOR_REMOVED = '#16a34a' // green-600 — bytes removed from bundle
+/** Color-blind-safe blue/amber palette for bundle-size increases/decreases. */
+const COLOR_INCREASE = '#2563eb' // blue-600
+const COLOR_INCREASE_MUTED = 'rgba(37, 99, 235, 0.6)'
+const COLOR_DECREASE = '#d97706' // amber-600
+const COLOR_DECREASE_MUTED = 'rgba(217, 119, 6, 0.6)'
 const COLOR_NEUTRAL = '#9ca3af' // gray-400
 
 interface DiffTreemapProps {
   summary: DiffSummary<SourceDiffRow>
   useCompressed: boolean
   /**
-   * Analyze data for the current ("B") build. Used as the source-of-truth
-   * tree when present.
+   * Analyze data for comparison side B. Used as the source-of-truth tree
+   * when present.
    */
   analyzeData: AnalyzeData | null
   /**
@@ -51,13 +53,13 @@ interface DiffTreemapProps {
  * engine as the single-build view. Each leaf tile represents one source
  * file, and the color encodes the per-file delta:
  *
- * - bright red: added in the latest build (more bytes = bad)
- * - bright green: removed in the historical build (fewer bytes = good)
- * - red tint: same file, grew since the historical build
- * - green tint: same file, shrank since the historical build
+ * - bright blue: added in the comparison build
+ * - bright amber: removed from the comparison build
+ * - blue tint: same file, grew since the baseline build
+ * - amber tint: same file, shrank since the baseline build
  * - neutral: same size in both builds
  *
- * Removed files don't exist in the current build's source tree so they
+ * Removed files don't exist in comparison build B's source tree so they
  * don't appear in the treemap; users can still see them in the table view.
  */
 export function DiffTreemap({
@@ -68,8 +70,8 @@ export function DiffTreemap({
   selectedKey,
   onSelectKey,
 }: DiffTreemapProps) {
-  // Pick the side that drives the source tree. Prefer the current build (B);
-  // fall back to baseline (A) for the "removed route" case where there's no
+  // Pick the side that drives the source tree. Prefer comparison build B;
+  // fall back to baseline A for the "removed route" case where there's no
   // B-side data.
   const data = analyzeData ?? baselineAnalyzeData
 
@@ -177,13 +179,13 @@ export function DiffTreemap({
 
 /**
  * Picks a fill color for a diff row. Mirrors the previous DiffTreemap's
- * scheme: bright green/red for added/removed, lighter tints scaled by the
+ * scheme: bright blue/amber for added/removed, lighter tints scaled by the
  * relative magnitude of the change for grew/shrank, and neutral grey for
  * sub-threshold changes.
  */
 function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
-  if (row.status === 'added') return COLOR_ADDED
-  if (row.status === 'removed') return COLOR_REMOVED
+  if (row.status === 'added') return COLOR_INCREASE
+  if (row.status === 'removed') return COLOR_DECREASE
   const deltaValue = useCompressed
     ? row.compressedB - row.compressedA
     : row.sizeB - row.sizeA
@@ -197,17 +199,17 @@ function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
     baseline === 0 ? 1 : Math.min(1, Math.abs(deltaValue) / baseline)
   const alpha = 0.35 + ratio * 0.5
   return deltaValue > 0
-    ? `rgba(220, 38, 38, ${alpha.toFixed(2)})`
-    : `rgba(22, 163, 74, ${alpha.toFixed(2)})`
+    ? `rgba(37, 99, 235, ${alpha.toFixed(2)})`
+    : `rgba(217, 119, 6, ${alpha.toFixed(2)})`
 }
 
 /** Static legend overlay so users can decode the color scheme at a glance. */
 function DiffLegend({ hasRemoved }: { hasRemoved: boolean }) {
   const items: Array<{ label: string; color: string }> = [
-    { label: 'Added', color: COLOR_ADDED },
-    { label: 'Grew', color: 'rgba(220, 38, 38, 0.6)' },
+    { label: 'Added', color: COLOR_INCREASE },
+    { label: 'Grew', color: COLOR_INCREASE_MUTED },
     { label: 'Unchanged', color: COLOR_NEUTRAL },
-    { label: 'Shrank', color: 'rgba(22, 163, 74, 0.6)' },
+    { label: 'Shrank', color: COLOR_DECREASE_MUTED },
   ]
   return (
     <div className="absolute bottom-2 left-2 flex items-center gap-3 rounded border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
