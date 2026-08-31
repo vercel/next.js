@@ -737,6 +737,7 @@ mod tests {
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
                     | Effect::Member { .. }
+                    | Effect::DestructuredMember { .. }
                     | Effect::In { .. } => 0,
                 };
                 let time = start.elapsed();

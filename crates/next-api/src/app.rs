@@ -170,6 +170,8 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
+            conf.explicit_parallel_route_children(),
+            conf.strict_route_matching(),
             self.project.next_mode(),
         )
     }
@@ -424,7 +426,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    pub(crate) fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             self.get_rsc_transitions(
                 self.ecmascript_client_reference_transition(),
@@ -457,7 +459,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 AppProject::client_transition_name(),
@@ -1090,18 +1092,23 @@ pub fn app_entry_point_to_route(
                 }
                 .resolved_cell(),
             ),
+            has_action_manifest: true,
         },
-        AppEntrypoint::AppMetadata { page, metadata, .. } => Route::AppRoute {
-            original_name: page.to_string().into(),
-            endpoint: ResolvedVc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Metadata { metadata },
-                    app_project,
-                    page,
-                }
-                .resolved_cell(),
-            ),
-        },
+        AppEntrypoint::AppMetadata { page, metadata, .. } => {
+            let has_action_manifest = matches!(metadata, MetadataItem::Dynamic { .. });
+            Route::AppRoute {
+                original_name: page.to_string().into(),
+                endpoint: ResolvedVc::upcast(
+                    AppEndpoint {
+                        ty: AppEndpointType::Metadata { metadata },
+                        app_project,
+                        page,
+                    }
+                    .resolved_cell(),
+                ),
+                has_action_manifest,
+            }
+        }
     }
     .cell()
 }
@@ -2161,14 +2168,26 @@ impl Endpoint for AppEndpoint {
             };
 
             let written_endpoint = match *output.await? {
-                AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root
+                AppEndpointOutput::NodeJs { rsc_chunk, .. } => {
+                    let server_entry_path: RcStr = node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
-                        .into(),
-                    server_paths,
-                    client_paths,
-                },
+                        .into();
+                    let hmr_entry_path = server_entry_path
+                        .strip_prefix("server/app/")
+                        .unwrap_or(&server_entry_path)
+                        .strip_suffix(".js")
+                        .unwrap_or(&server_entry_path);
+                    EndpointOutputPaths::NodeJs {
+                        server_hmr_entry_paths: vec![
+                            format!("{hmr_entry_path}.js").into(),
+                            format!("{hmr_entry_path}/client-components-ssr.js").into(),
+                        ],
+                        server_entry_path,
+                        server_paths,
+                        client_paths,
+                    }
+                }
                 AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths,

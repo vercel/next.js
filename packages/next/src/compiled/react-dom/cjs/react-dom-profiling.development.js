@@ -2583,19 +2583,6 @@
     }
     function isTagValidWithParent(tag, parentTag, implicitRootScope) {
       switch (parentTag) {
-        case "select":
-          return (
-            "hr" === tag ||
-            "option" === tag ||
-            "optgroup" === tag ||
-            "script" === tag ||
-            "template" === tag ||
-            "#text" === tag
-          );
-        case "optgroup":
-          return "option" === tag || "#text" === tag;
-        case "option":
-          return "#text" === tag;
         case "tr":
           return (
             "th" === tag ||
@@ -2669,6 +2656,8 @@
         case "caption":
         case "col":
         case "colgroup":
+        case "input":
+          return "select" !== parentTag;
         case "frameset":
         case "frame":
         case "tbody":
@@ -24519,7 +24508,7 @@
     }
     function normalizeListenerOptions(opts) {
       return null == opts
-        ? "0"
+        ? "c=0"
         : "boolean" === typeof opts
           ? "c=" + (opts ? "1" : "0")
           : "c=" + (opts.capture ? "1" : "0");
@@ -26847,7 +26836,7 @@
           " "
         ),
       inScopeTags =
-        "applet caption html table td th marquee object template foreignObject desc title".split(
+        "applet caption html table td th marquee object select template foreignObject desc title".split(
           " "
         ),
       buttonScopeTags = inScopeTags.concat(["button"]),
@@ -27995,7 +27984,8 @@
       SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface),
       ToggleEventInterface = assign({}, EventInterface, {
         newState: 0,
-        oldState: 0
+        oldState: 0,
+        source: 0
       }),
       SyntheticToggleEvent = createSyntheticEvent(ToggleEventInterface),
       END_KEYCODES = [9, 13, 27, 32],
@@ -30996,11 +30986,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-eafeac09-20260819" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-ff7445e6-20260831" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-eafeac09-20260819\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-ff7445e6-20260831\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -31037,10 +31027,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-eafeac09-20260819",
+          version: "19.3.0-canary-ff7445e6-20260831",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-eafeac09-20260819"
+          reconcilerVersion: "19.3.0-canary-ff7445e6-20260831"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31520,7 +31510,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-eafeac09-20260819";
+    exports.version = "19.3.0-canary-ff7445e6-20260831";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

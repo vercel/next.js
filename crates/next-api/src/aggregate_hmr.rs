@@ -1,110 +1,100 @@
+use std::{
+    fmt::Display,
+    sync::{Arc, LazyLock},
+};
+
 use anyhow::Result;
+use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat,
+    message_queue::{CompilationEvent, Severity},
+    trace::TraceRawVcs,
+    turbo_tasks,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
-use turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent;
 use turbopack_core::{
     update_instruction::UpdateInstruction,
-    version::{PartialUpdate, Update, Version, VersionState, VersionedContent},
+    version::{PartialUpdate, Update, Version},
 };
 use turbopack_ecmascript::chunk_list::{
     merged_update::EcmascriptMergedUpdate,
     update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
+    version::ChunkListVersion,
 };
-use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
+    EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
+};
 
-use crate::versioned_content_map::VersionedContentMap;
-
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
-pub struct HmrChunkWithContent {
-    pub path: RcStr,
-    pub content: ResolvedVc<Box<dyn VersionedContent>>,
+#[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrChunkList {
+    pub relative_path: RcStr,
+    pub versioned_content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
 }
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct HmrChunksWithContent(Vec<HmrChunkWithContent>);
+#[derive(Clone)]
+pub struct ServerHmrChunkLists(Vec<ServerHmrChunkList>);
 
-/// Whether `content` is a chunk list, i.e. an entry point of the chunk graph that
-/// an HMR subscription can be anchored on.
-///
-/// Note this must enumerate every chunk list content type. A new chunking context
-/// that introduces one has to be added here, otherwise its chunks silently drop
-/// out of the HMR subscription.
-pub fn is_entry_chunk_list_content(content: ResolvedVc<Box<dyn VersionedContent>>) -> bool {
-    ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content).is_some()
-        || ResolvedVc::try_downcast_type::<EcmascriptDevChunkListContent>(content).is_some()
+impl ServerHmrChunkLists {
+    pub fn new(chunk_lists: Vec<ServerHmrChunkList>) -> Self {
+        Self(chunk_lists)
+    }
+
+    pub fn as_slice(&self) -> &[ServerHmrChunkList] {
+        &self.0
+    }
+
+    pub fn retain_entry_paths(&mut self, entry_paths: &FxIndexSet<RcStr>) {
+        self.0
+            .retain(|chunk_list| entry_paths.contains(&chunk_list.relative_path));
+    }
 }
 
-/// Per-chunk versions keyed by path
 #[turbo_tasks::value(serialization = "skip", shared)]
-pub struct AggregateHmrVersion {
+#[derive(Debug)]
+pub struct ServerHmrChunkListVersion {
     #[turbo_tasks(trace_ignore)]
-    pub versions: FxIndexMap<RcStr, TraitRef<Box<dyn Version>>>,
+    pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
 }
 
 #[turbo_tasks::value_impl]
-impl Version for AggregateHmrVersion {
+impl Version for ServerHmrChunkListVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<Vc<RcStr>> {
-        let entries = self
-            .versions
-            .iter()
-            .map(|(path, version)| {
-                let path = path.clone();
-                let version = TraitRef::cell(version.clone());
-                async move {
-                    let id = version.id().owned().await?;
-                    anyhow::Ok((path, id))
-                }
-            })
-            .try_join()
-            .await?;
-
         let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_value(entries.len());
-        for (path, id) in entries {
+        hasher.write_value(self.versions_by_chunk_list_path.len());
+        for (path, version) in &self.versions_by_chunk_list_path {
             hasher.write_value(path.as_str());
-            hasher.write_value(id.as_str());
+            hasher.write_value(version.id.as_str());
         }
         Ok(Vc::cell(encode_base64(hasher.finish()).into()))
     }
 }
 
-impl AggregateHmrVersion {
-    pub async fn from_map(
-        map: Vc<VersionedContentMap>,
-        root: FileSystemPath,
-    ) -> Result<Vc<Box<dyn Version>>> {
-        // An empty `versions` map behaves the same as `NotFoundVersion` would in
-        // `diff_chunks_against`, so no special case is needed here.
-        let chunks = map.hmr_chunks_in_path(root).await?;
-        Ok(Vc::upcast(Self::from_chunks(&chunks).await?))
-    }
-
-    pub async fn from_chunks(chunks: &[HmrChunkWithContent]) -> Result<Vc<Self>> {
-        let versions = chunks
+impl ServerHmrChunkListVersion {
+    pub async fn from_chunk_lists(chunk_lists: &[ServerHmrChunkList]) -> Result<Self> {
+        let versions_by_chunk_list_path = chunk_lists
             .iter()
-            .map(|HmrChunkWithContent { path, content }| {
-                let path = path.clone();
-                let content = *content;
+            .map(|chunk_list| {
+                let relative_path = chunk_list.relative_path.clone();
+                let versioned_content = chunk_list.versioned_content;
                 async move {
-                    let version = content.version().into_trait_ref().await?;
-                    anyhow::Ok((path, version))
+                    let version = versioned_content.version().await?;
+                    anyhow::Ok((relative_path, version))
                 }
             })
             .try_join()
             .await?
             .into_iter()
             .collect();
-        Ok(Self { versions }.cell())
+        Ok(Self {
+            versions_by_chunk_list_path,
+        })
     }
 }
 
-/// Aggregates per-entry HMR instructions into a single combined `ChunkListUpdate`.
 #[derive(Default)]
 pub struct ChunkListUpdateBuilder {
     chunks: FxIndexMap<RcStr, ChunkUpdate>,
@@ -138,77 +128,213 @@ impl ChunkListUpdateBuilder {
         self.chunks.is_empty() && self.merged.is_empty()
     }
 
-    pub fn build(self, to: TraitRef<Box<dyn Version>>) -> Update {
-        Update::Partial(PartialUpdate {
-            to,
-            instruction: ChunkListUpdate {
-                chunks: self.chunks,
-                merged: self.merged.into_iter().collect(),
-            }
-            .into_instruction(),
-        })
+    pub fn build(self) -> UpdateInstruction {
+        ChunkListUpdate {
+            chunks: self.chunks,
+            merged: self.merged.into_iter().collect(),
+        }
+        .into_instruction()
     }
 }
 
-/// Per-chunk [`Update`]s computed against an `AggregateHmrVersion` snapshot.
-/// `has_new_chunks` is true when the current snapshot contains chunks absent
-/// from `from` (e.g. a new endpoint was written); callers decide whether that
-/// affects the batch shape.
-pub struct DiffResult {
-    pub chunk_updates: Vec<(RcStr, ReadRef<Update>)>,
-    pub has_new_chunks: bool,
+/// An update plus the baseline for the next pull.
+#[derive(Debug, TraceRawVcs)]
+pub enum ServerHmrUpdate {
+    /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
+    /// version.
+    NoRuntimeUpdate {
+        to: Option<ReadRef<ServerHmrChunkListVersion>>,
+    },
+    FullReevaluation {
+        to: ReadRef<ServerHmrChunkListVersion>,
+    },
+    Partial {
+        to: ReadRef<ServerHmrChunkListVersion>,
+        instruction: UpdateInstruction,
+    },
 }
 
-/// Diffs each chunk against the [`AggregateHmrVersion`] held by `from`.
-///
-/// If `from` holds some other kind of `Version`, there's nothing meaningful to
-/// diff against, so this returns no updates and leaves it to the caller to
-/// decide what to do.
-pub async fn diff_chunks_against(
-    chunks: &[HmrChunkWithContent],
-    from: Vc<VersionState>,
+struct DiffResult {
+    chunk_updates: Vec<ReadRef<Update>>,
+    membership: ChunkListMembershipChange,
+}
+
+/// Chunk lists that appeared or vanished relative to the pull baseline.
+#[derive(Default, Clone, Copy)]
+struct ChunkListMembershipChange {
+    has_new: bool,
+    has_removed: bool,
+}
+
+static TRACE_DIFFING: LazyLock<bool> = LazyLock::new(|| {
+    cfg!(debug_assertions) && std::env::var_os("NEXT_TEST_SERVER_HMR_DIFFING").is_some()
+});
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ServerHmrChunkListDiffEvent {
+    #[serde(rename = "entryPath")]
+    chunk_list_path: RcStr,
+}
+
+impl Display for ServerHmrChunkListDiffEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Diffing server HMR entry {}", self.chunk_list_path)
+    }
+}
+
+impl CompilationEvent for ServerHmrChunkListDiffEvent {
+    fn type_name(&self) -> &'static str {
+        "ServerHmrEntryDiffEvent"
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Trace
+    }
+
+    fn message(&self) -> String {
+        self.to_string()
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).expect("server HMR entry diff event serializes")
+    }
+}
+
+async fn diff_chunks_against(
+    chunk_lists: &[ServerHmrChunkList],
+    from: &ServerHmrChunkListVersion,
 ) -> Result<DiffResult> {
-    if chunks.is_empty() {
-        return Ok(DiffResult {
-            chunk_updates: Vec::new(),
-            has_new_chunks: false,
-        });
-    }
-    let from_resolved = from.get().to_resolved().await?;
-    let Some(from_aggregate) = ResolvedVc::try_downcast_type::<AggregateHmrVersion>(from_resolved)
-    else {
-        return Ok(DiffResult {
-            chunk_updates: Vec::new(),
-            has_new_chunks: false,
-        });
-    };
-    let from_aggregate = from_aggregate.await?;
-
-    let mut has_new_chunks = false;
-    let chunk_updates = chunks
+    let current_chunk_list_paths = chunk_lists
         .iter()
-        .filter_map(|HmrChunkWithContent { path, content }| {
-            let Some(prev) = from_aggregate.versions.get(path).cloned() else {
-                has_new_chunks = true;
-                return None;
-            };
-            Some((path.clone(), *content, TraitRef::cell(prev)))
-        })
-        .map(async |(path, content, prev)| {
-            let update = content.update(prev).await?;
-            anyhow::Ok((path, update))
+        .map(|chunk_list| &chunk_list.relative_path)
+        .collect::<FxIndexSet<_>>();
+    let has_removed_chunk_lists = from
+        .versions_by_chunk_list_path
+        .keys()
+        .any(|path| !current_chunk_list_paths.contains(path));
+    let mut has_new_chunk_lists = false;
+    let chunk_updates = chunk_lists
+        .iter()
+        .filter_map(
+            |ServerHmrChunkList {
+                 relative_path,
+                 versioned_content,
+             }| {
+                if *TRACE_DIFFING {
+                    turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
+                        chunk_list_path: relative_path.clone(),
+                    }));
+                }
+                let Some(prev) = from.versions_by_chunk_list_path.get(relative_path).cloned()
+                else {
+                    has_new_chunk_lists = true;
+                    return None;
+                };
+                Some((*versioned_content, prev))
+            },
+        )
+        .map(|(content, prev)| async move {
+            compute_update_from_version_operation(
+                content,
+                turbo_tasks::TransientInstance::new(prev),
+            )
+            .read_strongly_consistent()
+            .await
         })
         .try_join()
         .await?;
     Ok(DiffResult {
         chunk_updates,
-        has_new_chunks,
+        membership: ChunkListMembershipChange {
+            has_new: has_new_chunk_lists,
+            has_removed: has_removed_chunk_lists,
+        },
     })
+}
+
+enum ServerHmrChunkUpdate<'a> {
+    None,
+    Missing,
+    Total,
+    Partial(&'a UpdateInstruction),
+}
+
+impl<'a> From<&'a Update> for ServerHmrChunkUpdate<'a> {
+    fn from(update: &'a Update) -> Self {
+        match update {
+            Update::None => Self::None,
+            Update::Missing => Self::Missing,
+            Update::Total(_) => Self::Total,
+            Update::Partial(PartialUpdate { instruction, .. }) => Self::Partial(instruction),
+        }
+    }
+}
+
+fn classify_server_hmr_update<'a>(
+    chunk_updates: impl IntoIterator<Item = ServerHmrChunkUpdate<'a>>,
+    membership: ChunkListMembershipChange,
+    to: ReadRef<ServerHmrChunkListVersion>,
+) -> ServerHmrUpdate {
+    if membership.has_removed {
+        return ServerHmrUpdate::FullReevaluation { to };
+    }
+
+    let mut builder = ChunkListUpdateBuilder::default();
+    for update in chunk_updates {
+        match update {
+            ServerHmrChunkUpdate::None => {}
+            ServerHmrChunkUpdate::Missing | ServerHmrChunkUpdate::Total => {
+                return ServerHmrUpdate::FullReevaluation { to };
+            }
+            ServerHmrChunkUpdate::Partial(instruction) => builder.add_instruction(instruction),
+        }
+    }
+
+    // New chunks load on demand but must advance the baseline.
+    if builder.is_empty() {
+        return ServerHmrUpdate::NoRuntimeUpdate {
+            to: membership.has_new.then_some(to),
+        };
+    }
+
+    ServerHmrUpdate::Partial {
+        to,
+        instruction: builder.build(),
+    }
+}
+
+/// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
+pub async fn compute_server_hmr_update(
+    chunk_lists: &[ServerHmrChunkList],
+    from: Option<&ServerHmrChunkListVersion>,
+    to: ReadRef<ServerHmrChunkListVersion>,
+) -> Result<ServerHmrUpdate> {
+    if chunk_lists.is_empty() {
+        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: None });
+    }
+
+    let Some(from) = from else {
+        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: Some(to) });
+    };
+
+    let DiffResult {
+        chunk_updates,
+        membership,
+    } = diff_chunks_against(chunk_lists, from).await?;
+
+    Ok(classify_server_hmr_update(
+        chunk_updates
+            .iter()
+            .map(|update| ServerHmrChunkUpdate::from(&**update)),
+        membership,
+        to,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::{FxIndexMap, FxIndexSet};
+    use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef};
     use turbopack_core::update_instruction::UpdateInstruction;
     use turbopack_ecmascript::chunk_list::{
         merged_update::{
@@ -217,7 +343,34 @@ mod tests {
         update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
     };
 
-    use super::ChunkListUpdateBuilder;
+    use super::{
+        ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
+        ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
+    };
+
+    fn version() -> ReadRef<ServerHmrChunkListVersion> {
+        ReadRef::new_owned(ServerHmrChunkListVersion {
+            versions_by_chunk_list_path: Default::default(),
+        })
+    }
+
+    fn unchanged_membership() -> ChunkListMembershipChange {
+        ChunkListMembershipChange::default()
+    }
+
+    fn added_chunk_lists() -> ChunkListMembershipChange {
+        ChunkListMembershipChange {
+            has_new: true,
+            has_removed: false,
+        }
+    }
+
+    fn removed_chunk_lists() -> ChunkListMembershipChange {
+        ChunkListMembershipChange {
+            has_new: false,
+            has_removed: true,
+        }
+    }
 
     fn merged(chunk_path: &str) -> EcmascriptMergedUpdate {
         EcmascriptMergedUpdate {
@@ -231,6 +384,88 @@ mod tests {
             .into_iter()
             .collect(),
         }
+    }
+
+    #[test]
+    fn unchanged_chunks_produce_no_runtime_update() {
+        assert!(matches!(
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::None],
+                unchanged_membership(),
+                version()
+            ),
+            ServerHmrUpdate::NoRuntimeUpdate { to: None }
+        ));
+    }
+
+    #[test]
+    fn missing_chunk_produces_full_reevaluation() {
+        assert!(matches!(
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::Missing],
+                unchanged_membership(),
+                version()
+            ),
+            ServerHmrUpdate::FullReevaluation { .. }
+        ));
+    }
+
+    #[test]
+    fn total_update_produces_full_reevaluation() {
+        assert!(matches!(
+            classify_server_hmr_update(
+                [ServerHmrChunkUpdate::Total],
+                unchanged_membership(),
+                version()
+            ),
+            ServerHmrUpdate::FullReevaluation { .. }
+        ));
+    }
+
+    #[test]
+    fn partial_instructions_are_combined() {
+        let chunk_list = ChunkListUpdate {
+            chunks: FxIndexMap::from_iter([("a.js".into(), ChunkUpdate::Added)]),
+            merged: vec![],
+        }
+        .into_instruction();
+        let merged_instruction =
+            UpdateInstruction::new(EcmascriptUpdateInstruction::Merged(merged("b.js")));
+
+        let ServerHmrUpdate::Partial { instruction, .. } = classify_server_hmr_update(
+            [
+                ServerHmrChunkUpdate::Partial(&chunk_list),
+                ServerHmrChunkUpdate::Partial(&merged_instruction),
+            ],
+            unchanged_membership(),
+            version(),
+        ) else {
+            panic!("partial instructions should produce a partial aggregate update");
+        };
+        let instruction = instruction
+            .downcast_ref::<EcmascriptUpdateInstruction>()
+            .expect("aggregate instruction is ECMAScript");
+        let EcmascriptUpdateInstruction::ChunkList(update) = instruction else {
+            panic!("aggregate instruction should be a chunk-list update");
+        };
+        assert_eq!(update.chunks["a.js"], ChunkUpdate::Added);
+        assert_eq!(update.merged, [merged("b.js")]);
+    }
+
+    #[test]
+    fn new_chunk_lists_advance_baseline_without_runtime_update() {
+        assert!(matches!(
+            classify_server_hmr_update([], added_chunk_lists(), version()),
+            ServerHmrUpdate::NoRuntimeUpdate { to: Some(_) }
+        ));
+    }
+
+    #[test]
+    fn removed_chunk_lists_produce_full_reevaluation() {
+        assert!(matches!(
+            classify_server_hmr_update([], removed_chunk_lists(), version()),
+            ServerHmrUpdate::FullReevaluation { .. }
+        ));
     }
 
     #[test]
