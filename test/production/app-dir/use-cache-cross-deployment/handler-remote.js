@@ -17,6 +17,7 @@ function persistData() {
   fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2))
 }
 
+// This is a Redis-like interface.
 const client = {
   /**
    * @param {string} key
@@ -88,7 +89,6 @@ module.exports = {
       await pendingSet
     }
 
-    // Retrieve from Redis
     const stored = await client.get(entryKey(cacheKey))
     if (!stored) return undefined
 
@@ -158,7 +158,7 @@ module.exports = {
         reader.releaseLock()
       }
 
-      // Combine chunks and serialize for Redis storage
+      // Combine chunks and serialize
       const value = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
 
       await client.set(
