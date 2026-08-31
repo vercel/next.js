@@ -125,6 +125,178 @@ function getTitle(level: ChainLevel) {
   return parts.join('\n')
 }
 
+/**
+ * Pure builder for the import chain. Given a starting source and the
+ * relevant data structures, returns the chain of dependent modules to
+ * render. Extracted from the {@link ImportChain} component so that the
+ * compare view can build chains for both builds and detect when they're
+ * identical (and avoid showing redundant tabs).
+ */
+export function buildImportChain(
+  startFileId: number,
+  analyzeData: AnalyzeData,
+  modulesData: ModulesData,
+  depthMap: Map<ModuleIndex, number>,
+  environmentFilter: 'client' | 'server',
+  selectedIndices: number[],
+  currentRouteOnly: boolean
+): ChainLevel[] {
+  const result: ChainLevel[] = []
+  const visitedModules = new Set<number>()
+
+  const startPath = analyzeData.getFullSourcePath(startFileId)
+  if (!startPath) return result
+
+  const getModuleIndicesFromSourceIndex = (sourceIndex: number) => {
+    const path = analyzeData.getFullSourcePath(sourceIndex)
+    return modulesData.getModuleIndiciesFromPath(path)
+  }
+
+  const getSourceIndexFromModuleIndex = (moduleIndex: number) => {
+    const module = modulesData.module(moduleIndex)
+    if (!module) return undefined
+
+    const modulePath = module.path
+    for (let i = 0; i < analyzeData.sourceCount(); i++) {
+      if (analyzeData.getFullSourcePath(i) === modulePath) {
+        return i
+      }
+    }
+    return undefined
+  }
+
+  // Get all module indices for the starting source
+  const startModuleIndices = getModuleIndicesFromSourceIndex(
+    startFileId
+  ).filter((moduleIndex) => {
+    if (currentRouteOnly && !depthMap.has(moduleIndex)) {
+      return false
+    }
+    let module = modulesData.module(moduleIndex)
+    let layer = splitIdent(module?.ident || '').layer
+    if (layer) {
+      if (environmentFilter === 'client' && /ssr|rsc|route|api/.test(layer)) {
+        return false
+      }
+      if (environmentFilter === 'server' && /client/.test(layer)) {
+        return false
+      }
+    }
+    return true
+  })
+  if (startModuleIndices.length === 0) return result
+
+  // Get the selected index for the start modules (default to 0)
+  const selectedStartIdx = selectedIndices[0] ?? 0
+  const actualStartIdx = Math.min(
+    selectedStartIdx,
+    startModuleIndices.length - 1
+  )
+  const startModuleIndex = startModuleIndices[actualStartIdx]
+  const startIdent = modulesData.module(startModuleIndex)?.ident ?? ''
+
+  result.push({
+    moduleIndex: startModuleIndex,
+    sourceIndex: startFileId,
+    path: startPath,
+    ...splitIdent(startIdent),
+    depth: depthMap.get(startModuleIndex) ?? Infinity,
+    selectedIndex: actualStartIdx,
+    totalCount: startModuleIndices.length,
+  })
+
+  visitedModules.add(startModuleIndex)
+
+  // Build chain by following selected dependents
+  let levelIndex = 1
+  let currentModuleIndex = startModuleIndex
+
+  while (true) {
+    // Get dependents at the module level (sync and async)
+    const dependentModuleIndices = [
+      ...modulesData
+        .moduleDependents(currentModuleIndex)
+        .map((index: number) => ({
+          index,
+          async: false,
+          depth: depthMap.get(index) ?? Infinity,
+        })),
+      ...modulesData
+        .asyncModuleDependents(currentModuleIndex)
+        .map((index: number) => ({
+          index,
+          async: true,
+          depth: depthMap.get(index) ?? Infinity,
+        })),
+    ]
+
+    // Filter out dependents that would create a cycle
+    const validDependents = dependentModuleIndices.filter(
+      ({ index, depth }) =>
+        !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
+    )
+
+    if (validDependents.length === 0) {
+      break
+    }
+
+    // Build info for each dependent
+    const dependentsInfo: DependentInfo[] = validDependents.map(
+      ({ index: moduleIndex, async: isAsync, depth }) => {
+        const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
+        let ident = modulesData.module(moduleIndex)?.ident || ''
+        return {
+          moduleIndex,
+          sourceIndex,
+          ident,
+          isAsync,
+          depth,
+        }
+      }
+    )
+
+    // Sort: sync first, async second, then by source presence, then by depth
+    dependentsInfo.sort((a, b) => {
+      if (a.depth !== b.depth) {
+        return a.depth - b.depth
+      }
+      if (a.ident.length !== b.ident.length) {
+        return a.ident.length - b.ident.length
+      }
+      return a.ident.localeCompare(b.ident)
+    })
+
+    // Get the selected index for this level (default to 0)
+    const selectedIdx = selectedIndices[levelIndex] ?? 0
+    const actualIdx = Math.min(selectedIdx, dependentsInfo.length - 1)
+
+    const selectedDepInfo = dependentsInfo[actualIdx]
+    const selectedDepModule = modulesData.module(selectedDepInfo.moduleIndex)
+
+    if (!selectedDepModule || selectedDepModule.ident == null) break
+
+    result.push({
+      moduleIndex: selectedDepInfo.moduleIndex,
+      sourceIndex: selectedDepInfo.sourceIndex,
+      path: selectedDepModule.path,
+      depth: depthMap.get(selectedDepInfo.moduleIndex) ?? Infinity,
+      ...splitIdent(selectedDepModule.ident),
+      selectedIndex: actualIdx,
+      totalCount: dependentsInfo.length,
+      info: selectedDepInfo,
+    })
+
+    visitedModules.add(selectedDepInfo.moduleIndex)
+    currentModuleIndex = selectedDepInfo.moduleIndex
+    levelIndex++
+
+    // Safety check to prevent infinite loops
+    if (levelIndex > 100) break
+  }
+
+  return result
+}
+
 export function ImportChain({
   startFileId,
   analyzeData,
@@ -138,181 +310,17 @@ export function ImportChain({
   // Track which dependent is selected at each level
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
 
-  // Helper function to get module indices from source path
-  const getModuleIndicesFromSourceIndex = (sourceIndex: number) => {
-    const path = analyzeData.getFullSourcePath(sourceIndex)
-    return modulesData.getModuleIndiciesFromPath(path)
-  }
-
-  // Helper function to get source index from module path
-  const getSourceIndexFromModuleIndex = (moduleIndex: number) => {
-    const module = modulesData.module(moduleIndex)
-    if (!module) return undefined
-
-    // Search through all sources to find one with matching path
-    const modulePath = module.path
-    for (let i = 0; i < analyzeData.sourceCount(); i++) {
-      if (analyzeData.getFullSourcePath(i) === modulePath) {
-        return i
-      }
-    }
-    return undefined
-  }
-
   // Build the import chain based on current selections
   const chain = useMemo(() => {
-    const result: ChainLevel[] = []
-    const visitedModules = new Set<number>()
-
-    const startPath = analyzeData.getFullSourcePath(startFileId)
-    if (!startPath) return result
-
-    // Get all module indices for the starting source
-    const startModuleIndices = getModuleIndicesFromSourceIndex(
-      startFileId
-    ).filter((moduleIndex) => {
-      if (currentRouteOnly && !depthMap.has(moduleIndex)) {
-        return false
-      }
-      let module = modulesData.module(moduleIndex)
-      let layer = splitIdent(module?.ident || '').layer
-      if (layer) {
-        if (environmentFilter === 'client' && /ssr|rsc|route|api/.test(layer)) {
-          return false
-        }
-        if (environmentFilter === 'server' && /client/.test(layer)) {
-          return false
-        }
-      }
-      return true
-    })
-    if (startModuleIndices.length === 0) return result
-
-    // Get the selected index for the start modules (default to 0)
-    const selectedStartIdx = selectedIndices[0] ?? 0
-    const actualStartIdx = Math.min(
-      selectedStartIdx,
-      startModuleIndices.length - 1
+    return buildImportChain(
+      startFileId,
+      analyzeData,
+      modulesData,
+      depthMap,
+      environmentFilter,
+      selectedIndices,
+      currentRouteOnly
     )
-    const startModuleIndex = startModuleIndices[actualStartIdx]
-    const startIdent = modulesData.module(startModuleIndex)?.ident ?? ''
-
-    result.push({
-      moduleIndex: startModuleIndex,
-      sourceIndex: startFileId,
-      path: startPath,
-      ...splitIdent(startIdent),
-      depth: depthMap.get(startModuleIndex) ?? Infinity,
-      selectedIndex: actualStartIdx,
-      totalCount: startModuleIndices.length,
-    })
-
-    visitedModules.add(startModuleIndex)
-
-    // Build chain by following selected dependents
-    let levelIndex = 1
-    let currentModuleIndex = startModuleIndex
-
-    while (true) {
-      // Get dependents at the module level (sync and async)
-      const dependentModuleIndices = [
-        ...modulesData
-          .moduleDependents(currentModuleIndex)
-          .map((index: number) => ({
-            index,
-            async: false,
-            traced: false,
-            depth: depthMap.get(index) ?? Infinity,
-          })),
-        ...modulesData
-          .asyncModuleDependents(currentModuleIndex)
-          .map((index: number) => ({
-            index,
-            async: true,
-            traced: false,
-            depth: depthMap.get(index) ?? Infinity,
-          })),
-        ...modulesData
-          .tracedModuleDependents(currentModuleIndex)
-          .map((index: number) => ({
-            index,
-            async: false,
-            traced: true,
-            depth: depthMap.get(index) ?? Infinity,
-          })),
-      ]
-
-      // Filter out dependents that would create a cycle
-      const validDependents = dependentModuleIndices.filter(
-        ({ index, depth }) =>
-          !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
-      )
-
-      if (validDependents.length === 0) {
-        // No more dependents or all would create cycles
-        break
-      }
-
-      // Build info for each dependent
-      const dependentsInfo: DependentInfo[] = validDependents.map(
-        ({ index: moduleIndex, async: isAsync, traced: isTraced, depth }) => {
-          const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
-          let ident = modulesData.module(moduleIndex)?.ident || ''
-          return {
-            moduleIndex,
-            sourceIndex,
-            ident,
-            isAsync,
-            isTraced,
-            depth,
-          }
-        }
-      )
-
-      // Sort: sync first, async second, then by source presence, then by depth
-      dependentsInfo.sort((a, b) => {
-        // Sort by depth (smallest first)
-        if (a.depth !== b.depth) {
-          return a.depth - b.depth
-        }
-        // Sort by ident length (shortest first)
-        if (a.ident.length !== b.ident.length) {
-          return a.ident.length - b.ident.length
-        }
-        // Sort by ident
-        return a.ident.localeCompare(b.ident)
-      })
-
-      // Get the selected index for this level (default to 0)
-      const selectedIdx = selectedIndices[levelIndex] ?? 0
-      const actualIdx = Math.min(selectedIdx, dependentsInfo.length - 1)
-
-      const selectedDepInfo = dependentsInfo[actualIdx]
-      const selectedDepModule = modulesData.module(selectedDepInfo.moduleIndex)
-
-      if (!selectedDepModule || selectedDepModule.ident == null) break
-
-      result.push({
-        moduleIndex: selectedDepInfo.moduleIndex,
-        sourceIndex: selectedDepInfo.sourceIndex,
-        path: selectedDepModule.path,
-        depth: depthMap.get(selectedDepInfo.moduleIndex) ?? Infinity,
-        ...splitIdent(selectedDepModule.ident),
-        selectedIndex: actualIdx,
-        totalCount: dependentsInfo.length,
-        info: selectedDepInfo,
-      })
-
-      visitedModules.add(selectedDepInfo.moduleIndex)
-      currentModuleIndex = selectedDepInfo.moduleIndex
-      levelIndex++
-
-      // Safety check to prevent infinite loops
-      if (levelIndex > 100) break
-    }
-
-    return result
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     startFileId,
     analyzeData,
