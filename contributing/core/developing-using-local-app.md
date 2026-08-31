@@ -21,10 +21,10 @@ If you already have an app and it has dependencies, you can follow these steps:
 2. In your app's root directory, run:
 
    ```sh
-   pnpm add ./path/to/next.js/{packages/next,node_modules/{react,react-dom}}
+   pnpm add ./path/to/next.js/{packages/next,node_modules/{react,react-dom,@types/react,@types/react-dom}}
    ```
 
-   to re-install all of the dependencies and point `next`, `react` and `react-dom` to the monorepo versions.
+   to re-install all of the dependencies and point `next`, `react`, `react-dom`, `@types/react` and `@types/react-dom` to the monorepo versions. Replace `./path/to/next.js/` with the path to your next.js monorepo root.
 
    Note that Next.js will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
 
