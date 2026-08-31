@@ -372,6 +372,30 @@ impl TurboTasksBackend {
             }
         });
 
+        // Ids the previous session freed. Validated before use: a corrupt or stale entry would
+        // otherwise hand out an id that is still live, which reuse must never do. Anything
+        // suspicious drops the whole set rather than part of it — the cost is lost density, and
+        // the alternative is trusting the rest of a record we already know is wrong.
+        let free_task_ids = match backing_storage.free_task_ids() {
+            Ok(ids) => {
+                let valid = ids
+                    .iter()
+                    .all(|id| !id.is_transient() && **id < *next_task_id);
+                if valid {
+                    ids
+                } else {
+                    eprintln!(
+                        "warning: persisted free task id set contains ids outside the allocated                          range; ignoring it"
+                    );
+                    Vec::new()
+                }
+            }
+            Err(err) => {
+                eprintln!("failed to read free task ids, treating as empty: {err:?}");
+                Vec::new()
+            }
+        };
+
         let id_reuse_delay_cycles = options.id_reuse_delay_cycles.unwrap_or_else(|| {
             match std::env::var("TURBO_ENGINE_ID_REUSE_DELAY_CYCLES") {
                 Ok(v) => v.parse::<u32>().unwrap_or(DEFAULT_ID_REUSE_DELAY_CYCLES),
@@ -384,10 +408,18 @@ impl TurboTasksBackend {
             gc_enabled,
             start_time: Instant::now(),
             deferred_id_reuse: DeferredIdReuse::new(id_reuse_delay_cycles),
-            persisted_task_id_factory: IdFactoryWithReuse::new(
-                next_task_id,
-                TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
-            ),
+            persisted_task_id_factory: {
+                let factory = IdFactoryWithReuse::new(
+                    next_task_id,
+                    TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
+                );
+                // SAFETY: each id was freed by a previous session's GC, its tombstone was
+                // committed, and it was validated above to be a persistent id below the
+                // allocation watermark. A fresh session has no resident state, so nothing in this
+                // process can be holding a reference to one.
+                unsafe { factory.seed_free_ids(free_task_ids) };
+                factory
+            },
             transient_task_id_factory: IdFactoryWithReuse::new(
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
@@ -1294,7 +1326,12 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications && gc_roots_to_persist.is_none() {
+        // Ids this session freed still need to reach disk even when nothing else changed —
+        // otherwise a session whose last cycle had no modifications silently drops them and the
+        // next session re-mints instead of reusing.
+        let has_free_ids_to_persist =
+            self.gc_enabled && !self.deferred_id_reuse.persistable().is_empty();
+        if !has_modifications && gc_roots_to_persist.is_none() && !has_free_ids_to_persist {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
@@ -1472,6 +1509,10 @@ impl TurboTasksBackend {
         // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
         // flags were copied from the live task at snapshot creation time, reflecting which
         // categories were dirtied before the snapshot was taken.
+        // Only collected at shutdown; see the `Delete` branch below. `Arc` because `process` is
+        // borrowed by the parallel scan and must not keep the value borrowed past it.
+        let tombstoned_this_commit: Option<Arc<Mutex<Vec<TaskId>>>> =
+            (self.gc_enabled && reason.drain_entries()).then(|| Arc::new(Mutex::new(Vec::new())));
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
             let encode_category = |task_id: TaskId,
                                    data: &TaskStorage,
@@ -1517,6 +1558,12 @@ impl TurboTasksBackend {
                             .get_persistent_task_type()
                             .expect("a GC-deleted task must have a task type"),
                     );
+                    // Shutdown only: this is the last commit, so these ids can be offered to the
+                    // next session directly instead of waiting for a follow-up commit that will
+                    // never come. `process` runs in parallel across shards, hence the lock.
+                    if let Some(tombstoned) = &tombstoned_this_commit {
+                        tombstoned.lock().push(task_id);
+                    }
                     return SnapshotItem::Delete {
                         task_id,
                         task_type_hash,
@@ -1588,7 +1635,7 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() && !has_free_ids_to_persist {
             // This should be impossible — if we got here, modified_count was nonzero or gc_roots
             // was present, and every modification that increments the count also failed
             // during encoding.
@@ -1607,9 +1654,26 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
+        // Recomputed each commit rather than accumulated: an id that was freed and has since been
+        // resurrected simply drops out of the set. Ids freed by *this* cycle's eviction are not
+        // here yet — eviction runs after this returns — so they ride the next commit, which is
+        // also the commit after their tombstone is durable.
+        //
+        // At shutdown there is no next commit, so fold in the tasks this snapshot is tombstoning
+        // right now. Nothing can resurrect them: this is the process's last write.
+        let free_task_ids = if self.gc_enabled {
+            let mut ids = self.deferred_id_reuse.persistable();
+            if let Some(tombstoned) = &tombstoned_this_commit {
+                ids.extend(tombstoned.lock().iter().copied());
+            }
+            Some(ids)
+        } else {
+            None
+        };
         let snapshot_meta = self.backing_storage.save_snapshot(
             suspended_operations,
             gc_roots_to_persist,
+            free_task_ids,
             task_snapshots,
         )?;
         span.record("snapshot_meta", display(snapshot_meta));

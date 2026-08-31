@@ -20,7 +20,7 @@ use turbo_tasks_backend::{BackendOptions, EvictionMode};
 
 use crate::{
     gc_fixture::{Selector, create_selector},
-    util::create_tt_with_options,
+    util::{create_persistence_dir, create_tt_with_options, reopen_tt_with_id_reuse},
 };
 
 #[turbo_tasks::function]
@@ -179,6 +179,68 @@ async fn freed_ids_wait_out_the_window() {
     assert_eq!(
         still_pending, collected,
         "a 5-cycle window must not release after 2 cycles"
+    );
+
+    tt.stop_and_wait().await;
+}
+
+/// Ids freed in one session are offered to the next one: the id space does not grow just because
+/// the process restarted. This is the cross-session half of reuse — the in-memory free list dies
+/// with the process, so without the persisted set a restart would always mint fresh ids.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn freed_ids_survive_a_restart() {
+    let dir = create_persistence_dir("gc_id_reuse_cross_session");
+
+    // Session 1: build a subtree, orphan it, collect it, and shut down.
+    let tt = reopen_tt_with_id_reuse(&dir, 0);
+    let tt2 = tt.clone();
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let output = select_generation(selector_vc);
+        output.read_strongly_consistent().await?;
+        selector.set(true);
+        output.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert!(collected > 0, "the orphaned branch should be collected");
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+    let (_, watermark_session1) = tt2.backend().id_reuse_state_for_testing();
+    tt.stop_and_wait().await;
+
+    // Session 2: the freed ids should have been seeded into the factory's free list, so the
+    // allocation watermark starts where session 1 left it and new tasks draw from the free list.
+    let tt = reopen_tt_with_id_reuse(&dir, 0);
+    let tt2 = tt.clone();
+    let (_, watermark_start) = tt2.backend().id_reuse_state_for_testing();
+    assert!(
+        watermark_start <= watermark_session1,
+        "a restart must not advance the id watermark ({watermark_session1} -> {watermark_start})"
+    );
+
+    let needed = collected as u32;
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        allocate_fresh(500, needed)
+            .read_strongly_consistent()
+            .await?;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    let (_, watermark_after) = tt2.backend().id_reuse_state_for_testing();
+    let minted = watermark_after - watermark_start;
+    assert!(
+        minted <= 1,
+        "allocating {needed} tasks in a fresh session should draw on the ids the previous session \
+         freed; the factory minted {minted} instead ({watermark_start} -> {watermark_after})"
     );
 
     tt.stop_and_wait().await;
