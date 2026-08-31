@@ -125,6 +125,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -4678,7 +4679,6 @@ export default async function build(
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.
-        const { writeAnalyzeSnapshot } = await import('./analyze/snapshot')
         await writeAnalyzeSnapshot({
           projectDir: dir,
           analyzeDir,
