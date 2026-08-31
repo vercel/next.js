@@ -2,8 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
+const timeoutErrorMessage =
   'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
 
 describe('use-cache-hanging', () => {
   const { next, isNextDev, skipped, isTurbopack } = nextTestSetup({
@@ -24,7 +28,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+           "description": "Route "/static": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -41,7 +45,8 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at getCachedData (app/static/page.tsx:1:1)`)
       })
     })
@@ -53,7 +58,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+           "description": "Route "/runtime": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -70,7 +75,8 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/runtime')}
     at getCachedData (app/runtime/page.tsx:4:1)`)
       })
     })
@@ -85,13 +91,14 @@ describe('use-cache-hanging', () => {
         await retry(() => {
           const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput)
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at getCachedData (app/static/page.tsx:1:1)`)
         }, 20_000)
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+           "description": "Route "/static": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -118,13 +125,14 @@ describe('use-cache-hanging', () => {
         await retry(() => {
           const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput)
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/runtime')}
     at getCachedData (app/runtime/page.tsx:4:1)`)
         }, 20_000)
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+           "description": "Route "/runtime": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -152,7 +160,7 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).not.toContain(timeoutErrorMessage)
       })
     })
   } else {
@@ -166,11 +174,13 @@ describe('use-cache-hanging', () => {
 
         if (isTurbopack) {
           expect(next.cliOutput)
-            .toContain(`Error: ${expectedTimeoutErrorMessage}
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at <unknown> (app/static/page.tsx:1:1)`)
         } else {
           // Webpack production builds don't have source maps by default.
-          expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
+          expect(next.cliOutput).toContain(
+            expectedTimeoutErrorMessage('/static')
+          )
         }
       })
     })

@@ -1,8 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
+const timeoutErrorMessage =
   'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
 
 describe('use-cache-configured-timeout', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -27,7 +31,7 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).not.toContain(timeoutErrorMessage)
       })
     })
 
@@ -38,7 +42,7 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+           "description": "Route "/above-dev-timeout": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
            "label": "Runtime Error",
@@ -55,7 +59,9 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).toContain(
+          expectedTimeoutErrorMessage('/above-dev-timeout')
+        )
       })
     })
   } else {
@@ -67,7 +73,7 @@ describe('use-cache-configured-timeout', () => {
           // expected
         }
 
-        expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(next.cliOutput).toContain(timeoutErrorMessage)
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/below-dev-timeout"'
         )

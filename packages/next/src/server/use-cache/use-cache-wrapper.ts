@@ -1811,7 +1811,7 @@ export async function cache(
     }
   }
 
-  const timeoutError = new UseCacheTimeoutError()
+  const timeoutError = new UseCacheTimeoutError(workStore.route)
   Error.captureStackTrace(timeoutError, cache)
   applyOwnerStack(timeoutError)
 
@@ -1823,7 +1823,7 @@ export async function cache(
   // gate lets the error class drop out of the production runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER) {
-    deadlockError = new UseCacheDeadlockError()
+    deadlockError = new UseCacheDeadlockError(workStore.route)
     Error.captureStackTrace(deadlockError, cache)
     applyOwnerStack(deadlockError)
   }

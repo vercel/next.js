@@ -2,11 +2,19 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
+const timeoutErrorMessage =
   'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
 
-const expectedDeadlockMessage =
+const deadlockMessage =
   'A `"use cache"` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level `Map` used to dedupe fetches) is most likely blocking it. `"use cache"` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
+
+function expectedDeadlockMessage(route: string) {
+  return `Route "${route}": ${deadlockMessage}`
+}
 
 // TODO: The `'use cache'` deadlock probe is disabled in dev for now. The
 // streaming dev render now advances to the dynamic stage without waiting for
@@ -41,7 +49,7 @@ describe.skip('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/static": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -58,7 +66,9 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/static')}`
+      )
     })
   })
 
@@ -69,7 +79,7 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/runtime": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -86,7 +96,9 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/runtime')}`
+      )
     })
   })
 
@@ -100,12 +112,14 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
       await retry(() => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+        expect(cliOutput).toContain(
+          `Error: ${expectedDeadlockMessage('/static')}`
+        )
       }, 30_000)
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/static": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -132,12 +146,14 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
       await retry(() => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+        expect(cliOutput).toContain(
+          `Error: ${expectedDeadlockMessage('/runtime')}`
+        )
       }, 30_000)
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/runtime": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -165,8 +181,8 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
+      expect(cliOutput).not.toContain(deadlockMessage)
     })
   })
 
@@ -180,7 +196,7 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+         "description": "Route "/also-hangs": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
        Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -197,8 +213,10 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}`)
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
+      expect(cliOutput).toContain(
+        `Error: ${expectedTimeoutErrorMessage('/also-hangs')}`
+      )
+      expect(cliOutput).not.toContain(deadlockMessage)
     })
   })
 
@@ -219,8 +237,8 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).not.toContain(expectedDeadlockMessage)
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+      expect(cliOutput).not.toContain(deadlockMessage)
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
     })
   })
 
@@ -238,7 +256,7 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/recovery-stuck": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
@@ -255,8 +273,10 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
-      expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/recovery-stuck')}`
+      )
+      expect(cliOutput).not.toContain(timeoutErrorMessage)
     })
   })
 
@@ -267,7 +287,7 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
+         "description": "Route "/private-cookies": A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Server",
          "label": "Console Error",
@@ -284,7 +304,9 @@ Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      expect(cliOutput).toContain(`Error: ${expectedDeadlockMessage}`)
+      expect(cliOutput).toContain(
+        `Error: ${expectedDeadlockMessage('/private-cookies')}`
+      )
     })
   })
 })
