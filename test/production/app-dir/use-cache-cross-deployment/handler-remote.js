@@ -17,6 +17,9 @@ function persistData() {
   fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2))
 }
 
+// Date.now is considered async IO by cache components
+const now = () => performance.timeOrigin + performance.now()
+
 // This is a Redis-like interface.
 const client = {
   /**
@@ -27,7 +30,7 @@ const client = {
     const stored = data[key]
     if (!stored) return undefined
 
-    if (stored.expiresAt !== undefined && stored.expiresAt <= Date.now()) {
+    if (stored.expiresAt !== undefined && stored.expiresAt <= now()) {
       delete data[key]
       persistData()
       return undefined
@@ -49,7 +52,7 @@ const client = {
         expiresAt:
           options?.expire === undefined
             ? undefined
-            : Date.now() + options.expire * 1000,
+            : now() + options.expire * 1000,
       }
     }
     persistData()
@@ -98,7 +101,7 @@ module.exports = {
     let revalidate = entry.revalidate
     for (const tag of entry.tags) {
       const tagManifestEntry = await getTagManifestEntry(tag)
-      const now = Date.now()
+      const now = now()
       if (
         tagManifestEntry.expired !== undefined &&
         tagManifestEntry.expired <= now &&
@@ -189,7 +192,7 @@ module.exports = {
   },
 
   async updateTags(tags, durations) {
-    const now = Date.now()
+    const now = now()
 
     await Promise.all(
       tags.map(async (tag) => {
