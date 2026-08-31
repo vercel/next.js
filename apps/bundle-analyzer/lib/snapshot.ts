@@ -11,8 +11,12 @@ export interface SnapshotMetadata {
   gitSha?: string
   gitShortSha?: string
   gitDirty?: boolean
+  /** First line of the HEAD commit message when available. */
+  gitMessage?: string
   appDirOnly?: boolean
   noMangling?: boolean
+  /** Optional label overriding branch/sha in display. See `--snapshot-label`. */
+  snapshotLabel?: string
   routeCount: number
 }
 
@@ -27,6 +31,7 @@ export interface HistoryIndex {
  * timestamp when neither is available.
  */
 export function formatSnapshotLabel(metadata: SnapshotMetadata): string {
+  if (metadata.snapshotLabel) return metadata.snapshotLabel
   const sha = metadata.gitShortSha ? metadata.gitShortSha : null
   const branch = metadata.gitBranch ?? null
   if (branch && sha) return `${branch}@${sha}${metadata.gitDirty ? '*' : ''}`
@@ -44,7 +49,7 @@ export function formatRelativeTime(iso: string): string {
   if (Number.isNaN(then)) return iso
   const diffMs = Date.now() - then
   const seconds = Math.round(diffMs / 1000)
-  if (seconds < 45) return 'just now'
+  if (seconds < 60) return 'just now'
   const minutes = Math.round(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.round(minutes / 60)

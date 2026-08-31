@@ -1282,7 +1282,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              new Set(['cache', 'dev', 'lock', 'trace'])
+              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
             )
           )
       }

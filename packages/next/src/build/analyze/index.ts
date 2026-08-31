@@ -32,6 +32,8 @@ export type AnalyzeOptions = {
   appDirOnly?: boolean
   output?: boolean
   port?: number
+  /** Optional label stored in the snapshot metadata, overriding branch/sha in the UI. */
+  snapshotLabel?: string
 }
 
 export default async function analyze({
@@ -41,6 +43,7 @@ export default async function analyze({
   appDirOnly = false,
   output = false,
   port = 4000,
+  snapshotLabel,
 }: AnalyzeOptions): Promise<void> {
   try {
     // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
@@ -97,6 +100,7 @@ export default async function analyze({
       routes,
       appDirOnly,
       noMangling,
+      snapshotLabel,
     })
 
     let logMessage = `Analyze completed in ${durationString}.`
