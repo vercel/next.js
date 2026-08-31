@@ -104,7 +104,7 @@ async fn gc_re_rooting_stays_flat() {
         let interrupted = tt
             .backend()
             .last_gc_stats_for_testing()
-            .is_some_and(|(_, _, interrupted)| interrupted);
+            .is_some_and(|(_, interrupted)| interrupted);
         // Measure the *persistent* resident count: GC only collects persistent tasks. Transient
         // roots (each round's `run_once`/Once task) are never collected and accumulate
         // independently of GC — including them would mask the real signal.
