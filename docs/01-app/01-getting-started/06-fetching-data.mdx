@@ -615,7 +615,7 @@ The data-fetching function must deduplicate matching calls so the component can 
 - For an ORM or database, wrap the data-fetching function in [`React.cache`](#reusing-data-with-reactcache).
 - With Cache Components, add [`'use cache'`](/docs/app/api-reference/directives/use-cache) to the data-fetching function. If the function reads request APIs such as `cookies()` or `headers()`, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
 
-In production, calls to the same private Cache Function with the same arguments reuse a result within one server request. This request-scoped deduplication lets the component reuse a request started during preloading without sharing the result across requests.
+In production, matching calls to a private Cache Function can reuse the same result within one request. This lets a component reuse a request started during preloading without storing the result in a server cache across requests.
 
 Keep the preload function next to the component that consumes the data. This makes the dependency easier to find if you move or remove the component:
 

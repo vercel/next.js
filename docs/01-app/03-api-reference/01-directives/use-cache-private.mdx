@@ -11,7 +11,7 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. In production, Next.js keeps a result on the server for the current request. Calls to the same private Cache Function with the same arguments can reuse the result. Next.js discards the result when the request finishes.
+The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. In production, matching calls within one request can reuse the same result, but Next.js does not store it in a server cache across requests.
 
 The client router can keep the rendered output in browser memory for the [`stale` time](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) configured with `cacheLife`. This client-side cache does not persist across page reloads.
 

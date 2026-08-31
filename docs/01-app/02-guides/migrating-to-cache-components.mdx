@@ -441,9 +441,9 @@ Like the `fetch` Data Cache, `unstable_cache` persists cached values across depl
 
 **Usually no change.** `React.cache` continues to deduplicate matching calls within a React render.
 
-With Cache Components, each Cache Function runs in its own React render scope. If the same `React.cache` helper is called from separate Cache Functions—for example, when one starts the work during preloading and another consumes it—those calls do not share the React memoization scope.
+However, each Cache Function has an isolated React cache scope. Calls from separate Cache Functions do not share a `React.cache` result, such as when one Cache Function preloads data and another consumes it.
 
-When a helper reads request data and matching calls need to share work across Cache Function scopes, replace the React wrapper with [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private). If the function only needs request-scoped deduplication, use `cacheLife({ stale: Infinity })` so it does not lower the route's stale time. Private Cache Function results are not stored on the server across production requests.
+When a helper reads request data and matching calls need to share work across Cache Function scopes, replace the React wrapper with [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private). If the function only needs request-scoped deduplication, use `cacheLife({ stale: Infinity })` so it does not lower the route's stale time. Private Cache Function results are not stored in a server cache across production requests.
 
 ## On-demand revalidation (`revalidateTag`, `revalidatePath`, `updateTag`)
 
