@@ -26,8 +26,8 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
-  NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
+  ServerHmrVersion,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -236,95 +236,103 @@ function setupServerHmr(
     onApplied: (chunkPaths: string[]) => void | Promise<void>
   }
 ) {
-  async function runSubscription() {
-    const subscription = project.serverHmrEvents()
+  let pending = Promise.resolve()
+  // Each pull snapshots only the requested endpoint's entries. Keep independent
+  // baselines so building one route does not discard another route's version.
+  const versions = new Map<string, ServerHmrVersion>()
+  let needsReEvaluation = false
 
-    // Subscribing immediately emits one event describing the current state.
-    // There's no previous state to diff it against, so it never carries anything
-    // to apply. Drop it; real updates start with the second event.
-    await subscription.next()
-
-    for await (const result of subscription) {
-      const update = result as NodeJsHmrUpdate
-
-      // A 'restart' from the wire protocol means the update can't be applied
-      // incrementally, so we must fully re-evaluate all chunks from disk. This
-      // clears the module cache and notifies browsers to refetch RSC.
-      const requiresFullReEvaluation = update.type === 'restart'
-      if (requiresFullReEvaluation) {
-        await reEvaluateAllModulesExpensive()
-        continue
-      }
-
-      if (update.type !== 'partial') {
-        continue
-      }
-
-      // `EcmascriptMergedUpdate` is the only instruction the Node.js runtime
-      // knows how to apply; `ChunkListUpdate` is browser-only. Anything else is
-      // unknown to us, so ignore it rather than evicting the module cache.
-      const instruction = update.instruction
-      if (
-        !instruction ||
-        (instruction.type !== 'EcmascriptMergedUpdate' &&
-          instruction.type !== 'ChunkListUpdate')
-      ) {
-        throw new Error(
-          `[Server HMR] unreachable: unexpected update instruction type ${(instruction as { type: string }).type}`
-        )
-      }
-
-      // No handler registered yet (before first request, or right after
-      // reEvaluateAllModulesExpensive()) — nothing live to update, so skip
-      // until the next request.
-      const handlers = globalThis.__turbopack_server_hmr_handlers__
-      if (!handlers || handlers.size === 0) {
-        continue
-      }
-
-      if (typeof __turbopack_server_hmr_apply__ === 'function') {
-        try {
-          __turbopack_server_hmr_apply__(update)
-          // The validation worker keeps its own copy of the module graph, and
-          // applies the same update to it.
-          mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
-        } catch {
-          // A matching runtime tried the apply and threw. Evict require.cache
-          // so the next request loads fresh, then skip onApplied. (A no-match
-          // update is a no-op and does not throw.)
-          await reEvaluateAllModulesExpensive()
-          continue
-        }
-
-        const updatedChunkPaths = collectUpdatedChunkPaths(instruction)
-        // An empty partial only advances the version state (e.g. the seed
-        // transition or a new endpoint); nothing changed on disk, so don't
-        // invalidate manifests or ping browsers to refetch RSC.
-        if (updatedChunkPaths.length > 0) {
-          await onApplied(updatedChunkPaths)
-        }
-      } else {
-        await reEvaluateAllModulesExpensive()
-      }
+  async function recover() {
+    try {
+      await reEvaluateAllModulesExpensive()
+      versions.clear()
+      needsReEvaluation = false
+    } catch (error) {
+      console.error('[Server HMR] Re-evaluating modules failed:', error)
     }
   }
 
-  // Start listening for changes in background. Re-subscribe on error so
-  // server Fast Refresh continues working for the rest of the dev session.
-  // The delay keeps a persistently-failing subscription (which throws on the
-  // initial read) from hot-looping through reEvaluateAllModulesExpensive().
-  ;(async () => {
-    for (;;) {
-      try {
-        await runSubscription()
+  function apply(entryPaths: string[]): Promise<void> {
+    const applyPromise = pending.then(async () => {
+      if (needsReEvaluation) {
+        await recover()
         return
-      } catch (err) {
-        console.error('[Server HMR] Subscription error, resubscribing:', err)
-        await reEvaluateAllModulesExpensive()
-        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
+
+      try {
+        const versionKey = [...entryPaths].sort().join('\0')
+        // `issues` is intentionally dropped: this pull scans project-wide chunk
+        // lists, so its issues may belong to an unrelated or removed route, and
+        // endpoint writes already report route-scoped issues.
+        const update = await project.getServerHmrUpdate(
+          versions.get(versionKey),
+          entryPaths
+        )
+        if (update.version) {
+          versions.set(versionKey, update.version)
+        }
+        switch (update.kind) {
+          case 'none':
+            return
+          case 'partial': {
+            const handlers = globalThis.__turbopack_server_hmr_handlers__
+            if (!handlers || handlers.size === 0) return
+
+            const payload: NodeJsPartialHmrUpdate = {
+              type: 'partial',
+              instruction: update.instruction,
+            }
+            if (typeof __turbopack_server_hmr_apply__ === 'function') {
+              try {
+                __turbopack_server_hmr_apply__(payload)
+                mirrorModuleStateToDevValidationWorker({
+                  type: 'apply',
+                  update: payload,
+                })
+
+                const updatedChunkPaths = collectUpdatedChunkPaths(
+                  update.instruction
+                )
+                if (updatedChunkPaths.length > 0) {
+                  await onApplied(updatedChunkPaths)
+                }
+                return
+              } catch {}
+            }
+            break
+          }
+          case 'restart':
+            break
+          default:
+            throw new Error(
+              `Unknown server HMR update kind: ${(update as { kind: string }).kind}`
+            )
+        }
+      } catch (error) {
+        console.error(
+          '[Server HMR] Update failed, re-evaluating modules:',
+          error
+        )
+      }
+
+      needsReEvaluation = true
+      await recover()
+    })
+    pending = applyPromise
+    return applyPromise
+  }
+
+  function reset(): Promise<void> {
+    const resetState = () => {
+      versions.clear()
+      needsReEvaluation = false
     }
-  })()
+    const resetPromise = pending.then(resetState, resetState)
+    pending = resetPromise
+    return resetPromise
+  }
+
+  return { apply, reset }
 }
 
 function getSourceMapFromTurbopack(
@@ -531,6 +539,7 @@ export async function createHotReloaderTurbopack(
       'SlowFilesystemEvent',
       'FilesystemSettlingEvent',
       'TraceEvent',
+      'ServerHmrEntryDiffEvent',
     ],
     parentSpan: hotReloaderSpan,
   })
@@ -557,6 +566,7 @@ export async function createHotReloaderTurbopack(
     await project.onExit()
     await lockfile?.unlock()
   })
+  // Subscription detects route additions/removals; returned endpoints stay lazy.
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
@@ -663,6 +673,18 @@ export async function createHotReloaderTurbopack(
     }
   }, 500)
 
+  // Server HMR supports App Router entries on the Node.js runtime.
+  function participatesInServerHmr(
+    key: EntryKey,
+    writtenEndpoint: WrittenEndpoint
+  ): boolean {
+    return (
+      !!serverFastRefresh &&
+      splitEntryKey(key).type === 'app' &&
+      writtenEndpoint.type !== 'edge'
+    )
+  }
+
   function clearRequireCache(
     key: EntryKey,
     writtenEndpoint: WrittenEndpoint,
@@ -734,15 +756,7 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType } = splitEntryKey(key)
-
-    // Server HMR applies to App Router entries built with the Turbopack Node.js
-    // runtime: app pages and route handlers (including metadata routes). Edge
-    // routes, Pages Router pages, and middleware/instrumentation are excluded.
-    const usesServerHmr =
-      serverFastRefresh &&
-      entryType === 'app' &&
-      writtenEndpoint.type !== 'edge'
+    const usesServerHmr = participatesInServerHmr(key, writtenEndpoint)
 
     const serverChunksPrefix = SERVER_HMR_CHUNKS_DIR + sep
     const filesToDelete: string[] = []
@@ -859,7 +873,13 @@ export async function createHotReloaderTurbopack(
   let updateInProgress = false
   let pendingServerComponentChanges = false
 
-  function sendServerComponentChanges() {
+  // Tell browsers to refetch RSC (soft refresh, not full page reload).
+  // Skip while there are outstanding compilation errors: an RSC refetch would
+  // 500 and force a full-page navigation, losing client state (e.g. recovering
+  // from a syntax error). A subsequent successful compile/apply fires this
+  // again to refresh.
+  function notifyServerComponentChanges() {
+    if (hasCompilationErrors()) return
     sendHmr('server-component-changes', {
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
     })
@@ -871,7 +891,7 @@ export async function createHotReloaderTurbopack(
     if (updateInProgress) {
       pendingServerComponentChanges = true
     } else {
-      sendServerComponentChanges()
+      notifyServerComponentChanges()
     }
   }
 
@@ -1828,11 +1848,15 @@ export async function createHotReloaderTurbopack(
     },
     async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
+        await serverHmr?.reset()
+
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
         }
 
         await clearAllModuleContexts()
+        // Not `notifyServerComponentChanges`: an invalidation must announce even
+        // while errors stand, since it is what drops the stale graph.
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
         })
@@ -1985,6 +2009,11 @@ export async function createHotReloaderTurbopack(
           }
 
           const finishBuilding = startBuilding(pathname, requestUrl, false)
+          // Set by `handleWrittenEndpoint` below, so the pull is gated on the
+          // same predicate as the require-cache handling rather than a second,
+          // coarser reading of `route.type`.
+          let shouldPullServerHmr = false
+          let serverHmrEntryPaths: string[] = []
           try {
             await handleRouteType({
               dev,
@@ -2009,13 +2038,22 @@ export async function createHotReloaderTurbopack(
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
+                  shouldPullServerHmr ||= participatesInServerHmr(id, result)
+                  if (result.serverHmrEntryPaths.length > 0) {
+                    serverHmrEntryPaths = result.serverHmrEntryPaths
+                  }
                   return clearRequireCache(id, result, {
                     force: forceDeleteCache,
                   })
                 },
-                serverFastRefresh,
               },
             })
+
+            // The only server HMR pull, driven by the request being built — which
+            // is what makes evaluating a changed module lazy.
+            if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
+              await serverHmr?.apply(serverHmrEntryPaths)
+            }
           } finally {
             finishBuilding()
             // Remove non-deferred entry from building set
@@ -2077,7 +2115,7 @@ export async function createHotReloaderTurbopack(
           pendingBuilding.cancel()
           if (pendingServerComponentChanges) {
             pendingServerComponentChanges = false
-            sendServerComponentChanges()
+            notifyServerComponentChanges()
           }
           sendEnqueuedMessages()
 
@@ -2163,20 +2201,9 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  // Tell browsers to refetch RSC (soft refresh, not full page reload).
-  // Skip while there are outstanding compilation errors: an RSC refetch would
-  // 500 and force a full-page navigation, losing client state (e.g. recovering
-  // from a syntax error). A subsequent successful compile/apply fires this
-  // again to refresh.
-  function notifyServerComponentChanges() {
-    if (hasCompilationErrors()) return
-    hotReloader.send({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-    })
-  }
-
+  let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {
-    setupServerHmr(project, {
+    serverHmr = setupServerHmr(project, {
       reEvaluateAllModulesExpensive: async () => {
         // Evict every server-HMR-managed chunk from `require.cache`.
         // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
@@ -2205,8 +2232,6 @@ export async function createHotReloaderTurbopack(
         // validation worker cannot repair its own either, so it is dropped and
         // the next validation loads the build output afresh.
         dropDevValidationWorker()
-
-        notifyServerComponentChanges()
       },
       onApplied: (chunkPaths: string[]) => {
         // Clear the evalManifest() shared cache for each updated chunk so the
@@ -2229,8 +2254,6 @@ export async function createHotReloaderTurbopack(
           filePaths: manifestPaths,
           evictModules: false,
         })
-
-        notifyServerComponentChanges()
       },
     })
   }
