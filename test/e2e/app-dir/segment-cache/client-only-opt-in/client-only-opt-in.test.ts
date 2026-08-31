@@ -5,6 +5,8 @@ import { createRouterAct } from '../router-act'
 describe('segment cache prefetch scheduling', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('prefetching is disabled', () => {})

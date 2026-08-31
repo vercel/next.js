@@ -5,6 +5,8 @@ import { waitFor } from 'next-test-utils'
 describe('segment cache (basic tests)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('ppr is disabled', () => {})

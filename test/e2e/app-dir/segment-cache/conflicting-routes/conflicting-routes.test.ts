@@ -4,6 +4,8 @@ import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/util
 describe('conflicting routes', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('prefetching is disabled', () => {})

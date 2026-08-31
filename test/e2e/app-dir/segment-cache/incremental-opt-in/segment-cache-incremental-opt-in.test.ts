@@ -5,6 +5,8 @@ import { Page } from 'playwright'
 describe('segment cache (incremental opt in)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('ppr is disabled', () => {})

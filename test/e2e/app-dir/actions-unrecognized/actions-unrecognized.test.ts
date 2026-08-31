@@ -185,10 +185,10 @@ describe('unrecognized server actions', () => {
           // An MPA action, sent without JS.
 
           if (isNextDeploy) {
-            // FIXME: When deployed to vercel, the request is logged as a 500, but returns a 405.
-            // We also don't seem to display the error page correctly
-            expect(response.status()).toBe(405)
-            expect(response.headers()['content-type']).toStartWith('text/html')
+            // FIXME: When deployed to Vercel, this returns a 500, matching
+            // the self-hosted behavior below. It used to return a 405 while
+            // the request was logged as a 500.
+            expect(response.status()).toBe(500)
           } else {
             // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
             // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.

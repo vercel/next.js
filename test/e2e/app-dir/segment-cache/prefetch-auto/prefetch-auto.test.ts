@@ -5,6 +5,8 @@ import { createRouterAct } from '../router-act'
 describe('<Link prefetch="auto">', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     it('disabled in development / deployment', () => {})

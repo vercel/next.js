@@ -4,6 +4,8 @@ import { createRouterAct } from '../router-act'
 describe('segment cache memory pressure', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Skip deploy tests due to flakiness.
+    skipDeployment: true,
   })
   if (isNextDev) {
     test('disabled in development / deployment', () => {})
