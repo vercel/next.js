@@ -1,7 +1,7 @@
 /**
- * Centralized error factories for `"use cache"` / `"use cache: private"`
- * misuse. State the scope and constraint, explain non-obvious boundaries,
- * give the immediate fix, then link to the relevant docs.
+ * Centralized error factories for cached function and revalidation misuse.
+ * State the scope and constraint, explain non-obvious boundaries, give the
+ * immediate fix, then link to the relevant docs.
  */
 
 const NEXT_REQUEST_IN_USE_CACHE =
@@ -129,6 +129,24 @@ export function createRevalidateInUnstableCacheError(
 ): Error {
   return new Error(
     `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+  )
+}
+
+export function createRevalidateInGenerateStaticParamsError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`generateStaticParams\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
+  )
+}
+
+export function createRevalidateDuringRenderError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called during render, inside a cached function, or inside \`generateStaticParams\`. Call it from a Server Action or Route Handler instead.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
 

@@ -30,7 +30,7 @@ describe('revalidateTag-rsc', () => {
       if (isNextDev) {
         await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
-          'Route /revalidate_via_page used "revalidateTag data"'
+          'Route "/revalidate_via_page": `revalidateTag data` can\'t be called during render, inside a cached function, or inside `generateStaticParams`.'
         )
       } else {
         await retry(async () => {
@@ -41,7 +41,7 @@ describe('revalidateTag-rsc', () => {
       }
 
       expect(next.cliOutput).toContain(
-        'Route /revalidate_via_page used "revalidateTag data"'
+        'Route "/revalidate_via_page": `revalidateTag data` can\'t be called during render, inside a cached function, or inside `generateStaticParams`. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
       )
     })
   }

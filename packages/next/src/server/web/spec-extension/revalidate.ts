@@ -15,6 +15,8 @@ import {
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
 import {
+  createRevalidateDuringRenderError,
+  createRevalidateInGenerateStaticParamsError,
   createRevalidateInUseCacheError,
   createRevalidateInUnstableCacheError,
 } from '../../use-cache/use-cache-messages'
@@ -141,9 +143,7 @@ function revalidate(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     if (workUnitStore.phase === 'render') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" during render which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
+      throw createRevalidateDuringRenderError(store.route, expression)
     }
 
     switch (workUnitStore.type) {
@@ -153,8 +153,9 @@ function revalidate(
       case 'unstable-cache':
         throw createRevalidateInUnstableCacheError(store.route, expression)
       case 'generate-static-params':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside \`generateStaticParams\` which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        throw createRevalidateInGenerateStaticParamsError(
+          store.route,
+          expression
         )
       case 'prerender':
       case 'prerender-runtime':

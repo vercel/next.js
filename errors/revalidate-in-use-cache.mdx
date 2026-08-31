@@ -1,24 +1,25 @@
 ---
-title: Cannot call `revalidateTag()` or `revalidatePath()` inside `"use cache"`
+title: Cannot revalidate during render, inside a cached function, or in `generateStaticParams`
 ---
 
 ## Why This Error Occurred
 
-`revalidateTag()` and `revalidatePath()` invalidate cached data. Revalidation has to run outside renders and cached functions so that the cache stays consistent — allowing a cached function to invalidate caches while it is producing a cache entry would be contradictory. This error usually appears when a cached function is called from a Server Action and that function calls `revalidateTag()` / `revalidatePath()` internally.
+The `revalidateTag()` and `revalidatePath()` functions invalidate cached data. To keep cache state consistent, call them from a Server Action or Route Handler. Next.js throws this error when you call either function during rendering, from a cached function, or from `generateStaticParams`.
 
-```jsx filename="app/actions.js" highlight={5}
+```jsx filename="app/products/page.js" highlight={5}
 import { revalidateTag } from 'next/cache'
 
-async function saveAndCache(data) {
-  'use cache'
-  revalidateTag('products') // Cannot revalidate from inside a cache
-  return data
+export default async function Page() {
+  const products = await db.products.findMany()
+  revalidateTag('products') // Cannot revalidate during render
+
+  return <p>{products.length} products</p>
 }
 ```
 
 ## Possible Ways to Fix It
 
-Call `revalidateTag()` / `revalidatePath()` from the Server Action or Route Handler itself, outside any `"use cache"` (or `unstable_cache()`) function.
+Call `revalidateTag()` or `revalidatePath()` from the Server Action or Route Handler itself. Do not call either function during rendering or from a function that uses the `use cache` directive or `unstable_cache()`.
 
 ```jsx filename="app/actions.js" highlight={6}
 'use server'
@@ -30,11 +31,11 @@ export async function saveProduct(data) {
 }
 ```
 
-To tag the cache entry that this revalidates, call [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside the `"use cache"` function that reads the data.
+To tag the cache entry that this revalidates, call [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside the function that uses the `use cache` directive to read the data.
 
 ## Useful Links
 
 - [`revalidateTag()` function](/docs/app/api-reference/functions/revalidateTag)
 - [`revalidatePath()` function](/docs/app/api-reference/functions/revalidatePath)
 - [Revalidating data](/docs/app/getting-started/revalidating)
-- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)

@@ -1,10 +1,10 @@
 ---
-title: Cannot access request data in `"use cache"`
+title: Cannot access request data in `use cache`
 ---
 
 ## Why This Error Occurred
 
-A cached function tried to access the incoming request. APIs such as `cookies()`, `headers()`, `searchParams`, and `connection()` depend on the request and cannot be called inside `"use cache"`. This error can also occur when unresolved request data is passed into a cached function during prerendering. Draft mode can be read inside a cached function, but it cannot be enabled or disabled there.
+A cached function tried to access the incoming request. APIs such as `cookies()`, `headers()`, `searchParams`, and `connection()` depend on the request and cannot be called inside a function that uses the `use cache` directive. This error can also occur when you pass unresolved request data into a cached function during prerendering. You can read draft mode inside a cached function, but enable or disable it outside.
 
 A cached function can also stall if it awaits a promise stored outside the function, such as one kept in a module-scoped `Map` for deduplication.
 
@@ -12,39 +12,39 @@ A cached function can also stall if it awaits a promise stored outside the funct
 
 Read and resolve request data outside the cached function, then pass only the values you need as arguments. Call `connection()` and enable or disable draft mode outside the cached function as well.
 
-If a surrounding module-scoped cache or deduplication layer stores promises, remove it and rely on `"use cache"` to dedupe calls with the same arguments.
+If a module-scoped cache or deduplication layer stores promises, remove it and let `use cache` deduplicate calls with the same arguments.
 
 Before:
 
 ```jsx filename="app/page.js" highlight={5}
 import { cookies } from 'next/headers'
 
-async function getExampleData() {
-  "use cache"
+async function getGreeting() {
+  'use cache'
   const isLoggedIn = (await cookies()).has('token')
-  ...
+  return isLoggedIn ? 'Welcome back' : 'Welcome'
 }
 
 export default async function Page() {
-  const data = await getExampleData()
-  return ...
+  const greeting = await getGreeting()
+  return <p>{greeting}</p>
 }
 ```
 
 After:
 
-```jsx filename="app/page.js" highlight={9}
+```jsx filename="app/page.js" highlight={9,10}
 import { cookies } from 'next/headers'
 
-async function getExampleData(isLoggedIn) {
-  "use cache"
-  ...
+async function getGreeting(isLoggedIn) {
+  'use cache'
+  return isLoggedIn ? 'Welcome back' : 'Welcome'
 }
 
 export default async function Page() {
   const isLoggedIn = (await cookies()).has('token')
-  const data = await getExampleData(isLoggedIn)
-  return ...
+  const greeting = await getGreeting(isLoggedIn)
+  return <p>{greeting}</p>
 }
 ```
 
