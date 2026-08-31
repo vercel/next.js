@@ -42,7 +42,7 @@ describe('use-cache-unknown-cache-kind', () => {
          Ecmascript file had an error
 
 
-             at <unknown> (./app/page.tsx:1:1)
+             at ignore-listed frames
          "
         `)
       } else if (isRspack) {

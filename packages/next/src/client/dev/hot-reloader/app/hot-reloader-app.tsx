@@ -386,6 +386,7 @@ export function processMessage(
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
           sessionId: message.data.sessionId,
+          hmrVersion: message.data.hmrVersion,
         },
       })
       break
@@ -396,6 +397,7 @@ export function processMessage(
       processTurbopackMessage({
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
         data: message.data,
+        hmrVersion: message.hmrVersion,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -406,6 +408,10 @@ export function processMessage(
     }
     // TODO-APP: make server component change more granular
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      processTurbopackMessage({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hmrVersion: message.hmrVersion,
+      })
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({

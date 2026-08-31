@@ -17,6 +17,7 @@ import {
 } from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import {
   convertRedirects,
   convertRewrites,
@@ -661,6 +662,16 @@ export async function handleBuildComplete({
       staticFiles: [],
     }
 
+    const clientHashes: Record<string, string> | undefined =
+      bundler === Bundler.Turbopack && config.supportsImmutableAssets
+        ? JSON.parse(
+            await fs.readFile(
+              path.join(distDir, 'immutable-static-hashes.json'),
+              'utf8'
+            )
+          )
+        : undefined
+
     if (config.output === 'export') {
       // collect export assets and provide as static files
       const exportFiles = await recursiveReadDir(configOutDir)
@@ -672,26 +683,17 @@ export async function handleBuildComplete({
 
         pathname = pathname.startsWith('/') ? pathname : `/${pathname}`
 
+        const immutableId = normalizePathSep(file).replace(/^\/?_next\//, '')
         outputs.staticFiles.push({
           id: file,
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
-          immutableHash: undefined,
+          immutableHash: clientHashes?.[immutableId],
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
-
-      const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack && config.supportsImmutableAssets
-          ? JSON.parse(
-              await fs.readFile(
-                path.join(distDir, 'immutable-static-hashes.json'),
-                'utf8'
-              )
-            )
-          : undefined
 
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)

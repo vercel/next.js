@@ -1,0 +1,14 @@
+{
+  "agent-046-adopt-partial-prefetching": {
+    "skills": ["next-partial-prefetching-adoption"],
+    "timeout": 1800
+  },
+  "agent-047-adopt-cache-components": {
+    "skills": ["next-cache-components-adoption"],
+    "timeout": 1800
+  },
+  "agent-050-optimize-static-shell": {
+    "skills": ["next-cache-components-optimizer"],
+    "timeout": 1800
+  }
+}

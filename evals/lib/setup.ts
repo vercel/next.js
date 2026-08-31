@@ -1,28 +1,27 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, posix, relative } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
 
 const REPO_ROOT = join(process.cwd(), '..')
 
-const PLAYWRIGHT_SYSTEM_DEPENDENCIES = [
-  'nss',
-  'nspr',
-  'at-spi2-atk',
-  'cups-libs',
-  'libdrm',
-  'libxkbcommon',
-  'alsa-lib',
-  'gtk3',
-  'libX11',
-  'libXcomposite',
-  'libXdamage',
-  'libXext',
-  'libXfixes',
-  'libXrandr',
-  'libgbm',
-  'pango',
-  'cairo',
-]
+/**
+ * Whether the fixture is already a Next.js app.
+ *
+ * Almost every fixture is: it ships a Next.js project and asks the agent to change
+ * something about it. The exceptions are the framework-choice evals, which hand
+ * over an empty directory and ask what the agent reaches for. Setting Next.js up
+ * for those before the agent starts answers the question for it, so the steps below
+ * skip them. Keyed off the fixture's own manifest, so neither kind needs wiring
+ * here when it is added.
+ */
+async function isNextApp(sandbox: Sandbox): Promise<boolean> {
+  try {
+    const pkg = JSON.parse(await sandbox.readFile('package.json'))
+    return Boolean(pkg.dependencies?.next ?? pkg.devDependencies?.next)
+  } catch {
+    return false
+  }
+}
 
 /**
  * Install the locally-built Next.js into the sandbox.
@@ -31,8 +30,17 @@ const PLAYWRIGHT_SYSTEM_DEPENDENCIES = [
  * env-var handoff that run-tests.js uses for NEXT_TEST_PKG_PATHS. We hard-fail
  * if it's missing rather than falling back to npm — silently testing the
  * published canary instead of your local build defeats the point.
+ *
+ * A fixture that does not already depend on Next.js is left alone. Such an eval
+ * measures whether the agent picks Next.js at all, so it has to reach npm itself,
+ * and it is therefore not exercising your local build.
  */
 export async function installNextJs(sandbox: Sandbox): Promise<void> {
+  if (!(await isNextApp(sandbox))) {
+    console.log('> Fixture does not depend on Next.js; leaving it untouched')
+    return
+  }
+
   const tarball = process.env.NEXT_EVAL_TARBALL
   if (!tarball) {
     throw new Error(
@@ -57,37 +65,20 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
   console.log('  Installed local Next.js tarball')
 }
 
-/** Install browser libraries for fixtures that opt into Playwright coverage. */
-export async function installPlaywrightSystemDependencies(
-  sandbox: Sandbox
-): Promise<void> {
-  let config: { playwright?: boolean }
-  try {
-    config = JSON.parse(await sandbox.readFile('eval.config.json'))
-  } catch {
-    return
-  }
-  if (!config.playwright) return
-
-  const { exitCode, stderr } = await sandbox.runCommand('sudo', [
-    'dnf',
-    'install',
-    '-y',
-    ...PLAYWRIGHT_SYSTEM_DEPENDENCIES,
-  ])
-  if (exitCode !== 0) {
-    throw new Error(
-      `Playwright system dependency install failed (exit ${exitCode}):\n${stderr}`
-    )
-  }
-  console.log('  Installed Playwright system dependencies')
-}
-
 /**
  * Write AGENTS.md (and aliases) to the sandbox root, directing agents to read
  * bundled docs from node_modules/next/dist/docs/.
+ *
+ * Skipped for a fixture that is not already a Next.js app: the path it points at
+ * does not exist yet, and naming the framework would give away the answer to the
+ * very question those evals ask.
  */
 export async function writeAgentsMd(sandbox: Sandbox): Promise<void> {
+  if (!(await isNextApp(sandbox))) {
+    console.log('> Fixture does not depend on Next.js; skipping AGENTS.md')
+    return
+  }
+
   const body = `<!-- BEGIN:nextjs-agent-rules -->
 
 # Next.js: ALWAYS read docs before coding
@@ -122,13 +113,13 @@ export async function installLocalSkills(
     }
 
     for (const file of listFiles(skillDir)) {
-      const skillPath = relative(skillDir, file)
+      const skillPath = relative(skillDir, file).replaceAll('\\', '/')
       const content = readFileSync(file, 'utf-8')
 
       // Claude Code reads .claude/skills. Keep the agent-neutral path in sync
       // so the same treatment can support additional coding agents later.
-      files[join('.claude', 'skills', skillName, skillPath)] = content
-      files[join('.agents', 'skills', skillName, skillPath)] = content
+      files[posix.join('.claude', 'skills', skillName, skillPath)] = content
+      files[posix.join('.agents', 'skills', skillName, skillPath)] = content
     }
   }
 

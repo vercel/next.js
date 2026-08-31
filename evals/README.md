@@ -8,7 +8,7 @@ The point: find places where agents get Next.js wrong because their training dat
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
 
-`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate two experiment configs (`baseline` and `agents-md`) that differ only in whether they drop an `AGENTS.md` pointing at the bundled docs, then invoke `agent-eval run-all`. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
+`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
 
 ## One-time setup
 
@@ -58,7 +58,7 @@ test('exports instant', () => {
 pnpm eval agent-042-your-thing
 ```
 
-This runs two variants in parallel and prints pass/fail for each:
+This runs the two default variants in parallel and prints pass/fail for each:
 
 ```
 ✗ baseline/agent-042-your-thing   (81s)
@@ -69,17 +69,18 @@ This runs two variants in parallel and prints pass/fail for each:
 
 ### Evaluating a local skill
 
-Docs can link to a canonical skill, but an unmerged skill revision isn't part of the `next` package tarball. To compare the current checkout's skill with the baseline and bundled-docs variants, add `eval.config.json` to the fixture:
+Docs can link to a canonical skill, but an unmerged skill revision isn't part of the `next` package tarball. To compare the current checkout's skill with the baseline and bundled-docs variants, add the fixture to `evals/eval.config.json`:
 
-```json filename="eval.config.json"
+```json filename="evals/eval.config.json"
 {
-  "skills": ["next-partial-prefetching-adoption"],
-  "playwright": true,
-  "timeout": 1800
+  "agent-046-adopt-partial-prefetching": {
+    "skills": ["next-partial-prefetching-adoption"],
+    "timeout": 1800
+  }
 }
 ```
 
-The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. Set `playwright` when the workflow must execute browser tests so the sandbox has the required system libraries. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Existing fixtures without `eval.config.json` continue to run only `baseline` and `agents-md`.
+The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Fixtures without an entry continue to run only `baseline` and `agents-md`.
 
 A run takes ~2–5 min. To validate a fixture without executing:
 
@@ -113,6 +114,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
+├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
