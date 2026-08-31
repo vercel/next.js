@@ -174,7 +174,7 @@ export function BaselinePicker({
                 {snapshots.map((snapshot) => (
                   <CommandItem
                     key={snapshot.id}
-                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''}`}
+                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotLabel ?? ''}`}
                     onSelect={() => {
                       onSelectionChange(snapshot)
                       setOpen(false)
@@ -229,6 +229,11 @@ function SnapshotRow({ snapshot }: { snapshot: SnapshotMetadata }) {
           </span>
         ) : null}
       </div>
+      {snapshot.gitMessage ? (
+        <div className="text-xs text-foreground/70 truncate italic">
+          {snapshot.gitMessage}
+        </div>
+      ) : null}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>{formatRelativeTime(snapshot.createdAt)}</span>
         <span aria-hidden>·</span>
