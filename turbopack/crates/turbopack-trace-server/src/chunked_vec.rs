@@ -80,6 +80,32 @@ impl<T> ChunkedVec<T> {
         // `push` and not freed by `truncate`.
         Some(unsafe { self.chunks[chunk_idx][off].assume_init_ref() })
     }
+
+    /// Bytes held by the chunk allocations themselves (not counting anything
+    /// the elements point to). Every chunk is a full `CHUNK_SIZE` allocation
+    /// regardless of how many slots are in use, so the tail chunk's unused
+    /// slots are counted too — they are resident either way.
+    pub fn allocated_bytes(&self) -> usize {
+        self.chunks.len() * CHUNK_SIZE * std::mem::size_of::<T>()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        let len = self.len;
+        self.chunks
+            .iter_mut()
+            .enumerate()
+            .flat_map(move |(chunk_index, chunk)| {
+                let chunk_end = if chunk_index == len / CHUNK_SIZE {
+                    len % CHUNK_SIZE
+                } else {
+                    CHUNK_SIZE
+                };
+                // SAFETY: slots below `len` were initialized by `push`.
+                chunk[0..chunk_end]
+                    .iter_mut()
+                    .map(|slot| unsafe { slot.assume_init_mut() })
+            })
+    }
 }
 
 impl<T> Default for ChunkedVec<T> {

@@ -1,0 +1,68 @@
+-- root/raw: page 1/1 of 6 --
+  id=1 name="turbo_tasks::function module_graph" cpu=9800 corrected=7098 rel=(0..13100) agg=false count=None
+    args=[("name", "module_graph"), ("extra", "1")]
+    memory_samples=[(1000, 1000000, 5)]
+  id=5 name="late late_span" cpu=2000 corrected=2000 rel=(10000..12000) agg=false count=None
+    args=[("name", "arrived_late")]
+  id=8 name="deep chain" cpu=1000 corrected=1006 rel=(20000..30000) agg=false count=None
+    memory_samples=[(0, 4000000, 40)]
+  id=93 name="json first_parent" cpu=0 corrected=1 rel=(40000..40000) agg=false count=None
+  id=94 name="json second_parent" cpu=800 corrected=800 rel=(40100..41000) agg=false count=None
+  id=96 name="json totalled" cpu=10000 corrected=10000 rel=(50000..60000) agg=false count=None
+    memory_samples=[(0, 2000000, 12)]
+-- root/aggregated: page 1/1 of 6 --
+  id=a96 name="json totalled" cpu=10000 corrected=10000 rel=(50000..60000) agg=false count=Some(1)
+    memory_samples=[(0, 2000000, 12)]
+  id=a1 name="turbo_tasks::function module_graph" cpu=9800 corrected=7098 rel=(0..13100) agg=false count=Some(1)
+    args=[("name", "module_graph"), ("extra", "1")]
+    memory_samples=[(1000, 1000000, 5)]
+  id=a5 name="late late_span" cpu=2000 corrected=2000 rel=(10000..12000) agg=false count=Some(1)
+    args=[("name", "arrived_late")]
+  id=a8 name="deep chain" cpu=1000 corrected=1006 rel=(20000..30000) agg=false count=Some(1)
+    memory_samples=[(0, 4000000, 40)]
+  id=a94 name="json second_parent" cpu=800 corrected=800 rel=(40100..41000) agg=false count=Some(1)
+  id=a93 name="json first_parent" cpu=0 corrected=1 rel=(40000..40000) agg=false count=Some(1)
+-- root/by-name: page 1/1 of 6 --
+  id=8 name="deep chain" cpu=1000 corrected=1006 rel=(20000..30000) agg=false count=None
+    memory_samples=[(0, 4000000, 40)]
+  id=93 name="json first_parent" cpu=0 corrected=1 rel=(40000..40000) agg=false count=None
+  id=5 name="late late_span" cpu=2000 corrected=2000 rel=(10000..12000) agg=false count=None
+    args=[("name", "arrived_late")]
+  id=1 name="turbo_tasks::function module_graph" cpu=9800 corrected=7098 rel=(0..13100) agg=false count=None
+    args=[("name", "module_graph"), ("extra", "1")]
+    memory_samples=[(1000, 1000000, 5)]
+  id=94 name="json second_parent" cpu=800 corrected=800 rel=(40100..41000) agg=false count=None
+  id=96 name="json totalled" cpu=10000 corrected=10000 rel=(50000..60000) agg=false count=None
+    memory_samples=[(0, 2000000, 12)]
+-- search=link: page 1/5 of 84 --
+  id=12 name="deep link" cpu=1000 corrected=1006 rel=(20400..30000) agg=false count=None
+  id=18 name="deep link" cpu=1000 corrected=1006 rel=(21000..30000) agg=false count=None
+  id=24 name="deep link" cpu=1000 corrected=1006 rel=(21600..30000) agg=false count=None
+  id=25 name="deep link" cpu=1000 corrected=1006 rel=(21700..30000) agg=false count=None
+  id=30 name="deep link" cpu=1000 corrected=1006 rel=(22200..30000) agg=false count=None
+  id=31 name="deep link" cpu=1000 corrected=1006 rel=(22300..30000) agg=false count=None
+  id=37 name="deep link" cpu=1000 corrected=1006 rel=(22900..30000) agg=false count=None
+  id=43 name="deep link" cpu=1000 corrected=1006 rel=(23500..30000) agg=false count=None
+  id=44 name="deep link" cpu=1000 corrected=1006 rel=(23600..30000) agg=false count=None
+  id=49 name="deep link" cpu=1000 corrected=1006 rel=(24100..30000) agg=false count=None
+  id=50 name="deep link" cpu=1000 corrected=1006 rel=(24200..30000) agg=false count=None
+  id=56 name="deep link" cpu=1000 corrected=1006 rel=(24800..30000) agg=false count=None
+  id=62 name="deep link" cpu=1000 corrected=1006 rel=(25400..30000) agg=false count=None
+  id=68 name="deep link" cpu=1000 corrected=1006 rel=(26000..30000) agg=false count=None
+  id=69 name="deep link" cpu=1000 corrected=1006 rel=(26100..30000) agg=false count=None
+  id=74 name="deep link" cpu=1000 corrected=1006 rel=(26600..30000) agg=false count=None
+  id=75 name="deep link" cpu=1000 corrected=1006 rel=(26700..30000) agg=false count=None
+  id=81 name="deep link" cpu=1000 corrected=1006 rel=(27300..30000) agg=false count=None
+  id=87 name="deep link" cpu=0 corrected=1 rel=(27900..27900) agg=false count=None
+  id=88 name="deep link" cpu=0 corrected=1 rel=(28000..28000) agg=false count=None
+-- child-of-1: page 1/1 of 4 --
+  id=1-2 name="turbo_tasks::resolve_call *resolve_module" cpu=2700 corrected=1516 rel=(100..4800) agg=false count=None
+    args=[("name", "resolve_module")]
+    memory_samples=[(900, 1000000, 5)]
+  id=1-3 name="parse parse_file index.js" cpu=6000 corrected=5066 rel=(200..9000) agg=false count=None
+    args=[("name", "index.js")]
+    memory_samples=[(800, 1000000, 5)]
+  id=1-4 name="io read_file" cpu=1000 corrected=416 rel=(300..3500) agg=false count=None
+    memory_samples=[(700, 1000000, 5)]
+  id=1-6 name="event instant tick" cpu=100 corrected=100 rel=(13000..13100) agg=false count=None
+    args=[("name", "tick")]

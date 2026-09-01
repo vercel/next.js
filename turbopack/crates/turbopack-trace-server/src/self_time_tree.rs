@@ -47,6 +47,19 @@ impl<T> SelfTimeTree<T> {
         self.count
     }
 
+    /// Bytes held by this node and every descendant: the `entries` buffers at
+    /// their real capacity, plus one `SelfTimeChildren` box per interior node.
+    /// Used by the memory report; walks the whole tree, so call it once.
+    pub fn allocated_bytes(&self) -> usize {
+        let mut bytes = self.entries.capacity() * std::mem::size_of::<SelfTimeEntry<T>>();
+        if let Some(children) = &self.children {
+            bytes += std::mem::size_of::<SelfTimeChildren<T>>();
+            bytes += children.left.allocated_bytes();
+            bytes += children.right.allocated_bytes();
+        }
+        bytes
+    }
+
     pub fn insert(&mut self, start: Timestamp, end: Timestamp, item: T) {
         self.count += 1;
         self.entries.push(SelfTimeEntry { start, end, item });

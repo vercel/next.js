@@ -18,7 +18,10 @@ use self::{
 
 mod bottom_up;
 mod chunked_vec;
+#[cfg(test)]
+mod golden;
 mod lazy_sorted_vec;
+mod memory_report;
 mod reader;
 mod self_time_tree;
 mod server;

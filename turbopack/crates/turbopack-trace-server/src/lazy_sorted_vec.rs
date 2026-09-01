@@ -33,8 +33,12 @@ impl<T> LazySortedVec<T> {
         self.vec.get_mut().retain(|t| f(t));
     }
 
-    pub fn iter_mut_unordered(&mut self) -> std::slice::IterMut<'_, T> {
-        self.vec.get_mut().iter_mut()
+    /// Storage accounting for the memory report: `(len, capacity, spilled)`.
+    /// Takes `&mut self` so it can read through the `UnsafeCell` without
+    /// going via the sorting `Deref` and without any unsafe.
+    pub fn storage_stats(&mut self) -> (usize, usize, bool) {
+        let vec = self.vec.get_mut();
+        (vec.len(), vec.capacity(), vec.spilled())
     }
 }
 

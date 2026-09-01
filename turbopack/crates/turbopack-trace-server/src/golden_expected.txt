@@ -1,0 +1,687 @@
+spans: 98
+[0] depth=0 complete=true parent=None
+    nice=(|(root)) group=(|(root))
+    start=0 end=18446744073709551615 self_time=0 total_time=23600
+    corrected_self=0 corrected_total=20905
+    max_depth=79 span_count=98 alloc=6080 dealloc=8704 persistent=5568 alloc_count=52
+    args:
+    events: C(1) C(5) C(8) C(93) C(94) C(96)
+[1] depth=1 complete=true parent=None
+    nice=(turbo_tasks::function|module_graph) group=(turbo_tasks::function|module_graph)
+    start=0 end=13100 self_time=0 total_time=9800
+    corrected_self=0 corrected_total=7098
+    max_depth=2 span_count=6 alloc=6080 dealloc=8704 persistent=5568 alloc_count=52
+    args: name=module_graph extra=1
+    events: C(2) C(3) C(4) C(6)
+[2] depth=2 complete=true parent=Some(1)
+    nice=(turbo_tasks::resolve_call|*resolve_module) group=(turbopack|turbo_tasks::resolve_call *resolve_module)
+    start=100 end=4800 self_time=2500 total_time=2700
+    corrected_self=1416 corrected_total=1516
+    max_depth=1 span_count=2 alloc=2016 dealloc=512 persistent=1504 alloc_count=16
+    args: name=resolve_module
+    events: S(2000..4500) C(7)
+[3] depth=2 complete=true parent=Some(1)
+    nice=(parse|parse_file index.js) group=(parse|parse_file)
+    start=200 end=9000 self_time=6000 total_time=6000
+    corrected_self=5066 corrected_total=5066
+    max_depth=0 span_count=1 alloc=0 dealloc=8192 persistent=0 alloc_count=0
+    args: name=index.js
+    events: S(1000..3000) S(4000..5000) S(6000..9000)
+[4] depth=2 complete=false parent=Some(1)
+    nice=(io|read_file) group=(io|read_file)
+    start=300 end=3500 self_time=1000 total_time=1000
+    corrected_self=416 corrected_total=416
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(2500..3500)
+[5] depth=1 complete=true parent=None
+    nice=(late|late_span) group=(late|late_span)
+    start=10000 end=12000 self_time=2000 total_time=2000
+    corrected_self=2000 corrected_total=2000
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args: name=arrived_late
+    events: S(10000..12000)
+[6] depth=2 complete=true parent=Some(1)
+    nice=(event|instant tick) group=(event|instant)
+    start=13000 end=13100 self_time=100 total_time=100
+    corrected_self=100 corrected_total=100
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args: name=tick
+    events: S(13000..13100)
+[7] depth=3 complete=true parent=Some(2)
+    nice=(io|late_child) group=(io|late_child)
+    start=4600 end=4800 self_time=200 total_time=200
+    corrected_self=100 corrected_total=100
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(4600..4800)
+[8] depth=1 complete=true parent=None
+    nice=(deep|chain) group=(deep|chain)
+    start=20000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=78 span_count=85 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(9)
+[9] depth=2 complete=false parent=Some(8)
+    nice=(deep|link) group=(deep|link)
+    start=20100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=77 span_count=84 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(10)
+[10] depth=3 complete=false parent=Some(9)
+    nice=(deep|link) group=(deep|link)
+    start=20200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=76 span_count=83 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(11)
+[11] depth=4 complete=false parent=Some(10)
+    nice=(deep|link) group=(deep|link)
+    start=20300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=75 span_count=82 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(12)
+[12] depth=5 complete=false parent=Some(11)
+    nice=(deep|link) group=(deep|link)
+    start=20400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=74 span_count=81 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(13)
+[13] depth=6 complete=false parent=Some(12)
+    nice=(deep|link) group=(deep|link)
+    start=20500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=73 span_count=80 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(14)
+[14] depth=7 complete=false parent=Some(13)
+    nice=(deep|link) group=(deep|link)
+    start=20600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=72 span_count=79 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(15)
+[15] depth=8 complete=false parent=Some(14)
+    nice=(deep|link) group=(deep|link)
+    start=20700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=71 span_count=78 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(16)
+[16] depth=9 complete=false parent=Some(15)
+    nice=(deep|link) group=(deep|link)
+    start=20800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=70 span_count=77 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(17)
+[17] depth=10 complete=false parent=Some(16)
+    nice=(deep|link) group=(deep|link)
+    start=20900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=69 span_count=76 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(18)
+[18] depth=11 complete=false parent=Some(17)
+    nice=(deep|link) group=(deep|link)
+    start=21000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=68 span_count=75 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(19)
+[19] depth=12 complete=false parent=Some(18)
+    nice=(deep|link) group=(deep|link)
+    start=21100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=67 span_count=74 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(20)
+[20] depth=13 complete=false parent=Some(19)
+    nice=(deep|link) group=(deep|link)
+    start=21200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=66 span_count=73 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(21)
+[21] depth=14 complete=false parent=Some(20)
+    nice=(deep|link) group=(deep|link)
+    start=21300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=65 span_count=72 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(22)
+[22] depth=15 complete=false parent=Some(21)
+    nice=(deep|link) group=(deep|link)
+    start=21400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=64 span_count=71 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(23)
+[23] depth=16 complete=false parent=Some(22)
+    nice=(deep|link) group=(deep|link)
+    start=21500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=63 span_count=70 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(24)
+[24] depth=17 complete=false parent=Some(23)
+    nice=(deep|link) group=(deep|link)
+    start=21600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=62 span_count=69 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(25)
+[25] depth=18 complete=false parent=Some(24)
+    nice=(deep|link) group=(deep|link)
+    start=21700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=61 span_count=68 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(26)
+[26] depth=19 complete=false parent=Some(25)
+    nice=(deep|link) group=(deep|link)
+    start=21800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=60 span_count=67 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(27)
+[27] depth=20 complete=false parent=Some(26)
+    nice=(deep|link) group=(deep|link)
+    start=21900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=59 span_count=66 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(28)
+[28] depth=21 complete=false parent=Some(27)
+    nice=(deep|link) group=(deep|link)
+    start=22000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=58 span_count=65 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(29)
+[29] depth=22 complete=false parent=Some(28)
+    nice=(deep|link) group=(deep|link)
+    start=22100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=57 span_count=64 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(30)
+[30] depth=23 complete=false parent=Some(29)
+    nice=(deep|link) group=(deep|link)
+    start=22200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=56 span_count=63 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(31)
+[31] depth=24 complete=false parent=Some(30)
+    nice=(deep|link) group=(deep|link)
+    start=22300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=55 span_count=62 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(32)
+[32] depth=25 complete=false parent=Some(31)
+    nice=(deep|link) group=(deep|link)
+    start=22400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=54 span_count=61 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(33)
+[33] depth=26 complete=false parent=Some(32)
+    nice=(deep|link) group=(deep|link)
+    start=22500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=53 span_count=60 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(34)
+[34] depth=27 complete=false parent=Some(33)
+    nice=(deep|link) group=(deep|link)
+    start=22600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=52 span_count=59 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(35)
+[35] depth=28 complete=false parent=Some(34)
+    nice=(deep|link) group=(deep|link)
+    start=22700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=51 span_count=58 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(36)
+[36] depth=29 complete=false parent=Some(35)
+    nice=(deep|link) group=(deep|link)
+    start=22800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=50 span_count=57 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(37)
+[37] depth=30 complete=false parent=Some(36)
+    nice=(deep|link) group=(deep|link)
+    start=22900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=49 span_count=56 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(38)
+[38] depth=31 complete=false parent=Some(37)
+    nice=(deep|link) group=(deep|link)
+    start=23000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=48 span_count=55 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(39)
+[39] depth=32 complete=false parent=Some(38)
+    nice=(deep|link) group=(deep|link)
+    start=23100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=47 span_count=54 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(40)
+[40] depth=33 complete=false parent=Some(39)
+    nice=(deep|link) group=(deep|link)
+    start=23200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=46 span_count=53 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(41)
+[41] depth=34 complete=false parent=Some(40)
+    nice=(deep|link) group=(deep|link)
+    start=23300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=45 span_count=52 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(42)
+[42] depth=35 complete=false parent=Some(41)
+    nice=(deep|link) group=(deep|link)
+    start=23400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=44 span_count=51 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(43)
+[43] depth=36 complete=false parent=Some(42)
+    nice=(deep|link) group=(deep|link)
+    start=23500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=43 span_count=50 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(44)
+[44] depth=37 complete=false parent=Some(43)
+    nice=(deep|link) group=(deep|link)
+    start=23600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=42 span_count=49 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(45)
+[45] depth=38 complete=false parent=Some(44)
+    nice=(deep|link) group=(deep|link)
+    start=23700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=41 span_count=48 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(46)
+[46] depth=39 complete=false parent=Some(45)
+    nice=(deep|link) group=(deep|link)
+    start=23800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=40 span_count=47 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(47)
+[47] depth=40 complete=false parent=Some(46)
+    nice=(deep|link) group=(deep|link)
+    start=23900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=39 span_count=46 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(48)
+[48] depth=41 complete=false parent=Some(47)
+    nice=(deep|link) group=(deep|link)
+    start=24000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=38 span_count=45 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(49)
+[49] depth=42 complete=false parent=Some(48)
+    nice=(deep|link) group=(deep|link)
+    start=24100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=37 span_count=44 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(50)
+[50] depth=43 complete=false parent=Some(49)
+    nice=(deep|link) group=(deep|link)
+    start=24200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=36 span_count=43 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(51)
+[51] depth=44 complete=false parent=Some(50)
+    nice=(deep|link) group=(deep|link)
+    start=24300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=35 span_count=42 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(52)
+[52] depth=45 complete=false parent=Some(51)
+    nice=(deep|link) group=(deep|link)
+    start=24400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=34 span_count=41 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(53)
+[53] depth=46 complete=false parent=Some(52)
+    nice=(deep|link) group=(deep|link)
+    start=24500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=33 span_count=40 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(54)
+[54] depth=47 complete=false parent=Some(53)
+    nice=(deep|link) group=(deep|link)
+    start=24600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=32 span_count=39 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(55)
+[55] depth=48 complete=false parent=Some(54)
+    nice=(deep|link) group=(deep|link)
+    start=24700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=31 span_count=38 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(56)
+[56] depth=49 complete=false parent=Some(55)
+    nice=(deep|link) group=(deep|link)
+    start=24800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=30 span_count=37 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(57)
+[57] depth=50 complete=false parent=Some(56)
+    nice=(deep|link) group=(deep|link)
+    start=24900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=29 span_count=36 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(58)
+[58] depth=51 complete=false parent=Some(57)
+    nice=(deep|link) group=(deep|link)
+    start=25000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=28 span_count=35 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(59)
+[59] depth=52 complete=false parent=Some(58)
+    nice=(deep|link) group=(deep|link)
+    start=25100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=27 span_count=34 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(60)
+[60] depth=53 complete=false parent=Some(59)
+    nice=(deep|link) group=(deep|link)
+    start=25200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=26 span_count=33 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(61)
+[61] depth=54 complete=false parent=Some(60)
+    nice=(deep|link) group=(deep|link)
+    start=25300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=25 span_count=32 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(62)
+[62] depth=55 complete=false parent=Some(61)
+    nice=(deep|link) group=(deep|link)
+    start=25400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=24 span_count=31 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(63)
+[63] depth=56 complete=false parent=Some(62)
+    nice=(deep|link) group=(deep|link)
+    start=25500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=23 span_count=30 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(64)
+[64] depth=57 complete=false parent=Some(63)
+    nice=(deep|link) group=(deep|link)
+    start=25600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=22 span_count=29 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(65)
+[65] depth=58 complete=false parent=Some(64)
+    nice=(deep|link) group=(deep|link)
+    start=25700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=21 span_count=28 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(66)
+[66] depth=59 complete=false parent=Some(65)
+    nice=(deep|link) group=(deep|link)
+    start=25800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=20 span_count=27 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(67)
+[67] depth=60 complete=false parent=Some(66)
+    nice=(deep|link) group=(deep|link)
+    start=25900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=19 span_count=26 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(68)
+[68] depth=61 complete=false parent=Some(67)
+    nice=(deep|link) group=(deep|link)
+    start=26000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=18 span_count=25 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(69)
+[69] depth=62 complete=false parent=Some(68)
+    nice=(deep|link) group=(deep|link)
+    start=26100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=17 span_count=24 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(70)
+[70] depth=63 complete=false parent=Some(69)
+    nice=(deep|link) group=(deep|link)
+    start=26200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=16 span_count=23 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(71)
+[71] depth=64 complete=false parent=Some(70)
+    nice=(deep|link) group=(deep|link)
+    start=26300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=15 span_count=22 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(72)
+[72] depth=65 complete=false parent=Some(71)
+    nice=(deep|link) group=(deep|link)
+    start=26400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=14 span_count=21 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(73)
+[73] depth=66 complete=false parent=Some(72)
+    nice=(deep|link) group=(deep|link)
+    start=26500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=13 span_count=20 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(74)
+[74] depth=67 complete=false parent=Some(73)
+    nice=(deep|link) group=(deep|link)
+    start=26600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=12 span_count=19 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(75)
+[75] depth=68 complete=false parent=Some(74)
+    nice=(deep|link) group=(deep|link)
+    start=26700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=11 span_count=18 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(76)
+[76] depth=69 complete=false parent=Some(75)
+    nice=(deep|link) group=(deep|link)
+    start=26800 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=10 span_count=17 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(77)
+[77] depth=70 complete=false parent=Some(76)
+    nice=(deep|link) group=(deep|link)
+    start=26900 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=9 span_count=16 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(78)
+[78] depth=71 complete=false parent=Some(77)
+    nice=(deep|link) group=(deep|link)
+    start=27000 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=8 span_count=15 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(79)
+[79] depth=72 complete=false parent=Some(78)
+    nice=(deep|link) group=(deep|link)
+    start=27100 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=7 span_count=14 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(80)
+[80] depth=73 complete=false parent=Some(79)
+    nice=(deep|link) group=(deep|link)
+    start=27200 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=6 span_count=13 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(81)
+[81] depth=74 complete=false parent=Some(80)
+    nice=(deep|link) group=(deep|link)
+    start=27300 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=5 span_count=12 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(82)
+[82] depth=75 complete=false parent=Some(81)
+    nice=(deep|link) group=(deep|link)
+    start=27400 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=4 span_count=11 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(83)
+[83] depth=76 complete=false parent=Some(82)
+    nice=(deep|link) group=(deep|link)
+    start=27500 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=3 span_count=10 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(84)
+[84] depth=77 complete=false parent=Some(83)
+    nice=(deep|link) group=(deep|link)
+    start=27600 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=2 span_count=9 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(85)
+[85] depth=78 complete=false parent=Some(84)
+    nice=(deep|link) group=(deep|link)
+    start=27700 end=30000 self_time=0 total_time=1000
+    corrected_self=0 corrected_total=1006
+    max_depth=1 span_count=8 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(86) C(87) C(88) C(89) C(90) C(91) C(92)
+[86] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=27800 end=27800 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[87] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=27900 end=27900 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[88] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=28000 end=28000 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[89] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=28100 end=28100 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[90] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=28200 end=28200 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[91] depth=79 complete=false parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=28300 end=28300 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[92] depth=79 complete=true parent=Some(85)
+    nice=(deep|link) group=(deep|link)
+    start=28400 end=30000 self_time=1000 total_time=1000
+    corrected_self=1000 corrected_total=1000
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(29000..30000)
+[93] depth=1 complete=true parent=None
+    nice=(json|first_parent) group=(json|first_parent)
+    start=40000 end=40000 self_time=0 total_time=0
+    corrected_self=1 corrected_total=1
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events:
+[94] depth=1 complete=true parent=None
+    nice=(json|second_parent) group=(json|second_parent)
+    start=40100 end=41000 self_time=0 total_time=800
+    corrected_self=0 corrected_total=800
+    max_depth=1 span_count=2 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: C(95)
+[95] depth=2 complete=true parent=Some(94)
+    nice=(json|moved_child) group=(json|moved_child)
+    start=40200 end=41000 self_time=800 total_time=800
+    corrected_self=800 corrected_total=800
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(40200..41000)
+[96] depth=1 complete=true parent=None
+    nice=(json|totalled) group=(json|totalled)
+    start=50000 end=60000 self_time=8000 total_time=10000
+    corrected_self=8000 corrected_total=10000
+    max_depth=1 span_count=2 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(50000..52000) C(97) S(54000..60000)
+[97] depth=2 complete=true parent=Some(96)
+    nice=(json|totalled_child) group=(json|totalled_child)
+    start=52000 end=54000 self_time=2000 total_time=2000
+    corrected_self=2000 corrected_total=2000
+    max_depth=0 span_count=1 alloc=0 dealloc=0 persistent=0 alloc_count=0
+    args:
+    events: S(52000..54000)

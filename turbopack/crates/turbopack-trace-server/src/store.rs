@@ -7,9 +7,11 @@ use std::{
 
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     chunked_vec::ChunkedVec,
+    memory_report::MemoryReport,
     self_time_tree::SelfTimeTree,
     span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
@@ -90,6 +92,50 @@ impl Store {
         self.memory_samples.clear();
     }
 
+    /// Walk the store and add up where its bytes actually went. See
+    /// [`crate::memory_report`]. Takes `&mut self` so the per-span `SmallVec`
+    /// capacities can be read without going through `LazySortedVec`'s sorting
+    /// `Deref` (which would also mutate) and without unsafe.
+    pub fn memory_report(&mut self) -> MemoryReport {
+        let mut report = MemoryReport {
+            spans: self.spans.len(),
+            span_size: std::mem::size_of::<Span>(),
+            span_chunk_bytes: self.spans.allocated_bytes(),
+            event_size: std::mem::size_of::<SpanEvent>(),
+            self_time_entries: self.self_time_tree.as_ref().map_or(0, |t| t.len()),
+            self_time_bytes: self
+                .self_time_tree
+                .as_ref()
+                .map_or(0, |t| t.allocated_bytes()),
+            memory_sample_bytes: self.memory_samples.capacity()
+                * std::mem::size_of::<MemorySample>(),
+            allocator_live_bytes: TurboMalloc::memory_usage(),
+            ..Default::default()
+        };
+
+        for span in self.spans.iter_mut() {
+            report.totals_populated += span.totals.get().is_some() as usize;
+            report.names_populated += span.names.get().is_some() as usize;
+            report.extra_populated += span.extra.get().is_some() as usize;
+
+            report.args += span.args.len();
+            if span.args.spilled() {
+                report.arg_spilled_spans += 1;
+                report.arg_heap_bytes +=
+                    span.args.capacity() * std::mem::size_of::<(RcStr, RcStr)>();
+            }
+
+            let (len, capacity, spilled) = span.events.storage_stats();
+            report.events += len;
+            if spilled {
+                report.event_spilled_spans += 1;
+                report.event_heap_bytes += capacity * std::mem::size_of::<SpanEvent>();
+            }
+        }
+
+        report
+    }
+
     pub fn optimize(&mut self) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             tree.optimize();
@@ -151,7 +197,7 @@ impl Store {
             depth = CUT_OFF_DEPTH - 1;
         }
         if depth < CUT_OFF_DEPTH {
-            parent.events.push(SpanEvent::Child { start, index: id });
+            parent.events.push(SpanEvent::child(start, id));
         }
         parent.start = min(parent.start, start);
         let span = &mut self.spans[id.get()];
@@ -264,7 +310,7 @@ impl Store {
                     self_time += start - current;
                 }
             }
-            events.push(SpanEvent::Child { start, index });
+            events.push(SpanEvent::child(start, index));
             current = max(current, end);
         }
         current -= start_time;
@@ -303,16 +349,13 @@ impl Store {
         } else {
             &mut self.spans[0]
         };
-        old_parent.events.retain_unordered(
-            |event: &SpanEvent| !matches!(event, SpanEvent::Child { index, .. } if *index == span_index),
-        );
+        old_parent
+            .events
+            .retain_unordered(|event: &SpanEvent| event.child_index() != Some(span_index));
 
         outdated_spans.insert(parent);
         let parent = &mut self.spans[parent.get()];
-        parent.events.push(SpanEvent::Child {
-            start: span_start,
-            index: span_index,
-        });
+        parent.events.push(SpanEvent::child(span_start, span_index));
     }
 
     pub fn add_allocation(
@@ -437,11 +480,10 @@ impl Store {
             span.time_data.total_time.take();
             span.time_data.corrected_self_time.take();
             span.time_data.corrected_total_time.take();
-            for event in span.events.iter_mut_unordered() {
-                if let SpanEvent::SelfTime(self_time) = event {
-                    self_time.corrected_self_time.take();
-                }
-            }
+            // Events hold no cache of their own, so there is nothing to clear
+            // here. That matters for more than tidiness: this function runs on
+            // every ancestor of every touched span after each read batch, and it
+            // used to walk each of their event lists.
             span.totals.take();
             span.extra.take();
         }
@@ -464,13 +506,13 @@ impl Store {
     }
 
     pub fn root_spans(&self) -> impl Iterator<Item = SpanRef<'_>> {
-        self.spans[0].events.iter().filter_map(|event| match event {
-            &SpanEvent::Child { index: id, .. } => Some(SpanRef {
+        self.spans[0].events.iter().filter_map(|event| {
+            let id = event.child_index()?;
+            Some(SpanRef {
                 span: &self.spans[id.get()],
                 store: self,
                 index: id.get(),
-            }),
-            _ => None,
+            })
         })
     }
 

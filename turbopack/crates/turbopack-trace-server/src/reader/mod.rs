@@ -15,6 +15,7 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
@@ -291,6 +292,12 @@ impl TraceReader {
                                 if !stats.is_empty() {
                                     line += &format!(" - {stats}");
                                 }
+                                // Live allocated bytes. Whole-process RSS is far too
+                                // noisy to optimize against, so surface the allocator's
+                                // own counter instead. It lags by up to ~100 KB per
+                                // thread, which is irrelevant at these magnitudes.
+                                let heap_mb = TurboMalloc::memory_usage() / (1024 * 1024);
+                                line += &format!(" - {heap_mb} MB heap");
 
                                 // `\r` returns to the start of the line and `\x1b[2K` erases
                                 // it, so a shorter update doesn't leave behind characters from
@@ -303,6 +310,12 @@ impl TraceReader {
                                     "Stopped reading file as requested by STOP_AT env var. \
                                      Waiting for new file..."
                                 );
+                                // STOP_AT exits here rather than through
+                                // `wait_for_more_data`, so the report has to be
+                                // emitted on this path too — it is the path
+                                // every measurement run takes.
+                                self.store.write().optimize();
+                                self.print_memory_report();
                                 self.wait_for_new_file(&mut file);
                                 return true;
                             }
@@ -328,6 +341,15 @@ impl TraceReader {
                     }
                 }
             }
+        }
+    }
+
+    /// Print the store's byte breakdown when `MEMORY_REPORT=1`. Takes the
+    /// write lock and walks every span, so it is gated behind the env var
+    /// rather than being always-on.
+    fn print_memory_report(&self) {
+        if env::var("MEMORY_REPORT").is_ok() {
+            println!("{}", self.store.write().memory_report());
         }
     }
 
@@ -358,6 +380,7 @@ impl TraceReader {
             } else if !stats.is_empty() {
                 println!("{stats}");
             }
+            self.print_memory_report();
         }
         loop {
             // No more data to read, sleep for a while to wait for more data

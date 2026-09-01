@@ -2,6 +2,7 @@ use std::{
     cmp::max,
     collections::VecDeque,
     fmt::{Debug, Formatter},
+    num::NonZeroU64,
     vec,
 };
 
@@ -14,8 +15,8 @@ use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
     span::{
-        Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanName,
-        SpanNames, SpanTimeData, SpanTotals,
+        Span, SpanEvent, SpanEventKind, SpanExtra, SpanGraphEvent, SpanIndex, SpanName, SpanNames,
+        SpanTimeData, SpanTotals,
     },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
@@ -133,14 +134,15 @@ impl<'a> SpanRef<'a> {
         self.span
             .events
             .iter()
-            .map(|event: &'a SpanEvent| match event {
-                SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
+            .map(|event: &'a SpanEvent| match event.kind() {
+                SpanEventKind::SelfTime { duration } => SpanEventRef::SelfTime {
                     self_time: SpanEventSelfTimeRef {
                         store: self.store,
-                        self_time,
+                        start: event.start(),
+                        duration,
                     },
                 },
-                SpanEvent::Child { index, .. } => SpanEventRef::Child {
+                SpanEventKind::Child { index } => SpanEventRef::Child {
                     span: SpanRef {
                         span: &self.store.spans[index.get()],
                         store: self.store,
@@ -152,25 +154,25 @@ impl<'a> SpanRef<'a> {
 
     /// Children sorted by start time, excluding self time.
     pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
-        self.span.events.iter().filter_map(|event| match event {
-            SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index, .. } => Some(SpanRef {
+        self.span.events.iter().filter_map(|event| {
+            let index = event.child_index()?;
+            Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
-            }),
+            })
         })
     }
 
     /// Children sorted by start time, excluding self time, in parallel.
     pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
-        self.span.events.par_iter().filter_map(|event| match event {
-            SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index, .. } => Some(SpanRef {
+        self.span.events.par_iter().filter_map(|event| {
+            let index = event.child_index()?;
+            Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
-            }),
+            })
         })
     }
 
@@ -240,12 +242,15 @@ impl<'a> SpanRef<'a> {
                 .events
                 .par_iter()
                 .filter_map(|event: &'a SpanEvent| {
-                    if let SpanEvent::SelfTime(self_time) = event {
-                        return Some(
-                            SpanEventSelfTimeRef { store, self_time }.corrected_self_time(),
-                        );
-                    }
-                    None
+                    let duration = event.self_time_duration()?;
+                    Some(
+                        SpanEventSelfTimeRef {
+                            store,
+                            start: event.start(),
+                            duration,
+                        }
+                        .corrected_self_time(),
+                    )
                 })
                 .sum();
             if self.children().next().is_none() {
@@ -501,30 +506,43 @@ impl Debug for SpanRef<'_> {
     }
 }
 
+/// Carries the self-time values by copy rather than borrowing an event, because
+/// [`SpanEvent`] is packed and has no separate self-time struct to point at.
 pub struct SpanEventSelfTimeRef<'a> {
     store: &'a Store,
-    self_time: &'a SpanEventSelfTime,
+    start: Timestamp,
+    duration: NonZeroU64,
 }
 
 impl<'a> SpanEventSelfTimeRef<'a> {
     pub fn start(&self) -> Timestamp {
-        self.self_time.start
+        self.start
     }
 
     pub fn end(&self) -> Timestamp {
-        self.self_time.end()
+        Timestamp::from_value(*self.start + self.duration.get())
     }
 
+    /// Recomputed on every call rather than cached on the event.
+    ///
+    /// A per-event cache cost 16 bytes on every event in the trace — more total
+    /// memory than the span array itself at typical event-per-span ratios — to
+    /// avoid an interval-tree lookup. The lookup is cheap, and the caller that
+    /// matters ([`SpanRef::corrected_self_time`]) caches the sum across a span's
+    /// events, so each event is normally visited once per span-cache fill.
+    ///
+    /// The one caller that does repeat is the viewer's per-event value in
+    /// `Duration` mode, and that is bounded by the events inside the current
+    /// view rect. If that ever shows up in a profile, memoize per request there
+    /// rather than putting the field back on the event.
     pub fn corrected_self_time(&self) -> Timestamp {
-        *self.self_time.corrected_self_time.get_or_init(|| {
-            // `duration` is `NonZeroU64`, so zero-duration events are filtered
-            // at construction time (see `SpanEvent::self_time`).
-            let end = self.self_time.end();
-            let duration = Timestamp::from_value(self.self_time.duration.get());
-            self.store.set_max_self_time_lookup(end);
-            self.store.self_time_tree.as_ref().map_or(duration, |tree| {
-                tree.lookup_range_corrected_time(self.self_time.start, end)
-            })
+        // `duration` is `NonZeroU64`, so zero-duration events are filtered
+        // at construction time (see `SpanEvent::self_time`).
+        let end = self.end();
+        let duration = Timestamp::from_value(self.duration.get());
+        self.store.set_max_self_time_lookup(end);
+        self.store.self_time_tree.as_ref().map_or(duration, |tree| {
+            tree.lookup_range_corrected_time(self.start, end)
         })
     }
 }

@@ -169,50 +169,119 @@ impl Span {
     }
 }
 
-/// Stores `duration` as `NonZeroU64` so the variant has a niche; combined with
-/// `Child`'s `NonZeroUsize` index, this lets the compiler pack `SpanEvent`
-/// without a separate discriminant byte (saving 8 bytes per event vs. an
-/// `end: Timestamp` layout). Callers must filter zero-duration self-time
-/// events before constructing — see [`SpanEvent::self_time`].
-pub struct SpanEventSelfTime {
-    pub start: Timestamp,
-    pub duration: NonZeroU64,
-    pub corrected_self_time: OnceLock<Timestamp>,
+/// Reserved bit in [`SpanEvent::payload`] marking the child variant.
+const CHILD_TAG: u64 = 1 << 63;
+
+/// One entry in a span's timeline: either a stretch of self time, or a child
+/// span. Sorted by start time within a span.
+///
+/// Hand-packed into two words instead of being written as a Rust enum. Both
+/// logical variants are `(u64, non-zero u64)`, which leaves the compiler no
+/// spare niche to store a discriminant, so the natural enum costs 24 bytes — a
+/// whole extra word of tag. Events outnumber spans several to one (28.6M events
+/// against 6.8M spans on the reference trace), so that word is hundreds of
+/// megabytes of RSS.
+///
+/// `payload` holds a self-time duration, or a child index with [`CHILD_TAG`]
+/// set. Both fit with room to spare: durations are in 1/100 µs, so the tag bit
+/// is only reachable after ~2900 years of span time, and a child index is
+/// bounded by the number of spans in the trace. The constructors assert this in
+/// debug builds.
+///
+/// Deliberately holds no cache for its corrected self time. A per-event
+/// `OnceLock<Timestamp>` used to be half of this struct, and it bought very
+/// little: [`crate::span_ref::SpanRef::corrected_self_time`] caches the *sum*
+/// over a span's events, which is what actually stops the interval-tree lookups
+/// from repeating.
+pub struct SpanEvent {
+    start: Timestamp,
+    payload: NonZeroU64,
 }
 
-impl SpanEventSelfTime {
-    pub fn end(&self) -> Timestamp {
-        Timestamp::from_value(*self.start + self.duration.get())
-    }
+/// The unpacked view of a [`SpanEvent`]. Produced by [`SpanEvent::kind`]; for
+/// the traversals that only care about one variant, prefer
+/// [`SpanEvent::child_index`] or [`SpanEvent::self_time_duration`].
+pub enum SpanEventKind {
+    SelfTime { duration: NonZeroU64 },
+    Child { index: SpanIndex },
 }
 
-pub enum SpanEvent {
-    SelfTime(SpanEventSelfTime),
-    Child { start: Timestamp, index: SpanIndex },
-}
+// 16 bytes = 8 (start) + 8 (payload). There is one of these per event and
+// events outnumber spans several to one, so this assert is load-bearing: do not
+// add a field here, and do not replace the packing with an enum.
+const _: () = assert!(std::mem::size_of::<SpanEvent>() == 16);
 
-// 32 bytes = 8 (start) + 8 (duration) + 16 (OnceLock<Timestamp>) for the
-// SelfTime variant; the Child variant fits in 16 and uses the niche, so no
-// extra discriminant byte is needed.
-const _: () = assert!(std::mem::size_of::<SpanEvent>() == 32);
+/// `Span` is allocated once per span in the trace, so at tens of millions of
+/// spans every byte here is tens of megabytes of RSS. This bound exists to make
+/// a field addition a compile error rather than a code-review catch; lower it as
+/// the hot/cold split lands, and never raise it without a note saying what the
+/// bytes bought.
+const _: () = assert!(std::mem::size_of::<Span>() <= 328);
 
 impl SpanEvent {
-    /// Constructs a `SelfTime` event from start and end timestamps. Returns `None`
-    /// if `end <= start` (zero or negative duration).
+    /// Constructs a self-time event from start and end timestamps. Returns
+    /// `None` if `end <= start` (zero or negative duration), which is why
+    /// `payload` can be `NonZeroU64`.
     pub fn self_time(start: Timestamp, end: Timestamp) -> Option<Self> {
         let duration = NonZeroU64::new(*end.saturating_sub(start))?;
-        Some(SpanEvent::SelfTime(SpanEventSelfTime {
+        debug_assert_eq!(
+            duration.get() & CHILD_TAG,
+            0,
+            "self-time duration overflowed into the child tag bit"
+        );
+        Some(Self {
             start,
-            duration,
-            corrected_self_time: OnceLock::new(),
-        }))
+            payload: duration,
+        })
+    }
+
+    /// Constructs a child event. `index` is a [`SpanIndex`] and so never zero,
+    /// which keeps `payload` non-zero independently of the tag.
+    pub fn child(start: Timestamp, index: SpanIndex) -> Self {
+        let raw = index.get() as u64;
+        debug_assert_eq!(
+            raw & CHILD_TAG,
+            0,
+            "span index overflowed into the child tag bit"
+        );
+        Self {
+            start,
+            payload: NonZeroU64::new(raw | CHILD_TAG)
+                .expect("child payload is non-zero because the tag bit is set"),
+        }
     }
 
     pub fn start(&self) -> Timestamp {
-        match self {
-            SpanEvent::SelfTime(self_time) => self_time.start,
-            SpanEvent::Child { start, .. } => *start,
+        self.start
+    }
+
+    pub fn kind(&self) -> SpanEventKind {
+        let raw = self.payload.get();
+        match self.child_index() {
+            Some(index) => SpanEventKind::Child { index },
+            None => SpanEventKind::SelfTime {
+                // SAFETY-free: `payload` is already `NonZeroU64`, and with the
+                // tag clear it is the duration verbatim.
+                duration: NonZeroU64::new(raw).expect("payload is non-zero"),
+            },
         }
+    }
+
+    /// The child index, or `None` for a self-time event.
+    pub fn child_index(&self) -> Option<SpanIndex> {
+        let raw = self.payload.get();
+        if raw & CHILD_TAG == 0 {
+            return None;
+        }
+        Some(
+            SpanIndex::new((raw & !CHILD_TAG) as usize)
+                .expect("a child event is never constructed with index 0"),
+        )
+    }
+
+    /// The self-time duration, or `None` for a child event.
+    pub fn self_time_duration(&self) -> Option<NonZeroU64> {
+        (self.payload.get() & CHILD_TAG == 0).then_some(self.payload)
     }
 }
 
@@ -231,18 +300,15 @@ impl PartialOrd for SpanEvent {
 }
 
 impl Ord for SpanEvent {
+    /// Lexicographic on `(start, payload)`, which reproduces the previous
+    /// hand-written ordering exactly. [`CHILD_TAG`] is the high bit, so at equal
+    /// start every self-time payload sorts below every child payload
+    /// (self time before children); self-time events then order by duration and
+    /// children by index, as before.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.start()
-            .cmp(&other.start())
-            .then_with(|| match (self, other) {
-                (SpanEvent::SelfTime(_), SpanEvent::Child { .. }) => std::cmp::Ordering::Less,
-                (SpanEvent::Child { .. }, SpanEvent::SelfTime(_)) => std::cmp::Ordering::Greater,
-                (SpanEvent::SelfTime(a), SpanEvent::SelfTime(b)) => a.duration.cmp(&b.duration),
-                (
-                    SpanEvent::Child { start: _, index: a },
-                    SpanEvent::Child { start: _, index: b },
-                ) => a.cmp(b),
-            })
+        self.start
+            .cmp(&other.start)
+            .then_with(|| self.payload.cmp(&other.payload))
     }
 }
 
@@ -338,20 +404,64 @@ mod tests {
         let start = Timestamp::from_micros(100);
         let end = Timestamp::from_micros(150);
         let event = SpanEvent::self_time(start, end).unwrap();
-        match event {
-            SpanEvent::SelfTime(self_time) => {
-                assert_eq!(self_time.start, start);
-                assert_eq!(self_time.duration.get(), *end - *start);
-                assert_eq!(self_time.end(), end);
-            }
-            SpanEvent::Child { .. } => panic!("expected SelfTime"),
+        assert_eq!(event.start(), start);
+        assert_eq!(event.child_index(), None);
+        let duration = event.self_time_duration().expect("expected SelfTime");
+        assert_eq!(duration.get(), *end - *start);
+        match event.kind() {
+            SpanEventKind::SelfTime { duration } => assert_eq!(duration.get(), *end - *start),
+            SpanEventKind::Child { .. } => panic!("expected SelfTime"),
         }
+    }
+
+    #[test]
+    fn span_event_child_round_trips_through_the_tag_bit() {
+        let start = Timestamp::from_micros(100);
+        for raw in [1usize, 2, 65_535, 65_536, 13_300_000, usize::from(u16::MAX)] {
+            let index = SpanIndex::new(raw).unwrap();
+            let event = SpanEvent::child(start, index);
+            assert_eq!(event.start(), start);
+            assert_eq!(
+                event.child_index(),
+                Some(index),
+                "index {raw} did not round-trip"
+            );
+            assert_eq!(event.self_time_duration(), None);
+            match event.kind() {
+                SpanEventKind::Child { index: got } => assert_eq!(got, index),
+                SpanEventKind::SelfTime { .. } => panic!("expected Child"),
+            }
+        }
+    }
+
+    #[test]
+    fn span_event_order_puts_self_time_before_children_at_equal_start() {
+        // The packed ordering relies on CHILD_TAG being the high bit. This is
+        // the property that lets `Ord` be a plain two-field comparison while
+        // reproducing the previous hand-written match, so it is worth pinning.
+        let t = Timestamp::from_micros(10);
+        let self_time = SpanEvent::self_time(t, Timestamp::from_micros(20)).unwrap();
+        let child = SpanEvent::child(t, SpanIndex::new(1).unwrap());
+        assert!(self_time < child);
+
+        // Self-time events at equal start order by duration.
+        let shorter = SpanEvent::self_time(t, Timestamp::from_micros(15)).unwrap();
+        assert!(shorter < self_time);
+
+        // Children at equal start order by index.
+        let child_2 = SpanEvent::child(t, SpanIndex::new(2).unwrap());
+        assert!(child < child_2);
+
+        // And start still dominates both.
+        let later =
+            SpanEvent::self_time(Timestamp::from_micros(11), Timestamp::from_micros(12)).unwrap();
+        assert!(child_2 < later);
     }
 
     #[test]
     fn span_event_size_is_packed() {
         // Backstop for the const assert; if this fails the const assert above
         // would also fail, but having a test gives a clearer error message.
-        assert_eq!(std::mem::size_of::<SpanEvent>(), 32);
+        assert_eq!(std::mem::size_of::<SpanEvent>(), 16);
     }
 }
