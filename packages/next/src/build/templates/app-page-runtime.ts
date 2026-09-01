@@ -554,6 +554,15 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
+    // Cached Navigation RSC responses use dynamic rendering to stage a
+    // reusable static segment before revealing request-specific content. They
+    // still need prerender fallback params even though the response itself is
+    // dynamic.
+    const isStagedCachedNavigationRender =
+      isDynamicRSCRequest &&
+      nextConfig.experimental.cachedNavigations === true &&
+      !isPossibleServerAction
+
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -1513,7 +1522,10 @@ export function createAppPageEntrypoint({
             }
           }
 
-          const fallbackRouteParams = isRequestSpecificRender
+          const shouldSkipFallbackRouteParams =
+            isRequestSpecificRender && !isStagedCachedNavigationRender
+
+          const fallbackRouteParams = shouldSkipFallbackRouteParams
             ? null
             : // In production or when debugging the static shell for a
               // non-prerendered URL, use the prerender manifest's fallback route
@@ -1550,13 +1562,13 @@ export function createAppPageEntrypoint({
                     ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                     : null
 
-          // For staged dynamic rendering (Cached Navigations) and debug static
-          // shell rendering, pass the fallback params via request meta so the
-          // RequestStore knows which params to defer. We don't pass them as
-          // fallbackRouteParams because that would replace actual param values
-          // with opaque placeholders during segment resolution.
+          // Also pass fallback params via request meta so the RequestStore
+          // knows which params to defer during staged dynamic rendering
+          // (Cached Navigations), resumes, and debug static shell rendering.
           if (
-            (!isRequestSpecificRender || isPossibleServerAction) &&
+            (!isRequestSpecificRender ||
+              isPossibleServerAction ||
+              isStagedCachedNavigationRender) &&
             (isProduction || isDebugStaticShell) &&
             nextConfig.cacheComponents &&
             !isPrerendered &&
@@ -2104,7 +2116,9 @@ export function createAppPageEntrypoint({
         if (
           nextConfig.cacheComponents &&
           prerenderInfo?.fallbackRouteParams &&
-          (!supportsDynamicResponse || isPossibleServerAction)
+          (!supportsDynamicResponse ||
+            isPossibleServerAction ||
+            isStagedCachedNavigationRender)
         ) {
           const fallbackParams = createOpaqueFallbackRouteParams(
             prerenderInfo.fallbackRouteParams
