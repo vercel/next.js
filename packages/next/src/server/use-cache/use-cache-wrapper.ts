@@ -348,12 +348,6 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
-if (process.env.NEXT_RUNTIME === 'edge') {
-  throw new Error(
-    "internal error: 'use cache' is not supported in Edge Runtime"
-  )
-}
-
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
