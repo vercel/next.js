@@ -1,5 +1,7 @@
 const { readFileSync } = require('node:fs')
+const { availableParallelism } = require('node:os')
 const {
+  configureRayonThreadPool,
   TurbopackTraceServer,
 } = require('./js/turbopack-trace-server-wasm.wasi.cjs')
 
@@ -11,6 +13,11 @@ if (!tracePath) {
 }
 
 const trace = readFileSync(tracePath)
+const requestedThreadCount = Number.parseInt(process.env.RAYON_NUM_THREADS, 10)
+configureRayonThreadPool(
+  requestedThreadCount > 0 ? requestedThreadCount : availableParallelism()
+)
+
 new TurbopackTraceServer(trace, (progress) => {
   const line = progress.done
     ? `Initial read completed (${Math.floor(

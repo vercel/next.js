@@ -16,6 +16,7 @@ workspace = true
 [dependencies]
 napi = { version = "3.10.0", default-features = false, features = ["napi3"] }
 napi-derive = { workspace = true }
+rayon = { workspace = true }
 turbopack-trace-server = { workspace = true, default-features = false }
 
 [target.'cfg(target_family = "wasm")'.dependencies]

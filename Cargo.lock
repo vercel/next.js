@@ -11026,6 +11026,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "rayon",
  "spinning_top",
  "talc",
  "turbopack-trace-server",
