@@ -87,7 +87,7 @@ const config: Linter.Config[] = [
   {
     name: 'next/typescript',
     // Default files, users can overwrite this.
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'],
     plugins: {
       '@typescript-eslint': tsEslint.plugin,
     },
