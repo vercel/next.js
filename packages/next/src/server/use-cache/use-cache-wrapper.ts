@@ -348,7 +348,11 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
-const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+if (process.env.NEXT_RUNTIME === 'edge') {
+  throw new Error(
+    "internal error: 'use cache' is not supported in Edge Runtime"
+  )
+}
 
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
@@ -3576,9 +3580,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeRscModuleMapping
-      : clientReferenceManifest.rscModuleMapping,
+    moduleMap: clientReferenceManifest.rscModuleMapping,
     serverModuleMap: getServerModuleMap(),
   }
 
