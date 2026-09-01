@@ -1,11 +1,14 @@
 use std::{borrow::Cow, fmt::Display, sync::Arc};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
-use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
+use crate::{
+    FxIndexMap, span::SpanIndex, store::OutdatedSpans, store_container::StoreContainer,
+    timestamp::Timestamp,
+};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
@@ -28,7 +31,7 @@ impl TraceFormat for NextJsFormat {
 
     fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
-        let mut outdated_spans = FxHashSet::default();
+        let mut outdated_spans = OutdatedSpans::default();
         while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let line = &buffer[..line_end];
             buffer = &buffer[line_end + 1..];
