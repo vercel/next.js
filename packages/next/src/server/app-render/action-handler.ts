@@ -78,10 +78,7 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
-import {
-  isServerReference,
-  isUseCacheFunction,
-} from '../../lib/client-and-server-references'
+import { isServerReference } from '../../lib/client-and-server-references'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getServerReferenceMetadata } from './server-reference-metadata'
@@ -94,8 +91,21 @@ type ServerActionInfo = {
 }
 
 type ServerActionTracing = {
-  enabled: boolean
   info: ServerActionInfo | null
+} | null
+
+function getServerActionTracing(
+  actionId: string | null,
+  ctx: AppRenderContext
+): ServerActionTracing {
+  if (actionId === null) {
+    return { info: null }
+  }
+
+  const { type } = extractInfoFromServerReferenceId(actionId)
+  return type === 'use-cache'
+    ? null
+    : { info: getServerActionInfo(actionId, ctx) }
 }
 
 function getServerActionInfo(
@@ -938,12 +948,10 @@ export async function handleAction({
                   workStore,
                   requestStore,
                   actionWasForwarded,
-                  {
-                    enabled: !isUseCacheFunction(action),
-                    info: isServerReference(action)
-                      ? getServerActionInfo(action.$$id, ctx)
-                      : null,
-                  }
+                  getServerActionTracing(
+                    isServerReference(action) ? action.$$id : null,
+                    ctx
+                  )
                 )
 
                 const formState = await decodeFormState(
@@ -1153,12 +1161,10 @@ export async function handleAction({
                   workStore,
                   requestStore,
                   actionWasForwarded,
-                  {
-                    enabled: !isUseCacheFunction(action),
-                    info: isServerReference(action)
-                      ? getServerActionInfo(action.$$id, ctx)
-                      : null,
-                  }
+                  getServerActionTracing(
+                    isServerReference(action) ? action.$$id : null,
+                    ctx
+                  )
                 )
 
                 const formState = await decodeFormState(
@@ -1245,17 +1251,14 @@ export async function handleAction({
 
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
-        const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
-        const serverActionInfo =
-          actionType === 'use-cache'
-            ? null
-            : getServerActionInfo(actionId!, ctx)
+        const serverActionTracing = getServerActionTracing(actionId!, ctx)
+        const serverActionInfo = serverActionTracing?.info ?? null
         if (
           process.env.NODE_ENV === 'development' &&
           ctx.renderOpts.logServerFunctions &&
           // TODO: For now, skip logging for 'use cache' Server Functions as the
           // output needs more work, or a different approach entirely.
-          actionType !== 'use-cache'
+          serverActionTracing
         ) {
           if (serverActionInfo) {
             logInfo = {
@@ -1274,10 +1277,7 @@ export async function handleAction({
             workStore,
             requestStore,
             shouldSkipPageRendering,
-            {
-              enabled: actionType !== 'use-cache',
-              info: serverActionInfo,
-            }
+            serverActionTracing
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1459,8 +1459,8 @@ async function executeActionAndPrepareForRender<
   try {
     const executeAction = () =>
       workUnitAsyncStorage.run(requestStore, () => action.apply(null, args))
-    const actionName = tracing.info?.name ?? '<action>'
-    const actionResult = tracing.enabled
+    const actionName = tracing?.info?.name ?? '<action>'
+    const actionResult = tracing
       ? await getTracer().trace(
           AppRenderSpan.executeServerAction,
           {
@@ -1468,7 +1468,11 @@ async function executeActionAndPrepareForRender<
             attributes: {
               'next.span_category': 'application',
               'next.server_action.name': actionName,
-              'next.server_action.file': tracing.info?.file,
+              ...(tracing.info?.file
+                ? {
+                    'next.server_action.file': tracing.info.file,
+                  }
+                : {}),
             },
           },
           async (_span, done) => {
@@ -1612,7 +1616,6 @@ function areAllActionIdsValid(
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-
 function isInvalidStringActionDescriptor(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap

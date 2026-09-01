@@ -1743,9 +1743,13 @@ describe.each(
         getCollector(),
         'edgeServerAction'
       )
+      const expectedFile = isNextDev
+        ? 'app/app/[param]/server-action-edge/actions.ts'
+        : undefined
       if (
         span.name !== 'run Server Action edgeServerAction' ||
-        span.status?.code !== 0
+        span.status?.code !== 0 ||
+        span.attributes?.['next.server_action.file'] !== expectedFile
       ) {
         throw new Error('Unexpected Edge Server Action span')
       }
