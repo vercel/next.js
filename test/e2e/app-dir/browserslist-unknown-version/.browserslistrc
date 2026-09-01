@@ -1,0 +1,5 @@
+# Known to the JS-side caniuse-lite but newer than the Rust-side browserslist-data
+# snapshot bundled in Turbopack (which ends at chrome 153 at the time of writing).
+# Correct output for this target is always modern syntax, so this stays a valid
+# regression test once the data catches up and 154 becomes a known version.
+chrome 154
