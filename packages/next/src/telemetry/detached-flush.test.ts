@@ -26,10 +26,13 @@ describe('Telemetry flushDetached', () => {
 
   it('spawns detached process with "build" mode when events are queued', async () => {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record({
-      eventName: 'NEXT_TEST_EVENT' as any,
-      fields: { feature: 'test' },
-    })
+    telemetry.record(
+      {
+        eventName: 'NEXT_TEST_EVENT',
+        payload: { feature: 'test' },
+      },
+      true
+    )
 
     telemetry.flushDetached('build', tmpDir)
 
@@ -52,10 +55,13 @@ describe('Telemetry flushDetached', () => {
 
   it('spawns detached process with "dev" mode when events are queued', async () => {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record({
-      eventName: 'NEXT_DEV_EVENT' as any,
-      fields: { feature: 'dev' },
-    })
+    telemetry.record(
+      {
+        eventName: 'NEXT_DEV_EVENT',
+        payload: { feature: 'dev' },
+      },
+      true
+    )
 
     telemetry.flushDetached('dev', tmpDir)
 
@@ -68,16 +74,22 @@ describe('Telemetry flushDetached', () => {
 
   it('generates unique event files for consecutive flushes without collisions', async () => {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record({
-      eventName: 'NEXT_EVENT_1' as any,
-      fields: { step: 1 },
-    })
+    telemetry.record(
+      {
+        eventName: 'NEXT_EVENT_1',
+        payload: { step: 1 },
+      },
+      true
+    )
     telemetry.flushDetached('build', tmpDir)
 
-    telemetry.record({
-      eventName: 'NEXT_EVENT_2' as any,
-      fields: { step: 2 },
-    })
+    telemetry.record(
+      {
+        eventName: 'NEXT_EVENT_2',
+        payload: { step: 2 },
+      },
+      true
+    )
     telemetry.flushDetached('build', tmpDir)
 
     expect(spawnSpy).toHaveBeenCalledTimes(2)
@@ -101,10 +113,13 @@ describe('Telemetry flushDetached', () => {
 
   it('clears queue and does not re-spawn on subsequent flushDetached calls', async () => {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record({
-      eventName: 'NEXT_BUILD_EVENT' as any,
-      fields: { feature: 'build' },
-    })
+    telemetry.record(
+      {
+        eventName: 'NEXT_BUILD_EVENT',
+        payload: { feature: 'build' },
+      },
+      true
+    )
 
     telemetry.flushDetached('build', tmpDir)
     expect(spawnSpy).toHaveBeenCalledTimes(1)
@@ -112,6 +127,23 @@ describe('Telemetry flushDetached', () => {
     // Second call without new events should do nothing
     telemetry.flushDetached('build', tmpDir)
     expect(spawnSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts in-flight telemetry requests when flushDetached is called', async () => {
+    const telemetry = new Telemetry({ distDir })
+    telemetry.record({
+      eventName: 'NEXT_IN_FLIGHT_EVENT',
+      payload: { feature: 'in-flight' },
+    })
+
+    telemetry.flushDetached('build', tmpDir)
+
+    expect(spawnSpy).toHaveBeenCalledTimes(1)
+    const eventsFile = path.join(distDir, spawnSpy.mock.calls[0][1][3])
+    expect(fs.existsSync(eventsFile)).toBe(true)
+    const writtenEvents = JSON.parse(fs.readFileSync(eventsFile, 'utf8'))
+    expect(writtenEvents).toHaveLength(1)
+    expect(writtenEvents[0].eventName).toBe('NEXT_IN_FLIGHT_EVENT')
   })
 
   it('does nothing when queue is empty', () => {

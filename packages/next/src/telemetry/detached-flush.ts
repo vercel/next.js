@@ -57,7 +57,9 @@ import {
   // finished flushing events clean-up
   try {
     fs.unlinkSync(eventsPath)
-  } catch (_) {}
+  } catch (_) {
+    // the file may already be gone; nothing to clean up
+  }
   // Don't call process.exit() here - let Node.js exit naturally after
   // all pending work completes (e.g., setTimeout in debug telemetry)
 })()

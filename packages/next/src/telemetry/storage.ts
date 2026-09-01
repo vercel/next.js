@@ -175,6 +175,7 @@ export class Telemetry {
     _events: TelemetryEvent | TelemetryEvent[],
     deferred?: boolean
   ): Promise<RecordObject> => {
+    const controller = new AbortController()
     const prom = (
       deferred
         ? // if we know we are going to immediately call
@@ -187,7 +188,7 @@ export class Telemetry {
               value: _events,
             })
           )
-        : this.submitRecord(_events)
+        : this.submitRecord(_events, controller.signal)
     )
       .then((value) => ({
         isFulfilled: true,
@@ -209,7 +210,7 @@ export class Telemetry {
       })
 
     ;(prom as any)._events = Array.isArray(_events) ? _events : [_events]
-    ;(prom as any)._controller = (prom as any)._controller
+    ;(prom as any)._controller = controller
     // Track this `Promise` so we can flush pending events
     this.queue.add(prom)
 
@@ -279,7 +280,8 @@ export class Telemetry {
   }
 
   private submitRecord = async (
-    _events: TelemetryEvent | TelemetryEvent[]
+    _events: TelemetryEvent | TelemetryEvent[],
+    signal?: any
   ): Promise<any> => {
     let events: TelemetryEvent[]
     if (Array.isArray(_events)) {
@@ -317,8 +319,7 @@ export class Telemetry {
       return Promise.resolve()
     }
 
-    const postController = new AbortController()
-    const res = postNextTelemetryPayload(
+    return postNextTelemetryPayload(
       {
         context: {
           anonymousId: this.anonymousId,
@@ -331,9 +332,7 @@ export class Telemetry {
           fields: payload,
         })),
       },
-      postController.signal
+      signal
     )
-    res._controller = postController
-    return res
   }
 }
