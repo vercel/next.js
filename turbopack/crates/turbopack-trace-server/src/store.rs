@@ -2,18 +2,22 @@ use std::{
     cmp::{max, min},
     env,
     num::NonZeroUsize,
-    sync::{OnceLock, atomic::AtomicU64},
+    sync::{
+        OnceLock, RwLock,
+        atomic::{AtomicU8, AtomicU64, Ordering},
+    },
 };
 
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     chunked_vec::ChunkedVec,
+    cold::ColdStore,
     memory_report::MemoryReport,
     self_time_tree::SelfTimeTree,
-    span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
+    span::{MAX_DEPTH_UNSET, Span, SpanArgs, SpanEvent, SpanExtra, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
     timestamp::Timestamp,
 };
@@ -37,6 +41,16 @@ const MAX_MEMORY_SAMPLES: usize = 200;
 
 pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
+    /// Per-span graph / bottom-up / search-index caches, keyed by span index.
+    ///
+    /// Held here rather than as a field on `Span` because only a handful of spans
+    /// ever get one — the roots, and whatever the user expands — while a field
+    /// costs 16 bytes on every span in the trace. Boxed so entries have a stable
+    /// address; see [`Store::extra`].
+    extra: RwLock<FxHashMap<usize, Box<SpanExtra>>>,
+    /// The derived half of every span, lazily allocated per chunk. See
+    /// [`crate::cold`].
+    pub(crate) cold: ColdStore,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
     /// Global sorted list of memory samples (timestamp, memory_bytes).
@@ -53,16 +67,15 @@ fn new_root_span() -> Span {
         args: SpanArgs::new(),
         events: Default::default(),
         is_complete: true,
+        max_depth: AtomicU8::new(MAX_DEPTH_UNSET),
         self_allocations: 0,
         self_allocation_count: 0,
         self_deallocations: 0,
         self_deallocation_count: 0,
-        totals: OnceLock::new(),
         time_data: SpanTimeData {
             self_end: Timestamp::MAX,
             ..Default::default()
         },
-        extra: OnceLock::new(),
         names: OnceLock::new(),
     }
 }
@@ -79,7 +92,39 @@ impl Store {
                 .then(SelfTimeTree::new),
             max_self_time_lookup_time: AtomicU64::new(0),
             memory_samples: Vec::new(),
+            extra: RwLock::new(FxHashMap::default()),
+            cold: ColdStore::new(),
         }
+    }
+
+    /// The [`SpanExtra`] for a span, creating it on first touch.
+    ///
+    /// Returns a reference tied to `&self` even though the entry is created
+    /// behind a lock. That is what lets `SpanRef::extra` keep its signature, so
+    /// `span_graph_ref` and `span_bottom_up_ref` need no changes.
+    pub(crate) fn extra(&self, index: usize) -> &SpanExtra {
+        // Fast path: already present. Under a read lock so the viewer's parallel
+        // warm-up does not serialize on a mutex.
+        if let Some(extra) = self.extra.read().unwrap().get(&index) {
+            let ptr: *const SpanExtra = &**extra;
+            // SAFETY: as below.
+            return unsafe { &*ptr };
+        }
+        let ptr: *const SpanExtra = {
+            let mut map = self.extra.write().unwrap();
+            &**map.entry(index).or_default()
+        };
+        // SAFETY: the pointee is a `Box` on the heap, so its address is stable
+        // for as long as it stays in the map — rehashing moves the `Box`, not
+        // what it points to. Entries are removed only by
+        // `invalidate_outdated_spans` and `reset`, both of which take `&mut self`
+        // and so cannot run while the `&self` borrow this reference is tied to is
+        // alive.
+        //
+        // The lock is released before returning, and deliberately before any
+        // caller runs a `get_or_init` closure on the result: those closures
+        // recurse into other spans' `extra`, which would deadlock otherwise.
+        unsafe { &*ptr }
     }
 
     pub fn reset(&mut self) {
@@ -90,6 +135,8 @@ impl Store {
         }
         *self.max_self_time_lookup_time.get_mut() = 0;
         self.memory_samples.clear();
+        self.extra.write().unwrap().clear();
+        self.cold.clear();
     }
 
     /// Walk the store and add up where its bytes actually went. See
@@ -110,13 +157,14 @@ impl Store {
             memory_sample_bytes: self.memory_samples.capacity()
                 * std::mem::size_of::<MemorySample>(),
             allocator_live_bytes: TurboMalloc::memory_usage(),
+            extra_populated: self.extra.read().unwrap().len(),
+            cold_bytes: self.cold.allocated_bytes(),
+            cold_chunks: self.cold.materialized_chunks(),
             ..Default::default()
         };
 
         for span in self.spans.iter_mut() {
-            report.totals_populated += span.totals.get().is_some() as usize;
             report.names_populated += span.names.get().is_some() as usize;
-            report.extra_populated += span.extra.get().is_some() as usize;
 
             report.args += span.args.len();
             if span.args.spilled() {
@@ -158,6 +206,7 @@ impl Store {
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
+        self.cold.reserve_for(id.get());
         let ignore_self_time = &name == "thread" || &name == "blocking";
         self.spans.push(Span {
             parent,
@@ -168,17 +217,16 @@ impl Store {
             args,
             events: Default::default(),
             is_complete: false,
+            max_depth: AtomicU8::new(MAX_DEPTH_UNSET),
             self_allocations: 0,
             self_allocation_count: 0,
             self_deallocations: 0,
             self_deallocation_count: 0,
-            totals: OnceLock::new(),
             time_data: SpanTimeData {
                 self_end: start,
                 ignore_self_time,
                 ..Default::default()
             },
-            extra: OnceLock::new(),
             names: OnceLock::new(),
         });
         let mut parent = if let Some(parent) = parent {
@@ -475,34 +523,54 @@ impl Store {
     }
 
     pub fn invalidate_outdated_spans(&mut self, outdated_spans: &FxHashSet<SpanId>) {
-        fn invalidate_span(span: &mut Span) {
-            span.time_data.end.take();
-            span.time_data.total_time.take();
-            span.time_data.corrected_self_time.take();
-            span.time_data.corrected_total_time.take();
-            // Events hold no cache of their own, so there is nothing to clear
-            // here. That matters for more than tidiness: this function runs on
-            // every ancestor of every touched span after each read batch, and it
-            // used to walk each of their event lists.
-            span.totals.take();
-            span.extra.take();
-        }
+        // Events hold no cache of their own, and the derived timestamps and
+        // totals are no longer fields, so per-span invalidation is now: reset the
+        // `max_depth` byte, drop the side-table entry, and zero the cold slots.
+        // During a headless ingest the cold chunks were never allocated, so that
+        // last step short-circuits and this whole pass — which runs over every
+        // ancestor of every touched span after each read batch — does almost
+        // nothing.
+        let spans = &mut self.spans;
+        let extra = self.extra.get_mut().unwrap();
+        let cold = &mut self.cold;
 
+        // The walk carries the index rather than just the reference, because both
+        // side structures are keyed by it.
         for id in outdated_spans.iter() {
-            let mut span = &mut self.spans[id.get()];
+            let mut index = id.get();
             loop {
-                invalidate_span(span);
+                extra.remove(&index);
+                cold.invalidate(index);
+                let span = &mut spans[index];
+                span.max_depth.store(MAX_DEPTH_UNSET, Ordering::Relaxed);
                 let Some(parent) = span.parent else {
                     break;
                 };
                 if outdated_spans.contains(&parent) {
                     break;
                 }
-                span = &mut self.spans[parent.get()];
+                index = parent.get();
             }
         }
 
-        invalidate_span(&mut self.spans[0]);
+        extra.remove(&0);
+        cold.invalidate(0);
+        spans[0].max_depth.store(MAX_DEPTH_UNSET, Ordering::Relaxed);
+    }
+
+    /// Force every derived value, as a client rendering the whole trace would.
+    ///
+    /// Diagnostic only, for `MEMORY_REPORT=warm`. Headless ingest leaves the
+    /// derived half entirely unallocated, so without this the report only ever
+    /// shows the ingest peak — but the server also has to *serve*, and that is
+    /// the number that decides whether it fits on a small machine.
+    pub fn warm_all_derived(&self) {
+        let root = self.root_span();
+        root.max_depth();
+        root.end();
+        root.total_time();
+        root.corrected_total_time();
+        root.total_span_count();
     }
 
     pub fn root_spans(&self) -> impl Iterator<Item = SpanRef<'_>> {

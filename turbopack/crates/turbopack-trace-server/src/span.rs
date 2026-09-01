@@ -1,6 +1,6 @@
 use std::{
     num::{NonZeroU64, NonZeroUsize},
-    sync::{Arc, OnceLock},
+    sync::{Arc, OnceLock, atomic::AtomicU8},
 };
 
 use hashbrown::HashMap;
@@ -10,6 +10,10 @@ use turbo_rcstr::RcStr;
 use crate::{lazy_sorted_vec::LazySortedVec, timestamp::Timestamp};
 
 pub type SpanIndex = NonZeroUsize;
+
+/// Sentinel in [`Span::max_depth`] meaning "not yet computed". Real values are
+/// bounded by `store::CUT_OFF_DEPTH` (80), so this cannot collide.
+pub const MAX_DEPTH_UNSET: u8 = u8::MAX;
 
 /// Storage for `Span::args` ~32% of spans have <=1 arg (typically just the
 /// `name` key for `turbo_tasks::function` spans), so inlining one entry
@@ -32,27 +36,44 @@ pub struct Span {
     pub events: LazySortedVec<SpanEvent>,
     pub is_complete: bool,
 
+    /// Height of the subtree below this span, lazily computed and cached here
+    /// rather than inside [`SpanTotals`].
+    ///
+    /// It lives in the hot record because it is the one derived value the viewer
+    /// asks for about *every* span before drawing anything
+    /// (`viewer.rs`: `root_spans.par_iter()` forcing `max_depth()`). While it was
+    /// bundled with the subtree totals, that single call materialized the whole
+    /// totals cache for the entire trace, which would defeat any attempt to keep
+    /// the derived half lazily allocated.
+    ///
+    /// [`MAX_DEPTH_UNSET`] means "not computed". Values fit a `u8` because
+    /// `store::CUT_OFF_DEPTH` caps tree height at 80, and this byte is free —
+    /// it shares padding with `depth` and `is_complete`.
+    pub max_depth: AtomicU8,
+
     // These values are computed automatically:
     pub self_allocations: u64,
     pub self_allocation_count: u64,
     pub self_deallocations: u64,
     pub self_deallocation_count: u64,
 
-    // These values are computed when accessed (and maybe deleted during writing).
-    // Bundling the subtree totals into a single OnceLock pays a small cost on
-    // partial reads in exchange for a much-reduced lock count per Span.
-    pub totals: OnceLock<SpanTotals>,
+    // The derived half — subtree totals and the four lazily-computed timestamps —
+    // is not stored here at all. See [`crate::cold`]: it lives in arrays parallel
+    // to the span chunks, allocated on first touch, so a headless ingest never
+    // pays for it.
     pub time_data: SpanTimeData,
-    pub extra: OnceLock<Box<SpanExtra>>,
     /// Lazy first-touch via `OnceLock`, but inline rather than boxed: ~96% of
     /// spans get names populated after browsing, never invalidated, so the box
     /// indirection is pure overhead.
     pub names: OnceLock<SpanNames>,
 }
 
-#[derive(Default)]
+/// Subtree aggregates, filled together by one `OnceLock` so a partial read
+/// pays a single lock rather than one per field.
+///
+/// Deliberately does *not* include the subtree height; see [`Span::max_depth`].
+#[derive(Default, Clone, Copy)]
 pub struct SpanTotals {
-    pub max_depth: u32,
     pub allocations: u64,
     pub deallocations: u64,
     pub persistent_allocations: u64,
@@ -60,6 +81,8 @@ pub struct SpanTotals {
     pub span_count: u64,
 }
 
+/// The timing values the reader writes. The derived ones (`end`, `total_time`
+/// and the two corrected times) are in [`crate::cold`].
 #[derive(Default)]
 pub struct SpanTimeData {
     // These values won't change after creation:
@@ -70,12 +93,6 @@ pub struct SpanTimeData {
 
     // These values are computed automatically:
     pub self_time: Timestamp,
-
-    // These values are computed when accessed (and maybe deleted during writing):
-    pub end: OnceLock<Timestamp>,
-    pub total_time: OnceLock<Timestamp>,
-    pub corrected_self_time: OnceLock<Timestamp>,
-    pub corrected_total_time: OnceLock<Timestamp>,
 }
 
 #[derive(Default)]
@@ -97,10 +114,6 @@ pub struct SpanNames {
 }
 
 impl Span {
-    pub fn extra(&self) -> &SpanExtra {
-        self.extra.get_or_init(Default::default)
-    }
-
     pub fn names(&self) -> &SpanNames {
         self.names.get_or_init(|| self.compute_names())
     }
@@ -216,7 +229,7 @@ const _: () = assert!(std::mem::size_of::<SpanEvent>() == 16);
 /// a field addition a compile error rather than a code-review catch; lower it as
 /// the hot/cold split lands, and never raise it without a note saying what the
 /// bytes bought.
-const _: () = assert!(std::mem::size_of::<Span>() <= 328);
+const _: () = assert!(std::mem::size_of::<Span>() == 192);
 
 impl SpanEvent {
     /// Constructs a self-time event from start and end timestamps. Returns

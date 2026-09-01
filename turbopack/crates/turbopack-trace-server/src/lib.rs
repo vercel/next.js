@@ -18,6 +18,7 @@ use self::{
 
 mod bottom_up;
 mod chunked_vec;
+mod cold;
 #[cfg(test)]
 mod golden;
 mod lazy_sorted_vec;

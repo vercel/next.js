@@ -367,9 +367,15 @@ impl TraceReader {
     /// write lock and walks every span, so it is gated behind the env var
     /// rather than being always-on.
     fn print_memory_report(&self) {
-        if env::var("MEMORY_REPORT").is_ok() {
-            println!("{}", self.store.write().memory_report());
+        let Ok(mode) = env::var("MEMORY_REPORT") else {
+            return;
+        };
+        if mode == "warm" {
+            // Compute everything a client rendering the whole trace would, so
+            // the report shows the serving peak and not just the ingest peak.
+            self.store.read().warm_all_derived();
         }
+        println!("{}", self.store.write().memory_report());
     }
 
     fn wait_for_more_data(

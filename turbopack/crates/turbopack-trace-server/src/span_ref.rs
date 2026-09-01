@@ -3,6 +3,7 @@ use std::{
     collections::VecDeque,
     fmt::{Debug, Formatter},
     num::NonZeroU64,
+    sync::atomic::Ordering,
     vec,
 };
 
@@ -14,9 +15,10 @@ use turbo_rcstr::{RcStr, rcstr};
 use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
+    cold::{TimeSlot, load_time, store_time},
     span::{
-        Span, SpanEvent, SpanEventKind, SpanExtra, SpanGraphEvent, SpanIndex, SpanName, SpanNames,
-        SpanTimeData, SpanTotals,
+        MAX_DEPTH_UNSET, Span, SpanEvent, SpanEventKind, SpanExtra, SpanGraphEvent, SpanIndex,
+        SpanName, SpanNames, SpanTimeData, SpanTotals,
     },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
@@ -60,24 +62,32 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn extra(&self) -> &'a SpanExtra {
-        self.span.extra()
+        self.store.extra(self.index)
     }
 
     pub fn names(&self) -> &'a SpanNames {
         self.span.names()
     }
 
+    /// Cached in [`crate::cold`] rather than on the span.
+    ///
+    /// The root's `end` is `Timestamp::MAX`, which the biased encoding cannot
+    /// represent, so it recomputes on every call. One span, and cheap next to the
+    /// bytes the encoding saves — see the `cold` module docs.
     pub fn end(&self) -> Timestamp {
-        let time_data = self.time_data();
-        *time_data.end.get_or_init(|| {
-            max(
-                time_data.self_end,
-                self.children()
-                    .map(|child| child.end())
-                    .max()
-                    .unwrap_or_default(),
-            )
-        })
+        let slot = self.store.cold.time(self.index, TimeSlot::End);
+        if let Some(cached) = load_time(slot) {
+            return cached;
+        }
+        let computed = max(
+            self.span.time_data.self_end,
+            self.children()
+                .map(|child| child.end())
+                .max()
+                .unwrap_or_default(),
+        );
+        store_time(slot, computed);
+        computed
     }
 
     pub fn is_complete(&self) -> bool {
@@ -177,13 +187,18 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn total_time(&self) -> Timestamp {
-        *self.time_data().total_time.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_time())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_time()
-        })
+        let slot = self.store.cold.time(self.index, TimeSlot::TotalTime);
+        if let Some(cached) = load_time(slot) {
+            return cached;
+        }
+        let computed = self
+            .children()
+            .map(|child| child.total_time())
+            .reduce(|a, b| a + b)
+            .unwrap_or_default()
+            + self.self_time();
+        store_time(slot, computed);
+        computed
     }
 
     /// Compute (or fetch) the bundled subtree totals. All six totals share a
@@ -191,27 +206,27 @@ impl<'a> SpanRef<'a> {
     /// every field; subsequent calls return cached values. Children's bundles
     /// are computed recursively, so depth-many calls happen once per subtree
     /// regardless of which field is queried first.
-    fn totals(&self) -> &'a SpanTotals {
-        self.span.totals.get_or_init(|| {
-            let mut t = SpanTotals {
-                max_depth: 0,
-                allocations: self.self_allocations(),
-                deallocations: self.self_deallocations(),
-                persistent_allocations: self.self_persistent_allocations(),
-                allocation_count: self.self_allocation_count(),
-                span_count: 1,
-            };
-            for child in self.children() {
-                let c = child.totals();
-                t.max_depth = max(t.max_depth, c.max_depth + 1);
-                t.allocations += c.allocations;
-                t.deallocations += c.deallocations;
-                t.persistent_allocations += c.persistent_allocations;
-                t.allocation_count += c.allocation_count;
-                t.span_count += c.span_count;
-            }
-            t
-        })
+    fn totals(&self) -> SpanTotals {
+        if let Some(cached) = self.store.cold.totals(self.index) {
+            return cached;
+        }
+        let mut t = SpanTotals {
+            allocations: self.self_allocations(),
+            deallocations: self.self_deallocations(),
+            persistent_allocations: self.self_persistent_allocations(),
+            allocation_count: self.self_allocation_count(),
+            span_count: 1,
+        };
+        for child in self.children() {
+            let c = child.totals();
+            t.allocations += c.allocations;
+            t.deallocations += c.deallocations;
+            t.persistent_allocations += c.persistent_allocations;
+            t.allocation_count += c.allocation_count;
+            t.span_count += c.span_count;
+        }
+        self.store.cold.set_totals(self.index, &t);
+        t
     }
 
     pub fn total_allocations(&self) -> u64 {
@@ -236,7 +251,11 @@ impl<'a> SpanRef<'a> {
 
     pub fn corrected_self_time(&self) -> Timestamp {
         let store = self.store;
-        *self.time_data().corrected_self_time.get_or_init(|| {
+        let slot = store.cold.time(self.index, TimeSlot::CorrectedSelfTime);
+        if let Some(cached) = load_time(slot) {
+            return cached;
+        }
+        let computed = {
             let mut self_time = self
                 .span
                 .events
@@ -257,20 +276,58 @@ impl<'a> SpanRef<'a> {
                 self_time = max(self_time, Timestamp::from_value(1));
             }
             self_time
-        })
+        };
+        store_time(slot, computed);
+        computed
     }
 
     pub fn corrected_total_time(&self) -> Timestamp {
-        *self.time_data().corrected_total_time.get_or_init(|| {
-            self.children_par()
-                .map(|child| child.corrected_total_time())
-                .sum::<Timestamp>()
-                + self.corrected_self_time()
-        })
+        let slot = self
+            .store
+            .cold
+            .time(self.index, TimeSlot::CorrectedTotalTime);
+        if let Some(cached) = load_time(slot) {
+            return cached;
+        }
+        let computed = self
+            .children_par()
+            .map(|child| child.corrected_total_time())
+            .sum::<Timestamp>()
+            + self.corrected_self_time();
+        store_time(slot, computed);
+        computed
     }
 
+    /// Height of the subtree below this span; 0 for a leaf.
+    ///
+    /// Cached in the hot record rather than in [`SpanTotals`], so the viewer's
+    /// "force `max_depth()` on every root span" warm-up walks one byte per span
+    /// instead of materializing the whole subtree-totals cache. Recursion is
+    /// bounded by `CUT_OFF_DEPTH`.
+    ///
+    /// Two threads racing here compute the same value and store the same byte,
+    /// so a plain relaxed load/store is enough — no `OnceLock` needed.
     pub fn max_depth(&self) -> u32 {
-        self.totals().max_depth
+        let cached = self.span.max_depth.load(Ordering::Relaxed);
+        if cached != MAX_DEPTH_UNSET {
+            return cached as u32;
+        }
+        let computed = self
+            .children()
+            .map(|child| child.max_depth() + 1)
+            .max()
+            .unwrap_or(0);
+        debug_assert!(
+            computed < MAX_DEPTH_UNSET as u32,
+            "subtree height {computed} does not fit the max_depth byte; CUT_OFF_DEPTH should have \
+             bounded it"
+        );
+        // Clamp rather than wrap if that bound is ever raised past 254.
+        self.span.max_depth.store(
+            computed.min(MAX_DEPTH_UNSET as u32 - 1) as u8,
+            Ordering::Relaxed,
+        );
+        computed
     }
 
     pub fn graph(&self) -> impl Iterator<Item = SpanGraphEventRef<'a>> + '_ {

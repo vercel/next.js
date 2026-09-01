@@ -50,6 +50,12 @@ pub struct MemoryReport {
     pub names_populated: usize,
     pub extra_populated: usize,
 
+    /// Bytes committed by the lazily-allocated derived-value arrays, and how
+    /// many chunks have materialized each of the two arrays. Zero across the
+    /// board during a headless ingest; that is the point of the design.
+    pub cold_bytes: usize,
+    pub cold_chunks: (usize, usize),
+
     /// `TurboMalloc::memory_usage()` at the same instant, for comparison.
     pub allocator_live_bytes: usize,
 }
@@ -63,6 +69,7 @@ impl MemoryReport {
             + self.arg_heap_bytes
             + self.self_time_bytes
             + self.memory_sample_bytes
+            + self.cold_bytes
     }
 }
 
@@ -124,6 +131,17 @@ impl fmt::Display for MemoryReport {
             "memory samples",
             Mb(self.memory_sample_bytes),
             per_span(self.memory_sample_bytes),
+        )?;
+        writeln!(
+            f,
+            "  {:<22} {} {:>8.1} B/span   times {}/{} chunks, totals {}/{} chunks",
+            "derived (cold)",
+            Mb(self.cold_bytes),
+            per_span(self.cold_bytes),
+            self.cold_chunks.0,
+            self.spans.div_ceil(1 << 16),
+            self.cold_chunks.1,
+            self.spans.div_ceil(1 << 16),
         )?;
         writeln!(
             f,

@@ -17,7 +17,10 @@ use std::{
 
 /// Number of elements per chunk. Power of two so `idx / CHUNK_SIZE` and
 /// `idx % CHUNK_SIZE` compile to a shift and a mask.
-const CHUNK_SIZE: usize = 1 << 16;
+///
+/// Public because [`crate::cold`] keeps arrays parallel to these chunks and must
+/// agree on the boundary.
+pub const CHUNK_SIZE: usize = 1 << 16;
 
 /// Returns the chunk index and intra-chunk offset for an element index.
 #[inline]
