@@ -335,7 +335,11 @@ import type {
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
-import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
+import {
+  createPrerenderDataTracking,
+  finishPrerenderDataTracking,
+  RENDER_STAGES_BY_DATA_KIND,
+} from '../dynamic-rendering-utils'
 import type {
   PrefetchedSegmentStage,
   SegmentStage,
@@ -8812,8 +8816,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
-        runtimeDataAccessed: null,
-        shouldAttemptStaticPrefetch: null,
+        prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
@@ -8849,8 +8852,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
-        runtimeDataAccessed: null,
-        shouldAttemptStaticPrefetch: null,
+        prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
 
@@ -9076,25 +9078,7 @@ async function prerenderToStream(
         finalStage: RenderStage.Static,
       })
 
-      // Records runtime data accesses from the payload and render stores
-      // below into the RSC payload (as `u`), resolved `true` at the moment
-      // of first access so the fulfillment row is serialized at the stream
-      // position where it happened. Used when generating per-segment
-      // prefetch responses. Request data props (params, searchParams) are
-      // created while the RSC payload is constructed, under the payload
-      // store; both stores share the same promise so it observes accesses
-      // from both.
-      const runtimeDataAccessed = createPromiseWithResolvers<boolean>()
-
-      // Companion cell holding this prerender's static-prefetch measurement
-      // directly — the value that becomes the route's build-constant hint:
-      // starts true, and a disqualifying runtime-data access flips it false
-      // — fallback-param accesses on an upgradeable route don't (see
-      // trackRuntimeDataAccessed, which applies the rule at access time).
-      // Read after the prerender settles by
-      // collectSegmentData below. Shared between both stores for the same
-      // reason as the promise.
-      const shouldAttemptStaticPrefetch = { current: true }
+      const prerenderDataTracking = createPrerenderDataTracking()
 
       const finalServerPayloadPrerenderStore: PrerenderStoreModernServer = {
         type: 'prerender',
@@ -9122,8 +9106,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
-        runtimeDataAccessed,
-        shouldAttemptStaticPrefetch,
+        prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
@@ -9152,7 +9135,7 @@ async function prerenderToStream(
       // Embed the runtime data access tracking in the payload so
       // collectSegmentData can replay it per stage. Only needed when the
       // Flight data will be decomposed into segment prefetches below.
-      finalServerPayload.u = runtimeDataAccessed.promise
+      finalServerPayload.u = prerenderDataTracking.runtimeDataAccessed.promise
 
       const serverDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -9178,8 +9161,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
-        runtimeDataAccessed,
-        shouldAttemptStaticPrefetch,
+        prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
 
@@ -9236,7 +9218,6 @@ async function prerenderToStream(
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
-          runtimeDataAccessed.resolve(false)
           finishAccumulatingVaryParams(varyParamsAccumulator)
         }
       }
@@ -9329,9 +9310,7 @@ async function prerenderToStream(
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
-          // Idempotent: a no-op if a runtime data access already resolved it
-          // `true`. The `false` row lands here, after all stage content.
-          runtimeDataAccessed.resolve(false)
+          finishPrerenderDataTracking(prerenderDataTracking)
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
           shellByteLengthDeferred.resolve(
@@ -9386,6 +9365,16 @@ async function prerenderToStream(
         ? metadata.flightData.subarray(1)
         : metadata.flightData
 
+      if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
+        const {
+          shouldAttemptStaticShell: shellIsStatic,
+          shouldAttemptStaticPrefetch: prefetchIsStatic,
+        } = prerenderDataTracking
+        const label = (isStatic: boolean) => (isStatic ? 'static' : 'runtime')
+        console.log(
+          `Route ${workStore.route} :: hints: shell=${label(shellIsStatic)}, prefetch=${label(prefetchIsStatic)}`
+        )
+      }
       await collectSegmentData(
         flightData,
         finalServerPrerenderStore,
@@ -9897,8 +9886,7 @@ async function prerenderToStream(
         resumeDataCache: originalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator: null,
-        runtimeDataAccessed: null,
-        shouldAttemptStaticPrefetch: null,
+        prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
@@ -10559,20 +10547,22 @@ async function collectSegmentData(
   let hints: PrefetchHints | null
   const prefetchInlining = renderOpts.experimental.prefetchInlining
   if (renderOpts.isBuildTimePrerendering) {
-    // Whether the client should attempt a static prefetch for this route
-    // (PrefetchHint.ShouldAttemptStaticPrefetch): the prerender store's
-    // cell holds the hint value directly — true iff the build-time
-    // prerender accessed no runtime data that disqualifies a static
-    // attempt. The fallback-param upgradeability rule is applied at access
-    // time — see trackRuntimeDataAccessed — so only the settled value is
-    // read here. Only the modern (cacheComponents) prerender tracks
-    // accesses; legacy prerenders conservatively never set the hint.
-    const hintCell =
+    // Whether the client should attempt to use static requests for
+    // shells and prefetches. Only applies in routes with Partial Prefetching.
+    const prerenderDataTracking =
       prerenderStore.type === 'prerender'
-        ? prerenderStore.shouldAttemptStaticPrefetch
+        ? prerenderStore.prerenderDataTracking
         : null
-    const shouldAttemptStaticPrefetch = hintCell !== null && hintCell.current
-    if (prefetchInlining || shouldAttemptStaticPrefetch) {
+    const {
+      shouldAttemptStaticShell = false,
+      shouldAttemptStaticPrefetch = false,
+    } = prerenderDataTracking ?? {}
+
+    if (
+      prefetchInlining ||
+      shouldAttemptStaticShell ||
+      shouldAttemptStaticPrefetch
+    ) {
       // Build time: compute fresh hints and store in metadata for the
       // manifest. When prefetch inlining is disabled there are no sizes to
       // measure, but the static-prefetch hint still rides the manifest —
@@ -10584,6 +10574,7 @@ async function collectSegmentData(
         clientModules,
         serverConsumerManifest,
         prefetchInlining,
+        shouldAttemptStaticShell,
         shouldAttemptStaticPrefetch
       )
       metadata.prefetchHints = hints

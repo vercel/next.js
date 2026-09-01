@@ -179,7 +179,7 @@ describe('static App Shell prefetch attempt', () => {
     }, 'no-requests')
   })
 
-  it('goes straight to a runtime shell prefetch when the shell reads cookies (hint unset)', async () => {
+  it('uses a runtime shell when the page reads cookies', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -222,7 +222,7 @@ describe('static App Shell prefetch attempt', () => {
     ])
   })
 
-  it('goes straight to a runtime shell prefetch when the shell reads searchParams (hint unset)', async () => {
+  it('uses a static app shell when the page reads searchParams', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -231,28 +231,26 @@ describe('static App Shell prefetch attempt', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal the LinkAccordion for /uses-search-params?q=test. Observing
-    // searchParams is a runtime-data access (search params hang during a
-    // static prerender but resolve during a runtime one), so like the
-    // cookies route the tree hint is unset and the Shell phase issues the
-    // runtime shell request directly.
+    // Reveal the LinkAccordion for /uses-search-params?q=test.
+    // Accessing runtime data means that a runtime prefetch would provide more data,
+    // but this should not affect the shell, which doesn't have access to searchParams.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/uses-search-params?q=test"]')
         .click()
     }, [
-      // The shell content arrives in the runtime shell response. (The
-      // query-dependent content is URL data, which is never part of an
-      // App Shell, so we only assert on the shell text.)
-      { includes: 'Search params page shell text', kind: 'runtime' },
-      // No static attempt for the new part preceded it.
+      // The shell is static
+      { includes: 'Search params page shell text', kind: 'static' },
+      // No runtime requests should occur.
       {
-        includes: 'Search params page shell text',
-        kind: 'static',
+        includes: '',
+        kind: 'runtime',
         block: 'reject',
       },
     ])
   })
+
+  it.todo('uses a runtime prefetch when the page reads searchParams')
 
   it("uses a static app shell for a partial segment that calls runtime APIs but doesn't await them", async () => {
     let page: Playwright.Page
@@ -424,7 +422,7 @@ describe('static App Shell prefetch attempt', () => {
     expect(await browser.elementById('param-value').text()).toBe('Post: 2')
   })
 
-  it('uses a runtime shell for a partial segment that has a param-dependent icon.tsx', async () => {
+  it('uses a static shell for a partial segment that has a param-dependent icon.tsx', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -434,26 +432,27 @@ describe('static App Shell prefetch attempt', () => {
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /params-used-in-icon/1.
-    // No runtime data was awaited in the page itself during the prerender,
-    // but the head is param-dependent because it needs to link to the
+    // No runtime data was awaited in the page itself during the prerender.
+    // The head is param-dependent because it needs to link to the
     // param-dependent icon:
     //
     //   <link rel="icon" href="/params-only-in-icon/1/icon">
     //
-    // which is tracked as a runtime data access and deopts the page
-    // to runtime requests.
+    // but this should not affect the shell, which cannot access params anyway.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/params-used-in-icon/1"]')
         .click()
     }, [
-      {
-        includes: 'Params awaited in icon.tsx and after dynamic data',
-        kind: 'runtime',
-      },
+      // The shell is static.
       {
         includes: 'Params awaited in icon.tsx and after dynamic data',
         kind: 'static',
+      },
+      // No runtime requests should occur.
+      {
+        includes: '',
+        kind: 'runtime',
         block: 'reject',
       },
       { includes: 'Dynamic content', kind: 'static', block: 'reject' },
@@ -496,6 +495,10 @@ describe('static App Shell prefetch attempt', () => {
 
     expect(await browser.elementById('param-value').text()).toBe('Post: 2')
   })
+
+  it.todo(
+    'uses a runtime prefetch for a partial segment that has a param-dependent icon.tsx'
+  )
 
   it('does not fall back to a runtime shell prefetch for a partial segment whose holes are dynamic (connection)', async () => {
     let page: Playwright.Page
@@ -613,7 +616,7 @@ describe('static App Shell prefetch attempt', () => {
     )
   })
 
-  it('goes straight to a runtime shell prefetch for a partial segment that calls runtime APIs after prefetch() (hint unset)', async () => {
+  it('uses a static app shell for a partial segment that calls runtime APIs after prefetch()', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -629,18 +632,21 @@ describe('static App Shell prefetch attempt', () => {
         )
         .click()
     }, [
-      // Unlike navigation(), prefetch() doesn't stop runtime-data tracking, so
-      // the cookies()/headers() reads below it leave the tree hint unset and
-      // the shell arrives in a runtime response.
-      { includes: 'Runtime APIs called after prefetch()', kind: 'runtime' },
-      // No static attempt precedes it.
+      // Gating runtime data accesses after prefetch() means that the shell is static
+      // even if the prefetch is not.
+      { includes: 'Runtime APIs called after prefetch()', kind: 'static' },
+      // No runtime request should happen.
       {
-        includes: 'Runtime APIs called after prefetch()',
-        kind: 'static',
+        includes: '',
+        kind: 'runtime',
         block: 'reject',
       },
     ])
   })
+
+  it.todo(
+    'uses a runtime app shell for a partial segment that calls runtime APIs after prefetch()'
+  )
 
   it('reuses the static App Shell across different param values of a dynamic route', async () => {
     let page: Playwright.Page
@@ -724,18 +730,7 @@ describe('static App Shell prefetch attempt', () => {
     )
   })
 
-  // The two tests below exercise the SPECULATIVE half of the unified
-  // model: Partial Prefetching segments require runtime-completeness in
-  // every phase, and the Speculative phase only processes such a segment
-  // when the link opts in (prefetch={true} — the speculative-* accordions on
-  // the home page set it; non-eager routes are otherwise shell-only by
-  // design). The same hint-gated attempt applies: hint set → the segment
-  // joins the normal static prefetch walk and each response's sufficiency
-  // signal decides whether the batched runtime fallback fires; hint unset →
-  // straight to the runtime prefetch. This relies on the server emitting
-  // static data for Partial Prefetching segments unconditionally.
-
-  it('speculative: prefetch={true} with the hint set prefetches statically with no runtime request', async () => {
+  it('speculative: prefetch={true} prefetches a fully static page using static requests', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -744,11 +739,8 @@ describe('static App Shell prefetch attempt', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal the prefetch={true} LinkAccordion for /speculative-static. The
-    // route accesses no runtime data, so its tree carries the
-    // static-prefetch hint; both the Shell phase and the Speculative phase
-    // attempt static prefetches of the page segment, and the complete
-    // static responses make any runtime request unnecessary.
+    // Reveal the prefetch={true} LinkAccordion for /speculative-static.
+    // The route is fully static, so prefetching the shell with a static request is enough.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/speculative-static"]')
@@ -756,10 +748,7 @@ describe('static App Shell prefetch attempt', () => {
     }, [
       // The page content arrives in a static per-segment response...
       { includes: 'Speculative-static page content', kind: 'static' },
-      // ...and must NOT arrive in a runtime prefetch response — the static
-      // attempt was sufficient, so neither the runtime shell request nor
-      // the Speculative phase's runtime prefetch fires, despite the
-      // segment's runtime-completeness requirement.
+      // ...and must NOT arrive in a runtime prefetch response.
       {
         includes: 'Speculative-static page content',
         kind: 'runtime',
@@ -777,7 +766,7 @@ describe('static App Shell prefetch attempt', () => {
     }, 'no-requests')
   })
 
-  it('speculative: goes straight to a runtime prefetch when the hint is unset', async () => {
+  it('speculative: uses a runtime shell shell and a runtime prefetch when the page reads cookies', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -786,11 +775,9 @@ describe('static App Shell prefetch attempt', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal the prefetch={true} LinkAccordion for /speculative-cookies. The
-    // page reads cookies in the shell stage of every prerender, so the tree
-    // hint is unset and the scheduler skips the static attempt entirely: the
-    // page segment is runtime prefetched directly, in both the Shell and
-    // Speculative phases.
+    // Reveal the prefetch={true} LinkAccordion for /speculative-cookies.
+    // The page reads cookies, so both the shell and the prefetch should use a
+    // runtime request.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/speculative-cookies"]')
@@ -800,11 +787,7 @@ describe('static App Shell prefetch attempt', () => {
       { includes: 'Speculative-cookies cookie: none', kind: 'runtime' },
       // 2. Runtime prefetch (includes cookies and search params)
       { includes: 'Search params count: 0', kind: 'runtime' },
-
-      // No static attempt in either phase: the page content must not
-      // arrive in ANY static per-segment response. (The server does emit
-      // static data for the segment — the shell text is in it — but with
-      // the hint unset nothing fetches it.
+      // No static requests.
       {
         includes: 'Speculative-cookies page shell text',
         kind: 'static',
