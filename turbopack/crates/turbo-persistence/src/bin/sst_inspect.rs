@@ -347,7 +347,7 @@ fn read_block(
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
         let bytes_written = match compression {
-            Compression::Lz4 | Compression::Lz4Hc4 => {
+            Compression::Lz4 => {
                 decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
             }
             Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)

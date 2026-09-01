@@ -2,10 +2,7 @@ use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
-use lzzzz::{
-    lz4::{self, decompress},
-    lz4_hc,
-};
+use lzzzz::lz4::{self, decompress};
 
 /// Compression preset used for a family's SST blocks and blob values.
 ///
@@ -16,8 +13,6 @@ pub enum Compression {
     /// Fast LZ4 compression using the default acceleration level.
     #[default]
     Lz4,
-    /// LZ4 high-compression mode at level 4.
-    Lz4Hc4,
     /// Zstandard compression at level 3.
     Zstd3,
 }
@@ -62,9 +57,7 @@ fn decompress_block(
          zero-copy mmap path"
     );
     let result: Result<usize> = match compression {
-        Compression::Lz4 | Compression::Lz4Hc4 => {
-            decompress(block, dest).map_err(anyhow::Error::from)
-        }
+        Compression::Lz4 => decompress(block, dest).map_err(anyhow::Error::from),
         Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
             decompressor
                 .decompress_to_buffer(block, dest)
@@ -140,7 +133,7 @@ impl Compressor {
             Compression::Zstd3 => {
                 Some(zstd::bulk::Compressor::new(3).context("Failed to create zstd compressor")?)
             }
-            Compression::Lz4 | Compression::Lz4Hc4 => None,
+            Compression::Lz4 => None,
         };
         Ok(Self { compression, zstd })
     }
@@ -155,9 +148,6 @@ impl Compressor {
             Compression::Lz4 => {
                 lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT)
                     .context("LZ4 compression failed")?;
-            }
-            Compression::Lz4Hc4 => {
-                lz4_hc::compress_to_vec(block, buffer, 4).context("LZ4 HC compression failed")?;
             }
             Compression::Zstd3 => {
                 buffer.reserve(zstd::zstd_safe::compress_bound(block.len()));
@@ -187,7 +177,7 @@ mod tests {
     #[test]
     fn compression_round_trips() {
         let input = b"turbo persistence compression ".repeat(1024);
-        for compression in [Compression::Lz4, Compression::Lz4Hc4, Compression::Zstd3] {
+        for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressed = Vec::new();
             compress_into_buffer(compression, &input, &mut compressed).unwrap();
             let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();

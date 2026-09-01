@@ -38,7 +38,7 @@ impl KeySpace {
             KeySpace::Infra | KeySpace::TaskMeta => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
-                compression: Compression::Lz4Hc4,
+                compression: Compression::Lz4,
             },
             KeySpace::TaskData => FamilyConfig {
                 name: self.name(),
@@ -49,7 +49,7 @@ impl KeySpace {
                 name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
-                compression: Compression::Lz4Hc4,
+                compression: Compression::Lz4,
             },
         }
     }
