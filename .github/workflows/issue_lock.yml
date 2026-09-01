@@ -27,3 +27,6 @@ jobs:
           issue-comment: 'This closed issue has been automatically locked because it had no new activity for 2 weeks. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
           pr-inactive-days: 14
           log-output: true
+          # The token has no `discussions` permission and discussions are not
+          # meant to be locked, so skip them (they are processed by default).
+          process-only: 'issues, prs'
