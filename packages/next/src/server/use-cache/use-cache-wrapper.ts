@@ -348,6 +348,60 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
+function createClientModulesForCache(
+  clientModules: DeepReadonly<ClientReferenceManifest['clientModules']>
+): DeepReadonly<ClientReferenceManifest['clientModules']> {
+  return new Proxy(clientModules, {
+    get(target, id, receiver) {
+      if (typeof id !== 'string') {
+        return Reflect.get(target, id, receiver)
+      }
+
+      const clientReference = target[id]
+      if (clientReference === undefined) {
+        return undefined
+      }
+
+      return {
+        ...clientReference,
+        // Cache entries must not depend on build-local module IDs or chunks.
+        // The source manifest key is resolved against the current manifest when
+        // the entry is read. Always using the async form also lets a cached
+        // reference move between sync and async modules across builds.
+        id,
+        chunks: [],
+        async: true,
+      }
+    },
+  })
+}
+
+function createRscModuleMappingForCache(
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+): DeepReadonly<ClientReferenceManifest['rscModuleMapping']> {
+  return new Proxy(clientReferenceManifest.rscModuleMapping, {
+    get(target, id, receiver) {
+      if (typeof id !== 'string') {
+        return Reflect.get(target, id, receiver)
+      }
+
+      // Entries written before cache-specific client reference serialization
+      // used the build-local client module ID directly.
+      const legacyMapping = target[id]
+      if (legacyMapping !== undefined) {
+        return legacyMapping
+      }
+
+      const clientReference = clientReferenceManifest.clientModules[id]
+      if (clientReference === undefined) {
+        return undefined
+      }
+
+      return target[clientReference.id]
+    },
+  })
+}
+
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -1279,6 +1333,9 @@ async function generateCacheEntryImpl(
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+  const clientModulesForCache = createClientModulesForCache(
+    clientReferenceManifest.clientModules
+  )
 
   const [, args] =
     typeof encodedArguments === 'string'
@@ -1389,7 +1446,7 @@ async function generateCacheEntryImpl(
 
       const { prelude } = await prerender(
         resultPromise,
-        clientReferenceManifest.clientModules,
+        clientModulesForCache,
         {
           environmentName: 'Cache',
           filterStackFrame,
@@ -1503,7 +1560,7 @@ async function generateCacheEntryImpl(
 
           stream = renderToReadableStream(
             resultPromise,
-            clientReferenceManifest.clientModules,
+            clientModulesForCache,
             {
               environmentName: 'Cache',
               filterStackFrame,
@@ -1579,16 +1636,12 @@ async function generateCacheEntryImpl(
     case 'private-cache':
     case 'unstable-cache':
     case 'generate-static-params':
-      stream = renderToReadableStream(
-        resultPromise,
-        clientReferenceManifest.clientModules,
-        {
-          environmentName: 'Cache',
-          filterStackFrame,
-          temporaryReferences,
-          onError: handleError,
-        }
-      )
+      stream = renderToReadableStream(resultPromise, clientModulesForCache, {
+        environmentName: 'Cache',
+        filterStackFrame,
+        temporaryReferences,
+        onError: handleError,
+      })
       break
     default:
       return outerWorkUnitStore satisfies never
@@ -3574,7 +3627,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: clientReferenceManifest.rscModuleMapping,
+    moduleMap: createRscModuleMappingForCache(clientReferenceManifest),
     serverModuleMap: getServerModuleMap(),
   }
 
