@@ -41,6 +41,9 @@ describe('useReportWebVitals hook', () => {
     // Refresh will report another set of navigation metrics.
     await browser.refresh()
 
+    // Exercise the interaction reporting path.
+    await browser.elementById('btn').click()
+
     // Make sure all registered events in performance-relayer has fired
     await retry(() => {
       expect(events.length).toBeGreaterThanOrEqual(4)
