@@ -1434,6 +1434,53 @@ export async function handleAction({
  */
 const SERVER_ACTION_ARGS_LIMIT = 1000
 
+function getServerActionTraceError(error: unknown): Error | undefined {
+  if (isRedirectError(error) || isHTTPAccessFallbackError(error)) {
+    return undefined
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error('Server Action threw a non-Error value')
+}
+
+async function traceServerActionExecution<T>(
+  executeAction: () => Promise<T>,
+  tracing: ServerActionTracing
+): Promise<T> {
+  if (!tracing) {
+    return executeAction()
+  }
+
+  const actionName = tracing.info?.name ?? '<action>'
+  const attributes: Record<string, string> = {
+    'next.span_category': 'application',
+    'next.server_action.name': actionName,
+  }
+
+  if (tracing.info?.file) {
+    attributes['next.server_action.file'] = tracing.info.file
+  }
+
+  return getTracer().trace(
+    AppRenderSpan.executeServerAction,
+    {
+      spanName: `run Server Action ${actionName}`,
+      attributes,
+    },
+    async (_span, done) => {
+      try {
+        const result = await executeAction()
+        done?.()
+        return result
+      } catch (error) {
+        done?.(getServerActionTraceError(error))
+        throw error
+      }
+    }
+  )
+}
+
 async function executeActionAndPrepareForRender<
   TFn extends (...args: any[]) => Promise<any>,
 >(
@@ -1459,40 +1506,10 @@ async function executeActionAndPrepareForRender<
   try {
     const executeAction = () =>
       workUnitAsyncStorage.run(requestStore, () => action.apply(null, args))
-    const actionName = tracing?.info?.name ?? '<action>'
-    const actionResult = tracing
-      ? await getTracer().trace(
-          AppRenderSpan.executeServerAction,
-          {
-            spanName: `run Server Action ${actionName}`,
-            attributes: {
-              'next.span_category': 'application',
-              'next.server_action.name': actionName,
-              ...(tracing.info?.file
-                ? {
-                    'next.server_action.file': tracing.info.file,
-                  }
-                : {}),
-            },
-          },
-          async (_span, done) => {
-            try {
-              const result = await executeAction()
-              done?.()
-              return result
-            } catch (error) {
-              done?.(
-                isRedirectError(error) || isHTTPAccessFallbackError(error)
-                  ? undefined
-                  : error instanceof Error
-                    ? error
-                    : new Error('Server Action threw a non-Error value')
-              )
-              throw error
-            }
-          }
-        )
-      : await executeAction()
+    const actionResult = await traceServerActionExecution(
+      executeAction,
+      tracing
+    )
 
     // If the page was not revalidated, or if this is an action-only request,
     // we can skip rendering the page.
