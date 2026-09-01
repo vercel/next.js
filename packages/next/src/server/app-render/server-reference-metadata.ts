@@ -1,7 +1,7 @@
 import { getServerActionsManifest } from './manifests-singleton'
 import { normalizeFilePath } from './segment-explorer-path'
 
-export type ServerReferenceMetadata = {
+type ServerReferenceMetadata = {
   exportedName?: string
   file?: string
 }
