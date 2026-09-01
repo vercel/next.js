@@ -1815,11 +1815,17 @@ describe('opentelemetry use cache Server Functions', () => {
     expect(missSpans).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: 'use cache',
+          name: 'use cache readCachedValue',
           attributes: expect.objectContaining({
-            'next.span_name': 'use cache',
+            'next.span_name': 'use cache readCachedValue',
             'next.span_type': 'UseCache.execute',
             'next.span_category': 'application',
+            'next.cache.name': 'readCachedValue',
+            ...(isNextDev
+              ? {
+                  'next.cache.file': 'app/api/cache/route.ts',
+                }
+              : {}),
             'next.cache.kind': 'public',
             'next.cache.outcome': 'miss',
             'next.cache.source': 'generated',
@@ -1877,6 +1883,13 @@ describe('opentelemetry use cache Server Functions', () => {
       JSON.stringify([...missSpans, ...hitSpans, ...joinedSpans])
     ).not.toContain(cacheKey)
     expect(JSON.stringify(joinedSpans)).not.toContain(joinedKey)
+    if (!isNextDev) {
+      expect(
+        missSpans.some(
+          (span) => span.attributes?.['next.cache.file'] !== undefined
+        )
+      ).toBe(false)
+    }
   })
 
   it('parents spans inside a cached function to the use cache span', async () => {
@@ -1915,8 +1928,9 @@ describe('opentelemetry use cache Server Functions', () => {
     expect(spans).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: 'use cache',
+          name: 'use cache readCachedValue',
           attributes: expect.objectContaining({
+            'next.cache.name': 'readCachedValue',
             'next.cache.source': 'generated',
           }),
           status: expect.objectContaining({ code: 2 }),
@@ -1942,9 +1956,16 @@ describe('opentelemetry use cache Server Functions', () => {
       expect(cacheSpans).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
+            name: 'use cache cachedServerFunction',
             attributes: expect.objectContaining({
               'next.span_type': 'UseCache.execute',
               'next.cache.kind': 'public',
+              'next.cache.name': 'cachedServerFunction',
+              ...(isNextDev
+                ? {
+                    'next.cache.file': 'app/server-action/page.tsx',
+                  }
+                : {}),
             }),
             status: { code: 0 },
           }),
