@@ -79,7 +79,10 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
-import { isUseCacheFunction } from '../../lib/client-and-server-references'
+import {
+  isServerReference,
+  isUseCacheFunction,
+} from '../../lib/client-and-server-references'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 
@@ -931,7 +934,6 @@ export async function handleAction({
                 )
               }
 
-              const mpaActionId = getMPAActionIdForTracing(formData)
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -947,8 +949,8 @@ export async function handleAction({
                   actionWasForwarded,
                   {
                     enabled: !isUseCacheFunction(action),
-                    info: mpaActionId
-                      ? getServerActionInfo(mpaActionId, ctx)
+                    info: isServerReference(action)
+                      ? getServerActionInfo(action.$$id, ctx)
                       : null,
                   }
                 )
@@ -1145,7 +1147,6 @@ export async function handleAction({
                 )
               }
 
-              const mpaActionId = getMPAActionIdForTracing(formData)
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
               // action referred to is available.
               const action = await decodeAction(formData, serverModuleMap)
@@ -1163,8 +1164,8 @@ export async function handleAction({
                   actionWasForwarded,
                   {
                     enabled: !isUseCacheFunction(action),
-                    info: mpaActionId
-                      ? getServerActionInfo(mpaActionId, ctx)
+                    info: isServerReference(action)
+                      ? getServerActionInfo(action.$$id, ctx)
                       : null,
                   }
                 )
@@ -1638,33 +1639,6 @@ function areAllActionIdsValid(
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-
-function getMPAActionIdForTracing(mpaFormData: FormData): string | null {
-  let actionId: string | null = null
-
-  for (const key of mpaFormData.keys()) {
-    if (key.startsWith($ACTION_ID_)) {
-      actionId = key.slice($ACTION_ID_.length)
-    } else if (key.startsWith($ACTION_REF_)) {
-      const actionDescriptorField =
-        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
-      const actionDescriptor = mpaFormData.get(actionDescriptorField)
-
-      if (
-        typeof actionDescriptor === 'string' &&
-        actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX)
-      ) {
-        const from = ACTION_DESCRIPTOR_ID_PREFIX.length
-        const to = actionDescriptor.indexOf('"', from)
-        if (to !== -1) {
-          actionId = actionDescriptor.slice(from, to)
-        }
-      }
-    }
-  }
-
-  return actionId
-}
 
 function isInvalidStringActionDescriptor(
   actionDescriptor: string,
