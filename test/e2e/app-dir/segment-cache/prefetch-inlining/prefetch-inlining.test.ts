@@ -2,13 +2,10 @@ import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
-
-// Bit values from PrefetchHint enum (const enum, so we duplicate values here)
-const ParentInlinedIntoSelf = 0b100000 // 32
-const InlinedIntoChild = 0b1000000 // 64
-const HeadInlinedIntoSelf = 0b10000000 // 128
-const HeadOutlined = 0b100000000 // 256
-const PrefetchDisabled = 0b10000000000 // 1024
+import {
+  PrefetchHint,
+  type PrefetchHints,
+} from 'next/dist/shared/lib/app-router-types'
 
 // The subset of the FlightRouterState tuple the assertions below read (see
 // FlightRouterState in shared/lib/app-router-types.ts). The segment is
@@ -44,7 +41,7 @@ const DYNAMIC_TAG = 'dynamic \u25FB'.padStart(OUTLINED_TAG.length)
 
 function renderInliningTree(tree: FlightRouterStateLike): string {
   const lines: string[] = []
-  const isHeadOutlined = ((tree[4] ?? 0) & HeadOutlined) !== 0
+  const isHeadOutlined = ((tree[4] ?? 0) & PrefetchHint.HeadOutlined) !== 0
   collectNodes(tree, '', !isHeadOutlined, false, lines)
   if (isHeadOutlined) {
     // Metadata is not inlined into any page — render as a standalone sibling.
@@ -62,9 +59,9 @@ function collectNodes(
   slotKey?: string
 ): void {
   const prefetchHints = node[4] ?? 0
-  const prefetchDisabled = (prefetchHints & PrefetchDisabled) !== 0
-  const inlinedIntoChild = (prefetchHints & InlinedIntoChild) !== 0
-  const headInlined = (prefetchHints & HeadInlinedIntoSelf) !== 0
+  const prefetchDisabled = (prefetchHints & PrefetchHint.PrefetchDisabled) !== 0
+  const inlinedIntoChild = (prefetchHints & PrefetchHint.InlinedIntoChild) !== 0
+  const headInlined = (prefetchHints & PrefetchHint.HeadInlinedIntoSelf) !== 0
 
   const slotPrefix =
     slotKey !== undefined && slotKey !== 'children' ? `@${slotKey}/` : ''
@@ -94,7 +91,7 @@ function collectNodes(
   if (keys.length > 0) {
     const children = Object.values(slots)
     const childrenWithParentInlined = children.filter(
-      (c) => ((c[4] ?? 0) & ParentInlinedIntoSelf) !== 0
+      (c) => ((c[4] ?? 0) & PrefetchHint.ParentInlinedIntoSelf) !== 0
     )
     if (inlinedIntoChild && childrenWithParentInlined.length === 0) {
       throw new Error(
@@ -535,25 +532,65 @@ describe('prefetch inlining', () => {
 
   if (isNextStart) {
     it('partially generated dynamic route: build hints use the most specific shell', async () => {
-      const hints = await next.readJSON('.next/server/prefetch-hints.json')
+      const hintsManifest: Record<string, PrefetchHints> = await next.readJSON(
+        '.next/server/prefetch-hints.json'
+      )
 
-      expect(hints['/test-dynamic-partial/[top]/[bottom]'])
-        .toMatchInlineSnapshot(`
-     {
-       "hints": 64,
-       "slots": {
-         "children": {
-           "hints": 96,
-           "slots": {
-             "children": {
-               "hints": 32,
-               "slots": {
-                 "children": {
-                   "hints": 64,
-                   "slots": {
-                     "children": {
-                       "hints": 160,
-                       "slots": null,
+      const hintsToString = (hintsValue: number): string => {
+        const names: string[] = []
+        // @ts-expect-error - const enum (which jest ignores)
+        const entries = Object.entries(PrefetchHint)
+        for (const [name, mask] of entries) {
+          if (typeof mask !== 'number') continue
+          if ((hintsValue & mask) !== 0) {
+            names.push(name)
+          }
+        }
+        return names.join(' | ')
+      }
+
+      type HumanReadableHints = {
+        hints: string
+        slots: null | Record<string, HumanReadableHints>
+      }
+      const toHumanReadablePrefetchHints = (
+        tree: PrefetchHints
+      ): HumanReadableHints => {
+        return {
+          hints: hintsToString(tree.hints),
+          slots:
+            tree.slots === null
+              ? null
+              : Object.fromEntries(
+                  Object.entries(tree.slots).map(([name, slot]) => [
+                    name,
+                    toHumanReadablePrefetchHints(slot),
+                  ])
+                ),
+        }
+      }
+
+      expect(
+        toHumanReadablePrefetchHints(
+          hintsManifest['/test-dynamic-partial/[top]/[bottom]']
+        )
+      ).toMatchInlineSnapshot(`
+       {
+         "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+         "slots": {
+           "children": {
+             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell",
+             "slots": {
+               "children": {
+                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell",
+                 "slots": {
+                   "children": {
+                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+                     "slots": {
+                       "children": {
+                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell",
+                         "slots": null,
+                       },
                      },
                    },
                  },
@@ -561,9 +598,8 @@ describe('prefetch inlining', () => {
              },
            },
          },
-       },
-     }
-    `)
+       }
+      `)
     })
   }
 

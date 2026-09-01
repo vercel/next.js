@@ -644,10 +644,6 @@ describe('static App Shell prefetch attempt', () => {
     ])
   })
 
-  it.todo(
-    'uses a runtime app shell for a partial segment that calls runtime APIs after prefetch()'
-  )
-
   it('reuses the static App Shell across different param values of a dynamic route', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -765,6 +761,14 @@ describe('static App Shell prefetch attempt', () => {
       )
     }, 'no-requests')
   })
+
+  it.todo(
+    'speculative: uses a static shell and a runtime prefetch for a partial segment that reads cookies after prefetch()'
+  )
+
+  it.todo(
+    'speculative: uses a static shell and a static prefetch when the page uses no runtime data'
+  )
 
   it('speculative: uses a runtime shell shell and a runtime prefetch when the page reads cookies', async () => {
     let page: Playwright.Page
