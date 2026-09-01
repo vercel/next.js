@@ -1,12 +1,14 @@
 ---
 title: Optimizing prefetching
-description: Resolve per-link URL data with the prefetch prop, or include session data in the App Shell.
+description: Resolve per-link URL data with the prefetch prop, include session data in the App Shell, or exclude expensive content from a prefetch.
 nav_title: Optimizing prefetching
 related:
   title: Learn more
   description: Validate your structure and review the caching primitives.
   links:
     - app/api-reference/config/next-config-js/partialPrefetching
+    - app/api-reference/functions/prefetch
+    - app/api-reference/functions/navigation
     - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/api-reference/file-conventions/route-segment-config/instant
     - app/api-reference/directives/use-cache-private
@@ -184,7 +186,37 @@ Here `cookies()` lives inside the cached function, which only works under `"use 
 
 Everything inside the scope shares the same lifetime. Colocate `"use cache: private"` as close to the runtime data access as possible.
 
-{/* TODO(optimizing-prefetching): add an "Exclude content until navigation" section once `await navigation()` (ships as `unstable_navigation`, vercel/next.js#96069) merges. This is the second direction, gating content OUT of the prefetch rather than resolving URL data into it: the prefetch stops at `await navigation()` (code after it does not run at prefetch time), and on the actual navigation (or build/ISR) it runs and streams in. Unlike `await connection()`, content below the gate stays cacheable. It can't be called inside `use cache` / `use cache: private` yet, so the pattern is `await navigation()` in an uncached wrapper with the cache directive on an inner function below the gate. Do NOT publish until merged; validate empirically against the PR branch first. */}
+## Exclude content from a prefetch
+
+The two sections above add content to a prefetch. Sometimes the useful move is the opposite: a subtree that is expensive to produce, and that you would rather not include in every prefetch of the route.
+
+Two experimental functions defer a subtree past a prefetch stage. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place, and the deferred content renders at the stage you chose:
+
+- [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) keeps the content out of the App Shell. It renders on a per-link prefetch when the link requests one with `prefetch={true}`, and otherwise on an actual navigation.
+- [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) keeps it out of per-link prefetches too, so it renders only on navigation.
+
+Await the function above the work to defer. Take the dashboard again, where a ranking keyed on the session is too expensive to include in the App Shell that every link into the route prefetches:
+
+```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
+import { cookies } from 'next/headers'
+import { unstable_prefetch } from 'next/cache'
+
+async function Recommendations() {
+  const session = (await cookies()).get('session')?.value
+  await unstable_prefetch()
+  const items = await rank(session)
+  return <List items={items} />
+}
+
+async function rank(session?: string) {
+  'use cache: private'
+  return db.recommendations.rank({ session })
+}
+```
+
+The session is read above the call, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
+
+Without these functions, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Neither call can sit inside a cached scope, so put the caching directive on a function called below the call, as `rank` does here.
 
 ## Trade-offs
 
@@ -211,10 +243,13 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Cost    | Bounded by route count                      | Bounded by visible-link count            |
 | Role    | Default prefetch                            | More rendered before click               |
 
+[Excluding content](#exclude-content-from-a-prefetch) is one more control on top of these. The trade is the `<Suspense>` fallback on arrival against producing that content ahead of the click, in a prefetch that may never be used.
+
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for how `<Link>` behaves under the new model and how to migrate existing apps.
 - [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
 - [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
+- [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) for the full behavior of each prefetch stage.
 - [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.
