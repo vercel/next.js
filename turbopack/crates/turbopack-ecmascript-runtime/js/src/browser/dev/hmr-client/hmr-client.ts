@@ -1,35 +1,52 @@
-/// <reference path="../../../shared/runtime-types.d.ts" />
-/// <reference path="../../runtime/base/dev-globals.d.ts" />
-/// <reference path="../../runtime/base/dev-protocol.d.ts" />
-/// <reference path="../../runtime/base/dev-extensions.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/dev-globals.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/dev-extensions.ts" />
 
 type SendMessage = (msg: any) => void
 export type WebSocketMessage =
   | {
       type: 'turbopack-connected'
+      data?: { hmrVersion: string }
     }
   | {
       type: 'turbopack-message'
       data: Record<string, any>
+      hmrVersion?: string
+    }
+  | {
+      type: 'server-component-changes'
+      hmrVersion?: string
     }
 
 export type ClientOptions = {
   addMessageListener: (cb: (msg: WebSocketMessage) => void) => void
   sendMessage: SendMessage
   onUpdateError: (err: unknown) => void
+  chunkUpdateListenersGlobal: string
 }
+
+export const TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL =
+  'TURBOPACK_CHUNK_UPDATE_LISTENERS'
+
+let lastSeenHmrVersion: string | undefined
 
 export function connect({
   addMessageListener,
   sendMessage,
   onUpdateError = console.error,
+  chunkUpdateListenersGlobal,
 }: ClientOptions) {
   addMessageListener((msg) => {
     switch (msg.type) {
       case 'turbopack-connected':
+        if (lastSeenHmrVersion === undefined && msg.data !== undefined) {
+          lastSeenHmrVersion = msg.data.hmrVersion
+        }
         handleSocketConnected(sendMessage)
         break
-      default:
+      case 'turbopack-message':
+        lastSeenHmrVersion = msg.hmrVersion
         try {
           if (Array.isArray(msg.data)) {
             for (let i = 0; i < msg.data.length; i++) {
@@ -52,14 +69,23 @@ export function connect({
           location.reload()
         }
         break
+      case 'server-component-changes':
+        lastSeenHmrVersion = msg.hmrVersion
+        break
+      default:
+        break
     }
   })
 
-  const queued = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS
+  const global = globalThis as unknown as Record<
+    string,
+    ChunkUpdateProvider | [ChunkListPath, UpdateCallback][] | undefined
+  >
+  const queued = global[chunkUpdateListenersGlobal]
   if (queued != null && !Array.isArray(queued)) {
     throw new Error('A separate HMR handler was already registered')
   }
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
+  global[chunkUpdateListenersGlobal] = {
     push: ([chunkPath, callback]: [ChunkListPath, UpdateCallback]) => {
       subscribeToChunkUpdate(chunkPath, sendMessage, callback)
     },
@@ -99,6 +125,7 @@ function subscribeToUpdates(
   sendJSON(sendMessage, {
     type: 'turbopack-subscribe',
     ...resource,
+    hmrVersion: lastSeenHmrVersion,
   })
 
   return () => {
@@ -235,6 +262,11 @@ function mergeChunkUpdates(
     (updateA.type === 'deleted' && updateB.type === 'added')
   ) {
     return undefined
+  }
+
+  if (updateB.type === 'total') {
+    // A total update replaces the entire chunk, so it supersedes any prior update.
+    return updateB
   }
 
   if (updateA.type === 'partial') {

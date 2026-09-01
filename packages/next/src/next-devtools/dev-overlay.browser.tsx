@@ -22,8 +22,12 @@ import {
   type OverlayState,
   type DispatcherEvent,
   ACTION_CACHE_INDICATOR,
+  ACTION_INSTANT_NAVS_TOGGLE,
+  ACTION_REQUEST_INSIGHTS_SNAPSHOT,
+  ACTION_REQUEST_INSIGHTS_UPDATE,
 } from './dev-overlay/shared'
 
+import type { FlightRouterState } from '../shared/lib/app-router-types'
 import {
   createContext,
   startTransition,
@@ -35,10 +39,8 @@ import {
 } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { CacheIndicatorState } from './dev-overlay/cache-indicator'
-import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
 import type { DebugInfo } from './shared/types'
-import { DevOverlay } from './dev-overlay/dev-overlay'
 import type { DevIndicatorServerState } from '../server/dev/dev-indicator-server-state'
 import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
@@ -49,6 +51,11 @@ import {
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
+import { EventQueue } from './dev-overlay/event-queue'
+import type {
+  RequestInsight,
+  RequestInsightsSnapshot,
+} from './shared/request-insights'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -72,12 +79,23 @@ export interface Dispatcher {
   renderingIndicatorShow(): void
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
-  segmentExplorerUpdateRouteState(page: string): void
+  segmentExplorerUpdateRouteState(
+    page: string,
+    tree: FlightRouterState | null
+  ): void
+  instantNavsToggle(): void
+  onRequestInsightsSnapshot(snapshot: RequestInsightsSnapshot): void
+  onRequestInsightsUpdate(insight: RequestInsight): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
-let maybeDispatch: Dispatch | null = null
-const queue: Array<(dispatch: Dispatch) => void> = []
+const eventQueue = new EventQueue<Dispatch>()
+
+function loadDevOverlayUX() {
+  const { DevOverlay, FontStyles } =
+    require('./dev-overlay-ux') as typeof import('./dev-overlay-ux')
+  return { DevOverlay, FontStyles }
+}
 
 // Global state store for accessing current overlay state from outside React context
 type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
@@ -121,13 +139,9 @@ function createQueuable<Args extends any[]>(
   queueableFunction: (dispatch: Dispatch, ...args: Args) => void
 ) {
   return (...args: Args) => {
-    if (maybeDispatch) {
-      queueableFunction(maybeDispatch, ...args)
-    } else {
-      queue.push((dispatch: Dispatch) => {
-        queueableFunction(dispatch, ...args)
-      })
-    }
+    eventQueue.enqueue((dispatch) => {
+      queueableFunction(dispatch, ...args)
+    })
   }
 }
 
@@ -220,21 +234,23 @@ export const dispatcher: Dispatcher = {
     }
   ),
   segmentExplorerUpdateRouteState: createQueuable(
-    (dispatch: Dispatch, page: string) => {
-      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
+    (dispatch: Dispatch, page: string, tree: FlightRouterState | null) => {
+      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page, tree })
     }
   ),
-}
-
-function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
-  try {
-    for (const queuedFunction of queue) {
-      queuedFunction(dispatch)
+  instantNavsToggle: createQueuable((dispatch: Dispatch) => {
+    dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
+  }),
+  onRequestInsightsSnapshot: createQueuable(
+    (dispatch: Dispatch, snapshot: RequestInsightsSnapshot) => {
+      dispatch({ type: ACTION_REQUEST_INSIGHTS_SNAPSHOT, snapshot })
     }
-  } finally {
-    // TODO: What to do with failed events?
-    queue.length = 0
-  }
+  ),
+  onRequestInsightsUpdate: createQueuable(
+    (dispatch: Dispatch, insight: RequestInsight) => {
+      dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, insight })
+    }
+  ),
 }
 
 function DevOverlayRoot({
@@ -278,20 +294,24 @@ function DevOverlayRoot({
   }, [shadowRoot, state.theme])
 
   useInsertionEffect(() => {
-    maybeDispatch = dispatch
-
     // Can't schedule updates from useInsertionEffect, so we need to defer.
     // Could move this into a passive Effect but we don't want replaying when
     // we reconnect.
     const replayTimeout = setTimeout(() => {
-      replayQueuedEvents(dispatch)
+      eventQueue.connect(dispatch)
     })
 
     return () => {
-      maybeDispatch = null
+      eventQueue.disconnect(dispatch)
       clearTimeout(replayTimeout)
     }
   }, [])
+
+  if (process.env.__NEXT_DISABLE_DEV_OVERLAY_UX) {
+    return null
+  }
+
+  const { DevOverlay, FontStyles } = loadDevOverlayUX()
 
   return (
     <>
@@ -342,22 +362,25 @@ export function renderAppDevOverlay(
   }
 
   if (!isAppMounted) {
-    // React 19 will not throw away `<script>` elements in a container it owns.
-    // This ensures the actual user-space React does not unmount the Dev Overlay.
-    const script = document.createElement('script')
-    script.style.display = 'block'
-    // Although the style applied to the shadow host is isolated,
-    // the element that attached the shadow host (i.e. "script")
-    // is still affected by the parent's style (e.g. "body"). This may
-    // occur style conflicts like "display: flex", with other children
-    // elements therefore give the shadow host an absolute position.
-    script.style.position = 'absolute'
-    script.setAttribute('data-nextjs-dev-overlay', 'true')
-
+    const shouldRenderOverlay = !process.env.__NEXT_DISABLE_DEV_OVERLAY_UX
     const container = document.createElement('nextjs-portal')
 
-    script.appendChild(container)
-    document.body.appendChild(script)
+    if (shouldRenderOverlay) {
+      // React 19 will not throw away `<script>` elements in a container it owns.
+      // This ensures the actual user-space React does not unmount the Dev Overlay.
+      const script = document.createElement('script')
+      script.style.display = 'block'
+      // Although the style applied to the shadow host is isolated,
+      // the element that attached the shadow host (i.e. "script")
+      // is still affected by the parent's style (e.g. "body"). This may
+      // occur style conflicts like "display: flex", with other children
+      // elements therefore give the shadow host an absolute position.
+      script.style.position = 'absolute'
+      script.setAttribute('data-nextjs-dev-overlay', 'true')
+
+      script.appendChild(container)
+      document.body.appendChild(script)
+    }
 
     const root = createRoot(container, {
       identifierPrefix: 'ndt-',
@@ -403,6 +426,7 @@ export function renderPagesDevOverlay(
   }
 
   if (!isPagesMounted) {
+    const shouldRenderOverlay = !process.env.__NEXT_DISABLE_DEV_OVERLAY_UX
     const container = document.createElement('nextjs-portal')
     // Although the style applied to the shadow host is isolated,
     // the element that attached the shadow host (i.e. "script")
@@ -414,21 +438,23 @@ export function renderPagesDevOverlay(
     // Pages Router runs with React 18 or 19 so we can't use the same trick as with
     // App Router. We just reconnect the container if React wipes it e.g. when
     // we recover from a shell error via createRoot()
-    new MutationObserver((records) => {
-      for (const record of records) {
-        if (record.type === 'childList') {
-          for (const node of record.removedNodes) {
-            if (node === container) {
-              // Reconnect the container to the body
-              document.body.appendChild(container)
+    if (shouldRenderOverlay) {
+      new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === 'childList') {
+            for (const node of record.removedNodes) {
+              if (node === container) {
+                // Reconnect the container to the body
+                document.body.appendChild(container)
+              }
             }
           }
         }
-      }
-    }).observe(document.body, {
-      childList: true,
-    })
-    document.body.appendChild(container)
+      }).observe(document.body, {
+        childList: true,
+      })
+      document.body.appendChild(container)
+    }
 
     const root = createRoot(container, { identifierPrefix: 'ndt-' })
 

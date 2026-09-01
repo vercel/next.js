@@ -1,16 +1,18 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{TraitRef, Vc};
 use turbopack_core::{
+    context::AssetContext,
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        ModuleResolveResult, ResolveResult, handle_resolve_error, handle_resolve_source_error,
+        ModuleResolveResult, ResolveErrorMode, ResolveResult,
+        error::{handle_resolve_error, handle_resolve_source_error},
         options::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         resolve,
     },
@@ -44,7 +46,7 @@ pub fn get_condition_maps(
 
 pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
-    reference_type: ReferenceType,
+    reference_type: &ReferenceType,
 ) -> Vc<ResolveOptions> {
     let clear_extensions = matches!(
         reference_type,
@@ -65,6 +67,9 @@ async fn apply_esm_specific_options_internal(
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Set);
         conditions.insert(rcstr!("require"), ConditionValue::Unset);
+        // Don't set "module-sync" to ConditionValue::Set here. When tracing, the Node.js runtime
+        // version might not support it yet, so we still want the "import"/"require"/"default"
+        // result anyway.
     }
 
     if clear_extensions {
@@ -82,6 +87,9 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
+        // Don't set "module-sync" to ConditionValue::Set here. When tracing, the Node.js runtime
+        // version might not support it yet, so we still want the "import"/"require"/"default"
+        // result anyway.
     }
     Ok(options.cell())
 }
@@ -90,14 +98,15 @@ pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: EcmaScriptModulesReferenceSubType,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()).await?, ty.clone())
-        .resolve()
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_esm_specific_options(origin_ref.resolve_options(), &ty)
+        .to_resolved()
         .await?;
-    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
+    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -106,65 +115,66 @@ pub async fn cjs_resolve(
     request: Vc<Request>,
     ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()).await?)
-        .resolve()
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
+        .to_resolved()
         .await?;
-    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
+    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve_source(
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    request: ResolvedVc<Request>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
     ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()).await?)
-        .resolve()
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
+        .to_resolved()
         .await?;
-    let result = resolve(
-        origin.origin_path().await?.parent(),
-        ty.clone(),
-        *request,
-        options,
-    );
+    let origin_path = origin_ref.origin_path();
+    let result = resolve(origin_path.parent(), ty.clone(), request, options);
 
     handle_resolve_source_error(
         result,
         ty,
-        origin.origin_path().owned().await?,
-        *request,
+        origin_path,
+        request,
         options,
-        is_optional,
+        error_mode,
         issue_source,
     )
     .await
 }
 
 async fn specific_resolve(
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin: TraitRef<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: ReferenceType,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let result = origin
-        .resolve_asset(request, options, reference_type.clone())
-        .await?;
+    let result = origin.asset_context().resolve_asset(
+        origin.origin_path(),
+        request,
+        options,
+        reference_type.clone(),
+    );
 
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().owned().await?,
+        origin.origin_path(),
         request,
         options,
-        is_optional,
+        error_mode,
         issue_source,
     )
     .await

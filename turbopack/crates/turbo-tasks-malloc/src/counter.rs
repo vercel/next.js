@@ -36,29 +36,28 @@ impl ThreadLocalCounter {
             allocation_counters: AllocationCounters::new(),
         }
     }
+    #[inline(always)]
     fn add(&mut self, size: usize) {
         self.allocation_counters.allocations += size;
         self.allocation_counters.allocation_count += 1;
         if self.buffer >= size {
             self.buffer -= size;
         } else {
-            let offset = size - self.buffer + TARGET_BUFFER;
-            self.buffer = TARGET_BUFFER;
-            ALLOCATED.fetch_add(offset, Ordering::Relaxed);
+            add_slow(self, size);
         }
     }
 
+    #[inline(always)]
     fn remove(&mut self, size: usize) {
         self.allocation_counters.deallocations += size;
         self.allocation_counters.deallocation_count += 1;
         self.buffer += size;
         if self.buffer > MAX_BUFFER {
-            let offset = self.buffer - TARGET_BUFFER;
-            self.buffer = TARGET_BUFFER;
-            ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+            remove_slow(self);
         }
     }
 
+    #[inline(always)]
     fn update(&mut self, old_size: usize, new_size: usize) {
         self.allocation_counters.deallocations += old_size;
         self.allocation_counters.deallocation_count += 1;
@@ -71,18 +70,14 @@ impl ThreadLocalCounter {
                 if self.buffer >= size {
                     self.buffer -= size;
                 } else {
-                    let offset = size - self.buffer + TARGET_BUFFER;
-                    self.buffer = TARGET_BUFFER;
-                    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
+                    add_slow(self, size);
                 }
             }
             std::cmp::Ordering::Greater => {
                 let size = old_size - new_size;
                 self.buffer += size;
                 if self.buffer > MAX_BUFFER {
-                    let offset = self.buffer - TARGET_BUFFER;
-                    self.buffer = TARGET_BUFFER;
-                    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+                    remove_slow(self);
                 }
             }
         }
@@ -95,6 +90,25 @@ impl ThreadLocalCounter {
         }
         self.allocation_counters = AllocationCounters::default();
     }
+}
+
+// Keep the uncommon atomic updates out of the allocator's inlined hot path.
+#[cold]
+#[inline(never)]
+fn add_slow(local: &mut ThreadLocalCounter, size: usize) {
+    debug_assert!(local.buffer < size);
+    let offset = size - local.buffer + TARGET_BUFFER;
+    local.buffer = TARGET_BUFFER;
+    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
+}
+
+#[cold]
+#[inline(never)]
+fn remove_slow(local: &mut ThreadLocalCounter) {
+    debug_assert!(local.buffer > MAX_BUFFER);
+    let offset = local.buffer - TARGET_BUFFER;
+    local.buffer = TARGET_BUFFER;
+    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
 }
 
 thread_local! {
@@ -113,6 +127,7 @@ pub fn reset_allocation_counters(start: AllocationCounters) {
     with_local_counter(|local| local.allocation_counters = start);
 }
 
+#[inline(always)]
 fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
     LOCAL_COUNTER.with(|local| {
         let ptr = local.get();
@@ -123,16 +138,19 @@ fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
 }
 
 /// Adds some `size` to the global counter in a thread-local buffered way.
+#[inline(always)]
 pub fn add(size: usize) {
     with_local_counter(|local| local.add(size));
 }
 
 /// Removes some `size` to the global counter in a thread-local buffered way.
+#[inline(always)]
 pub fn remove(size: usize) {
     with_local_counter(|local| local.remove(size));
 }
 
-/// Adds some `size` to the global counter in a thread-local buffered way.
+/// Updates the global counter for a reallocation in a thread-local buffered way.
+#[inline(always)]
 pub fn update(old_size: usize, new_size: usize) {
     with_local_counter(|local| local.update(old_size, new_size));
 }
@@ -171,6 +189,19 @@ mod tests {
         // but it will be reduce to TARGET_BUFFER
         // this means the global counter should reduce by 100 + MAX_BUFFER
         expected -= MAX_BUFFER + 100;
+        assert_eq!(get(), expected);
+
+        update(100, 200);
+        // Small reallocations should use the buffer.
+        assert_eq!(get(), expected);
+        update(0, MAX_BUFFER);
+        // Growing beyond the buffer should require more buffer space. The prior small growth
+        // consumed another 100 bytes from the buffer.
+        expected += MAX_BUFFER + 100;
+        assert_eq!(get(), expected);
+        update(MAX_BUFFER + 1, 0);
+        // Shrinking beyond MAX_BUFFER should flush the excess.
+        expected -= MAX_BUFFER + 1;
         assert_eq!(get(), expected);
     }
 }

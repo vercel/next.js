@@ -1,7 +1,4 @@
-import {
-  abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
-} from '../../app-render/dynamic-rendering'
+import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
@@ -11,6 +8,14 @@ import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import {
+  ActionDidRevalidateDynamicOnly,
+  ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
+} from '../../../shared/lib/action-revalidation-kind'
+import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { encodeHeaderSafe } from '../../lib/encode-header-safe'
+import { createRevalidateDuringRenderError } from '../../use-cache/use-cache-messages'
+import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
   expire?: number
@@ -19,6 +24,10 @@ type CacheLifeConfig = {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
+ * The second argument specifies a [`cacheLife`](https://nextjs.org/docs/app/api-reference/functions/cacheLife#reference) profile
+ * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
+ * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
+ *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
@@ -26,8 +35,14 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
     console.warn(
       '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
     )
+  } else if (typeof profile === 'object') {
+    profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
-  return revalidate([tag], `revalidateTag ${tag}`, profile)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `revalidateTag(${JSON.stringify(tag)})`,
+    profile
+  )
 }
 
 /**
@@ -49,7 +64,11 @@ export function updateTag(tag: string) {
     )
   }
   // updateTag uses immediate expiration (no profile) without deprecation warning
-  return revalidate([tag], `updateTag ${tag}`, undefined)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `updateTag(${JSON.stringify(tag)})`,
+    undefined
+  )
 }
 
 /**
@@ -73,8 +92,9 @@ export function refresh() {
   }
 
   if (workStore) {
-    // TODO: break this to it's own field
-    workStore.pathWasRevalidated = true
+    // The Server Action version of refresh() only revalidates the dynamic data
+    // on the client. It doesn't affect cached data.
+    workStore.pathWasRevalidated = ActionDidRevalidateDynamicOnly
   }
 }
 
@@ -91,7 +111,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath || '/'}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${encodeHeaderSafe(removeTrailingSlash(originalPath))}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -108,7 +128,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
   }
 
-  return revalidate(tags, `revalidatePath ${originalPath}`)
+  return revalidate(tags, `revalidatePath(${JSON.stringify(originalPath)})`)
 }
 
 function revalidate(
@@ -126,21 +146,15 @@ function revalidate(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     if (workUnitStore.phase === 'render') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" during render which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
+      throw createRevalidateDuringRenderError(store.route, expression)
     }
 
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
+      case 'generate-static-params':
+        throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender
@@ -154,14 +168,9 @@ function revalidate(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
-        )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
@@ -192,6 +201,8 @@ function revalidate(
     store.pendingRevalidatedTags = []
   }
 
+  const revalidatedAt = performance.timeOrigin + performance.now()
+
   for (const tag of tags) {
     const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
       if (item.tag !== tag) return false
@@ -208,7 +219,13 @@ function revalidate(
       store.pendingRevalidatedTags.push({
         tag,
         profile,
+        revalidatedAt,
       })
+    } else {
+      // Revalidating a tag again invalidates everything produced up to now, so
+      // the latest revalidation is the one that decides which entries are
+      // stale.
+      store.pendingRevalidatedTags[existingIndex].revalidatedAt = revalidatedAt
     }
   }
 
@@ -220,12 +237,12 @@ function revalidate(
       ? profile
       : profile &&
           typeof profile === 'string' &&
-          store?.cacheLifeProfiles?.[profile]
+          store?.cacheLifeProfiles[profile]
         ? store.cacheLifeProfiles[profile]
         : undefined
 
   if (!profile || cacheLife?.expire === 0) {
     // TODO: only revalidate if the path matches
-    store.pathWasRevalidated = true
+    store.pathWasRevalidated = ActionDidRevalidate
   }
 }

@@ -5,7 +5,7 @@
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
@@ -13,14 +13,31 @@ use turbopack_core::{
     virtual_output::VirtualOutputAsset,
 };
 
+mod backend;
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
-mod heap_queue;
-mod pool;
+mod format;
+mod pool_stats;
+// The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
+// wasi, so `process_pool` is inert on wasm and `worker_pool` is the only available backend there.
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+pub mod process_pool;
 pub mod source_map;
 pub mod transforms;
+#[cfg(feature = "worker_pool")]
+pub mod worker_pool;
+
+pub use backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend};
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(process_pool::ChildProcessesBackend.cell())
+}
+#[cfg(feature = "worker_pool")]
+pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
+}
 
 #[turbo_tasks::function]
 async fn emit(
@@ -31,7 +48,7 @@ async fn emit(
         let _ = asset
             .content()
             .write(asset.path().owned().await?)
-            .resolve()
+            .to_resolved()
             .await?;
     }
     Ok(())
@@ -97,7 +114,7 @@ fn emit_package_json(dir: FileSystemPath) -> Result<Vc<()>> {
     Ok(emit(
         Vc::upcast(VirtualOutputAsset::new(
             dir.join("package.json")?,
-            AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
+            AssetContent::file(FileContent::Content(File::from("{\"type\": \"commonjs\"}")).cell()),
         )),
         dir,
     ))

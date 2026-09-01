@@ -1,0 +1,68 @@
+/**
+ * Inert stand-in for `./navigation-testing-lock`.
+ *
+ * When the Instant Navigation Testing API is disabled (a production build
+ * without `experimental.exposeTestingApiInProductionBuild`), the browser
+ * bundle resolves `./navigation-testing-lock` to this module instead of the
+ * real implementation, so none of the lock machinery ships. The alias is set
+ * up in `create-compiler-aliases.ts` (webpack) and
+ * `crates/next-core/src/next_import_map.rs` (Turbopack).
+ *
+ * Every export mirrors the real module's signature and returns the value the
+ * real implementation produces when no lock is held.
+ */
+
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import type { SegmentCacheEntry } from './cache'
+import type { CacheMap } from './cache-map'
+import type { FetchStrategy } from './types'
+import type { NavigationLockPrefetch } from './navigation-testing-lock'
+
+export type {
+  NavigationLockPrefetch,
+  NavigationLockState,
+} from './navigation-testing-lock'
+
+export function getPreLockFetch(): typeof fetch | null {
+  return null
+}
+
+export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
+  return null
+}
+
+export function getNavigationLockSegmentCacheMap(): CacheMap<SegmentCacheEntry> | null {
+  return null
+}
+
+export function resolveNavigationLockPrefetch(
+  _prefetch: NavigationLockPrefetch
+): void {}
+
+export function startListeningForInstantNavigationCookie(): void {}
+
+export function updateCapturedSPAToTree(
+  _fromTree: FlightRouterState,
+  _toTree: FlightRouterState
+): void {}
+
+export function isNavigationLocked(): boolean {
+  return false
+}
+
+export function beginLockedNavigation(): Promise<void> | null {
+  return null
+}
+
+export function getCurrentNavigationGate(): Promise<void> | null {
+  return null
+}
+
+export function resetNavigationLockToPending(): void {}
+
+export function shouldRestrictNavigationToShell(
+  _rootPrefetchHints: number,
+  _linkFetchStrategy: FetchStrategy
+): boolean {
+  return false
+}

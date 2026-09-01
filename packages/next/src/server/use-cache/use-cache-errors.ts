@@ -1,26 +1,32 @@
-const USE_CACHE_TIMEOUT_ERROR_CODE = 'USE_CACHE_TIMEOUT'
-
 export class UseCacheTimeoutError extends Error {
-  digest: typeof USE_CACHE_TIMEOUT_ERROR_CODE = USE_CACHE_TIMEOUT_ERROR_CODE
-
-  constructor() {
+  constructor(route: string) {
     super(
-      'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+      `Route "${route}": ` +
+        `A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
     )
   }
 }
 
-export function isUseCacheTimeoutError(
-  err: unknown
-): err is UseCacheTimeoutError {
-  if (
-    typeof err !== 'object' ||
-    err === null ||
-    !('digest' in err) ||
-    typeof err.digest !== 'string'
-  ) {
-    return false
+export class UseCacheDeadlockError extends Error {
+  constructor(route: string) {
+    super(
+      `Route "${route}": ` +
+        `A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+    )
   }
+}
 
-  return err.digest === USE_CACHE_TIMEOUT_ERROR_CODE
+/**
+ * Used purely as `cause` for the nested-dynamic cache error: its captured stack
+ * points at the inner `"use cache"` invocation that propagated a dynamic cache
+ * life up to the outer cache. Constructed eagerly in `cache()` while the caller
+ * is still on the synchronous stack — see use-cache-wrapper.ts.
+ */
+export class NestedDynamicUseCacheError extends Error {
+  constructor() {
+    super(
+      'This "use cache" has a dynamic cache life that was propagated to its parent.'
+    )
+    this.name = 'Nested dynamic "use cache"'
+  }
 }

@@ -4,7 +4,6 @@ import { nextTestSetup } from 'e2e-utils'
   () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
 
     if (skipped) return

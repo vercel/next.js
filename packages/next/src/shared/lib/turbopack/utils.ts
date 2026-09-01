@@ -5,8 +5,7 @@ import type {
   TurbopackResult,
 } from '../../../build/swc/types'
 
-import { bold, green, magenta, red } from '../../../lib/picocolors'
-import isInternal from '../is-internal'
+import { bold, green, magenta, red, yellow } from '../../../lib/picocolors'
 import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
@@ -16,6 +15,8 @@ type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
 export type IssuesMap = Map<IssueKey, Issue>
 export type EntryIssuesMap = Map<EntryKey, IssuesMap>
 export type TopLevelIssuesMap = IssuesMap
+
+const VERBOSE_ISSUES = !!process.env.NEXT_TURBOPACK_VERBOSE_ISSUES
 
 /**
  * An error generated from emitted Turbopack issues. This can include build
@@ -90,13 +91,36 @@ export function processIssues(
   }
 }
 
+function formatFilePath(filePath: string): string {
+  return filePath
+    .replace('[project]/', './')
+    .replaceAll('/./', '/')
+    .replace('\\\\?\\', '')
+}
+
 export function formatIssue(issue: Issue) {
-  const { filePath, title, description, source, importTraces } = issue
+  const {
+    filePath,
+    title,
+    description,
+    detail,
+    source,
+    importTraces,
+    severity,
+  } = issue
   let { documentationLink } = issue
-  const formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
     /\n/g,
     '\n    '
   )
+
+  if (severity === 'bug' || severity === 'error' || severity === 'fatal') {
+    formattedTitle = bold(`${red('Error')}: ${formattedTitle}`)
+  } else if (severity === 'warning') {
+    formattedTitle = bold(`${yellow('Warning')}: ${formattedTitle}`)
+  } else {
+    formattedTitle = bold(`Info: ${formattedTitle}`)
+  }
 
   // TODO: Use error codes to identify these
   // TODO: Generalize adapting Turbopack errors to Next.js errors
@@ -106,10 +130,7 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  const formattedFilePath = filePath
-    .replace('[project]/', './')
-    .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
+  const formattedFilePath = formatFilePath(filePath)
 
   let message = ''
 
@@ -125,31 +146,8 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (
-    source?.range &&
-    source.source.content &&
-    // ignore Next.js/React internals, as these can often be huge bundled files.
-    !isInternal(filePath)
-  ) {
-    const { start, end } = source.range
-    const { codeFrameColumns } =
-      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-
-    message +=
-      codeFrameColumns(
-        source.source.content,
-        {
-          start: {
-            line: start.line + 1,
-            column: start.column + 1,
-          },
-          end: {
-            line: end.line + 1,
-            column: end.column + 1,
-          },
-        },
-        { forceColor: true }
-      ).trim() + '\n\n'
+  if (issue.codeFrame) {
+    message += issue.codeFrame.trimEnd() + '\n\n'
   }
 
   if (description) {
@@ -166,10 +164,23 @@ export function formatIssue(issue: Issue) {
     }
   }
 
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
+  // TODO: make it easier to enable this for debugging
+  if (VERBOSE_ISSUES && detail) {
+    message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+  }
+
+  // Render additional sources (e.g., generated code from a loader)
+  for (const additional of issue.additionalSources ?? []) {
+    if (additional.codeFrame) {
+      const additionalFilePath = formatFilePath(
+        additional.source.source.filePath
+      )
+      const loc = additional.source.range
+        ? `:${additional.source.range.start.line + 1}:${additional.source.range.start.column + 1}`
+        : ''
+      message += `${additional.description}:\n${additionalFilePath}${loc}\n${additional.codeFrame.trimEnd()}\n\n`
+    }
+  }
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
@@ -312,10 +323,4 @@ export function isFileSystemCacheEnabledForDev(
   config: NextConfigComplete
 ): boolean {
   return config.experimental?.turbopackFileSystemCacheForDev || false
-}
-
-export function isFileSystemCacheEnabledForBuild(
-  config: NextConfigComplete
-): boolean {
-  return config.experimental?.turbopackFileSystemCacheForBuild || false
 }

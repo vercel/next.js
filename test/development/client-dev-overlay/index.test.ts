@@ -1,6 +1,4 @@
-import { FileRef } from 'e2e-utils'
-import { Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import { join } from 'path'
 import { waitForDevToolsIndicator, retry } from 'next-test-utils'
 
@@ -140,8 +138,8 @@ describe('client-dev-overlay', () => {
        1
        Route
        Static
+       Bundler
        Turbopack
-       Enabled
        Preferences"
       `)
     } else {
@@ -150,7 +148,8 @@ describe('client-dev-overlay', () => {
        1
        Route
        Static
-       Try Turbopack
+       Bundler
+       Webpack
        Preferences"
       `)
     }
@@ -197,8 +196,8 @@ describe('client-dev-overlay with Cache Components', () => {
        1
        Route
        Static
+       Bundler
        Turbopack
-       Enabled
        Cache Components
        Enabled
        Preferences"
@@ -209,7 +208,8 @@ describe('client-dev-overlay with Cache Components', () => {
        1
        Route
        Static
-       Try Turbopack
+       Bundler
+       Webpack
        Cache Components
        Enabled
        Preferences"

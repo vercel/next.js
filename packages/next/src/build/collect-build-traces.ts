@@ -1,3 +1,5 @@
+// Import cpu-profile to start profiling early if enabled
+import '../server/lib/cpu-profile'
 import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 
@@ -8,6 +10,7 @@ import {
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import fs from 'fs/promises'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../server/ci-info'
@@ -145,11 +148,12 @@ export async function collectBuildTraces({
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
       if (cacheHandler) {
+        const resolvedPath = resolveCacheHandlerPathToFilesystem(cacheHandler)
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(cacheHandler)
-              ? cacheHandler
-              : path.join(dir, cacheHandler)
+            path.isAbsolute(resolvedPath)
+              ? resolvedPath
+              : path.join(dir, resolvedPath)
           )
         )
       }
@@ -176,11 +180,13 @@ export async function collectBuildTraces({
       if (cacheHandlers) {
         for (const handlerPath of Object.values(cacheHandlers)) {
           if (handlerPath) {
+            const resolvedPath =
+              resolveCacheHandlerPathToFilesystem(handlerPath)
             sharedEntriesSet.push(
               require.resolve(
-                path.isAbsolute(handlerPath)
-                  ? handlerPath
-                  : path.join(dir, handlerPath)
+                path.isAbsolute(resolvedPath)
+                  ? resolvedPath
+                  : path.join(dir, resolvedPath)
               )
             )
           }
@@ -220,6 +226,13 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
+        // The testmode interceptors bundle reads its HTTP parser WASM with a
+        // dynamic path, making nft trace the bundle's whole directory. Test
+        // proxying is not supported in standalone output, so keep the parser
+        // asset (and the license file picked up by the directory glob) out of
+        // production traces.
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE',
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**/*',
         'next/dist/compiled/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
@@ -227,6 +240,7 @@ export async function collectBuildTraces({
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
+              '**/next/dist/server/image-optimizer/**/*',
             ]
           : []),
 
@@ -299,6 +313,7 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
+          moduleSyncCatchall: true,
           async readFile(p) {
             try {
               return await fs.readFile(p, 'utf8')

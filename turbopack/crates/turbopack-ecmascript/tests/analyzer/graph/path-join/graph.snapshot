@@ -81,9 +81,13 @@
                 Module(
                     ModuleValue {
                         module: "path",
-                        annotations: ImportAnnotations {
-                            map: {},
-                        },
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                2,
+                            ),
+                        ),
                     },
                 ),
                 Constant(
@@ -110,9 +114,13 @@
             Module(
                 ModuleValue {
                     module: "path",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(

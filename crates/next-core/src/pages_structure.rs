@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
+    RealPathErrorType,
 };
 
 use crate::next_import_map::get_next_package;
@@ -106,12 +107,24 @@ pub async fn find_pages_structure(
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages")?.realpath().await?;
-    let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
+    async fn realpath_if_exists(path: &FileSystemPath) -> Result<Option<FileSystemPath>> {
+        match path.realpath().await? {
+            Ok(path) => Ok(Some(path)),
+            Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
+            Err(error) => bail!(error),
+        }
+    }
+
+    let pages_root = realpath_if_exists(&project_root.join("pages")?).await?;
+    let pages_root = if let Some(pages_root) = pages_root
+        && *pages_root.get_type().await? == FileSystemEntryType::Directory
+    {
         Some(pages_root)
     } else {
-        let src_pages_root = project_root.join("src/pages")?.realpath().await?;
-        if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
+        let src_pages_root = realpath_if_exists(&project_root.join("src/pages")?).await?;
+        if let Some(src_pages_root) = src_pages_root
+            && *src_pages_root.get_type().await? == FileSystemEntryType::Directory
+        {
             Some(src_pages_root)
         } else {
             // If neither pages nor src/pages exists, we still want to generate
@@ -209,7 +222,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     dir_project_path.clone(),
                                     next_router_path.join(name)?,
-                                    1,
                                     page_extensions,
                                 )
                                 .to_resolved()
@@ -222,7 +234,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     dir_project_path.clone(),
                                     next_router_path.join(name)?,
-                                    1,
                                     page_extensions,
                                 ),
                             ));
@@ -243,12 +254,12 @@ async fn get_pages_structure_for_root_directory(
                 next_router_path: next_router_path.clone(),
                 items: items
                     .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .map(|(_, v)| v.to_resolved())
                     .try_join()
                     .await?,
                 children: children
                     .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .map(|(_, v)| v.to_resolved())
                     .try_join()
                     .await?,
             }
@@ -300,7 +311,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_error")?,
             page_extensions,
-            Some(next_package.join("error.js")?),
+            Some(next_package.join("dist/pages/_error.js")?),
             error_router_path.clone(),
             error_router_path,
         )
@@ -325,12 +336,11 @@ async fn get_pages_structure_for_root_directory(
 async fn get_pages_structure_for_directory(
     project_path: FileSystemPath,
     next_router_path: FileSystemPath,
-    position: u32,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = tracing::info_span!(
         "analyze pages structure",
-        name = display(project_path.value_to_string().await?)
+        name = display(project_path.to_string_ref().await?)
     );
     async move {
         let page_extensions_raw = &*page_extensions.await?;
@@ -368,7 +378,6 @@ async fn get_pages_structure_for_directory(
                             get_pages_structure_for_directory(
                                 dir_project_path.clone(),
                                 next_router_path.join(name)?,
-                                position + 1,
                                 page_extensions,
                             ),
                         ));
@@ -390,13 +399,13 @@ async fn get_pages_structure_for_directory(
             items: items
                 .into_iter()
                 .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
+                .map(|v| v.to_resolved())
                 .try_join()
                 .await?,
             children: children
                 .into_iter()
                 .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
+                .map(|v| v.to_resolved())
                 .try_join()
                 .await?,
         }

@@ -1,20 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 // Turbopack does not support `.babelrc`. So this test is not relevant for Turbopack.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   '@next/font babel unsupported',
   () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        skipStart: true,
-        files: new FileRef(join(__dirname, 'babel-unsupported')),
-      })
+    const { next } = nextTestSetup({
+      skipStart: true,
+      files: new FileRef(join(__dirname, 'babel-unsupported')),
     })
-    afterAll(() => next.destroy())
 
     test('Build error when using babel', async () => {
       await expect(next.start()).rejects.toThrow(

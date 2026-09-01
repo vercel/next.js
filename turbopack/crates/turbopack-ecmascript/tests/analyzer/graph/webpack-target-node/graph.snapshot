@@ -13,12 +13,11 @@
                     ),
                 ),
                 [
-                    Variable(
-                        (
-                            "moduleId",
-                            #6,
-                        ),
-                    ),
+                    Unknown {
+                        original_value: None,
+                        reason: "assignment expression",
+                        has_side_effects: true,
+                    },
                 ],
             ),
         ),
@@ -127,7 +126,7 @@
         Object {
             total_nodes: 1,
             parts: [],
-            mutable: true,
+            mutability: Mutable,
         },
     ),
     (
@@ -238,7 +237,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
                 Object {
                     total_nodes: 3,
@@ -260,7 +259,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
                 Object {
                     total_nodes: 3,
@@ -282,7 +281,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ],
             mutable: true,

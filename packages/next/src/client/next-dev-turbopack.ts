@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './register-deployment-id-global'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 
@@ -47,6 +48,8 @@ initialize({
       },
       sendMessage: devClient.sendTurbopackMessage,
       onUpdateError: devClient.handleUpdateError,
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
 
     return pageBootstrap(assetPrefix)

@@ -7,8 +7,12 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
+import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -22,6 +26,7 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -31,7 +36,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -82,6 +86,8 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
+    clientAssetToken,
     renderResumeDataCache,
   } = input
 
@@ -109,6 +115,13 @@ async function exportPageImpl(
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
+
+    // When true, attempt to run build-time instant validation for this export path.
+    _runInstantValidation: runInstantValidation = false,
+
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -173,6 +186,9 @@ async function exportPageImpl(
   if (trailingSlash && !req.url?.endsWith('/')) {
     req.url += '/'
   }
+
+  // Set the resolved pathname without trailing slash as request metadata.
+  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
 
   if (
     locale &&
@@ -240,8 +256,10 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 
@@ -259,6 +277,8 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    runInstantValidation,
+    isFallbackUpgradeable,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -268,7 +288,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const sharedContext: AppSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+    }
 
     return exportAppPage(
       req,
@@ -278,51 +302,57 @@ async function exportPageImpl(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts,
+      renderOpts as WorkerRenderOpts<AppPageModule>,
       htmlFilepath,
       debugOutput,
       isDynamicError,
       fileWriter,
       sharedContext
     )
-  }
+  } else {
+    const sharedContext: PagesSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+      customServer: undefined,
+    }
 
-  const sharedContext: PagesSharedContext = {
-    buildId,
-    deploymentId: commonRenderOpts.deploymentId,
-    customServer: undefined,
-  }
+    const renderContext: PagesRenderContext = {
+      isFallback: exportPath._pagesFallback ?? false,
+      isDraftMode: false,
+      developmentNotFoundSourcePage: undefined,
+    }
 
-  const renderContext: PagesRenderContext = {
-    isFallback: exportPath._pagesFallback ?? false,
-    isDraftMode: false,
-    developmentNotFoundSourcePage: undefined,
+    return exportPagesPage(
+      req,
+      res,
+      path,
+      page,
+      query,
+      params,
+      htmlFilepath,
+      htmlFilename,
+      pagesDataDir,
+      buildExport,
+      isDynamic,
+      sharedContext,
+      renderContext,
+      hasOrigQueryValues,
+      renderOpts as WorkerRenderOpts<PagesModule>,
+      components,
+      fileWriter
+    )
   }
-
-  return exportPagesPage(
-    req,
-    res,
-    path,
-    page,
-    query,
-    params,
-    htmlFilepath,
-    htmlFilename,
-    pagesDataDir,
-    buildExport,
-    isDynamic,
-    sharedContext,
-    renderContext,
-    hasOrigQueryValues,
-    renderOpts,
-    components,
-    fileWriter
-  )
 }
 
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,
@@ -382,8 +412,12 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
-      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
+      ? createRenderResumeDataCache(
+          renderResumeDataCachesByPage[pageKey],
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
+        )
       : undefined
 
     while (attempt < maxAttempts) {
@@ -407,6 +441,8 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
+            clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
           }),
           hasDebuggerAttached
@@ -583,12 +619,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

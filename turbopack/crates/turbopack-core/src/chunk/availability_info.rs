@@ -1,35 +1,30 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use bitfield::bitfield;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc, trace::TraceRawVcs};
 
-use super::available_modules::{AvailableModules, AvailableModulesSet};
+use crate::{
+    chunk::available_modules::{AvailableModules, AvailableModulesSet},
+    module::Modules,
+};
 
 bitfield! {
-    #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, Serialize, Deserialize, PartialEq, Eq, Hash)]
+    #[turbo_tasks::task_input]
+    #[derive(Clone, Copy, Default, TraceRawVcs, PartialEq, Eq, Hash, Encode, Decode)]
     pub struct AvailabilityFlags(u8);
     impl Debug;
     pub is_in_async_module, set_is_in_async_module: 0;
 }
 
-#[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Clone,
-    Copy,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-)]
+#[turbo_tasks::task_input]
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, TraceRawVcs, Encode, Decode)]
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.
     available_modules: Option<ResolvedVc<AvailableModules>>,
+    /// The root ChunkGroup::Entry
+    entry_group: Option<ResolvedVc<Modules>>,
 }
 
 impl AvailabilityInfo {
@@ -37,6 +32,7 @@ impl AvailabilityInfo {
         Self {
             flags: AvailabilityFlags::default(),
             available_modules: None,
+            entry_group: None,
         }
     }
 
@@ -44,7 +40,7 @@ impl AvailabilityInfo {
         self.available_modules
     }
 
-    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
+    pub async fn with_modules(self, modules: OperationVc<AvailableModulesSet>) -> Result<Self> {
         Ok(if let Some(available_modules) = self.available_modules {
             Self {
                 flags: self.flags,
@@ -54,11 +50,13 @@ impl AvailabilityInfo {
                         .to_resolved()
                         .await?,
                 ),
+                entry_group: self.entry_group,
             }
         } else {
             Self {
                 flags: self.flags,
                 available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+                entry_group: self.entry_group,
             }
         })
     }
@@ -69,11 +67,24 @@ impl AvailabilityInfo {
         Self {
             flags,
             available_modules: self.available_modules,
+            entry_group: self.entry_group,
         }
     }
 
     pub fn is_in_async_module(&self) -> bool {
         self.flags.is_in_async_module()
+    }
+
+    pub fn with_entry_group(self, entry_group: ResolvedVc<Modules>) -> Self {
+        Self {
+            flags: self.flags,
+            available_modules: self.available_modules,
+            entry_group: Some(entry_group),
+        }
+    }
+
+    pub fn entry_group(&self) -> Option<ResolvedVc<Modules>> {
+        self.entry_group
     }
 
     pub async fn ident(&self) -> Result<Option<RcStr>> {

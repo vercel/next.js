@@ -3,7 +3,6 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
-const process = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -31,6 +30,21 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('src/compiled/regenerator-runtime')
 }
 
+export async function copy_docs(task, opts) {
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
+  const docsSource = join(__dirname, '../../docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
+}
+
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -50,10 +64,12 @@ export async function copy_styled_jsx_assets(task, opts) {
 }
 
 const externals = {
-  // don't bundle caniuse-lite data so users can
+  // don't bundle caniuse-lite and baseline-browser-mapping data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
+  'baseline-browser-mapping': 'baseline-browser-mapping',
+  '/baseline-browser-mapping(/.*)/': 'baseline-browser-mapping$1',
 
   postcss: 'postcss',
   // Ensure latest version is used
@@ -103,6 +119,17 @@ export async function ncc_vercel_routing_utils(task, opts) {
     .target('src/compiled/@vercel/routing-utils')
 }
 
+externals['@vercel/detect-agent'] = 'next/dist/compiled/@vercel/detect-agent'
+export async function ncc_vercel_detect_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/detect-agent')))
+    .ncc({
+      packageName: '@vercel/detect-agent',
+      externals,
+    })
+    .target('src/compiled/@vercel/detect-agent')
+}
+
 externals['busboy'] = 'next/dist/compiled/busboy'
 export async function ncc_busboy(task, opts) {
   await task
@@ -117,17 +144,34 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
-    .source(
-      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
-    )
+    // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/mswjs-interceptors/index.js')
     .ncc({
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      esm: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
+  // The interceptor reads its HTTP parser WASM at runtime relative to the
+  // bundle. ncc cannot trace that file access, so copy the file explicitly.
+  const llhttpWasmTarget = join(
+    __dirname,
+    'src/compiled/@mswjs/interceptors/ClientRequest/llhttp'
+  )
+  await fs.mkdir(llhttpWasmTarget, { recursive: true })
+  await fs.copyFile(
+    join(
+      dirname(require.resolve('@mswjs/interceptors/ClientRequest')),
+      '../../llhttp/llhttp.wasm'
+    ),
+    join(llhttpWasmTarget, 'llhttp.wasm')
+  )
 }
 
 export async function capsize_metrics() {
@@ -207,15 +251,6 @@ export async function copy_vercel_og(task, opts) {
     .source(
       join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
     )
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const source = file.data.toString()
-      // Ignore yoga-wasm-web types
-      file.data = source.replace(
-        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
-        'type Yoga = any'
-      )
-    })
     .target('src/compiled/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
@@ -232,9 +267,10 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source
-        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
-        .replace("typeof import('@resvg/resvg-wasm')", 'any')
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
     })
     .target('src/compiled/@vercel/og')
 
@@ -982,7 +1018,6 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
 }
 
 const babelCorePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
@@ -998,12 +1033,6 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
-externals['next/dist/compiled/babel/code-frame'] =
-  'next/dist/compiled/babel/code-frame'
-
-externals['next/dist/compiled/babel-code-frame'] =
-  'next/dist/compiled/babel-code-frame'
-
 Object.assign(externals, babelCorePackages)
 
 export async function ncc_babel_bundle(task, opts) {
@@ -1022,21 +1051,6 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
-}
-
-export async function ncc_babel_code_frame(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
-  }
-  await task
-    .source('src/bundles/babel-code-frame/index.js')
-    .ncc({
-      packageName: '@babel/code-frame',
-      bundleName: 'babel-code-frame',
-      externals: bundleExternals,
-    })
-    .target('src/compiled/babel-code-frame')
 }
 
 export async function ncc_babel_bundle_packages(task, opts) {
@@ -1204,12 +1218,13 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
-export async function ncc_http_proxy(task, opts) {
+externals['httpxy'] = 'next/dist/compiled/httpxy'
+export async function ncc_httpxy(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('http-proxy')))
-    .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    // httpxy is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/httpxy/index.js')
+    .ncc({ packageName: 'httpxy', externals, esm: false })
+    .target('src/compiled/httpxy')
 }
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
@@ -1470,7 +1485,11 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      // avoid infinite suffix addition in case the package name already has the suffix
+      // e.g. if we install from src/compiled instead of npm registry.
+      if (!json.name.endsWith(`-${channel}`)) {
+        json.name = json.name + '-' + channel
+      }
       return JSON.stringify(
         {
           name: json.name,
@@ -1891,11 +1910,29 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
+externals['@vercel/blob'] = 'next/dist/compiled/@vercel/blob'
+export async function ncc_vercel_blob(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/blob')))
+    .ncc({ packageName: '@vercel/blob', externals })
+    .target('src/compiled/@vercel/blob')
+}
+
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@vercel/nft')))
-    .ncc({ packageName: '@vercel/nft', externals })
+    .ncc({
+      packageName: '@vercel/nft',
+      externals: Object.keys(externals).reduce((acc, key) => {
+        // @vercel/nft uses glob@13, while next/dist/compiled/glob is glob@7
+        // glob@13 -> path-scurry@2 -> lru-cache@11 which is incompatible
+        if (key !== 'glob' && key !== 'lru-cache') {
+          acc[key] = externals[key]
+        }
+        return acc
+      }, {}),
+    })
     .target('src/compiled/@vercel/nft')
 }
 
@@ -2105,6 +2142,14 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('src/compiled/webpack/')
 }
 
+externals['write-file-atomic'] = 'next/dist/compiled/write-file-atomic'
+export async function ncc_write_file_atomic(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('write-file-atomic')))
+    .ncc({ packageName: 'write-file-atomic', externals })
+    .target('src/compiled/write-file-atomic')
+}
+
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
   await task
@@ -2186,7 +2231,7 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
     opts
   )
 }
@@ -2242,7 +2287,6 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
-        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -2259,7 +2303,7 @@ export async function ncc(task, opts) {
         'ncc_fresh',
         'ncc_glob',
         'ncc_gzip_size',
-        'ncc_http_proxy',
+        'ncc_httpxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_ipaddr_js',
@@ -2299,6 +2343,7 @@ export async function ncc(task, opts) {
         'ncc_superstruct',
         'ncc_zod',
         'ncc_zod_validation_error',
+        'ncc_vercel_blob',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',
@@ -2310,6 +2355,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_write_file_atomic',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
@@ -2342,6 +2388,7 @@ export async function ncc(task, opts) {
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
       'ncc_vercel_routing_utils',
+      'ncc_vercel_detect_agent',
     ],
     opts
   )
@@ -2678,10 +2725,7 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
@@ -2699,25 +2743,6 @@ export async function generate_types(task, opts) {
   // But taskr needs to know that it can start watching the files for the task it has to manually restart.
   if (!watchmode) {
     await typesPromise
-  }
-}
-
-export async function check_error_codes(task, opts) {
-  try {
-    await execa.command('pnpm -w run check-error-codes', {
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (process.env.CI) {
-      await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
-        {
-          stdio: 'inherit',
-        }
-      )
-      process.exit(1)
-    }
-    await task.start('compile', opts)
   }
 }
 
@@ -2995,6 +3020,61 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+// The `app-worker` bundle holds the dev-only worker entries (the use-cache
+// probe worker and the dev validation worker). We therefore build just the four
+// dev variants (turbo × experimental). If a future worker entry needs to run in
+// prod, add the matching prod tasks then.
+export async function next_bundle_app_worker_dev(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app-worker',
+    }),
+    name: 'next-bundle-app-worker-dev',
+  })
+}
+
+export async function next_bundle_app_worker_dev_turbo(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app-worker',
+    }),
+    name: 'next-bundle-app-worker-dev-turbo',
+  })
+}
+
+export async function next_bundle_app_worker_dev_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app-worker',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-worker-dev-experimental',
+  })
+}
+
+export async function next_bundle_app_worker_dev_turbo_experimental(
+  task,
+  opts
+) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app-worker',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-worker-dev-turbo-experimental',
+  })
+}
+
 export async function next_bundle_devtools(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -3025,6 +3105,11 @@ export async function next_bundle(task, opts) {
       'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
+      // builds dev-only worker bundles (use-cache probe, etc.)
+      'next_bundle_app_worker_dev',
+      'next_bundle_app_worker_dev_turbo',
+      'next_bundle_app_worker_dev_experimental',
+      'next_bundle_app_worker_dev_turbo_experimental',
       // devtools
       'next_bundle_devtools',
     ],

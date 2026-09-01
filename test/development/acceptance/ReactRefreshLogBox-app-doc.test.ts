@@ -106,11 +106,11 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js (2:10)
-       Parsing ecmascript source code failed
+       Error: Expression expected
        > 2 |   return <<Component {...pageProps} />;
            |          ^^",
          "stack": [],
@@ -119,11 +119,10 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js
-         × Module build failed:
          ╰─▶   × Error:   x Expression expected
                │    ,-[2:1]
                │  1 | function MyApp({ Component, pageProps }) {
@@ -226,11 +225,11 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js (3:36)
-       Parsing ecmascript source code failed
+       Error: Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
        > 3 | class MyDocument extends Document {{
            |                                    ^",
          "stack": [],
@@ -239,11 +238,10 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
                │    ,-[3:1]
                │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'

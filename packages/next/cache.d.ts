@@ -1,5 +1,10 @@
 export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
 
+export type {
+  CacheHandler,
+  CacheEntry,
+} from './dist/server/lib/cache-handlers/types'
+
 export {
   revalidatePath,
   revalidateTag,
@@ -8,6 +13,8 @@ export {
 } from 'next/dist/server/web/spec-extension/revalidate'
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
+
+export { io } from 'next/dist/server/request/io'
 
 import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 
@@ -152,3 +159,6 @@ export function cacheLife(profile: {
 
 export const unstable_cacheLife: typeof cacheLife
 export const unstable_cacheTag: typeof cacheTag
+
+export { unstable_navigation } from 'next/dist/server/request/cache-stages'
+export { unstable_prefetch } from 'next/dist/server/request/cache-stages'

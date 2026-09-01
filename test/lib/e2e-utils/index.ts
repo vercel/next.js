@@ -1,30 +1,78 @@
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from 'next/constants'
 import { NextInstance, NextInstanceOpts } from '../next-modes/base'
 import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
+import { setGateTestContext, type GateTestMode } from '../gate/test-context'
+import { clearFixture, registerFixture } from '../gate/state'
+import { loadResolvedConfig } from '../gate/load-resolved-config'
+import {
+  getActiveDescribeGates,
+  hasLazyForceGate,
+  findLazyForceSkip,
+} from '../gate/runtime'
 
 export type { NextInstance }
+export type { Playwright } from '../browsers/playwright'
 
-// increase timeout to account for pnpm install time
-// if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
-// this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
-// test job exceeds the 6 hours limit.
-let testTimeout = (process.platform === 'win32' ? 240 : 120) * 1000
+const individualTestTimeout = 60 * 1000
+
+// Keep a higher timeout for setup hooks (e.g. initial createNext/startup),
+// but enforce 60s per test case via wrapped `it`/`test` for non-dev modes.
+let setupTimeout = (process.platform === 'win32' ? 240 : 120) * 1000
 
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
-  try {
-    testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
-  } catch (_) {
-    // ignore
+  const parsedTimeout = Number.parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  if (!Number.isNaN(parsedTimeout)) {
+    setupTimeout = parsedTimeout
   }
 }
 
-jest.setTimeout(testTimeout)
+jest.setTimeout(setupTimeout)
+
+type E2ETestGlobal = typeof globalThis & {
+  __NEXT_E2E_TEST_CONFIG_PATCHED__?: boolean
+  __NEXT_E2E_WRAPPED_TEST_FNS__?: WeakMap<Function, Function>
+}
+
+const wrapJestTestFn = <T extends Function>(fn: T): T => {
+  const e2eGlobal = global as E2ETestGlobal
+  const wrappedFns =
+    e2eGlobal.__NEXT_E2E_WRAPPED_TEST_FNS__ ??
+    (e2eGlobal.__NEXT_E2E_WRAPPED_TEST_FNS__ = new WeakMap())
+  const existing = wrappedFns.get(fn)
+  if (existing) return existing as T
+
+  const wrapped = new Proxy(fn, {
+    apply(target, thisArg, argArray: unknown[]) {
+      const args = [...argArray]
+      if (
+        args.length >= 2 &&
+        typeof args[1] === 'function' &&
+        args[2] === undefined
+      ) {
+        args[2] = individualTestTimeout
+      }
+
+      const result = Reflect.apply(target, thisArg, args)
+      return typeof result === 'function' ? wrapJestTestFn(result) : result
+    },
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? wrapJestTestFn(value) : value
+    },
+  })
+
+  wrappedFns.set(fn, wrapped)
+  return wrapped as T
+}
 
 const testsFolder = path.join(__dirname, '..', '..')
 
@@ -80,6 +128,24 @@ if (testModeFromFile === 'e2e') {
   testMode = 'start'
 }
 
+const e2eGlobal = global as E2ETestGlobal
+if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
+  if (testMode !== 'dev') {
+    if (typeof global.it === 'function') {
+      global.it = wrapJestTestFn(global.it) as jest.It
+    }
+    if (typeof global.test === 'function') {
+      global.test = wrapJestTestFn(global.test) as jest.It
+    }
+
+    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
+      jest.retryTimes(1)
+    }
+  }
+
+  e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true
+}
+
 if (testMode === 'dev') {
   ;(global as any).isNextDev = true
 } else if (testMode === 'deploy') {
@@ -104,7 +170,36 @@ export const isNextDeploy = testMode === 'deploy'
  */
 export const isNextStart = !isNextDev && !isNextDeploy
 
+if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
+  process.env.NEXT_TEST_WASM = process.env.NEXT_TEST_WASM_AFTER_JEST
+}
+
 export const isRspack = !!process.env.NEXT_RSPACK
+const isNextTestWasm = !!process.env.NEXT_TEST_WASM
+export const itTurbopack =
+  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
+
+/**
+ * Whether the test is running against React 18 (based on
+ * `process.env.NEXT_TEST_REACT_VERSION`). When the env var is unset or empty,
+ * the test install uses the default React peer dependency version which is
+ * currently React 19, so this is `false`.
+ */
+export const isReact18 =
+  parseInt(process.env.NEXT_TEST_REACT_VERSION || '', 10) === 18
+
+// Publish the statically-known shape of this run for `// @gate` pragmas. See
+// test/lib/gate/conditions.ts.
+setGateTestContext({
+  mode: testMode as GateTestMode,
+  bundler: isRspack
+    ? 'rspack'
+    : !isNextTestWasm && shouldUseTurbopack()
+      ? 'turbopack'
+      : 'webpack',
+  react18: isReact18,
+  wasm: isNextTestWasm,
+})
 
 if (!testMode) {
   throw new Error(
@@ -124,6 +219,20 @@ export class FileRef {
 
   constructor(path: string) {
     this.fsPath = path
+  }
+}
+
+/**
+ * FileRef is wrapper around a file path that is meant be copied
+ * to the location where the next instance is being created
+ */
+export class PatchedFileRef {
+  public fsPath: string
+  public cb: (content: string) => string
+
+  constructor(path: string, cb: (content: string) => string) {
+    this.fsPath = path
+    this.cb = cb
   }
 }
 
@@ -152,9 +261,12 @@ const setupTracing = () => {
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
- * to prevent relying on modules that shouldn't be
+ * to prevent relying on modules that shouldn't be.
+ *
+ * Internal helper used by `nextTestSetup`. Tests should call
+ * `nextTestSetup` directly instead of `createNext`.
  */
-export async function createNext(
+async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
   try {
@@ -164,7 +276,7 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.NEXT_TEST_WASM
+      const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
 
@@ -181,7 +293,6 @@ export async function createNext(
         rootSpan.traceChild('init next deploy instance').traceFn(() => {
           nextInstance = new NextDeployInstance({
             ...opts,
-            turbo: false,
           })
         })
       } else {
@@ -189,7 +300,6 @@ export async function createNext(
         rootSpan.traceChild('init next start instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
-            turbo: false,
           })
         })
       }
@@ -198,9 +308,16 @@ export async function createNext(
 
       nextInstance.on('destroy', () => {
         nextInstance = undefined
+        clearFixture()
       })
 
       await nextInstance.setup(rootSpan)
+
+      // Lazy `// @gate` conditions read this fixture's resolved next.config.
+      // Registering the instance (not a snapshot) before `start()` keeps
+      // `skipStart` suites and rebuild flows working: nothing is resolved until
+      // a gate actually asks. See test/lib/gate/README.md.
+      registerFixture(nextInstance)
 
       if (!opts.skipStart) {
         await rootSpan
@@ -252,16 +369,86 @@ export function nextTestSetup(
     }
   }
 
+  // A lazy `@force-gate` on the enclosing `describe` (e.g. `!cacheComponents`)
+  // gates the *build*, not just the test bodies: some fixtures can't build
+  // under the condition at all. Snapshot the describe's gates now, while the
+  // describe body is still being collected — the stack is empty by `beforeAll`.
+  // Suites that manage their own build (`skipStart`) are left untouched.
+  const describeGates = getActiveDescribeGates()
+  // Deploy's "build" is a remote deployment we can't gate this way, and suites
+  // that pass `skipStart` build manually — leave both to their own handling.
+  const buildForceGated =
+    !options.skipStart && !isNextDeploy && hasLazyForceGate(describeGates)
+
   let next: NextInstance | undefined
   if (!skipped) {
     beforeAll(async () => {
-      next = await createNext(options)
+      if (!buildForceGated) {
+        next = await createNext(options)
+        return
+      }
+      // Try to decide the force-gate against the *source* fixture first,
+      // before paying for the fixture setup (which includes a dependency
+      // install when the run is isolated). The config resolver falls back to
+      // the repo's own `next` when the directory has no install, and the env
+      // mirrors what `getSpawnOpts` hands every fixture child process. An
+      // inline `files` object has no directory to resolve against, and any
+      // resolution failure (e.g. a config that imports from the fixture's
+      // own node_modules) falls through to the instance-based decision below.
+      if (typeof options.files === 'string') {
+        const config = await loadResolvedConfig({
+          dir: options.files,
+          phase: isNextDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+          env: {
+            ...process.env,
+            ...options.env,
+            NODE_ENV: (options.env?.NODE_ENV ||
+              '') as NodeJS.ProcessEnv['NODE_ENV'],
+            PORT: '0',
+            __NEXT_TEST_MODE: 'e2e',
+          },
+        }).catch(() => null)
+        const earlySkip = config && findLazyForceSkip(describeGates, config)
+        if (earlySkip) {
+          // No instance ever exists on this path, so register the resolved
+          // config directly for the per-test force-pass decisions.
+          registerFixture({ getResolvedConfig: async () => config })
+          require('console').warn(
+            `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
+              `(decided from the source fixture; setup skipped)`
+          )
+          return
+        }
+      }
+      // Set the fixture up (so its config is resolvable) without building, then
+      // resolve the force-gate. If it's false, skip the build entirely — the
+      // inherited gate makes every test force-pass, so nothing touches `next`.
+      const instance = await createNext({ ...options, skipStart: true })
+      next = instance
+      const config = await instance.getResolvedConfig()
+      const forceSkip = findLazyForceSkip(describeGates, config)
+      if (forceSkip) {
+        require('console').warn(
+          `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
+        )
+        return
+      }
+      try {
+        await instance.start()
+      } catch (err) {
+        await instance.destroy().catch(() => {})
+        next = undefined
+        throw err
+      }
     })
     afterAll(async () => {
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
       await next?.destroy()
+      // The early force-skip path registers a config source without an
+      // instance (an instance clears itself on destroy).
+      if (!next) clearFixture()
     })
   }
 
@@ -297,9 +484,7 @@ export function nextTestSetup(
       return isNextStart
     },
     get isTurbopack() {
-      return Boolean(
-        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
-      )
+      return Boolean(!isNextTestWasm && (options.turbo ?? shouldUseTurbopack()))
     },
     get isRspack() {
       return isRspack

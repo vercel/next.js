@@ -67,10 +67,13 @@ export function hasRepo({
   branch,
   filePath,
 }: RepoInfo): Promise<boolean> {
-  const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
-  const packagePath = `${filePath ? `/${filePath}` : ''}/package.json`
+  // Avoid GitHub's low unauthenticated API rate limit. create-next-app only
+  // needs to verify that the example's package.json can be downloaded.
+  const packagePath = `${filePath ? `${filePath}/` : ''}package.json`
 
-  return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
+  return isUrlOk(
+    `https://raw.githubusercontent.com/${username}/${name}/${branch}/${packagePath}`
+  )
 }
 
 export function existsInRepo(nameOrUrl: string): Promise<boolean> {

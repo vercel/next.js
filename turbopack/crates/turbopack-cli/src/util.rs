@@ -1,15 +1,13 @@
 use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
-use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{DiskFileSystem, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr};
 
-#[derive(
-    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum EntryRequest {
     Relative(RcStr),
     Module(RcStr, RcStr),
@@ -28,21 +26,14 @@ pub fn normalize_dirs(
     project_dir: &Option<PathBuf>,
     root_dir: &Option<PathBuf>,
 ) -> Result<NormalizedDirs> {
-    let project_dir: RcStr = project_dir
-        .as_ref()
-        .map(canonicalize)
-        .unwrap_or_else(current_dir)
-        .context("project directory can't be found")?
-        .to_str()
-        .context("project directory contains invalid characters")?
-        .into();
+    let project_dir = match project_dir.as_ref() {
+        Some(dir) => canonicalize_to_rcstr(dir),
+        None => canonicalize_to_rcstr(&current_dir().context("current directory can't be found")?),
+    }
+    .context("project directory can't be found")?;
 
     let root_dir = match root_dir.as_ref() {
-        Some(root) => canonicalize(root)
-            .context("root directory can't be found")?
-            .to_str()
-            .context("root directory contains invalid characters")?
-            .into(),
+        Some(root) => canonicalize_to_rcstr(root).context("root directory can't be found")?,
         None => project_dir.clone(),
     };
 
@@ -65,16 +56,20 @@ pub async fn project_fs(
     watch: bool,
     denied_root_path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs =
-        DiskFileSystem::new_with_denied_path(rcstr!("project"), project_dir, denied_root_path);
+    let disk_fs = DiskFileSystem::new_with_options(
+        rcstr!("project"),
+        Vc::cell(project_dir),
+        vec![denied_root_path],
+        DiskWatcherConfig::default(),
+    );
     if watch {
-        disk_fs.await?.start_watching(None).await?;
+        disk_fs.await?.start_watching().await?;
     }
     Ok(Vc::upcast(disk_fs))
 }
 
 #[turbo_tasks::function]
 pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(rcstr!("output"), project_dir);
+    let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
     Ok(Vc::upcast(disk_fs))
 }

@@ -8,15 +8,15 @@ use std::{
 };
 
 use anyhow::Result;
-use crossterm::style::{StyledContent, Stylize};
+use async_trait::async_trait;
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CollectibleIssuesExt, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
-    PlainTraceItem, StyledString,
+    IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainIssues, PlainTraceItem,
+    StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -93,6 +93,30 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+
+    // Render additional sources (e.g., generated code from a loader)
+    for additional in &plain_issue.additional_sources {
+        let desc = &additional.description;
+        let source = &additional.source;
+        match source.range {
+            Some((start, _)) => {
+                writeln!(
+                    styled_issue,
+                    "\n{}:\n{}:{}:{}",
+                    desc,
+                    source.asset.ident,
+                    start.line + 1,
+                    start.column + 1
+                )
+                .unwrap();
+            }
+            None => {
+                writeln!(styled_issue, "\n{}:\n{}", desc, source.asset.ident).unwrap();
+            }
+        }
+        format_source_content(source, &mut styled_issue);
+    }
+
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
         /// Returns the leaf layer name, which is the first present layer name in the trace
@@ -325,7 +349,7 @@ impl SeenIssues {
 ///
 /// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
 /// operating across all issues.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", evict = "never", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {
     options: LogOptions,
@@ -342,7 +366,7 @@ impl PartialEq for ConsoleUi {
 
 #[turbo_tasks::value_impl]
 impl ConsoleUi {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub fn new(options: TransientInstance<LogOptions>) -> Vc<Self> {
         ConsoleUi {
             options: (*options).clone(),
@@ -352,15 +376,15 @@ impl ConsoleUi {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl IssueReporter for ConsoleUi {
-    #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        source: TransientValue<RawVc>,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
         min_failing_severity: IssueSeverity,
-    ) -> Result<Vc<bool>> {
-        let issues = source.peek_issues();
+    ) -> Result<bool> {
         let LogOptions {
             ref current_dir,
             ref project_dir,
@@ -371,7 +395,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues().await?;
+        let plain_issues = &issues.0;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {
@@ -381,11 +405,7 @@ impl IssueReporter for ConsoleUi {
             .collect::<Vec<_>>();
 
         let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
-        let mut new_ids = self
-            .seen
-            .lock()
-            .unwrap()
-            .new_ids(source.into_value(), issue_ids);
+        let mut new_ids = self.seen.lock().unwrap().new_ids(source, issue_ids);
 
         let mut has_fatal = false;
         for (plain_issue, id) in issues {
@@ -515,7 +535,7 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(Vc::cell(has_fatal))
+        Ok(has_fatal)
     }
 }
 
@@ -537,15 +557,11 @@ fn make_relative_to_cwd<'a>(path: &'a str, project_dir: &Path, cwd: &Path) -> Co
     }
 }
 
-fn show_all_message(label: &str, size: usize) -> StyledContent<String> {
+fn show_all_message(label: &str, size: usize) -> String {
     show_all_message_with_shown_count(label, size, DEFAULT_SHOW_COUNT)
 }
 
-fn show_all_message_with_shown_count(
-    label: &str,
-    size: usize,
-    shown: usize,
-) -> StyledContent<String> {
+fn show_all_message_with_shown_count(label: &str, size: usize, shown: usize) -> String {
     if shown == 0 {
         format!(
             "... [{} {label}] are hidden, run with {} to show them",
@@ -553,6 +569,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     } else {
         format!(
             "... [{} more {label}] are hidden, run with {} to show all",
@@ -560,6 +577,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     }
 }
 

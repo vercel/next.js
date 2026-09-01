@@ -10,44 +10,24 @@ a#18 = arguments[0]
 
 a#7 = (
   | 1732584193
-  | md5ff(a, b, c, d, x[i], 7, ???*0*)
-  | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
+  | md5ff(a, b, c, d, x[i], 7, -680876936)
+  | md5ff(a, b, c, d, x[(i + 4)], 7, -176418897)
   | md5ff(a, b, c, d, x[(i + 8)], 7, 1770035416)
   | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682)
-  | md5gg(a, b, c, d, x[(i + 1)], 5, ???*2*)
-  | md5gg(a, b, c, d, x[(i + 5)], 5, ???*3*)
+  | md5gg(a, b, c, d, x[(i + 1)], 5, -165796510)
+  | md5gg(a, b, c, d, x[(i + 5)], 5, -701558691)
   | md5gg(a, b, c, d, x[(i + 9)], 5, 568446438)
-  | md5gg(a, b, c, d, x[(i + 13)], 5, ???*4*)
-  | md5hh(a, b, c, d, x[(i + 5)], 4, ???*5*)
-  | md5hh(a, b, c, d, x[(i + 1)], 4, ???*6*)
+  | md5gg(a, b, c, d, x[(i + 13)], 5, -1444681467)
+  | md5hh(a, b, c, d, x[(i + 5)], 4, -378558)
+  | md5hh(a, b, c, d, x[(i + 1)], 4, -1530992060)
   | md5hh(a, b, c, d, x[(i + 13)], 4, 681279174)
-  | md5hh(a, b, c, d, x[(i + 9)], 4, ???*7*)
-  | md5ii(a, b, c, d, x[i], 6, ???*8*)
+  | md5hh(a, b, c, d, x[(i + 9)], 4, -640364487)
+  | md5ii(a, b, c, d, x[i], 6, -198630844)
   | md5ii(a, b, c, d, x[(i + 12)], 6, 1700485571)
   | md5ii(a, b, c, d, x[(i + 8)], 6, 1873313359)
-  | md5ii(a, b, c, d, x[(i + 4)], 6, ???*9*)
+  | md5ii(a, b, c, d, x[(i + 4)], 6, -145523070)
   | safeAdd(a, olda)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* unsupported expression
-  ⚠️  This value might have side effects
 
 b#14 = arguments[2]
 
@@ -60,51 +40,25 @@ b#17 = arguments[1]
 b#18 = arguments[1]
 
 b#7 = (
-  | ???*0*
-  | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
-  | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
-  | md5ff(b, c, d, a, x[(i + 11)], 22, ???*3*)
+  | -271733879
+  | md5ff(b, c, d, a, x[(i + 3)], 22, -1044525330)
+  | md5ff(b, c, d, a, x[(i + 7)], 22, -45705983)
+  | md5ff(b, c, d, a, x[(i + 11)], 22, -1990404162)
   | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329)
-  | md5gg(b, c, d, a, x[i], 20, ???*4*)
-  | md5gg(b, c, d, a, x[(i + 4)], 20, ???*5*)
+  | md5gg(b, c, d, a, x[i], 20, -373897302)
+  | md5gg(b, c, d, a, x[(i + 4)], 20, -405537848)
   | md5gg(b, c, d, a, x[(i + 8)], 20, 1163531501)
-  | md5gg(b, c, d, a, x[(i + 12)], 20, ???*6*)
-  | md5hh(b, c, d, a, x[(i + 14)], 23, ???*7*)
-  | md5hh(b, c, d, a, x[(i + 10)], 23, ???*8*)
+  | md5gg(b, c, d, a, x[(i + 12)], 20, -1926607734)
+  | md5hh(b, c, d, a, x[(i + 14)], 23, -35309556)
+  | md5hh(b, c, d, a, x[(i + 10)], 23, -1094730640)
   | md5hh(b, c, d, a, x[(i + 6)], 23, 76029189)
-  | md5hh(b, c, d, a, x[(i + 2)], 23, ???*9*)
-  | md5ii(b, c, d, a, x[(i + 5)], 21, ???*10*)
-  | md5ii(b, c, d, a, x[(i + 1)], 21, ???*11*)
+  | md5hh(b, c, d, a, x[(i + 2)], 23, -995338651)
+  | md5ii(b, c, d, a, x[(i + 5)], 21, -57434055)
+  | md5ii(b, c, d, a, x[(i + 1)], 21, -2054922799)
   | md5ii(b, c, d, a, x[(i + 13)], 21, 1309151649)
-  | md5ii(b, c, d, a, x[(i + 9)], 21, ???*12*)
+  | md5ii(b, c, d, a, x[(i + 9)], 21, -343485551)
   | safeAdd(b, oldb)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* unsupported expression
-  ⚠️  This value might have side effects
 
 bitRotateLeft (const after eval) = (...) => ???*0*
 - *0* unsupported expression
@@ -123,47 +77,25 @@ c#17 = arguments[2]
 c#18 = arguments[2]
 
 c#7 = (
-  | ???*0*
+  | -1732584194
   | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
-  | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
-  | md5ff(c, d, a, b, x[(i + 10)], 17, ???*2*)
-  | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*)
+  | md5ff(c, d, a, b, x[(i + 6)], 17, -1473231341)
+  | md5ff(c, d, a, b, x[(i + 10)], 17, -42063)
+  | md5ff(c, d, a, b, x[(i + 14)], 17, -1502002290)
   | md5gg(c, d, a, b, x[(i + 11)], 14, 643717713)
-  | md5gg(c, d, a, b, x[(i + 15)], 14, ???*4*)
-  | md5gg(c, d, a, b, x[(i + 3)], 14, ???*5*)
+  | md5gg(c, d, a, b, x[(i + 15)], 14, -660478335)
+  | md5gg(c, d, a, b, x[(i + 3)], 14, -187363961)
   | md5gg(c, d, a, b, x[(i + 7)], 14, 1735328473)
   | md5hh(c, d, a, b, x[(i + 11)], 16, 1839030562)
-  | md5hh(c, d, a, b, x[(i + 7)], 16, ???*6*)
-  | md5hh(c, d, a, b, x[(i + 3)], 16, ???*7*)
+  | md5hh(c, d, a, b, x[(i + 7)], 16, -155497632)
+  | md5hh(c, d, a, b, x[(i + 3)], 16, -722521979)
   | md5hh(c, d, a, b, x[(i + 15)], 16, 530742520)
-  | md5ii(c, d, a, b, x[(i + 14)], 15, ???*8*)
-  | md5ii(c, d, a, b, x[(i + 10)], 15, ???*9*)
-  | md5ii(c, d, a, b, x[(i + 6)], 15, ???*10*)
+  | md5ii(c, d, a, b, x[(i + 14)], 15, -1416354905)
+  | md5ii(c, d, a, b, x[(i + 10)], 15, -1051523)
+  | md5ii(c, d, a, b, x[(i + 6)], 15, -1560198380)
   | md5ii(c, d, a, b, x[(i + 2)], 15, 718787259)
   | safeAdd(c, oldc)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* unsupported expression
-  ⚠️  This value might have side effects
 
 cnt = arguments[1]
 
@@ -177,48 +109,24 @@ d#18 = arguments[3]
 
 d#7 = (
   | 271733878
-  | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
+  | md5ff(d, a, b, c, x[(i + 1)], 12, -389564586)
   | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
-  | md5ff(d, a, b, c, x[(i + 9)], 12, ???*1*)
-  | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*)
-  | md5gg(d, a, b, c, x[(i + 6)], 9, ???*3*)
+  | md5ff(d, a, b, c, x[(i + 9)], 12, -1958414417)
+  | md5ff(d, a, b, c, x[(i + 13)], 12, -40341101)
+  | md5gg(d, a, b, c, x[(i + 6)], 9, -1069501632)
   | md5gg(d, a, b, c, x[(i + 10)], 9, 38016083)
-  | md5gg(d, a, b, c, x[(i + 14)], 9, ???*4*)
-  | md5gg(d, a, b, c, x[(i + 2)], 9, ???*5*)
-  | md5hh(d, a, b, c, x[(i + 8)], 11, ???*6*)
+  | md5gg(d, a, b, c, x[(i + 14)], 9, -1019803690)
+  | md5gg(d, a, b, c, x[(i + 2)], 9, -51403784)
+  | md5hh(d, a, b, c, x[(i + 8)], 11, -2022574463)
   | md5hh(d, a, b, c, x[(i + 4)], 11, 1272893353)
-  | md5hh(d, a, b, c, x[i], 11, ???*7*)
-  | md5hh(d, a, b, c, x[(i + 12)], 11, ???*8*)
+  | md5hh(d, a, b, c, x[i], 11, -358537222)
+  | md5hh(d, a, b, c, x[(i + 12)], 11, -421815835)
   | md5ii(d, a, b, c, x[(i + 7)], 10, 1126891415)
-  | md5ii(d, a, b, c, x[(i + 3)], 10, ???*9*)
-  | md5ii(d, a, b, c, x[(i + 15)], 10, ???*10*)
-  | md5ii(d, a, b, c, x[(i + 11)], 10, ???*11*)
+  | md5ii(d, a, b, c, x[(i + 3)], 10, -1894986606)
+  | md5ii(d, a, b, c, x[(i + 15)], 10, -30611744)
+  | md5ii(d, a, b, c, x[(i + 11)], 10, -1120210379)
   | safeAdd(d, oldd)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* unsupported expression
-  ⚠️  This value might have side effects
 
 hex = (
   | ???*0*

@@ -14,7 +14,7 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_trait]
 pub trait OutputAssetsReference {
-    /// References to other [OutputAsset]s from this [OutputAssetReference].
+    /// References to other [`OutputAsset`]s from this [`OutputAssetsReference`].
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced {
@@ -26,8 +26,10 @@ pub trait OutputAssetsReference {
     }
 }
 
-/// An asset that should be outputted, e. g. written to disk or served from a
-/// server.
+/// An asset that should be outputted, e. g. written to disk or served from a server.
+///
+/// For documentation about where this is used and how it fits into the rest of Turbopack, see
+/// [`crate::_layers`].
 #[turbo_tasks::value_trait]
 pub trait OutputAsset: Asset + OutputAssetsReference {
     /// The identifier of the [OutputAsset]. It's expected to be unique and
@@ -40,11 +42,6 @@ pub trait OutputAsset: Asset + OutputAssetsReference {
     #[turbo_tasks::function]
     fn path_string(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
-    }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        Vc::cell(None)
     }
 }
 
@@ -83,6 +80,13 @@ impl OutputAssets {
     }
 
     #[turbo_tasks::function]
+    pub async fn concat_asset(&self, asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Self>> {
+        let mut assets: FxIndexSet<_> = self.0.iter().copied().collect();
+        assets.extend([asset]);
+        Ok(Vc::cell(assets.into_iter().collect()))
+    }
+
+    #[turbo_tasks::function]
     pub async fn concat(other: Vec<Vc<Self>>) -> Result<Vc<Self>> {
         let mut assets: FxIndexSet<_> = FxIndexSet::default();
         for other in other {
@@ -107,7 +111,9 @@ pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+pub struct OutputAssetsSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
@@ -131,13 +137,13 @@ impl OutputAssetsWithReferenced {
             self.assets
                 .await?
                 .into_iter()
-                .chain(self.referenced_assets.await?.into_iter())
-                .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+                .chain(self.referenced_assets.await?)
+                .map(ExpandOutputAssetsInput::Asset)
                 .chain(
                     self.references
                         .await?
                         .into_iter()
-                        .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+                        .map(ExpandOutputAssetsInput::Reference),
                 ),
             inner_output_assets,
         )
@@ -159,22 +165,32 @@ impl OutputAssetsWithReferenced {
 
     #[turbo_tasks::function]
     pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
+        let other = other.await?;
         Ok(Self {
-            assets: self
-                .assets
-                .concatenate(*other.await?.assets)
-                .to_resolved()
-                .await?,
+            assets: self.assets.concatenate(*other.assets).to_resolved().await?,
             referenced_assets: self
                 .referenced_assets
-                .concatenate(*other.await?.referenced_assets)
+                .concatenate(*other.referenced_assets)
                 .to_resolved()
                 .await?,
             references: self
                 .references
-                .concatenate(*other.await?.references)
+                .concatenate(*other.references)
                 .to_resolved()
                 .await?,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate_asset(
+        &self,
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self {
+            assets: self.assets.concat_asset(*asset).to_resolved().await?,
+            referenced_assets: self.referenced_assets,
+            references: self.references,
         }
         .cell())
     }
@@ -208,13 +224,11 @@ impl OutputAssetsWithReferenced {
                 self.referenced_assets
                     .await?
                     .into_iter()
-                    .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
                         self.references
                             .await?
                             .into_iter()
-                            .copied()
                             .map(ExpandOutputAssetsInput::Reference),
                     ),
                 false,
@@ -242,13 +256,13 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter())
-        .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+        .chain(refs.referenced_assets.await?)
+        .map(ExpandOutputAssetsInput::Asset)
         .chain(
             refs.references
                 .await?
                 .into_iter()
-                .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+                .map(ExpandOutputAssetsInput::Reference),
         );
     Ok(Either::Right(assets))
 }
@@ -264,13 +278,11 @@ pub async fn expand_output_assets(
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
     let edges = AdjacencyMap::new()
-        .skip_duplicates()
-        .visit(inputs, async |input| {
-            get_referenced_assets(inner_output_assets, input).await
+        .visit(inputs, |input| {
+            get_referenced_assets(inner_output_assets, input)
         })
         .await
         .completed()?
-        .into_inner()
         .into_postorder_topological();
 
     let mut assets = Vec::new();

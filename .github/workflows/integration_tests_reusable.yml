@@ -36,27 +36,39 @@ on:
       num_retries:
         type: number
         default: 2
+      nodeVersion:
+        description: 'version of Node.js to use'
+        type: string
+        default: 20.9.0
 
 jobs:
   # First, build Next.js to execute across tests.
   build-next:
     name: build-next
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       skipNativeBuild: yes
       stepName: build-next
     secrets: inherit
 
   build-native:
     name: build-native
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       skipInstallBuild: yes
       stepName: build-native
     secrets: inherit
 
   generate-matrices:
-    runs-on: [self-hosted, linux, x64, metal]
+    runs-on: ubuntu-latest-4-core-oss
     steps:
       - id: out
         run: |
@@ -86,15 +98,19 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.e2e) }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       afterBuild: |
         # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
 
-        export NEXT_TEST_CONTINUE_ON_ERROR=true
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 
@@ -117,13 +133,14 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: ${{ inputs.nodeVersion }}
       afterBuild: |
         # legacy integration tests with `node run-tests.js`
-
-        export NEXT_TEST_CONTINUE_ON_ERROR=true
 
         # HACK: Despite the name, these environment variables are just used to
         # gate tests, so they're applicable to both turbopack and rspack tests
@@ -132,6 +149,7 @@ jobs:
             'TURBOPACK_DEV=1' ||
             'TURBOPACK_BUILD=1'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 
@@ -148,13 +166,15 @@ jobs:
   collect_nextjs_development_integration_stat:
     needs: [test-e2e, test-integration]
     name: Next.js integration test development status report
-    runs-on: [self-hosted, linux, x64, metal]
+    runs-on: ubuntu-latest-4-core-oss
     if: always()
     permissions:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Collect integration test stat
         uses: ./.github/actions/next-integration-stat
@@ -162,7 +182,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-${{ inputs.name }}
           path: |

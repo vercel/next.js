@@ -1,4 +1,5 @@
-export const unstable_prefetch = { mode: 'runtime', samples: [{}] }
+export const instant = true
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

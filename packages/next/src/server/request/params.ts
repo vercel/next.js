@@ -3,23 +3,21 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type { OpaqueFallbackRouteParams } from './fallback-params'
+import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import {
+  createVaryingParams,
+  getMetadataVaryParamsAccumulator,
+} from '../app-render/vary-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  throwToInterruptStaticGeneration,
-  postponeWithTracking,
-  delayUntilRuntimeStage,
-} from '../app-render/dynamic-rendering'
-
-import {
   workUnitAsyncStorage,
-  type PrerenderStorePPR,
-  type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
   type PrerenderStoreModernRuntime,
   type RequestStore,
+  type ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -28,30 +26,47 @@ import {
 } from '../../shared/lib/utils/reflect-utils'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeFallbackParamsHangingPromise,
+  makePromiseFromTrigger,
+  trackFallbackParamsAccessed,
+  RENDER_STAGES_BY_DATA_KIND,
+  trackPromiseUsed,
+  trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
-import { RenderStage } from '../app-render/staged-rendering'
+import {
+  isEmptyParams,
+  hasFallbackRouteParams,
+  allParamsAreRootParams,
+} from '../lib/params-utils'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
 
 export function createParamsFromClient(
-  underlyingParams: Params,
-  workStore: WorkStore
+  underlyingParams: Params
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
+        // Client params don't need additional vary tracking because by the
+        // time they reach the client, the access would have already been
+        // tracked by the server.
+        const varyParamsAccumulator = null
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       case 'cache':
       case 'private-cache':
@@ -63,21 +78,42 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
         )
-      case 'request':
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createParamsFromClient should not be called inside generateStaticParams.'
+        )
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
+          )
+        }
+        return makeUntrackedParams(underlyingParams)
+      }
+      case 'request': {
+        if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
+          )
+        }
         if (process.env.NODE_ENV === 'development') {
-          // Semantically we only need the dev tracking when running in `next dev`
-          // but since you would never use next dev with production NODE_ENV we use this
-          // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
+          const fallbackParams = workUnitStore.fallbackParams
+          const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
-            devFallbackParams,
+            userspaceParams,
+            fallbackParams,
             workStore,
             workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
         }
+      }
       default:
         workUnitStore satisfies never
     }
@@ -87,24 +123,43 @@ export function createParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
-export const createServerParamsForMetadata = createServerParamsForServerSegment
+export function createServerParamsForMetadata(
+  underlyingParams: Params,
+  optionalCatchAllParamName: string | null
+): Promise<Params> {
+  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+  return createServerParamsForServerSegment(
+    underlyingParams,
+    optionalCatchAllParamName,
+    metadataVaryParamsAccumulator
+  )
+}
 
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  workStore: WorkStore
+  varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'prerender-client':
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in client contexts.'
         )
       case 'cache':
       case 'private-cache':
@@ -112,17 +167,23 @@ export function createServerParamsForRoute(
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
-      case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called inside generateStaticParams.'
+        )
+      case 'prerender-runtime': {
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in runtime prerenders.'
+        )
+      }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
-          // Semantically we only need the dev tracking when running in `next dev`
-          // but since you would never use next dev with production NODE_ENV we use this
-          // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
+          const fallbackParams = workUnitStore.fallbackParams
+          const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
-            devFallbackParams,
+            userspaceParams,
+            fallbackParams,
             workStore,
             workUnitStore
           )
@@ -138,19 +199,29 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  workStore: WorkStore
+  optionalCatchAllParamName: string | null,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          optionalCatchAllParamName,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called in client contexts.'
         )
       case 'cache':
       case 'private-cache':
@@ -158,23 +229,27 @@ export function createServerParamsForServerSegment(
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called inside generateStaticParams.'
+        )
       case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
-      case 'request':
-        if (process.env.NODE_ENV === 'development') {
-          // Semantically we only need the dev tracking when running in `next dev`
-          // but since you would never use next dev with production NODE_ENV we use this
-          // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
-          return createRenderParamsInDev(
-            underlyingParams,
-            devFallbackParams,
-            workStore,
-            workUnitStore
-          )
-        } else {
-          return createRenderParamsInProd(underlyingParams)
-        }
+        return createRuntimePrerenderParams(
+          underlyingParams,
+          optionalCatchAllParamName,
+          workStore,
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'request': {
+        return createRenderParamsForPage(
+          workStore,
+          workUnitStore,
+          underlyingParams,
+          optionalCatchAllParamName,
+          varyParamsAccumulator
+        )
+      }
       default:
         workUnitStore satisfies never
     }
@@ -205,14 +280,20 @@ export function createPrerenderParamsForClientSegment(
               // to consider the awaiting of this params object "dynamic". Since
               // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
-              return makeHangingPromise(
+              return makeFallbackParamsHangingPromise(
                 workUnitStore.renderSignal,
                 workStore.route,
-                '`params`'
+                '`params`',
+                workUnitStore
               )
             }
           }
         }
+        break
+      case 'validation-client':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called in validation contexts.'
+        )
         break
       case 'cache':
       case 'private-cache':
@@ -220,9 +301,12 @@ export function createPrerenderParamsForClientSegment(
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called in cache contexts.'
         )
-      case 'prerender-ppr':
-      case 'prerender-legacy':
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
+        )
       case 'prerender-runtime':
+      case 'prerender-legacy':
       case 'request':
         break
       default:
@@ -237,11 +321,55 @@ export function createPrerenderParamsForClientSegment(
 
 function createStaticPrerenderParams(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
+  prerenderStore: StaticPrerenderStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
   switch (prerenderStore.type) {
-    case 'prerender':
+    case 'prerender': {
+      let userspaceParams = underlyingParams
+      if (varyParamsAccumulator !== null) {
+        userspaceParams = createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
+      }
+
+      if (isEmptyParams(underlyingParams)) {
+        // This route has no params.
+        return makeUntrackedParams(userspaceParams)
+      }
+
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (hasFallbackRouteParams(underlyingParams, fallbackParams)) {
+        // This params object has one or more fallback params, so we need
+        // to consider the awaiting of this params object dynamic.
+        return makeHangingParams(underlyingParams, workStore, prerenderStore)
+      }
+
+      // All params are static.
+
+      const { stagedRendering } = prerenderStore
+      if (stagedRendering) {
+        // Even if all params are static, we need to exclude them from the app shell
+        // by delaying them to the static stage. However, root params are allowed in shells,
+        // so if all the params are root params, they can be included as well.
+        if (
+          !allParamsAreRootParams(underlyingParams, prerenderStore.rootParams)
+        ) {
+          const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+          return stagedRendering.delayUntilStage(
+            staticParamsStage,
+            'params',
+            userspaceParams
+          )
+        }
+      }
+
+      return makeUntrackedParams(userspaceParams)
+    }
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams) {
@@ -261,64 +389,273 @@ function createStaticPrerenderParams(
       }
       break
     }
-    case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParams,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
-      }
-      break
-    }
     case 'prerender-legacy':
       break
     default:
       prerenderStore satisfies never
   }
 
-  return makeUntrackedParams(underlyingParams)
+  let userspaceParams = underlyingParams
+  if (varyParamsAccumulator !== null) {
+    userspaceParams = createVaryingParams(
+      varyParamsAccumulator,
+      underlyingParams,
+      optionalCatchAllParamName
+    )
+  }
+  return makeUntrackedParams(userspaceParams)
 }
 
 function createRuntimePrerenderParams(
   underlyingParams: Params,
-  workUnitStore: PrerenderStoreModernRuntime
+  optionalCatchAllParamName: string | null,
+  workStore: WorkStore,
+  workUnitStore: PrerenderStoreModernRuntime,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
-  return delayUntilRuntimeStage(
+  let userspaceParams = underlyingParams
+  if (varyParamsAccumulator !== null) {
+    userspaceParams = createVaryingParams(
+      varyParamsAccumulator,
+      underlyingParams,
+      optionalCatchAllParamName
+    )
+  }
+
+  if (isEmptyParams(underlyingParams)) {
+    // This route has no params.
+    return makeUntrackedParams(userspaceParams)
+  }
+
+  // Root params are allowed in shells, so we allow them to resolve without a delay.
+  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+    return makeUntrackedParams(userspaceParams)
+  }
+
+  // Non-root params are URL data, and we need to recover a param-less session shell,
+  // so we delay all params until the runtime stage (even if they're static)
+  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    // If there's no stage controller, we're in a prospective runtime prerender.
+    // Make sure we don't unblock content that won't be reached in the final prerender.
+    if (workUnitStore.finalStage < paramsStage) {
+      return makeHangingParams(underlyingParams, workStore, workUnitStore)
+    } else {
+      return makeUntrackedParams(userspaceParams)
+    }
+  }
+
+  return stagedRendering.delayUntilStage(paramsStage, 'params', userspaceParams)
+}
+
+function createRenderParamsForPage(
+  workStore: WorkStore,
+  workUnitStore: RequestStore,
+  underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
+  varyParamsAccumulator: VaryParamsAccumulator | null
+) {
+  const { stagedRendering, asyncApiPromises, validationSamples } = workUnitStore
+
+  // Distinguish the params that we expose to userspace (potentially wrapped in proxies)
+  // and the underlying object containing params values. We do this because wrappers
+  // like `instrumentParamsPromiseWithDevWarnings` need to be able to get the known param names
+  // without triggering other wrapper proxies.
+  let userspaceParams = underlyingParams
+  if (validationSamples) {
+    userspaceParams = createServerParamsProxyForInstantValidation(
+      underlyingParams,
+      workStore,
+      validationSamples
+    )
+  }
+  if (varyParamsAccumulator) {
+    userspaceParams = createVaryingParams(
+      varyParamsAccumulator,
+      userspaceParams,
+      optionalCatchAllParamName
+    )
+  }
+
+  if (stagedRendering && asyncApiPromises) {
+    return createStagedRenderParams(
+      workStore,
+      workUnitStore,
+      stagedRendering,
+      asyncApiPromises,
+      underlyingParams,
+      userspaceParams
+    )
+  }
+
+  // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
+  if (process.env.NODE_ENV === 'development') {
+    const fallbackParams = workUnitStore.fallbackParams
+    return createRenderParamsInDev(
+      underlyingParams,
+      userspaceParams,
+      fallbackParams,
+      workStore,
+      workUnitStore
+    )
+  } else {
+    return createRenderParamsInProd(userspaceParams)
+  }
+}
+
+function createStagedRenderParams(
+  workStore: WorkStore,
+  workUnitStore: RequestStore,
+  stagedRendering: NonNullable<RequestStore['stagedRendering']>,
+  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
+  underlyingParams: Params,
+  userspaceParams: Params
+) {
+  const promise = createStagedRenderParamsImpl(
     workUnitStore,
-    makeUntrackedParams(underlyingParams)
+    stagedRendering,
+    asyncApiPromises,
+    underlyingParams,
+    userspaceParams
+  )
+  if (process.env.NODE_ENV === 'development') {
+    return instrumentParamsPromiseWithDevWarnings(
+      underlyingParams,
+      promise,
+      workStore
+    )
+  } else {
+    return promise
+  }
+}
+
+function createStagedRenderParamsImpl(
+  workUnitStore: RequestStore,
+  stagedRendering: NonNullable<RequestStore['stagedRendering']>,
+  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
+  /** The actual param values, without any instrumentation */
+  underlyingParams: Params,
+  /** The params object to return to userspace, possibly wrapped in a proxy */
+  userspaceParams: Params
+) {
+  // If the route has no params, they should resolve immediately.
+  if (isEmptyParams(underlyingParams)) {
+    return makeUntrackedParams(userspaceParams)
+  }
+
+  // If we have fallback params, then they should always resolve in the runtime link data stage.
+  // We do this indirectly via the shared params parent for better debug info.
+  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
+    return createParamsPromiseFromTrigger(
+      asyncApiPromises.sharedParamsParent,
+      userspaceParams
+    )
+  }
+
+  // All params are static.
+
+  // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
+  // However, root params are allowed in shells, so if all the params are root params, they can be included as well.
+  if (!allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+    // For a dynamic request we generally want to recover a static shell,
+    // so static params can resolve in the static stage, because session
+    // shells are handled with a separate render.
+    // However, in dev we might need to recover a session shell for instant validation.
+    // This is indicated by `needsAppShell`.
+    const staticParamsStage = workUnitStore.needsAppShell
+      ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+      : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+
+    const promise = stagedRendering.delayUntilStage(
+      staticParamsStage,
+      'params',
+      userspaceParams
+    )
+    if (process.env.__NEXT_DEV_SERVER) {
+      // If static params are accessed, we can recover a static shell or a session shell, but not both.
+      return trackPromiseUsed(
+        promise,
+        trackIncompatibleShellContent.bind(null, workUnitStore)
+      )
+    } else {
+      return promise
+    }
+  }
+
+  return makeUntrackedParams(userspaceParams)
+}
+
+function createParamsPromiseFromTrigger(
+  trigger: Promise<any>,
+  userspaceParams: Params
+) {
+  if (process.env.NODE_ENV === 'development') {
+    // We wrap each instance of params in a `new Promise()`, which lets us show each
+    // await a different set of values. This is important when all awaits
+    // are in third party which would otherwise track all the way to the
+    // internal params.
+    const promise: Promise<Params> = new Promise((resolve, reject) => {
+      trigger.then(() => resolve(userspaceParams), reject)
+    })
+    promise.catch(noop)
+    // @ts-expect-error
+    promise.displayName = 'params'
+    return promise
+  } else {
+    return makePromiseFromTrigger(trigger, userspaceParams)
+  }
+}
+
+function noop() {}
+
+function createServerParamsProxyForInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: NonNullable<RequestStore['validationSamples']>
+): Params {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples.params ?? {}))
+  return createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
   )
 }
 
-function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
-  return makeUntrackedParams(underlyingParams)
+function createClientParamsInInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: ValidationStoreClient['validationSamples']
+): Promise<Params> {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples?.params ?? {}))
+  const proxiedUnderlying = createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
+  )
+  return Promise.resolve(proxiedUnderlying)
+}
+
+function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
+  return makeUntrackedParams(userspaceParams)
 }
 
 function createRenderParamsInDev(
   underlyingParams: Params,
-  devFallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  userpaceParams: Params,
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
-  let hasFallbackParams = false
-  if (devFallbackParams) {
-    for (let key in underlyingParams) {
-      if (devFallbackParams.has(key)) {
-        hasFallbackParams = true
-        break
-      }
-    }
-  }
-
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
-    hasFallbackParams,
+    userpaceParams,
+    hasFallbackRouteParams(underlyingParams, fallbackParams),
     workStore,
     requestStore
   )
@@ -334,6 +671,15 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 
       return {
         [prop]: (...args: unknown[]) => {
+          // Record against the store that's active at access time: the
+          // hanging promise is cached by params object across prerender
+          // stores, so the store that created it may not be the one that's
+          // rendering when it's finally awaited.
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          if (workUnitStore !== undefined) {
+            trackFallbackParamsAccessed(workUnitStore, '`params`')
+          }
+
           const store = dynamicAccessAsyncStorage.getStore()
 
           if (store) {
@@ -357,7 +703,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 function makeHangingParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStoreModern
+  prerenderStore: StaticPrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -365,74 +711,19 @@ function makeHangingParams(
   }
 
   const promise = new Proxy(
-    makeHangingPromise<Params>(
+    makeFallbackParamsHangingPromise<Params>(
       prerenderStore.renderSignal,
       workStore.route,
-      '`params`'
+      '`params`',
+      // Passing `null` for the store disables tracking of params usage.
+      // Caches need the additional logic from `fallbackParamsProxyHandler`,
+      // so we track params usage there instead.
+      null
     ),
     fallbackParamsProxyHandler
   )
 
   CachedParams.set(underlyingParams, promise)
-
-  return promise
-}
-
-function makeErroringParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams,
-  workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const augmentedUnderlying = { ...underlyingParams }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      if (fallbackParams.has(prop)) {
-        Object.defineProperty(augmentedUnderlying, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          enumerable: true,
-        })
-      }
-    }
-  })
 
   return promise
 }
@@ -451,29 +742,11 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
 
 function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
+  userspaceParams: Params,
   hasFallbackParams: boolean,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
-  if (requestStore.asyncApiPromises && hasFallbackParams) {
-    // We wrap each instance of params in a `new Promise()`, because deduping
-    // them across requests doesn't work anyway and this let us show each
-    // await a different set of values. This is important when all awaits
-    // are in third party which would otherwise track all the way to the
-    // internal params.
-    const sharedParamsParent = requestStore.asyncApiPromises.sharedParamsParent
-    const promise: Promise<Params> = new Promise((resolve, reject) => {
-      sharedParamsParent.then(() => resolve(underlyingParams), reject)
-    })
-    // @ts-expect-error
-    promise.displayName = 'params'
-    return instrumentParamsPromiseWithDevWarnings(
-      underlyingParams,
-      promise,
-      workStore
-    )
-  }
-
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -484,12 +757,12 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // instrument the promise with spreadable properties of ReactPromise.
   const promise = hasFallbackParams
     ? makeDevtoolsIOAwarePromise(
-        underlyingParams,
+        userspaceParams,
         requestStore,
-        RenderStage.Runtime
+        RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       )
     : // We don't want to force an environment transition when this params is not part of the fallback params set
-      Promise.resolve(underlyingParams)
+      Promise.resolve(userspaceParams)
 
   const proxiedPromise = instrumentParamsPromiseWithDevWarnings(
     underlyingParams,

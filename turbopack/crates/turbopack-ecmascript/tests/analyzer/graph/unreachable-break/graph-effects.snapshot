@@ -60,9 +60,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -227,9 +231,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            8,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -359,9 +367,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            9,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -540,9 +552,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            3,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -672,9 +688,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -853,9 +873,13 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            5,
+                        ),
+                    ),
                 },
             ),
             Constant(

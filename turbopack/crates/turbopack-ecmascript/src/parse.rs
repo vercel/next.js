@@ -1,9 +1,11 @@
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
+use async_trait::async_trait;
 use bytes_str::BytesStr;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
@@ -12,7 +14,10 @@ use swc_core::{
         source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
-        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
+        ast::{
+            EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, TsModuleDecl,
+            TsModuleName, VarDecl,
+        },
         lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::{
@@ -27,19 +32,15 @@ use swc_core::{
 };
 use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
-    error::PrettyPrintError,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -47,14 +48,105 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
     analyzer::graph::EvalContext,
+    magic_identifier,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+/// Collects identifier names and their byte positions from an AST.
+/// This is used to populate the `names` field in source maps.
+/// Based on swc_compiler_base::IdentCollector.
+pub struct IdentCollector {
+    names_vec: Vec<(BytePos, Atom)>,
+    /// Stack of current class names for mapping constructors to class names
+    class_stack: Vec<Atom>,
+}
+
+impl IdentCollector {
+    /// Converts the collected identifiers into a map keyed by the start position of the identifier
+    pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
+        FxHashMap::from_iter(self.names_vec)
+    }
+}
+impl Default for IdentCollector {
+    fn default() -> Self {
+        Self {
+            names_vec: Vec::with_capacity(128),
+            class_stack: Vec::new(),
+        }
+    }
+}
+
+/// Unmangles a Turbopack magic identifier, returning the original name or the input if not mangled
+fn unmangle_atom(name: &Atom) -> Atom {
+    magic_identifier::unmangle(name)
+        .map(Atom::from)
+        .unwrap_or_else(|| name.clone())
+}
+
+impl Visit for IdentCollector {
+    noop_visit_type!();
+
+    fn visit_ident(&mut self, ident: &Ident) {
+        // Skip dummy spans - these are synthetic/generated identifiers
+        if !ident.span.lo.is_dummy() {
+            // we can get away with just the `lo` positions since identifiers cannot overlap.
+            self.names_vec
+                .push((ident.span.lo, unmangle_atom(&ident.sym)));
+        }
+    }
+
+    fn visit_ident_name(&mut self, ident: &IdentName) {
+        if ident.span.lo.is_dummy() {
+            return;
+        }
+
+        // Map constructor names to the class name
+        let mut sym = &ident.sym;
+        if ident.sym == "constructor" {
+            if let Some(class_name) = self.class_stack.last() {
+                sym = class_name;
+            } else {
+                // If no class name in stack, skip the constructor mapping
+                return;
+            }
+        }
+
+        self.names_vec.push((ident.span.lo, unmangle_atom(sym)));
+    }
+
+    fn visit_class_decl(&mut self, decl: &swc_core::ecma::ast::ClassDecl) {
+        // Push class name onto stack
+        self.class_stack.push(decl.ident.sym.clone());
+
+        // Visit the identifier and class
+        self.visit_ident(&decl.ident);
+        self.visit_class(&decl.class);
+
+        // Pop class name from stack
+        self.class_stack.pop();
+    }
+
+    fn visit_class_expr(&mut self, expr: &swc_core::ecma::ast::ClassExpr) {
+        // Push class name onto stack if it exists
+        if let Some(ref ident) = expr.ident {
+            self.class_stack.push(ident.sym.clone());
+            self.visit_ident(ident);
+        }
+
+        // Visit the class body
+        self.visit_class(&expr.class);
+
+        // Pop class name from stack if it was pushed
+        if expr.ident.is_some() {
+            self.class_stack.pop();
+        }
+    }
+}
+
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
-    // Note: Ok must not contain any Vc as it's snapshot by failsafe_parse
     Ok {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         program: Program,
@@ -66,6 +158,12 @@ pub enum ParseResult {
         globals: Arc<Globals>,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
+        source_mapping_url: Option<RcStr>,
+        /// Raw bytes of the source that produced this parse, captured atomically
+        /// with the AST. `failsafe_parse` uses this to recover good parses in development on
+        /// error.
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        program_source: Rope,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -73,6 +171,11 @@ pub enum ParseResult {
     NotFound,
 }
 
+/// Generates a [`StructuredSourceMap`] for the transformed code, whose `sourcesContent`
+/// entries are individual shared ropes instead of being embedded in the serialized JSON. This
+/// keeps later `sources` URL rewrites and map embedding from copying the source text of every
+/// module. Serialize with [`StructuredSourceMap::to_rope`] where raw bytes are needed.
+///
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = "info", name = "generate source map", skip_all)]
@@ -82,7 +185,8 @@ pub fn generate_js_source_map<'a>(
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
-) -> Result<Rope> {
+    names: FxHashMap<BytePos, Atom>,
+) -> Result<StructuredSourceMap> {
     let original_source_maps = original_source_maps
         .into_iter()
         .map(|map| map.to_bytes())
@@ -107,18 +211,15 @@ pub fn generate_js_source_map<'a>(
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
             inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+            names,
         },
     );
 
     if original_source_maps.is_empty() {
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
-
         add_default_ignore_list(&mut new_mappings);
-
-        let mut result = vec![];
-        new_mappings.to_writer(&mut result)?;
-        Ok(Rope::from(result))
+        StructuredSourceMap::from_swc_map(new_mappings)
     } else if fast_path_single_original_source_map {
         let mut map = original_source_maps.into_iter().next().unwrap();
         // TODO: Make this more efficient
@@ -127,16 +228,15 @@ pub fn generate_js_source_map<'a>(
         // TODO: Enable this when we have a way to handle the ignore list
         // add_default_ignore_list(&mut map);
         let map = map.into_raw_sourcemap();
-        let result = serde_json::to_vec(&map)?;
-        Ok(Rope::from(result))
+        // The fallback covers raw maps with fields the structured form does not know.
+        StructuredSourceMap::from_serialize(&map)
+            .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
     } else {
         let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
 
         add_default_ignore_list(&mut map);
 
-        let mut result = vec![];
-        map.to_writer(&mut result)?;
-        Ok(Rope::from(result))
+        StructuredSourceMap::from_swc_map(map)
     }
 }
 
@@ -145,13 +245,21 @@ pub fn generate_js_source_map<'a>(
 /// sourcemap, so we need to provide a custom config to do it.
 pub struct InlineSourcesContentConfig {
     inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
 }
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_URL_PROTOCOL}///{s}")
+                // format! here is suboptimal and allocates over and over again.
+                // On a random test next test project this one spot accounted for
+                // 10% of allocations, hence the more verbose approach.
+                let mut out = String::with_capacity(SOURCE_URL_PROTOCOL_STR.len() + 3 + s.len());
+                out.push_str(SOURCE_URL_PROTOCOL_STR);
+                out.push_str("///");
+                out.push_str(s);
+                out
             }
             _ => f.to_string(),
         }
@@ -160,6 +268,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn inline_sources_content(&self, _f: &FileName) -> bool {
         self.inline_sources_content
     }
+
+    fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
+        self.names.get(&pos).map(|v| &**v)
+    }
 }
 
 #[turbo_tasks::function]
@@ -167,6 +279,7 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     is_external_tracing: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -176,15 +289,20 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        node_env,
+        is_external_tracing,
+        inline_helpers,
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
-        Err(error) => Err(error.context(format!(
-            "failed to parse {}",
-            source.ident().to_string().await?
-        ))),
+        // ast-grep-ignore: no-context-turbofmt
+        Err(error) => Err(error.context(turbofmt!("failed to parse {}", source.ident()).await?)),
     }
 }
 
@@ -192,13 +310,15 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path = source.ident().path().owned().await?;
+    let source_ident = source.ident().await?;
+    let fs_path = &source_ident.path;
     let ident = &*source.ident().to_string().await?;
-    let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
+    let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {
@@ -225,67 +345,39 @@ async fn parse_internal(
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => {
-                match BytesStr::from_utf8(file.content().clone().into_bytes()) {
-                    Ok(string) => {
-                        let transforms = &*transforms.await?;
-                        match parse_file_content(
-                            string,
-                            &fs_path,
-                            ident,
-                            source.ident().await?.query.clone(),
-                            file_path_hash,
-                            source,
-                            ty,
-                            transforms,
-                            loose_errors,
-                            inline_helpers,
-                        )
-                        .await
-                        {
-                            Ok(result) => result,
-                            Err(e) => {
-                                return Err(e).context(anyhow!(
-                                    "Transforming and/or parsing of {} failed",
-                                    source.ident().to_string().await?
-                                ));
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        let error: RcStr = PrettyPrintError(
-                            &anyhow::anyhow!(error).context("failed to convert rope into string"),
-                        )
-                        .to_string()
-                        .into();
-                        ReadSourceIssue {
-                            // Technically we could supply byte offsets to the issue source, but
-                            // that would cause another utf8 error to be produced when we
-                            // attempt to infer line/column
-                            // offsets
-                            source: IssueSource::from_source_only(source),
-                            error: error.clone(),
-                            severity: if loose_errors {
-                                IssueSeverity::Warning
-                            } else {
-                                IssueSeverity::Error
-                            },
-                        }
-                        .resolved_cell()
-                        .emit();
-                        ParseResult::Unparsable {
-                            messages: Some(vec![error]),
-                        }
-                        .cell()
+                let transforms = &*transforms.await?;
+                match parse_file_content(
+                    file.content().clone(),
+                    fs_path,
+                    ident,
+                    source_ident.query.clone(),
+                    file_path_hash,
+                    source,
+                    ty,
+                    transforms,
+                    node_env.clone(),
+                    loose_errors,
+                    inline_helpers,
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(e) => {
+                        // ast-grep-ignore: no-context-turbofmt
+                        return Err(e).context(
+                            turbofmt!("Transforming and/or parsing of {} failed", source.ident())
+                                .await?,
+                        );
                     }
                 }
             }
         },
-        AssetContent::Redirect { .. } => ParseResult::Unparsable { messages: None }.cell(),
+        AssetContent::Redirect(..) => ParseResult::Unparsable { messages: None }.cell(),
     })
 }
 
 async fn parse_file_content(
-    string: BytesStr,
+    program_source: Rope,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -293,9 +385,39 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
+    let string = match BytesStr::from_utf8(program_source.clone().into_bytes()) {
+        Ok(s) => s,
+        Err(error) => {
+            let error: RcStr = PrettyPrintError(
+                &anyhow::anyhow!(error).context("failed to convert rope into string"),
+            )
+            .to_string()
+            .into();
+            ReadSourceIssue {
+                // Technically we could supply byte offsets to the issue source, but
+                // that would cause another utf8 error to be produced when we
+                // attempt to infer line/column
+                // offsets
+                source: IssueSource::from_source_only(source),
+                error: error.clone(),
+                severity: if loose_errors {
+                    IssueSeverity::Warning
+                } else {
+                    IssueSeverity::Error
+                },
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(ParseResult::Unparsable {
+                messages: Some(vec![error]),
+            }
+            .cell());
+        }
+    };
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
         source,
@@ -449,6 +571,8 @@ async fn parse_file_content(
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
+                source_text: &fm.src,
+                node_env,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -490,17 +614,21 @@ async fn parse_file_content(
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
                 Some(&comments),
-                Some(source),
             );
+
+            let (comments, source_mapping_url) =
+                ImmutableComments::new_with_source_mapping_url(comments);
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
                 program: parsed_program,
-                comments: Arc::new(ImmutableComments::new(comments)),
+                comments: Arc::new(comments),
                 eval_context,
                 // Temporary globals as the current one can't be moved yet, since they are
                 // borrowed
                 globals: Arc::new(Globals::new()),
                 source_map,
+                source_mapping_url: source_mapping_url.map(|s| s.into()),
+                program_source,
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
@@ -525,45 +653,39 @@ struct ReadSourceIssue {
     severity: IssueSeverity,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Reading source code for parsing failed")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Reading source code for parsing failed"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(
-                format!(
-                    "An unexpected error happened while trying to read the source code to parse: \
-                     {}",
-                    self.error
-                )
-                .into(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            format!(
+                "An unexpected error happened while trying to read the source code to parse: {}",
+                self.error
             )
-            .resolved_cell(),
-        ))
+            .into(),
+        )))
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -629,5 +751,128 @@ impl Visit for VarDeclWithTsDeclareCollector {
         for decl in node.decls.iter() {
             self.handle_pat(&decl.name, node.declare);
         }
+    }
+
+    fn visit_ts_module_decl(&mut self, node: &TsModuleDecl) {
+        if node.declare
+            && let TsModuleName::Ident(id) = &node.id
+        {
+            self.id_with_ts_declare.insert(id.to_id());
+        }
+    }
+}
+
+/// Re-parses a module directly from saved bytes, bypassing `source.content()`.
+///
+/// Used by `failsafe_parse` to serve the last good AST when the live file has a syntax error.
+pub async fn parse_from_rope(
+    rope: Rope,
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+) -> Result<Vc<ParseResult>> {
+    let ident_vc = source.ident();
+    let ident_ref = ident_vc.await?;
+    let ident = &*ident_vc.to_string().await?;
+    let file_path_hash = hash_xxh3_hash64(ident) as u128;
+    let query = ident_ref.query.clone();
+    let transforms = &*transforms.await?;
+    parse_file_content(
+        rope,
+        &ident_ref.path,
+        ident,
+        query,
+        file_path_hash,
+        source,
+        ty,
+        transforms,
+        node_env,
+        false,
+        false,
+    )
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, SourceMap, sync::Lrc},
+        ecma::parser::{Parser, Syntax, TsSyntax, lexer::Lexer},
+    };
+
+    use super::VarDeclWithTsDeclareCollector;
+
+    fn parse_and_collect(code: &str) -> Vec<String> {
+        GLOBALS.set(&Default::default(), || {
+            let cm: Lrc<SourceMap> = Default::default();
+            let fm = cm.new_source_file(FileName::Anon.into(), code.to_string());
+
+            let lexer = Lexer::new(
+                Syntax::Typescript(TsSyntax {
+                    tsx: false,
+                    decorators: true,
+                    ..Default::default()
+                }),
+                Default::default(),
+                (&*fm).into(),
+                None,
+            );
+
+            let mut parser = Parser::new_from(lexer);
+            let module = parser.parse_module().expect("Failed to parse");
+
+            let ids = VarDeclWithTsDeclareCollector::collect(&module);
+            let mut result: Vec<_> = ids.iter().map(|id| id.0.to_string()).collect();
+            result.sort();
+            result
+        })
+    }
+
+    #[test]
+    fn test_collect_declare_const() {
+        let ids = parse_and_collect("declare const Foo: number;");
+        assert_eq!(ids, vec!["Foo"]);
+    }
+
+    #[test]
+    fn test_collect_declare_global() {
+        let ids = parse_and_collect("declare global {}");
+        assert_eq!(ids, vec!["global"]);
+    }
+
+    #[test]
+    fn test_collect_declare_global_with_content() {
+        let ids = parse_and_collect(
+            r#"
+            declare global {interface Window {foo: string;}}
+            "#,
+        );
+        assert_eq!(ids, vec!["global"]);
+    }
+
+    #[test]
+    fn test_collect_multiple_declares() {
+        let ids = parse_and_collect(
+            r#"
+            declare const Foo: number;
+            declare global {}
+            declare const Bar: string;
+            "#,
+        );
+        assert_eq!(ids, vec!["Bar", "Foo", "global"]);
+    }
+
+    #[test]
+    fn test_no_collect_non_declare() {
+        let ids = parse_and_collect("const Foo = 1;");
+        assert!(ids.is_empty());
+    }
+
+    #[test]
+    fn test_collect_declare_namespace() {
+        // `declare namespace Foo {}` should also be collected
+        let ids = parse_and_collect("declare namespace Foo {}");
+        assert_eq!(ids, vec!["Foo"]);
     }
 }

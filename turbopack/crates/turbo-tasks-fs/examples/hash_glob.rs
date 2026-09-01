@@ -28,9 +28,9 @@ async fn main() -> Result<()> {
 
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
-            let root = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new(rcstr!("project"), root);
-            disk_fs.await?.start_watching(None).await?;
+            let root = RcStr::from(current_dir().unwrap().to_str().unwrap());
+            let disk_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root));
+            disk_fs.await?.start_watching().await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -63,9 +63,9 @@ pub fn empty_string() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
+async fn print_hash(dir_hash: Vc<RcStr>) -> Result<()> {
     println!("DIR HASH: {}", dir_hash.await?.as_str());
-    Ok(Default::default())
+    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -98,6 +98,9 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
 
 #[turbo_tasks::function]
 async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
+    let Ok(file_path) = file_path.realpath().await? else {
+        return Ok(empty_string());
+    };
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),

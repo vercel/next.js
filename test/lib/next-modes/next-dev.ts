@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
@@ -12,6 +13,10 @@ export class NextDevInstance extends NextInstance {
     return 'development'
   }
 
+  protected get configPhase() {
+    return PHASE_DEVELOPMENT_SERVER
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan })
@@ -21,13 +26,95 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start() {
+  private handleStdio = (childProcess) => {
+    childProcess.stdout.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stdout.write(chunk)
+      this._cliOutput += msg
+      this.emit('stdout', [msg])
+    })
+    childProcess.stderr.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stderr.write(chunk)
+      this._cliOutput += msg
+      this.emit('stderr', [msg])
+    })
+  }
+
+  private getBuildArgs(args?: string[]) {
+    let buildArgs = ['pnpm', 'next', 'build']
+
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (args) {
+      buildArgs.push(...args)
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+    }
+
+    return buildArgs
+  }
+
+  public async build(
+    options: { env?: Record<string, string>; args?: string[] } = {}
+  ) {
+    if (this.childProcess) {
+      throw new Error(
+        `can not run build while server is running, use next.stop() first`
+      )
+    }
+
+    return new Promise<{
+      exitCode: NodeJS.Signals | number | null
+      cliOutput: string
+    }>((resolve) => {
+      const curOutput = this._cliOutput.length
+      const spawnOpts = this.getSpawnOpts(options.env)
+      const buildArgs = this.getBuildArgs(options.args)
+
+      console.log('running', shellQuote(buildArgs))
+
+      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
+      this.handleStdio(this.childProcess)
+
+      this.childProcess.on('error', (error) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: 1,
+          cliOutput:
+            this.cliOutput.slice(curOutput) + '\nSpawn error: ' + error.message,
+        })
+      })
+
+      this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: signal || code,
+          cliOutput: this.cliOutput.slice(curOutput),
+        })
+      })
+    })
+  }
+
+  public async start(options: { env?: Record<string, string> } = {}) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
 
     const useTurbo =
       !process.env.NEXT_TEST_WASM &&
+      !process.env.NEXT_TEST_WASM_AFTER_JEST &&
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
@@ -51,7 +138,7 @@ export class NextDevInstance extends NextInstance {
       }
     }
 
-    console.log('running', shellQuote(startArgs))
+    require('console').log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
@@ -61,6 +148,7 @@ export class NextDevInstance extends NextInstance {
           env: {
             ...process.env,
             ...this.env,
+            ...options.env,
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',
@@ -192,7 +280,7 @@ export class NextDevInstance extends NextInstance {
         }
 
         if (this.patchFileDelay > 0) {
-          console.warn(
+          require('console').warn(
             `Applying patch delay of ${this.patchFileDelay}ms. Note: Introducing artificial delays is generally discouraged, as it may affect test reliability. However, this delay is configurable on a per-test basis.`
           )
           await waitFor(this.patchFileDelay)

@@ -3,7 +3,6 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 
 export function handleHardNavError(error: unknown): boolean {
   if (
-    error &&
     typeof window !== 'undefined' &&
     window.next.__pendingUrl &&
     createHrefFromUrl(new URL(window.location.href)) !==

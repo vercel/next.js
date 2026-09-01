@@ -7,7 +7,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
+
 import {
   addRequestMeta,
   getRequestMeta,
@@ -18,12 +18,13 @@ import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { installUseCacheProbe } from './use-cache-probe-pool'
+import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -39,30 +40,33 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { type Span, setGlobal, trace } from '../../trace'
+import {
+  type Span,
+  hrtimeToEpochNanoseconds,
+  setGlobal,
+  trace,
+} from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-default-error-components'
+import {
+  loadDefaultErrorComponents,
+  type ErrorModule,
+} from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { defaultConfig } from '../config-shared'
+import { defaultConfig, type NextConfigComplete } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { DetachedPromise } from '../../lib/detached-promise'
-import { isPostpone } from '../lib/router-utils/is-postpone'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import {
+  isUnhandledRejectionListenerRegistered,
+  registerUnhandledRejectionListener,
+} from '../node-environment-extensions/process-error-handlers'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -79,6 +83,9 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+
+registerLocalSpanRecorder()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -91,7 +98,17 @@ const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
   return React.createElement(PagesDevOverlayBridgeImpl, props)
 }
 
+function requireManifest(id: string) {
+  try {
+    return require(id)
+  } catch {
+    return null
+  }
+}
+
 export interface Options extends ServerOptions {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  conf: NextConfigComplete
   /**
    * Tells of Next.js is running from the `next dev` command
    */
@@ -109,11 +126,14 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  protected readonly nextConfig: NextConfigComplete
+
   /**
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = new DetachedPromise<void>()
+  private ready? = createPromiseWithResolvers<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -168,16 +188,19 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
       5 * 1024 * 1024,
-      function length(value) {
-        return JSON.stringify(value.staticPaths)?.length ?? 0
+      function length(value, cacheKey) {
+        // Ensure minimum size of 1 for LRU eviction to work correctly
+        return (
+          cacheKey.length + (JSON.stringify(value.staticPaths)?.length || 1)
+        )
       }
     )
 
@@ -194,10 +217,41 @@ export default class DevServer extends Server {
       )
       this.serverComponentsHmrCache = new LRUCache(
         hmrCacheSize,
-        function length(value) {
-          return JSON.stringify(value).length
+        function length(value, cacheKey) {
+          return cacheKey.length + JSON.stringify(value).length
         }
       )
+    }
+
+    installUseCacheProbe({
+      distDir: this.distDir,
+      buildId: this.buildId,
+      deploymentId: this.deploymentId,
+      nextConfig: this.nextConfig,
+    })
+
+    // Runs Cache Components dev validation on a worker thread, off the main
+    // thread, so validation renders don't block the event loop during rapid
+    // navigation. Gated by `experimental.devValidationWorker`. The worker is
+    // spawned lazily on the first navigation that validates, so this install is
+    // free when a project doesn't use Cache Components.
+    //
+    // Turbopack only, because the worker's thread has source maps just for the
+    // chunks it loaded itself, and resolves the rest by reading the `.map`
+    // Turbopack writes next to each chunk. Webpack keeps its dev source maps in
+    // the compiler, which the worker's thread cannot reach, so validation
+    // errors would be reported without a source location. Running validation on
+    // the main thread costs dev performance but keeps those frames intact.
+    if (
+      process.env.TURBOPACK &&
+      this.nextConfig.experimental.devValidationWorker !== false
+    ) {
+      installDevValidationWorker({
+        distDir: this.distDir,
+        buildId: this.buildId,
+        deploymentId: this.deploymentId,
+        nextConfig: this.nextConfig,
+      })
     }
   }
 
@@ -205,88 +259,8 @@ export default class DevServer extends Server {
     return this.serverComponentsHmrCache
   }
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(this.dir)
-
-    const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname) => {
-        await this.ensurePage({
-          definition: match.definition,
-          page: match.definition.page,
-          clientOnly: false,
-          url: pathname,
-        })
-      },
-    }
-
-    const matchers = new DevRouteMatcherManager(
-      super.getRouteMatchers(),
-      ensurer,
-      this.dir
-    )
-    const extensions = this.nextConfig.pageExtensions
-    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
-
-    // If the pages directory is available, then configure those matchers.
-    if (pagesDir) {
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Only allow files that have the correct extensions.
-          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
-        })
-      )
-
-      matchers.push(
-        new DevPagesRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-    }
-
-    if (appDir) {
-      // We create a new file reader for the app directory because we don't want
-      // to include any folders or files starting with an underscore. This will
-      // prevent the reader from wasting time reading files that we know we
-      // don't care about.
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Ignore any directory prefixed with an underscore.
-          ignorePartFilter: (part) => part.startsWith('_'),
-        })
-      )
-
-      // TODO: Improve passing of "is running with Turbopack"
-      const isTurbopack = !!process.env.TURBOPACK
-      matchers.push(
-        new DevAppPageRouteMatcherProvider(
-          appDir,
-          extensions,
-          fileReader,
-          isTurbopack
-        )
-      )
-      matchers.push(
-        new DevAppRouteRouteMatcherProvider(
-          appDir,
-          extensions,
-          fileReader,
-          isTurbopack
-        )
-      )
-    }
-
-    return matchers
+  protected override getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundlerService.getServerComponentsHmrRefreshHash()
   }
 
   protected getBuildId(): string {
@@ -305,7 +279,6 @@ export default class DevServer extends Server {
       existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.matchers.reload()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -321,14 +294,14 @@ export default class DevServer extends Server {
       setGlobal('telemetry', telemetry)
     }
 
-    process.on('unhandledRejection', (reason) => {
-      if (isPostpone(reason)) {
-        // React postpones that are unhandled might end up logged here but they're
-        // not really errors. They're just part of rendering.
-        return
-      }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
-    })
+    // The router server or the render server may run in the same process and
+    // have already registered the unhandled rejection listener, in which case
+    // we must not register another one, to avoid logging unhandled rejections
+    // multiple times.
+    if (!isUnhandledRejectionListenerRegistered()) {
+      registerUnhandledRejectionListener()
+    }
+
     process.on('uncaughtException', (err) => {
       this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
@@ -432,8 +405,7 @@ export default class DevServer extends Server {
         request.url.includes('/_next/static') ||
         request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
-        request.url.includes('/__nextjs_source-map') ||
-        request.url.includes('/__nextjs_error_feedback')
+        request.url.includes('/__nextjs_source-map')
       ) {
         return { finished: false }
       }
@@ -519,8 +491,23 @@ export default class DevServer extends Server {
               requestEnd,
               getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
               getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
-              getRequestMeta(req, 'devRequestTimingInternalsEnd')
+              getRequestMeta(req, 'devRequestTimingInternalsEnd'),
+              getRequestMeta(req, 'devGenerateStaticParamsDuration')
             )
+
+            // Create trace span for render phase
+            const devRequestTimingInternalsEnd = getRequestMeta(
+              req,
+              'devRequestTimingInternalsEnd'
+            )
+            if (devRequestTimingInternalsEnd) {
+              this.startServerSpan.manualTraceChild(
+                'render-path',
+                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
+                hrtimeToEpochNanoseconds(requestEnd),
+                { path: req.url || '' }
+              )
+            }
           })
         }
       }
@@ -612,9 +599,7 @@ export default class DevServer extends Server {
 
   protected getPagesManifest(): PagesManifest | undefined {
     return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, PAGES_MANIFEST)
-      ) ?? undefined
+      requireManifest(pathJoin(this.serverDistDir, PAGES_MANIFEST)) ?? undefined
     )
   }
 
@@ -622,9 +607,8 @@ export default class DevServer extends Server {
     if (!this.enabledDirectories.app) return undefined
 
     return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
-      ) ?? undefined
+      requireManifest(pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)) ??
+      undefined
     )
   }
 
@@ -768,7 +752,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
@@ -786,7 +769,14 @@ export default class DevServer extends Server {
           cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
+          deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
@@ -808,7 +798,7 @@ export default class DevServer extends Server {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
               )
             }
 
@@ -819,24 +809,6 @@ export default class DevServer extends Server {
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
-          }
-
-          // Since generateStaticParams run on the background, when accessing the
-          // devFallbackParams during the render, it is still set to the previous
-          // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the devFallbackParams with the new result.
-          if (
-            isAppPath &&
-            this.nextConfig.cacheComponents &&
-            // Ensure this is not the first invocation.
-            result &&
-            // Ideally, we would want to compare the whole objects, but that is too expensive.
-            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
-          ) {
-            this.bundlerService.sendHmrMessage({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash: `generateStaticParams-${Date.now()}`,
-            })
           }
         }
 
@@ -879,6 +851,14 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
 
+          // Find the fallback route from the prerendered routes. This is
+          // the route whose pathname matches the page pattern (e.g.
+          // /dynamic-params/[slug]) and has fallback route params describing
+          // which params are unknown at build time.
+          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
+            (route) => route.pathname === pathname
+          )
+
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
             dataRouteRegex: null,
@@ -887,8 +867,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: undefined,
-            fallbackRouteParams: undefined,
+            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
@@ -908,6 +888,27 @@ export default class DevServer extends Server {
           }
         }
         this.staticPathsCache.set(pathname, value)
+
+        // Since generateStaticParams runs in the background, the fallbackParams
+        // accessed during a render are derived from the previous result served
+        // by the static paths cache. Now that the cache holds the new result,
+        // trigger a refresh so the next render picks up the new fallbackParams
+        // (e.g. so blocking-route validation reflects params that just became
+        // statically known).
+        if (
+          isAppPath &&
+          this.nextConfig.cacheComponents &&
+          // Ensure this is not the first invocation.
+          result &&
+          // Comparing lengths rather than the whole objects, which is too
+          // expensive.
+          result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+        ) {
+          this.bundlerService.sendHmrMessage({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED,
+          })
+        }
+
         return value
       })
       .catch((err) => {
@@ -985,7 +986,7 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
@@ -999,7 +1000,9 @@ export default class DevServer extends Server {
   ) {
     await super.instrumentationOnRequestError(...args)
 
-    const err = args[0]
-    this.logErrorWithOriginalStack(err, 'app-dir')
+    const [err, , , silenceLog] = args
+    if (!silenceLog) {
+      this.logErrorWithOriginalStack(err, 'app-dir')
+    }
   }
 }

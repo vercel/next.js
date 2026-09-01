@@ -1,11 +1,13 @@
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
 
-import { htmlEscapeJsonString } from '../htmlescape'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { getClientReferenceManifest } from './manifests-singleton'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -34,7 +36,6 @@ export function getFlightStream<T>(
   flightStream: Readable | BinaryStreamOf<T>,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
   debugEndTime: number | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce: string | undefined
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
@@ -42,6 +43,9 @@ export function getFlightStream<T>(
   if (response) {
     return response
   }
+
+  const { moduleLoading, edgeSSRModuleMapping, ssrModuleMapping } =
+    getClientReferenceManifest()
 
   let newResponse: Promise<T>
   if (flightStream instanceof ReadableStream) {
@@ -58,10 +62,8 @@ export function getFlightStream<T>(
     newResponse = createFromReadableStream<T>(flightStream, {
       findSourceMapURL,
       serverConsumerManifest: {
-        moduleLoading: clientReferenceManifest.moduleLoading,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeSSRModuleMapping
-          : clientReferenceManifest.ssrModuleMapping,
+        moduleLoading,
+        moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
         serverModuleMap: null,
       },
       nonce,
@@ -77,9 +79,17 @@ export function getFlightStream<T>(
       const { Readable } =
         require('node:stream') as typeof import('node:stream')
 
-      // The types of flightStream and debugStream should match.
-      if (debugStream && !(debugStream instanceof Readable)) {
-        throw new InvariantError('Expected debug stream to be a Readable')
+      // Convert debug stream to Readable if it's a ReadableStream.
+      // When __NEXT_USE_NODE_STREAMS is enabled, the debug channel produces
+      // Node Readables natively. Otherwise, it produces web ReadableStreams.
+      let nodeDebugStream: Readable | undefined
+      if (debugStream) {
+        if (debugStream instanceof Readable) {
+          nodeDebugStream = debugStream
+        } else {
+          type WebReadableStream = import('stream/web').ReadableStream
+          nodeDebugStream = Readable.fromWeb(debugStream as WebReadableStream)
+        }
       }
 
       // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
@@ -90,16 +100,14 @@ export function getFlightStream<T>(
       newResponse = createFromNodeStream<T>(
         flightStream,
         {
-          moduleLoading: clientReferenceManifest.moduleLoading,
-          moduleMap: isEdgeRuntime
-            ? clientReferenceManifest.edgeSSRModuleMapping
-            : clientReferenceManifest.ssrModuleMapping,
+          moduleLoading,
+          moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
           serverModuleMap: null,
         },
         {
           findSourceMapURL,
           nonce,
-          debugChannel: debugStream,
+          debugChannel: nodeDebugStream,
           endTime: debugEndTime,
         }
       )
@@ -117,6 +125,7 @@ export function getFlightStream<T>(
 
     switch (workUnitStore.type) {
       case 'prerender-client':
+      case 'validation-client':
         const responseOnNextTick = new Promise<T>((resolve) => {
           process.nextTick(() => {
             resolve(newResponse)
@@ -126,12 +135,12 @@ export function getFlightStream<T>(
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -158,7 +167,7 @@ export function createInlinedDataReadableStream(
   formState: unknown | null
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const flightReader = flightStream.getReader()
@@ -243,7 +252,14 @@ function writeFlightDataInstruction(
     // Instead let's inline it in base64.
     // Credits to Devon Govett (devongovett) for the technique.
     // https://github.com/devongovett/rsc-html-stream
-    const base64 = btoa(String.fromCodePoint(...chunk))
+    const base64 =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(
+            chunk.buffer,
+            chunk.byteOffset,
+            chunk.byteLength
+          ).toString('base64')
+        : btoa(String.fromCodePoint(...chunk))
     htmlInlinedData = htmlEscapeJsonString(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
     )

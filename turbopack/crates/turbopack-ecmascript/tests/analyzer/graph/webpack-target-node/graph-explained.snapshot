@@ -1,4 +1,6 @@
-*arrow function 1213* = (...) => __webpack_require__(moduleId)
+*arrow function 1213* = (...) => __webpack_require__(???*0*)
+- *0* assignment expression
+  ⚠️  This value might have side effects
 
 *arrow function 131* = (...) => undefined
 

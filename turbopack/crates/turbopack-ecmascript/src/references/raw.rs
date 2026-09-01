@@ -4,11 +4,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
-    reference::ModuleReference,
+    reference::{DynamicTraceReference, ModuleReference},
     resolve::{
         ModuleResolveResult, RequestKey,
         pattern::{Pattern, PatternMatch, read_matches},
@@ -19,12 +19,16 @@ use turbopack_core::{
 use crate::references::util::check_and_emit_too_many_matches_warning;
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("raw asset {path}")]
 pub struct FileSourceReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
     collect_affecting_sources: bool,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readFileSync`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,12 +39,14 @@ impl FileSourceReference {
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(FileSourceReference {
             context_dir,
             path,
             collect_affecting_sources,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -61,46 +67,50 @@ impl ModuleReference for FileSourceReference {
                 /* force_in_lookup_dir */ false,
             )
             .as_raw_module_result()
-            .resolve()
+            .to_resolved()
             .await?;
             check_and_emit_too_many_matches_warning(
-                result,
+                *result,
                 self.issue_source,
                 self.context_dir.clone(),
                 self.path,
             )
             .await?;
 
-            Ok(result)
+            Ok(*result)
         }
         .instrument(span)
         .await
     }
-}
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for FileSourceReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for FileSourceReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("raw asset {}", self.path.to_string().await?,).into(),
-        ))
+impl DynamicTraceReference for FileSourceReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("directory assets {path}")]
 pub struct DirAssetReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readdir`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -110,11 +120,13 @@ impl DirAssetReference {
         context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(DirAssetReference {
             context_dir,
             path,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -157,9 +169,9 @@ async fn resolve_reference_from_dir(
     };
 
     let matches = abs_matches
-        .into_iter()
+        .iter()
         .flatten()
-        .chain(rel_matches.into_iter().flatten());
+        .chain(rel_matches.iter().flatten());
 
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -174,12 +186,12 @@ async fn resolve_reference_from_dir(
                 }
                 let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
-                    Err(e) => bail!(e.as_error_message(file, &realpath)),
+                    Err(error) => bail!(error.clone()),
                 };
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
                             .to_resolved()
                             .await?,
                     ),
@@ -216,22 +228,21 @@ impl ModuleReference for DirAssetReference {
         .instrument(span)
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for DirAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("directory assets {}", self.path.to_string().await?,).into(),
-        ))
+impl DynamicTraceReference for DirAssetReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
     }
 }

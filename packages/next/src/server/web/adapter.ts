@@ -27,6 +27,8 @@ import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
@@ -35,6 +37,23 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { isRSCRequestHeader } from '../lib/is-rsc-request'
+import { setRequestMeta } from '../request-meta'
+
+// The proxy (middleware) does not support `'use cache'`, so this work store
+// never reaches the code that reads `cacheLife` (and `'use cache'` is
+// disallowed on the edge runtime anyway). This sentinel satisfies the
+// non-optional type while throwing if `default` is ever read, matching the
+// "never read" sentinels used for the proxy's other unused renderOpts fields
+// (`staticPageGenerationTimeout: 0`, `useCacheTimeout: 0`). It surfaces loudly
+// rather than silently serving a misleading profile.
+const proxyCacheLifeProfiles: ResolvedCacheLifeProfiles = {
+  get default(): never {
+    throw new InvariantError(
+      'Proxy does not support `use cache`, so reading its `default` cacheLife profile is unexpected.'
+    )
+  },
+}
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -75,6 +94,12 @@ export type AdapterOptions = {
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
 }
+
+// This has to be compatible with what the Vercel builder does as well:
+// https://github.com/vercel/vercel/blob/0e0a6eb9f12216202ae2f5ee37e4ada1796361fd/packages/next/src/edge-function-source/get-edge-function.ts#L112-L136
+export type EdgeHandler = (opts: {
+  request: AdapterOptions['request']
+}) => Promise<FetchEventResult>
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
@@ -140,10 +165,11 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
-  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
+  const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'
@@ -152,7 +178,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering) {
+  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -171,7 +197,9 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? normalizeURL.toString()
+      : stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -180,6 +208,10 @@ export async function adapter(
       signal: params.request.signal,
     },
   })
+
+  if (params.request.requestMeta) {
+    setRequestMeta(request, params.request.requestMeta)
+  }
 
   /**
    * This allows to identify the request as a data request. The user doesn't
@@ -211,14 +243,13 @@ export async function adapter(
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
 
-      getPrerenderManifest: () => {
-        return {
-          version: -1 as any, // letting us know this doesn't conform to spec
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: getEdgePreviewProps(),
-        }
+      previewProps: getEdgePreviewProps(),
+      prerenderManifest: {
+        version: -1 as any, // letting us know this doesn't conform to spec
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: getEdgePreviewProps(),
       },
     })
   }
@@ -272,7 +303,7 @@ export async function adapter(
 
             const implicitTags = await getImplicitTags(
               page,
-              request.nextUrl,
+              request.nextUrl.pathname,
               fallbackRouteParams
             )
 
@@ -281,21 +312,37 @@ export async function adapter(
               request.nextUrl,
               implicitTags,
               onUpdateCookies,
-              previewProps
+              previewProps,
+              // Edge route handlers can't use `"use cache"`, so there's no HMR
+              // refresh hash to thread through here.
+              undefined
             )
 
             const workStore = createWorkStore({
               page,
               renderOpts: {
-                cacheLifeProfiles:
-                  params.request.nextConfig?.experimental?.cacheLife,
+                cacheLifeProfiles: proxyCacheLifeProfiles,
+                // Proxy doesn't do static generation, so this value does not
+                // apply here. 0 is a sentinel: if something ever reads it,
+                // it'll surface loudly instead of silently using a misleading
+                // default.
+                staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
+                  // Proxy doesn't fill Cache Components entries, so this value
+                  // is never read. 0 is a sentinel: if something ever reads it,
+                  // the cache fill will time out immediately and surface the
+                  // bug.
+                  useCacheTimeout: 0,
+                  durableUseCacheEntries: false,
                 },
-                supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
@@ -303,6 +350,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 
@@ -449,7 +497,10 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', redirectURL.toString())
+        response.headers.set(
+          'Location',
+          getRelativeURL(redirectURL, requestURL)
+        )
       }
     }
 

@@ -39,6 +39,13 @@ declare module '*.module.scss' {
   export default classes
 }
 
+// CSS side-effect imports (non-modules)
+// These are needed for `noUncheckedSideEffectImports` support
+// See: https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports
+declare module '*.css' {}
+declare module '*.sass' {}
+declare module '*.scss' {}
+
 // We implement the behavior of `import 'server-only'` and `import 'client-only'` on the compiler level
 // and thus don't require having them installed as dependencies.
 // By default it works fine with typescript, because (surprisingly) TSC *doesn't check side-effecting imports*.
@@ -63,6 +70,84 @@ declare module 'client-only' {
    */
 }
 
+interface TurbopackHotApi {
+  accept(): void
+  accept(cb: () => void): void
+  accept(dep: string | string[], cb?: () => void): void
+  decline(): void
+  decline(dep: string | string[]): void
+  dispose(cb: (data: Record<string, unknown>) => void): void
+  invalidate(): void
+  readonly data: Record<string, unknown>
+}
+
+interface ImportMetaGlobOptions {
+  /** Import modules eagerly (synchronously). Default: `false`. */
+  eager?: boolean
+  /**
+   * Named export to select from each matched module.
+   * Use `'default'` for the default export, or `'*'` for the full namespace.
+   */
+  import?: string
+  /**
+   * Query string to append to each import request (e.g. `'?raw'`, `'?url'`).
+   * Can also be an object whose key-value pairs are serialized to a query string.
+   */
+  query?: string | Record<string, string | boolean>
+  /** Override the base path used for resolving patterns and keying results. */
+  base?: string
+  /** Whether glob matching is case-sensitive. Default: `true`. */
+  caseSensitive?: boolean
+}
+
+interface ImportMetaEnv {
+  readonly DEV: boolean
+  readonly PROD: boolean
+  readonly MODE: string
+  readonly BASE_URL: string
+  readonly SSR: boolean
+}
+
+interface ImportMeta {
+  /**
+   * Built-in environment metadata when using Turbopack.
+   */
+  readonly env: ImportMetaEnv
+
+  /**
+   * The HMR API for ESM modules when using Turbopack.
+   * Equivalent to `module.hot` in CommonJS modules.
+   * Only available in development mode.
+   */
+  turbopackHot?: TurbopackHotApi
+
+  /**
+   * Import multiple modules at once using glob patterns (Turbopack only).
+   *
+   * @example
+   * // Lazy (default) — values are thunks: () => Promise<Module>
+   * const modules = import.meta.glob('./dir/*.js')
+   *
+   * // Eager — values are module objects
+   * const modules = import.meta.glob('./dir/*.js', { eager: true })
+   *
+   * // The module type can be provided
+   * const modules = import.meta.glob<{ name: string }>('./dir/*.js')
+   */
+  glob<M = unknown>(
+    pattern: string | string[],
+    options: ImportMetaGlobOptions & { eager: true }
+  ): Record<string, M>
+  glob<M = unknown>(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions & { eager?: false | undefined }
+  ): Record<string, () => Promise<M>>
+  glob<M = unknown>(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions
+  ): Record<string, M> | Record<string, () => Promise<M>>
+}
+
 interface Window {
   MSInputMethodContext?: unknown
   /** @internal */
@@ -75,6 +160,8 @@ interface Window {
     | 'top-right'
     | 'bottom-left'
     | 'bottom-right'
+  /** @internal - Set by the server when serving a static shell for instant navigation tests */
+  __next_instant_test?: 1
 }
 
 interface NextFetchRequestConfig {

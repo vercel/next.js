@@ -51,13 +51,12 @@ const program = new Command(packageJson.name)
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
+  .option('--cache-components', 'Initialize with Cache Components enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack as the bundler.')
-  .option('--webpack', 'Enable Webpack as the bundler.')
-  .option('--rspack', 'Enable Rspack as the bundler')
+  .option('--rspack', 'Enable Rspack as the bundler.')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -107,6 +106,10 @@ const program = new Command(packageJson.name)
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
 `
+  )
+  .option(
+    '--agents-md',
+    'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
@@ -243,23 +246,57 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
+      cacheComponents: false,
+      agentsMd: true,
     }
 
     type DisplayConfigItem = {
       key: keyof typeof defaults
       values?: Record<string, string>
+      flags?: Record<string, string>
     }
 
     const displayConfig: DisplayConfigItem[] = [
       {
         key: 'typescript',
         values: { true: 'TypeScript', false: 'JavaScript' },
+        flags: { true: '--ts', false: '--js' },
       },
-      { key: 'linter', values: { eslint: 'ESLint', biome: 'Biome' } },
-      { key: 'reactCompiler', values: { true: 'React Compiler' } },
-      { key: 'tailwind', values: { true: 'Tailwind CSS' } },
-      { key: 'srcDir', values: { true: 'src/ dir' } },
-      { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      {
+        key: 'linter',
+        values: { eslint: 'ESLint', biome: 'Biome', none: 'None' },
+        flags: { eslint: '--eslint', biome: '--biome', none: '--no-eslint' },
+      },
+      {
+        key: 'reactCompiler',
+        values: { true: 'React Compiler', false: 'No React Compiler' },
+        flags: { true: '--react-compiler', false: '--no-react-compiler' },
+      },
+      {
+        key: 'tailwind',
+        values: { true: 'Tailwind CSS', false: 'No Tailwind CSS' },
+        flags: { true: '--tailwind', false: '--no-tailwind' },
+      },
+      {
+        key: 'srcDir',
+        values: { true: 'src/ directory', false: 'No src/ directory' },
+        flags: { true: '--src-dir', false: '--no-src-dir' },
+      },
+      {
+        key: 'app',
+        values: { true: 'App Router', false: 'Pages Router' },
+        flags: { true: '--app', false: '--no-app' },
+      },
+      {
+        key: 'cacheComponents',
+        values: { true: 'Cache Components', false: 'No Cache Components' },
+        flags: { true: '--cache-components', false: '--no-cache-components' },
+      },
+      {
+        key: 'agentsMd',
+        values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
+        flags: { true: '--agents-md', false: '--no-agents-md' },
+      },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -287,9 +324,16 @@ async function run(): Promise<void> {
     const hasSavedPreferences = Object.keys(preferences).length > 0
 
     // Check if user provided any configuration flags
-    // If they did, skip the "recommended defaults" prompt and go straight to
-    // individual prompts for any missing options
+    // If they did, skip all prompts and use recommended defaults for unspecified
+    // options. This is critical for AI agents, which pass flags like
+    // --typescript --tailwind --app and expect the rest to use sensible defaults
+    // without entering interactive mode.
     const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+
+    if (!skipPrompt && hasProvidedOptions) {
+      skipPrompt = true
+      useRecommendedDefaults = true
+    }
 
     // Only show the "recommended defaults" prompt if:
     // - Not in CI and not using --yes flag
@@ -545,6 +589,32 @@ async function run(): Promise<void> {
       }
     }
 
+    // Cache Components is an App Router feature, so only offer it when the App
+    // Router is in use.
+    if (
+      opts.app &&
+      !opts.api &&
+      !opts.cacheComponents &&
+      !args.includes('--no-cache-components')
+    ) {
+      if (skipPrompt) {
+        opts.cacheComponents = getPrefOrDefault('cacheComponents')
+      } else {
+        const styledCacheComponents = blue('Cache Components')
+        const { cacheComponents } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'cacheComponents',
+          message: `Would you like to use ${styledCacheComponents}?`,
+          initial: getPrefOrDefault('cacheComponents'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.cacheComponents = Boolean(cacheComponents)
+        preferences.cacheComponents = Boolean(cacheComponents)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof opts.importAlias !== 'string' ||
@@ -588,15 +658,86 @@ async function run(): Promise<void> {
         }
       }
     }
+
+    if (args.includes('--no-agents-md')) {
+      opts.agentsMd = false
+    } else if (!opts.agentsMd) {
+      if (skipPrompt) {
+        opts.agentsMd = getPrefOrDefault('agentsMd')
+      } else {
+        const { agentsMd } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentsMd',
+            message: `Would you like to include ${blue('AGENTS.md')} to guide coding agents to write up-to-date Next.js code?`,
+            initial: getPrefOrDefault('agentsMd'),
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentsMd = Boolean(agentsMd)
+        preferences.agentsMd = Boolean(agentsMd)
+      }
+    }
+
+    // When prompts were skipped because flags were provided, print the
+    // defaults that were assumed so agents and users know what to override.
+    if (hasProvidedOptions && useRecommendedDefaults) {
+      const lines: string[] = []
+
+      for (const config of displayConfig) {
+        if (!config.flags || !config.values) continue
+
+        // Skip options the user already specified explicitly
+        const wasExplicit = process.argv.some((arg) =>
+          Object.values(config.flags!).includes(arg)
+        )
+        if (wasExplicit) continue
+
+        const value = String(defaults[config.key])
+        const flag = config.flags[value]
+        const label = config.values[value]
+        if (!flag || !label) continue
+
+        // Show alternatives the user could pass instead
+        const alts: string[] = []
+        for (const [k, f] of Object.entries(config.flags)) {
+          if (k !== value && config.values[k]) {
+            alts.push(`${f} for ${config.values[k]}`)
+          }
+        }
+
+        const altText = alts.length > 0 ? ` (use ${alts.join(', ')})` : ''
+        lines.push(`  ${flag.padEnd(24)}${label}${altText}`)
+      }
+
+      // Import alias is not a boolean toggle, handle separately
+      const hasImportAlias = process.argv.some(
+        (arg) =>
+          arg.startsWith('--import-alias') ||
+          arg.startsWith('--no-import-alias')
+      )
+      if (!hasImportAlias) {
+        lines.push(`  ${'--import-alias'.padEnd(24)}"${defaults.importAlias}"`)
+      }
+
+      if (lines.length > 0) {
+        console.log(
+          '\nUsing defaults for unprovided options:\n\n' +
+            lines.join('\n') +
+            '\n'
+        )
+      }
+    }
   }
 
-  const bundler: Bundler = opts.turbopack
-    ? Bundler.Turbopack
-    : opts.webpack
-      ? Bundler.Webpack
-      : opts.rspack
-        ? Bundler.Rspack
-        : Bundler.Turbopack
+  const bundler: Bundler = opts.rspack ? Bundler.Rspack : Bundler.Turbopack
 
   try {
     await createApp({
@@ -617,6 +758,8 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
+      agentsMd: opts.agentsMd,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -651,12 +794,25 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
+      agentsMd: opts.agentsMd,
     })
   }
   conf.set('preferences', preferences)
 }
 
-const update = updateCheck(packageJson).catch(() => null)
+// Determine the appropriate dist-tag to check for updates.
+// For prerelease versions like "16.1.1-canary.32", extract "canary" and check
+// against that dist-tag. This ensures canary users are notified about newer
+// canary releases, not incorrectly prompted to "update" to stable.
+function getDistTag(version: string): string {
+  const prereleaseMatch = version.match(/-([a-z]+)/)
+  return prereleaseMatch ? prereleaseMatch[1] : 'latest'
+}
+
+const update = updateCheck(packageJson, {
+  distTag: getDistTag(packageJson.version),
+}).catch(() => null)
 
 async function notifyUpdate(): Promise<void> {
   try {
@@ -667,7 +823,9 @@ async function notifyUpdate(): Promise<void> {
         pnpm: 'pnpm add -g',
         bun: 'bun add -g',
       }
-      const updateMessage = `${global[packageManager]} create-next-app`
+      const distTag = getDistTag(packageJson.version)
+      const pkgTag = distTag === 'latest' ? '' : `@${distTag}`
+      const updateMessage = `${global[packageManager]} create-next-app${pkgTag}`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +

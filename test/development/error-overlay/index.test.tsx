@@ -4,76 +4,11 @@ import { waitForRedbox } from 'next-test-utils'
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: {
-      NEXT_TELEMETRY_DISABLED: '',
-    },
-  })
-
-  it('can get error code from RSC error thrown by framework', async () => {
-    const browser = await next.browser('/known-rsc-error')
-
-    const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
-    const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E40')
-  })
-
-  it('sends feedback when clicking helpful button', async () => {
-    const feedbackRequests: string[] = []
-    const browser = await next.browser('/known-client-error', {
-      beforePageLoad(page) {
-        page.route(/__nextjs_error_feedback/, (route) => {
-          const url = new URL(route.request().url())
-          feedbackRequests.push(url.pathname + url.search)
-
-          route.fulfill({ status: 204, body: 'No Content' })
-        })
-      },
-    })
-
-    await browser.elementByCss('button').click() // clicked "break on client"
-    await browser.getByRole('button', { name: 'Mark as helpful' }).click()
-
-    expect(
-      await browser
-        .getByRole('region', { name: 'Error feedback' })
-        .getByRole('status')
-        .textContent()
-    ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=true',
-    ])
-  })
-
-  it('sends feedback when clicking not helpful button', async () => {
-    const feedbackRequests: string[] = []
-    const browser = await next.browser('/known-client-error', {
-      beforePageLoad(page) {
-        page.route(/__nextjs_error_feedback/, (route) => {
-          const url = new URL(route.request().url())
-          feedbackRequests.push(url.pathname + url.search)
-
-          route.fulfill({ status: 204, body: 'No Content' })
-        })
-      },
-    })
-
-    await browser.elementByCss('button').click() // clicked "break on client"
-    await browser.getByRole('button', { name: 'Mark as not helpful' }).click()
-
-    expect(
-      await browser
-        .getByRole('region', { name: 'Error feedback' })
-        .getByRole('status')
-        .textContent()
-    ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=false',
-    ])
   })
 
   it('loads fonts successfully', async () => {
     const woff2Requests: { url: string; status: number }[] = []
-    const browser = await next.browser('/known-rsc-error', {
+    const browser = await next.browser('/hydration-error', {
       beforePageLoad: (page) => {
         page.route('**/*.woff2', async (route) => {
           const response = await route.fetch()
@@ -94,6 +29,216 @@ describe('DevErrorOverlay', () => {
     for (const request of woff2Requests) {
       expect(request.status).toBe(200)
     }
+  })
+
+  it('shows Error.cause in the error overlay', async () => {
+    const browser = await next.browser('/error-cause')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-cause/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-cause/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Database query failed",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause/page.tsx (7:15) @ Page
+     >  7 |   const mid = new Error('Database query failed', { cause: root })
+          |               ^",
+       "stack": [
+         "Page app/error-cause/page.tsx (7:15)",
+       ],
+     }
+    `)
+  })
+
+  it('shows nested Error.cause chain in the error overlay', async () => {
+    const browser = await next.browser('/error-cause-nested')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Error",
+           "message": "Database query failed",
+           "source": "app/error-cause-nested/page.tsx (7:15) @ Page
+     >  7 |   const mid = new Error('Database query failed', { cause: root })
+          |               ^",
+           "stack": [
+             "Page app/error-cause-nested/page.tsx (7:15)",
+           ],
+         },
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-cause-nested/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-cause-nested/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Failed to load user",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause-nested/page.tsx (8:15) @ Page
+     >  8 |   const top = new Error('Failed to load user', { cause: mid })
+          |               ^",
+       "stack": [
+         "Page app/error-cause-nested/page.tsx (8:15)",
+       ],
+     }
+    `)
+  })
+
+  it('ignores non-Error cause in the error overlay', async () => {
+    const browser = await next.browser('/error-cause-non-error')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "description": "Something went wrong",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "app/error-cause-non-error/page.tsx (6:15) @ Page
+     > 6 |   const err = new Error('Something went wrong', {
+         |               ^",
+       "stack": [
+         "Page app/error-cause-non-error/page.tsx (6:15)",
+       ],
+     }
+    `)
+  })
+
+  it('shows AggregateError.errors in the error overlay', async () => {
+    const browser = await next.browser('/error-aggregate')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 2: Error",
+           "message": "Error one",
+           "source": "app/error-aggregate/page.tsx (6:18) @ Page
+     > 6 |   const error1 = new Error('Error one')
+         |                  ^",
+           "stack": [
+             "Page app/error-aggregate/page.tsx (6:18)",
+           ],
+         },
+         {
+           "label": "2 of 2: TypeError",
+           "message": "Error two",
+           "source": "app/error-aggregate/page.tsx (7:18) @ Page
+     >  7 |   const error2 = new TypeError('Error two')
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate/page.tsx (7:18)",
+           ],
+         },
+       ],
+       "description": "Multiple errors occurred",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate/page.tsx (8:15) @ Page
+     >  8 |   const agg = new AggregateError([error1, error2], 'Multiple errors occurred')
+          |               ^",
+       "stack": [
+         "Page app/error-aggregate/page.tsx (8:15)",
+       ],
+     }
+    `)
+  })
+
+  it('shows AggregateError.errors with cause chains in the error overlay', async () => {
+    const browser = await next.browser('/error-aggregate-with-cause')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 2: Error",
+           "message": "Database query failed",
+           "source": "app/error-aggregate-with-cause/page.tsx (7:18) @ Page
+     >  7 |   const error1 = new Error('Database query failed', { cause: root })
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (7:18)",
+           ],
+         },
+         {
+           "label": "2 of 2: Error",
+           "message": "Cache miss",
+           "source": "app/error-aggregate-with-cause/page.tsx (8:18) @ Page
+     >  8 |   const error2 = new Error('Cache miss')
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (8:18)",
+           ],
+         },
+       ],
+       "cause": [
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-aggregate-with-cause/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Multiple failures occurred",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate-with-cause/page.tsx (9:15) @ Page
+     >  9 |   const agg = new AggregateError([error1, error2], 'Multiple failures occurred')
+          |               ^",
+       "stack": [
+         "Page app/error-aggregate-with-cause/page.tsx (9:15)",
+       ],
+     }
+    `)
+  })
+
+  it('filters non-Error items from AggregateError.errors', async () => {
+    const browser = await next.browser('/error-aggregate-non-errors')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 1: Error",
+           "message": "Real error",
+           "source": "app/error-aggregate-non-errors/page.tsx (7:26) @ Page
+     >  7 |     ['string error', 42, new Error('Real error')],
+          |                          ^",
+           "stack": [
+             "Page app/error-aggregate-non-errors/page.tsx (7:26)",
+           ],
+         },
+       ],
+       "description": "Mixed errors",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate-non-errors/page.tsx (6:15) @ Page
+     > 6 |   const agg = new AggregateError(
+         |               ^",
+       "stack": [
+         "Page app/error-aggregate-non-errors/page.tsx (6:15)",
+       ],
+     }
+    `)
   })
 
   it('should load dev overlay styles successfully', async () => {

@@ -1044,133 +1044,20 @@
         kind: IfElse {
             then: EffectsBlock {
                 effects: [
-                    Conditional {
-                        condition: Variable(
+                    Member {
+                        obj: Variable(
                             (
                                 "options",
                                 #4,
                             ),
                         ),
-                        kind: And {
-                            rhs_effects: [
-                                Member {
-                                    obj: Variable(
-                                        (
-                                            "options",
-                                            #4,
-                                        ),
-                                    ),
-                                    prop: Constant(
-                                        Str(
-                                            Atom(
-                                                "encoding",
-                                            ),
-                                        ),
-                                    ),
-                                    ast_path: [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Var,
-                                        ),
-                                        VarDecl(
-                                            Decls(
-                                                4,
-                                            ),
-                                        ),
-                                        VarDeclarator(
-                                            Init,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Test,
-                                        ),
-                                        Expr(
-                                            Bin,
-                                        ),
-                                        BinExpr(
-                                            Right,
-                                        ),
-                                        Expr(
-                                            Bin,
-                                        ),
-                                        BinExpr(
-                                            Left,
-                                        ),
-                                        Expr(
-                                            Member,
-                                        ),
-                                    ],
-                                    span: 306..322,
-                                },
-                            ],
-                        },
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "encoding",
+                                ),
+                            ),
+                        ),
                         ast_path: [
                             Program(
                                 Script,
@@ -1259,10 +1146,19 @@
                                 Bin,
                             ),
                             BinExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
                                 Left,
                             ),
+                            Expr(
+                                Member,
+                            ),
                         ],
-                        span: 295..335,
+                        span: 306..322,
                     },
                     Conditional {
                         condition: Logical(
@@ -6441,11 +6337,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -680876936.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -6773,11 +6671,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -389564586.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -7439,11 +7339,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1044525330.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -7771,11 +7673,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -176418897.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -8437,11 +8341,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1473231341.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -8769,11 +8675,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -45705983.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -9435,11 +9343,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1958414417.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -9767,11 +9677,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -42063.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -10099,11 +10011,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1990404162.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -10765,11 +10679,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -40341101.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -11097,11 +11013,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1502002290.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -11763,11 +11681,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -165796510.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -12095,11 +12015,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1069501632.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -12761,11 +12683,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -373897302.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -13093,11 +13017,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -701558691.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -13759,11 +13685,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -660478335.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -14091,11 +14019,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -405537848.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -14757,11 +14687,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1019803690.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -15089,11 +15021,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -187363961.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -15755,11 +15689,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1444681467.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -16087,11 +16023,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -51403784.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -16753,11 +16691,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1926607734.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -17085,11 +17025,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -378558.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -17417,11 +17359,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -2022574463.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -18083,11 +18027,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -35309556.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -18415,11 +18361,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1530992060.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -19081,11 +19029,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -155497632.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -19413,11 +19363,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1094730640.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -20079,11 +20031,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -358537222.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -20411,11 +20365,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -722521979.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -21077,11 +21033,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -640364487.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -21409,11 +21367,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -421815835.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -22075,11 +22035,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -995338651.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -22407,11 +22369,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -198630844.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -23073,11 +23037,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1416354905.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -23405,11 +23371,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -57434055.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -24071,11 +24039,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1894986606.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -24403,11 +24373,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1051523.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -24735,11 +24707,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -2054922799.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -25401,11 +25375,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -30611744.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -25733,11 +25709,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1560198380.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -26399,11 +26377,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -145523070.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -26731,11 +26711,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1120210379.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -27397,11 +27379,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -343485551.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -29539,125 +29523,20 @@
         in_try: false,
         new: false,
     },
-    Conditional {
-        condition: Variable(
+    Member {
+        obj: Variable(
             (
                 "options",
                 #11,
             ),
         ),
-        kind: And {
-            rhs_effects: [
-                Member {
-                    obj: Variable(
-                        (
-                            "options",
-                            #11,
-                        ),
-                    ),
-                    prop: Constant(
-                        Str(
-                            Atom(
-                                "asBytes",
-                            ),
-                        ),
-                    ),
-                    ast_path: [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Test,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Member,
-                        ),
-                    ],
-                    span: 5908..5923,
-                },
-            ],
-        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "asBytes",
+                ),
+            ),
+        ),
         ast_path: [
             Program(
                 Script,
@@ -29744,10 +29623,13 @@
                 Bin,
             ),
             BinExpr(
-                Left,
+                Right,
+            ),
+            Expr(
+                Member,
             ),
         ],
-        span: 5897..5923,
+        span: 5908..5923,
     },
     Conditional {
         condition: Logical(
@@ -29869,131 +29751,20 @@
             },
             else: EffectsBlock {
                 effects: [
-                    Conditional {
-                        condition: Variable(
+                    Member {
+                        obj: Variable(
                             (
                                 "options",
                                 #11,
                             ),
                         ),
-                        kind: And {
-                            rhs_effects: [
-                                Member {
-                                    obj: Variable(
-                                        (
-                                            "options",
-                                            #11,
-                                        ),
-                                    ),
-                                    prop: Constant(
-                                        Str(
-                                            Atom(
-                                                "asString",
-                                            ),
-                                        ),
-                                    ),
-                                    ast_path: [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                7,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Assign,
-                                        ),
-                                        AssignExpr(
-                                            Right,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                2,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Return,
-                                        ),
-                                        ReturnStmt(
-                                            Arg,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Alt,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Test,
-                                        ),
-                                        Expr(
-                                            Bin,
-                                        ),
-                                        BinExpr(
-                                            Right,
-                                        ),
-                                        Expr(
-                                            Member,
-                                        ),
-                                    ],
-                                    span: 5963..5979,
-                                },
-                            ],
-                        },
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "asString",
+                                ),
+                            ),
+                        ),
                         ast_path: [
                             Program(
                                 Script,
@@ -30086,10 +29857,13 @@
                                 Bin,
                             ),
                             BinExpr(
-                                Left,
+                                Right,
+                            ),
+                            Expr(
+                                Member,
                             ),
                         ],
-                        span: 5952..5979,
+                        span: 5963..5979,
                     },
                     Conditional {
                         condition: Logical(

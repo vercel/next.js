@@ -1,6 +1,0 @@
-/* This is a single line comment to check if that works */
-{
-  "extends": "../../tsconfig.json",
-  "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "components", "pages"]
-}
