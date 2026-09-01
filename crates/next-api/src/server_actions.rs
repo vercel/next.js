@@ -354,7 +354,6 @@ impl Asset for ServerActionManifestAsset {
                     durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
                         code_hash: d.ident_code_hash.as_str(),
                         runtime_env_vars: d.runtime_env_vars.as_slice(),
-                        references_client_component: d.references_client_component,
                     }),
                 },
             );
@@ -410,8 +409,6 @@ struct ModulesInformation {
     pub ident_code_hash: RcStr,
     /// The merged and deduplicated list of all runtime env vars referenced in the subgraph
     pub runtime_env_vars: Vec<RcStr>,
-    /// Whether the subgraph imports any client components
-    pub references_client_component: bool,
 }
 
 #[turbo_tasks::function]
@@ -430,8 +427,6 @@ async fn compute_subtree_content_hash(
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
 
-        let mut references_client_component = false;
-
         let modules_to_ignore = modules_to_ignore.await?;
         let mut modules = FxIndexSet::default();
         module_graph_value.traverse_edges_dfs(
@@ -445,14 +440,12 @@ async fn compute_subtree_content_hash(
                     .is_some()
                 {
                     // Don't include the module at all. There is nothing that executes on the server
-                    references_client_component = true;
                     Ok(GraphTraversalAction::Exclude)
                 } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
                     .is_some()
                 {
                     // Include the client reference proxy module, but not the referenced client
                     // modules themselves.
-                    references_client_component = true;
                     modules.insert(target);
                     Ok(GraphTraversalAction::Exclude)
                 } else {
@@ -534,7 +527,6 @@ async fn compute_subtree_content_hash(
             ModulesInformation {
                 ident_code_hash: hash,
                 runtime_env_vars: runtime_env_vars.into_iter().cloned().collect(),
-                references_client_component,
             }
             .cell(),
         )

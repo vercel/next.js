@@ -3611,11 +3611,7 @@ async function computeCacheKeyImplementationPart(
         normalizeWorkerPageName(workStore.page)
       ]?.durability
     : undefined
-  if (
-    durability &&
-    // TODO replace this with more granular tracking: a list of all imported client components
-    durability.referencesClientComponent !== true
-  ) {
+  if (durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto

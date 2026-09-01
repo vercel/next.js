@@ -473,8 +473,6 @@ pub struct ActionManifestWorkerEntry<'a> {
 pub struct ActionManifestWorkerEntryDurability<'a> {
     pub code_hash: &'a str,
     pub runtime_env_vars: &'a [RcStr],
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub references_client_component: bool,
 }
 
 #[derive(Serialize, Debug, Clone)]
