@@ -268,7 +268,6 @@ function createServerModuleMap(): ServerModuleMap {
             durability?: {
               codeHash: string
               runtimeEnvVars: readonly string[]
-              referencesClientComponent?: boolean
             }
           }
         | undefined
