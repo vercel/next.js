@@ -7,7 +7,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use self::counter::{add, flush, get, remove, update};
+use self::counter::{add, flush, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -85,16 +85,52 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    /// Returns the current amount of live memory (bytes allocated minus freed)
-    /// tracked across all threads.
+    /// Returns the bytes the allocator currently has committed from the OS.
     ///
-    /// For efficiency reasons every thread only synchronizes with this counter after ~100K bytes of
-    /// allocations or deallocations.  So this could be off by as much as 100K*number of thread in
-    /// either direction.
+    /// This is the allocator's own accounting, not a per-OS query, so it means the same thing on
+    /// every platform. It counts what mimalloc has taken from the OS, which includes allocator
+    /// overhead and fragmentation, and excludes anything mimalloc did not hand out — the binary,
+    /// mmap'd files, and any memory allocated by the embedding process. It is a measure of what
+    /// this allocator holds, not of the process's total footprint.
+    ///
+    /// It does not track frees in lock step. mimalloc reuses and purges pages on its own
+    /// schedule, so the figure lags a burst of frees, and memory abandoned by threads that have
+    /// since exited is only reclaimed by a forcing [`Self::collect`].
+    ///
+    /// Without the `custom_allocator` feature this is a process-wide counter of live bytes
+    /// (allocations minus deallocations), maintained by [`self::counter`]. That figure is
+    /// approximate: threads buffer their updates, so it can be off by up to a fixed amount per
+    /// thread in either direction.
     pub fn memory_usage() -> usize {
-        get()
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        {
+            // `current_commit` is a relaxed atomic load, but `mi_process_info` also calls
+            // `_mi_prim_process_info`, which is a `getrusage` (plus a `task_info` on macOS). All
+            // eight out-params are optional, so ask only for the one we use.
+            let mut current_commit = 0usize;
+            // Safety: every out-param is either null or a valid `usize` we own.
+            unsafe {
+                libmimalloc_sys::mi_process_info(
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    &mut current_commit,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                );
+            }
+            current_commit
+        }
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            self::counter::get()
+        }
     }
 
+    /// Clears the calling thread's allocation counters. Call this when a thread is about to stop,
+    /// so a thread that reuses its slot does not inherit the previous totals.
     pub fn thread_stop() {
         flush();
     }
@@ -204,6 +240,40 @@ unsafe impl GlobalAlloc for TurboMalloc {
 #[cfg(test)]
 mod tests {
     use super::TurboMalloc;
+
+    // `memory_usage` reports what *this* allocator has committed, so the test binary has to
+    // actually route its allocations through it. Without this the `vec!` below goes to the
+    // system allocator and mimalloc's counter never moves.
+    #[global_allocator]
+    static ALLOC: TurboMalloc = TurboMalloc;
+
+    /// Also guards against the counter silently becoming unavailable. mimalloc's `committed`
+    /// stat is maintained even at `MI_STAT 0` (which is what a release build compiles, since
+    /// `build.rs` sets `MI_DEBUG=0`) because the `mi_os_stat_*` macros are not gated on
+    /// `MI_STAT` — an internal detail rather than a documented guarantee, so a
+    /// `libmimalloc-sys` bump could zero it out. If that happens, this fails.
+    #[test]
+    fn memory_usage_is_reported_and_tracks_a_large_allocation() {
+        let before = TurboMalloc::memory_usage();
+        assert!(before > 0, "a running process has live memory");
+
+        // Large enough to dwarf whatever else the test process does concurrently, and written to
+        // so the pages are actually committed.
+        const SIZE: usize = 256 * 1024 * 1024;
+        let mut buffer = vec![0u8; SIZE];
+        for chunk in buffer.chunks_mut(4096) {
+            chunk[0] = 1;
+        }
+        std::hint::black_box(&buffer);
+
+        let after = TurboMalloc::memory_usage();
+        assert!(
+            after >= before + SIZE / 2,
+            "expected a rise of at least {} bytes, got {before} -> {after}",
+            SIZE / 2
+        );
+        drop(buffer);
+    }
 
     #[test]
     fn memory_pressure_is_in_range() {
