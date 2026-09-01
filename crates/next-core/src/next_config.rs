@@ -1348,7 +1348,8 @@ pub struct ExperimentalConfig {
     /// This field is kept for backwards compatibility during migration.
     cache_components: Option<bool>,
     use_cache: Option<bool>,
-    durable_use_cache_entries: Option<DurableUseCacheEntriesConfig>,
+    durable_use_cache_entries: Option<bool>,
+    durable_use_cache_entries_config: Option<DurableUseCacheEntriesConfig>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
@@ -2485,12 +2486,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_durable_use_cache_entries(
-        &self,
-    ) -> Result<Vc<OptionDurableUseCacheEntriesConfig>> {
-        Ok(Vc::cell(
-            self.experimental.durable_use_cache_entries.clone(),
-        ))
+    pub async fn enable_durable_use_cache_entries(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(match *mode.await? {
+            // TODO eventually also look into enabling this for better HMR
+            NextMode::Development => Vc::cell(false),
+            NextMode::Build => {
+                Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
+            }
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub fn durable_use_cache_entries_config(&self) -> Vc<OptionDurableUseCacheEntriesConfig> {
+        Vc::cell(self.experimental.durable_use_cache_entries_config.clone())
     }
 
     #[turbo_tasks::function]

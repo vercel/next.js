@@ -235,8 +235,10 @@ impl Asset for ServerActionManifestAsset {
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
         let next_config = self.project.next_config();
-        let durable_use_cache_entries = next_config.enable_durable_use_cache_entries();
-        let durable_use_cache_entries_enabled = durable_use_cache_entries.await?.is_some();
+        let durable_use_cache_entries_enabled = *next_config
+            .enable_durable_use_cache_entries(self.project.next_mode())
+            .await?;
+        let durable_use_cache_entries_config = next_config.durable_use_cache_entries_config();
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -314,7 +316,7 @@ impl Asset for ServerActionManifestAsset {
                             *self.chunking_context,
                             hash_salt,
                             modules_to_ignore,
-                            durable_use_cache_entries,
+                            durable_use_cache_entries_config,
                         )
                         .await?,
                     )
@@ -427,7 +429,7 @@ async fn compute_subtree_content_hash(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
-    durable_use_cache_entries: Vc<OptionDurableUseCacheEntriesConfig>,
+    durable_use_cache_entries_config: Vc<OptionDurableUseCacheEntriesConfig>,
 ) -> Result<Vc<OptionModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -437,8 +439,11 @@ async fn compute_subtree_content_hash(
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
 
-        let durable_use_cache_entries_value = durable_use_cache_entries.await?;
-        let durable_use_cache_entries_value = durable_use_cache_entries_value.as_ref().unwrap();
+        let durable_use_cache_entries_config = durable_use_cache_entries_config.await?;
+        let default_config = Default::default();
+        let durable_use_cache_entries_config = durable_use_cache_entries_config
+            .as_ref()
+            .unwrap_or(&default_config);
 
         let mut references_client_component = false;
 
@@ -526,7 +531,7 @@ async fn compute_subtree_content_hash(
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
                 runtime_env_vars.extend(env.runtime.iter().filter(|v| {
-                    !durable_use_cache_entries_value
+                    !durable_use_cache_entries_config
                         .ignored_env_vars
                         .contains(*v)
                 }));
@@ -534,7 +539,7 @@ async fn compute_subtree_content_hash(
         }
 
         if runtime_env_vars.iter().any(|v| {
-            durable_use_cache_entries_value
+            durable_use_cache_entries_config
                 .unstable_env_vars
                 .contains(*v)
         }) {

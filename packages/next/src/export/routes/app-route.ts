@@ -80,10 +80,7 @@ export async function exportAppRoute(
       // value is irrelevant here.
       // TODO: move validationLevel and other global config out of renderOpts
       validationLevel: 'warning',
-      experimental: {
-        ...experimental,
-        durableUseCacheEntries: Boolean(experimental.durableUseCacheEntries),
-      },
+      experimental,
       isBuildTimePrerendering: true,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
