@@ -60,7 +60,6 @@ import {
   getInvalidServerReferenceIdError,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
-import { normalizeFilePath } from './segment-explorer-path'
 import {
   extractInfoFromServerReferenceId,
   mightBeServerReferenceId,
@@ -85,6 +84,7 @@ import {
 } from '../../lib/client-and-server-references'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
+import { getServerReferenceMetadata } from './server-reference-metadata'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -102,30 +102,21 @@ function getServerActionInfo(
   actionId: string,
   ctx: AppRenderContext
 ): ServerActionInfo | null {
-  const serverActionsManifest = getServerActionsManifest()
-  const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-  const actionInfo = serverActionsManifest[runtime]?.[actionId]
+  const metadata = getServerReferenceMetadata(actionId, ctx.renderOpts.dir)
 
-  if (!actionInfo) {
+  if (!metadata) {
     return null
   }
 
-  const isInlineAction =
-    actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+  const isInlineAction = metadata.exportedName?.startsWith(INLINE_ACTION_PREFIX)
 
   return {
     name: isInlineAction
       ? '<inline action>'
-      : actionInfo.exportedName === 'default'
+      : metadata.exportedName === 'default'
         ? 'default'
-        : actionInfo.exportedName || '<action>',
-    file: process.env.__NEXT_DEV_SERVER
-      ? normalizeFilePath(
-          ctx.renderOpts.dir ||
-            (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()),
-          actionInfo.filename
-        )
-      : undefined,
+        : metadata.exportedName || '<action>',
+    file: metadata.file,
   }
 }
 
@@ -1266,30 +1257,12 @@ export async function handleAction({
           // output needs more work, or a different approach entirely.
           actionType !== 'use-cache'
         ) {
-          const serverActionsManifest = getServerActionsManifest()
-          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
-
-          if (actionInfo) {
-            const isInlineAction =
-              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
-
-            const projectDir =
-              ctx.renderOpts.dir ||
-              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
-            const location = normalizeFilePath(projectDir, actionInfo.filename)
-
-            // Format function name for display
-            let functionName: string
-            if (isInlineAction) {
-              functionName = '<inline action>'
-            } else if (actionInfo.exportedName === 'default') {
-              functionName = 'default'
-            } else {
-              functionName = actionInfo.exportedName || '<action>'
+          if (serverActionInfo) {
+            logInfo = {
+              functionName: serverActionInfo.name,
+              args: boundActionArguments,
+              location: serverActionInfo.file ?? '',
             }
-
-            logInfo = { functionName, args: boundActionArguments, location }
           }
         }
 
