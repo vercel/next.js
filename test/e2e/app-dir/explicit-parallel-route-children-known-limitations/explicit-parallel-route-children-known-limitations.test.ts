@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 describe('explicit-parallel-route-children-known-limitations', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-  const usesFullTreeForNavigation =
-    isNextDev && process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
   async function createBrowserWithAct(pathname: string) {
     let act: ReturnType<typeof createRouterAct>
@@ -124,80 +123,53 @@ describe('explicit-parallel-route-children-known-limitations', () => {
   })
 
   describe('metadata error delivery', () => {
-    it('documents metadata error delivery without children', async () => {
+    it('delivers metadata errors without children', async () => {
       const route = 'metadata-error'
       const response = await next.fetch(`/${route}`, {
         redirect: 'manual',
       })
 
-      // TODO(explicit-parallel-route-children): This intentionally asserts the current
-      // broken behavior. The MetadataOutlet that rethrows metadata and
-      // viewport errors is only attached to a `children` page. With no
-      // children branch, errors and redirects are swallowed and the page is
-      // served as a successful response. Flip these assertions when the
-      // outlet is owned by the route tree rather than the children slot.
+      // The metadata error is streamed after the response has committed.
       expect(response.status).toBe(200)
       expect(response.headers.get('location')).toBeNull()
 
       const browser = await next.browser(`/${route}`)
-      expect(await browser.elementByCss('#named-slot-page').text()).toBe(
-        `Named slot page: ${route}`
+      expect(await browser.elementByCss('#root-error').text()).toContain(
+        'Root error:'
       )
 
       const { act, browser: navigationBrowser } =
         await createBrowserWithAct('/success')
       await navigate(navigationBrowser, act, `/${route}`)
-      if (usesFullTreeForNavigation) {
-        // Cache Components dev performs instant validation by rendering the
-        // full tree. That makes the soft navigation reproduce the initial
-        // load limitation instead of accidentally attaching MetadataOutlet
-        // below the skipped named-slot owner.
-        expect(await navigationBrowser.hasElementByCss('#root-error')).toBe(
-          false
-        )
-        expect(
-          await navigationBrowser.elementByCss('#named-slot-page').text()
-        ).toBe(`Named slot page: ${route}`)
-      } else {
-        expect(
-          await navigationBrowser.elementByCss('#root-error').text()
-        ).toContain('Root error:')
-      }
+      expect(
+        await navigationBrowser.elementByCss('#root-error').text()
+      ).toContain('Root error:')
     })
 
-    it('documents metadata redirect delivery without children', async () => {
+    it('delivers metadata redirects without children', async () => {
       const response = await next.fetch('/metadata-redirect', {
         redirect: 'manual',
       })
 
-      // TODO(explicit-parallel-route-children): This is the same missing MetadataOutlet
-      // limitation as the error cases above. The initial request should
-      // redirect. Most soft navigations already do, but Cache Components dev
-      // reproduces the same limitation while validating the full route tree.
+      // The metadata redirect is streamed after the response has committed.
       expect(response.status).toBe(200)
       expect(response.headers.get('location')).toBeNull()
 
       const browser = await next.browser('/metadata-redirect')
-      expect(await browser.elementByCss('#named-slot-page').text()).toBe(
-        'Named slot page: metadata-redirect'
-      )
+      await retry(async () => {
+        expect(new URL(await browser.url()).pathname).toBe('/success')
+        expect(await browser.elementByCss('#named-slot-page').text()).toBe(
+          'Named slot page: success'
+        )
+      })
 
       const { act, browser: navigationBrowser } =
         await createBrowserWithAct('/other')
       await navigate(navigationBrowser, act, '/metadata-redirect')
-      if (usesFullTreeForNavigation) {
-        expect(new URL(await navigationBrowser.url()).pathname).toBe(
-          '/metadata-redirect'
-        )
-        expect(
-          await navigationBrowser.elementByCss('#named-slot-page').text()
-        ).toBe('Named slot page: metadata-redirect')
-      } else {
-        expect(new URL(await navigationBrowser.url()).pathname).toBe('/success')
-        expect(
-          await navigationBrowser.elementByCss('#named-slot-page').text()
-        ).toBe('Named slot page: success')
-      }
+      expect(new URL(await navigationBrowser.url()).pathname).toBe('/success')
+      expect(
+        await navigationBrowser.elementByCss('#named-slot-page').text()
+      ).toBe('Named slot page: success')
     })
   })
 })
