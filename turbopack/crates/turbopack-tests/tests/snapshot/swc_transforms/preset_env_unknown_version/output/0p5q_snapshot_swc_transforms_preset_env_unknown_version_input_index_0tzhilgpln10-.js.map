@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env_unknown_version/input/index.js"],"sourcesContent":["class Foo {}\n\nasync function exponentiate() {\n  return 10n ** 18n\n}\n\nconst cjk = /\\p{Script=Han}/u\n\nconsole.log(Foo, exponentiate, cjk)\n\nexport default 123\n"],"names":["Foo","exponentiate","cjk","console","log"],"mappings":";;;;AAAA,MAAMA;AAAK;AAEX,eAAeC;IACb,OAAO,GAAG,IAAI,GAAG;AACnB;AAEA,MAAMC,MAAM;AAEZC,QAAQC,GAAG,CAACJ,KAAKC,cAAcC;uCAEhB"}}]
+}
