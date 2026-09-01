@@ -51,11 +51,12 @@ const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
-  regexp: string
-  locale?: false
+  source: string
+  regexp?: string
+  /** @default true */
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
-  originalSource: string
 }
 
 export type ProxyConfig = {
