@@ -270,10 +270,8 @@ pub struct MetaFile {
 }
 
 impl MetaFile {
-    /// Opens a meta file and uses its recorded compression configuration for referenced SSTs.
-    /// Memory maps the entire file and eagerly deserializes all AMQF filters as zero-copy
-    /// [`qfilter::FilterRef`]s that borrow from the mmap. Database opens use the internal
-    /// constructor to also validate the marker against the runtime family configuration.
+    /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
+    /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
     pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
         Self::open_with_family_configs(db_path, sequence_number, None)
     }
@@ -313,13 +311,11 @@ impl MetaFile {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
-        let compression_len = reader.read_u32::<BE>()? as usize;
-        let compression_bytes = reader
-            .get(..compression_len)
-            .context("Compression configuration out of bounds")?;
-        reader = &reader[compression_len..];
-        let compression = Compression::decode(compression_bytes)
-            .context("Invalid compression configuration in meta file")?;
+        let compression = match reader.read_u8()? {
+            value if value == Compression::Lz4 as u8 => Compression::Lz4,
+            value if value == Compression::Zstd3 as u8 => Compression::Zstd3,
+            value => bail!("Invalid compression algorithm {value}"),
+        };
         if let Some(configs) = family_configs {
             let configured = configs
                 .get(family as usize)

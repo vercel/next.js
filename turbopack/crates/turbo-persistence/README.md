@@ -56,8 +56,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
-  - 4 bytes compression algorithm byte length
-  - `n` bytes bincode-encoded compression algorithm, which must match the configuration used to open the database
+  - 1 byte compression algorithm, which must match the configuration used to open the database
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file

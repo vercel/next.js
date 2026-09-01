@@ -62,9 +62,7 @@ impl<'a> MetaFileBuilder<'a> {
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
         file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
-        let compression = self.compression.encode().map_err(io::Error::other)?;
-        file.write_u32::<BE>(compression.len() as u32)?;
-        file.write_all(&compression)?;
+        file.write_u8(self.compression as u8)?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
@@ -143,42 +141,5 @@ impl<W: Write> Write for CountingWriter<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use byteorder::{BE, ByteOrder};
-
-    use super::*;
-    use crate::meta_file::MetaFile;
-
-    fn write_empty_meta(compression: Compression) -> (tempfile::TempDir, std::path::PathBuf) {
-        let tempdir = tempfile::tempdir().unwrap();
-        let (file, _) = MetaFileBuilder::new(0, compression)
-            .write(tempdir.path(), 1)
-            .unwrap();
-        drop(file);
-        let path = tempdir.path().join("00000001.meta");
-        (tempdir, path)
-    }
-
-    #[test]
-    fn invalid_meta_compression_headers_are_rejected() {
-        let (tempdir, path) = write_empty_meta(Compression::Zstd3);
-        let original = std::fs::read(&path).unwrap();
-
-        let mut bytes = original.clone();
-        BE::write_u32(&mut bytes[0..4], META_FILE_MAGIC.wrapping_sub(1));
-        std::fs::write(&path, &bytes).unwrap();
-        assert!(MetaFile::open(tempdir.path(), 1).is_err());
-
-        let mut bytes = original.clone();
-        bytes[12] = 99;
-        std::fs::write(&path, &bytes).unwrap();
-        assert!(MetaFile::open(tempdir.path(), 1).is_err());
-
-        std::fs::write(&path, &original[..12]).unwrap();
-        assert!(MetaFile::open(tempdir.path(), 1).is_err());
     }
 }

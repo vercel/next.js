@@ -1,39 +1,20 @@
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
-use bincode::{Decode, Encode};
 use lzzzz::lz4::{self, decompress};
 
-/// Compression preset used for a family's SST blocks and blob values.
+/// Compression algorithm used for a family's SST blocks and blob values.
 ///
-/// Variant order is part of the meta-file format. New presets must be appended without reordering
-/// existing variants.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode)]
+/// The discriminants are stored in meta files, so existing values must not be changed. New
+/// algorithms get a new discriminant.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Compression {
     /// Fast LZ4 compression using the default acceleration level.
     #[default]
-    Lz4,
+    Lz4 = 0,
     /// Zstandard compression at level 3.
-    Zstd3,
-}
-
-impl Compression {
-    pub(crate) fn encode(self) -> Result<Vec<u8>> {
-        bincode::encode_to_vec(self, bincode::config::standard())
-            .context("Failed to encode compression preset")
-    }
-
-    pub(crate) fn decode(bytes: &[u8]) -> Result<Self> {
-        let (compression, consumed) =
-            bincode::decode_from_slice(bytes, bincode::config::standard())
-                .context("Failed to decode compression preset")?;
-        ensure!(
-            consumed == bytes.len(),
-            "Compression preset has {} trailing bytes",
-            bytes.len() - consumed
-        );
-        Ok(compression)
-    }
+    Zstd3 = 1,
 }
 
 thread_local! {
@@ -56,15 +37,15 @@ fn decompress_block(
         "decompress_block called with uncompressed_length=0; uncompressed blocks should use \
          zero-copy mmap path"
     );
-    let result: Result<usize> = match compression {
+    let bytes_written = match compression {
         Compression::Lz4 => decompress(block, dest).map_err(anyhow::Error::from),
         Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
             decompressor
                 .decompress_to_buffer(block, dest)
                 .map_err(anyhow::Error::from)
         }),
-    };
-    let bytes_written = result.with_context(|| {
+    }
+    .with_context(|| {
         format!(
             "Failed to decompress {compression:?} block ({} bytes compressed, {} bytes \
              uncompressed)",

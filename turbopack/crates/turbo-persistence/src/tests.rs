@@ -1113,10 +1113,8 @@ fn batch_get_across_families() -> Result<()> {
     let path = tempdir.path();
 
     let mut config = DbConfig::default();
-    config.family_configs[0].compression = Compression::Lz4;
-    config.family_configs[1].compression = Compression::Lz4;
+    // set zstd on an arbitrary family, lz4 is used by default
     config.family_configs[2].compression = Compression::Zstd3;
-    config.family_configs[3].compression = Compression::Lz4;
     let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
         config.clone(),

@@ -155,6 +155,7 @@ trait ValueBlockCache<B: SharedBytes> {
         mmap: &B::MmapHandle,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<B>;
 }
 
@@ -164,7 +165,6 @@ trait ValueBlockCache<B: SharedBytes> {
 struct ArcBlockCacheReader<'a> {
     cache: &'a BlockCache,
     verified_blocks: &'a [AtomicU64],
-    compression: Compression,
 }
 
 /// Lookup-path: concurrent `BlockCache` with uncompressed-bypass and
@@ -175,6 +175,7 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
         mmap: &Arc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<ArcBytes> {
         get_or_cache_block(
             mmap,
@@ -182,7 +183,7 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
             block_index,
             self.cache,
             self.verified_blocks,
-            self.compression,
+            compression,
         )
     }
 }
@@ -190,7 +191,6 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
 /// Iteration-path: lightweight single-entry cache for sequential reads.
 struct RcBlockCacheReader<'a> {
     cache: &'a mut Option<(u16, RcBytes)>,
-    compression: Compression,
 }
 
 impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
@@ -199,13 +199,14 @@ impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<RcBytes> {
         if let Some((idx, block)) = self.cache.as_ref()
             && *idx == block_index
         {
             return Ok(block.clone());
         }
-        let block: RcBytes = read_block_generic(mmap, meta, block_index, self.compression)?;
+        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
         *self.cache = Some((block_index, block.clone()));
         Ok(block)
     }
@@ -315,7 +316,6 @@ impl StaticSortedFile {
         let reader = ArcBlockCacheReader {
             cache: value_block_cache,
             verified_blocks: &self.verified_blocks,
-            compression: self.compression,
         };
         let block_type = be::read_u8(&key_block_arc);
         match block_type {
@@ -749,7 +749,7 @@ fn handle_key_match_generic<B: SharedBytes>(
             let size = be::read_u16(&val[2..]) as usize;
             let position = be::read_u32(&val[4..]) as usize;
             let value = reader
-                .get_or_read(mmap, meta, block)?
+                .get_or_read(mmap, meta, block, compression)?
                 .slice(position..position + size);
             LookupValue::Slice { value }
         }
@@ -1009,7 +1009,6 @@ impl StaticSortedFileIter {
                         self.compression,
                         RcBlockCacheReader {
                             cache: &mut self.value_block_cache,
-                            compression: self.compression,
                         },
                     )?
                     .into()
