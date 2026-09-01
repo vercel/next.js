@@ -376,6 +376,7 @@ type AppRenderCapabilities = {
 }
 
 export type AppRenderContext = {
+  inlinedCSSPaths: Set<string>
   sharedContext: AppSharedContext
   workStore: WorkStore
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy
@@ -2247,7 +2248,8 @@ async function getRSCPayload(
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
-    ctx
+    ctx,
+    ctx.inlinedCSSPaths
   )
 
   // Assume the head we're rendering contains only partial data if PPR is
@@ -2406,7 +2408,8 @@ async function getErrorRSCPayload(
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
-    ctx
+    ctx,
+    new Set()
   )
 
   const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
@@ -2829,6 +2832,7 @@ async function prepareAppPageRender(
   )
 
   const ctx: AppRenderContext = {
+    inlinedCSSPaths: new Set(),
     componentMod: ComponentMod,
     url,
     renderOpts,
@@ -8267,6 +8271,7 @@ async function validateInstantConfigInBuildWithSample(
   return workAsyncStorage.run(workStore, async () => {
     // NOTE: match field order in renderToHTMLOrFlightImpl to avoid deopts
     const validationCtx: AppRenderContext = {
+      inlinedCSSPaths: new Set(),
       componentMod: outerCtx.componentMod,
       url: sampleUrlWithoutQuery,
       renderOpts: outerCtx.renderOpts,
@@ -10439,7 +10444,8 @@ async function iterateStreamingPrerenderChunks(
 
 const getGlobalErrorStyles = async (
   tree: LoaderTree,
-  ctx: AppRenderContext
+  ctx: AppRenderContext,
+  alreadyInlinedCSS: Set<string>
 ): Promise<{
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
@@ -10461,7 +10467,7 @@ const getGlobalErrorStyles = async (
     ctx,
     filePath: globalErrorModule[1],
     getComponent: globalErrorModule[0],
-    injectedCSS: new Set(),
+    injectedCSS: alreadyInlinedCSS,
     injectedJS: new Set(),
   })
 
