@@ -69,6 +69,7 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 /// Zstd is intentionally unsupported here because the browser WASM build does
 /// not include the native zstd decoder used by the file reader.
 pub fn read_trace_bytes(bytes: &[u8]) -> anyhow::Result<Arc<StoreContainer>> {
+    const PARSE_CHUNK_SIZE: usize = 4 * 1024 * 1024;
     const GZIP_MAGIC: &[u8] = &[0x1f, 0x8b];
     const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
 
@@ -76,22 +77,25 @@ pub fn read_trace_bytes(bytes: &[u8]) -> anyhow::Result<Arc<StoreContainer>> {
         anyhow::bail!("zstd-compressed traces are not supported by the WASM trace engine");
     }
 
-    let decoded;
-    let bytes = if bytes.starts_with(GZIP_MAGIC) {
-        let mut decoder = flate2::read::GzDecoder::new(bytes);
-        decoded = {
-            let mut decoded = Vec::new();
-            decoder.read_to_end(&mut decoded)?;
-            decoded
-        };
-        decoded.as_slice()
-    } else {
-        bytes
-    };
-
     let store = Arc::new(StoreContainer::new());
     let mut parser = TraceParser::new(store.clone());
-    parser.push(bytes)?;
+
+    if bytes.starts_with(GZIP_MAGIC) {
+        let mut decoder = flate2::read::GzDecoder::new(bytes);
+        let mut chunk = vec![0; PARSE_CHUNK_SIZE];
+        loop {
+            let bytes_read = decoder.read(&mut chunk)?;
+            if bytes_read == 0 {
+                break;
+            }
+            parser.push(&chunk[..bytes_read])?;
+        }
+    } else {
+        for chunk in bytes.chunks(PARSE_CHUNK_SIZE) {
+            parser.push(chunk)?;
+        }
+    }
+
     parser.finish()?;
     Ok(store)
 }
