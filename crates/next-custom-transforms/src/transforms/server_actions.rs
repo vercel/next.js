@@ -2431,6 +2431,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         // Don't use the same name as the original to avoid
                                         // shadowing. We don't need it here for call stacks.
                                         None,
+                                        if ident.sym.starts_with("$$RSC_SERVER_") {
+                                            None
+                                        } else {
+                                            Some(ident.sym.clone())
+                                        },
                                         Expr::Ident(ident.clone()),
                                         ident.span,
                                         None,
@@ -2989,6 +2994,7 @@ fn create_cache_wrapper(
     reference_id: Atom,
     bound_args_length: usize,
     fn_ident: Option<Ident>,
+    display_name: Option<Atom>,
     target_expr: Expr,
     original_span: Span,
     params: Option<&[Param]>,
@@ -3006,6 +3012,10 @@ fn create_cache_wrapper(
                 raw: None,
             })))
             .as_arg(),
+            match display_name {
+                Some(name) => Box::new(Expr::from(name.as_str())).as_arg(),
+                None => Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))).as_arg(),
+            },
             Box::new(target_expr).as_arg(),
             match params {
                 // The params are statically known and rest params are not used.
@@ -3087,6 +3097,7 @@ fn create_and_hoist_cache_function(
         reference_id.clone(),
         bound_args_length,
         fn_ident.clone(),
+        fn_ident.as_ref().map(|ident| ident.sym.clone()),
         Expr::Ident(inner_fn_ident.clone()),
         original_span,
         Some(&params),

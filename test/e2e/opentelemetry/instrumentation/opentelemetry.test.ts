@@ -1804,7 +1804,7 @@ describe('opentelemetry use cache Server Functions', () => {
     )
   }
 
-  it('traces use cache misses, hits, and joined invocations', async () => {
+  it('traces use cache misses, hits, forced refreshes, and joined invocations', async () => {
     const cacheKey = `private-${Date.now()}`
     let previousSpanIds = currentSpanIds()
 
@@ -1852,6 +1852,30 @@ describe('opentelemetry use cache Server Functions', () => {
         }),
       ])
     )
+
+    if (isNextDev) {
+      previousSpanIds = currentSpanIds()
+      expect(
+        await next
+          .fetch(`/api/cache?key=${cacheKey}`, {
+            headers: { 'cache-control': 'no-cache' },
+          })
+          .then((res) => res.status)
+      ).toBe(200)
+      const forcedSpans = await getNewUseCacheSpans(previousSpanIds)
+      expect(forcedSpans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.cache.outcome': 'bypass',
+              'next.cache.source': 'generated',
+              'next.cache.reason': 'forced',
+            }),
+            status: { code: 0 },
+          }),
+        ])
+      )
+    }
 
     const joinedKey = `joined-${Date.now()}`
     previousSpanIds = currentSpanIds()
