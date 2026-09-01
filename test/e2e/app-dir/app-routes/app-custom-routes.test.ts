@@ -523,14 +523,16 @@ describe('app-custom-routes', () => {
   })
 
   describe('error conditions', () => {
-    it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
-      const res = await next.fetch(basePath + '/status/405', {
-        method: 'HEADER',
-      })
+    if (!isNextDeploy) {
+      it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
+        const res = await next.fetch(basePath + '/status/405', {
+          method: 'HEADER',
+        })
 
-      expect(res.status).toEqual(400)
-      expect(await res.text()).toBeEmpty()
-    })
+        expect(res.status).toEqual(400)
+        expect(await res.text()).toBeEmpty()
+      })
+    }
 
     it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
       const res = await next.fetch(basePath + '/status/405', {
