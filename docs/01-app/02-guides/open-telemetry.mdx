@@ -314,7 +314,7 @@ Attributes:
 
 This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your environment. This is useful when you want to use a custom fetch instrumentation library.
 
-### `use cache`
+### `use cache [next.cache.name]`
 
 - `next.span_type`: `UseCache.execute`
 
@@ -322,15 +322,17 @@ This span represents one invocation of a function marked with [`use cache`](/doc
 
 Attributes:
 
-- `next.span_name`: `use cache`
+- `next.span_name`: `use cache [next.cache.name]`
 - `next.span_type`: `UseCache.execute`
 - `next.span_category`: `application`
+- `next.cache.name`: the cached function or component name, or `<cache>` when no stable name is available
+- `next.cache.file`: the project-relative source file in development, when available
 - `next.cache.kind`: `public` (including custom cache kinds) or `private`
 - `next.cache.outcome`: `hit`, `miss`, `stale`, `bypass`, or `wait`; `wait` means this invocation waited for another invocation to generate the value
 - `next.cache.source`: `resume-data`, `handler`, or `generated`, when the source is known
 - `next.cache.joined`: `intra-request` or `cross-request` when the invocation waits for another invocation
 - `next.cache.handler`: `default`, `custom`, or `none`
-- `next.cache.reason`: `forced`, `draft-mode`, `dev-rewarm`, `stale`, or `runtime-data`, when applicable
+- `next.cache.reason`: `forced`, `draft-mode`, `dev-rewarm`, `stale`, `runtime-data`, `prerender-ended`, `omitted-from-shell`, or `joined-pending`, when applicable
 - `next.cache.background_refresh`: `true` when a stale value is returned while a refresh runs in the background
 
 ### `run Server Action [next.server_action.name]`
