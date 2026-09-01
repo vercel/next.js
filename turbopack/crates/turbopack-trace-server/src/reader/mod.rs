@@ -24,6 +24,14 @@ use crate::{
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
+/// Bytes read from the file per iteration.
+///
+/// This buys read-latency hiding, and one read in flight is enough for that —
+/// there is no throughput reason to keep tens of megabytes resident. It used to
+/// be 64 MB, which cost that much in a permanently-live scratch buffer plus a
+/// comparable amount in the accumulation buffer it fed.
+const READ_CHUNK_SIZE: usize = 4 * 1024 * 1024;
+
 trait TraceFormat {
     type Reused: Default;
     /// Create the initial reused buffer. Override to pre-allocate capacity.
@@ -203,10 +211,13 @@ impl TraceReader {
             }
         };
 
-        let mut buffer = Vec::new();
+        // `buffer` accumulates bytes until they form whole rows; `index` is how
+        // far the format has consumed. Two chunks of headroom means the common
+        // case (a partial row left over) never reallocates.
+        let mut buffer: Vec<u8> = Vec::with_capacity(READ_CHUNK_SIZE * 2);
         let mut index = 0;
 
-        let mut chunk = vec![0; 64 * 1024 * 1024];
+        let mut chunk = vec![0; READ_CHUNK_SIZE];
         loop {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
@@ -220,12 +231,6 @@ impl TraceReader {
                             return value;
                         }
                     } else {
-                        // If we have partially consumed some data, and we are at buffer capacity,
-                        // remove the consumed data to make more space.
-                        if index > 0 && buffer.len() + bytes_read > buffer.capacity() {
-                            buffer.splice(..index, std::iter::empty());
-                            index = 0;
-                        }
                         buffer.extend_from_slice(&chunk[..bytes_read]);
                         if format.is_none() && buffer.len() >= 8 {
                             let erased_format = if buffer.starts_with(b"TRACEv0") {
@@ -258,6 +263,20 @@ impl TraceReader {
                                     println!("Trace file error: {err}");
                                     return true;
                                 }
+                            }
+                            // Drop the consumed prefix now, rather than letting
+                            // `buffer` grow to capacity first and compacting
+                            // then. What is left is normally one partial row, so
+                            // the move is cheap, and it keeps the buffer at
+                            // roughly one chunk instead of ratcheting upward.
+                            //
+                            // Safe to do here because the format's reused row
+                            // vec borrows `buffer` only within a `read` call —
+                            // it is cleared on entry and on drop, and the rows
+                            // are drained before it returns.
+                            if index > 0 {
+                                buffer.drain(..index);
+                                index = 0;
                             }
                             if self.store.want_to_read() {
                                 thread::yield_now();
