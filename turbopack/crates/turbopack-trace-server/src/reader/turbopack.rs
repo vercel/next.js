@@ -103,6 +103,7 @@ enum InternalRowType {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
+    invalidate_caches: bool,
     id_mapping: IdMapping,
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
@@ -115,13 +116,14 @@ pub struct TurbopackFormat {
 }
 
 impl TurbopackFormat {
-    pub fn new(store: Arc<StoreContainer>) -> Self {
+    pub fn new(store: Arc<StoreContainer>, invalidate_caches: bool) -> Self {
         let drop_ids = std::env::var("DROP_SPANS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or_default();
         Self {
             store,
+            invalidate_caches,
             id_mapping: IdMapping::default(),
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
@@ -555,7 +557,9 @@ impl TraceFormat for TurbopackFormat {
                 for row in iter.by_ref() {
                     self.process(&mut store, row);
                 }
-                store.invalidate_outdated_spans(&self.outdated_spans);
+                if self.invalidate_caches {
+                    store.invalidate_outdated_spans(&self.outdated_spans);
+                }
                 self.outdated_spans.clear();
             }
         }
