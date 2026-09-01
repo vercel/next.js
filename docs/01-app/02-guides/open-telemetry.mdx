@@ -318,7 +318,7 @@ This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your envi
 
 - `next.span_type`: `UseCache.execute`
 
-This span represents one invocation of a function marked with [`use cache`](/docs/app/api-reference/directives/use-cache). It includes the cache lookup, any wait for a concurrent invocation, and generation on a miss. Spans created while generating the cached value are children of this span. The span reports only fixed cache metadata; cache keys, arguments, tags, headers, cookies, and return values are never included.
+This span represents one invocation of a function marked with [`use cache`](/docs/app/api-reference/directives/use-cache). It includes the cache lookup, any wait for a concurrent invocation, and foreground generation on a miss. Spans created during foreground generation are children of this span. Background revalidation runs separately. The span reports only fixed cache metadata; cache keys, arguments, tags, headers, cookies, and return values are never included.
 
 Attributes:
 
@@ -328,12 +328,12 @@ Attributes:
 - `next.cache.name`: the cached function or component name, or `<cache>` when no stable name is available
 - `next.cache.file`: the project-relative source file in development, when available
 - `next.cache.kind`: `public` (including custom cache kinds) or `private`
-- `next.cache.outcome`: `hit`, `miss`, `stale`, `bypass`, or `wait`; `wait` means this invocation waited for another invocation to generate the value
+- `next.cache.outcome`: `hit`, `miss`, `stale`, `bypass`, or `wait`; `wait` means this invocation waited for another invocation to generate the value. A failed invocation reports an error span status and may omit this attribute if it failed before reaching an outcome.
 - `next.cache.source`: `resume-data`, `handler`, or `generated`, when the source is known
 - `next.cache.joined`: `intra-request` or `cross-request` when the invocation waits for another invocation
 - `next.cache.handler`: `default`, `custom`, or `none`
 - `next.cache.reason`: `forced`, `draft-mode`, `dev-rewarm`, `stale`, `runtime-data`, `prerender-ended`, `omitted-from-shell`, or `joined-pending`, when applicable
-- `next.cache.background_refresh`: `true` when a stale value is returned while a refresh runs in the background
+- `next.cache.background_refresh`: `true` when this invocation schedules a refresh in the background
 
 ### `run Server Action [next.server_action.name]`
 

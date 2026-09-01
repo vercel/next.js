@@ -195,7 +195,7 @@ type UseCacheTrace = {
   bypass(reason: UseCacheTraceReason): void
   complete(): void
   fail(error: unknown): void
-  resolve(result: UseCacheTraceResult): void
+  setResult(result: UseCacheTraceResult): void
   setHandler(handler: 'default' | 'custom' | 'none'): void
   setJoin(join: UseCacheTraceJoin): void
   setSource(source: UseCacheTraceSource): void
@@ -213,6 +213,30 @@ function createUseCacheTrace(
   let result: UseCacheTraceResult | undefined
   let finished = false
 
+  const finish = (error?: Error) => {
+    if (finished) return
+    finished = true
+
+    if (error) {
+      if (source) {
+        span.setAttribute('next.cache.source', source)
+      }
+    } else if (result) {
+      span.setAttribute('next.cache.outcome', result.outcome)
+      if (result.source) {
+        span.setAttribute('next.cache.source', result.source)
+      }
+      if (result.reason) {
+        span.setAttribute('next.cache.reason', result.reason)
+      }
+      if (result.backgroundRefresh) {
+        span.setAttribute('next.cache.background_refresh', true)
+      }
+    }
+
+    done(error)
+  }
+
   return {
     span,
     bypass(reason) {
@@ -221,38 +245,19 @@ function createUseCacheTrace(
         source,
         reason,
       }
-      this.complete()
+      finish()
     },
     complete() {
-      if (finished) return
-      finished = true
-      if (result) {
-        span.setAttribute('next.cache.outcome', result.outcome)
-        if (result.source) {
-          span.setAttribute('next.cache.source', result.source)
-        }
-        if (result.reason) {
-          span.setAttribute('next.cache.reason', result.reason)
-        }
-        if (result.backgroundRefresh) {
-          span.setAttribute('next.cache.background_refresh', true)
-        }
-      }
-      done()
+      finish()
     },
     fail(error) {
-      if (finished) return
-      finished = true
-      if (source) {
-        span.setAttribute('next.cache.source', source)
-      }
-      done(
+      finish(
         error instanceof Error
           ? error
           : new Error('use cache invocation threw a non-Error value')
       )
     },
-    resolve(value) {
+    setResult(value) {
       result = value
       source = value.source ?? source
     },
@@ -1845,6 +1850,7 @@ export async function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
+  displayName: string | null,
   originalFn: (...args: unknown[]) => Promise<unknown>,
   args: unknown[]
 ) {
@@ -1853,12 +1859,11 @@ export async function cache(
     return cacheImpl(kind, id, boundArgsLength, originalFn, args)
   }
 
-  const metadata = workStore ? getServerReferenceMetadata(id, undefined) : null
-  const candidateName = originalFn.name || metadata?.exportedName
-  const cacheName =
-    candidateName && !candidateName.startsWith('$$RSC_SERVER_CACHE_')
-      ? candidateName
-      : '<cache>'
+  const cacheFile =
+    process.env.__NEXT_DEV_SERVER && workStore
+      ? getServerReferenceMetadata(id, undefined)?.file
+      : undefined
+  const cacheName = displayName ?? '<cache>'
   const spanName = `use cache ${cacheName}`
 
   // Keep `cache` in the async stack. Errors created later in the cache state
@@ -1871,9 +1876,9 @@ export async function cache(
         'next.span_category': 'application',
         'next.cache.kind': kind === 'private' ? 'private' : 'public',
         'next.cache.name': cacheName,
-        ...(metadata?.file
+        ...(cacheFile
           ? {
-              'next.cache.file': metadata.file,
+              'next.cache.file': cacheFile,
             }
           : undefined),
       },
@@ -2903,7 +2908,7 @@ async function cacheImpl(
           stream = streamA
         }
 
-        cacheTrace?.resolve({
+        cacheTrace?.setResult({
           outcome: isCacheEntryStale(rdcResult.entry) ? 'stale' : 'hit',
           source: 'resume-data',
         })
@@ -2998,6 +3003,11 @@ async function cacheImpl(
   // (including the cache handler lookup and generation), we join it instead of
   // doing redundant work. This also saves cache handler `get` calls which may
   // be HTTP round-trips for remote handlers.
+  const forceRevalidationReason = getForceRevalidationReason(
+    workStore,
+    workUnitStore
+  )
+
   if (stream === undefined) {
     const pendingInvocation =
       workStore.pendingCacheInvocations?.get(serializedCacheKey)
@@ -3007,8 +3017,7 @@ async function cacheImpl(
     // stored entry instead, so it is only reused when the caller hasn't asked
     // to bypass caches, and only if nothing has invalidated it since.
     const completedInvocation =
-      pendingInvocation === undefined &&
-      !shouldForceRevalidate(workStore, workUnitStore)
+      pendingInvocation === undefined && forceRevalidationReason === undefined
         ? workStore.completedCacheInvocations?.get(serializedCacheKey)
         : undefined
 
@@ -3083,7 +3092,7 @@ async function cacheImpl(
           logPrefix
         )
         cacheTrace?.setJoin('intra-request')
-        cacheTrace?.resolve({
+        cacheTrace?.setResult({
           outcome: completedInvocation === undefined ? 'wait' : 'hit',
         })
       }
@@ -3203,7 +3212,7 @@ async function cacheImpl(
             stream = sharedCacheResult.entry.fork()
             maybePropagateCacheEntryMetadata(cacheContext, metadata)
             cacheTrace?.setJoin('cross-request')
-            cacheTrace?.resolve({ outcome: 'wait' })
+            cacheTrace?.setResult({ outcome: 'wait' })
 
             // The cross-request leader belongs to a different request with its
             // own RDC. Save to this request's RDC so its final prerender can
@@ -3289,7 +3298,7 @@ async function cacheImpl(
         let entry: CacheEntry | undefined
 
         // We ignore existing cache entries when force revalidating.
-        if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
+        if (cacheHandler && forceRevalidationReason === undefined) {
           cacheTrace?.setSource('handler')
           entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
 
@@ -3569,10 +3578,6 @@ async function cacheImpl(
             cacheSignalReadEnded = false
           }
 
-          const forceRevalidationReason = getForceRevalidationReason(
-            workStore,
-            workUnitStore
-          )
           const isForegroundStaleRevalidation =
             entry !== undefined &&
             willConsumerServerCache(workUnitStore) &&
@@ -3662,7 +3667,7 @@ async function cacheImpl(
             type: 'cached',
             entry: sharedCacheEntry,
           })
-          cacheTrace?.resolve({
+          cacheTrace?.setResult({
             outcome: forceRevalidationReason ? 'bypass' : 'miss',
             source: 'generated',
             reason:
@@ -3755,8 +3760,8 @@ async function cacheImpl(
           // `MIN_PRERENDERABLE_EXPIRE` so it is served from the cache; this
           // also covers custom handlers, re-executing and writing through to
           // the backing.
-          let shouldTriggerBackgroundRevalidation =
-            currentTime > entry.timestamp + entry.revalidate * 1000
+          const isStale = isCacheEntryStale(entry, currentTime)
+          let shouldTriggerBackgroundRevalidation = isStale
           if (
             !shouldTriggerBackgroundRevalidation &&
             process.env.__NEXT_DEV_SERVER &&
@@ -3834,12 +3839,11 @@ async function cacheImpl(
             workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
 
-          cacheTrace?.resolve({
-            outcome: isCacheEntryStale(entry, currentTime) ? 'stale' : 'hit',
+          cacheTrace?.setResult({
+            outcome: isStale ? 'stale' : 'hit',
             source: 'handler',
             reason:
-              shouldTriggerBackgroundRevalidation &&
-              !isCacheEntryStale(entry, currentTime)
+              shouldTriggerBackgroundRevalidation && !isStale
                 ? 'dev-rewarm'
                 : undefined,
             backgroundRefresh: shouldTriggerBackgroundRevalidation
@@ -3999,9 +4003,7 @@ function shouldForceRevalidate(
 function getForceRevalidationReason(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
-):
-  | Extract<UseCacheTraceReason, 'forced' | 'draft-mode' | 'dev-rewarm'>
-  | undefined {
+): Extract<UseCacheTraceReason, 'forced' | 'draft-mode'> | undefined {
   if (workStore.isOnDemandRevalidate) {
     return 'forced'
   }
@@ -4014,11 +4016,11 @@ function getForceRevalidationReason(
     switch (workUnitStore.type) {
       case 'request':
         return workUnitStore.headers.get('cache-control') === 'no-cache'
-          ? 'dev-rewarm'
+          ? 'forced'
           : undefined
       case 'cache':
       case 'private-cache':
-        return workUnitStore.forceRevalidate ? 'dev-rewarm' : undefined
+        return workUnitStore.forceRevalidate ? 'forced' : undefined
       case 'prerender-runtime':
       case 'prerender':
       case 'prerender-client':
