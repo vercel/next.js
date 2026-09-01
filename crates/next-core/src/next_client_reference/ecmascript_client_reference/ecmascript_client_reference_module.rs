@@ -152,20 +152,23 @@ impl EcmascriptClientReferenceModule {
         let proxy_module_content =
             AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
-        let proxy_source = VirtualSource::new(
-            self.server_ident.await?.path.join(
-                // We choose the extension based on the original file because we're placing the
-                // virtual module next to the original code, so its parsing will be
-                // affected by `type` fields in package.json -- a bare `proxy.js`
-                // may end up being unexpectedly parsed as the wrong format.
-                // The name special cased later to always ignore-list this module.
-                &format!(
-                    "__nextjs-internal-proxy.{}",
-                    if is_esm { "mjs" } else { "cjs" }
-                ),
-            )?,
-            proxy_module_content,
-        );
+        let proxy_path = self.server_ident.await?.path.join(
+            // We choose the extension based on the original file because we're placing the
+            // virtual module next to the original code, so its parsing will be
+            // affected by `type` fields in package.json -- a bare `proxy.js`
+            // may end up being unexpectedly parsed as the wrong format.
+            // The name special cased later to always ignore-list this module.
+            &format!(
+                "__nextjs-internal-proxy.{}",
+                if is_esm { "mjs" } else { "cjs" }
+            ),
+        )?;
+
+        // Proxy contents include the part-specific server ident, so it must affect identity.
+        let proxy_ident = AssetIdent::from_path(proxy_path)
+            .with_asset(rcstr!("server"), self.server_ident)
+            .into_vc();
+        let proxy_source = VirtualSource::new_with_ident(proxy_ident, proxy_module_content);
 
         let proxy_module = self
             .server_asset_context
