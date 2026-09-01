@@ -85,22 +85,16 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    /// Returns the bytes the allocator currently has committed from the OS.
+    /// Returns the bytes mimalloc currently has committed from the OS. This measures what the
+    /// allocator holds rather than the process's total footprint, and it does not track frees in
+    /// lock step, since mimalloc reuses and purges pages on its own schedule.
     ///
-    /// This is the allocator's own accounting, not a per-OS query, so it means the same thing on
-    /// every platform. It counts what mimalloc has taken from the OS, which includes allocator
-    /// overhead and fragmentation, and excludes anything mimalloc did not hand out — the binary,
-    /// mmap'd files, and any memory allocated by the embedding process. It is a measure of what
-    /// this allocator holds, not of the process's total footprint.
+    /// See `current_commit` in [`mi_process_info`], which documents each figure mimalloc reports.
     ///
-    /// It does not track frees in lock step. mimalloc reuses and purges pages on its own
-    /// schedule, so the figure lags a burst of frees, and memory abandoned by threads that have
-    /// since exited is only reclaimed by a forcing [`Self::collect`].
+    /// [`mi_process_info`]: https://docs.rs/libmimalloc-sys/latest/libmimalloc_sys/fn.mi_process_info.html
     ///
-    /// Without the `custom_allocator` feature this is a process-wide counter of live bytes
-    /// (allocations minus deallocations), maintained by [`self::counter`]. That figure is
-    /// approximate: threads buffer their updates, so it can be off by up to a fixed amount per
-    /// thread in either direction.
+    /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
+    /// which is approximate because threads buffer their updates.
     pub fn memory_usage() -> usize {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
         {
@@ -111,14 +105,14 @@ impl TurboMalloc {
             // Safety: every out-param is either null or a valid `usize` we own.
             unsafe {
                 libmimalloc_sys::mi_process_info(
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
+                    /* elapsed_msecs */ std::ptr::null_mut(),
+                    /* user_msecs */ std::ptr::null_mut(),
+                    /* system_msecs */ std::ptr::null_mut(),
+                    /* current_rss */ std::ptr::null_mut(),
+                    /* peak_rss */ std::ptr::null_mut(),
                     &mut current_commit,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
+                    /* peak_commit */ std::ptr::null_mut(),
+                    /* page_faults */ std::ptr::null_mut(),
                 );
             }
             current_commit
@@ -247,11 +241,7 @@ mod tests {
     #[global_allocator]
     static ALLOC: TurboMalloc = TurboMalloc;
 
-    /// Also guards against the counter silently becoming unavailable. mimalloc's `committed`
-    /// stat is maintained even at `MI_STAT 0` (which is what a release build compiles, since
-    /// `build.rs` sets `MI_DEBUG=0`) because the `mi_os_stat_*` macros are not gated on
-    /// `MI_STAT` — an internal detail rather than a documented guarantee, so a
-    /// `libmimalloc-sys` bump could zero it out. If that happens, this fails.
+    /// Guards against the counter silently becoming unavailable.
     #[test]
     fn memory_usage_is_reported_and_tracks_a_large_allocation() {
         let before = TurboMalloc::memory_usage();
