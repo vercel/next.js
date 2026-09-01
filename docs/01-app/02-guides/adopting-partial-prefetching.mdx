@@ -10,6 +10,8 @@ related:
     - app/guides/optimizing-prefetching
     - app/api-reference/config/next-config-js/partialPrefetching
     - app/api-reference/file-conventions/route-segment-config/prefetch
+    - app/api-reference/functions/prefetch
+    - app/api-reference/functions/navigation
 ---
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.
@@ -43,6 +45,7 @@ Adopting an existing app by hand follows the two [instant navigation](/docs/app/
 1. [Enable `partialPrefetching`](#enable-partial-prefetching), then [audit every `<Link prefetch={true}>`](#auditing-link-prefetchtrue-calls) and decide per destination how to preserve what its prefetch delivered. When the adoption is large enough that reviewers need smaller diffs, or adopted routes should reach users before the rest, [adopt incrementally](#adopting-incrementally) with the flag off, guided by the [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight.
 2. [Audit routes for URL data](#auditing-routes-for-url-data), resolving the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight.
 3. Optionally, [prefetch URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
+4. Optionally, [exclude cached content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) with [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation), on the routes where caching content into the App Shell made it heavier than you want.
 
 Both insights are development-only and never block the build. They appear in the dev overlay with fix cards that link the docs page for each fix. If a route isn't ready to adopt, export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from its page or layout to opt the route out of instant-navigation validation, and return to it later.
 
