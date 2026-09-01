@@ -381,12 +381,12 @@ jobs:
       fail-fast: false
       matrix:
         mode:
-          - '--turbopack=false'
-          - '--turbopack=true'
+          - '-F turbopack=false'
+          - '-F turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev --page=homepage'
-          - '--scenario=heavy-npm-deps-build --page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
+          - '--scenario=heavy-npm-deps-dev -F page=homepage'
+          - '--scenario=heavy-npm-deps-build -F page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled -F page=homepage'
     permissions:
       contents: read
       id-token: write

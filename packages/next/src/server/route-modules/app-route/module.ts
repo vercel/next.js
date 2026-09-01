@@ -92,6 +92,10 @@ import { trackPendingModules } from '../../app-render/module-loading/track-modul
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import {
+  createRouteHandlerRequestInUseCacheError,
+  createRouteHandlerRequestInUnstableCacheError,
+} from '../../use-cache/use-cache-messages'
 
 export class WrappedNextRouterError {
   constructor(
@@ -1462,12 +1466,11 @@ function trackDynamic(
       case 'private-cache':
         // TODO: Should we allow reading cookies and search params from the
         // request for private caches in route handlers?
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
+        throw createRouteHandlerRequestInUseCacheError(store.route, expression)
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        throw createRouteHandlerRequestInUnstableCacheError(
+          store.route,
+          expression
         )
       case 'prerender':
         const error = new Error(
