@@ -1499,6 +1499,8 @@ export function createAppPageEntrypoint({
             placeholderFallbackRouteParams != null &&
             placeholderFallbackRouteParams.length > 0
 
+          // Forced static and debug renders are prerenders even when the
+          // surrounding request otherwise supports dynamic rendering.
           const isRequestSpecificRender =
             !forceStaticRender &&
             !isDebugPrerender &&
@@ -1522,10 +1524,7 @@ export function createAppPageEntrypoint({
             }
           }
 
-          const shouldSkipFallbackRouteParams =
-            isRequestSpecificRender && !isStagedCachedNavigationRender
-
-          const fallbackRouteParams = shouldSkipFallbackRouteParams
+          const fallbackRouteParams = isRequestSpecificRender
             ? null
             : // In production or when debugging the static shell for a
               // non-prerendered URL, use the prerender manifest's fallback route
@@ -1562,9 +1561,11 @@ export function createAppPageEntrypoint({
                     ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                     : null
 
-          // Also pass fallback params via request meta so the RequestStore
-          // knows which params to defer during staged dynamic rendering
-          // (Cached Navigations), resumes, and debug static shell rendering.
+          // For staged dynamic rendering (Cached Navigations) and debug static
+          // shell rendering, pass the fallback params via request meta so the
+          // RequestStore knows which params to defer. We don't pass them as
+          // fallbackRouteParams because that would replace actual param values
+          // with opaque placeholders during segment resolution.
           if (
             (!isRequestSpecificRender ||
               isPossibleServerAction ||
