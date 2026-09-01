@@ -348,56 +348,81 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
+/**
+ * This creates a mapping so that a given client references with name `app/foo/client.tsx` is
+ * serialized as
+ * ```
+ * {
+ *  id: `app/foo/client.tsx`,
+ *  name: `*`,
+ *  chunks: ["stub"],
+ *  async: false
+ * }
+ * ```
+ *
+ * This means that not the unstable client module id is used for the cache entry, but the stable
+ * client reference name.
+ */
 function createClientModulesForCache(
   clientModules: DeepReadonly<ClientReferenceManifest['clientModules']>
 ): DeepReadonly<ClientReferenceManifest['clientModules']> {
   return new Proxy(clientModules, {
-    get(target, id, receiver) {
-      if (typeof id !== 'string') {
-        return Reflect.get(target, id, receiver)
+    get(
+      target,
+      clientReferenceName,
+      receiver
+    ): ClientReferenceManifest['clientModules'][string] | undefined {
+      if (typeof clientReferenceName !== 'string') {
+        return Reflect.get(target, clientReferenceName, receiver)
       }
 
-      const clientReference = target[id]
-      if (clientReference === undefined) {
+      const clientReferenceManifestEntry = target[clientReferenceName]
+      if (clientReferenceManifestEntry === undefined) {
         return undefined
       }
 
       return {
-        ...clientReference,
         // Cache entries must not depend on build-local module IDs or chunks.
-        // The source manifest key is resolved against the current manifest when
-        // the entry is read. Always using the async form also lets a cached
-        // reference move between sync and async modules across builds.
-        id,
-        chunks: [],
-        async: true,
+        // The stable client reference name is resolved against the current
+        // manifest when the entry is read.
+        id: clientReferenceName,
+        name: clientReferenceManifestEntry.name,
+        chunks: ['stub'],
+        async: false,
       }
     },
   })
 }
 
+/**
+ * Performs the inverse of `createClientModulesForCache`.
+ *
+ * For cache functions, we don't do the usual rscModuleMapping lookup by module ID, but instead look
+ * up by the stable client reference name. This is because cache entries must not depend on
+ * build-local module IDs or chunks. So we need a second layer of indirection here to do client
+ * reference name -> client module id -> rsc module mapping lookup.
+ */
 function createRscModuleMappingForCache(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
 ): DeepReadonly<ClientReferenceManifest['rscModuleMapping']> {
   return new Proxy(clientReferenceManifest.rscModuleMapping, {
-    get(target, id, receiver) {
-      if (typeof id !== 'string') {
-        return Reflect.get(target, id, receiver)
+    get(
+      target,
+      key,
+      receiver
+    ): ClientReferenceManifest['rscModuleMapping'][string] | undefined {
+      if (typeof key !== 'string') {
+        return Reflect.get(target, key, receiver)
       }
 
-      // Entries written before cache-specific client reference serialization
-      // used the build-local client module ID directly.
-      const legacyMapping = target[id]
-      if (legacyMapping !== undefined) {
-        return legacyMapping
-      }
-
-      const clientReference = clientReferenceManifest.clientModules[id]
-      if (clientReference === undefined) {
+      const clientReferenceManifestEntry =
+        clientReferenceManifest.clientModules[key]
+      if (clientReferenceManifestEntry === undefined) {
         return undefined
       }
 
-      return target[clientReference.id]
+      const moduleId = clientReferenceManifestEntry.id
+      return target[moduleId]
     },
   })
 }
