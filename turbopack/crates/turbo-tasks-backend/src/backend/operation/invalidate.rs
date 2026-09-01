@@ -13,6 +13,7 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
@@ -93,10 +94,9 @@ pub fn make_task_dirty(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut impl ExecuteContext<'_>,
 ) {
-    let task = ctx.task(task_id, TaskDataCategory::All);
+    let mut task = ctx.task(task_id, TaskDataCategory::All);
     make_task_dirty_internal(
-        task,
-        task_id,
+        &mut task,
         true,
         #[cfg(feature = "task_dirty_cause")]
         cause,
@@ -105,13 +105,13 @@ pub fn make_task_dirty(
     );
 }
 
-pub fn make_task_dirty_internal(
-    mut task: impl TaskGuard,
-    task_id: TaskId,
+/// Requires the guard to be allocated with [TaskDataCategory::All]
+pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
+    task: &mut E::TaskGuardImpl,
     make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut E,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
@@ -252,11 +252,8 @@ pub fn make_task_dirty_internal(
     }
     .compute();
 
-    if let Some(aggregated_update) = result.aggregated_update(task_id) {
-        queue.extend(AggregationUpdateJob::data_update(
-            &mut task,
-            aggregated_update,
-        ));
+    if let Some(aggregated_update) = result.aggregated_update(task.id()) {
+        queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
     let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
@@ -264,9 +261,7 @@ pub fn make_task_dirty_internal(
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
         if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
-            drop(task);
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task, parent_priority);
+            ctx.schedule_task(&*task, parent_priority);
         }
     }
 }
