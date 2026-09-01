@@ -290,7 +290,11 @@ impl Asset for ServerNftJsonAsset {
 /// The patterns `ignores()` is built from that Next owns, as opposed to the ones a project can
 /// supply. None of them can match an entry request resolved by `entries()`, which is what makes
 /// them safe to apply while the graph is built rather than after it: see `prunable_ignores()`.
-fn next_owned_ignores(ty: &ServerNftType, has_next_support: bool) -> Vec<&'static str> {
+fn next_owned_ignores(
+    ty: &ServerNftType,
+    has_next_support: bool,
+    is_standalone: bool,
+) -> Vec<&'static str> {
     let mut globs = vec![
         "**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js",
         "**/*.d.ts",
@@ -334,6 +338,10 @@ fn next_owned_ignores(ty: &ServerNftType, has_next_support: bool) -> Vec<&'stati
         ]);
     }
 
+    if !is_standalone {
+        globs.extend(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"]);
+    }
+
     if matches!(ty, ServerNftType::Minimal) {
         globs.extend([
             "**/next/dist/compiled/edge-runtime/**/*",
@@ -352,10 +360,14 @@ impl ServerNftJsonAsset {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
         let prune = Glob::alternatives(
-            next_owned_ignores(&self.ty, *self.project.ci_has_next_support().await?)
-                .into_iter()
-                .map(|g| Glob::new(g.into(), GlobOptions::default()))
-                .collect(),
+            next_owned_ignores(
+                &self.ty,
+                *self.project.ci_has_next_support().await?,
+                is_standalone,
+            )
+            .into_iter()
+            .map(|g| Glob::new(g.into(), GlobOptions::default()))
+            .collect(),
         )
         .to_resolved()
         .await?;
@@ -452,21 +464,14 @@ impl ServerNftJsonAsset {
             }
         }
 
-        // Everything below that `next_owned_ignores` does not cover can match one of the entry
-        // requests `entries()` resolves, so it can only be applied to the finished graph:
+        // The project-provided ignores can match one of the entry requests `entries()` resolves,
+        // so they can only be applied to the finished graph:
         // `traced_modules_for_entries` inserts entries without consulting the glob (the
         // `parent == None` arm in `nft.rs`), whereas pruning one would delete it and everything
         // reachable only through it.
-        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support)
+        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
             .into_iter()
             .chain(additional_ignores.iter().map(|s| s.as_str()))
-            .chain(if is_standalone {
-                Either::Left(std::iter::empty())
-            } else {
-                Either::Right(
-                    ["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"].into_iter(),
-                )
-            })
             .map(|g| Glob::new(g.into(), Default::default()))
             .collect::<Vec<_>>();
 
