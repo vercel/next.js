@@ -12,6 +12,14 @@ use turbopack_trace_server::{
     protocol::ProtocolSession, read_trace_bytes, read_trace_bytes_with_progress,
 };
 
+#[cfg(target_family = "wasm")]
+#[global_allocator]
+static ALLOC: talc::sync::TalcLock<
+    spinning_top::RawSpinlock,
+    talc::wasm::WasmGrowAndClaim,
+    talc::wasm::WasmBinning,
+> = talc::sync::TalcLock::new(talc::wasm::WasmGrowAndClaim);
+
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(250);
 
 #[napi(object)]
