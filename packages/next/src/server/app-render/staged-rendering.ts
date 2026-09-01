@@ -113,6 +113,11 @@ export class StagedRenderingController {
     }
   }
 
+  /**
+   * Schedules a callback that will execute synchronously when the controller is advanced
+   * to `stage` or past it, before any promises for that stage are resolved.
+   * If the controller is already past `stage`, the callback is executed immediately.
+   * */
   onStage(stage: AdvanceableRenderStage, callback: () => void) {
     addSyncTriggerListener(this.triggers[stage], callback)
   }

@@ -364,7 +364,7 @@ export async function collectSegmentData(
  * decisions can be fed back into collectSegmentData to control which segments
  * are output as separate entries vs. inlined into their parent.
  *
- * `shouldAttemptStaticPrefetch` (computed by the caller from the prerender's
+ * `shouldAttemptStatic{Shell,Prefetch}` (computed by the caller from the prerender's
  * runtime-data tracking) is folded onto every node of the result, so the
  * manifest delivers it to every response like the other hint bits. It's
  * independent of the inlining feature: when `inlining` is false the sizing
@@ -384,6 +384,7 @@ export async function collectPrefetchHints(
   clientModules: ManifestNode,
   serverConsumerManifest: any,
   inlining: { maxSize: number; maxBundleSize: number } | false,
+  shouldAttemptStaticShell: boolean,
   shouldAttemptStaticPrefetch: boolean
 ): Promise<PrefetchHints> {
   // Warm up the module cache, same as collectSegmentData.
@@ -409,13 +410,17 @@ export async function collectPrefetchHints(
   const buildId = initialRSCPayload.b
   const head = transportData.h.r
 
-  // The hints every node starts from. The static-prefetch-attempt hint is
-  // page-global (the tracking that feeds it is), so it goes on every node,
+  // The hints every node starts from. The static-prefetch-attempt hints are
+  // page-global (the tracking that creates them is), so they go on every node,
   // non-propagating — the client reads it per segment, and the runtime
   // hint merging walks the manifest tree node-by-node.
-  const baseHints = shouldAttemptStaticPrefetch
-    ? PrefetchHint.ShouldAttemptStaticPrefetch
-    : 0
+  let baseHints = 0
+  if (shouldAttemptStaticShell) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticShell
+  }
+  if (shouldAttemptStaticPrefetch) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
+  }
 
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining
@@ -1030,11 +1035,10 @@ function collectSegmentDataImpl(
   // response as-is. Root params are forwarded separately, once per response.
   const varyParams = node.d.v
 
-  // If static prefetching is disabled for this segment
-  // (prefetch: 'force-disabled' / instant = false), it still participates in
-  // the bundle chain but with null data. Its node in the response tree
-  // carries identity only, so the client skips creating a cache entry
-  // for it.
+  // If static prefetching is disabled for this segment (prefetch: 'force-disabled'),
+  // it still participates in the bundle chain but with null data.
+  // Its node in the response tree carries identity only, so the client skips
+  // creating a cache entry for it.
   //
   // Partial Prefetching segments are NOT disabled even though they may need
   // a runtime prefetch: their static data is emitted UNCONDITIONALLY, so the
