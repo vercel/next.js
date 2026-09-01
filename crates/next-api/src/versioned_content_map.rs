@@ -14,10 +14,9 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
-use crate::aggregate_hmr::{
-    HmrChunkWithContent, HmrChunksWithContent, is_entry_chunk_list_content,
-};
+use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists};
 
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
@@ -94,8 +93,8 @@ impl VersionedContentMap {
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
     /// Lists the aggregate-HMR *entry* chunks under `root` with their
-    /// [`VersionedContent`], sorted by path. Only entry-chunk-list content is
-    /// returned (see [`is_entry_chunk_list_content`]). Callers scope which
+    /// [`VersionedContent`], sorted by path. Only Node.js chunk-list content is
+    /// returned. Callers scope which
     /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
     /// subscription passes `server/app` to include App Router entries only).
     ///
@@ -106,10 +105,10 @@ impl VersionedContentMap {
     /// can shift the internals of the map, making iteration order different
     /// for the same set of paths.
     #[turbo_tasks::function(session_dependent)]
-    pub async fn hmr_chunks_in_path(
+    pub async fn server_hmr_chunks_in_path(
         self: Vc<Self>,
         root: FileSystemPath,
-    ) -> Result<Vc<HmrChunksWithContent>> {
+    ) -> Result<Vc<ServerHmrChunkLists>> {
         let this = self.await?;
         // `State::get` returns a lock guard, which can't be held across the
         // awaits below, so snapshot the keys and release it.
@@ -138,18 +137,20 @@ impl VersionedContentMap {
                 // *Important*: only chunk lists are subscribed to. Individual chunks are already
                 // covered by the chunk list that owns them, so including them here
                 // would produce duplicate updates for the same change.
-                if !is_entry_chunk_list_content(content) {
+                let Some(versioned_content) =
+                    ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
+                else {
                     return Ok(None);
-                }
+                };
 
-                Ok(Some(HmrChunkWithContent {
-                    path: name,
-                    content,
+                Ok(Some(ServerHmrChunkList {
+                    relative_path: name,
+                    versioned_content,
                 }))
             })
             .try_flat_join()
             .await?;
-        chunks.sort_by(|a, b| a.path.cmp(&b.path));
+        chunks.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
         Ok(Vc::cell(chunks))
     }
 

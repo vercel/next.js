@@ -142,14 +142,6 @@ type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
   handleServerComponentChanges?: () => void
-  // When Turbopack server fast refresh is enabled, the aggregate server-HMR
-  // subscription (setupServerHmr `onApplied` in hot-reloader-turbopack.ts)
-  // owns the browser refresh signal for app-page RSC changes and only fires
-  // after the server module cache is refreshed. In that mode the per-page
-  // `rscHmrEndpoint` subscription must NOT also send SERVER_COMPONENT_CHANGES,
-  // or every edit triggers two RSC refetches (the first immediately
-  // superseded).
-  serverFastRefresh?: boolean
 }
 
 export async function handleRouteType({
@@ -373,21 +365,6 @@ export async function handleRouteType({
             }
             // Report the next compilation again
             readyIds?.delete(pathname)
-            // When server fast refresh is enabled, the aggregate server-HMR
-            // subscription sends SERVER_COMPONENT_CHANGES after applying the
-            // update in-process. Sending here too would double the refresh.
-            //
-            // But the aggregate subscription only fires when there is a live
-            // server-HMR handler registered (i.e. the page has rendered at
-            // least once). When recovering from a build error the page never
-            // rendered, so no handler exists, the aggregate stays silent, and
-            // this per-page send is the only thing that clears the redbox.
-            // Only suppress when a handler is actually live to own the refresh.
-            const hasLiveServerHmrHandler =
-              (globalThis.__turbopack_server_hmr_handlers__?.size ?? 0) > 0
-            if (hooks?.serverFastRefresh && hasLiveServerHmrHandler) {
-              return
-            }
             hooks?.handleServerComponentChanges?.()
           },
           (e) => {

@@ -95,6 +95,13 @@ import {
   UseCacheTimeoutError,
 } from './use-cache-errors'
 import {
+  createNestedCacheShortExpireError,
+  createNestedCacheZeroRevalidateError,
+  createUseCachePrivateInsidePublicUseCacheError,
+  createUseCachePrivateInsideUnstableCacheError,
+  createUseCachePrivateOutsideRequestContextError,
+} from './use-cache-messages'
+import {
   createHangingInputAbortSignal,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
@@ -359,22 +366,6 @@ const findSourceMapURL =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .findSourceMapURLDEV
     : undefined
-
-const nestedCacheZeroRevalidateErrorMessage =
-  `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
-  `that has no explicit \`cacheLife\`, which is not allowed during ` +
-  `prerendering. Add \`cacheLife()\` to the outer "use cache" to choose ` +
-  `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
-  `dynamic (with zero \`revalidate\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
-
-const nestedCacheShortExpireErrorMessage =
-  `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
-  `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
-  `allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" ` +
-  `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
-  `dynamic (with short \`expire\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
 
 // Tracks which root params each cache function has historically read. Used to
 // compute the specific cache key upfront on subsequent invocations. In-memory
@@ -1826,7 +1817,7 @@ export async function cache(
     }
   }
 
-  const timeoutError = new UseCacheTimeoutError()
+  const timeoutError = new UseCacheTimeoutError(workStore.route)
   Error.captureStackTrace(timeoutError, cache)
   applyOwnerStack(timeoutError)
 
@@ -1838,7 +1829,7 @@ export async function cache(
   // gate lets the error class drop out of the production runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER) {
-    deadlockError = new UseCacheDeadlockError()
+    deadlockError = new UseCacheDeadlockError(workStore.route)
     Error.captureStackTrace(deadlockError, cache)
     applyOwnerStack(deadlockError)
   }
@@ -1885,18 +1876,12 @@ export async function cache(
         )
       case 'unstable-cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within \`unstable_cache()\`.`
-          )
+          createUseCachePrivateInsideUnstableCacheError(workStore.route)
         )
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
-          )
+          createUseCachePrivateInsidePublicUseCacheError(workStore.route)
         )
       }
       case 'request':
@@ -1913,10 +1898,7 @@ export async function cache(
         break
       case 'generate-static-params':
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} cannot be used outside of a request context.`
-          )
+          createUseCachePrivateOutsideRequestContextError(workStore.route)
         )
       default:
         workUnitStore satisfies never
@@ -2058,18 +2040,16 @@ export async function cache(
     args = [props, ...otherOuterArgs]
 
     fn = {
-      [name]: async (
-        {
-          params: _innerParams,
-          searchParams: innerSearchParams,
-        }: UseCachePageInnerProps,
-        ...otherInnerArgs: unknown[]
-      ) =>
+      [name]: async (_: UseCachePageInnerProps, ...otherInnerArgs: unknown[]) =>
         originalFn.apply(null, [
           {
-            params: outerParams,
+            params: props.params,
             searchParams:
-              innerSearchParams ??
+              // Preserve the original search params, if this cache can access them.
+              // Notably, in a runtime shell private caches can resolve, but search params
+              // will be hanging, and we need to preserve the original proxied promise object
+              // to trigger `dynamicAccessAbortSignal` when they're accessed.
+              props.searchParams ??
               // For public caches, search params are omitted from the cache
               // key (and the serialized args) to avoid mismatches between
               // prerendering and resuming a cached page that does not
@@ -2164,13 +2144,9 @@ export async function cache(
 
   switch (workUnitStore.type) {
     case 'prerender-runtime':
-    // We're currently only using `dynamicAccessAsyncStorage` for params,
-    // which are always available in a runtime prerender, so they will never hang,
-    // effectively making the tracking below a no-op.
-    // However, a runtime prerender shares a lot of the semantics with a static prerender,
-    // and might need to follow this codepath in the future
-    // if we start using `dynamicAccessAsyncStorage` for other APIs.
-    //
+    // A runtime prerender may be a runtime shell, which does not have access to
+    // params/searchParams, so we want to apply the same dynamic access logic
+    // as we do in static prerenders.
     // fallthrough
     case 'prerender':
       if (!isPageOrLayoutSegmentFunction) {
@@ -2421,9 +2397,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2438,9 +2415,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2487,9 +2465,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 if (
@@ -2498,9 +2477,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 // A short-lived entry is a dynamic hole, excluded from the
