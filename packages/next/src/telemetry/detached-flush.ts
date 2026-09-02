@@ -31,7 +31,7 @@ import {
     mode === 'build' ? PHASE_PRODUCTION_BUILD : PHASE_DEVELOPMENT_SERVER,
     dir
   )
-  if (hasCustomExportOutput(config)) {
+  if (mode === 'build' && hasCustomExportOutput(config)) {
     config.distDir = '.next'
   }
   const distDir = path.join(dir, config.distDir || '.next')
