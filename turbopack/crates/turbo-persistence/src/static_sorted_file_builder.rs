@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
+use either::Either;
 use fs_err::File;
 
 use crate::{
@@ -14,11 +15,12 @@ use crate::{
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
     static_sorted_file::{
-        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE,
+        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE,
-        KeyBlockLayout, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
+        MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
 };
 
@@ -331,6 +333,9 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 
 /// Writes an SST file from a pre-sorted slice of entries.
 ///
+/// Entries must be sorted in (key-hash, key) order, the same contract as
+/// [`StreamingSstWriter::add`].
+///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
 /// entries in memory.
 // TODO: Consider adding a variant that takes ownership (Vec<E> or drain iterator)
@@ -340,7 +345,12 @@ pub fn write_static_stored_file<E: Entry>(
     file: &Path,
     flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
-    debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| (e.key_hash(), e.key_bytes()))
+            .is_sorted()
+    );
     let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
     for entry in entries {
         writer.add(entry)?;
@@ -576,6 +586,10 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
+    // Reusable buffer for the tail region of a key block: the key (when the search region holds
+    // hashes) and the value. Appended to `key_buffer` when the block is finished.
+    key_value_buffer: Vec<u8>,
+
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
     collected_fingerprints: Vec<u32>,
@@ -635,7 +649,11 @@ impl<E: Entry> StreamingSstWriter<E> {
             pending_small_value_block: Vec::with_capacity(
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
+            // `FixedKeyBlockBuilder::finish` appends the tail back into `key_buffer`, so it still
+            // holds a whole block. The tail buffer is only used by fixed-size blocks and is
+            // `reserve`d to the exact region size per block, so it starts empty.
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
+            key_value_buffer: Vec::new(),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
@@ -928,20 +946,28 @@ impl<E: Entry> StreamingSstWriter<E> {
         // loops read `pending_keys`.
         let Self {
             key_buffer,
+            key_value_buffer,
             pending_keys,
             ..
         } = self;
         key_buffer.clear();
-        let build_key_order = |start: usize, end: usize| -> Vec<&PendingEntry<E>> {
-            let mut key_order: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
-
+        // The layout fixes the order entries must be written in, the same way it fixes their
+        // encoding, so deriving the order from the same `layout` the builders encode by keeps the
+        // two from disagreeing. `KeyOnly` blocks are searched by key and need a re-sorted copy;
+        // `HashThenKey` blocks are already in the caller's `(hash, key)` order and are yielded
+        // straight from `pending_keys` with no allocation.
+        let block_entries = |start: usize, end: usize| {
+            if layout == KeyBlockLayout::HashThenKey {
+                return Either::Left(pending_keys.range(start..end));
+            }
+            let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
             // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
-                Some(4) => key_order.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
-                Some(8) => key_order.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
-                _ => key_order.sort_by_key(|&e| e.entry.key_bytes()),
+                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
+                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
             }
-            key_order
+            Either::Right(entries.into_iter())
         };
 
         if let KeyBlockFormat::Fixed {
@@ -952,34 +978,22 @@ impl<E: Entry> StreamingSstWriter<E> {
         {
             let mut builder = FixedKeyBlockBuilder::new(
                 key_buffer,
+                key_value_buffer,
                 entry_count as u32,
                 layout,
                 key_size,
                 val_size,
                 value_type,
             );
-            if layout == KeyBlockLayout::KeyOnly {
-                for pending in build_key_order(start, end) {
-                    builder.put(&pending.entry, &pending.value_ref);
-                }
-            } else {
-                for pending in pending_keys.range(start..end) {
-                    builder.put_with_hash(&pending.entry, &pending.value_ref);
-                }
+            for pending in block_entries(start, end) {
+                builder.put(&pending.entry, &pending.value_ref);
             }
             builder.finish();
         } else {
             let mut builder = KeyBlockBuilder::new(key_buffer, entry_count as u32, layout);
-            if layout == KeyBlockLayout::KeyOnly {
-                for pending in build_key_order(start, end) {
-                    builder.put(&pending.entry, &pending.value_ref);
-                }
-            } else {
-                for pending in pending_keys.range(start..end) {
-                    builder.put_with_hash(&pending.entry, &pending.value_ref);
-                }
+            for pending in block_entries(start, end) {
+                builder.put(&pending.entry, &pending.value_ref);
             }
-
             builder.finish();
         }
 
@@ -1168,11 +1182,16 @@ impl<E: Entry> Drop for StreamingSstWriter<E> {
 
 /// Builder for a single key block.
 ///
-/// Entries are added via `put_*` methods which write key data and value references into the buffer.
+/// Entries are added via [`Self::put`], which writes key data and value references into the buffer.
 /// The block format uses a fixed-size header table followed by variable-length entry data.
 struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
+    /// Whether entries hoist their hash into the table slot. Chosen at construction and consulted
+    /// by [`Self::put`], so a caller cannot pair a block with the wrong entry encoding.
+    layout: KeyBlockLayout,
+    /// Bytes per offset table entry, which is wider when the block stores hashes.
+    table_stride: usize,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -1185,40 +1204,41 @@ impl<'l> KeyBlockBuilder<'l> {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
-        buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
+        let table_stride = key_block_table_stride(layout.hash_len());
+        buffer.reserve(entry_count as usize * (ESTIMATED_KEY_SIZE + table_stride));
         let block_type = layout.block_type(false);
         buffer.write_u8(block_type).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
-        for _ in 0..entry_count {
-            buffer.write_u32::<BE>(0).unwrap();
-        }
+        // Reserve the offset table; each entry's slot is filled in as it is written.
+        buffer.resize(buffer.len() + entry_count as usize * table_stride, 0);
         Self {
             current_entry: 0,
             header_size: buffer.len(),
+            layout,
+            table_stride,
             buffer,
         }
     }
 
-    /// Writes the entry header (position + type) for the current entry.
+    /// Writes the type and payload position into the current entry's table slot.
+    ///
+    /// The word sits at the end of the slot, after the hash for a `HashThenKey` block.
     fn write_entry_header(&mut self, entry_type: EntryType) {
         let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        let word_offset = slot + self.table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH;
         let header = (pos as u32) | ((entry_type.0 as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+        BE::write_u32(&mut self.buffer[word_offset..word_offset + 4], header);
     }
 
-    /// Writes a single entry (header +  key + value data) to the block.
+    /// Writes a single entry (table slot + maybe hash? + key + value data) to the block.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
         self.write_entry_header(value_ref.entry_type());
-        entry.write_key_to(self.buffer);
-        value_ref.write_value_to(self.buffer);
-        self.current_entry += 1;
-    }
-    /// Writes a single entry (header + hash + key + value data) to the block.
-    fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
-        self.write_entry_header(value_ref.entry_type());
-        self.buffer
-            .extend_from_slice(&entry.key_hash().to_be_bytes());
+        if self.layout == KeyBlockLayout::HashThenKey {
+            let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+            self.buffer[slot..slot + size_of::<u64>()]
+                .copy_from_slice(&entry.key_hash().to_be_bytes());
+        }
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
@@ -1242,25 +1262,54 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// No offset table is written — entry positions are computed arithmetically from the stride. When
 /// entries share a value size but not a value type, the header records
 /// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
+///
+/// Entries are written as two regions rather than interleaved, so that the bytes a lookup's binary
+/// search probes are contiguous: the search region holds only what the lookup compares first (the
+/// hash for `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region,
+/// addressed by the same entry index. [`FixedRegions`] derives that geometry for both this builder
+/// and the reader; see [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`] for why the compared bytes are
+/// hoisted out of the payload.
 struct FixedKeyBlockBuilder<'l> {
+    /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
+    /// Accumulates the tail region, appended to `buffer` by [`Self::finish`].
+    tail: &'l mut Vec<u8>,
     /// Whether each entry writes its own type byte (set for mixed-type blocks).
     per_entry_type: bool,
+    /// Which of the two regions the key goes in: the search region for `KeyOnly`, the tail for
+    /// `HashThenKey`. Also checks that callers pair the layout with the matching `put` method.
+    layout: KeyBlockLayout,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
     fn new(
         buffer: &'l mut Vec<u8>,
+        tail: &'l mut Vec<u8>,
         entry_count: u32,
         layout: KeyBlockLayout,
         key_size: u8,
         val_size: u8,
         value_type: Option<EntryType>,
     ) -> Self {
-        let hash_len = layout.hash_len() as usize;
         let per_entry_type = value_type.is_none();
-        let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
-        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
+        // The two regions partition the entry bytes: the search region takes the bytes compared
+        // first, the tail takes the rest. `FixedRegions` owns that split for reader and writer
+        // alike, so the geometry is derived in one place. Its `val_size` includes the per-entry
+        // type byte, which the block header keeps separate from the value size.
+        let regions = FixedRegions::new(
+            entry_count as usize,
+            layout,
+            key_size as usize,
+            val_size as usize + usize::from(per_entry_type),
+        );
+        // `finish` appends the tail back into `buffer`, so reserve room for the whole block here
+        // and the append never reallocates.
+        buffer.reserve(
+            FIXED_KEY_BLOCK_HEADER_SIZE
+                + entry_count as usize * (regions.search_stride() + regions.tail_stride()),
+        );
+        tail.clear();
+        tail.reserve(entry_count as usize * regions.tail_stride());
 
         let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[
@@ -1279,30 +1328,37 @@ impl<'l> FixedKeyBlockBuilder<'l> {
 
         Self {
             buffer,
+            tail,
             per_entry_type,
+            layout,
         }
     }
 
-    /// Writes a single entry (key + optional type byte + value data) to the block.
+    /// Writes a single entry, splitting it between the two regions according to the block's
+    /// layout: `HashThenKey` puts the hash in the search region and the key in the tail, `KeyOnly`
+    /// puts the key itself in the search region. The layout decides that, not the caller.
     fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
-        entry.write_key_to(self.buffer);
-        if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
+        match self.layout {
+            KeyBlockLayout::HashThenKey => {
+                self.buffer
+                    .extend_from_slice(&entry.key_hash().to_be_bytes());
+                entry.write_key_to(self.tail);
+            }
+            KeyBlockLayout::KeyOnly => entry.write_key_to(self.buffer),
         }
-        value_ref.write_value_to(self.buffer);
+        self.put_tail(value_ref);
     }
 
-    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
-    fn put_with_hash<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
-        self.buffer
-            .extend_from_slice(&entry.key_hash().to_be_bytes());
-        entry.write_key_to(self.buffer);
+    /// Appends the parts of an entry that the search never reads.
+    fn put_tail(&mut self, value_ref: &ValueRef) {
         if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
+            self.tail.push(value_ref.entry_type().0);
         }
-        value_ref.write_value_to(self.buffer);
+        value_ref.write_value_to(self.tail);
     }
+
     fn finish(self) -> &'l mut Vec<u8> {
+        self.buffer.extend_from_slice(self.tail);
         self.buffer
     }
 }
