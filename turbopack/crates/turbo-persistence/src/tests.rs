@@ -8,7 +8,7 @@ use crate::{
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
-    parallel_scheduler::ParallelScheduler,
+    parallel_scheduler::{ParallelScheduler, SerialScheduler},
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
 };
@@ -2864,5 +2864,123 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     );
 
     db.shutdown()?;
+    Ok(())
+}
+
+#[test]
+fn queries_only_visit_meta_files_for_the_requested_family() -> Result<()> {
+    const FAMILIES: usize = 4;
+    let tempdir = tempfile::tempdir()?;
+    let mut config = DbConfig::default();
+    config.family_configs[3] = FamilyConfig {
+        name: "multi",
+        kind: FamilyKind::MultiValue,
+    };
+
+    {
+        let db = TurboPersistence::<RayonParallelScheduler, FAMILIES>::open_with_config_and_parallel_scheduler(
+            tempdir.path().to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+        for commit in 0..20u32 {
+            for family in 0..FAMILIES {
+                let batch = db.write_batch()?;
+                let key = format!("family-{family}-commit-{commit}").into_bytes();
+                batch.put(family as u32, key, commit.to_be_bytes().to_vec().into())?;
+                db.commit_write_batch(batch)?;
+            }
+        }
+
+        assert_eq!(
+            &*db.get(2, b"family-2-commit-19")?.unwrap(),
+            &19u32.to_be_bytes()
+        );
+        assert!(db.get(2, b"missing")?.is_none());
+        let keys: [&[u8]; 2] = [b"family-2-commit-0", b"missing"];
+        let values = db.batch_get(2, &keys)?;
+        assert_eq!(&**values[0].as_ref().unwrap(), &0u32.to_be_bytes());
+        assert!(values[1].is_none());
+        assert_eq!(db.get_multiple(3, b"family-3-commit-19")?.len(), 1);
+
+        #[cfg(feature = "stats")]
+        assert_eq!(db.statistics().miss_family, 0);
+
+        let meta_info = db.meta_info()?;
+        assert_eq!(meta_info.len(), FAMILIES * 20);
+        assert!(meta_info.is_sorted_by(|a, b| a.sequence_number >= b.sequence_number));
+    }
+
+    let db: TurboPersistence<SerialScheduler, FAMILIES> =
+        TurboPersistence::open_read_only_with_config(tempdir.path().to_path_buf(), config)?;
+    assert_eq!(
+        &*db.get(1, b"family-1-commit-19")?.unwrap(),
+        &19u32.to_be_bytes()
+    );
+    assert_eq!(db.meta_info()?.len(), FAMILIES * 20);
+    Ok(())
+}
+
+#[test]
+fn partial_compaction_subsumes_live_family_metadata() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    const KEYS: u32 = 2_000;
+    for generation in 0..4u32 {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+    assert_eq!(db.meta_info()?.len(), 4);
+
+    let partial = CompactConfig {
+        min_merge_count: 2,
+        optimal_merge_count: 2,
+        max_merge_count: 2,
+        max_merge_bytes: u64::MAX,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: 0,
+        max_merge_segment_count: 1,
+    };
+    assert!(db.compact(&partial)?.is_some());
+    assert_eq!(
+        db.meta_info()?.len(),
+        1,
+        "all live family metadata should be consolidated into the compaction meta file"
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
+
+    db.full_compact()?;
+    assert_eq!(db.meta_info()?.len(), 1);
+    assert!(db.compact(&partial)?.is_none());
+    drop(db);
+
+    let reopened = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+    assert_eq!(reopened.meta_info()?.len(), 1);
+    for key in 0..KEYS {
+        assert_eq!(
+            &*reopened.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
     Ok(())
 }
