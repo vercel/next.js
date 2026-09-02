@@ -1064,8 +1064,13 @@ impl TurboTasksBackend {
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
         // operation can resurrect a collected task in between.
-        let mut exclusion_phase = self.snapshot_coord.begin_snapshot();
-        if self.gc_enabled {
+        let start = Instant::now();
+        // SystemTime for wall-clock timestamps in trace events (milliseconds
+        // since epoch). Instant is monotonic but has no defined epoch, so it
+        // can't be used for cross-process trace correlation.
+        let wall_start = SystemTime::now();
+        let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
+        let gc_elapsed = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
                 "gc",
@@ -1073,23 +1078,22 @@ impl TurboTasksBackend {
                 edges_deleted = tracing::field::Empty,
             )
             .entered();
-            let stats = self.gc_collect(turbo_tasks, &exclusion_phase);
+            let stats = self.gc_collect(turbo_tasks, &snapshot_phase);
             gc_span.record("stats", display(stats));
-        }
-        let start = Instant::now();
-        // SystemTime for wall-clock timestamps in trace events (milliseconds
-        // since epoch). Instant is monotonic but has no defined epoch, so it
-        // can't be used for cross-process trace correlation.
-        let wall_start = SystemTime::now();
+            Some(start.elapsed())
+        } else {
+            None
+        };
+
         debug_assert!(self.should_persist());
 
         // Checking after start_snapshot ensures no concurrent increments can race.
         let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
 
-        let suspended_operations = exclusion_phase.take_suspended_operations();
+        let suspended_operations = snapshot_phase.take_suspended_operations();
 
         let snapshot_time = Instant::now();
-        drop(exclusion_phase);
+        drop(snapshot_phase);
 
         if !has_modifications {
             // No tasks modified since the last snapshot — drop the guard (which
@@ -1498,11 +1502,23 @@ impl TurboTasksBackend {
             // as_millis_f64 is not stable yet
             .as_secs_f64()
             * 1000.0;
-        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        let wall_end_ms: f64 = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+        let (persist_start_ms, persist_end_ms) = if let Some(gc_elapsed) = gc_elapsed {
+            let persist_begin_ms = wall_start_ms + gc_elapsed.as_secs_f64() * 1000.0;
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+                "turbopack-gc",
+                wall_start_ms,
+                persist_begin_ms,
+                serde_json::json!([]),
+            )));
+            (persist_begin_ms, wall_end_ms)
+        } else {
+            (wall_start_ms, wall_end_ms)
+        };
         turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
             "turbopack-persistence",
-            wall_start_ms,
-            wall_end_ms,
+            persist_start_ms,
+            persist_end_ms,
             serde_json::json!([
                 ["reason", reason.as_str()],
                 [
