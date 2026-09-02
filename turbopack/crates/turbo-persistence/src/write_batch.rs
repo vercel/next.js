@@ -18,7 +18,7 @@ use crate::{
     FamilyConfig, FamilyKind, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
-    compression::{checksum_block, compress_into_buffer},
+    compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
@@ -318,14 +318,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             })?;
 
         // Now we flush the global collector(s).
-        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        let family_usize = usize_from_u32(family);
+        let mut collector_state = self.collectors[family_usize].lock();
+        let family_config = self.family_configs[family_usize];
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(
-                        family,
-                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                    )?;
+                    let sst = self.create_sst_file(family, collector.sorted(family_config.kind))?;
                     collector.clear();
                     self.new_sst_files.lock().push(sst);
                 }
@@ -340,10 +339,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst = self.create_sst_file(
-                                family,
-                                collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                            )?;
+                            let sst =
+                                self.create_sst_file(family, collector.sorted(family_config.kind))?;
                             collector.clear();
                             self.new_sst_files.lock().push(sst);
                             collector.drop_contents();
@@ -491,7 +488,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut compressed = Vec::new();
         let compression = self.family_configs[usize_from_u32(family)].compression;
-        compress_into_buffer(compression, value, &mut compressed)
+        Compressor::new(compression)?
+            .compress_into_buffer(value, &mut compressed)
             .context("Compression of value for blob file failed")?;
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());

@@ -634,11 +634,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut meta_files = self
             .parallel_scheduler
             .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
-                let meta_file = MetaFile::open_with_family_configs(
-                    &self.path,
-                    seq,
-                    Some(&self.config.family_configs),
-                )?;
+                let meta_file = MetaFile::open(&self.path, seq, Some(&self.config.family_configs))?;
                 Ok(meta_file)
             })?;
 
@@ -930,11 +926,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
                 SyncItem::Meta(seq, file) => {
                     file.sync_data()?;
-                    let meta_file = MetaFile::open_with_family_configs(
-                        &self.path,
-                        seq,
-                        Some(&self.config.family_configs),
-                    )?;
+                    let meta_file =
+                        MetaFile::open(&self.path, seq, Some(&self.config.family_configs))?;
                     Ok(SyncResult::Meta(meta_file))
                 }
                 SyncItem::Sst(file) => {

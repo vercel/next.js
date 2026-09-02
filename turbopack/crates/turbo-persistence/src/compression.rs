@@ -52,7 +52,7 @@ fn decompress_block(
     })?;
     ensure!(
         bytes_written == expected_len as usize,
-        "Decompressed length does not match expected length: wrote {bytes_written} bytes, \
+        "Decompressed length does not match expected length: decompressed {bytes_written} bytes, \
          expected {expected_len}"
     );
     Ok(())
@@ -140,14 +140,6 @@ impl Compressor {
     }
 }
 
-pub(crate) fn compress_into_buffer(
-    compression: Compression,
-    block: &[u8],
-    buffer: &mut Vec<u8>,
-) -> Result<()> {
-    Compressor::new(compression)?.compress_into_buffer(block, buffer)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,8 +148,11 @@ mod tests {
     fn compression_round_trips() {
         let input = b"turbo persistence compression ".repeat(1024);
         for compression in [Compression::Lz4, Compression::Zstd3] {
+            let mut compressor = Compressor::new(compression).unwrap();
             let mut compressed = Vec::new();
-            compress_into_buffer(compression, &input, &mut compressed).unwrap();
+            compressor
+                .compress_into_buffer(&input, &mut compressed)
+                .unwrap();
             let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
         }

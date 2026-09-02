@@ -54,7 +54,6 @@ pub enum FamilyKind {
 pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
-    /// Compression used for this family's SST blocks and blob values.
     pub compression: Compression,
 }
 

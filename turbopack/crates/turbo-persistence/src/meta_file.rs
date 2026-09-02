@@ -272,11 +272,7 @@ pub struct MetaFile {
 impl MetaFile {
     /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
     /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
-    pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
-        Self::open_with_family_configs(db_path, sequence_number, None)
-    }
-
-    pub(crate) fn open_with_family_configs(
+    pub fn open(
         db_path: &Path,
         sequence_number: u32,
         family_configs: Option<&[FamilyConfig]>,
