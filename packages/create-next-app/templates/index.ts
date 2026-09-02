@@ -60,6 +60,7 @@ export const installTemplate = async ({
   skipInstall,
   bundler,
   reactCompiler,
+  cacheComponents,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -72,7 +73,9 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
-  if (!tailwind) copySource.push("!postcss.config.mjs");
+  if (!tailwind || bundler === Bundler.Turbopack) {
+    copySource.push("!postcss.config.mjs");
+  }
 
   await copy(copySource, root, {
     parents: true,
@@ -109,6 +112,30 @@ export const installTemplate = async ({
     );
   }
 
+  if (tailwind && bundler === Bundler.Turbopack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      `/* config options here */
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+`,
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
   if (reactCompiler) {
     const nextConfigFile = path.join(
       root,
@@ -119,6 +146,24 @@ export const installTemplate = async ({
     configContent = configContent.replace(
       "/* config options here */\n",
       "/* config options here */\n  reactCompiler: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
+  if (cacheComponents) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    // `partialPrefetching` is enabled alongside `cacheComponents` because the
+    // only reason to disable it is when adopting `cacheComponents` from before
+    // the option existed.
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  cacheComponents: true,\n  partialPrefetching: true,\n",
     );
 
     await fs.writeFile(nextConfigFile, configContent);
@@ -278,9 +323,13 @@ export const installTemplate = async ({
 
   /* Add Tailwind CSS dependencies. */
   if (tailwind) {
+    const tailwindPlugin =
+      bundler === Bundler.Turbopack
+        ? "@tailwindcss/turbopack"
+        : "@tailwindcss/postcss";
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@tailwindcss/postcss": "^4",
+      [tailwindPlugin]: "^4",
       tailwindcss: "^4",
     };
   }

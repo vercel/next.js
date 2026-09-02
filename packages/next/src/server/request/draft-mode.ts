@@ -12,13 +12,16 @@ import {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  createDraftModeMutationInUseCacheError,
+  createDraftModeMutationInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   applyOwnerStack,
@@ -69,7 +72,6 @@ export function draftMode(): Promise<DraftMode> {
     // Otherwise, we fall through to providing an empty draft mode.
     // eslint-disable-next-line no-fallthrough
     case 'prerender':
-    case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
       return createOrGetCachedDraftMode(null, workStore)
@@ -212,8 +214,9 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
       switch (workUnitStore.type) {
         case 'cache':
         case 'private-cache': {
-          const error = new Error(
-            `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          const error = createDraftModeMutationInUseCacheError(
+            workStore.route,
+            expression
           )
           Error.captureStackTrace(error, constructorOpt)
           applyOwnerStack(error)
@@ -221,8 +224,9 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           throw error
         }
         case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used "${expression}" inside a function cached with \`unstable_cache()\`. The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          throw createDraftModeMutationInUnstableCacheError(
+            workStore.route,
+            expression
           )
 
         case 'prerender':
@@ -242,12 +246,6 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           const exportName = '`draftMode`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          return postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           workUnitStore.revalidate = 0

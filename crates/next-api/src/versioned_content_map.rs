@@ -14,8 +14,9 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
-use crate::aggregate_hmr::{HmrChunkWithContent, is_entry_chunk_list_content};
+use crate::aggregate_hmr::{ServerHmrChunkList, ServerHmrChunkLists};
 
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
@@ -32,9 +33,7 @@ unsafe impl OperationValue for MapEntry {}
 #[turbo_tasks::value(transparent, operation)]
 struct OptionMapEntry(Option<MapEntry>);
 
-#[derive(
-    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
 pub struct PathToOutputOperation(
     /// We need to use an operation for outputs as it's stored for later usage and we want to
     /// reconnect this operation when it's received from the map again.
@@ -45,21 +44,8 @@ pub struct PathToOutputOperation(
     FxHashMap<FileSystemPath, ExpandedOutputAssetsOperationSet>,
 );
 
-#[derive(
-    Clone,
-    Default,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
-struct ExpandedOutputAssetsOperationSet(
-    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<OperationVc<ExpandedOutputAssets>>,
-);
+#[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
+struct ExpandedOutputAssetsOperationSet(FxIndexSet<OperationVc<ExpandedOutputAssets>>);
 
 // HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
@@ -68,13 +54,26 @@ unsafe impl OperationValue for PathToOutputOperation {}
 type OutputOperationToComputeEntry =
     FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
 
-// TODO: Ideally this structure is never persisted, so new sessions start from scratch and don't
-// accumulate entries or force rebuilds of all chunks when a new session is only interested in some
-// of them. If this happens, this should have #[turbo_tasks::value(evict = "never")].
-#[turbo_tasks::value]
+/// Tracks all the output assets produced in a session. This allows us to compute fine grained
+/// change information which drives HMR sessions.
+///
+/// `serialization = "skip"` so that HMR sessions fully restart on each new session.
+/// `evict = "never"` in order to ensure that we don't lose track of version state in the middle of
+/// a session.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionedContentMap {
     // TODO: turn into a bi-directional multimap, ExpandedOutputAssets ->
     // FxIndexSet<FileSystemPath>
+
+    // Because the cell is not serialized, these `State`s -- and the sets of invalidators
+    // registered on them by `State::get` -- start out empty in every new session. A task that
+    // restores clean would therefore serve stale entries forever, since it never re-runs and so
+    // never re-registers its invalidator. Every `#[turbo_tasks::function]` that touches these
+    // must be `session_dependent` so it re-executes once per session and rebuilds that wiring.
+    //
+    // Keep those accesses inside this file. A plain `async fn` helper reading a `State` runs in
+    // its *caller's* task frame, which silently pushes the `session_dependent` obligation onto
+    // every transitive caller.
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
 }
@@ -89,10 +88,13 @@ impl VersionedContentMap {
         }
         .resolved_cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl VersionedContentMap {
     /// Lists the aggregate-HMR *entry* chunks under `root` with their
-    /// [`VersionedContent`], sorted by path. Only entry-chunk-list content is
-    /// returned (see [`is_entry_chunk_list_content`]). Callers scope which
+    /// [`VersionedContent`], sorted by path. Only Node.js chunk-list content is
+    /// returned. Callers scope which
     /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
     /// subscription passes `server/app` to include App Router entries only).
     ///
@@ -102,10 +104,11 @@ impl VersionedContentMap {
     /// entries that span server and client contexts, changes for one context
     /// can shift the internals of the map, making iteration order different
     /// for the same set of paths.
-    pub async fn hmr_chunks_in_path(
+    #[turbo_tasks::function(session_dependent)]
+    pub async fn server_hmr_chunks_in_path(
         self: Vc<Self>,
-        root: &FileSystemPath,
-    ) -> Result<Vec<HmrChunkWithContent>> {
+        root: FileSystemPath,
+    ) -> Result<Vc<ServerHmrChunkLists>> {
         let this = self.await?;
         // `State::get` returns a lock guard, which can't be held across the
         // awaits below, so snapshot the keys and release it.
@@ -120,7 +123,7 @@ impl VersionedContentMap {
                 let rel = root.get_path_to(&path)?;
                 Some((RcStr::from(rel), path))
             })
-            .map(|(name, path)| async move {
+            .map(async |(name, path)| {
                 // Skip Redirect assets: they're symlinks with no file content,
                 // so versioning them would bail with "not a file".
                 let Some(asset) = *self.get_asset(path).await? else {
@@ -134,30 +137,26 @@ impl VersionedContentMap {
                 // *Important*: only chunk lists are subscribed to. Individual chunks are already
                 // covered by the chunk list that owns them, so including them here
                 // would produce duplicate updates for the same change.
-                if !is_entry_chunk_list_content(content) {
+                let Some(versioned_content) =
+                    ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
+                else {
                     return Ok(None);
-                }
+                };
 
-                Ok(Some(HmrChunkWithContent {
-                    path: name,
-                    content,
+                Ok(Some(ServerHmrChunkList {
+                    relative_path: name,
+                    versioned_content,
                 }))
             })
             .try_flat_join()
             .await?;
-        chunks.sort_by(|a, b| a.path.cmp(&b.path));
-        Ok(chunks)
+        chunks.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+        Ok(Vc::cell(chunks))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl VersionedContentMap {
     /// Inserts output assets into the map and returns a completion that when
     /// awaited will emit the assets that were inserted.
-    //
-    // TODO: If `VersionedContentMap` becomes transient as described above, these methods should be
-    // `#[turbo_tasks::function(session_dependent)]`
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     pub async fn insert_output_assets(
         self: ResolvedVc<Self>,
         // Output assets to emit
@@ -182,7 +181,7 @@ impl VersionedContentMap {
 
     /// Creates a [`MapEntry`] (a pre-computed map for optimized lookup) for an output assets
     /// operation. When assets change, map_path_to_op is updated.
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     async fn compute_entry(
         &self,
         assets_operation: OperationVc<ExpandedOutputAssets>,
@@ -289,7 +288,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(None))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
@@ -297,16 +296,12 @@ impl VersionedContentMap {
         };
         let keys = keys
             .into_iter()
-            .map(|path| {
-                let root = root.clone();
-                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
-            })
-            .try_flat_join()
-            .await?;
+            .filter_map(|path| root.get_path_to(&path).map(RcStr::from))
+            .collect();
         Ok(Vc::cell(keys))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
@@ -339,7 +334,7 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
         .iter()
-        .map(|&asset| async move {
+        .map(async |&asset| {
             let path = asset.path().owned().await?;
             Ok((path, asset))
         })

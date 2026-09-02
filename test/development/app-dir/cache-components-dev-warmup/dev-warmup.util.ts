@@ -25,7 +25,7 @@ export function runDevWarmupTests({
     : 'fixtures/without-prefetch-config'
 
   describe(`cache-components-dev-warmup - ${description}`, () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),
     })
 
@@ -102,19 +102,6 @@ export function runDevWarmupTests({
         'AbortError: This operation was aborted'
       )
 
-      if (isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
-
       // After a revalidation the subsequent render must discard the stale cache
       // entries. This should not affect the environment labels once the caches
       // are warm again.
@@ -170,19 +157,6 @@ export function runDevWarmupTests({
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
-
-      if (isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
 
       // After a revalidation the subsequent render must discard the stale cache
       // entries. This should not affect the environment labels once the caches
@@ -367,6 +341,32 @@ export function runDevWarmupTests({
           assertLog(logs, `after params`, 'Prefetch')
           assertLog(logs, `after searchParams`, 'Prefetch')
 
+          assertLog(
+            logs,
+            `after prefetch`,
+            // Same as navigation() below: static prerender timing on initial
+            // load, app-shell timing for a client nav when there's a runtime
+            // prefetch.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
+
+          assertLog(
+            logs,
+            `after navigation`,
+            // For initial load, navigation() follows static prerender timing.
+            // For client nav, it follows app-shell timing if `partialPrefetching` is on,
+            // and static timing otherwise.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
+
           assertLog(logs, 'after connection', 'Server')
         }
 
@@ -443,58 +443,52 @@ export function runDevWarmupTests({
         })
       })
 
-      // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --
-      // `app-render` gets a second, newer instance, different from `io()`.
-      // Thus, `io()` gets an undefined `workUnitStore` and does nothing, so sync IO does not get tracked at all.
-      // This is likely caused by the same bug that breaks `/revalidate` (see other FIXME above),
-      // where a route crashes due to a missing `workStore`.
-      if (!isTurbopack) {
-        it('sync IO in the static phase', async () => {
-          const path = '/sync-io/static'
+      it('sync IO in the static phase', async () => {
+        const path = '/sync-io/static'
 
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
 
-            assertLog(logs, 'after first cache', 'Prerender')
-            // sync IO in the static stage errors and advances to Server.
+          assertLog(logs, 'after first cache', 'Prerender')
+          // sync IO in the static stage errors and advances to Server.
+          assertLog(logs, 'after sync io', 'Server')
+          assertLog(logs, 'after cache read - page', 'Server')
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
+
+      it('sync IO in the runtime phase', async () => {
+        const path = '/sync-io/runtime'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+
+          assertLog(logs, 'after first cache', 'Prerender')
+          assertLog(logs, 'after cookies', 'Prefetch')
+          if (hasRuntimePrefetch || partialPrefetching) {
+            // in partialPrefetching (via per-segment config or global flag),
+            // sync IO in the runtime stage errors and advances to Server.
             assertLog(logs, 'after sync io', 'Server')
             assertLog(logs, 'after cache read - page', 'Server')
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
           } else {
-            await testNavigation(path, assertLogs)
+            // if runtime prefetching is not on, sync IO in the runtime stage
+            // does nothing.
+            assertLog(logs, 'after sync io', 'Prefetch')
+            assertLog(logs, 'after cache read - page', 'Prefetch')
           }
-        })
+        }
 
-        it('sync IO in the runtime phase', async () => {
-          const path = '/sync-io/runtime'
-
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
-
-            assertLog(logs, 'after first cache', 'Prerender')
-            assertLog(logs, 'after cookies', 'Prefetch')
-            if (hasRuntimePrefetch || partialPrefetching) {
-              // in partialPrefetching (via per-segment config or global flag),
-              // sync IO in the runtime stage errors and advances to Server.
-              assertLog(logs, 'after sync io', 'Server')
-              assertLog(logs, 'after cache read - page', 'Server')
-            } else {
-              // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
-              assertLog(logs, 'after sync io', 'Prefetch')
-              assertLog(logs, 'after cache read - page', 'Prefetch')
-            }
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
-          } else {
-            await testNavigation(path, assertLogs)
-          }
-        })
-      }
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
     })
   })
 }

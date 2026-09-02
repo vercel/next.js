@@ -27,7 +27,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
@@ -114,21 +113,6 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = if matches!(
-        ty,
-        ServerContextType::Pages { .. }
-            | ServerContextType::AppSSR { .. }
-            | ServerContextType::AppRSC { .. }
-    ) {
-        vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )]
-    } else {
-        vec![]
-    };
-
     let after_resolve_plugins = vec![ResolvedVc::upcast(
         NextSharedRuntimeResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -155,8 +139,10 @@ pub async fn get_edge_resolve_options_context(
         fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
-        before_resolve_plugins,
 
         ..Default::default()
     };

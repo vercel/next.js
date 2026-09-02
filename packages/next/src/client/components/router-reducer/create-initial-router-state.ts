@@ -4,16 +4,14 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
-import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
-import { createInitialCacheNodeForHydration } from './ppr-navigations'
+import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
+import { createInitialCacheNodeForHydration } from '../render-tree'
 import {
-  convertRootFlightRouterStateToRouteTree,
-  resolveStaleAt,
-  processRuntimePrefetchStream,
-  writeDynamicRenderResponseIntoCache,
-  writePrerenderResponseIntoCache,
+  writeRuntimePrefetchStreamIntoCache,
+  spawnStaticStageCacheWrite,
+  segmentCacheMap,
 } from '../segment-cache/cache'
-import { FetchStrategy } from '../segment-cache/types'
+import { decodeTransportTreeIntoRouteTree } from '../segment-cache/decode-server-response'
 import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
@@ -37,13 +35,12 @@ export function createInitialRouterState({
 }: InitialRouterStateParameters): AppRouterState {
   const {
     c: initialCanonicalUrlParts,
-    f: initialFlightData,
+    t: initialTransportData,
     q: initialRenderedSearch,
     i: initialCouldBeIntercepted,
     S: initialSupportsPerSegmentPrefetching,
     s: initialStaleTime,
     l: initialStaticStageByteLength,
-    h: initialHeadVaryParams,
     r: initialRootVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
@@ -54,14 +51,12 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
-  const {
-    tree: initialTree,
-    seedData: initialSeedData,
-    head: initialHead,
-  } = normalizedFlightData
-  // For the SSR render, seed data should always be available (we only send back a `null` response
-  // in the case of a `loading` segment, pre-PPR.)
+  const initialHead = initialTransportData.h.r
+
+  // The initial router state tree, derived from the transport tree. Page
+  // segments keep their search params, which travel inside the segment
+  // string.
+  const initialTree = transportNodeToFlightRouterState(initialTransportData.t)
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
@@ -71,20 +66,40 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // Convert the initial FlightRouterState into the RouteTree type.
+  // Decode the initial transport tree into the RouteTree type, with the
+  // payload's render output embedded on each node. (discoverKnownRoute below
+  // stores this tree in the route cache, which strips the data on write —
+  // see stripDataFromRouteTree.)
   // NOTE: The metadataVaryPath isn't used for anything currently because the
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
   //
-  // For statically-generated-at-build-time HTML pages, the FlightRouterState
-  // baked into the initial RSC payload won't have the correct segment inlining
-  // hints because those are computed after the pre-render. The server marks
-  // these trees with InliningHintsStale, which causes the route cache entry
-  // to be immediately expired. The next prefetch will re-fetch the tree with
+  // For statically-generated-at-build-time HTML pages, the tree baked into
+  // the initial RSC payload won't have the correct segment inlining hints
+  // because those are computed after the pre-render. The server marks these
+  // trees with InliningHintsStale, which causes the route cache entry to be
+  // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
-  const acc = { metadataVaryPath: null }
-  const initialRouteTree = convertRootFlightRouterStateToRouteTree(
-    initialTree,
+  const acc = { metadataVaryPath: null, treeDivergedFromBase: false }
+  const initialRouteTree = decodeTransportTreeIntoRouteTree(
+    initialTransportData.t,
+    // There's no base tree to overlay onto; the initial payload is a full
+    // render from the root.
+    null,
+    // The initial payload may still be streaming in while we hydrate, so its
+    // vary params can't be drained here — and nothing consumes them from
+    // this tree. The segment-cache write below re-decodes the transport data
+    // with the payload's root params once the stale time has resolved.
+    null,
+    // Same for partiality: only segment-cache writes consume it, and the
+    // write below re-decodes with the payload's actual response-level value.
+    // Pass the conservative value here.
+    true,
+    // The initial payload always includes the param values in the tree
+    // (fallback shells are patched with the parsed values before this runs —
+    // see createInitialRSCPayloadFromFallbackPrerender), so there's no
+    // pathname to parse them from.
+    null,
     initialRenderedSearch as NormalizedSearch,
     acc
   )
@@ -92,7 +107,6 @@ export function createInitialRouterState({
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
-    initialSeedData,
     initialHead,
     computeDynamicStaleAt(
       navigatedAt,
@@ -122,9 +136,10 @@ export function createInitialRouterState({
     // Intentionally holding off on doing this until we decide how the Cached
     // Navigations behavior should work in combination with App Shells.
 
-    // Write the initial seed data into the segment cache so subsequent
-    // navigations to the initial page can serve cached segments instantly.
-    if (initialSeedData !== null && initialStaleTime !== undefined) {
+    // Write the initial payload's segment data into the segment cache so
+    // subsequent navigations to the initial page can serve cached
+    // segments instantly.
+    if (initialStaleTime !== undefined) {
       if (
         initialStaticStageByteLength !== undefined &&
         initialFlightStreamForCache != null
@@ -141,20 +156,14 @@ export function createInitialRouterState({
                 byteLength,
                 undefined
               )
-            const now = Date.now()
-            const staleAt = await resolveStaleAt(now, staticStageResponse.s)
-
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              staticStageResponse.f,
-              undefined, // no build ID mismatch check for initial HTML
-              staticStageResponse.h,
-              staticStageResponse.r ?? null,
-              staleAt,
+            spawnStaticStageCacheWrite(
+              Date.now(),
+              staticStageResponse,
+              true, // isResponsePartial
+              null, // responseHeaders — no build-id check for initial HTML
               initialTree,
               initialRenderedSearch,
-              true // isResponsePartial
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           })
           .catch(() => {
@@ -162,32 +171,30 @@ export function createInitialRouterState({
             // rendered normally, we just won't write into the cache.
           })
       } else {
-        // Fully static page — cache the entire decoded seed data as-is. We're
-        // not using the initial response here (which would allow us to combine
-        // the two branches) to avoid unnecessary decoding of the Flight data,
-        // since we can just take the seed data that we already decoded during
-        // hydration and write it into the cache directly.
-        const now = Date.now()
-
-        resolveStaleAt(now, initialStaleTime)
-          .then((staleAt) => {
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              initialFlightData,
-              undefined, // buildId — not applicable for initial HTML
-              initialHeadVaryParams,
-              initialRootVaryParams ?? null,
-              staleAt,
-              initialTree,
-              initialRenderedSearch,
-              false // isResponsePartial
-            )
-          })
-          .catch(() => {
-            // The static stage processing failed. Not fatal — the page
-            // rendered normally, we just won't write into the cache.
-          })
+        // Fully static page — cache the initial payload's segment data as-is.
+        // We're not using the initial response here (which would allow us to
+        // combine the two branches) to avoid unnecessary decoding of the
+        // Flight data, since we can just take the segment data that we
+        // already decoded during hydration and write it into the
+        // cache directly.
+        spawnStaticStageCacheWrite(
+          Date.now(),
+          // The transport subset of the initial payload, already decoded
+          // during hydration. `u` (the runtime-data verdict) is deliberately
+          // omitted from this synthesized subset — its writes record their
+          // strategy unrefined — while the truncated branch above forwards
+          // the decoded payload's own `u`.
+          {
+            t: initialTransportData,
+            r: initialRootVaryParams,
+            s: initialStaleTime,
+          },
+          false, // isResponsePartial
+          null, // responseHeaders — no build-id check for initial HTML
+          initialTree,
+          initialRenderedSearch,
+          segmentCacheMap // hydration writes are bound to the shared map
+        )
 
         // Cancel the stream clone — fully static path doesn't need it.
         initialFlightStreamForCache?.cancel()
@@ -202,32 +209,16 @@ export function createInitialRouterState({
     // subsequent navigations to serve runtime-prefetchable content from cache
     // without a separate prefetch request.
     if (initialRuntimePrefetchStream != null) {
-      processRuntimePrefetchStream(
+      writeRuntimePrefetchStreamIntoCache(
         Date.now(),
         initialRuntimePrefetchStream,
         initialTree,
-        initialRenderedSearch
-      )
-        .then((processed) => {
-          if (processed !== null) {
-            writeDynamicRenderResponseIntoCache(
-              Date.now(),
-              FetchStrategy.PPRRuntime,
-              processed.flightDatas,
-              processed.buildId,
-              processed.isResponsePartial,
-              processed.headVaryParams,
-              processed.rootVaryParamsIterable,
-              processed.staleAt,
-              processed.navigationSeed,
-              null
-            )
-          }
-        })
-        .catch(() => {
-          // Runtime prefetch cache write failed. Not fatal — the page rendered
-          // normally, we just won't cache runtime data.
-        })
+        initialRenderedSearch,
+        segmentCacheMap // hydration writes are bound to the shared map
+      ).catch(() => {
+        // Runtime prefetch cache write failed. Not fatal — the page rendered
+        // normally, we just won't cache runtime data.
+      })
     }
   }
 
@@ -256,7 +247,7 @@ export function createInitialRouterState({
       // to avoid it being overwritten on navigation back/forward with MPA Navigation.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: null,
       forceScroll: false,
       onlyHashChange: false,

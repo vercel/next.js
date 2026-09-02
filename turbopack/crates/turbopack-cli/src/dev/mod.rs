@@ -18,8 +18,8 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
-    noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -295,6 +295,9 @@ async fn source(
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
+    // Shared by every build-time JS evaluation, each with its own module graph but all emitting
+    // the same runtime chunk.
+    .shared_runtime_chunk(true)
     .build();
 
     let node_backend = child_process_backend();
@@ -387,8 +390,15 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
             .cache_dir
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
-        let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {

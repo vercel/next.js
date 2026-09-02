@@ -1,5 +1,7 @@
 # Test template: the instant() guard
 
+See: [`@next/playwright` `instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+
 Ship one test per navigation type you are guarding: under `instant()`, assert that the
 destination's static shell appears. `instant()` gates dynamic data, so a correctly instant route
 commits its shell under the lock and a blocking route does not. `instant()` is a ruler, not a

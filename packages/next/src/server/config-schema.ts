@@ -142,10 +142,12 @@ const zTurbopackModuleType = z.enum([
   'typescript',
   'css',
   'css-module',
+  'json',
   'wasm',
   'raw',
   'node',
   'bytes',
+  'text',
 ])
 
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
@@ -194,8 +196,8 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
-  appNewScrollHandler: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
+  collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
@@ -224,8 +226,10 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
+  reactBrowserBailout: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  concurrentRouterQueue: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -250,6 +254,7 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
@@ -373,10 +378,20 @@ export const experimentalSchema = {
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
     .optional(),
-  turbopackMinify: z.boolean().optional(),
+  turbopackMinify: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        server: z.boolean().optional(),
+        client: z.boolean().optional(),
+        edge: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
+  turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
@@ -386,6 +401,7 @@ export const experimentalSchema = {
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
+      clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
@@ -407,6 +423,9 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackMangleExportNames: z.boolean().optional(),
+  turbopackCjsScopeHoisting: z.boolean().optional(),
+  turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
@@ -457,6 +476,8 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  explicitParallelRouteChildren: z.boolean().optional(),
+  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
@@ -790,9 +811,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
-    partialPrefetching: z
-      .union([z.boolean(), z.literal('unstable_eager')])
-      .optional(),
+    partialPrefetching: z.boolean().optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([
