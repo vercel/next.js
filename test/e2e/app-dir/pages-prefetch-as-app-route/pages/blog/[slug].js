@@ -1,16 +1,17 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export function getServerSideProps({ params, query }) {
-  return { props: { slug: params.slug, tab: query.tab || 'a' } }
+export function getServerSideProps({ params }) {
+  return { props: { slug: params.slug } }
 }
 
-export default function Page({ slug, tab }) {
+export default function Page({ slug }) {
   const router = useRouter()
   return (
     <>
       <p id="pages-page">hello from pages/blog/[slug]</p>
-      <p id="tab">{tab}</p>
+      {/* read from the router: a shallow navigation does not re-run getServerSideProps */}
+      <p id="tab">{router.query.tab || 'a'}</p>
       <Link id="tab-b" href={`/blog/${slug}?tab=b`} shallow>
         tab b
       </Link>
