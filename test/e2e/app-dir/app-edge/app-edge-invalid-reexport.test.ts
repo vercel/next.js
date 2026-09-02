@@ -1,8 +1,11 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('app-dir edge SSR invalid reexport', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: {
       'app/layout.tsx': new FileRef(path.join(__dirname, 'app', 'layout.tsx')),
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
@@ -10,12 +13,7 @@ describe('app-dir edge SSR invalid reexport', () => {
         "export { default, runtime, preferredRegion } from '../basic/page'",
     },
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should warn or error about the re-export of a pages runtime/preferredRegion config', async () => {
     try {

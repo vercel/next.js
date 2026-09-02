@@ -33,7 +33,6 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
 
   let next = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
       ? {
@@ -68,6 +67,9 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
   return { next, getCollector }
 }
 
+// This suite starts a process-local telemetry collector and, in one variant,
+// a custom local server entrypoint.
+// @force-gate !deploy
 describe.each(
   [
     { name: 'default' },
@@ -78,16 +80,12 @@ describe.each(
   ].filter(Boolean)
 )('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
   const {
-    next: { next, skipped, isNextDev },
+    next: { next, isNextDev },
     getCollector,
   } = setup({
     useDirectEntrypointHandler,
     useNodeMiddleware: false,
   })
-
-  if (skipped) {
-    return
-  }
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -1536,11 +1534,13 @@ describe.each(
 })
 
 if (isNextStart) {
+  // Deploy mode exclusion: This suite starts a process-local telemetry
+  // collector and controls the server lifecycle.
+  // @force-gate !deploy
   describe('opentelemetry route module preparation with direct entrypoint handler', () => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
@@ -1557,10 +1557,6 @@ if (isNextStart) {
         NODE_ENV: 'production',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -1601,6 +1597,9 @@ if (isNextStart) {
   })
 }
 
+// This suite starts a process-local telemetry collector and controls the local
+// server lifecycle.
+// @force-gate !deploy
 describe.each(
   [
     { name: 'default', useDirectEntrypointHandler: false },
@@ -1613,9 +1612,8 @@ describe.each(
   'opentelemetry App Route module loading - $name',
   ({ useDirectEntrypointHandler }) => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       ...(!useDirectEntrypointHandler
@@ -1645,10 +1643,6 @@ describe.each(
             },
           }),
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -1734,6 +1728,9 @@ describe.each(
   }
 )
 
+// This suite starts a process-local telemetry collector and controls the local
+// server lifecycle.
+// @force-gate !deploy
 describe.each(
   [
     { name: 'default', useDirectEntrypointHandler: false },
@@ -1745,16 +1742,12 @@ describe.each(
 )('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
   describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
     const {
-      next: { next, skipped },
+      next: { next },
       getCollector,
     } = setup({
       useDirectEntrypointHandler,
       useNodeMiddleware: runtime === 'nodejs',
     })
-
-    if (skipped) {
-      return
-    }
 
     if (useDirectEntrypointHandler && runtime === 'edge') {
       it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
@@ -1831,6 +1824,9 @@ describe.each(
   })
 })
 
+// This suite starts a process-local telemetry collector and controls the local
+// server lifecycle.
+// @force-gate !deploy
 describe.each(
   [
     { name: 'default' },
@@ -1843,9 +1839,8 @@ describe.each(
   'opentelemetry instrumentation startup - $name',
   ({ useDirectEntrypointHandler }) => {
     let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       ...(!useDirectEntrypointHandler
@@ -1875,10 +1870,6 @@ describe.each(
             },
           }),
     })
-
-    if (skipped) {
-      return
-    }
 
     afterAll(async () => {
       await collector?.shutdown()
@@ -1939,89 +1930,83 @@ describe.each(
     })
   }
 )
-;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-  'opentelemetry NEXT_OTEL_VERBOSE=1',
-  () => {
-    const { next, skipped } = nextTestSetup({
-      files: __dirname,
-      skipDeployment: true,
-      dependencies: require('./package.json').dependencies,
-      env: {
-        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
-        NEXT_TELEMETRY_DISABLED: '1',
-        NEXT_OTEL_VERBOSE: '1',
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
+// @force-gate !cacheComponents
+describe('opentelemetry NEXT_OTEL_VERBOSE=1', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies: require('./package.json').dependencies,
+    env: {
+      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+      NEXT_TELEMETRY_DISABLED: '1',
+      NEXT_OTEL_VERBOSE: '1',
+    },
+  })
+
+  let collector: Collector | undefined
+
+  beforeEach(async () => {
+    collector = await connectCollector({ port: COLLECTOR_PORT })
+  })
+
+  afterEach(async () => {
+    await collector?.shutdown()
+    collector = undefined
+  })
+
+  // Regression for https://github.com/vercel/otel/issues/107.
+  it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
+    const pathname = '/app/param/rsc-fetch'
+    await next.fetch(pathname, {
+      headers: {
+        traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
       },
     })
 
-    if (skipped) {
-      return
+    let spans: SavedSpan[] = []
+    await retry(async () => {
+      const all = collector?.getSpans() ?? []
+      const root = all.find(
+        (s) =>
+          s.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
+          s.attributes?.['http.target'] === pathname
+      )
+      expect(root).toBeDefined()
+      expect(root!.traceId).toBe(EXTERNAL.traceId)
+
+      spans = all.filter((s) => s.traceId === root!.traceId)
+      expect(spans.length).toBeGreaterThan(1)
+
+      const verbose = spans.find(
+        (s) =>
+          s.attributes?.['next.span_type'] === 'NextServer.getRequestHandler'
+      )
+      expect(verbose).toBeDefined()
+      expect(verbose!.traceId).toBe(EXTERNAL.traceId)
+      const parentSpanId = verbose!.parentId
+      expect(parentSpanId).toBe(EXTERNAL.spanId)
+    })
+
+    for (const span of spans) {
+      expect(span.traceId).toBe(EXTERNAL.traceId)
     }
+  })
+})
 
-    let collector: Collector | undefined
-
-    beforeEach(async () => {
-      collector = await connectCollector({ port: COLLECTOR_PORT })
-    })
-
-    afterEach(async () => {
-      await collector?.shutdown()
-      collector = undefined
-    })
-
-    // Regression for https://github.com/vercel/otel/issues/107.
-    it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
-      const pathname = '/app/param/rsc-fetch'
-      await next.fetch(pathname, {
-        headers: {
-          traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-        },
-      })
-
-      let spans: SavedSpan[] = []
-      await retry(async () => {
-        const all = collector?.getSpans() ?? []
-        const root = all.find(
-          (s) =>
-            s.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
-            s.attributes?.['http.target'] === pathname
-        )
-        expect(root).toBeDefined()
-        expect(root!.traceId).toBe(EXTERNAL.traceId)
-
-        spans = all.filter((s) => s.traceId === root!.traceId)
-        expect(spans.length).toBeGreaterThan(1)
-
-        const verbose = spans.find(
-          (s) =>
-            s.attributes?.['next.span_type'] === 'NextServer.getRequestHandler'
-        )
-        expect(verbose).toBeDefined()
-        expect(verbose!.traceId).toBe(EXTERNAL.traceId)
-        const parentSpanId = verbose!.parentId
-        expect(parentSpanId).toBe(EXTERNAL.spanId)
-      })
-
-      for (const span of spans) {
-        expect(span.traceId).toBe(EXTERNAL.traceId)
-      }
-    })
-  }
-)
-
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('opentelemetry with disabled fetch tracing', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     env: {
       NEXT_OTEL_FETCH_DISABLED: '1',
       TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   let collector: Collector
 
@@ -2090,10 +2075,12 @@ describe('opentelemetry with disabled fetch tracing', () => {
   )
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('opentelemetry with custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
     packageJson: {
@@ -2108,10 +2095,6 @@ describe('opentelemetry with custom server', () => {
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   let collector: Collector
 
@@ -2268,10 +2251,12 @@ describe('opentelemetry with custom server', () => {
 })
 
 if (isNextStart) {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely controls the local Next.js build or server lifecycle.
+  // @force-gate !deploy
   describe('opentelemetry with direct entrypoint handler', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
       packageJson: {
@@ -2286,10 +2271,6 @@ if (isNextStart) {
         NODE_ENV: 'production',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     let collector: Collector
 

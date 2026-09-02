@@ -3,14 +3,13 @@ import * as cheerio from 'cheerio'
 import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
-
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('middleware-static-rewrite', () => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
