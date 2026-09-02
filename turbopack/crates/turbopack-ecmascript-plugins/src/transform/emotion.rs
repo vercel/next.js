@@ -1,14 +1,11 @@
 #![allow(unused)]
-use std::{
-    hash::{Hash, Hasher},
-    path::Path,
-};
+use std::path::Path;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::Atom,
@@ -137,15 +134,10 @@ impl CustomTransformer for EmotionTransformer {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "transform_emotion")]
         {
-            let hash = {
-                let mut hasher = FxHasher::default();
-                program.hash(&mut hasher);
-                hasher.finish()
-            };
             program.mutate(swc_emotion::emotion(
                 &self.config,
                 Path::new(ctx.file_name_str),
-                hash as u32,
+                ctx.source_hash as u32,
                 ctx.source_map.clone(),
                 ctx.comments.clone(),
             ));

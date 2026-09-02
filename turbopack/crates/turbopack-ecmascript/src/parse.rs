@@ -568,6 +568,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
+                source_hash: fm.src_hash(),
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
