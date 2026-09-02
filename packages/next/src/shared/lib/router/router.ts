@@ -163,8 +163,16 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
  * the current page and `as` shows a pretty URL) a filter match on `as` would
  * otherwise mark the pages route behind `href` as an App Router path and
  * break every later navigation to that route.
+ *
+ * Returns `null` when `as` is not a local URL (for example `mailto:` or a
+ * different origin). Such an `as` can never be an App Router path, and
+ * `change()` reports it as an invalid `href`/`as` pair further down.
  */
-function getAppRouterMarkerKey(router: Router, as: string): string {
+function getAppRouterMarkerKey(router: Router, as: string): string | null {
+  if (!isLocalURL(as)) {
+    return null
+  }
+
   let { pathname } = parseRelativeUrl(hasBasePath(as) ? removeBasePath(as) : as)
 
   if (process.env.__NEXT_I18N_SUPPORT) {
@@ -1470,9 +1478,10 @@ export default class Router implements BaseRouter {
 
     // if we detected the `as` path as app route during prefetching
     // trigger hard navigation
+    const appRouterMarkerKey = getAppRouterMarkerKey(this, cleanedAs)
     if (
-      (this.components[getAppRouterMarkerKey(this, cleanedAs)] as any)
-        ?.__appRouter
+      appRouterMarkerKey !== null &&
+      (this.components[appRouterMarkerKey] as any)?.__appRouter
     ) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
@@ -2578,9 +2587,10 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
-      this.components[getAppRouterMarkerKey(this, asPath)] = {
-        __appRouter: true,
-      } as any
+      const appRouterMarkerKey = getAppRouterMarkerKey(this, asPath)
+      if (appRouterMarkerKey !== null) {
+        this.components[appRouterMarkerKey] = { __appRouter: true } as any
+      }
     }
 
     await Promise.all([
