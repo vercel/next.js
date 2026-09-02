@@ -25,9 +25,7 @@ use crate::{
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
-    static_sorted_file_builder::{
-        StaticSortedFileBuilderMeta, write_static_stored_file_with_compression,
-    },
+    static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
 
 /// A newly created database file (meta, SST, or blob), carrying its on-disk size so commit can sum
@@ -523,7 +521,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let (meta, file) = self
             .parallel_scheduler
             .block_in_place(|| {
-                write_static_stored_file_with_compression(
+                write_static_stored_file(
                     entries,
                     &path,
                     MetaEntryFlags::FRESH,

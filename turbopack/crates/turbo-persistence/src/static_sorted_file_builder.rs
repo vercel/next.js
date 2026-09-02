@@ -300,30 +300,20 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub entries: u64,
 }
 
-/// Writes an LZ4-compressed SST file from a pre-sorted slice of entries.
+/// Writes an SST file from a pre-sorted slice of entries.
 ///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
-/// entries in memory. Databases with per-family compression use the configuration-aware internal
-/// wrapper instead.
+/// entries in memory.
 // TODO: Consider adding a variant that takes ownership (Vec<E> or drain iterator)
 // to free entry memory as blocks are written.
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
-) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
-    write_static_stored_file_with_compression(entries, file, flags, Compression::Lz4)
-}
-
-pub(crate) fn write_static_stored_file_with_compression<E: Entry>(
-    entries: &[E],
-    file: &Path,
-    flags: MetaEntryFlags,
     compression: Compression,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-    let mut writer =
-        StreamingSstWriter::new_with_compression(file, flags, entries.len() as u64, compression)?;
+    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
         writer.add(entry)?;
     }
@@ -589,15 +579,10 @@ pub struct StreamingSstWriter<E: Entry> {
 }
 
 impl<E: Entry> StreamingSstWriter<E> {
-    /// Creates a new streaming SST writer using LZ4 compression.
+    /// Creates a new streaming SST writer.
     ///
-    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts. Databases with
-    /// per-family compression use the configuration-aware internal constructor instead.
-    pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
-        Self::new_with_compression(file, flags, max_entry_count, Compression::Lz4)
-    }
-
-    pub(crate) fn new_with_compression(
+    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
+    pub fn new(
         file: &Path,
         flags: MetaEntryFlags,
         max_entry_count: u64,
@@ -1473,7 +1458,8 @@ mod tests {
         flags: MetaEntryFlags,
     ) -> Result<StaticSortedFileBuilderMeta<'static>> {
         let sst_path = dir.join(format!("{seq:08}.sst"));
-        let mut writer = StreamingSstWriter::new(&sst_path, flags, entries.len() as u64)?;
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
         for entry in entries {
             writer.add(entry)?;
         }
@@ -1709,7 +1695,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let max_entries = 50;
         for i in 0..max_entries {
@@ -1735,7 +1722,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let value = vec![0u8; 1000];
         for i in 0..10 {
@@ -1771,8 +1759,12 @@ mod tests {
 
         // Write via convenience function
         let batch_path = dir.path().join("00000001.sst");
-        let (meta1, _) =
-            write_static_stored_file(&entries, &batch_path, MetaEntryFlags::default())?;
+        let (meta1, _) = write_static_stored_file(
+            &entries,
+            &batch_path,
+            MetaEntryFlags::default(),
+            Compression::Lz4,
+        )?;
 
         // Write via streaming API
         let streaming_path = dir.path().join("00000002.sst");
@@ -1780,6 +1772,7 @@ mod tests {
             &streaming_path,
             MetaEntryFlags::default(),
             entries.len() as u64,
+            Compression::Lz4,
         )?;
         for entry in &entries {
             writer.add(entry)?;
@@ -1862,8 +1855,13 @@ mod tests {
     fn close_empty_writer_panics() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("empty.sst");
-        let writer =
-            StreamingSstWriter::<TestEntry>::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
+        let writer = StreamingSstWriter::<TestEntry>::new(
+            &sst_path,
+            MetaEntryFlags::default(),
+            0,
+            Compression::Lz4,
+        )
+        .unwrap();
         writer.close().unwrap();
     }
 

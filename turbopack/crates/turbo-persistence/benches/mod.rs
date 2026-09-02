@@ -1204,8 +1204,13 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
             let sst_path = tempdir.path().join("00000001.sst");
-            let (meta, _file) =
-                write_static_stored_file(&entries, &sst_path, MetaEntryFlags::FRESH).unwrap();
+            let (meta, _file) = write_static_stored_file(
+                &entries,
+                &sst_path,
+                MetaEntryFlags::FRESH,
+                Compression::Lz4,
+            )
+            .unwrap();
 
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {

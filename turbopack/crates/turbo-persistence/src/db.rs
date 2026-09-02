@@ -1651,7 +1651,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         let seq =
                                             sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                                         let sst_path = path.join(format!("{seq:08}.sst"));
-                                        let writer = StreamingSstWriter::new_with_compression(
+                                        let writer = StreamingSstWriter::new(
                                             &sst_path,
                                             self.flags,
                                             MAX_ENTRIES_PER_COMPACTED_FILE as u64,
