@@ -77,6 +77,23 @@ const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::All;
 type TaskIdVec = SmallVec<[TaskId; 4]>;
 type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
 
+#[derive(Debug, PartialEq, Eq)]
+enum ActiveCountTransition {
+    None,
+    Activated,
+    Deactivated,
+}
+
+fn apply_active_count_delta(state: &mut ActivenessState, delta: i32) -> ActiveCountTransition {
+    let was_active = state.active_counter > 0;
+    state.active_counter += delta;
+    match (was_active, state.active_counter > 0) {
+        (false, true) => ActiveCountTransition::Activated,
+        (true, false) => ActiveCountTransition::Deactivated,
+        _ => ActiveCountTransition::None,
+    }
+}
+
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
     aggregation_number >= LEAF_NUMBER
@@ -944,6 +961,13 @@ mod encode_jobs {
 pub struct AggregationUpdateQueue {
     #[bincode(with = "encode_jobs")]
     jobs: VecDeque<AggregationUpdateJobItem>,
+    /// Pending active-counter changes, coalesced until the regular job queue is drained.
+    ///
+    /// Activeness propagation is deferred maintenance: only the counter state at this drain
+    /// boundary is observable. Keeping these updates transient also matches the active-count jobs
+    /// that were previously filtered out while serializing `jobs`.
+    #[bincode(skip, default = "FxIndexMap::default")]
+    active_count_updates: FxIndexMap<TaskId, i32>,
     #[bincode(with = "turbo_bincode::indexmap")]
     aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_aggregation_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
@@ -970,6 +994,7 @@ impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(0),
+            active_count_updates: FxIndexMap::default(),
             aggregation_number_updates: FxIndexMap::default(),
             done_aggregation_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
@@ -986,6 +1011,7 @@ impl AggregationUpdateQueue {
     pub fn is_empty(&self) -> bool {
         let Self {
             jobs,
+            active_count_updates,
             aggregation_number_updates,
             find_and_schedule,
             balance_queue,
@@ -997,6 +1023,7 @@ impl AggregationUpdateQueue {
                 stats: _,
         } = self;
         jobs.is_empty()
+            && active_count_updates.is_empty()
             && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
@@ -1057,8 +1084,39 @@ impl AggregationUpdateQueue {
                 self.balance_queue
                     .push_back(BalanceJob::new(upper_id, task_id));
             }
+            AggregationUpdateJob::IncreaseActiveCount { task } => {
+                self.push_active_count_update(task, 1);
+            }
+            AggregationUpdateJob::IncreaseActiveCounts { task_ids } => {
+                for task_id in task_ids {
+                    self.push_active_count_update(task_id, 1);
+                }
+            }
+            AggregationUpdateJob::DecreaseActiveCount { task } => {
+                self.push_active_count_update(task, -1);
+            }
+            AggregationUpdateJob::DecreaseActiveCounts { task_ids } => {
+                for task_id in task_ids {
+                    self.push_active_count_update(task_id, -1);
+                }
+            }
             _ => {
                 self.jobs.push_back(AggregationUpdateJobItem::new(job));
+            }
+        }
+    }
+
+    fn push_active_count_update(&mut self, task_id: TaskId, delta: i32) {
+        match self.active_count_updates.entry(task_id) {
+            Entry::Occupied(mut entry) => {
+                *entry.get_mut() += delta;
+                if *entry.get() == 0 {
+                    // Preserve the relative order of all other pending task updates.
+                    entry.shift_remove();
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(delta);
             }
         }
     }
@@ -1485,31 +1543,23 @@ impl AggregationUpdateQueue {
                         }
                     });
                 }
-                AggregationUpdateJob::DecreaseActiveCount { task } => {
-                    self.decrease_active_count(ctx, task);
+                AggregationUpdateJob::DecreaseActiveCount { .. }
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::IncreaseActiveCount { .. }
+                | AggregationUpdateJob::IncreaseActiveCounts { .. } => {
+                    // `push` always redirects these jobs into `active_count_updates`.
+                    unreachable!();
                 }
-                AggregationUpdateJob::DecreaseActiveCounts { mut task_ids } => {
-                    if let Some(task_id) = task_ids.pop() {
-                        self.decrease_active_count(ctx, task_id);
-                        if !task_ids.is_empty() {
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::DecreaseActiveCounts { task_ids },
-                            ));
-                        }
-                    }
-                }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
-                }
-                AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
-                    if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
-                        if !task_ids.is_empty() {
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::IncreaseActiveCounts { task_ids },
-                            ));
-                        }
-                    }
+            }
+            false
+        } else if !self.active_count_updates.is_empty() {
+            let mut remaining = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some((task_id, delta)) = self.active_count_updates.pop() {
+                    self.update_active_count(ctx, task_id, delta);
+                    remaining -= 1;
+                } else {
+                    break;
                 }
             }
             false
@@ -3168,57 +3218,20 @@ impl AggregationUpdateQueue {
         }
     }
 
-    /// Decreases the active count of a task.
+    /// Applies a coalesced active-count delta to a task.
     ///
-    /// Only used when activeness is tracked.
-    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    /// Only used when activeness is tracked. Positive net deltas retain the old increment path's
+    /// GC resurrection behavior; non-positive net outcomes intentionally do not resurrect a task
+    /// that remains inactive. Negative deltas retain the rare absent-state scheduling behavior.
+    fn update_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        delta: i32,
+    ) {
+        debug_assert_ne!(delta, 0);
         #[cfg(feature = "trace_aggregation_update")]
-        let _span = trace_span!("decrease active count").entered();
-
-        let mut task = ctx.task(
-            task_id,
-            // For performance reasons this should stay `Meta` and not `All`
-            AGGREGATION_UPDATE_CATEGORY,
-        );
-        self.check_optimization_pending(&task);
-        let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
-        let is_new = state.is_empty();
-        let is_zero = state.decrement_active_counter();
-        let is_empty = state.is_empty();
-        if is_empty {
-            task.take_activeness();
-        }
-        debug_assert!(
-            !(is_new && is_zero),
-            // This allows us to but the `if is_zero` block in the else branch of the `if is_new`
-            // block below for fewer checks and less problems with the borrow checker.
-            "A new Activeness will never be zero after decrementing"
-        );
-        if is_new {
-            // A task is considered "active" purely by the existence of an `Activeness` item, even
-            // if that item has an negative active counter. So we need to make sure to
-            // schedule it here. That case is pretty rare and only happens under extreme race
-            // conditions.
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
-        } else if is_zero {
-            let followers = get_followers(&task);
-            drop(task);
-            if !followers.is_empty() {
-                self.push(AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: followers,
-                });
-            }
-        } else {
-            drop(task);
-        }
-    }
-
-    /// Increases the active count of a task.
-    ///
-    /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
-        #[cfg(feature = "trace_aggregation_update")]
-        let _span = trace_span!("increase active count").entered();
+        let _span = trace_span!("update active count", delta).entered();
 
         let task = ctx.task(
             task_id,
@@ -3226,37 +3239,63 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Revive the task if GC soft-deleted it.
-        let mut task = resurrect_deleted(task, task_id, self, ctx);
+        let mut task = if delta > 0 {
+            // Revive the task if GC soft-deleted it.
+            resurrect_deleted(task, task_id, self, ctx)
+        } else {
+            task
+        };
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
-        let is_positive_now = state.increment_active_counter();
+        let transition = apply_active_count_delta(state, delta);
+        let is_active = state.active_counter > 0;
         let is_empty = state.is_empty();
-        // This can happen if active count was negative before
         if is_empty {
             task.take_activeness();
         }
-        debug_assert!(
-            !is_new || is_positive_now,
-            // This allows us to nest the `if is_new` block below `if is_positive_now` for fewer
-            // checks.
-            "A new Activeness will always be positive after incrementing"
-        );
-        if is_positive_now {
-            let followers = get_followers(&task);
-            if is_new {
-                // Fast path to schedule
-                self.find_and_schedule_dirty_internal(task_id, task, ctx);
-            } else {
-                drop(task);
-            }
 
-            if !followers.is_empty() {
-                self.push(AggregationUpdateJob::IncreaseActiveCounts {
-                    task_ids: followers,
-                });
+        debug_assert!(
+            delta >= 0 || !(is_new && is_empty),
+            "A new Activeness will never be empty after a negative delta"
+        );
+        debug_assert!(
+            delta <= 0 || !is_new || is_active,
+            "A new Activeness will always be active after a positive delta"
+        );
+
+        if is_new && delta < 0 {
+            // A task is considered "active" purely by the existence of an `Activeness` item, even
+            // if that item has a negative active counter. Schedule this rare race exactly as the
+            // old single-decrement path did.
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            return;
+        }
+
+        match transition {
+            ActiveCountTransition::Activated => {
+                let followers = get_followers(&task);
+                if is_new {
+                    self.find_and_schedule_dirty_internal(task_id, task, ctx);
+                } else {
+                    drop(task);
+                }
+                if !followers.is_empty() {
+                    self.push(AggregationUpdateJob::IncreaseActiveCounts {
+                        task_ids: followers,
+                    });
+                }
             }
+            ActiveCountTransition::Deactivated => {
+                let followers = get_followers(&task);
+                drop(task);
+                if !followers.is_empty() {
+                    self.push(AggregationUpdateJob::DecreaseActiveCounts {
+                        task_ids: followers,
+                    });
+                }
+            }
+            ActiveCountTransition::None => drop(task),
         }
     }
 
@@ -3596,5 +3635,140 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
         } else {
             time = Some(Instant::now());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn task_id(id: u32) -> TaskId {
+        TaskId::new(id).unwrap()
+    }
+
+    #[test]
+    fn coalesces_active_count_updates_by_task() {
+        let first = task_id(1);
+        let second = task_id(2);
+        let mut queue = AggregationUpdateQueue::new();
+
+        queue.push(AggregationUpdateJob::IncreaseActiveCount { task: first });
+        queue.push(AggregationUpdateJob::IncreaseActiveCounts {
+            task_ids: smallvec![first, second, first],
+        });
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task: second });
+
+        assert_eq!(queue.active_count_updates.len(), 1);
+        assert_eq!(queue.active_count_updates.get(&first), Some(&3));
+        assert!(!queue.is_empty());
+    }
+
+    #[test]
+    fn coalesces_active_count_decrements() {
+        let task = task_id(1);
+        let mut queue = AggregationUpdateQueue::new();
+
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task });
+        queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+            task_ids: smallvec![task, task],
+        });
+
+        assert_eq!(queue.active_count_updates.get(&task), Some(&-3));
+    }
+
+    #[test]
+    fn removes_zero_active_count_updates_without_changing_other_order() {
+        let first = task_id(1);
+        let cancelled = task_id(2);
+        let last = task_id(3);
+        let mut queue = AggregationUpdateQueue::new();
+
+        for task in [first, cancelled, last] {
+            queue.push(AggregationUpdateJob::IncreaseActiveCount { task });
+        }
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task: cancelled });
+
+        assert_eq!(
+            queue
+                .active_count_updates
+                .iter()
+                .map(|(&task, &delta)| (task, delta))
+                .collect::<Vec<_>>(),
+            vec![(first, 1), (last, 1)]
+        );
+
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task: first });
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task: last });
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn regular_jobs_stay_ahead_of_coalesced_active_count_updates() {
+        let task = task_id(1);
+        let mut queue = AggregationUpdateQueue::new();
+
+        queue.push(AggregationUpdateJob::IncreaseActiveCount { task });
+        queue.push(AggregationUpdateJob::Noop);
+        queue.push(AggregationUpdateJob::DecreaseActiveCount { task });
+
+        assert_eq!(queue.jobs.len(), 1);
+        assert!(queue.active_count_updates.is_empty());
+        assert!(!queue.is_empty());
+    }
+
+    #[test]
+    fn active_count_delta_reports_only_boundary_crossings() {
+        let task = task_id(1);
+        let mut state = ActivenessState::new(task);
+
+        assert_eq!(
+            apply_active_count_delta(&mut state, 3),
+            ActiveCountTransition::Activated
+        );
+        assert_eq!(state.active_counter, 3);
+        assert_eq!(
+            apply_active_count_delta(&mut state, 2),
+            ActiveCountTransition::None
+        );
+        assert_eq!(
+            apply_active_count_delta(&mut state, -6),
+            ActiveCountTransition::Deactivated
+        );
+        assert_eq!(state.active_counter, -1);
+        assert_eq!(
+            apply_active_count_delta(&mut state, -2),
+            ActiveCountTransition::None
+        );
+        assert_eq!(
+            apply_active_count_delta(&mut state, 4),
+            ActiveCountTransition::Activated
+        );
+        assert_eq!(state.active_counter, 1);
+    }
+
+    #[test]
+    fn active_count_delta_preserves_single_step_semantics() {
+        let task = task_id(1);
+        let mut state = ActivenessState::new(task);
+
+        assert_eq!(
+            apply_active_count_delta(&mut state, -1),
+            ActiveCountTransition::None
+        );
+        assert_eq!(state.active_counter, -1);
+        assert_eq!(
+            apply_active_count_delta(&mut state, 1),
+            ActiveCountTransition::None
+        );
+        assert!(state.is_empty());
+        assert_eq!(
+            apply_active_count_delta(&mut state, 1),
+            ActiveCountTransition::Activated
+        );
+        assert_eq!(
+            apply_active_count_delta(&mut state, -1),
+            ActiveCountTransition::Deactivated
+        );
+        assert!(state.is_empty());
     }
 }

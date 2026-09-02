@@ -145,18 +145,6 @@ impl ActivenessState {
         self.active_until_clean = true;
     }
 
-    /// Increment the active counter and return true if the counter was 0 before.
-    pub fn increment_active_counter(&mut self) -> bool {
-        self.active_counter += 1;
-        self.active_counter == 1
-    }
-
-    /// Decrement the active counter and return true if the counter is 0 after.
-    pub fn decrement_active_counter(&mut self) -> bool {
-        self.active_counter -= 1;
-        self.active_counter == 0
-    }
-
     pub fn unset_root_type(&mut self) {
         self.root_ty = None;
     }
