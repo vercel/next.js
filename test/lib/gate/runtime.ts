@@ -431,6 +431,35 @@ export function _test_gate(pragmas: GatePragma[], kind: string) {
   // Parsing and validation happen while the test file is being collected, so a
   // typo'd condition fails the whole suite instead of one test.
   const allGates = pragmas.map(parseGate)
+  return createGatedTest(
+    allGates,
+    kind,
+    () => resolveTestFn(kind),
+    () => resolveSkipFn(kind)
+  )
+}
+
+/** `describe.each(table)` binds the table before receiving the suite call. */
+export function _test_gate_describe_each(
+  pragmas: GatePragma[],
+  table: readonly unknown[]
+) {
+  const g = global as any
+  const allGates = pragmas.map(parseGate)
+  return createGatedTest(
+    allGates,
+    'describe.each',
+    () => g.describe.each(table),
+    () => g.describe.skip.each(table)
+  )
+}
+
+function createGatedTest(
+  allGates: Gate[],
+  kind: string,
+  getTestFn: () => TestFn,
+  getSkipFn: () => TestFn
+) {
   // A static `@force-gate` is decided at collection time (a real Jest skip).
   // Everything else — `@gate`, and *lazy* `@force-gate` — is resolved at
   // runtime, so it inherits down into the tests via the describe stack.
@@ -441,7 +470,6 @@ export function _test_gate(pragmas: GatePragma[], kind: string) {
     (gate) => !gate.force || gate.needsResolvedConfig
   )
   const isDescribe = kind.startsWith('describe')
-  const testFn = resolveTestFn(kind)
 
   return function gated(name: string, callback: Function, timeout?: number) {
     // A false static `@force-gate` is a real Jest skip, decided right here.
@@ -449,21 +477,18 @@ export function _test_gate(pragmas: GatePragma[], kind: string) {
       (gate) => !evaluate(gate.node, (condition) => readCondition(condition))
     )
     if (forcedOff) {
-      return resolveSkipFn(kind)(
-        name,
-        callback as jest.ProvidesCallback,
-        timeout
-      )
+      return getSkipFn()(name, callback as jest.ProvidesCallback, timeout)
     }
 
+    const testFn = getTestFn()
     if (isDescribe) {
       // Register the `describe` normally, but make its runtime gates (including
       // a lazy `@force-gate`) visible while its body is collected so nested
       // tests inherit them and `nextTestSetup` can gate the build.
-      return testFn(name, function (this: unknown) {
+      return testFn(name, function (this: unknown, ...args: unknown[]) {
         describeGateStack.push(...runtimeGates)
         try {
-          return callback.call(this)
+          return callback.apply(this, args)
         } finally {
           describeGateStack.length -= runtimeGates.length
         }
@@ -614,6 +639,7 @@ function wrapHookGlobals(): void {
 /** Called from `test/jest-setup-after-env.ts`. */
 export function installGate(): void {
   ;(global as any)._test_gate = _test_gate
+  ;(global as any)._test_gate_describe_each = _test_gate_describe_each
   wrapTestGlobals()
   wrapHookGlobals()
 }
