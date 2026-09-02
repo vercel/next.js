@@ -14,13 +14,13 @@ function toQueryString(query: Record<string, any>): string {
 const largeSize = 1080
 
 describe('Image Optimizer', () => {
+  // These checks inspect local build errors and cannot run against a deployment.
+  // @force-gate !deploy
   describe('config checks', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const configChecks: Array<{
       name: string

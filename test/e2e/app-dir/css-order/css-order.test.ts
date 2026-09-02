@@ -474,7 +474,6 @@ const options = (value: CssChunkingValue) => ({
   dependencies: {
     sass: 'latest',
   },
-  skipDeployment: true,
 })
 
 /**
@@ -514,11 +513,13 @@ function shouldSkipConflict(ordering: readonly string[]): boolean {
     )
 }
 
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
   'css-order %s',
   (_label: string, value: CssChunkingValue) => {
-    const { next, isNextDev, skipped } = nextTestSetup(options(value))
-    if (skipped) return
+    const { next, isNextDev } = nextTestSetup(options(value))
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '
@@ -568,6 +569,9 @@ describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
     }
   }
 )
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(
   process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
 )('css-order %s', (_label: string, value: CssChunkingValue) => {
@@ -611,6 +615,9 @@ describe.each(
     })
   }
 })
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(
   process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
 )('css-order %s', (_label: string, value: CssChunkingValue) => {
