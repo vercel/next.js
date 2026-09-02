@@ -94,6 +94,10 @@ function hasServerActions() {
   )
 }
 
+function getUnrecognizedActionStatusCode(actionId: string | null): 400 | 409 {
+  return actionId !== null && !mightBeServerReferenceId(actionId) ? 400 : 409
+}
+
 function nodeHeadersToRecord(
   headers: IncomingHttpHeaders | OutgoingHttpHeaders
 ) {
@@ -212,7 +216,8 @@ async function createForwardedActionResponse(
   res: BaseNextResponse,
   host: Host,
   workerPathname: string,
-  basePath: string
+  basePath: string,
+  actionId: string
 ) {
   if (!host) {
     throw new Error(
@@ -306,7 +311,9 @@ async function createForwardedActionResponse(
     if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
       res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
       res.setHeader('content-type', 'text/plain')
-      res.statusCode = response.status
+      // The marker denotes an unavailable action. Derive the status from the
+      // requested ID so mixed-version workers cannot change its semantics.
+      res.statusCode = getUnrecognizedActionStatusCode(actionId)
       return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
   } catch (err) {
@@ -613,10 +620,7 @@ export async function handleAction({
 
   const handleUnrecognizedAction = (
     err: unknown,
-    statusCode: 400 | 409 = actionId !== null &&
-    !mightBeServerReferenceId(actionId)
-      ? 400
-      : 409
+    statusCode: 400 | 409 = getUnrecognizedActionStatusCode(actionId)
   ): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
     // so we use a warning instead of an error.
@@ -787,7 +791,8 @@ export async function handleAction({
           res,
           host,
           forwardedWorker,
-          ctx.renderOpts.basePath
+          ctx.renderOpts.basePath,
+          actionId
         ),
       }
     }
