@@ -521,8 +521,8 @@ async fn prepare_project_container_state(
         project_file_system: project_fs_op,
         output_file_system: output_fs_op,
     }));
-    let project_fs = project_fs_op.resolve().strongly_consistent().await?;
-    let project_fs_vc = project_fs_op.read_strongly_consistent().await?;
+    let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
+    let project_fs = project_fs_op.read_strongly_consistent().await?;
 
     let (project_path, config_file_name) = {
         let state = container.state.get_untracked();
@@ -539,10 +539,12 @@ async fn prepare_project_container_state(
                 .to_owned(),
         )
     };
-    let config_path =
-        FileSystemPath::new_normalized_unchecked(ResolvedVc::upcast(project_fs), RcStr::default())
-            .join(&project_path)?
-            .join(&config_file_name)?;
+    let config_path = FileSystemPath::new_normalized_unchecked(
+        ResolvedVc::upcast(project_fs_vc),
+        RcStr::default(),
+    )
+    .join(&project_path)?
+    .join(&config_file_name)?;
     let additional_roots = create_additional_root_file_systems(
         container_vc,
         configured_additional_roots,
@@ -572,13 +574,13 @@ async fn prepare_project_container_state(
         }
     }
     if enable_watch {
-        project_fs_vc.start_watching().await?;
+        project_fs.start_watching().await?;
         for op in &additional_file_systems {
             let fs = op.read_strongly_consistent().await?;
             fs.start_watching().await?;
         }
     } else {
-        project_fs_vc.invalidate_with_reason(invalidation_reason);
+        project_fs.invalidate_with_reason(invalidation_reason);
         for op in &additional_file_systems {
             op.read_strongly_consistent()
                 .await?
