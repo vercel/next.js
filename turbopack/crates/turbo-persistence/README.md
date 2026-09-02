@@ -240,10 +240,11 @@ The checksum is verified on the compressed data **before** decompression when th
 
 ## Reading
 
-Reading start from the current sequence number and goes downwards.
+Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
+files, from newest to oldest; there is no ordering dependency between families.
 
 - We have all SST files memory mapped
-- for i = CURRENT sequence number .. 0
+- for each meta file of the queried key family, newest first
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
