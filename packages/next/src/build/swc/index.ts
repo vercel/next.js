@@ -27,6 +27,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrChunkNames,
+  Issue,
   Lockfile,
   PartialProjectOptions,
   Project,
@@ -682,12 +683,16 @@ function bindingToApi(
 
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
+    readonly issues: Issue[]
 
     constructor(
-      nativeProject: { __napiType: 'Project' },
+      nativeProject: TurbopackResult<{
+        project: { __napiType: 'Project' }
+      }>,
       private readonly projectPath: string
     ) {
-      this._nativeProject = nativeProject
+      this._nativeProject = nativeProject.project
+      this.issues = nativeProject.issues
 
       if (typeof binding.registerWorkerScheduler === 'function') {
         runLoaderWorkerPool(binding, bindingPath)
@@ -1416,7 +1421,7 @@ async function loadWasm(importPath = '') {
         _options: ProjectOptions,
         _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
-      ): Promise<Project> {
+      ): Promise<TurbopackResult<Project>> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +

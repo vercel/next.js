@@ -379,6 +379,10 @@ export interface NapiPartialProjectOptions {
   noMangling?: boolean
 }
 
+export interface NapiProject {
+  project: { __napiType: 'Project' }
+}
+
 export interface NapiProjectOptions {
   /**
    * An absolute root path (Unix or Windows path) from which all files must be nested under.
@@ -648,7 +652,7 @@ export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
-): Promise<{ __napiType: 'Project' }>
+): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.

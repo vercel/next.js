@@ -29,8 +29,8 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        AdditionalRootConfig, AdditionalRootError, DebugBuildPaths, DefineEnv, DraftModeOptions,
-        PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
+        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
+        Project, ProjectContainer, ProjectOptions, WatchOptions,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -282,20 +282,13 @@ impl From<NapiWatchOptions> for WatchOptions {
     }
 }
 
-fn canonicalize_additional_roots(
-    roots: Vec<NapiAdditionalRoot>,
-) -> Vec<Result<AdditionalRootConfig, AdditionalRootError>> {
+fn convert_additional_roots(roots: Vec<NapiAdditionalRoot>) -> Vec<AdditionalRootConfig> {
     roots
         .into_iter()
-        .filter_map(|root| {
-            let ignore_if_missing = root.ignore_if_missing.unwrap_or(false);
-            match AdditionalRootConfig::canonicalize(root.key.clone(), &root.path) {
-                Ok(config) => Some(Ok(config)),
-                Err(_) if ignore_if_missing => None,
-                Err(error) => Some(Err(AdditionalRootError::from_io_error(
-                    root.key, root.path, &error,
-                ))),
-            }
+        .map(|root| AdditionalRootConfig {
+            key: root.key,
+            path: root.path,
+            ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
         })
         .collect()
 }
@@ -332,7 +325,7 @@ impl NapiProjectOptions {
             project_path,
             watch: watch.into(),
             next_config,
-            additional_roots: canonicalize_additional_roots(additional_roots),
+            additional_roots: convert_additional_roots(additional_roots),
             env: env.into_iter().map(|var| (var.name, var.value)).collect(),
             define_env: define_env.into(),
             dev,
@@ -415,13 +408,19 @@ pub struct ProjectInstance {
     exit_receiver: Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
+#[napi(object, object_from_js = false)]
+pub struct NapiProject {
+    #[napi(ts_type = "{ __napiType: \"Project\" }")]
+    pub project: External<ProjectInstance>,
+}
+
+#[napi(ts_return_type = "Promise<TurbopackResult<{ project: { __napiType: \"Project\" } }>>")]
 pub fn project_new<'env>(
     env: &'env Env,
     mut options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
-) -> napi::Result<PromiseRaw<'env, External<ProjectInstance>>> {
+) -> napi::Result<PromiseRaw<'env, TurbopackResult<NapiProject>>> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
@@ -607,11 +606,15 @@ pub fn project_new<'env>(
             let options = options.into_project_options();
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
-            let container = turbo_tasks
+            let (container, initialization_issues) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
-                    ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve().strongly_consistent().await
+                    let initialization_issues =
+                        ProjectContainer::initialize(container_op, options).await?;
+                    Ok((
+                        container_op.resolve().strongly_consistent().await?,
+                        initialization_issues,
+                    ))
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -651,11 +654,19 @@ pub fn project_new<'env>(
                 });
             }
 
-            Ok(External::new(ProjectInstance {
-                turbopack_ctx,
-                container,
-                exit_receiver: Mutex::new(Some(exit_receiver)),
-            }))
+            Ok(TurbopackResult {
+                result: NapiProject {
+                    project: External::new(ProjectInstance {
+                        turbopack_ctx,
+                        container,
+                        exit_receiver: Mutex::new(Some(exit_receiver)),
+                    }),
+                },
+                issues: initialization_issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
+            })
         }
         .instrument(tracing::info_span!("create project")),
     )

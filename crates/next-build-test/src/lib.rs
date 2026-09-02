@@ -45,7 +45,7 @@ pub async fn main_inner(
     let project = tt
         .run(async {
             let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
-            ProjectContainer::initialize(container_op, options).await?;
+            let _ = ProjectContainer::initialize(container_op, options).await?;
             container_op.resolve().strongly_consistent().await
         })
         .await?;

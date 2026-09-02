@@ -70,7 +70,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+        StyledString,
     },
     module::{Module, Modules},
     module_graph::{
@@ -98,9 +99,9 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
-pub use crate::additional_roots::{AdditionalRootConfig, AdditionalRootError};
+pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
-    additional_roots::{create_additional_root_file_systems, emit_additional_root_issues},
+    additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
     aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
@@ -315,11 +316,8 @@ pub struct ProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
-    /// Additional filesystem roots. Canonicalized before entering turbo-tasks.
-    ///
-    /// Some of these may be errors if the canonicalization failed. We later emit these as issues,
-    /// after we've constructed the main project root ([`Issue`] requires a [`FileSystemPath`]).
-    pub additional_roots: Vec<Result<AdditionalRootConfig, AdditionalRootError>>,
+    /// Additional filesystem roots. Canonicalized during initialization.
+    pub additional_roots: Vec<AdditionalRootConfig>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
@@ -431,15 +429,13 @@ struct ProjectContainerState {
     options: ProjectOptions,
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    additional_file_systems: Vec<(RcStr, OperationVc<DiskFileSystem>)>,
-    additional_root_errors: Vec<AdditionalRootError>,
 }
 
 #[turbo_tasks::value(serialization = "skip", evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
     state: State<Option<ProjectContainerState>>,
-    additional_root_paths: State<FxIndexMap<RcStr, RcStr>>,
+    additional_roots: State<FxIndexMap<RcStr, AdditionalDiskFileSystem>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
@@ -457,7 +453,7 @@ impl ProjectContainer {
                 None
             },
             state: State::new(None),
-            additional_root_paths: State::new(FxIndexMap::default()),
+            additional_roots: State::new(FxIndexMap::default()),
         }
         .cell())
     }
@@ -468,7 +464,7 @@ impl ProjectContainer {
 async fn prepare_project_container_state(
     container_vc: ResolvedVc<ProjectContainer>,
     options: ProjectOptions,
-) -> Result<()> {
+) -> Result<Vec<ReadRef<PlainIssue>>> {
     let map = disk_file_system_map_operation(container_vc);
     let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
 
@@ -513,36 +509,61 @@ async fn prepare_project_container_state(
         DiskFileSystemMap::empty(),
     );
 
-    let additional_roots = create_additional_root_file_systems(
-        container_vc,
-        &options.additional_roots,
-        &options.root_path,
-        watcher_config,
-        map,
-    )?;
     let enable_watch = options.watch.enable;
-    // These paths must be available before the lazy filesystem operations are first resolved.
-    let additional_root_paths = options
-        .additional_roots
-        .iter()
-        .filter_map(|root| {
-            root.as_ref()
-                .ok()
-                .map(|root| (root.key.clone(), root.canonical_path.clone()))
-        })
-        .collect();
+    let configured_additional_roots = options.additional_roots.clone();
+    let project_root = options.root_path.clone();
 
-    // Updating this state invalidates anything that might've read `map` up until now. We must do it
-    // this way because additional roots are a cyclic data structure.
+    // Install the main filesystem state before resolving it. Its root operation reads this state,
+    // while the filesystem itself only stores (and does not resolve) the filesystem map.
     let container = container_vc.await?;
-    container.additional_root_paths.set(additional_root_paths);
     container.state.set(Some(ProjectContainerState {
         options,
         project_file_system: project_fs_op,
         output_file_system: output_fs_op,
-        additional_file_systems: additional_roots.file_systems.clone(),
-        additional_root_errors: additional_roots.errors,
     }));
+    let project_fs = project_fs_op.resolve().strongly_consistent().await?;
+    let project_fs_vc = project_fs_op.read_strongly_consistent().await?;
+
+    let (project_path, config_file_name) = {
+        let state = container.state.get_untracked();
+        let options = &state
+            .as_ref()
+            .expect("ProjectContainer state was just initialized")
+            .options;
+        (
+            options.project_path.clone(),
+            config_json
+                .get("configFileName")
+                .and_then(|value| value.as_str())
+                .unwrap_or("next.config.js")
+                .to_owned(),
+        )
+    };
+    let config_path =
+        FileSystemPath::new_normalized_unchecked(ResolvedVc::upcast(project_fs), RcStr::default())
+            .join(&project_path)?
+            .join(&config_file_name)?;
+    let additional_roots = create_additional_root_file_systems(
+        container_vc,
+        configured_additional_roots,
+        &project_root,
+        watcher_config,
+        map,
+        config_path,
+    )
+    .await?;
+
+    let additional_file_systems = additional_roots
+        .roots_by_name
+        .values()
+        .map(|root| root.file_system)
+        .collect::<Vec<_>>();
+
+    // This state must be populated before the lazy additional filesystem operations or the
+    // filesystem map are first resolved.
+    container
+        .additional_roots
+        .set(additional_roots.roots_by_name);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
     fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
@@ -550,16 +571,15 @@ async fn prepare_project_container_state(
             path: RcStr::from(path.to_string_lossy()),
         }
     }
-    let project_fs_vc = project_fs_op.read_strongly_consistent().await?;
     if enable_watch {
         project_fs_vc.start_watching().await?;
-        for (_, op) in &additional_roots.file_systems {
+        for op in &additional_file_systems {
             let fs = op.read_strongly_consistent().await?;
             fs.start_watching().await?;
         }
     } else {
         project_fs_vc.invalidate_with_reason(invalidation_reason);
-        for (_, op) in &additional_roots.file_systems {
+        for op in &additional_file_systems {
             op.read_strongly_consistent()
                 .await?
                 .invalidate_with_reason(invalidation_reason);
@@ -573,7 +593,7 @@ async fn prepare_project_container_state(
         .await?
         .invalidate_with_reason(invalidation_reason);
 
-    Ok(())
+    Ok(additional_roots.issues)
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -616,11 +636,11 @@ pub(crate) async fn additional_root_path_operation(
     key: RcStr,
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
-    let paths = container.additional_root_paths.get();
-    let path = paths
+    let roots = container.additional_roots.get();
+    let root = roots
         .get(&key)
         .with_context(|| format!("Unexpected: additional root {key} is missing"))?;
-    Ok(Vc::cell(path.clone()))
+    Ok(Vc::cell(root.canonical_path.clone()))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -635,15 +655,16 @@ async fn disk_file_system_map_operation(
             .context("Unexpected: ProjectContainer is uninitialized")?;
         (
             state.project_file_system,
-            state.additional_file_systems.clone(),
+            container
+                .additional_roots
+                .get()
+                .values()
+                .map(|root| root.file_system)
+                .collect::<Vec<_>>(),
         )
     };
     let filesystems = iter::once(project_file_system)
-        .chain(
-            additional_file_systems
-                .into_iter()
-                .map(|(_, operation)| operation),
-        )
+        .chain(additional_file_systems)
         .map(async |operation| {
             let fs = operation.connect().to_resolved().await?;
             Ok((PathBuf::from(&*fs.await?.root()), fs))
@@ -739,7 +760,10 @@ impl ProjectContainer {
     ///
     /// This is an associated function instead of a method because we don't currently implement
     /// [`std::ops::Receiver`] on [`OperationVc`].
-    pub async fn initialize(this_op: OperationVc<Self>, options: ProjectOptions) -> Result<()> {
+    pub async fn initialize(
+        this_op: OperationVc<Self>,
+        options: ProjectOptions,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
         let this = this_op.read_strongly_consistent().await?;
         let span = tracing::info_span!(
             "initialize project",
@@ -878,7 +902,6 @@ impl ProjectContainer {
         let server_hmr;
         let project_file_system;
         let output_file_system;
-        let additional_root_errors;
         {
             let state = self.state.get();
             let state = state
@@ -910,16 +933,7 @@ impl ProjectContainer {
             server_hmr = options.server_hmr;
             project_file_system = state.project_file_system;
             output_file_system = state.output_file_system;
-            additional_root_errors = state.additional_root_errors.clone();
         }
-
-        let issue_path = project_file_system
-            .connect()
-            .root()
-            .owned()
-            .await?
-            .join(&project_path)?;
-        emit_additional_root_issues(issue_path, additional_root_errors);
 
         let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;

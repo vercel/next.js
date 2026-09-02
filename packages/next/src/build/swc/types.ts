@@ -35,7 +35,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
