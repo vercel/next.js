@@ -2,20 +2,18 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('custom-app-server-action-redirect', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'custom-server'),
-    skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
       'get-port': '5.1.1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('redirects with basepath properly when server action handler uses `redirect`', async () => {
     const browser = await next.browser('/base')

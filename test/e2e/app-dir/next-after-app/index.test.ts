@@ -7,14 +7,13 @@ import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
+// This suite patches fixture files and reads process-local runtime logs, which
+// are unavailable after deployment.
+// @force-gate !deploy
 describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // `patchFile` and reading runtime logs are not supported in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
   const pathPrefix = '/' + runtimeValue
 
   let currentCliOutputIndex = 0

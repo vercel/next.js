@@ -4,14 +4,14 @@ import fs from 'fs-extra'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 
+// Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
+// Calls `next.build()` directly which is not supported on `NextDeployInstance`.
+// @force-gate !deploy
 describe('page features telemetry', () => {
-  const { next, isTurbopack, isRspack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isRspack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   async function launchDevServer(
     port: number,
