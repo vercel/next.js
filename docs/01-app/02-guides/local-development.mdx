@@ -18,12 +18,14 @@ The development process with `next dev` is different than `next build` and `next
 
 Antivirus software can slow down file access. While this is more common on Windows machines, this can be an issue for any system with an antivirus tool installed.
 
-On Windows, you can add your project to the [Microsoft Defender Antivirus exclusion list](https://support.microsoft.com/en-us/windows/virus-and-threat-protection-in-the-windows-security-app-1362f4cd-d71a-b52a-0b66-c2820032b65e#bkmk_threat-protection-settings).
+**On Windows,** you can add your project to the [Microsoft Defender Antivirus exclusion list](https://support.microsoft.com/en-us/windows/virus-and-threat-protection-in-the-windows-security-app-1362f4cd-d71a-b52a-0b66-c2820032b65e#bkmk_threat-protection-settings).
 
 1. Open the **"Windows Security"** application and then select **"Virus & threat protection"** &rarr; **"Manage settings"** &rarr; **"Add or remove exclusions"**.
 2. Add a **"Folder"** exclusion. Select your project folder.
 
-On macOS, you can disable [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web) inside of your terminal.
+Alternatively, you can enable and use a [Dev Drive](#3-windows-use-dev-drive-or-wsl-2), which [uses Microsoft Defender's "performance mode"](https://learn.microsoft.com/en-us/windows/dev-drive/#understanding-security-risks-and-trust-in-relation-to-dev-drive).
+
+**On macOS,** you can disable [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web) inside of your terminal.
 
 1. Run `sudo spctl developer-mode enable-terminal` in your terminal.
 2. Open the **"System Settings"** app and then select **"Privacy & Security"** &rarr; **"Developer Tools"**.
