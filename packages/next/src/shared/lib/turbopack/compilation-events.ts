@@ -1,6 +1,6 @@
 import type { Project } from '../../../build/swc/types'
 import * as Log from '../../../build/output/log'
-import type { Span } from '../../../trace'
+import { flushAllTraces, type Span } from '../../../trace'
 import { traceMemoryUsage } from '../../../lib/memory/trace'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
@@ -30,6 +30,10 @@ export function backgroundLogCompilationEvents(
 ): Promise<void> {
   const iterator = project.compilationEventsSubscribe(eventTypes)
 
+  // If there is no signal assume there will be no clean shutdown,
+  // to ensure trace spans aren't lost just flush after each one.
+  const flushEachTraceEvent = signal === undefined
+
   // Close the iterator as soon as the signal fires so the for-await loop
   // exits without waiting for the next compilation event.
   signal?.addEventListener('abort', () => iterator.return?.(undefined as any), {
@@ -49,6 +53,9 @@ export function backgroundLogCompilationEvents(
             Object.fromEntries(data.attributes ?? [])
           )
           traceMemoryUsage(data.name, parentSpan)
+          if (flushEachTraceEvent) {
+            flushAllTraces()
+          }
         } catch {}
         continue // don't log these events, they just go to the trace file
       }
