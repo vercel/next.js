@@ -2,15 +2,15 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel's deploy infrastructure normalizes nested `/index/index/index`
+// paths differently from Next.js's local server, so the routing
+// assertions here are local-only.
+// @force-gate !deploy
 describe('nested index.js', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    // Vercel's deploy infrastructure normalizes nested `/index/index/index`
-    // paths differently from Next.js's local server, so the routing
-    // assertions here are local-only.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should ssr page /', async () => {
     const $ = await next.render$('/')

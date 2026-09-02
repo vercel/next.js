@@ -6,6 +6,7 @@ import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
+  // Deploy mode exclusion: This suite runs an in-test HTTP proxy in front of the local Next.js server.
   if ((global as any).isNextDeploy) {
     it('should skip deploy', () => {})
     return
