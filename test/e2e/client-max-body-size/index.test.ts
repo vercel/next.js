@@ -2,14 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('client-max-body-size', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // Deployed environment has it's own configured limits.
+  // @force-gate !deploy
   describe('default 10MB limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      // Deployed environment has it's own configured limits.
-      skipDeployment: true,
     })
-
-    if (skipped) return
 
     it('should accept request body over 10MB but only buffer up to limit', async () => {
       const bodySize = 11 * 1024 * 1024 // 11MB
@@ -77,18 +76,18 @@ describe('client-max-body-size', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('custom limit with string format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '5mb',
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body over custom 5MB limit but only buffer up to limit', async () => {
       const bodySize = 6 * 1024 * 1024 // 6MB
@@ -136,18 +135,18 @@ describe('client-max-body-size', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('custom limit with number format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body over custom 2MB limit but only buffer up to limit', async () => {
       const bodySize = 3 * 1024 * 1024 // 3MB
@@ -195,18 +194,18 @@ describe('client-max-body-size', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('large custom limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '50mb',
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body up to 50MB with custom limit', async () => {
       const bodySize = 20 * 1024 * 1024 // 20MB

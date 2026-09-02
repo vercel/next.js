@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { sleep } from './sleep'
 import { get } from 'http'
 
+// Deploy mode exclusion: This suite aborts a raw client connection, but
+// a hosting proxy changes cancellation propagation before Next.js receives it.
 describe('streaming responses cancel inner stream after disconnect', () => {
   const { next } = nextTestSetup({
     files: __dirname,
