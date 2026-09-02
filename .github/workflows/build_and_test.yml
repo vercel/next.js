@@ -689,7 +689,7 @@ jobs:
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=dev NODE_OPTIONS="--experimental-transform-types --trace-deprecation" node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
 
     secrets: inherit
@@ -716,7 +716,7 @@ jobs:
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=start NODE_OPTIONS="--experimental-transform-types --trace-deprecation" node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
     secrets: inherit

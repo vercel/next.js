@@ -81,7 +81,7 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
+      [...((opts && opts.nodeArgs) || []), scriptPath],
       {
         env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
@@ -322,7 +322,7 @@ export function runNextCommand(
     debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [...(options.nodeArgs || []), nextBin, ...argv],
       {
         ...options.spawnOptions,
         cwd,
@@ -444,14 +444,10 @@ export function runNextCommandDev(
 
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
-      {
-        cwd,
-        env,
-      }
-    )
+    const instance = spawn('node', [...nodeArgs, nextBin, ...argv], {
+      cwd,
+      env,
+    })
     let didResolve = false
 
     const bootType =

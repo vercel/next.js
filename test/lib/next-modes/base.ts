@@ -729,7 +729,7 @@ export class NextInstance {
       'next'
     )
     const nextBin = existsSync(localNextBin) ? localNextBin : workspaceNextBin
-    const spawnArgs = ['node', '--no-deprecation', nextBin, ...args]
+    const spawnArgs = ['node', nextBin, ...args]
     const spawnOpts: import('child_process').SpawnOptions = {
       cwd: cwd ?? this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
