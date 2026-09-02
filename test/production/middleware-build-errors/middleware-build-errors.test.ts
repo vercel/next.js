@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Middleware validation during build', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const middlewareError = 'Middleware is returning a response body'
 

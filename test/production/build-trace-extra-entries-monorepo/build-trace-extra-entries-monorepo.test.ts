@@ -2,13 +2,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries in monorepo', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should build and trace correctly', async () => {
       const appDir = path.join(next.testDir, 'app')
