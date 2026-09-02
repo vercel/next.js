@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders } from 'node:http'
-import { parse, type UrlWithParsedQuery } from 'node:url'
+import type { ParsedUrlQuery } from 'querystring'
 import { match } from 'next/dist/compiled/path-to-regexp'
 import {
   matchHas,
@@ -20,6 +20,31 @@ import type { BaseNextRequest } from '../../../server/base-http'
 import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
 import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
+import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/querystring'
+
+/**
+ * The subset of the legacy `url.parse(url, true)` result that route matching
+ * needs. Constructing it from the WHATWG `URL` API avoids the deprecated
+ * `url.parse()` (DEP0169). Relative URLs keep `protocol`/`host` as null,
+ * matching the legacy behavior.
+ */
+interface ParsedRequestUrl {
+  pathname: string
+  query: ParsedUrlQuery
+  protocol: string | null
+  host: string | null
+}
+
+function parseRequestUrl(url: string): ParsedRequestUrl {
+  const isAbsolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)
+  const parsed = new URL(url, 'https://example.com')
+  return {
+    pathname: parsed.pathname,
+    query: searchParamsToUrlQuery(parsed.searchParams),
+    protocol: isAbsolute ? parsed.protocol : null,
+    host: isAbsolute ? parsed.host : null,
+  }
+}
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -29,7 +54,7 @@ import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/
 function matchRoute(
   route: ManifestHeaderRoute | ManifestRedirectRoute | ManifestRewriteRoute,
   request: BaseNextRequest,
-  parsedUrl: UrlWithParsedQuery
+  parsedUrl: ParsedRequestUrl
 ): Params | undefined {
   const pathname = parsedUrl.pathname
   if (!pathname) {
@@ -88,7 +113,7 @@ export async function unstable_getResponseFromNextConfig({
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
-  const parsedUrl = parse(url, true)
+  const parsedUrl = parseRequestUrl(url)
   const request = constructRequest({ url, headers, cookies })
   const resolvedConfig = await normalizeConfig(
     PHASE_PRODUCTION_BUILD,
