@@ -39,9 +39,9 @@ pub use crate::{
 /// This is an escape hatch for task-input wrappers around opaque third-party types that expose
 /// deterministic serialization but cannot implement field-wise [`TaskInput::persistence_hash`].
 #[doc(hidden)]
-pub fn persistence_hash_by_bincode<T: bincode::Encode>(
+pub fn persistence_hash_by_bincode<T: bincode::Encode, H: DeterministicHasher>(
     value: &T,
-    state: &mut dyn DeterministicHasher,
+    state: &mut H,
 ) {
     let bytes = turbo_bincode::turbo_bincode_encode(value)
         .expect("persistence-hash fallback encoding should not fail");

@@ -580,9 +580,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 #[allow(non_snake_case)]
                 #[allow(unreachable_code)]
-                fn persistence_hash(
+                fn persistence_hash<__PersistenceHasher: turbo_tasks::DeterministicHasher>(
                     &self,
-                    __state__: &mut dyn turbo_tasks::DeterministicHasher,
+                    __state__: &mut __PersistenceHasher,
                 ) {
                     #persistence_hash_impl
                 }

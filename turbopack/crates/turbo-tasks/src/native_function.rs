@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use futures::Future;
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
-use turbo_tasks_hash::DeterministicHasher;
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 #[cfg(feature = "task_dirty_cause")]
 use crate::TaskDirtyCause;
@@ -32,7 +32,10 @@ type FilterOwnedArgsFunctor =
 type FilterAndResolveFunctor = ResolveFunctor;
 
 /// Function pointer that persistence-hashes a task argument after type erasure.
-type AnyPersistenceHashFn = fn(&dyn Any, &mut dyn DeterministicHasher);
+///
+/// The concrete hasher keeps recursive [`TaskInput::persistence_hash`] calls statically dispatched;
+/// only this argument-erasure boundary uses an indirect call.
+type AnyPersistenceHashFn = fn(&dyn Any, &mut Xxh3Hash64Hasher);
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.

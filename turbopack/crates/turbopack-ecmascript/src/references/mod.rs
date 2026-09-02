@@ -4309,7 +4309,7 @@ pub struct AstPath(
 );
 
 impl TaskInput for AstPath {
-    fn persistence_hash(&self, state: &mut dyn turbo_tasks::DeterministicHasher) {
+    fn persistence_hash<H: turbo_tasks::DeterministicHasher>(&self, state: &mut H) {
         persistence_hash_by_bincode(self, state);
     }
 

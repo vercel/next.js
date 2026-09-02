@@ -26,7 +26,7 @@ use turbo_bincode::{
     impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks_hash::DeterministicHasher;
+use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
 
 use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
@@ -90,7 +90,7 @@ impl CachedTaskType {
     }
 
     /// Adds a run-to-run deterministic representation of this task type to `hasher`.
-    pub fn persistence_hash(&self, hasher: &mut dyn DeterministicHasher) {
+    pub fn persistence_hash(&self, hasher: &mut Xxh3Hash64Hasher) {
         Self::persistence_hash_components(self.native_fn, self.this, &*self.arg, hasher);
     }
 }
@@ -244,7 +244,7 @@ impl CachedTaskType {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-        hasher: &mut dyn DeterministicHasher,
+        hasher: &mut Xxh3Hash64Hasher,
     ) {
         hasher.write_u16(*registry::get_function_id(native_fn));
         match this {

@@ -25,7 +25,7 @@ pub struct Query(BTreeMap<String, QueryValue>);
 // Query is recursive through QueryValue, so the task-input macro cannot generate this
 // implementation.
 impl TaskInput for Query {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.0.len());
         for (key, value) in &self.0 {
             key.persistence_hash(state);
@@ -76,7 +76,7 @@ pub enum QueryValue {
 }
 
 impl TaskInput for QueryValue {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
             QueryValue::String(value) => {
                 state.write_u32(0);

@@ -242,7 +242,7 @@ impl<T> TaskInput for OperationVc<T>
 where
     T: ?Sized + Send + Sync,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u32(*self.task);
     }
 

@@ -32,7 +32,7 @@ pub struct RoaringBitmapWrapper(
 );
 
 impl TaskInput for RoaringBitmapWrapper {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u64(self.len());
         for value in self.iter() {
             state.write_u32(value);

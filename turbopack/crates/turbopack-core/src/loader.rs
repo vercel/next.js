@@ -39,7 +39,7 @@ impl Hash for WebpackLoaderItem {
 }
 
 impl TaskInput for WebpackLoaderItem {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         self.loader.persistence_hash(state);
         serde_json::to_string(&self.options)
             .unwrap_or_default()
@@ -68,7 +68,7 @@ impl Hash for ResolvedWebpackLoaderItem {
 }
 
 impl TaskInput for ResolvedWebpackLoaderItem {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         self.loader.persistence_hash(state);
         serde_json::to_string(&self.options)
             .unwrap_or_default()

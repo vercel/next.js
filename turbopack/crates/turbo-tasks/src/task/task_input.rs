@@ -142,7 +142,7 @@ pub trait TaskInput:
     /// and must not depend on process-local state, randomized hashers, addresses, or iteration
     /// order that can change between runs. Unlike [`turbo_tasks_hash::DeterministicHash`], this
     /// operation may hash database-local [`Vc`] task and cell identifiers.
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher);
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H);
 
     /// This should return true if this object contains a [`Vc`] (or any subtype of [`Vc`]) pointing
     /// to a cell owned by a transient task.
@@ -164,7 +164,7 @@ macro_rules! impl_task_input_number {
                     false
                 }
 
-                fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+                fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
                     state.$write(*self);
                 }
             }
@@ -187,7 +187,7 @@ impl TaskInput for () {
         false
     }
 
-    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {}
+    fn persistence_hash<H: DeterministicHasher>(&self, _state: &mut H) {}
 }
 
 impl TaskInput for bool {
@@ -195,12 +195,12 @@ impl TaskInput for bool {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u8(*self as u8);
     }
 }
 
-fn persistence_hash_bytes(bytes: &[u8], state: &mut dyn DeterministicHasher) {
+fn persistence_hash_bytes<H: DeterministicHasher>(bytes: &[u8], state: &mut H) {
     state.write_usize(bytes.len());
     state.write_bytes(bytes);
 }
@@ -210,7 +210,7 @@ impl TaskInput for RcStr {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         persistence_hash_bytes(self.as_bytes(), state);
     }
 }
@@ -220,7 +220,7 @@ impl TaskInput for String {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         persistence_hash_bytes(self.as_bytes(), state);
     }
 }
@@ -230,7 +230,7 @@ impl TaskInput for TaskId {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u32(**self);
     }
 }
@@ -240,7 +240,7 @@ impl TaskInput for ValueTypeId {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u16(**self);
     }
 }
@@ -250,7 +250,7 @@ impl TaskInput for Duration {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u64(self.as_secs());
         state.write_u32(self.subsec_nanos());
     }
@@ -261,7 +261,7 @@ impl TaskInput for HashAlgorithm {
         false
     }
 
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         let discriminant = match self {
             HashAlgorithm::Xxh3Hash64Hex => 0,
             HashAlgorithm::Xxh3Hash128Hex => 1,
@@ -279,7 +279,7 @@ impl<T> TaskInput for Vec<T>
 where
     T: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         for value in self {
             value.persistence_hash(state);
@@ -307,7 +307,7 @@ impl<T> TaskInput for Box<T>
 where
     T: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         self.as_ref().persistence_hash(state);
     }
 
@@ -328,7 +328,7 @@ impl<T> TaskInput for Arc<T>
 where
     T: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         self.as_ref().persistence_hash(state);
     }
 
@@ -349,7 +349,7 @@ impl<T> TaskInput for ReadRef<T>
 where
     T: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         Self::as_raw_ref(self).persistence_hash(state);
     }
 
@@ -372,7 +372,7 @@ impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
             None => state.write_u8(0),
             Some(value) => {
@@ -408,7 +408,7 @@ impl<T> TaskInput for Vc<T>
 where
     T: Send + Sync + ?Sized,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u64(self.node.bits());
     }
 
@@ -433,7 +433,7 @@ impl<T> TaskInput for ResolvedVc<T>
 where
     T: Send + Sync + ?Sized,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         (**self).persistence_hash(state);
     }
 
@@ -450,7 +450,7 @@ impl<T> TaskInput for OrdResolvedVc<T>
 where
     T: Send + Sync + ?Sized,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         (***self).persistence_hash(state);
     }
 
@@ -467,7 +467,7 @@ impl<T> TaskInput for TransientValue<T>
 where
     T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
 {
-    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, _state: &mut H) {
         panic!("cannot persistence-hash transient task inputs");
     }
 
@@ -492,7 +492,7 @@ impl<T> TaskInput for TransientInstance<T>
 where
     T: Sync + Send + TraceRawVcs + 'static,
 {
-    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, _state: &mut H) {
         panic!("cannot persistence-hash transient task inputs");
     }
 
@@ -518,7 +518,7 @@ where
     K: TaskInput + Ord,
     V: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         for (key, value) in self {
             key.persistence_hash(state);
@@ -552,7 +552,7 @@ impl<T> TaskInput for BTreeSet<T>
 where
     T: TaskInput + Ord,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         for value in self {
             value.persistence_hash(state);
@@ -581,7 +581,7 @@ where
     K: TaskInput + Ord + 'static,
     V: TaskInput + 'static,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         for (key, value) in self {
             key.persistence_hash(state);
@@ -616,7 +616,7 @@ impl<T> TaskInput for FrozenSet<T>
 where
     T: TaskInput + Ord + 'static,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         for value in self {
             value.persistence_hash(state);
@@ -684,7 +684,7 @@ where
     L: TaskInput,
     R: TaskInput,
 {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match &self.0 {
             Either::Left(value) => {
                 state.write_u8(0);
@@ -721,7 +721,10 @@ macro_rules! tuple_impls {
         where $($name: TaskInput),+
         {
             #[allow(non_snake_case)]
-            fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+            fn persistence_hash<__PersistenceHasher: DeterministicHasher>(
+                &self,
+                state: &mut __PersistenceHasher,
+            ) {
                 let ($($name,)+) = self;
                 $($name.persistence_hash(state);)+
             }
@@ -877,8 +880,13 @@ mod tests {
         #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct GenericField<T>(T);
 
+        #[turbo_tasks::task_input]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        struct GenericFieldH<H>(H);
+
         assert_task_input(GenericField(42));
         assert_task_input(GenericField(rcstr!("42")));
+        assert_task_input(GenericFieldH(42));
         Ok(())
     }
 

@@ -34,7 +34,7 @@ pub enum Pattern {
 // Use a manual impl since llvm cannot prove the default generated recursive impl always returns
 // false from `is_transient`
 impl TaskInput for Pattern {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
             Pattern::Constant(value) => {
                 state.write_u32(0);

@@ -281,7 +281,7 @@ pub struct AstSyntaxContext(
 );
 
 impl TaskInput for AstSyntaxContext {
-    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_u32(self.0.as_u32());
     }
 
