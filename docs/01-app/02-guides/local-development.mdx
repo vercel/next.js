@@ -12,7 +12,7 @@ The development process with `next dev` is different than `next build` and `next
 
 `next dev` compiles routes in your application as you open or navigate to them. This enables you to start the dev server without waiting for every route in your application to compile, which is both faster and uses less memory. Running a production build applies other optimizations, like minifying files and creating content hashes, which are not needed for local development.
 
-## Improving local dev performance
+## System configuration
 
 ### 1. Check your computer's antivirus
 
@@ -48,7 +48,35 @@ On macOS, you can disable [Gatekeeper](https://support.apple.com/guide/security/
 
 If you or your employer have configured any other Antivirus solutions on your system, you should inspect the relevant settings for those products.
 
-### 2. Update Next.js and use Turbopack
+### 2. Avoid common Docker pitfalls
+
+If you're using Docker for development on Mac or Windows, you may experience significantly slower performance compared to running Next.js without Docker.
+
+This generally isn't an issue in production or when Docker runs natively on Linux, because project files don't cross Docker Desktop's host-to-VM file-sharing layer.
+
+When project files are stored on the macOS or Windows host and mounted into a container through Docker Desktop or similar tools, the host-to-VM file-sharing layer can delay or fail to propagate filesystem events. This can cause [Fast Refresh](/docs/architecture/fast-refresh) to take seconds or even minutes, while the same application shows updates quickly when developed on the host without Docker.
+
+For the best development experience:
+
+- Run Next.js without Docker (`npm run dev` or `pnpm dev`) during development.
+- Reserve Docker for production deployments and testing production builds.
+- If you must use Docker for development, consider running Docker natively on a Linux machine or a manually configured virtual machine. If using a manually configured virtual machine, move the source code into the VM and do not share it from the host.
+- If you're using Docker Desktop, evaluate using [synchronized file shares](https://docs.docker.com/desktop/features/synchronized-file-sharing/). Synchronized file shares still add latency compared to running Next.js directly on the host, but can improve file-watching reliability without resorting to polling.
+- Avoid using `watchOptions.pollIntervalMs` in `next.config.js` to work around Fast Refresh issues. Only use it as a last resort. Polling adds significant latency and can drastically increase CPU and I/O usage.
+
+[Learn more about Docker deployment](/docs/app/getting-started/deploying#docker) for production use.
+
+### 3. (Windows) Use Dev Drive or WSL 2
+
+Windows 11's Dev Drive feature uses an alternative filesystem to improve performance for common development workflows. [Microsoft has a guide explaining how to configure it](https://learn.microsoft.com/en-us/windows/dev-drive/).
+
+Alternatively, Windows provides an easy way to set up a Linux virtual machine using [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/). You may see better performance by using WSL 2.
+
+When using WSL 2, store your project directory inside the virtual machine's filesystem (e.g. `/home/$USER/project`) and not on a Windows drive (e.g. `C:\` or `/mnt/c`). If you do not do this, you will experience worse performance and file updates may not be reflected properly in development.
+
+## Improving application development performance
+
+### 1. Update Next.js and use Turbopack
 
 Make sure you're using the latest version of Next.js. Each new version often includes performance improvements.
 
@@ -94,7 +122,7 @@ bun run dev --webpack
 
 [Learn more about Turbopack](/blog/turbopack-for-development-stable). See our [upgrade guides](/docs/app/guides/upgrading) and codemods for more information.
 
-### 3. Check your imports
+### 2. Check your imports
 
 The way you import code can greatly affect compilation and bundling time. Learn more about [optimizing package bundling](/docs/app/guides/package-bundling) and explore tools like [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) or [Madge](https://github.com/pahen/madge).
 
@@ -143,7 +171,7 @@ module.exports = {
 
 Turbopack automatically analyzes imports and optimizes them. It does not require this configuration.
 
-### 4. Check your Tailwind CSS setup
+### 3. Check your Tailwind CSS setup
 
 If you're using Tailwind CSS, make sure it's set up correctly.
 
@@ -175,39 +203,25 @@ Tailwind CSS version 3.4.8 or newer will warn you about settings that might slow
    }
    ```
 
-### 5. Check custom webpack settings
+### 4. Check custom webpack settings
 
 If you've added custom webpack settings, they might be slowing down compilation.
 
 Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore using the default Turbopack bundler and configuring [loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) instead.
 
-### 6. Optimize memory usage
+### 5. Optimize memory usage
 
 If your app is very large, it might need more memory.
 
 [Learn more about optimizing memory usage](/docs/app/guides/memory-usage).
 
-### 7. Server Components and data fetching
+### 6. Server Components and data fetching
 
 Changes to Server Components cause the entire page to re-render locally in order to show the new changes, which includes fetching new data for the component.
 
 The experimental `serverComponentsHmrCache` option allows you to cache `fetch` responses in Server Components across Hot Module Replacement (HMR) refreshes in local development. This results in faster responses and reduced costs for billed API calls.
 
 [Learn more about the experimental option](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache).
-
-### 8. Consider local development over Docker
-
-If you're using Docker for development on Mac or Windows, you may experience significantly slower performance compared to running Next.js locally.
-
-Docker's filesystem access on Mac and Windows can cause Hot Module Replacement (HMR) to take seconds or even minutes, while the same application runs with fast HMR when developed locally.
-
-This performance difference is due to how Docker handles filesystem operations outside of Linux environments. For the best development experience:
-
-- Use local development (`npm run dev` or `pnpm dev`) instead of Docker during development
-- Reserve Docker for production deployments and testing production builds
-- If you must use Docker for development, consider using Docker on a Linux machine or VM
-
-[Learn more about Docker deployment](/docs/app/getting-started/deploying#docker) for production use.
 
 ## Tools for finding problems
 
