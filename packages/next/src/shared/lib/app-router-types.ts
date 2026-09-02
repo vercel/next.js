@@ -183,7 +183,7 @@ export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum PrefetchHint {
   // NOTE: The 0b00001 bit was previously HasRuntimePrefetch (prefetch:
-  // 'allow-runtime'). Partial Prefetching now implies runtime completeness
+  // 'allow-runtime'). Partial Prefetching allows using runtime requests
   // for every segment, so the bit was removed. Do not reuse it without
   // considering caches populated by older builds.
 
@@ -194,14 +194,14 @@ export const enum PrefetchHint {
    * `partialPrefetching` config). Propagates upward so the root segment
    * reflects the entire subtree.
    *
-   * Partial Prefetching segments require RUNTIME COMPLETENESS: a prefetch
-   * isn't considered done for such a segment until an entry at least as
-   * complete as a runtime response exists. This does NOT mean the segment
-   * lacks static data — the server emits static data unconditionally, and the
-   * scheduler may attempt a static prefetch first (per
-   * ShouldAttemptStatic{Shell,Prefetch}), issuing the runtime request only if the
-   * static response's own `needsRuntimeRequest` signal says it would
-   * return more.
+   * Partial Prefetching routes may use runtime requests for both shells
+   * and prefetches. However, either of those may also be optimized to a use
+   * a static request if:
+   * - no runtime data was accessed during the prerender,
+   * - or the route has `forceStatic` set.
+   * Both of these cases are signalled to the scheduler via the
+   * `ShouldAttemptStatic{Shell,Prefetch}` hints and the `needsRuntimeRequest`
+   * promise.
    */
   SubtreeHasPartialPrefetching = 0b00010,
   /** This segment itself has a loading.tsx boundary. */
@@ -309,7 +309,7 @@ export const enum PrefetchHint {
  *
  * Static prefetching is disabled ONLY by `prefetch: 'force-disabled'`
  * (PrefetchDisabled). Notably, Partial Prefetching segments DO have static
- * data even though they require runtime completeness: the server emits it
+ * data even though they can use runtime requests: the server emits it
  * unconditionally — it can't be gated on the ShouldAttemptStatic{Shell,Prefetch}
  * hints, because which segments carry static data must be deterministic
  * from build-time config. A runtime request may still be needed for the
