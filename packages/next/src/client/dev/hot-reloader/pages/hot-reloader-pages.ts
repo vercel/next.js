@@ -37,6 +37,7 @@ import {
   getSegmentTrieData,
 } from 'next/dist/compiled/next-devtools'
 import { register } from '../../../../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import { markErrorAsFatal } from '../../../../next-devtools/userspace/app/errors/stitched-error'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
@@ -107,8 +108,9 @@ export default function connect() {
     subscribeToHmrEvent(handler: CustomHmrEventHandler) {
       customHmrEventHandler = handler
     },
-    onUnrecoverableError() {
+    onUnrecoverableError(error?: unknown) {
       RuntimeErrorHandler.hadRuntimeError = true
+      markErrorAsFatal(error)
     },
     addTurbopackMessageListener(
       cb: (msg: TurbopackMessageSentToBrowser) => void
@@ -401,6 +403,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
       dispatcher.onDevToolsConfig(message.data)
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:

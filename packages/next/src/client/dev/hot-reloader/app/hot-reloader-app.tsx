@@ -18,6 +18,7 @@ import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/
 import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
+import { reportCurrentRuntimeErrorState } from '../runtime-error-state'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
@@ -60,6 +61,7 @@ let __nextDevClientId =
   typeof window !== 'undefined'
     ? Math.round(Math.random() * 100 + Date.now())
     : 0
+
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
@@ -520,6 +522,10 @@ export function processMessage(
 
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE: {
+      // Runtime error state is consumed by external HMR observers.
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
       const errorState = getSerializedOverlayState()
       const response: McpErrorStateResponse = {
@@ -603,6 +609,10 @@ export default function HotReload({
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
+
+  useEffect(() => {
+    reportCurrentRuntimeErrorState()
+  }, [pathname])
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which
