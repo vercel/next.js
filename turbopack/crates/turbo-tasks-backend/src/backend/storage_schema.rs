@@ -230,6 +230,10 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     pub new_task: bool,
 
+    /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
+    #[field(storage = "flag", category = "transient")]
+    deleted: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -268,7 +272,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellRef, 2>,
+    cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
     #[field(
@@ -296,7 +300,7 @@ struct TaskStorageSchema {
 
     /// Outdated keyless cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<CellRef, 2>,
+    outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Outdated hashed cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
@@ -318,7 +322,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellRef, 2>,
+    cell_dependents: AutoSet<CellRef, 3>,
 
     /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
     /// `cell_dependencies_hashed`.
@@ -852,6 +856,47 @@ impl TaskStorage {
     /// `transient_ref_count` field for what counts as one.
     pub fn gc_transient_ref_count(&self) -> u32 {
         self.get_transient_ref_count().copied().unwrap_or(0)
+    }
+
+    /// Whether a GC pass may collect this task: nothing references it, via parents, transient
+    /// pins, aggregation edges, or dependency edges.
+    ///
+    /// Precision depends on what the caller restored. Meta alone cannot see the three Data-category
+    /// dependent sets, so the answer is a sound *pre-filter*: a `false` is definitive, a `true` may
+    /// still have dependents. With Meta + Data it is the full predicate. That one-directional
+    /// conservatism lets the cheap Meta-only shard scan and the authoritative under-guard recheck
+    /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
+    /// single predicate.
+    ///
+    /// Refusing to collect a task with dependents is what makes task-id reuse safe: a hard-deleted
+    /// id can be handed out again, so a surviving dependent edge would silently resolve to an
+    /// unrelated live task instead of tripping `MustExist`.
+    pub fn gc_maybe_collectible(&self) -> bool {
+        // None of the predicates below are correct without this.
+        self.flags.is_restored(TaskDataCategory::Meta)
+            // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
+            // don't re-select it, or a second pass would collect it again while it is still
+            // resident.
+            && !self.flags.deleted()
+            && self.gc_parent_count() == 0
+            && self.gc_transient_ref_count() == 0
+            && self.get_activeness().is_none()
+            && self.get_in_progress().is_none()
+            // It is rare for upper/followers to be present when the ref counts are 0 but it can happen transiently during a concurrent GC pass as uppers are moved around during the cascade.
+            && self.upper().is_empty()
+            && self.followers().is_none_or(|f| f.is_empty())
+            // `collectibles_dependents` is Meta, so it is always checkable here.
+            && self
+                .collectibles_dependents()
+                .is_none_or(|d| d.is_empty())
+            // The remaining dependent sets are Data; skipped (leaving this a pre-filter) when Data
+            // is not restored.
+            && (!self.flags.is_restored(TaskDataCategory::Data)
+                || (self.output_dependent().is_empty()
+                    && self.cell_dependents().is_none_or(|d| d.is_empty())
+                    && self
+                        .cell_dependents_hashed()
+                        .is_none_or(|d| d.is_empty())))
     }
 }
 

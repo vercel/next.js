@@ -9,6 +9,7 @@ use std::{
     },
 };
 
+use crossbeam_utils::CachePadded;
 use hashbrown::hash_table;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
@@ -33,6 +34,20 @@ pub enum TaskDataCategory {
     Meta,
     Data,
     All,
+}
+impl PartialOrd for TaskDataCategory {
+    /// `All` is greater than both `Meta` and `Data`; `Meta` and `Data` are unordered.
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering::*;
+
+        use TaskDataCategory::All;
+        match (self, other) {
+            _ if self == other => Some(Equal),
+            (All, _) => Some(Greater),
+            (_, All) => Some(Less),
+            _ => None,
+        }
+    }
 }
 
 /// Counts of tasks evicted at each level.
@@ -161,7 +176,7 @@ pub struct Storage {
     /// that  `shard_modified_counts.len()==map.shards().len()`
     ///
     /// Should only be modified while holding the corresponding dashmap shard lock.
-    shard_modified_counts: Box<[AtomicU64]>,
+    shard_modified_counts: Box<[CachePadded<AtomicU64>]>,
     /// Stores snapshots of task state for tasks accessed during snapshot mode.
     /// - `Some(snapshot)`: Task was modified before snapshot mode and accessed again during it.
     ///   Contains a copy of the pre-snapshot state that needs to be persisted.
@@ -218,7 +233,7 @@ impl Storage {
             shard_amount,
         );
         let shard_modified_counts = (0..shard_amount)
-            .map(|_| AtomicU64::new(0))
+            .map(|_| CachePadded::new(AtomicU64::new(0)))
             .collect::<Vec<_>>()
             .into_boxed_slice();
         Self {
@@ -512,6 +527,41 @@ impl Storage {
         Some(f(task.value()))
     }
 
+    /// The number of **persistent** (non-transient) tasks resident in the map. Use this to assert
+    /// GC returns to a flat baseline across re-rooting: GC never collects transient tasks (e.g.
+    /// `run_once`/Once roots), so their count is not expected to settle.
+    #[doc(hidden)]
+    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
+        let mut persistent = 0;
+        for shard in self.map.shards() {
+            let shard = shard.read();
+            for (task_id, _) in shard.iter() {
+                if !task_id.is_transient() {
+                    persistent += 1;
+                }
+            }
+        }
+        persistent
+    }
+
+    /// The number of shards in the resident map. GC seeds one `ScanShard` job per index; the slice
+    /// returned by `map.shards()` is fixed for the map's lifetime, so an index is a stable handle
+    /// to one shard.
+    pub fn shard_count(&self) -> usize {
+        self.map.shards().len()
+    }
+
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
+    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
+        let shard = self.map.shards()[index].read();
+        for (task_id, task) in shard.iter() {
+            if !task_id.is_transient() && task.gc_maybe_collectible() {
+                on_candidate(*task_id);
+            }
+        }
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,
@@ -573,10 +623,43 @@ impl Storage {
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
             let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            // Remove a task type from `task_cache`, deferring on contention. Shared by the
+            // GC-deleted path below and the ordinary key eviction.
+            let remove_from_task_cache =
+                |evicted: &mut EvictionCounts,
+                 deferred: &mut Vec<CachedTaskTypeArc>,
+                 task_type: &CachedTaskTypeArc| {
+                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                        TryLockAndRemove::Removed => {
+                            evicted.key_evictions += 1;
+                        }
+                        TryLockAndRemove::NotFound => {
+                            // Generally this should be rare, it more or less implies something
+                            // else is concurrently holding the Arc
+                        }
+                        TryLockAndRemove::WouldBlock => {
+                            // Contention, to avoid a deadlock just defer
+                            deferred.push(task_type.clone());
+                        }
+                    }
+                };
             shard.retain(|(task_id, task)| {
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
+                }
+                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
+                if task.flags.deleted() {
+                    let task_type = task
+                        .get_persistent_task_type()
+                        .expect("GC deleted tasks must have a task type");
+                    remove_from_task_cache(
+                        &mut evicted,
+                        &mut deferred_task_cache_removals,
+                        task_type,
+                    );
+                    evicted.full += 1;
+                    return false;
                 }
                 let (key_evictability, value_evictability) = task.evictability();
                 match key_evictability {
@@ -589,19 +672,11 @@ impl Storage {
                         // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
                         // we do the opposite we need to be defensive here.  Attempting here is just
                         // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                            TryLockAndRemove::Removed => {
-                                evicted.key_evictions += 1;
-                            }
-                            TryLockAndRemove::NotFound => {
-                                // Generally this should be rare, it more or less implies something
-                                // else is concurrently holding the Arc
-                            }
-                            TryLockAndRemove::WouldBlock => {
-                                // Contention, to avoid a deadlock just defer
-                                deferred_task_cache_removals.push(task_type.clone());
-                            }
-                        }
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }
@@ -809,6 +884,26 @@ impl StorageWriteGuard<'_> {
                 }
             }
         }
+    }
+
+    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
+    /// (`new_task`).
+    pub fn discard_modifications_for_gc_new_task(&mut self) {
+        debug_assert!(
+            !self.storage.snapshot_mode(),
+            "discard_modifications_for_gc_new_task must run before the snapshot starts"
+        );
+        debug_assert!(
+            self.inner.flags.new_task(),
+            "only a never-persisted (new_task) collected task may be discarded this way"
+        );
+        if self.inner.flags.any_modified() {
+            let shard_idx = self.storage.shard_index(self.inner.key());
+            self.storage.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
+        }
+        self.inner.flags.set_meta_modified(false);
+        self.inner.flags.set_data_modified(false);
+        self.inner.flags.set_new_task(false);
     }
 }
 

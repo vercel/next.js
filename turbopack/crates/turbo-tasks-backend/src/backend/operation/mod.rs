@@ -27,7 +27,8 @@ pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend,
-        snapshot_coordinator::OperationGuard,
+        cell_data::CellData,
+        snapshot_coordinator::{OperationGuard, SnapshotPhase},
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -54,6 +55,9 @@ enum TaskAccess {
     MustExist,
 }
 
+// TODO: consider removing this trait (and `TaskGuard`) in favor of the concrete types. Each has
+// exactly one implementation (`ExecuteContextImpl` / `TaskGuardImpl`), so the abstraction buys
+// nothing and just adds declaration overhead and extra generic plumbing.
 pub trait ExecuteContext<'e>: Sized {
     type TaskGuardImpl: TaskGuard + 'e;
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
@@ -127,11 +131,23 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
+    fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
+    /// Record `task` as a GC candidate **if it is in fact collectible**.
+    ///
+    /// Call this wherever an operation removes the last reference of some kind to a task. This may
+    /// be a transition to collectibility.
+    ///
+    /// Only effective in a gc context see [`Self::collects_gc_candidates`].
+    fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
+    /// Whether [`Self::note_maybe_collectible`] does anything, i.e. this is a GC context.
+    ///
+    /// Lets a caller skip work that only exists to feed the collector — in particular opening a
+    /// task with a wider [`TaskDataCategory`] than it would otherwise need.
+    fn collects_gc_candidates(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -203,10 +219,18 @@ impl TaskLockCounter {
     }
 }
 
+enum ExecutePhase<'e> {
+    Normal {
+        _guard: OperationGuard<'e, AnyOperation>,
+    },
+    Child,
+    Gc(&'e dyn Fn(TaskId)),
+}
+
 pub struct ExecuteContextImpl<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
-    _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
+    phase: ExecutePhase<'e>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -218,7 +242,29 @@ impl<'e> ExecuteContextImpl<'e> {
         Self {
             backend,
             turbo_tasks,
-            _operation_guard: Some(backend.start_operation()),
+            phase: ExecutePhase::Normal {
+                _guard: backend.start_operation(),
+            },
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    /// Constructs a context that does NOT take an operation guard, for use by the garbage
+    /// collector while it holds the coordinator's exclusion phase.
+    ///
+    /// The exclusion excludes all concurrent operations and task execution, so taking an operation
+    /// guard here would deadlock. Requiring `&ExclusionPhase` makes that a type-level obligation:
+    /// the caller cannot construct this context without actually holding the exclusion.
+    pub(super) fn new_for_gc(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        _phase: &'e SnapshotPhase<'_, AnyOperation>,
+        gc_collectible: &'e dyn Fn(TaskId),
+    ) -> Self {
+        Self {
+            backend,
+            turbo_tasks,
+            phase: ExecutePhase::Gc(gc_collectible),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1110,8 +1156,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         )
     }
 
-    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
-        let priority = schedule_priority(&task, parent_priority);
+    fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority) {
+        let priority = schedule_priority(task, parent_priority);
         self.turbo_tasks.schedule(task.id(), priority);
     }
 
@@ -1120,7 +1166,23 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
+        // suspend guards become no-ops under GC
+        if matches!(self.phase, ExecutePhase::Gc(_)) {
+            return;
+        }
         self.backend.operation_suspend_point(|| op.clone().into());
+    }
+
+    fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
+        if let ExecutePhase::Gc(collector) = self.phase
+            && task.is_gc_collectible()
+        {
+            collector(task.id());
+        }
+    }
+
+    fn collects_gc_candidates(&self) -> bool {
+        matches!(self.phase, ExecutePhase::Gc(_))
     }
 
     fn should_track_dependencies(&self) -> bool {
@@ -1180,7 +1242,7 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
         ExecuteContextImpl {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
-            _operation_guard: None,
+            phase: ExecutePhase::Child,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1226,6 +1288,26 @@ impl Display for TaskType {
 
 pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
+
+    #[cfg(debug_assertions)]
+    fn access(&self) -> TaskDataCategory;
+    #[cfg(debug_assertions)]
+    fn downgrade_access(&mut self, access: TaskDataCategory);
+
+    /// Asserts this task has not been GC-collected.
+    #[track_caller]
+    #[inline]
+    fn assert_not_deleted(&self, operation: &str) {
+        debug_assert!(
+            !self.deleted(),
+            "{operation} on GC-deleted task {} — a resurrection path was missed",
+            self.id()
+        );
+    }
+
+    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
+    /// (`new_task`).
+    fn discard_modifications_for_gc_new_task(&mut self);
 
     /// Get mutable reference to the activeness state, inserting a new one if not present
     fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
@@ -1292,6 +1374,18 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .expect("transient_ref_count underflow");
         self.set_transient_ref_count(new_value);
         new_value
+    }
+
+    /// Whether a GC pass may collect this task: it is non-transient and nothing references it.
+    ///
+    /// How much this proves depends on the guard's category — with only `Meta` open it is a sound
+    /// pre-filter that cannot see dependency edges, and with `All` open it is authoritative. See
+    /// [`TaskStorage::gc_maybe_collectible`] for the full contract.
+    fn is_gc_collectible(&self) -> bool {
+        // Transient-ness is a property of the id, not the storage; transient tasks are never
+        // collected.
+        self.check_access(SpecificTaskDataCategory::Meta);
+        !self.id().is_transient() && self.typed().gc_maybe_collectible()
     }
 
     fn invalidate_serialization(&mut self);
@@ -1448,6 +1542,16 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.typed_mut().cell_data_mut().insert(cell, value)
     }
 
+    fn take_cell_data(&mut self) -> Option<CellData> {
+        self.check_access(SpecificTaskDataCategory::Data);
+        let undoable = self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
+        let prev = self.typed_mut().take_cell_data();
+        if prev.is_none() {
+            // very unlikely
+            self.undo_track_modification(undoable);
+        }
+        prev
+    }
     /// Remove cell data, returning the old value if present.
     fn remove_cell_data(
         &mut self,
@@ -1540,6 +1644,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 pub struct TaskGuardImpl<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
+    // None means no categories are accessible other than transient data.
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
     task_lock_counter: TaskLockCounter,
@@ -1556,13 +1661,15 @@ impl TaskGuardImpl<'_> {
     /// before accessing the data.
     #[inline]
     #[track_caller]
-    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
+    fn check_access(&self, category: SpecificTaskDataCategory) {
         match category {
             SpecificTaskDataCategory::Data => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Data
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        TaskDataCategory::Data | TaskDataCategory::All
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1572,8 +1679,10 @@ impl TaskGuardImpl<'_> {
             SpecificTaskDataCategory::Meta => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Meta
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        TaskDataCategory::Meta | TaskDataCategory::All
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1596,6 +1705,24 @@ impl Debug for TaskGuardImpl<'_> {
 impl TaskGuard for TaskGuardImpl<'_> {
     fn id(&self) -> TaskId {
         self.task_id
+    }
+
+    #[cfg(debug_assertions)]
+    fn access(&self) -> TaskDataCategory {
+        self.category
+    }
+    #[cfg(debug_assertions)]
+    fn downgrade_access(&mut self, access: TaskDataCategory) {
+        assert!(
+            self.category >= access,
+            "Cannot downgrade {:?} to {access:?}",
+            self.category
+        );
+        self.category = access;
+    }
+
+    fn discard_modifications_for_gc_new_task(&mut self) {
+        self.task.discard_modifications_for_gc_new_task();
     }
 
     fn invalidate_serialization(&mut self) {
@@ -1664,7 +1791,7 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
     #[inline(always)]
     fn track_modification(
         &mut self,
-        category: crate::backend::storage::SpecificTaskDataCategory,
+        category: SpecificTaskDataCategory,
         name: &str,
     ) -> TrackOutcome {
         if self.task_id.is_transient() {
@@ -1682,7 +1809,7 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
     }
 
     #[track_caller]
-    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
+    fn check_access(&self, category: SpecificTaskDataCategory) {
         self.check_access(category);
     }
 }
@@ -1751,7 +1878,7 @@ pub use self::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
         is_aggregating_node, is_root_node,
     },
-    cleanup_old_edges::OutdatedEdge,
+    cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
     connect_children::connect_children,
     invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
