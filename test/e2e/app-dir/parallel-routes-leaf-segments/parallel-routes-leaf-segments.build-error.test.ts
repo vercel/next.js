@@ -2,17 +2,14 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('parallel-routes-leaf-segments-build-error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'build-error'),
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    it.skip('skip test', () => {})
-    return
-  }
 
   if (isNextDev) {
     beforeAll(() => next.start())

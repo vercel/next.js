@@ -227,15 +227,11 @@ export function runTests({
     | 'set wrong param'
   expectedErrMsg?: string | RegExp
 }) {
-  let { next, skipped, isNextDev } = nextTestSetup({
+  let { next, isNextDev } = nextTestSetup({
     files: join(__dirname, '..'),
-    skipDeployment: true,
     skipStart: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) {
-    return
-  }
 
   beforeAll(async () => {
     if (trailingSlash !== undefined) {

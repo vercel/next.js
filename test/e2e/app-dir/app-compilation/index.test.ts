@@ -1,14 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite only defines assertions for local dev or start modes.
+// This is skipped when deployed because there are no assertions outside of next start/next dev
+// @force-gate !deploy
 describe('app dir', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // This is skipped when deployed because there are no assertions outside of next start/next dev
-    skipDeployment: true,
   })
 
-  if (skipped) return
+  if (isNextDeploy) {
+    it('is excluded from deploy testing by @force-gate', () => {})
+  }
 
   if (isNextStart) {
     describe('Loading', () => {

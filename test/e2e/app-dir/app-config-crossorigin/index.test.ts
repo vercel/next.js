@@ -4,15 +4,13 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 const assetPrefix = 'https://example.vercel.sh'
 
 if (!isNextStart) {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('app dir - crossOrigin config', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should render correctly with assetPrefix: "/"', async () => {
       const $ = await next.render$('/')
@@ -39,10 +37,11 @@ if (!isNextStart) {
   })
 } else {
   describe('app dir - unset crossOrigin config', () => {
+    // Deploy mode exclusion: This branch only runs in next start mode.
+    // @force-gate !deploy
     describe('default output', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'default'),
-        skipDeployment: true,
       })
 
       function expectCrossOriginAttributesToBeOmitted(
@@ -66,6 +65,9 @@ if (!isNextStart) {
     })
 
     if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {
+      // Deploy mode exclusion: This test builds and starts the exported app
+      // through a local custom server.
+      // @force-gate !deploy
       describe('output: export', () => {
         const { next } = nextTestSetup({
           files: path.join(__dirname, 'default'),
@@ -73,7 +75,6 @@ if (!isNextStart) {
             NEXT_TEST_OUTPUT_EXPORT: '1',
           },
           skipStart: true,
-          skipDeployment: true,
           startCommand: 'node server.mjs',
           serverReadyPattern: /- Local:/,
         })
