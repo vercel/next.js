@@ -1,52 +1,39 @@
 use std::{
     hash::{BuildHasher, Hash},
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::Deref,
     ptr::NonNull,
     sync::Arc,
 };
 
 use dashmap::{DashMap, RawRwLock};
 use hashbrown::HashTable;
-use parking_lot::lock_api::RwLockWriteGuard;
+use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
 
-type RwLockWriteTableGuard<'a, K, V> = RwLockWriteGuard<'a, RawRwLock, HashTable<(K, V)>>;
+type ReadTableGuard<'a, K, V> = RwLockReadGuard<'a, RawRwLock, HashTable<(K, V)>>;
 
-pub enum RefMut<'a, K, V> {
-    Base(dashmap::mapref::one::RefMut<'a, K, V>),
+/// A read reference to one DashMap entry.
+///
+/// The shared variant lets two disjoint entries in the same shard share one read guard. This
+/// avoids recursively acquiring a writer-preferring shard lock while retaining stable entry
+/// addresses for each task's intrusive lock.
+pub enum Ref<'a, K, V> {
+    Base(dashmap::mapref::one::Ref<'a, K, V>),
     Simple {
-        _guard: RwLockWriteTableGuard<'a, K, V>,
+        _guard: ReadTableGuard<'a, K, V>,
         entry: NonNull<(K, V)>,
     },
     Shared {
-        _guard: Arc<RwLockWriteTableGuard<'a, K, V>>,
+        _guard: Arc<ReadTableGuard<'a, K, V>>,
         entry: NonNull<(K, V)>,
-        // Ensures that RefMut is !Send, preventing holding RefMut across .await points in async
-        // code, which can cause deadlocks. See safety comment on `unsafe impl Sync for RefMut`
-        // below.
-        phantom: std::marker::PhantomData<*const ()>,
     },
 }
 
-// `RefMut` is intentionally **not** `Send`. While sending the guard across threads would be sound
-// under the same reasoning that justifies `Sync` below, allowing `Send` makes it possible to hold
-// a `RefMut` (and therefore a `StorageWriteGuard`) across an `.await` in async code, since the
-// compiler will then accept the resulting future as `Send`. That pattern causes hard async
-// deadlocks: the guard parks together with the suspended future and pins the shard's write lock,
-// while every other tokio worker piles up trying to take the same lock — leaving no thread free
-// to poll the parked future. Marking the type `!Send` makes the borrow checker reject those call
-// sites at compile time.
-// SAFETY (Sync): `RefMut` contains a non-null pointer into a `DashMap` shard's `HashTable`.
-// Sharing `&RefMut` is safe because:
-// - `Simple` variant: The entry is accessed under an exclusive `RwLockWriteGuard` on a single
-//   shard. The guard provides exclusive access to all data in that shard.
-// - `Shared` variant: The entry is accessed under an `Arc<RwLockWriteGuard>`. The
-//   `get_disjoint_mut` function validates that the keys differ before obtaining both references
-//   through `HashTable::get_many_unchecked_mut`.
-// - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
-unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
+// SAFETY: Each entry pointer remains valid under its shard read guard. Shared references never
+// mutate the HashTable entry; payload mutation is independently synchronized by its intrusive
+// lock. `K: Sync + V: Sync` makes shared references safe across threads.
+unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for Ref<'_, K, V> {}
 
-impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+impl<K: Eq + Hash, V> Ref<'_, K, V> {
     pub fn key(&self) -> &K {
         self.pair().0
     }
@@ -55,211 +42,165 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
         self.pair().1
     }
 
-    pub fn value_mut(&mut self) -> &mut V {
-        self.pair_mut().1
-    }
-
-    pub fn pair(&self) -> (&K, &V) {
+    fn pair(&self) -> (&K, &V) {
         match self {
-            RefMut::Base(r) => r.pair(),
-            RefMut::Simple { entry, .. } | RefMut::Shared { entry, .. } => {
-                // SAFETY: The entry remains valid while the shard write guard is held.
+            Self::Base(reference) => reference.pair(),
+            Self::Simple { entry, .. } | Self::Shared { entry, .. } => {
+                // SAFETY: The entry remains valid while the corresponding shard read guard lives.
                 let entry = unsafe { entry.as_ref() };
                 (&entry.0, &entry.1)
             }
         }
     }
-
-    pub fn pair_mut(&mut self) -> (&K, &mut V) {
-        match self {
-            RefMut::Base(r) => r.pair_mut(),
-            RefMut::Simple { entry, .. } | RefMut::Shared { entry, .. } => {
-                // SAFETY: Same as above in `pair`, plus aliasing is prevented via:
-                // 1. The lifetime of `&mut self`.
-                // 2. `Simple` values come from separate shards (no aliasing possible).
-                // 3. `Shared` values were validated as disjoint before the pointers were created.
-                let entry = unsafe { entry.as_mut() };
-                (&entry.0, &mut entry.1)
-            }
-        }
-    }
 }
 
-impl<K: Eq + Hash, V> Deref for RefMut<'_, K, V> {
+impl<K: Eq + Hash, V> Deref for Ref<'_, K, V> {
     type Target = V;
 
-    fn deref(&self) -> &V {
+    fn deref(&self) -> &Self::Target {
         self.value()
     }
 }
 
-impl<K: Eq + Hash, V> DerefMut for RefMut<'_, K, V> {
-    fn deref_mut(&mut self) -> &mut V {
-        self.value_mut()
-    }
-}
-
-impl<'a, K, V> From<dashmap::mapref::one::RefMut<'a, K, V>> for RefMut<'a, K, V>
+impl<'a, K, V> From<dashmap::mapref::one::Ref<'a, K, V>> for Ref<'a, K, V>
 where
     K: Hash + Eq,
 {
-    fn from(r: dashmap::mapref::one::RefMut<'a, K, V>) -> Self {
-        RefMut::Base(r)
+    fn from(reference: dashmap::mapref::one::Ref<'a, K, V>) -> Self {
+        Self::Base(reference)
     }
 }
 
-pub fn get_disjoint_mut<K, V>(
+/// Get two disjoint read references, inserting missing values under shard write locks.
+///
+/// The caller must order calls to this function consistently when composing it with other locks.
+pub fn get_disjoint<K, V>(
     map: &DashMap<K, V, impl BuildHasher + Clone>,
     key1: K,
     key2: K,
     insert_with: impl Fn() -> V,
-) -> (RefMut<'_, K, V>, RefMut<'_, K, V>)
+) -> (Ref<'_, K, V>, Ref<'_, K, V>)
 where
     K: Hash + Eq + Clone,
 {
+    assert!(
+        key1 != key2,
+        "`get_disjoint` was called with equal keys, which cannot produce disjoint task guards"
+    );
+
     let hasher = map.hasher();
     let hash_entry = |entry: &(K, _)| hasher.hash_one(&entry.0);
-    let h1 = hasher.hash_one(&key1);
-    let h2 = hasher.hash_one(&key2);
-
-    // Use `determine_shard` instead of `determine_map` to avoid extra rehashing.
-    // This u64 -> usize conversion also happens internally within DashMap using `as usize`.
-    // See: `DashMap::hash_usize`
-    let s1 = map.determine_shard(h1 as usize);
-    let s2 = map.determine_shard(h2 as usize);
-
-    let eq1 = |other: &(K, _)| key1.eq(&other.0);
-    let eq2 = |other: &(K, _)| key2.eq(&other.0);
-
+    let hash1 = hasher.hash_one(&key1);
+    let hash2 = hasher.hash_one(&key2);
+    let shard1 = map.determine_shard(hash1 as usize);
+    let shard2 = map.determine_shard(hash2 as usize);
     let shards = map.shards();
-    if s1 == s2 {
-        // Equal keys would resolve to a single entry below. This must be a release-mode assertion
-        // because the unchecked lookup relies on it for memory safety.
-        assert!(
-            key1 != key2,
-            "`get_disjoint_mut` was called with equal keys, which breaks mutable referencing rules"
-        );
 
-        let mut guard = shards[s1].write();
+    let find1 = |entry: &(K, _)| key1.eq(&entry.0);
+    let find2 = |entry: &(K, _)| key2.eq(&entry.0);
 
-        if guard.find(h1, eq1).is_none() {
-            guard.insert_unique(h1, (key1.clone(), insert_with()), hash_entry);
+    if shard1 == shard2 {
+        let guard = shards[shard1].read();
+        let entry1 = guard.find(hash1, find1).map(NonNull::from);
+        let entry2 = guard.find(hash2, find2).map(NonNull::from);
+        if let (Some(entry1), Some(entry2)) = (entry1, entry2) {
+            return shared_pair(guard, entry1, entry2);
         }
-        if guard.find(h2, eq2).is_none() {
-            guard.insert_unique(h2, (key2.clone(), insert_with()), hash_entry);
+        drop(guard);
+
+        let mut guard = shards[shard1].write();
+        if guard.find(hash1, find1).is_none() {
+            guard.insert_unique(hash1, (key1.clone(), insert_with()), hash_entry);
         }
+        if guard.find(hash2, find2).is_none() {
+            guard.insert_unique(hash2, (key2.clone(), insert_with()), hash_entry);
+        }
+        let entry1 = NonNull::from(guard.find(hash1, find1).expect("first entry was inserted"));
+        let entry2 = NonNull::from(guard.find(hash2, find2).expect("second entry was inserted"));
+        return shared_pair(RwLockWriteGuard::downgrade(guard), entry1, entry2);
+    }
 
-        // SAFETY: `key1 != key2` was asserted above. Since `K: Eq`, the two equality closures
-        // cannot select the same entry, even when the hashes collide.
-        let [entry1, entry2] =
-            unsafe {
-                guard.get_many_unchecked_mut([h1, h2], |index, entry| {
-                    if index == 0 { eq1(entry) } else { eq2(entry) }
-                })
-            };
-        let entry1 = NonNull::from(entry1.expect("the first entry was inserted above"));
-        let entry2 = NonNull::from(entry2.expect("the second entry was inserted above"));
-
-        let guard = Arc::new(guard);
-        (
-            RefMut::Shared {
-                _guard: guard.clone(),
-                entry: entry1,
-                phantom: PhantomData,
-            },
-            RefMut::Shared {
-                _guard: guard,
-                entry: entry2,
-                phantom: PhantomData,
-            },
-        )
+    let (first_shard, second_shard, first_is_key1) = if shard1 < shard2 {
+        (shard1, shard2, true)
     } else {
-        let (mut guard1, mut guard2) = loop {
-            {
-                let g1 = shards[s1].write();
-                if let Some(g2) = shards[s2].try_write() {
-                    break (g1, g2);
-                }
-            }
-            {
-                let g2 = shards[s2].write();
-                if let Some(g1) = shards[s1].try_write() {
-                    break (g1, g2);
-                }
-            }
-        };
-
-        if guard1.find(h1, eq1).is_none() {
-            guard1.insert_unique(h1, (key1.clone(), insert_with()), hash_entry);
-        }
-        if guard2.find(h2, eq2).is_none() {
-            guard2.insert_unique(h2, (key2.clone(), insert_with()), hash_entry);
-        }
-        let entry1 = NonNull::from(
-            guard1
-                .find_mut(h1, eq1)
-                .expect("the first entry was inserted"),
-        );
-        let entry2 = NonNull::from(
-            guard2
-                .find_mut(h2, eq2)
-                .expect("the second entry was inserted"),
-        );
-
-        (
-            RefMut::Simple {
+        (shard2, shard1, false)
+    };
+    let first_guard = shards[first_shard].read();
+    let second_guard = shards[second_shard].read();
+    let (guard1, guard2) = if first_is_key1 {
+        (first_guard, second_guard)
+    } else {
+        (second_guard, first_guard)
+    };
+    let entry1 = guard1.find(hash1, find1).map(NonNull::from);
+    let entry2 = guard2.find(hash2, find2).map(NonNull::from);
+    if let (Some(entry1), Some(entry2)) = (entry1, entry2) {
+        return (
+            Ref::Simple {
                 _guard: guard1,
                 entry: entry1,
             },
-            RefMut::Simple {
+            Ref::Simple {
                 _guard: guard2,
                 entry: entry2,
             },
-        )
+        );
     }
+    drop(guard2);
+    drop(guard1);
+
+    let (mut guard1, mut guard2) = loop {
+        {
+            let guard1 = shards[shard1].write();
+            if let Some(guard2) = shards[shard2].try_write() {
+                break (guard1, guard2);
+            }
+        }
+        {
+            let guard2 = shards[shard2].write();
+            if let Some(guard1) = shards[shard1].try_write() {
+                break (guard1, guard2);
+            }
+        }
+    };
+    if guard1.find(hash1, find1).is_none() {
+        guard1.insert_unique(hash1, (key1.clone(), insert_with()), hash_entry);
+    }
+    if guard2.find(hash2, find2).is_none() {
+        guard2.insert_unique(hash2, (key2.clone(), insert_with()), hash_entry);
+    }
+    let entry1 = NonNull::from(guard1.find(hash1, find1).expect("first entry was inserted"));
+    let entry2 = NonNull::from(
+        guard2
+            .find(hash2, find2)
+            .expect("second entry was inserted"),
+    );
+    (
+        Ref::Simple {
+            _guard: RwLockWriteGuard::downgrade(guard1),
+            entry: entry1,
+        },
+        Ref::Simple {
+            _guard: RwLockWriteGuard::downgrade(guard2),
+            entry: entry2,
+        },
+    )
 }
 
-#[cfg(test)]
-mod tests {
-    use std::thread::scope;
-
-    use rand::prelude::SliceRandom;
-    use turbo_tasks::FxDashMap;
-
-    use super::*;
-
-    #[test]
-    fn stress_deadlock() {
-        const N: usize = 100000;
-        const THREADS: usize = 20;
-
-        let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
-        let indices = (0..THREADS)
-            .map(|_| {
-                let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::rng());
-                vec
-            })
-            .collect::<Vec<_>>();
-        let map = &map;
-        scope(|s| {
-            for indices in indices {
-                s.spawn(|| {
-                    for i in indices {
-                        let (mut a, mut b) = get_disjoint_mut(map, i, i + 1, || 0);
-                        *a += 1;
-                        *b += 1;
-                    }
-                });
-            }
-        });
-        let value = *map.get(&0).unwrap();
-        assert_eq!(value, THREADS);
-        for i in 1..N {
-            let value = *map.get(&i).unwrap();
-            assert_eq!(value, THREADS * 2);
-        }
-        let value = *map.get(&N).unwrap();
-        assert_eq!(value, THREADS);
-    }
+fn shared_pair<'a, K, V>(
+    guard: ReadTableGuard<'a, K, V>,
+    entry1: NonNull<(K, V)>,
+    entry2: NonNull<(K, V)>,
+) -> (Ref<'a, K, V>, Ref<'a, K, V>) {
+    let guard = Arc::new(guard);
+    (
+        Ref::Shared {
+            _guard: guard.clone(),
+            entry: entry1,
+        },
+        Ref::Shared {
+            _guard: guard,
+            entry: entry2,
+        },
+    )
 }

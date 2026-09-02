@@ -18,14 +18,15 @@
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
 use std::{
+    fmt,
     hash::{BuildHasherDefault, Hash},
     sync::Arc,
 };
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RawMutex, lock_api::RawMutex as RawMutexTrait};
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, ShrinkToFit, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -46,6 +47,61 @@ type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<F
 ///
 /// See [`AutoSet`] for the meaning of `I`.
 type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
+
+/// One-byte parking_lot lock embedded in each task's storage.
+///
+/// The lock is synchronization metadata: snapshots create a fresh lock rather than copying its
+/// state. This wrapper supplies the generated storage type's trait requirements.
+pub(crate) struct IntrusiveTaskLock(RawMutex);
+
+impl IntrusiveTaskLock {
+    const fn new() -> Self {
+        Self(<RawMutex as RawMutexTrait>::INIT)
+    }
+
+    fn lock(&self) {
+        self.0.lock();
+    }
+
+    /// # Safety
+    ///
+    /// The current thread must own this lock and perform no protected access after this call.
+    unsafe fn unlock(&self) {
+        // SAFETY: Forwarded from the caller.
+        unsafe { self.0.unlock() };
+    }
+
+    #[cfg(test)]
+    fn is_locked(&self) -> bool {
+        self.0.is_locked()
+    }
+}
+
+struct IntrusiveTaskLockGuard<'a>(&'a IntrusiveTaskLock);
+
+impl Drop for IntrusiveTaskLockGuard<'_> {
+    fn drop(&mut self) {
+        // SAFETY: This lexical guard is created only after acquiring this lock and drops before
+        // the protected reference can escape.
+        unsafe { self.0.unlock() };
+    }
+}
+
+impl Default for IntrusiveTaskLock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Debug for IntrusiveTaskLock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IntrusiveTaskLock").finish_non_exhaustive()
+    }
+}
+
+impl ShrinkToFit for IntrusiveTaskLock {
+    fn shrink_to_fit(&mut self) {}
+}
 
 /// The complete task storage schema.
 ///
@@ -559,6 +615,33 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// Lock this task's storage while a resident-map guard keeps its allocation alive.
+    pub(crate) fn lock(&self) {
+        self.lock.lock();
+    }
+
+    /// Unlock this task's storage.
+    ///
+    /// # Safety
+    ///
+    /// The current thread must own the task lock, hold the resident-map guard that keeps this
+    /// storage alive, and perform no protected access after this call.
+    pub(crate) unsafe fn unlock(&self) {
+        // SAFETY: Forwarded from the caller.
+        unsafe { self.lock.unlock() };
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_locked(&self) -> bool {
+        self.lock.is_locked()
+    }
+
+    pub(crate) fn with_lock<R>(&self, f: impl FnOnce(&Self) -> R) -> R {
+        self.lock();
+        let _guard = IntrusiveTaskLockGuard(&self.lock);
+        f(self)
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -1788,6 +1871,18 @@ mod tests {
     // ==========================================================================
     // Schema Size Tests
     // ==========================================================================
+
+    #[test]
+    fn snapshot_clone_has_an_independent_unlocked_task_lock() {
+        let storage = TaskStorage::new();
+        storage.lock();
+        assert!(storage.is_locked());
+        let snapshot = storage.clone_snapshot();
+        assert!(storage.is_locked());
+        assert!(!snapshot.is_locked());
+        // SAFETY: This test acquired the source lock above and accesses it no further.
+        unsafe { storage.unlock() };
+    }
 
     #[test]
     #[cfg(target_pointer_width = "64")]
