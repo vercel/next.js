@@ -16,8 +16,14 @@ describe('pages router - shallow navigation with a stale app router marker', () 
       "window.next.router.components['/blog/[slug]'] = { __appRouter: true }"
     )
 
+    // Push with the concrete pathname as `url`. `change()` first checks
+    // `this.components[pathname]` with the raw `href` pathname; with
+    // '/blog/[slug]' that guard would hit the marker and hard navigate before
+    // `getRouteInfo()` runs. With '/blog/first' the dynamic route is resolved
+    // to '/blog/[slug]' inside `getRouteInfo()`, which is where the marker
+    // must be ignored, exactly like a concrete `href` from `next/link` does.
     await browser.eval(
-      "window.next.router.push('/blog/[slug]?tab=b', '/blog/first?tab=b', { shallow: true })"
+      "window.next.router.push('/blog/first?tab=b', '/blog/first?tab=b', { shallow: true })"
     )
 
     await retry(async () => {
