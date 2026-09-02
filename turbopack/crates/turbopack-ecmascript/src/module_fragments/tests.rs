@@ -28,6 +28,72 @@ fn test_fixture(input: PathBuf) {
     run(input);
 }
 
+#[test]
+fn empty_group_fragment_indices_are_in_module_bounds() {
+    let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/tree-shaker/analyzer/empty-group-fragment/regression.js");
+
+    testing::run_test(false, |cm, _handler| {
+        let fm = cm.load_file(&input).unwrap();
+        let comments = SingleThreadedComments::default();
+        let module = parse_file_as_module(
+            &fm,
+            swc_core::ecma::parser::Syntax::Es(EsSyntax {
+                jsx: true,
+                ..Default::default()
+            }),
+            EsVersion::latest(),
+            Some(&comments),
+            &mut vec![],
+        )
+        .unwrap();
+
+        let unresolved_mark = Mark::new();
+        let top_level_mark = Mark::new();
+        let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+        let top_level_ctxt = SyntaxContext::empty().apply_mark(top_level_mark);
+
+        let mut g = DepGraph::default();
+        let (_, items) = g.init(&module, &comments, unresolved_ctxt, top_level_ctxt);
+        g.handle_weak(Mode::Production);
+
+        let SplitModuleResult {
+            entrypoints,
+            part_deps,
+            modules,
+            ..
+        } = g.split_module(&[], &items);
+
+        let module_count = modules.len() as u32;
+
+        for (key, index) in &entrypoints {
+            assert!(
+                *index < module_count,
+                "entrypoint {key:?} index {index} is out of bounds for {} modules",
+                module_count
+            );
+        }
+
+        for (key, deps) in &part_deps {
+            assert!(
+                *key < module_count,
+                "part_deps key {key} is out of bounds for {module_count} modules"
+            );
+            for dep in deps {
+                if let super::graph::PartId::Internal(index, _) = dep {
+                    assert!(
+                        *index < module_count,
+                        "part_deps Internal({index}) is out of bounds for {module_count} modules"
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    })
+    .unwrap();
+}
+
 #[derive(Deserialize)]
 struct TestConfig {
     /// Enabled exports. This is `Vec<Vec<String>>` because we test multiple
