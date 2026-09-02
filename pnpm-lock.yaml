@@ -253,9 +253,6 @@ importers:
       '@vercel/og':
         specifier: 1.0.1
         version: 1.0.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
-      abort-controller:
-        specifier: 3.0.0
-        version: 3.0.0
       alex:
         specifier: 9.1.0
         version: 9.1.0
@@ -616,6 +613,9 @@ importers:
       typescript-eslint:
         specifier: 8.46.0
         version: 8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2)
+      undici:
+        specifier: 6.24.1
+        version: 6.24.1
       unfetch:
         specifier: 4.2.0
         version: 4.2.0

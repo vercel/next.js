@@ -110,9 +110,15 @@ describe('PPR - partial hydration', () => {
       // (which could happen if we e.g. have no static shell and don't wait for it to be rendered before sending them)
       const response = await next.fetch(path)
       let body = ''
-      response.body.on('data', (chunk) => {
-        body += chunk.toString('utf-8')
-      })
+      // Drain the body in the background so the assertions below can poll
+      // the accumulated content. A ReadableStream has no event emitter API,
+      // unlike the Node.js streams node-fetch exposed.
+      ;(async () => {
+        if (response.body === null) return
+        for await (const chunk of response.body) {
+          body += Buffer.from(chunk).toString('utf-8')
+        }
+      })().catch(() => {})
       await retry(() => {
         expect(response.status).toBe(200)
         // Ignore the sentinel. For pages with no static shell, it ends up at the front

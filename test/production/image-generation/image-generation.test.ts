@@ -19,7 +19,7 @@ describe('image-generation', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/png')
 
-      const buffer = await res.buffer()
+      const buffer = Buffer.from(await res.arrayBuffer())
 
       // It should be a PNG
       expect(
