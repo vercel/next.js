@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
 use bincode::{Decode, Encode};
 use serde::Deserialize;
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{DeterministicHasher, NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 use crate::source::ContentSourceDataFilter;
 
@@ -22,9 +22,17 @@ use crate::source::ContentSourceDataFilter;
 )]
 pub struct Query(BTreeMap<String, QueryValue>);
 
-// This type contains no VCs so the default implementation works.
-// Query is also recursive through QueryValue so the derive macro doesnt work
+// Query is recursive through QueryValue, so the task-input macro cannot generate this
+// implementation.
 impl TaskInput for Query {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.0.len());
+        for (key, value) in &self.0 {
+            key.persistence_hash(state);
+            value.persistence_hash(state);
+        }
+    }
+
     fn is_transient(&self) -> bool {
         false
     }
@@ -65,4 +73,27 @@ pub enum QueryValue {
     Array(Vec<QueryValue>),
     /// A nested structure
     Nested(Query),
+}
+
+impl TaskInput for QueryValue {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        match self {
+            QueryValue::String(value) => {
+                state.write_u32(0);
+                value.persistence_hash(state);
+            }
+            QueryValue::Array(values) => {
+                state.write_u32(1);
+                values.persistence_hash(state);
+            }
+            QueryValue::Nested(value) => {
+                state.write_u32(2);
+                value.persistence_hash(state);
+            }
+        }
+    }
+
+    fn is_transient(&self) -> bool {
+        false
+    }
 }

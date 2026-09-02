@@ -40,6 +40,13 @@ mod native_types {
     // Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
     // never contain any `Vc` types.
     impl turbo_tasks::TaskInput for JsonValue {
+        fn persistence_hash(&self, state: &mut dyn turbo_tasks::DeterministicHasher) {
+            turbo_tasks::TaskInput::persistence_hash(
+                &serde_json::to_string(&self.0).expect("JSON serialization should never fail"),
+                state,
+            );
+        }
+
         fn is_transient(&self) -> bool {
             false
         }

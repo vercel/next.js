@@ -4,7 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use futures::Future;
 use tracing::Span;
-use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 use turbo_tasks_hash::DeterministicHasher;
 
 #[cfg(feature = "task_dirty_cause")]
@@ -31,17 +31,14 @@ type FilterOwnedArgsFunctor =
     for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> (InputResolution, HeapDynTaskInputsStorage);
 type FilterAndResolveFunctor = ResolveFunctor;
 
-/// Function pointer that encodes a task argument directly to a hasher.
-///
-/// This allows computing hashes of task arguments without intermediate buffer allocation.
-type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
+/// Function pointer that persistence-hashes a task argument after type erasure.
+type AnyPersistenceHashFn = fn(&dyn Any, &mut dyn DeterministicHasher);
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
     pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn DynTaskInputs>>),
-    /// Encodes the argument directly to a hasher, avoiding buffer allocation.
-    /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
-    pub hash_encode: AnyHashEncodeFn,
+    /// Run-to-run deterministic hash used by the persistent task cache.
+    pub persistence_hash: AnyPersistenceHashFn,
     resolve: ResolveFunctor,
     /// Used for trait methods to filter out unused arguments. `None` when all arguments are used
     /// (no filtering needed).
@@ -106,10 +103,8 @@ impl ArgMeta {
                     Ok(Box::new(val))
                 },
             ),
-            hash_encode: |this, hasher| {
-                let mut encoder = new_hash_encoder(hasher);
-                T::encode(any_as_encode::<T>(this), &mut encoder)
-                    .expect("encoding to hasher should not fail");
+            persistence_hash: |this, hasher| {
+                T::persistence_hash(any_as_encode::<T>(this), hasher);
             },
             resolve: resolve_functor_impl::<T>,
             filter_owned,

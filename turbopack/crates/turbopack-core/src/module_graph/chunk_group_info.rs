@@ -13,8 +13,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    DeterministicHasher, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
@@ -32,6 +32,13 @@ pub struct RoaringBitmapWrapper(
 );
 
 impl TaskInput for RoaringBitmapWrapper {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u64(self.len());
+        for value in self.iter() {
+            state.write_u32(value);
+        }
+    }
+
     fn is_transient(&self) -> bool {
         false
     }

@@ -46,15 +46,15 @@ impl SnapshotItem {
 
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
 ///
-/// This encodes the task type directly to a hasher, avoiding intermediate buffer allocation.
-/// The encoding is deterministic (function IDs from registry, bincode argument encoding).
+/// The hash is run-to-run deterministic and uses stable registry IDs plus
+/// [`turbo_tasks::TaskInput::persistence_hash`] for arguments.
 pub fn compute_task_type_hash(task_type: &CachedTaskType) -> TaskTypeHash {
     let mut hasher = Xxh3Hash64Hasher::new();
-    task_type.hash_encode(&mut hasher);
+    task_type.persistence_hash(&mut hasher);
     let hash = hasher.finish();
     if cfg!(feature = "verify_serialization") {
         hasher = Xxh3Hash64Hasher::new();
-        task_type.hash_encode(&mut hasher);
+        task_type.persistence_hash(&mut hasher);
         let hash2 = hasher.finish();
         assert_eq!(
             hash, hash2,
@@ -75,7 +75,7 @@ pub fn compute_task_type_hash_from_components(
     arg: &dyn DynTaskInputs,
 ) -> TaskTypeHash {
     let mut hasher = Xxh3Hash64Hasher::new();
-    CachedTaskType::hash_encode_components(native_fn, this, arg, &mut hasher);
+    CachedTaskType::persistence_hash_components(native_fn, this, arg, &mut hasher);
     hasher.finish().to_le_bytes()
 }
 

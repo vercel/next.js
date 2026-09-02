@@ -11,7 +11,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{DeterministicHasher, NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -281,6 +281,10 @@ pub struct AstSyntaxContext(
 );
 
 impl TaskInput for AstSyntaxContext {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u32(self.0.as_u32());
+    }
+
     fn is_transient(&self) -> bool {
         false
     }

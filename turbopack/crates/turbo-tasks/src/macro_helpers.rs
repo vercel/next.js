@@ -16,8 +16,8 @@ pub use tracing;
 #[cfg(debug_assertions)]
 use crate::debug::ValueDebugFormatString;
 use crate::{
-    InputResolution, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, ValueType,
-    ValueTypeId,
+    DeterministicHasher, InputResolution, NonLocalValue, RawVc, TaskInput, TaskPersistence,
+    TraitType, ValueType, ValueTypeId,
 };
 pub use crate::{
     dyn_task_inputs::DynTaskInputs,
@@ -33,6 +33,21 @@ pub use crate::{
     task::function::{into_task_fn, into_task_fn_with_this},
     value_type::{TraitVtablePrototype, build_trait_vtable, index_of_method_name},
 };
+
+/// Persistence-hash a value through its existing bincode specialization.
+///
+/// This is an escape hatch for task-input wrappers around opaque third-party types that expose
+/// deterministic serialization but cannot implement field-wise [`TaskInput::persistence_hash`].
+#[doc(hidden)]
+pub fn persistence_hash_by_bincode<T: bincode::Encode>(
+    value: &T,
+    state: &mut dyn DeterministicHasher,
+) {
+    let bytes = turbo_bincode::turbo_bincode_encode(value)
+        .expect("persistence-hash fallback encoding should not fail");
+    state.write_usize(bytes.len());
+    state.write_bytes(&bytes);
+}
 
 #[cfg(debug_assertions)]
 #[inline(never)]

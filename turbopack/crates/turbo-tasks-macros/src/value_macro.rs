@@ -13,7 +13,7 @@ use syn::{
 };
 
 use crate::{
-    expand::{item_data, task_input_is_transient_body},
+    expand::{item_data, task_input_is_transient_body, task_input_persistence_hash_body},
     global_name::global_name_for_type,
     ident::get_value_type_ident,
 };
@@ -568,6 +568,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let task_input_impl = if task_input {
         let data = item_data(&item).expect("value macro only accepts struct/enum");
         let is_transient_impl = task_input_is_transient_body(ident, &data);
+        let persistence_hash_impl = task_input_persistence_hash_body(ident, &data);
         quote! {
             #[automatically_derived]
             impl turbo_tasks::TaskInput for #ident {
@@ -575,6 +576,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[allow(unreachable_code)]
                 fn is_transient(&self) -> bool {
                     #is_transient_impl
+                }
+
+                #[allow(non_snake_case)]
+                #[allow(unreachable_code)]
+                fn persistence_hash(
+                    &self,
+                    __state__: &mut dyn turbo_tasks::DeterministicHasher,
+                ) {
+                    #persistence_hash_impl
                 }
             }
         }

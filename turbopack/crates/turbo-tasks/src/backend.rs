@@ -23,7 +23,7 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
-    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode, new_hash_encoder,
+    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks_hash::DeterministicHasher;
@@ -89,12 +89,9 @@ impl CachedTaskType {
         self.native_fn.ty.name
     }
 
-    /// Encodes this task type directly to a hasher, avoiding buffer allocation.
-    ///
-    /// This uses the same encoding logic as [`TurboBincodeEncode`] but writes
-    /// directly to a [`DeterministicHasher`] instead of a buffer.
-    pub fn hash_encode<H: DeterministicHasher>(&self, hasher: &mut H) {
-        Self::hash_encode_components(self.native_fn, self.this, &*self.arg, hasher);
+    /// Adds a run-to-run deterministic representation of this task type to `hasher`.
+    pub fn persistence_hash(&self, hasher: &mut dyn DeterministicHasher) {
+        Self::persistence_hash_components(self.native_fn, self.this, &*self.arg, hasher);
     }
 }
 
@@ -242,23 +239,22 @@ impl CachedTaskType {
         state.finish()
     }
 
-    /// Compute the deterministic hash for backing storage from components.
-    ///
-    /// This mirrors the logic in [`CachedTaskType::hash_encode`] but works with
-    /// borrowed components, avoiding the need to construct a full [`CachedTaskType`].
-    pub fn hash_encode_components<H: DeterministicHasher>(
+    /// Compute the deterministic backing-storage hash from borrowed components.
+    pub fn persistence_hash_components(
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-        hasher: &mut H,
+        hasher: &mut dyn DeterministicHasher,
     ) {
-        let fn_id = registry::get_function_id(native_fn);
-        {
-            let mut encoder = new_hash_encoder(hasher);
-            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
-            Encode::encode(&this, &mut encoder).expect("this encoding should not fail");
+        hasher.write_u16(*registry::get_function_id(native_fn));
+        match this {
+            None => hasher.write_u8(0),
+            Some(raw) => {
+                hasher.write_u8(1);
+                hasher.write_u64(raw.bits());
+            }
         }
-        (native_fn.arg_meta.hash_encode)(arg, hasher);
+        (native_fn.arg_meta.persistence_hash)(arg, hasher);
     }
 
     /// Check equality of components against this CachedTaskType.

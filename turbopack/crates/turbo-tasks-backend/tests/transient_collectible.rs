@@ -34,6 +34,10 @@ fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
 struct IncorrectTaskInput(ResolvedVc<U32Wrapper>);
 
 impl TaskInput for IncorrectTaskInput {
+    fn persistence_hash(&self, state: &mut dyn turbo_tasks::DeterministicHasher) {
+        self.0.persistence_hash(state);
+    }
+
     fn is_transient(&self) -> bool {
         false
     }

@@ -20,7 +20,7 @@ use bincode::{
 use either::Either;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks_hash::HashAlgorithm;
+use turbo_tasks_hash::{DeterministicHasher, HashAlgorithm};
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
@@ -135,6 +135,15 @@ pub trait TaskInput:
         true
     }
 
+    /// Adds a run-to-run deterministic representation of this value to `state` for persistent
+    /// task-cache lookup.
+    ///
+    /// Implementations must satisfy `a == b` implies that `a` and `b` write exactly the same data,
+    /// and must not depend on process-local state, randomized hashers, addresses, or iteration
+    /// order that can change between runs. Unlike [`turbo_tasks_hash::DeterministicHash`], this
+    /// operation may hash database-local [`Vc`] task and cell identifiers.
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher);
+
     /// This should return true if this object contains a [`Vc`] (or any subtype of [`Vc`]) pointing
     /// to a cell owned by a transient task.
     ///
@@ -147,40 +156,136 @@ pub trait TaskInput:
     fn is_transient(&self) -> bool;
 }
 
-macro_rules! impl_task_input {
-    ($($t:ty),*) => {
+macro_rules! impl_task_input_number {
+    ($(($ty:ty, $write:ident)),* $(,)?) => {
         $(
-            impl TaskInput for $t {
+            impl TaskInput for $ty {
                 fn is_transient(&self) -> bool {
                     false
+                }
+
+                fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+                    state.$write(*self);
                 }
             }
         )*
     };
 }
 
-impl_task_input! {
-    (),
-    bool,
-    u8,
-    u16,
-    u32,
-    i32,
-    u64,
-    u128,
-    usize,
-    RcStr,
-    TaskId,
-    ValueTypeId,
-    Duration,
-    String,
-    HashAlgorithm
+impl_task_input_number! {
+    (u8, write_u8),
+    (u16, write_u16),
+    (u32, write_u32),
+    (i32, write_i32),
+    (u64, write_u64),
+    (u128, write_u128),
+    (usize, write_usize),
+}
+
+impl TaskInput for () {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {}
+}
+
+impl TaskInput for bool {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u8(*self as u8);
+    }
+}
+
+fn persistence_hash_bytes(bytes: &[u8], state: &mut dyn DeterministicHasher) {
+    state.write_usize(bytes.len());
+    state.write_bytes(bytes);
+}
+
+impl TaskInput for RcStr {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        persistence_hash_bytes(self.as_bytes(), state);
+    }
+}
+
+impl TaskInput for String {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        persistence_hash_bytes(self.as_bytes(), state);
+    }
+}
+
+impl TaskInput for TaskId {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u32(**self);
+    }
+}
+
+impl TaskInput for ValueTypeId {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u16(**self);
+    }
+}
+
+impl TaskInput for Duration {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u64(self.as_secs());
+        state.write_u32(self.subsec_nanos());
+    }
+}
+
+impl TaskInput for HashAlgorithm {
+    fn is_transient(&self) -> bool {
+        false
+    }
+
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        let discriminant = match self {
+            HashAlgorithm::Xxh3Hash64Hex => 0,
+            HashAlgorithm::Xxh3Hash128Hex => 1,
+            HashAlgorithm::Xxh3Hash64Base38 => 2,
+            HashAlgorithm::Xxh3Hash128Base38 => 3,
+            HashAlgorithm::Sha256Base64 => 4,
+            HashAlgorithm::Sha384Base64 => 5,
+            HashAlgorithm::Sha512Base64 => 6,
+        };
+        state.write_u32(discriminant);
+    }
 }
 
 impl<T> TaskInput for Vec<T>
 where
     T: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.len());
+        for value in self {
+            value.persistence_hash(state);
+        }
+    }
+
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
     }
@@ -202,6 +307,10 @@ impl<T> TaskInput for Box<T>
 where
     T: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        self.as_ref().persistence_hash(state);
+    }
+
     fn is_resolved(&self) -> bool {
         self.as_ref().is_resolved()
     }
@@ -219,6 +328,10 @@ impl<T> TaskInput for Arc<T>
 where
     T: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        self.as_ref().persistence_hash(state);
+    }
+
     fn is_resolved(&self) -> bool {
         self.as_ref().is_resolved()
     }
@@ -236,6 +349,10 @@ impl<T> TaskInput for ReadRef<T>
 where
     T: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        Self::as_raw_ref(self).persistence_hash(state);
+    }
+
     fn is_resolved(&self) -> bool {
         Self::as_raw_ref(self).is_resolved()
     }
@@ -255,6 +372,16 @@ impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        match self {
+            None => state.write_u8(0),
+            Some(value) => {
+                state.write_u8(1);
+                value.persistence_hash(state);
+            }
+        }
+    }
+
     fn is_resolved(&self) -> bool {
         match self {
             Some(value) => value.is_resolved(),
@@ -281,6 +408,10 @@ impl<T> TaskInput for Vc<T>
 where
     T: Send + Sync + ?Sized,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_u64(self.node.bits());
+    }
+
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
     }
@@ -302,6 +433,10 @@ impl<T> TaskInput for ResolvedVc<T>
 where
     T: Send + Sync + ?Sized,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        (**self).persistence_hash(state);
+    }
+
     fn is_resolved(&self) -> bool {
         true
     }
@@ -315,6 +450,10 @@ impl<T> TaskInput for OrdResolvedVc<T>
 where
     T: Send + Sync + ?Sized,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        (***self).persistence_hash(state);
+    }
+
     fn is_resolved(&self) -> bool {
         true
     }
@@ -328,6 +467,10 @@ impl<T> TaskInput for TransientValue<T>
 where
     T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
 {
+    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {
+        panic!("cannot persistence-hash transient task inputs");
+    }
+
     fn is_transient(&self) -> bool {
         true
     }
@@ -349,6 +492,10 @@ impl<T> TaskInput for TransientInstance<T>
 where
     T: Sync + Send + TraceRawVcs + 'static,
 {
+    fn persistence_hash(&self, _state: &mut dyn DeterministicHasher) {
+        panic!("cannot persistence-hash transient task inputs");
+    }
+
     fn is_transient(&self) -> bool {
         true
     }
@@ -371,6 +518,14 @@ where
     K: TaskInput + Ord,
     V: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.len());
+        for (key, value) in self {
+            key.persistence_hash(state);
+            value.persistence_hash(state);
+        }
+    }
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_map = BTreeMap::new();
         for (k, v) in self {
@@ -397,6 +552,13 @@ impl<T> TaskInput for BTreeSet<T>
 where
     T: TaskInput + Ord,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.len());
+        for value in self {
+            value.persistence_hash(state);
+        }
+    }
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_set = BTreeSet::new();
         for value in self {
@@ -419,6 +581,14 @@ where
     K: TaskInput + Ord + 'static,
     V: TaskInput + 'static,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.len());
+        for (key, value) in self {
+            key.persistence_hash(state);
+            value.persistence_hash(state);
+        }
+    }
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_entries = Vec::with_capacity(self.len());
         for (k, v) in self {
@@ -446,6 +616,13 @@ impl<T> TaskInput for FrozenSet<T>
 where
     T: TaskInput + Ord + 'static,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        state.write_usize(self.len());
+        for value in self {
+            value.persistence_hash(state);
+        }
+    }
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_set = Vec::with_capacity(self.len());
         for value in self {
@@ -507,6 +684,19 @@ where
     L: TaskInput,
     R: TaskInput,
 {
+    fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+        match &self.0 {
+            Either::Left(value) => {
+                state.write_u8(0);
+                value.persistence_hash(state);
+            }
+            Either::Right(value) => {
+                state.write_u8(1);
+                value.persistence_hash(state);
+            }
+        }
+    }
+
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
             async |l| anyhow::Ok(Self(Either::Left(l.resolve_input().await?))),
@@ -530,6 +720,12 @@ macro_rules! tuple_impls {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
         where $($name: TaskInput),+
         {
+            #[allow(non_snake_case)]
+            fn persistence_hash(&self, state: &mut dyn DeterministicHasher) {
+                let ($($name,)+) = self;
+                $($name.persistence_hash(state);)+
+            }
+
             #[allow(non_snake_case)]
             fn is_resolved(&self) -> bool {
                 let ($($name,)+) = self;
@@ -571,10 +767,40 @@ mod tests {
 
     use super::*;
 
+    #[derive(Default)]
+    struct RecordingHasher(Vec<u8>);
+
+    impl DeterministicHasher for RecordingHasher {
+        fn finish(&self) -> u64 {
+            0
+        }
+
+        fn write_bytes(&mut self, bytes: &[u8]) {
+            self.0.extend_from_slice(bytes);
+        }
+    }
+
+    fn recorded_hash(value: &impl TaskInput) -> Vec<u8> {
+        let mut hasher = RecordingHasher::default();
+        value.persistence_hash(&mut hasher);
+        hasher.0
+    }
+
     fn assert_task_input<T>(_: T)
     where
         T: TaskInput,
     {
+    }
+
+    fn assert_task_input_type<T: TaskInput>() {}
+
+    #[test]
+    fn test_no_variants() {
+        #[turbo_tasks::task_input]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        enum NoVariants {}
+
+        assert_task_input_type::<NoVariants>();
     }
 
     #[test]
@@ -628,10 +854,20 @@ mod tests {
             other: RcStr,
         }
 
-        assert_task_input(MultipleNamedFields {
+        let value = MultipleNamedFields {
             named: 42,
             other: rcstr!("42"),
-        });
+        };
+        assert_eq!(
+            recorded_hash(&value),
+            [
+                42u32.to_le_bytes().as_slice(),
+                2u64.to_le_bytes().as_slice(),
+                b"42"
+            ]
+            .concat()
+        );
+        assert_task_input(value);
         Ok(())
     }
 
@@ -683,6 +919,14 @@ mod tests {
 
     #[test]
     fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
+        assert_eq!(
+            recorded_hash(&MultipleVariantsAndHeterogeneousFields::Variant2(42)),
+            [1u32.to_le_bytes(), 42u32.to_le_bytes()].concat()
+        );
+        assert_ne!(
+            recorded_hash(&MultipleVariantsAndHeterogeneousFields::Variant1),
+            recorded_hash(&MultipleVariantsAndHeterogeneousFields::Variant2(0))
+        );
         assert_task_input(MultipleVariantsAndHeterogeneousFields::Variant5 {
             named: 42,
             other: rcstr!("42"),

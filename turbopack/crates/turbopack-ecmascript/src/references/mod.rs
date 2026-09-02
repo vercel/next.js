@@ -69,7 +69,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    TryJoinIterExt, Upcast, ValueToString, Vc, macro_helpers::persistence_hash_by_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -4308,6 +4309,10 @@ pub struct AstPath(
 );
 
 impl TaskInput for AstPath {
+    fn persistence_hash(&self, state: &mut dyn turbo_tasks::DeterministicHasher) {
+        persistence_hash_by_bincode(self, state);
+    }
+
     fn is_transient(&self) -> bool {
         false
     }
