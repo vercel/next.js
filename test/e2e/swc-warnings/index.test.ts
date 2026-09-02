@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 // Tests Babel, not needed for Turbopack
+// Deploy mode exclusion: This suite asserts warning output from the local
+// Next.js CLI, which is not available from a deployed runtime.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'swc warnings by default',
   () => {
