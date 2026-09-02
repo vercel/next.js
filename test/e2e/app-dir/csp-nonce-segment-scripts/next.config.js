@@ -6,6 +6,9 @@ const nextConfig = {
   // layouts and loading files would be prerendered into a static shell, which
   // has no nonce, so this test opts out.
   cacheComponents: false,
+  experimental: {
+    cachedNavigations: false,
+  },
 }
 
 module.exports = nextConfig
