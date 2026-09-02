@@ -447,7 +447,11 @@ export async function runUpgrade(
   runInstallation(packageManager, { cwd })
 
   for (const codemod of codemods) {
-    await runTransform(codemod, cwd, { force: true, verbose })
+    await runTransform(codemod, cwd, {
+      force: true,
+      verbose,
+      nonInteractive,
+    })
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional

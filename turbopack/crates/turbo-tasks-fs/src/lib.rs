@@ -10,6 +10,8 @@
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
+// `std::os::wasi::fs::symlink_path`, used to create symlinks on wasi, is still unstable.
+#![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
@@ -59,7 +61,10 @@ pub use crate::{
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
     null_fs::NullFileSystem,
-    path::{FileSystemPath, FileSystemPathOption, RealPathResult, RealPathResultError, rebase},
+    path::{
+        FileSystemPath, FileSystemPathOption, RealPathError, RealPathErrorType,
+        RealPathWithLinksResult, rebase,
+    },
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
@@ -120,9 +125,7 @@ impl DirectoryEntry {
             let real_path = match &result.path_result {
                 Ok(path) => path,
                 Err(error) => {
-                    return Ok(DirectoryEntry::Error(
-                        error.as_error_message(symlink, result).await?,
-                    ));
+                    return Ok(DirectoryEntry::Error(RcStr::from(error.to_string())));
                 }
             };
             Ok(match *real_path.get_type().await? {

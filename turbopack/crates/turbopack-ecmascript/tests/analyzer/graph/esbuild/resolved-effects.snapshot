@@ -142,11 +142,11 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-44 -> 47 call = (...) => {"pkg": pkg, "subpath": subpath}()
+44 -> 49 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
-44 -> 49 free var = FreeVar(require)
+44 -> 51 free var = FreeVar(require)
 
-44 -> 50 member call = require*0*["resolve"](
+44 -> 52 member call = require*0*["resolve"](
     `${(???*1* | undefined | ???*2* | "esbuild-linux-64")}/${(???*3* | "esbuild.exe" | "bin/esbuild" | ???*4*)}`
 )
 - *0* require: The require method from CommonJS
@@ -159,9 +159,9 @@
 - *4* unknown mutation
   ⚠️  This value might have side effects
 
-44 -> 51 free var = FreeVar(downloadedBinPath)
+44 -> 53 free var = FreeVar(downloadedBinPath)
 
-44 -> 52 call = ???*0*(
+44 -> 54 call = ???*0*(
     (???*1* | undefined | ???*2* | "esbuild-linux-64"),
     (???*3* | "esbuild.exe" | "bin/esbuild" | ???*4*)
 )
@@ -177,9 +177,9 @@
 - *4* unknown mutation
   ⚠️  This value might have side effects
 
-44 -> 54 free var = FreeVar(fs)
+44 -> 56 free var = FreeVar(fs)
 
-44 -> 55 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*8*))
+44 -> 57 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*8*))
 - *0* FreeVar(fs)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -206,7 +206,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-44 -> 56 conditional = !(???*0*)
+44 -> 58 conditional = !(???*0*)
 - *0* ???*1*["existsSync"](binPath)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
@@ -214,18 +214,18 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-56 -> 58 free var = FreeVar(require)
+58 -> 60 free var = FreeVar(require)
 
-56 -> 59 member call = require*0*["resolve"]((???*1* | undefined | ???*2* | "esbuild-linux-64"))
+58 -> 61 member call = require*0*["resolve"]((???*1* | undefined | ???*2* | "esbuild-linux-64"))
 - *0* require: The require method from CommonJS
 - *1* pkg
   ⚠️  pattern without value
 - *2* unknown mutation
   ⚠️  This value might have side effects
 
-56 -> 60 free var = FreeVar(Error)
+58 -> 62 free var = FreeVar(Error)
 
-56 -> 61 call = new ???*0*(
+58 -> 63 call = new ???*0*(
     `The package "${(???*1* | undefined | ???*2* | "esbuild-linux-64")}" could not be found, and is needed by esbuild.
 
 If you are installing esbuild with npm, make sure that you don't specify the
@@ -240,29 +240,29 @@ by esbuild to install the correct binary executable for your current platform.`
 - *2* unknown mutation
   ⚠️  This value might have side effects
 
-44 -> 62 free var = FreeVar(require)
+44 -> 64 free var = FreeVar(require)
 
-44 -> 63 call = require*0*("pnpapi")
+44 -> 65 call = require*0*("pnpapi")
 - *0* require: The require method from CommonJS
 
-44 -> 64 conditional = (false | true)
+44 -> 66 conditional = (false | true)
 
-64 -> 67 free var = FreeVar(require)
+66 -> 69 free var = FreeVar(require)
 
-64 -> 68 member call = require*0*["resolve"]("esbuild")
+66 -> 70 member call = require*0*["resolve"]("esbuild")
 - *0* require: The require method from CommonJS
 
-64 -> 69 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
+66 -> 71 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-64 -> 72 member call = path*0*["basename"]((???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*))
+66 -> 74 member call = path*0*["basename"]((???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*))
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* subpath
   ⚠️  pattern without value
 - *2* unknown mutation
   ⚠️  This value might have side effects
 
-64 -> 73 member call = path*0*["join"](
+66 -> 75 member call = path*0*["join"](
     "\"esbuild\"/resolved/lib",
     `pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
 )
@@ -283,9 +283,9 @@ by esbuild to install the correct binary executable for your current platform.`
 - *7* unknown mutation
   ⚠️  This value might have side effects
 
-64 -> 75 free var = FreeVar(fs)
+66 -> 77 free var = FreeVar(fs)
 
-64 -> 76 member call = ???*0*["existsSync"](
+66 -> 78 member call = ???*0*["existsSync"](
     `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
 )
 - *0* FreeVar(fs)
@@ -307,7 +307,7 @@ by esbuild to install the correct binary executable for your current platform.`
 - *7* unknown mutation
   ⚠️  This value might have side effects
 
-64 -> 77 conditional = !(???*0*)
+66 -> 79 conditional = !(???*0*)
 - *0* ???*1*["existsSync"](binTargetPath)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
@@ -315,9 +315,9 @@ by esbuild to install the correct binary executable for your current platform.`
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-77 -> 79 free var = FreeVar(fs)
+79 -> 81 free var = FreeVar(fs)
 
-77 -> 80 member call = ???*0*["copyFileSync"](
+79 -> 82 member call = ???*0*["copyFileSync"](
     (???*1* | ???*2* | ???*8*),
     `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*10* | undefined | ???*11* | "esbuild-linux-64")}-${???*12*}`
 )
@@ -364,9 +364,9 @@ by esbuild to install the correct binary executable for your current platform.`
 - *16* unknown mutation
   ⚠️  This value might have side effects
 
-77 -> 82 free var = FreeVar(fs)
+79 -> 84 free var = FreeVar(fs)
 
-77 -> 83 member call = ???*0*["chmodSync"](
+79 -> 85 member call = ???*0*["chmodSync"](
     `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`,
     493
 )
@@ -389,10 +389,10 @@ by esbuild to install the correct binary executable for your current platform.`
 - *7* unknown mutation
   ⚠️  This value might have side effects
 
-64 -> 84 unreachable = ???*0*
+66 -> 86 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-64 -> 85 unreachable = ???*0*
+66 -> 87 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

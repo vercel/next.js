@@ -2,7 +2,7 @@ name: PR CI Comment
 
 on:
   workflow_run:
-    workflows: ['build-and-test', 'Generate Stats']
+    workflows: ['build-and-test']
     types: [requested, completed]
 
 permissions:

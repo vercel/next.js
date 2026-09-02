@@ -16,11 +16,11 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 9 call = (...) => {"pkg": pkg, "subpath": subpath}()
+0 -> 11 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
-0 -> 11 free var = FreeVar(require)
+0 -> 13 free var = FreeVar(require)
 
-0 -> 12 member call = require*0*["resolve"](
+0 -> 14 member call = require*0*["resolve"](
     `${(???*1* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*2* | ???*4*)}/${(???*5* | "esbuild.exe" | ???*6*)}`
 )
 - *0* require: The require method from CommonJS
@@ -39,6 +39,6 @@
 - *6* unknown mutation
   ⚠️  This value might have side effects
 
-0 -> 13 unreachable = ???*0*
+0 -> 15 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

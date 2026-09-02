@@ -3209,10 +3209,16 @@ function writeServerResponseIntoCache(
         ? now + getStaleTimeMs(navigationSeed.headStaleTimeSeconds)
         : staleAt
 
+    // A head has no loading boundary. Match pingRuntimeHead, which spawns
+    // LoadingBoundary head entries using the concrete Full strategy.
+    const headFetchStrategy =
+      fetchStrategy === FetchStrategy.LoadingBoundary
+        ? FetchStrategy.Full
+        : fetchStrategy
     const writtenHeadEntry = writeSegmentDataIntoCache(
       now,
       map,
-      fetchStrategy,
+      headFetchStrategy,
       head,
       // The decode already resolved the head's partiality from the wire
       // form and the response-level value — see the head read in

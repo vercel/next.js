@@ -13,7 +13,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
+    references::{AstPath, esm::mangle::mangled_export_names},
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -44,18 +44,48 @@ impl ExportsInfoBinding {
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let export_usage_info = export_usage_info.export_usage.await?;
+        // The keys of `__webpack_exports_info__` stay the *original* export names — user code
+        // looks them up by name. The emitted key is reported as `mangledName` instead, which is
+        // always present alongside `canMangle` (`null` when `canMangle` is false), regardless of
+        // whether export mangling is enabled at all — see the `map` closure below for exactly
+        // what each of the three fields means.
+        let exports = exports.await?;
+        let mangled_names = mangled_export_names(*module, chunking_context).await?;
 
-        let props = if let EcmascriptExports::EsmExports(exports) = &*exports.await? {
+        let props = if let EcmascriptExports::EsmExports(exports) = &*exports {
             exports
                 .await?
                 .exports
                 .keys()
                 .map(|e| {
-                    let used: Expr = export_usage_info.is_export_used(e).into();
+                    let is_used = export_usage_info.is_export_used(e);
+                    let used: Expr = is_used.into();
+                    // `canMangle` is true exactly when this export is a genuine candidate for
+                    // mangling: the module has to be eligible at all (which is what a `Some` map
+                    // means — see `mangled_export_names`) and the export itself has to be used, as
+                    // an unused export is never emitted and so was never a candidate.
+                    // `mangledName` is then always a string — the assigned key when mangling
+                    // actually renamed it, or the export's own name when it was considered but
+                    // kept itself (e.g. already short enough) — and only `null` when `canMangle`
+                    // is false.
+                    let can_mangle_names = mangled_names.as_ref().filter(|_| is_used);
+                    let can_mangle_expr: Expr = can_mangle_names.is_some().into();
+                    let mangled_name: Expr =
+                        match can_mangle_names {
+                            Some(names) => Expr::Lit(names.get(e).unwrap_or(e).as_str().into()),
+                            None => Expr::Lit(swc_core::ecma::ast::Lit::Null(
+                                swc_core::ecma::ast::Null { span: DUMMY_SP },
+                            )),
+                        };
                     PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
                         KeyValueProp {
                             key: PropName::Str(e.as_str().into()),
-                            value: quote!("{ used: $v }" as Box<Expr>, v: Expr = used),
+                            value: quote!(
+                                "{ used: $v, canMangle: $c, mangledName: $m }" as Box<Expr>,
+                                v: Expr = used,
+                                c: Expr = can_mangle_expr,
+                                m: Expr = mangled_name
+                            ),
                         },
                     )))
                 })

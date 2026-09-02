@@ -20,7 +20,9 @@ pub mod evaluate;
 pub mod execution_context;
 mod format;
 mod pool_stats;
-#[cfg(feature = "process_pool")]
+// The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
+// wasi, so `process_pool` is inert on wasm and `worker_pool` is the only available backend there.
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 pub mod process_pool;
 pub mod source_map;
 pub mod transforms;
@@ -28,7 +30,7 @@ pub mod transforms;
 pub mod worker_pool;
 
 pub use backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend};
-#[cfg(feature = "process_pool")]
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(process_pool::ChildProcessesBackend.cell())
 }

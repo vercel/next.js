@@ -354,6 +354,46 @@
             ),
         ],
     },
+    DestructuredMember {
+        obj: Call(
+            2,
+            Variable(
+                (
+                    "pkgAndSubpathForCurrentPlatform",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "pkg",
+                ),
+            ),
+        ),
+        span: 426..429,
+    },
+    DestructuredMember {
+        obj: Call(
+            2,
+            Variable(
+                (
+                    "pkgAndSubpathForCurrentPlatform",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "subpath",
+                ),
+            ),
+        ),
+        span: 431..438,
+    },
     Call {
         func: Variable(
             (

@@ -2,6 +2,8 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+mod util;
+
 use std::sync::{
     Arc,
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -9,62 +11,10 @@ use std::sync::{
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
-use turbo_tasks_backend::{
-    BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, TurboTasksBackend,
+    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 
-/// Creates a fresh per-call persistence directory in the OS temp dir, with the test `name` as a
-/// prefix so a leaked directory from a failed run is identifiable. The unique suffix from
-/// `tempfile` lets repeated or concurrent runs coexist without trampling each other's database.
-///
-/// The returned [`tempfile::TempDir`] cleans up its contents on drop, so callers should keep it
-/// alive at least until the `TurboTasks` it backs has finished shutting down (so the final snapshot
-/// can flush to disk).
-fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
-    tempfile::Builder::new()
-        .prefix(&format!("{name}-"))
-        .tempdir()
-        .unwrap()
-}
-
-fn create_tt_with_workers(
-    name: &str,
-    num_workers: usize,
-) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    let dir = create_test_persistence_dir(name);
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            num_workers: Some(num_workers),
-            small_preallocation: true,
-            // Avoid racing with the background snapshot loop; the test drives
-            // snapshot_and_evict_for_testing manually.
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            eviction_mode: EvictionMode::Full,
-            ..Default::default()
-        },
-        turbo_tasks_backend::turbo_backing_storage(
-            dir.path(),
-            &GitVersionInfo {
-                describe: "test-unversioned",
-                dirty: false,
-            },
-            BackingStorageOptions {
-                is_short_session: true,
-                skip_compaction: true,
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .0,
-    ));
-    (tt, dir)
-}
-
-fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    create_tt_with_workers(name, 2)
-}
+use crate::util::{create_tt, create_tt_with_workers};
 
 /// Verify that after eviction, task re-execution produces correct results.
 /// This tests the snapshot → evict → invalidate → restore → re-execute cycle.

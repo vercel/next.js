@@ -381,12 +381,12 @@ jobs:
       fail-fast: false
       matrix:
         mode:
-          - '--turbopack=false'
-          - '--turbopack=true'
+          - '-F turbopack=false'
+          - '-F turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev --page=homepage'
-          - '--scenario=heavy-npm-deps-build --page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
+          - '--scenario=heavy-npm-deps-dev -F page=homepage'
+          - '--scenario=heavy-npm-deps-build -F page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled -F page=homepage'
     permissions:
       contents: read
       id-token: write
@@ -747,9 +747,7 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -776,9 +774,7 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -814,9 +810,7 @@ jobs:
     needs: ['optimize-ci', 'changes']
     # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
     # resolves its deploy target to `skipped` and never publishes a tarball.
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
-    # test-new-tests-end-if
     runs-on: ubuntu-latest
     # Outer bound only. The script gives up first, so a tarball that never
     # arrives is reported by it rather than by the runner killing the job.
@@ -850,9 +844,7 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -883,9 +875,7 @@ jobs:
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -1030,7 +1020,8 @@ jobs:
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/metadata-edge/index.test.ts \
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
-          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/e2e/incremental-cache-path-traversal/index.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit

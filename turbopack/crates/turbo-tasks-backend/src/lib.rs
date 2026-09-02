@@ -1,5 +1,5 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 
 mod backend;
 mod backing_storage;

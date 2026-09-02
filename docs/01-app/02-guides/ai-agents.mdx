@@ -222,11 +222,11 @@ Make the navigation from /settings to /dashboard instant using the next-cache-co
 
 The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
-1. Audits the existing `<Link prefetch={true}>` calls with you.
-2. Turns the flag on and resolves the insights it surfaces.
-3. Marks the routes whose URL data might be worth prefetching later.
+1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
+2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
+3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
 
-It needs [Cache Components](/docs/app/getting-started/caching) already adopted.
+It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption

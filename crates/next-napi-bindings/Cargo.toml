@@ -81,13 +81,21 @@ swc_core = { workspace = true, features = [
     "ecma_transforms_typescript",
     "ecma_utils",
     "ecma_visit",
+] }
+
+# Dependencies for the native, non-wasm32 build.
+#
+# SWC's plugin host is native-only: `__plugin_transform_host` turns on `swc/plugin`, which pulls in
+# the plugin runner and compiles SWC's `target_arch = "wasm32"` plugin path, and SWC does not support
+# running wasm plugins from inside wasm (https://github.com/swc-project/swc/issues/3934).
+# `plugin_transform_host_native_filesystem_cache` is a native filesystem cache and cannot apply there
+# either.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+swc_core = { workspace = true, features = [
     "__plugin_transform_host",
     "__plugin_transform_host_schema_v1",
     "plugin_transform_host_native_filesystem_cache",
 ] }
-
-# Dependencies for the native, non-wasm32 build.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 swc_ecma_react_compiler = { workspace = true }
 turbopack-lightningcss-napi = { workspace = true }
 lightningcss = { workspace = true }

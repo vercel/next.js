@@ -533,6 +533,11 @@ export interface ExperimentalConfig {
    */
   cachedNavigations?: boolean
   dynamicOnHover?: boolean
+  /**
+   * Uses ReactDOM's browser rendering primitive for supported client-rendering
+   * bailouts instead of Next.js' internal bailout error.
+   */
+  reactBrowserBailout?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
   /**
@@ -959,6 +964,12 @@ export interface ExperimentalConfig {
   turbopackSeedCacheFromWorktree?: boolean
 
   /**
+   * The maximum age, in milliseconds, of Turbopack development output kept
+   * between dev server sessions. Defaults to one week.
+   */
+  turbopackStaleOutputMaxAge?: number
+
+  /**
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
@@ -999,6 +1010,16 @@ export interface ExperimentalConfig {
    * Defaults to `false`
    */
   turbopackCjsTreeShaking?: boolean
+
+  /**
+   * Shorten ("mangle") the export names modules expose to each other in Turbopack, to reduce
+   * bundle size. Only affects the keys used to link modules together: a module whose export names
+   * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
+   * CommonJS `require()`) keeps its original names.
+   *
+   * Defaults to `false`
+   */
+  turbopackMangleExportNames?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -1392,6 +1413,21 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
+
+  /**
+   * Only includes `children` in a parallel route layout when an ordinary route
+   * branch declares content for it. Set this to `false` to temporarily restore
+   * the legacy implicit `children` slot.
+   */
+  explicitParallelRouteChildren?: boolean
+
+  /**
+   * Omits catch-all-derived App Router matchers that cannot construct a
+   * complete parallel route tree for their URL. This requires
+   * `explicitParallelRouteChildren`; setting that option to `false` also
+   * disables strict route matching.
+   */
+  strictRouteMatching?: boolean
 
   /**
    * @experimental Use the Rust port of the React compiler (Turbopack only).
@@ -2256,6 +2292,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
+    reactBrowserBailout: false,
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
@@ -2330,6 +2367,8 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
+    explicitParallelRouteChildren: true,
+    strictRouteMatching: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,
@@ -2338,9 +2377,14 @@ export const defaultConfig = Object.freeze({
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
+    turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     turbopackSharedRuntime: !isStableBuild(),
+    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
+    // default from the build mode (on for production builds, off in development) — see
+    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
+    turbopackMangleExportNames: isStableBuild() ? false : undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -2415,7 +2459,9 @@ export interface NextConfigRuntime {
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
+    | 'reactBrowserBailout'
     | 'useCacheTimeout'
+    | 'durableUseCacheEntries'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
@@ -2482,7 +2528,9 @@ export function getNextConfigRuntime(
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
+    reactBrowserBailout: ex.reactBrowserBailout,
     useCacheTimeout: ex.useCacheTimeout,
+    durableUseCacheEntries: ex.durableUseCacheEntries,
     clientTraceMetadata: ex.clientTraceMetadata,
     clientParamParsingOrigins: ex.clientParamParsingOrigins,
     allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,

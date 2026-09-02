@@ -151,6 +151,12 @@ pub enum Effect<'a> {
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
+    /// A property access created by an object destructuring pattern.
+    DestructuredMember {
+        obj: BumpBox<'a, JsValue<'a>>,
+        prop: BumpBox<'a, JsValue<'a>>,
+        span: Span,
+    },
     /// A `x in y` expression.
     In {
         left: BumpBox<'a, JsValue<'a>>,
@@ -232,6 +238,10 @@ impl<'a> Effect<'a> {
                 }
             }
             Effect::Member { obj, prop, .. } => {
+                obj.normalize(arena);
+                prop.normalize(arena);
+            }
+            Effect::DestructuredMember { obj, prop, .. } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
             }

@@ -482,6 +482,22 @@ impl DiskFileSystem {
         &self.inner.root
     }
 
+    #[cfg(debug_assertions)]
+    async fn ensure_path_is_realpath(&self, operation: &str, path: &Path) -> Result<()> {
+        if let Ok(realpath) = retry_blocking(|| fs_err::canonicalize(path))
+            .instrument(tracing::info_span!("realpath for filesystem read", name = ?path))
+            .concurrency_limited(&self.inner.read_semaphore)
+            .await
+            && realpath != path
+        {
+            anyhow::bail!(
+                "{operation} called with unresolved path {path:?}; resolve it to {realpath:?} \
+                 first"
+            );
+        }
+        Ok(())
+    }
+
     pub fn invalidate(&self) {
         self.inner.invalidate();
     }
@@ -797,7 +813,12 @@ impl FileSystem for DiskFileSystem {
             .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
-            Ok(file) => FileContent::new(file),
+            Ok(file) => {
+                #[cfg(debug_assertions)]
+                self.ensure_path_is_realpath("read_file", &full_path)
+                    .await?;
+                FileContent::new(file)
+            }
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
             }
@@ -823,7 +844,11 @@ impl FileSystem for DiskFileSystem {
             .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
-            Ok(dir) => dir,
+            Ok(dir) => {
+                #[cfg(debug_assertions)]
+                self.ensure_path_is_realpath("read_dir", &full_path).await?;
+                dir
+            }
             Err(e)
                 if e.kind() == ErrorKind::NotFound
                     || e.kind() == ErrorKind::NotADirectory
@@ -1445,8 +1470,10 @@ impl FileSystem for DiskFileSystem {
                         })?;
                         has_old_content = false;
                     }
-                    #[cfg(not(windows))]
+                    #[cfg(all(not(windows), not(target_os = "wasi")))]
                     let io_result = std::os::unix::fs::symlink(&target, &**full_path);
+                    #[cfg(target_os = "wasi")]
+                    let io_result = std::os::wasi::fs::symlink_path(&target, &**full_path);
                     #[cfg(windows)]
                     let io_result = if is_directory {
                         std::os::windows::fs::junction_point(&target, &**full_path)
@@ -1717,10 +1744,12 @@ mod tests {
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use super::extract_effects_operation;
+        #[cfg(all(unix, debug_assertions))]
+        use crate::{DirectoryContent, FileContent, RawDirectoryContent};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
-            LinkTarget, RealPathResultError, WriteLinkContent, WriteLinkTarget,
-            WriteLinkTargetType, canonicalize_to_rcstr,
+            LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+            canonicalize_to_rcstr,
         };
 
         #[turbo_tasks::function(operation, root)]
@@ -1863,8 +1892,89 @@ mod tests {
             Ok(())
         }
 
+        #[cfg(all(unix, debug_assertions))]
+        #[turbo_tasks::function(operation, root)]
+        async fn assert_read_realpath_operation(root_path: FileSystemPath) -> anyhow::Result<()> {
+            let unresolved_dir = root_path.join("alias/child")?;
+            let resolved_dir = unresolved_dir
+                .realpath()
+                .await?
+                .expect("the linked directory should resolve");
+
+            assert_ne!(unresolved_dir, resolved_dir);
+            let error = unresolved_dir
+                .read_dir()
+                .await
+                .expect_err("a directory read through a symlinked parent must be rejected");
+            let message = format!("{error:#}");
+            assert!(message.contains("alias/child"));
+            assert!(message.contains("real/child"));
+            assert!(matches!(
+                &*resolved_dir.read_dir().await?,
+                DirectoryContent::Entries(entries) if entries.contains_key(&rcstr!("data.txt"))
+            ));
+
+            assert!(matches!(
+                &*root_path.join("file-alias")?.raw_read_dir().await?,
+                RawDirectoryContent::NotFound
+            ));
+
+            let unresolved_file = unresolved_dir.join("data.txt")?;
+            let resolved_file = unresolved_file
+                .realpath()
+                .await?
+                .expect("the linked file should resolve");
+            assert_ne!(unresolved_file, resolved_file);
+            let error = unresolved_file
+                .read()
+                .await
+                .expect_err("a file read through a symlinked parent must be rejected");
+            let message = format!("{error:#}");
+            assert!(message.contains("alias/child/data.txt"));
+            assert!(message.contains("real/child/data.txt"));
+            assert!(matches!(
+                &*resolved_file.read().await?,
+                FileContent::Content(_)
+            ));
+
+            Ok(())
+        }
+
+        #[cfg(all(unix, debug_assertions))]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_reads_require_realpath() {
+            use std::os::unix::fs::symlink;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+            create_dir_all(path.join("real/child")).unwrap();
+            File::create_new(path.join("real/child/data.txt")).unwrap();
+            symlink("real", path.join("alias")).unwrap();
+            symlink("real/child/data.txt", path.join("file-alias")).unwrap();
+
+            let root = canonicalize_to_rcstr(&path).unwrap();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root(fs);
+                assert_read_realpath_operation(root_path)
+                    .read_strongly_consistent()
+                    .await?;
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+
         /// `read_link` never looks at the target, so a dangling link still reads back as a valid
-        /// [`LinkContent::Link`]. Resolving it is what discovers the target is missing.
+        /// [`LinkContent::Link`]. Resolving it reports the missing target.
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_dangling_symlink() {
@@ -1873,8 +1983,10 @@ mod tests {
             let scratch = tempfile::tempdir().unwrap();
             let path = scratch.path().to_owned();
             create_dir_all(path.join("sub")).unwrap();
+            create_dir_all(path.join("target-dir")).unwrap();
             symlink("missing.txt", path.join("sub/link-dangling")).unwrap();
             symlink("link-dangling", path.join("sub/link-chain")).unwrap();
+            symlink("../target-dir", path.join("sub/link-dir")).unwrap();
 
             let root = canonicalize_to_rcstr(&path).unwrap();
 
@@ -1899,44 +2011,97 @@ mod tests {
                 );
                 assert_eq!(target.target_type().await?, FileSystemEntryType::NotFound,);
 
-                // `realpath` follows the link, so it must report the missing target rather than
-                // succeeding with a path that doesn't exist.
+                // `realpath` follows the link and reports the missing target.
                 let result = link_path.realpath_with_links().await?;
-                assert!(
-                    matches!(
-                        &result.path_result,
-                        Err(RealPathResultError::Invalid { reason })
-                            if reason == "a symlink target does not exist"
-                    ),
-                    "realpath must report the missing target as an invalid chain: {:?}",
-                    result.path_result
-                );
-                let error = result.path_result.as_ref().unwrap_err();
-                let message = error.as_error_message(&link_path, &result).await?;
-                assert!(
-                    message.contains("could not be resolved: a symlink target does not exist"),
-                    "unexpected error message: {message}"
-                );
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
-                // The same missing target after another link is still an invalid chain, never a
-                // missing initial link.
+                // The same missing target after another link is also reported as not found.
                 let chain_path = root_path.join("sub/link-chain")?;
                 let result = chain_path.realpath_with_links().await?;
-                assert!(
-                    matches!(
-                        &result.path_result,
-                        Err(RealPathResultError::Invalid { reason })
-                            if reason == "a symlink target does not exist"
-                    ),
-                    "realpath must report a missing target later in a chain as invalid: {:?}",
-                    result.path_result
-                );
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
 
-                // Resolving a path that simply doesn't exist is not an error, though: there is no
-                // link involved, so it resolves to itself.
+                // A missing path beneath a resolved directory link is reported as not found.
+                let missing_in_linked_dir = root_path.join("sub/link-dir/package.json")?;
+                let result = missing_in_linked_dir.realpath_with_links().await?;
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
+
+                // A path that simply doesn't exist is also reported as not found.
                 let missing = root_path.join("sub/missing.txt")?;
                 let result = missing.realpath_with_links().await?;
-                assert_eq!(result.path_result, Ok(missing));
+                assert!(matches!(
+                    result.path_result.as_ref().unwrap_err().kind(),
+                    RealPathErrorType::NotFound
+                ));
+
+                Ok(())
+            }
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+
+                assert_operation(fs, disk_file_system_root(fs))
+                    .read_strongly_consistent()
+                    .await?;
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
+
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_link_target_resolved_type_through_chain() {
+            use std::os::unix::fs::symlink;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+            create_dir_all(path.join("target-dir")).unwrap();
+            File::create_new(path.join("target-file")).unwrap();
+            symlink("target-dir", path.join("dir-inner")).unwrap();
+            symlink("dir-inner", path.join("dir-outer")).unwrap();
+            symlink("target-file", path.join("file-inner")).unwrap();
+            symlink("file-inner", path.join("file-outer")).unwrap();
+            symlink("../outside", path.join("invalid-inner")).unwrap();
+            symlink("invalid-inner", path.join("invalid-outer")).unwrap();
+
+            let root = canonicalize_to_rcstr(&path).unwrap();
+
+            #[turbo_tasks::function(operation, root)]
+            async fn assert_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+                root_path: FileSystemPath,
+            ) -> anyhow::Result<()> {
+                for (input_path, expected_output) in [
+                    ("dir-outer", FileSystemEntryType::Directory),
+                    ("file-outer", FileSystemEntryType::File),
+                    ("invalid-outer", FileSystemEntryType::Error),
+                ] {
+                    let link = fs.read_link(root_path.join(input_path)?).await?;
+                    let LinkContent::Link { target } = &*link else {
+                        anyhow::bail!("expected a valid link, got {link:?}");
+                    };
+                    assert_eq!(target.resolved_type().await?, expected_output);
+                }
 
                 Ok(())
             }

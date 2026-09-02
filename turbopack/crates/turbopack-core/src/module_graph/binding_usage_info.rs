@@ -23,6 +23,18 @@ pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsa
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+/// Modules that are read through a *partial namespace object* — an
+/// [`ExportUsage::PartialNamespaceObject`] edge points at them.
+///
+/// The used export names are still known individually (that is why the usage stays
+/// [`ModuleExportUsageInfo::Exports`]), but the reads went through a namespace value: a namespace
+/// binding's member reads or destructuring, or the object a dynamic `import()` resolves to. Some of
+/// those reads are lowered to direct named accesses and some are not, and this set does not
+/// distinguish them — so a consumer that wants to rename the module's export keys has to assume the
+/// original names may still be read somewhere, and leave them alone.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -32,6 +44,7 @@ pub struct BindingUsageInfo {
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
+    partial_namespace_modules: ResolvedVc<PartialNamespaceModules>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -42,6 +55,9 @@ pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
     // Whether this module exists in an import cycle and has been selected to break the cycle.
     pub is_circuit_breaker: bool,
+    /// Whether this module is read through a namespace value somewhere, which means one of those
+    /// reads may still use an original export name. See [`PartialNamespaceModules`].
+    pub namespace_object_may_escape: bool,
 }
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
@@ -50,6 +66,7 @@ impl ModuleExportUsage {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
+            namespace_object_may_escape: true,
         }
         .cell())
     }
@@ -78,9 +95,12 @@ impl BindingUsageInfo {
 
             bail!("export usage not found for module: {ident:?}");
         };
+        let namespace_object_may_escape =
+            self.partial_namespace_modules.contains_key(&module).await?;
         Ok(ModuleExportUsage {
             export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
+            namespace_object_may_escape,
         }
         .cell())
     }
@@ -108,6 +128,7 @@ pub async fn compute_binding_usage_info(
 
     async move {
         let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
+        let mut partial_namespace_modules = FxHashSet::default();
         #[cfg(debug_assertions)]
         let mut debug_unused_references_name = FxHashSet::<(
             ResolvedVc<Box<dyn Module>>,
@@ -150,7 +171,7 @@ pub async fn compute_binding_usage_info(
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
             &mut (),
-            |parent, target, _| {
+            |parent, target, _, _| {
                 // Entries are always used
                 let Some((parent, ref_data, edge)) = parent else {
                     used_exports.insert(target, ModuleExportUsageInfo::All);
@@ -246,6 +267,14 @@ pub async fn compute_binding_usage_info(
 
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
+                if matches!(
+                    &ref_data.binding_usage.export,
+                    ExportUsage::PartialNamespaceObject(_)
+                ) {
+                    // `target` is read through a namespace value. We know which names are used, but
+                    // not that every read of them was lowered to a direct named access.
+                    partial_namespace_modules.insert(target);
+                }
                 if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get
                     // used downstream.
@@ -336,6 +365,7 @@ pub async fn compute_binding_usage_info(
             unused_references_edges,
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
+            partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
         }
         .cell())
     }

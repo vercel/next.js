@@ -179,6 +179,7 @@ pub async fn compute_ecmascript_module_exports(
                 let esm_exports = EsmExports {
                     exports: esm_exports,
                     star_exports: esm_star_exports,
+                    mangle_export_names: options.mangle_export_names,
                 }
                 .cell();
 
@@ -199,6 +200,7 @@ pub async fn compute_ecmascript_module_exports(
                             EsmExports {
                                 exports: Default::default(),
                                 star_exports: Default::default(),
+                                mangle_export_names: options.mangle_export_names,
                             }
                             .resolved_cell(),
                         )
@@ -210,6 +212,7 @@ pub async fn compute_ecmascript_module_exports(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
+                            mangle_export_names: options.mangle_export_names,
                         }
                         .resolved_cell(),
                     ),
@@ -224,6 +227,7 @@ pub async fn compute_ecmascript_module_exports(
                             EsmExports {
                                 exports: Default::default(),
                                 star_exports: Default::default(),
+                                mangle_export_names: options.mangle_export_names,
                             }
                             .resolved_cell(),
                         )

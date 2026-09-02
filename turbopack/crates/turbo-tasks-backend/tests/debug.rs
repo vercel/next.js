@@ -1,3 +1,5 @@
+// `ValueDebug` only carries `dbg()` under `debug_assertions`
+#![cfg(debug_assertions)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this

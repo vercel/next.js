@@ -226,6 +226,7 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
+  reactBrowserBailout: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   concurrentRouterQueue: z.boolean().optional(),
@@ -390,6 +391,7 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
+  turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
@@ -421,6 +423,7 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackMangleExportNames: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -473,6 +476,8 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  explicitParallelRouteChildren: z.boolean().optional(),
+  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([

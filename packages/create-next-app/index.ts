@@ -51,6 +51,7 @@ const program = new Command(packageJson.name)
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
+  .option('--cache-components', 'Initialize with Cache Components enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
@@ -245,6 +246,7 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
+      cacheComponents: false,
       agentsMd: true,
     }
 
@@ -284,6 +286,11 @@ async function run(): Promise<void> {
         key: 'app',
         values: { true: 'App Router', false: 'Pages Router' },
         flags: { true: '--app', false: '--no-app' },
+      },
+      {
+        key: 'cacheComponents',
+        values: { true: 'Cache Components', false: 'No Cache Components' },
+        flags: { true: '--cache-components', false: '--no-cache-components' },
       },
       {
         key: 'agentsMd',
@@ -582,6 +589,32 @@ async function run(): Promise<void> {
       }
     }
 
+    // Cache Components is an App Router feature, so only offer it when the App
+    // Router is in use.
+    if (
+      opts.app &&
+      !opts.api &&
+      !opts.cacheComponents &&
+      !args.includes('--no-cache-components')
+    ) {
+      if (skipPrompt) {
+        opts.cacheComponents = getPrefOrDefault('cacheComponents')
+      } else {
+        const styledCacheComponents = blue('Cache Components')
+        const { cacheComponents } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'cacheComponents',
+          message: `Would you like to use ${styledCacheComponents}?`,
+          initial: getPrefOrDefault('cacheComponents'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.cacheComponents = Boolean(cacheComponents)
+        preferences.cacheComponents = Boolean(cacheComponents)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof opts.importAlias !== 'string' ||
@@ -725,6 +758,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
     })
   } catch (reason) {
@@ -760,6 +794,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
     })
   }

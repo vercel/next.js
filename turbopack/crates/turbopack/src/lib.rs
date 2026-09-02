@@ -255,6 +255,7 @@ async fn apply_module_type(
             ty,
             environment,
             lightningcss_features,
+            module_css_debuggable_idents,
         } => ResolvedVc::upcast(
             CssModule::new(
                 *source,
@@ -263,6 +264,7 @@ async fn apply_module_type(
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
                 *lightningcss_features,
+                *module_css_debuggable_idents,
             )
             .to_resolved()
             .await?,

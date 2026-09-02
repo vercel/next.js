@@ -122,12 +122,14 @@ The hashes are sorted.
 
 A Key block contains n keys, which specify n key value pairs.
 
-The block type determines whether the key hash is stored per entry:
+The block type determines whether the key hash is stored per entry, and with it the order the
+entries are stored in:
 
-- Block type 1 (with hash): Full 8-byte hash stored per entry
-- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes)
+- Block type 1 (with hash): Full 8-byte hash stored per entry. Entries are sorted by
+  `(key hash, key)`.
+- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes). Entries are sorted by **key**.
 
-During lookup, if block type is 2, the full hash is recomputed from the key data.
+See [Entry ordering](#entry-ordering) for why the two differ.
 
 Depending on the `type` field entry has a different format:
 
@@ -167,7 +169,13 @@ Depending on the `type` field entry has a different format:
 Both ranged kinds are open-ended, so a decoder must test the key-value tombstone range **before**
 the inline range.
 
-The entries are sorted by key hash and key.
+##### Entry ordering
+
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a single key block, however, the order is chosen per block type:
+
+- **With hash (types 1 and 3):** sorted by `(key hash, key)`.
+- **No hash (types 2 and 4):** sorted by **key** alone.
+
 
 ##### Key-value tombstones
 
@@ -236,10 +244,11 @@ Reading start from the current sequence number and goes downwards.
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
-    - Index Block: find key range that contains the key by binary search
+    - Index Block: find key range that contains the key by binary search using the **hash** of the key
       - found -> set block, continue
       - not found -> break
-    - Key Block: find key by binary search
+    - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
+      the key alone in blocks that do not (see [Entry ordering](#entry-ordering))
       - found -> lookup value from value block, return
           - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break

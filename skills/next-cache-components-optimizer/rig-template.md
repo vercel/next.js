@@ -39,7 +39,10 @@ build/run obstacles, accumulated as you first hit them).
    and never for real production? Spellings: an explicit
    `EXPOSE_TESTING_API=1` for local production builds; `process.env.DEPLOY_ENV
 === 'staging'` for a generic CI/staging env var; `process.env.VERCEL_ENV ===
-'preview'` on Vercel.
+'preview'` on Vercel. Set the condition during `next build`, not only
+   `next start`. Otherwise `instant()` may not acquire the testing cookie
+   before the test times out; rebuild the artifact before debugging the
+   assertion.
 3. **RUN**: how is the Playwright suite invoked, and against which
    `BASE_URL`?
 4. **TEST USER**: which account does the suite run as, and how does login
@@ -64,7 +67,10 @@ build/run obstacles, accumulated as you first hit them).
    chosen mechanism. For a local `build && start` rig the artifact is the one
    freshly built, so no SHA probe is needed. Record the port, stop the previous
    server before starting, fail the loop on `EADDRINUSE`, and verify the newly
-   started process owns the port before running the test.
+   started process owns the port before running the test. `next start` can fork
+   a `next-server` child, so the launcher process ID may not own the port. Start
+   the server in a process group that the rig can stop as a unit, or discover
+   and stop the process listening on the recorded port before the next build.
 
 ## The file: copy, fill, commit as `instant-nav.rig.md`
 

@@ -100,9 +100,14 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         ),
-        Route::AppRoute { original_name, .. } => RouteOperation::AppRoute {
+        Route::AppRoute {
+            original_name,
+            has_action_manifest,
+            ..
+        } => RouteOperation::AppRoute {
             original_name: original_name.clone(),
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+            has_action_manifest: *has_action_manifest,
         },
         Route::Conflict => RouteOperation::Conflict,
     }
@@ -220,6 +225,7 @@ pub enum RouteOperation {
     AppRoute {
         original_name: RcStr,
         endpoint: OperationVc<OptionEndpoint>,
+        has_action_manifest: bool,
     },
     Conflict,
 }

@@ -1,5 +1,5 @@
 import isAnimated from 'next/dist/compiled/is-animated'
-import { optimizeImage } from '../../../../server/image-optimizer'
+import { optimizeImage } from '../../../../server/image-optimizer/transform'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70

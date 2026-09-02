@@ -21,9 +21,14 @@ import {
   type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
 import { MIN_PRERENDERABLE_EXPIRE } from '../../use-cache/constants'
+import {
+  streamFromBuffer,
+  streamToBuffer,
+} from '../../stream-utils/node-web-streams-helper'
 
 type PrivateCacheEntry = {
-  entry: CacheEntry
+  entry: Omit<CacheEntry, 'value'>
+  value: Buffer
 
   // For the default cache we store errored cache
   // entries and allow them to be used up to 3 times
@@ -131,9 +136,6 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
         revalidate = -1
       }
 
-      const [returnStream, newSaved] = entry.value.tee()
-      entry.value = newSaved
-
       debug?.('get', cacheKey, 'found', {
         tags: entry.tags,
         timestamp: entry.timestamp,
@@ -144,7 +146,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       return {
         ...entry,
         revalidate,
-        value: returnStream,
+        value: streamFromBuffer(privateEntry.value),
       }
     },
 
@@ -159,8 +161,6 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
       const entry = await pendingEntry
 
-      let size = 0
-
       try {
         // In production an `expire: 0` entry is dynamic: the "use cache"
         // wrapper regenerates it on every read instead of serving the stored
@@ -174,19 +174,15 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
           return
         }
 
-        const [value, clonedValue] = entry.value.tee()
-        entry.value = value
-        const reader = clonedValue.getReader()
-
-        for (let chunk; !(chunk = await reader.read()).done; ) {
-          size += Buffer.from(chunk.value).byteLength
-        }
+        const value = await streamToBuffer(entry.value)
+        const { value: _, ...entryMetadata } = entry
 
         memoryCache.set(cacheKey, {
-          entry,
+          entry: entryMetadata,
+          value,
           isErrored: false,
           errorRetryCount: 0,
-          size,
+          size: value.byteLength,
         })
 
         debug?.('set', cacheKey, 'done')

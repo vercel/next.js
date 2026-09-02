@@ -373,6 +373,8 @@ async fn collect_chunk_groups(
         let mut items_in_postorder = FxIndexSet::default();
         batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
+            // TODO this would be wrong with emitted CSS modules
+            None,
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
