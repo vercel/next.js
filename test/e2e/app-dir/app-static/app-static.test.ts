@@ -3563,11 +3563,19 @@ describe('app-dir static/dynamic handling', () => {
 
       let data: any
       let startedStreaming: number = -1
-      res.body.on('data', () => {
-        if (startedStreaming === -1) {
-          startedStreaming = Date.now()
-        }
-      })
+      // Tee the body so the first chunk can be observed while the response
+      // is still read below. A ReadableStream only supports a single
+      // consumer, unlike the Node.js streams node-fetch exposed.
+      const timingBody = res.clone().body
+      if (timingBody) {
+        ;(async () => {
+          for await (const _chunk of timingBody) {
+            if (startedStreaming === -1) {
+              startedStreaming = Date.now()
+            }
+          }
+        })().catch(() => {})
+      }
       if (res.headers.get('content-type').includes('application/json')) {
         data = await res.json()
       } else {

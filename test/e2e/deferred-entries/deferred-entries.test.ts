@@ -2,7 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
-import { Response } from 'node-fetch'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 

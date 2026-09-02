@@ -293,7 +293,7 @@ function runTests(dev = false) {
 }
 
 async function waitForAppToStartRefusingConnections(
-  sendRequest: () => Promise<import('node-fetch').Response>,
+  sendRequest: () => Promise<Response>,
   maxDuration: number
 ) {
   await retry(

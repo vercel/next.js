@@ -15,7 +15,6 @@ import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
-import fetch from 'node-fetch'
 import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -25,7 +24,6 @@ import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
 import type { SpawnOptions, ChildProcess } from 'child_process'
-import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -200,14 +198,82 @@ export function getFetchUrl(
   return getFullUrl(appPort, url)
 }
 
+/**
+ * node-fetch compatibility options accepted by the fetch helpers in this
+ * file. `agent` and `timeout` have no equivalent in the global fetch API, so
+ * they are translated before the request is made. `body` additionally
+ * accepts a Node.js readable stream, which node-fetch allowed.
+ */
+export type RequestInitCompat = Omit<RequestInit, 'body'> & {
+  agent?: http.Agent
+  timeout?: number
+  body?: RequestInit['body'] | NodeJS.ReadableStream
+  dispatcher?: import('undici').Dispatcher
+  duplex?: 'half'
+}
+
+const dispatchers = new WeakMap<http.Agent, import('undici').Dispatcher>()
+
+// Lazily required so that importing this file does not pull undici into test
+// environments that restrict module loading (e.g. edge-runtime unit tests).
+function agentToDispatcher(agent: http.Agent): import('undici').Dispatcher {
+  let dispatcher = dispatchers.get(agent)
+  if (dispatcher === undefined) {
+    const { Agent } = require('undici') as typeof import('undici')
+    // `options` is where http.Agent stores its constructor options. Only the
+    // TLS-related ones have a meaning for undici's Agent.
+    const options = (agent as import('https').Agent).options ?? {}
+    dispatcher = new Agent({
+      connect: {
+        ca: options.ca,
+        cert: options.cert,
+        key: options.key,
+        rejectUnauthorized: options.rejectUnauthorized,
+      },
+    })
+    dispatchers.set(agent, dispatcher)
+  }
+  return dispatcher
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInit
+  opts?: RequestInitCompat
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  return fetch(getFullUrl(appPort, url), opts)
+  if (
+    opts === undefined ||
+    (opts.agent === undefined &&
+      opts.timeout === undefined &&
+      !isStreamBody(opts.body))
+  ) {
+    return fetch(getFullUrl(appPort, url), opts as RequestInit)
+  }
+  const { agent, timeout, ...init } = opts
+  if (timeout !== undefined) {
+    const timeoutSignal = AbortSignal.timeout(timeout)
+    init.signal = init.signal
+      ? AbortSignal.any([init.signal, timeoutSignal])
+      : timeoutSignal
+  }
+  if (agent !== undefined) {
+    init.dispatcher = agentToDispatcher(agent)
+  }
+  if (isStreamBody(init.body) && init.duplex === undefined) {
+    // undici requires opting into half-duplex for streaming request bodies.
+    init.duplex = 'half'
+  }
+  return fetch(getFullUrl(appPort, url), init as RequestInit)
+}
+
+function isStreamBody(body: RequestInitCompat['body'] | undefined): boolean {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    (Symbol.asyncIterator in body || 'getReader' in body)
+  )
 }
 
 export function expectVaryHeaderToContain(
@@ -261,7 +327,7 @@ export function renderViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | undefined,
-  opts?: RequestInit
+  opts?: RequestInitCompat
 ) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
