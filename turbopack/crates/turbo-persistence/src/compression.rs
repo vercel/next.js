@@ -4,9 +4,6 @@ use anyhow::{Context, Result, ensure};
 use lzzzz::lz4::{self, decompress};
 
 /// Compression algorithm used for a family's SST blocks and blob values.
-///
-/// The discriminants are stored in meta files, so existing values must not be changed. New
-/// algorithms get a new discriminant.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Compression {
