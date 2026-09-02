@@ -862,6 +862,7 @@ fn bench_family_sharding(c: &mut Criterion) {
                 FamilyConfig {
                     name,
                     kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
                 }
             }),
         };

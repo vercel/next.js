@@ -1439,12 +1439,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .iter()
                     .enumerate()
                     .flat_map(|(meta_index, meta)| {
-                        debug_assert_eq!(meta.family() as usize, family);
+                        debug_assert_eq!(
+                            meta.family() as usize,
+                            family,
+                            "meta file stored in the wrong family shard during compaction"
+                        );
                         meta.entries()
                             .iter()
                             .enumerate()
                             .map(move |(index_in_meta, entry)| {
-                                debug_assert_eq!(entry.range().family as usize, family);
+                                debug_assert_eq!(
+                                    entry.range().family as usize,
+                                    family,
+                                    "SST metadata belongs to a different family than its meta file"
+                                );
                                 SstWithRange {
                                     meta_index,
                                     index_in_meta: index_in_meta as u32,
@@ -1493,7 +1501,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 |(family, ssts_with_ranges, merge_jobs)| {
                     let meta_files = &meta_files_by_family[family];
                     let family = family as u32;
-                    debug_assert!(meta_files.iter().all(|meta| meta.family() == family));
+                    debug_assert!(
+                        meta_files.iter().all(|meta| meta.family() == family),
+                        "compaction received a meta file from the wrong family shard"
+                    );
 
                     if merge_jobs.is_empty() {
                         return Ok(PartialResultPerFamily {
@@ -1917,11 +1928,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                         })
                         .collect::<HashSet<_>>();
-                    debug_assert_eq!(selected_indices.len(), selected_index_count);
+                    debug_assert_eq!(
+                        selected_indices.len(),
+                        selected_index_count,
+                        "an SST was selected by more than one compaction segment"
+                    );
                     debug_assert!(
                         selected_indices
                             .iter()
-                            .all(|&index| index < ssts_with_ranges.len())
+                            .all(|&index| index < ssts_with_ranges.len()),
+                        "compaction selected an SST index outside the family shard"
                     );
                     debug_assert!(
                         ssts_with_ranges
@@ -2146,7 +2162,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         debug_assert!(
             inner.meta_files_by_family[family]
                 .iter()
-                .all(|meta| meta.family() as usize == family)
+                .all(|meta| meta.family() as usize == family),
+            "meta file stored in the wrong family shard while querying family {family}"
         );
         for meta in inner.meta_files_by_family[family].iter().rev() {
             match meta.lookup::<K, FIND_ALL>(
@@ -2288,7 +2305,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         debug_assert!(
             inner.meta_files_by_family[family]
                 .iter()
-                .all(|meta| meta.family() as usize == family)
+                .all(|meta| meta.family() as usize == family),
+            "meta file stored in the wrong family shard while querying family {family}"
         );
         for meta in inner.meta_files_by_family[family].iter().rev() {
             let _result = meta.batch_lookup(
