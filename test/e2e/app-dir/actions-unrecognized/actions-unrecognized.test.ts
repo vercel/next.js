@@ -138,12 +138,14 @@ describe('unrecognized server actions', () => {
             description: 'a malformed ID',
             actionId: '123',
             expectedStatus: 400,
+            expectedBody: 'Invalid Server Action request.',
             expectedError: 'Invalid Server Actions request.',
           },
           {
             description: 'a plausible but missing ID',
             actionId: unrecognizedActionId,
             expectedStatus: 409,
+            expectedBody: 'Server Action unavailable.',
             expectedError: outdent`
               Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
               Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
@@ -151,7 +153,7 @@ describe('unrecognized server actions', () => {
           },
         ])(
           'should reject an MPA action with $description',
-          async ({ actionId, expectedStatus, expectedError }) => {
+          async ({ actionId, expectedStatus, expectedBody, expectedError }) => {
             const boundary = '----nextjs-test-boundary'
             const body = `--${boundary}\r\nContent-Disposition: form-data; name="$ACTION_ID_${actionId}"\r\n\r\n\r\n--${boundary}--\r\n`
 
@@ -170,7 +172,7 @@ describe('unrecognized server actions', () => {
             expect(response.headers.get('content-type')).toStartWith(
               'text/plain'
             )
-            expect(await response.text()).toBe('Server action not found.')
+            expect(await response.text()).toBe(expectedBody)
 
             await retry(async () => expect(getLogs()).toInclude(expectedError))
           }
@@ -236,7 +238,7 @@ describe('unrecognized server actions', () => {
             expect(response.status()).toBe(409)
             expect(response.headers()['content-type']).toStartWith('text/plain')
             expect(await browser.elementByCss('body').text()).toBe(
-              'Server action not found.'
+              'Server Action unavailable.'
             )
 
             await retry(async () =>

@@ -98,6 +98,12 @@ function getUnrecognizedActionStatusCode(actionId: string | null): 400 | 409 {
   return actionId !== null && !mightBeServerReferenceId(actionId) ? 400 : 409
 }
 
+function getUnrecognizedActionResponseBody(statusCode: 400 | 409): string {
+  return statusCode === 400
+    ? 'Invalid Server Action request.'
+    : 'Server Action unavailable.'
+}
+
 function nodeHeadersToRecord(
   headers: IncomingHttpHeaders | OutgoingHttpHeaders
 ) {
@@ -313,8 +319,12 @@ async function createForwardedActionResponse(
       res.setHeader('content-type', 'text/plain')
       // The marker denotes an unavailable action. Derive the status from the
       // requested ID so mixed-version workers cannot change its semantics.
-      res.statusCode = getUnrecognizedActionStatusCode(actionId)
-      return RenderResult.fromStatic('Server action not found.', 'text/plain')
+      const statusCode = getUnrecognizedActionStatusCode(actionId)
+      res.statusCode = statusCode
+      return RenderResult.fromStatic(
+        getUnrecognizedActionResponseBody(statusCode),
+        'text/plain'
+      )
     }
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
@@ -635,7 +645,10 @@ export async function handleAction({
     res.statusCode = statusCode
     return {
       type: 'done',
-      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
+      result: RenderResult.fromStatic(
+        getUnrecognizedActionResponseBody(statusCode),
+        'text/plain'
+      ),
     }
   }
 
