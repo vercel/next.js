@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('csp-nonce-segment-scripts', () => {
   const { next } = nextTestSetup({
@@ -22,5 +23,23 @@ describe('csp-nonce-segment-scripts', () => {
     expect(scripts.filter((script) => script.nonce !== 'test-nonce')).toEqual(
       []
     )
+  })
+
+  it('should run the client code without CSP violations', async () => {
+    const browser = await next.browser('/with-boundaries')
+
+    await browser.waitForElementByCss('#page-only[data-hydrated="true"]')
+    await browser.elementByCss('#page-only').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#page-only').text()).toBe('1')
+    })
+
+    if (global.browserName === 'chrome') {
+      const logs = await browser.log()
+      const cspViolations = logs.filter((log) =>
+        log.message.includes('Content Security Policy')
+      )
+      expect(cspViolations).toEqual([])
+    }
   })
 })
