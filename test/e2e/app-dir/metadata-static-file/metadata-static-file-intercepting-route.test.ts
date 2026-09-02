@@ -28,13 +28,9 @@ describe('metadata-files-static-output-intercepting-route', () => {
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should have correct link tags for intercepting page', async () => {
     const browser = await next.browser('/intercepting')

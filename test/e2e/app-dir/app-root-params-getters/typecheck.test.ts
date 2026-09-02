@@ -8,17 +8,14 @@ import { retry } from 'next-test-utils'
 // Running `tsc --noEmit` verifies the generated root-params.d.ts is wired in
 // and produces the expected types.
 
+// This suite stops the local server and invokes `pnpm tsc` in its fixture.
+// @force-gate !deploy
 describe.each([{ fixture: 'simple' }, { fixture: 'multiple-roots' }])(
   'app-root-param-getters - typecheck ($fixture)',
   ({ fixture }) => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'fixtures', fixture),
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should pass typecheck with generated root-params types', async () => {
       await retry(async () => {

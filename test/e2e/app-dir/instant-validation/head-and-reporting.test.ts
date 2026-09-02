@@ -1,6 +1,10 @@
 import { runInstantValidationTests } from './harness.util'
 import { registerHeadAndReportingTests } from './head-and-reporting.util'
 
-runInstantValidationTests((ctx) => {
-  registerHeadAndReportingTests(ctx)
+// These tests control the local compile and prerender lifecycle.
+// @force-gate !deploy
+describe('instant validation', () => {
+  runInstantValidationTests((ctx) => {
+    registerHeadAndReportingTests(ctx)
+  })
 })

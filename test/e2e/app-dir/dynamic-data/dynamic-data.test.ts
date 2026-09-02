@@ -148,20 +148,13 @@ describe('dynamic-data', () => {
   }
 })
 
+// These suites test dev-server errors or failed local builds and cannot deploy.
+// @force-gate !deploy
 describe('dynamic-data with dynamic = "error"', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/require-static',
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextDeploy) {
-    it.skip('should not run in next deploy.', () => {})
-    return
-  }
 
   if (isNextDev) {
     beforeAll(async () => {
@@ -275,22 +268,13 @@ describe('dynamic-data with dynamic = "error"', () => {
   }
 })
 
+// These suites test dev-server errors or failed local builds and cannot deploy.
+// @force-gate !deploy
 describe('dynamic-data inside cache scope', () => {
-  const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
-    {
-      files: __dirname + '/fixtures/cache-scoped',
-      skipStart: true,
-    }
-  )
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextDeploy) {
-    it.skip('should not run in next deploy..', () => {})
-    return
-  }
+  const { isTurbopack, next, isNextDev } = nextTestSetup({
+    files: __dirname + '/fixtures/cache-scoped',
+    skipStart: true,
+  })
 
   if (isNextDev) {
     beforeAll(async () => {

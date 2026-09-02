@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Investigate the existing deploy failures.
+// @force-gate !deploy
 describe('redirects and rewrites', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -8,11 +10,6 @@ describe('redirects and rewrites', () => {
     },
   })
 
-  // TODO: investigate test failures on deploy
-  if ((global as any).isNextDeploy) {
-    it('should skip for deploy', () => {})
-    return
-  }
   /**
    * All test will use a link/button to navigate to '/*-before' which should be redirected by correct redirect/rewrite to '/*-after'
    */

@@ -6,13 +6,9 @@ import {
 } from './utils'
 
 describe('metadata-files-static-output-group-route', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should have correct link tags for group page', async () => {
     const browser = await next.browser('/group')

@@ -1,14 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
-
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {

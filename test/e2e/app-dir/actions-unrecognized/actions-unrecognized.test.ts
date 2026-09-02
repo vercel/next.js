@@ -18,101 +18,101 @@ describe('unrecognized server actions', () => {
     return next.cliOutput.slice(cliOutputPosition)
   }
 
-  // This is disabled when deployed because the 404 page will be served as a static route
-  // which will not support POST requests, and will return a 405 instead.
-  if (!isNextDeploy) {
-    it('should 404 when POSTing a non-server-action request to a nonexistent page', async () => {
-      const res = await next.fetch('/non-existent-route', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-        body: 'foo=bar',
-      })
-
-      const cliOutput = getLogs()
-      expect(cliOutput).not.toContain('TypeError')
-      expect(cliOutput).not.toContain(
-        'Missing `origin` header from a forwarded Server Actions request'
-      )
-      expect(res.status).toBe(404)
+  // Deploy mode exclusion: Deployed 404 pages are static routes, so POST
+  // requests return 405 instead of this suite's local 404 behavior.
+  // @force-gate !deploy
+  it('should 404 when POSTing a non-server-action request to a nonexistent page', async () => {
+    const res = await next.fetch('/non-existent-route', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'foo=bar',
     })
 
-    describe.each([
-      {
-        idType: 'malformed',
-        actionId: '123',
-        expectedStatus: 400,
-        expectedError: outdent`
+    const cliOutput = getLogs()
+    expect(cliOutput).not.toContain('TypeError')
+    expect(cliOutput).not.toContain(
+      'Missing `origin` header from a forwarded Server Actions request'
+    )
+    expect(res.status).toBe(404)
+  })
+
+  // @force-gate !deploy
+  describe.each([
+    {
+      idType: 'malformed',
+      actionId: '123',
+      expectedStatus: 400,
+      expectedError: outdent`
           The Server Reference ID did not match the expected format. Received "123".
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
         `,
-      },
-      {
-        idType: 'plausible but missing',
-        actionId: unrecognizedActionId,
-        expectedStatus: 409,
-        expectedError: outdent`
+    },
+    {
+      idType: 'plausible but missing',
+      actionId: unrecognizedActionId,
+      expectedStatus: 409,
+      expectedError: outdent`
           Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
         `,
-      },
-      {
-        // A well-known property name is excluded from server reference
-        // validation in the module map (so framework reflection probes don't
-        // throw), which means the lookup returns undefined rather than throwing.
-        // We should still surface a diagnosable error instead of a TypeError.
-        idType: 'well-known property name',
-        actionId: 'toString',
-        expectedStatus: 400,
-        expectedError: outdent`
+    },
+    {
+      // A well-known property name is excluded from server reference
+      // validation in the module map (so framework reflection probes don't
+      // throw), which means the lookup returns undefined rather than throwing.
+      // We should still surface a diagnosable error instead of a TypeError.
+      idType: 'well-known property name',
+      actionId: 'toString',
+      expectedStatus: 400,
+      expectedError: outdent`
           The Server Reference ID did not match the expected format. Received "toString".
           Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
         `,
+    },
+  ])('with a $idType id', ({ actionId, expectedStatus, expectedError }) => {
+    it.each([
+      {
+        // encodeReply encodes simple args as plaintext.
+        name: 'plaintext',
+        request: {
+          contentType: 'text/plain;charset=UTF-8',
+          body: '{}',
+        },
       },
-    ])('with a $idType id', ({ actionId, expectedStatus, expectedError }) => {
-      it.each([
-        {
-          // encodeReply encodes simple args as plaintext.
-          name: 'plaintext',
-          request: {
-            contentType: 'text/plain;charset=UTF-8',
-            body: '{}',
-          },
+      {
+        // encodeReply encodes complex args as FormData.
+        // this body is empty and wouldn't match how react encodes an action, but it should be rejected
+        // before we even get to parsing the FormData, so it doesn't really matter.
+        name: 'form-data/multipart',
+        request: {
+          body: new FormData(),
         },
-        {
-          // encodeReply encodes complex args as FormData.
-          // this body is empty and wouldn't match how react encodes an action, but it should be rejected
-          // before we even get to parsing the FormData, so it doesn't really matter.
-          name: 'form-data/multipart',
-          request: {
-            body: new FormData(),
+      },
+    ])(
+      'should reject a server action POST to a nonexistent page: $name',
+      async ({ request: { contentType, body } }) => {
+        const res = await next.fetch('/non-existent-route', {
+          method: 'POST',
+          headers: {
+            'next-action': actionId,
+            ...(contentType ? { 'content-type': contentType } : undefined),
           },
-        },
-      ])(
-        'should reject a server action POST to a nonexistent page: $name',
-        async ({ request: { contentType, body } }) => {
-          const res = await next.fetch('/non-existent-route', {
-            method: 'POST',
-            headers: {
-              'next-action': actionId,
-              ...(contentType ? { 'content-type': contentType } : undefined),
-            },
-            body,
-          })
+          body,
+        })
 
-          expect(res.status).toBe(expectedStatus)
+        expect(res.status).toBe(expectedStatus)
 
-          const cliOutput = getLogs()
-          expect(cliOutput).not.toContain('TypeError')
-          expect(cliOutput).not.toContain(
-            'Missing `origin` header from a forwarded Server Actions request'
-          )
-          expect(cliOutput).toInclude(expectedError)
-        }
-      )
-    })
-  }
+        const cliOutput = getLogs()
+        expect(cliOutput).not.toContain('TypeError')
+        expect(cliOutput).not.toContain(
+          'Missing `origin` header from a forwarded Server Actions request'
+        )
+        expect(cliOutput).toInclude(expectedError)
+      }
+    )
+  })
 
   it('should error when POSTing a urlencoded action to a nonexistent page', async () => {
     const res = await next.fetch('/non-existent-route', {

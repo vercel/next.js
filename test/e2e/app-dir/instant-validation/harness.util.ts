@@ -38,7 +38,7 @@ export const NO_VALIDATION_ERRORS_WAIT: Parameters<
 
 // This suite is far too slow to run as a single CI test file, so it's split
 // into one `*.test.ts` entry file per group of sections (each with a
-// `.partial-prefetching` variant), all sharing this wrapper.
+// `.partial-prefetching` variant), all sharing this harness.
 // Every entry boots its own server (and, in `next start` mode, runs its own
 // `--experimental-build-mode compile` build plus a `generate` build per
 // test). All entries use the same describe title so test full names stay
@@ -47,225 +47,215 @@ export const NO_VALIDATION_ERRORS_WAIT: Parameters<
 export function runInstantValidationTests(
   registerTests: (ctx: InstantValidationCaseContext) => void
 ) {
-  describe('instant validation', () => {
-    const { next, skipped, isNextDev, isNextStart, isTurbopack } =
-      nextTestSetup({
-        files: __dirname,
-        skipStart: true, // for `prerender`
-        skipDeployment: true,
-        env: {
-          NEXT_TEST_LOG_VALIDATION: '1',
-        },
-      })
-    if (skipped) return
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+    files: __dirname,
+    skipStart: true, // for `prerender`
+    env: {
+      NEXT_TEST_LOG_VALIDATION: '1',
+    },
+  })
 
-    if (isNextStart && !isTurbopack) {
-      // TODO(instant-validation-build): snapshot tests for webpack
-      it.skip('TODO: snapshot tests for webpack', () => {})
-      return
+  if (isNextStart && !isTurbopack) {
+    // TODO(instant-validation-build): snapshot tests for webpack
+    it.skip('TODO: snapshot tests for webpack', () => {})
+    return
+  }
+
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
     }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
 
-    let currentCliOutputIndex = 0
-    beforeEach(() => {
-      currentCliOutputIndex = next.cliOutput.length
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
+
+  async function restartDevServerToEnsureColdCaches() {
+    if (isNextDev) {
+      // Ensure caches are cold.
+      await next.stop()
+      await next.start()
+      // Restarting the server resets `next.cliOutput`.
+      currentCliOutputIndex = 0
+    }
+  }
+
+  if (isNextStart) {
+    // Compile the app first so that `prerender` can run individual prerenders.
+    beforeAll(async () => {
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
+    afterEach(async () => {
+      await next.stop()
+    })
+  } else {
+    // We set `skipStart` for prerender, so in dev we have to start the server manually.
+    beforeAll(async () => {
+      await next.start()
+    })
+  }
 
-    function getCliOutputSinceMark(): string {
-      if (next.cliOutput.length < currentCliOutputIndex) {
-        // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
-        currentCliOutputIndex = 0
-      }
-      return next.cliOutput.slice(currentCliOutputIndex)
+  const prerender = async (pathname: string) => {
+    if (!isNextStart) {
+      throw new Error('prerender() can only be used in `next start`')
     }
+    const args = [
+      '--experimental-build-mode',
+      'generate',
+      '--debug-build-paths',
+      `app${pathname}/page.tsx`,
+    ]
+    return await next.build({ args })
+  }
 
-    const getInstantInsight = createGetInstantInsight(
-      getCliOutputSinceMark,
-      next
-    )
-
-    async function restartDevServerToEnsureColdCaches() {
-      if (isNextDev) {
-        // Ensure caches are cold.
-        await next.stop()
-        await next.start()
-        // Restarting the server resets `next.cliOutput`.
-        currentCliOutputIndex = 0
-      }
+  async function expectNoDevValidationErrors(
+    browser: Playwright,
+    url: string
+  ): Promise<void> {
+    const { start } = await waitForValidation(url, getCliOutputSinceMark)
+    if (start.responseFinished !== undefined) {
+      expect(start.responseFinished).toBe(true)
     }
+    await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
+  }
 
-    if (isNextStart) {
-      // Compile the app first so that `prerender` can run individual prerenders.
-      beforeAll(async () => {
-        const result = await next.build({
-          args: ['--experimental-build-mode', 'compile'],
-        })
-        if (result.exitCode !== 0) {
-          throw new Error(
-            `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
-          )
-        }
-      })
-      afterEach(async () => {
-        await next.stop()
-      })
-    } else {
-      // We set `skipStart` for prerender, so in dev we have to start the server manually.
-      beforeAll(async () => {
-        await next.start()
-      })
-    }
-
-    const prerender = async (pathname: string) => {
-      if (!isNextStart) {
-        throw new Error('prerender() can only be used in `next start`')
-      }
-      const args = [
-        '--experimental-build-mode',
-        'generate',
-        '--debug-build-paths',
-        `app${pathname}/page.tsx`,
+  const cases = isNextDev
+    ? [
+        { isClientNav: false, description: 'dev - initial load' },
+        { isClientNav: true, description: 'dev - client navigation' },
       ]
-      return await next.build({ args })
-    }
+    : [{ isClientNav: false, description: 'build' }]
 
-    async function expectNoDevValidationErrors(
-      browser: Playwright,
-      url: string
-    ): Promise<void> {
-      const { start } = await waitForValidation(url, getCliOutputSinceMark)
-      if (start.responseFinished !== undefined) {
-        expect(start.responseFinished).toBe(true)
-      }
-      await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
-    }
+  describe.each(cases)('$description', ({ isClientNav }) => {
+    const resolveRelativeHref = (href: string) => new URL(href, next.url).href
 
-    const cases = isNextDev
-      ? [
-          { isClientNav: false, description: 'dev - initial load' },
-          { isClientNav: true, description: 'dev - client navigation' },
-        ]
-      : [{ isClientNav: false, description: 'build' }]
-
-    describe.each(cases)('$description', ({ isClientNav }) => {
-      const resolveRelativeHref = (href: string) => new URL(href, next.url).href
-
-      /**
-       * Navigate to a page either via initial load or soft navigation.
-       * For soft nav, navigates to the index page first, then clicks the link.
-       */
-      async function navigateTo(href: string, existingBrowser?: Playwright) {
-        if (!isClientNav) {
-          // Initial load - navigate directly
-          let browser: Playwright
-          if (existingBrowser) {
-            await existingBrowser.get(resolveRelativeHref(href))
-            browser = existingBrowser
-          } else {
-            browser = await next.browser(href)
-          }
-          await browser.elementByCss('main')
-          return browser
-        }
-
-        // Soft nav - go to index page first, then click link.
-        // We have multiple root layouts, so each needs a separate index page
-        // because navigating between root layouts would be an MPA nav,
-        // and we want to test soft navs.
-        const indexPage = ((): string => {
-          if (href.startsWith('/shells/')) {
-            // If this is the root params page, use the same root param value
-            let match: ReturnType<String['match']>
-            if (
-              (match = href.match(
-                /^\/shells\/with-root-param\/(?<lang>[^/]+)\/.*/
-              ))
-            ) {
-              const lang = match.groups!.lang
-              return `/shells/with-root-param/${lang}`
-            } else {
-              return '/shells'
-            }
-          }
-          for (const prefix of ['/default', '/suspense-in-root']) {
-            if (href.startsWith(prefix + '/')) {
-              return prefix
-            }
-          }
-          throw new Error(`Could not find index page for ${href}`)
-        })()
-
+    /**
+     * Navigate to a page either via initial load or soft navigation.
+     * For soft nav, navigates to the index page first, then clicks the link.
+     */
+    async function navigateTo(href: string, existingBrowser?: Playwright) {
+      if (!isClientNav) {
+        // Initial load - navigate directly
         let browser: Playwright
         if (existingBrowser) {
-          await existingBrowser.get(resolveRelativeHref(indexPage))
+          await existingBrowser.get(resolveRelativeHref(href))
           browser = existingBrowser
         } else {
-          browser = await next.browser(indexPage)
+          browser = await next.browser(href)
         }
-
-        const initialRootLayoutTimestamp = await browser
-          .elementById('root-layout-timestamp')
-          .text()
-
-        await browser
-          .elementByCss(`[data-link-type="soft"][href="${href}"]`)
-          .click()
-
-        await retry(
-          async () => {
-            expect(await browser.url()).toContain(href)
-          },
-          // Webpack can be slow to compile new routes in CI, which blocks the
-          // navigation. Instant Validation itself is non-blocking and does not
-          // affect this, so this is only covering for compilation speed.
-          isTurbopack ? 5_000 : 10_000,
-          100,
-          'wait for url to change'
-        )
-
-        // Sanity check: we shouldn't have switched or otherwise refetched the root layout
-        const finalRootLayoutTimestamp = await browser
-          .elementById('root-layout-timestamp')
-          .text()
-        expect(initialRootLayoutTimestamp).toBe(finalRootLayoutTimestamp)
-
+        await browser.elementByCss('main')
         return browser
       }
 
-      async function warmCachesAndNavigateTo(
-        href: string
-      ): Promise<Playwright> {
-        // First, visit the page once to warm any caches it contains.
-        // We add a dummy query param to differentiate validation logs
-        // from the two visits.
-        const warmingUrl = new URL(href, 'http://__n')
-        warmingUrl.searchParams.append('__warming_caches__', Date.now() + '')
-        const warmingHref = warmingUrl.pathname + warmingUrl.search
+      // Soft nav - go to index page first, then click link.
+      // We have multiple root layouts, so each needs a separate index page
+      // because navigating between root layouts would be an MPA nav,
+      // and we want to test soft navs.
+      const indexPage = ((): string => {
+        if (href.startsWith('/shells/')) {
+          // If this is the root params page, use the same root param value
+          let match: ReturnType<String['match']>
+          if (
+            (match = href.match(
+              /^\/shells\/with-root-param\/(?<lang>[^/]+)\/.*/
+            ))
+          ) {
+            const lang = match.groups!.lang
+            return `/shells/with-root-param/${lang}`
+          } else {
+            return '/shells'
+          }
+        }
+        for (const prefix of ['/default', '/suspense-in-root']) {
+          if (href.startsWith(prefix + '/')) {
+            return prefix
+          }
+        }
+        throw new Error(`Could not find index page for ${href}`)
+      })()
 
-        const browser = await next.browser(warmingHref)
-        // We wait for the validation to finish. This is longer than
-        // strictly necessary, we only need to wait for the initial render to finish,
-        // but this makes the output predictable.
-        await waitForValidation(warmingHref, getCliOutputSinceMark)
-
-        // Then, test either hard or client nav as usual.
-        await navigateTo(href, browser)
-        return browser
+      let browser: Playwright
+      if (existingBrowser) {
+        await existingBrowser.get(resolveRelativeHref(indexPage))
+        browser = existingBrowser
+      } else {
+        browser = await next.browser(indexPage)
       }
 
-      registerTests({
-        next,
-        isNextDev,
-        isNextStart,
-        isTurbopack,
-        isClientNav,
-        navigateTo,
-        warmCachesAndNavigateTo,
-        restartDevServerToEnsureColdCaches,
-        expectNoDevValidationErrors,
-        getInstantInsight,
-        getCliOutputSinceMark,
-        prerender,
-      })
+      const initialRootLayoutTimestamp = await browser
+        .elementById('root-layout-timestamp')
+        .text()
+
+      await browser
+        .elementByCss(`[data-link-type="soft"][href="${href}"]`)
+        .click()
+
+      await retry(
+        async () => {
+          expect(await browser.url()).toContain(href)
+        },
+        // Webpack can be slow to compile new routes in CI, which blocks the
+        // navigation. Instant Validation itself is non-blocking and does not
+        // affect this, so this is only covering for compilation speed.
+        isTurbopack ? 5_000 : 10_000,
+        100,
+        'wait for url to change'
+      )
+
+      // Sanity check: we shouldn't have switched or otherwise refetched the root layout
+      const finalRootLayoutTimestamp = await browser
+        .elementById('root-layout-timestamp')
+        .text()
+      expect(initialRootLayoutTimestamp).toBe(finalRootLayoutTimestamp)
+
+      return browser
+    }
+
+    async function warmCachesAndNavigateTo(href: string): Promise<Playwright> {
+      // First, visit the page once to warm any caches it contains.
+      // We add a dummy query param to differentiate validation logs
+      // from the two visits.
+      const warmingUrl = new URL(href, 'http://__n')
+      warmingUrl.searchParams.append('__warming_caches__', Date.now() + '')
+      const warmingHref = warmingUrl.pathname + warmingUrl.search
+
+      const browser = await next.browser(warmingHref)
+      // We wait for the validation to finish. This is longer than
+      // strictly necessary, we only need to wait for the initial render to finish,
+      // but this makes the output predictable.
+      await waitForValidation(warmingHref, getCliOutputSinceMark)
+
+      // Then, test either hard or client nav as usual.
+      await navigateTo(href, browser)
+      return browser
+    }
+
+    registerTests({
+      next,
+      isNextDev,
+      isNextStart,
+      isTurbopack,
+      isClientNav,
+      navigateTo,
+      warmCachesAndNavigateTo,
+      restartDevServerToEnsureColdCaches,
+      expectNoDevValidationErrors,
+      getInstantInsight,
+      getCliOutputSinceMark,
+      prerender,
     })
   })
 }

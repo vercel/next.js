@@ -280,28 +280,27 @@ describe('app-custom-routes', () => {
 
   describe('body', () => {
     // we can't stream a body to a function currently only stream response
-    if (!isNextDeploy) {
-      it('can handle handle a streaming request and streaming response', async () => {
-        const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
-        let index = 0
-        const stream = new Readable({
-          read() {
-            if (index >= body.length) return this.push(null)
+    // @force-gate !deploy
+    it('can handle handle a streaming request and streaming response', async () => {
+      const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
+      let index = 0
+      const stream = new Readable({
+        read() {
+          if (index >= body.length) return this.push(null)
 
-            this.push(body[index] + '\n')
-            index++
-          },
-        })
-
-        const res = await next.fetch(basePath + '/advanced/body/streaming', {
-          method: 'POST',
-          ...streamingBody(stream),
-        })
-
-        expect(res.status).toEqual(200)
-        expect(await res.text()).toEqual(body.join('\n') + '\n')
+          this.push(body[index] + '\n')
+          index++
+        },
       })
-    }
+
+      const res = await next.fetch(basePath + '/advanced/body/streaming', {
+        method: 'POST',
+        ...streamingBody(stream),
+      })
+
+      expect(res.status).toEqual(200)
+      expect(await res.text()).toEqual(body.join('\n') + '\n')
+    })
 
     it('can handle handle a streaming request and streaming response (edge)', async () => {
       const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
@@ -361,43 +360,41 @@ describe('app-custom-routes', () => {
 
     // keeping a body during options request is not standardized
     // behavior and depending on the server can be discarded
-    if (!isNextDeploy) {
-      it('can read a JSON encoded body for OPTIONS requests', async () => {
-        const body = { name: 'bar' }
-        const res = await next.fetch(basePath + '/advanced/body/json', {
-          method: 'OPTIONS',
-          body: JSON.stringify(body),
-        })
-
-        expect(res.status).toEqual(200)
-        expect(await res.text()).toEqual('options bar')
+    // @force-gate !deploy
+    it('can read a JSON encoded body for OPTIONS requests', async () => {
+      const body = { name: 'bar' }
+      const res = await next.fetch(basePath + '/advanced/body/json', {
+        method: 'OPTIONS',
+        body: JSON.stringify(body),
       })
-    }
+
+      expect(res.status).toEqual(200)
+      expect(await res.text()).toEqual('options bar')
+    })
 
     // we can't stream a body to a function currently only stream response
-    if (!isNextDeploy) {
-      it('can read a streamed JSON encoded body', async () => {
-        const body = { ping: 'pong' }
-        const encoded = JSON.stringify(body)
-        let index = 0
-        const stream = new Readable({
-          async read() {
-            if (index >= encoded.length) return this.push(null)
+    // @force-gate !deploy
+    it('can read a streamed JSON encoded body', async () => {
+      const body = { ping: 'pong' }
+      const encoded = JSON.stringify(body)
+      let index = 0
+      const stream = new Readable({
+        async read() {
+          if (index >= encoded.length) return this.push(null)
 
-            this.push(encoded[index])
-            index++
-          },
-        })
-        const res = await next.fetch(basePath + '/advanced/body/json', {
-          method: 'POST',
-          ...streamingBody(stream),
-        })
-
-        expect(res.status).toEqual(200)
-        const meta = getRequestMeta(res.headers)
-        expect(meta.body).toEqual(body)
+          this.push(encoded[index])
+          index++
+        },
       })
-    }
+      const res = await next.fetch(basePath + '/advanced/body/json', {
+        method: 'POST',
+        ...streamingBody(stream),
+      })
+
+      expect(res.status).toEqual(200)
+      const meta = getRequestMeta(res.headers)
+      expect(meta.body).toEqual(body)
+    })
 
     it('can read a streamed JSON encoded body (edge)', async () => {
       const body = { ping: 'pong' }
@@ -574,16 +571,15 @@ describe('app-custom-routes', () => {
   })
 
   describe('error conditions', () => {
-    if (!isNextDeploy) {
-      it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
-        const res = await next.fetch(basePath + '/status/405', {
-          method: 'HEADER',
-        })
-
-        expect(res.status).toEqual(400)
-        expect(await res.text()).toBeEmpty()
+    // @force-gate !deploy
+    it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
+      const res = await next.fetch(basePath + '/status/405', {
+        method: 'HEADER',
       })
-    }
+
+      expect(res.status).toEqual(400)
+      expect(await res.text()).toBeEmpty()
+    })
 
     it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
       const res = await next.fetch(basePath + '/status/405', {
@@ -736,19 +732,19 @@ describe('app-custom-routes', () => {
     })
   }
 
-  // This test is skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
-  if (!isNextDeploy) {
-    describe('no response returned', () => {
-      it('should print an error when no response is returned', async () => {
-        await next.fetch(basePath + '/no-response', { method: 'POST' })
-        await retry(() => {
-          expect(next.cliOutput).toMatch(
-            /No response is returned from route handler '.+\/route\.ts'\. Expected a Response object but received '\w+' \(method: POST, url: .+\)\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
-          )
-        })
+  // Deploy mode exclusion: This nested suite asserts local CLI output that
+  // deployments do not expose.
+  // @force-gate !deploy
+  describe('no response returned', () => {
+    it('should print an error when no response is returned', async () => {
+      await next.fetch(basePath + '/no-response', { method: 'POST' })
+      await retry(() => {
+        expect(next.cliOutput).toMatch(
+          /No response is returned from route handler '.+\/route\.ts'\. Expected a Response object but received '\w+' \(method: POST, url: .+\)\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+        )
       })
     })
-  }
+  })
 
   describe('no bundle error', () => {
     it('should not print bundling warning about React', async () => {
