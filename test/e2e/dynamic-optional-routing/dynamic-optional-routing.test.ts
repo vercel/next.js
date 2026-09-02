@@ -2,12 +2,13 @@ import cheerio from 'cheerio'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Dynamic Optional Routing', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await next.render('/hello/world')
@@ -216,13 +217,14 @@ describe('Dynamic Optional Routing', () => {
   }
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Dynamic Optional Routing - build validation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const DUMMY_PAGE = 'export default () => null'
 

@@ -1,10 +1,12 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('404 Page Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   const gip404Err =
@@ -133,13 +135,15 @@ describe('404 Page Support', () => {
     })
   }
 })
-;(isNextStart ? describe : describe.skip)('404 Page build validation', () => {
-  const { next, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
+// @force-gate start
+describe('404 Page build validation', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const gip404Err =
     /`pages\/404` can not have getInitialProps\/getServerSideProps/

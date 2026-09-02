@@ -5,15 +5,13 @@ import {
   type ErrorSnapshot,
 } from '../../lib/add-redbox-matchers'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('Link with legacyBehavior', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return it('should skip', () => {})
-  }
 
   describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {

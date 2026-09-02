@@ -4,6 +4,8 @@ import { check } from 'next-test-utils'
 
 describe('i18n-data-fetching-redirect', () => {
   // TODO: investigate tests failures on deploy
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // The source only records that these assertions fail after deployment; the root cause is unknown.
   if ((global as any).isNextDeploy) {
     it('should skip temporarily', () => {})
     return

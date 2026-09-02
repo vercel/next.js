@@ -9,13 +9,14 @@ import assert from 'assert'
 
 type BrowserOptions = Parameters<NextInstance['browser']>[1]
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('i18n Support', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const ctx: Record<string, any> = {
     basePath: '',

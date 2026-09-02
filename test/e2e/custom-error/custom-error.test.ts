@@ -4,15 +4,21 @@ import { retry } from 'next-test-utils'
 const customErrNo404Match =
   /You have added a custom \/_error page without a custom \/404 page/
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom _error', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    skipDeployment: true,
   })
+
+  if (isNextDeploy) {
+    it('is excluded from deploy testing by @force-gate', () => {})
+  }
 
   if (isNextDev) {
     it('should not warn with /_error and /404 when rendering error first', async () => {
