@@ -19,17 +19,13 @@ const GENERIC_RSC_ERROR =
 
 const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
-    {
-      files: __dirname,
-      skipDeployment: true,
-    }
-  )
-
-  if (skipped) {
-    return
-  }
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+  })
 
   let cliOutputLength: number
 

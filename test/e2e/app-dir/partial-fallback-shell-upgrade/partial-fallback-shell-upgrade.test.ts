@@ -4,8 +4,6 @@ import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
-
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
 function createSplitHTMLFetcher(next: NextInstance) {
@@ -32,14 +30,15 @@ function createSplitHTMLFetcher(next: NextInstance) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
     // Deployed shell upgrades require `partialFallback` metadata, which the
     // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
@@ -171,12 +170,13 @@ describe('partial-fallback-shell-upgrade', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {

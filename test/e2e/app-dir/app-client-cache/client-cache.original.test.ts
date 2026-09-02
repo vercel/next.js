@@ -9,16 +9,16 @@ import {
 import path from 'path'
 
 // This preserves existing tests for the 30s/5min heuristic (previous router defaults)
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// @force-gate !deploy
 describe('app dir client cache semantics (30s/5min)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'regular'),
     nextConfig: {
       experimental: { staleTimes: { dynamic: 30, static: 180 } },
     },
-    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
-  if (skipped) return
 
   if (isNextDev) {
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is reused for 30s

@@ -5,6 +5,8 @@ describe('custom-cache-control', () => {
     files: __dirname,
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // The hosting platform applies cache headers outside the Next.js server, so deploy mode needs separate expectations.
   if (isNextDeploy) {
     // customizing these headers won't apply on environments
     // where headers are applied outside of the Next.js server

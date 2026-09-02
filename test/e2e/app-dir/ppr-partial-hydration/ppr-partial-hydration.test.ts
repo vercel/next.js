@@ -7,15 +7,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// the file-patching strategy we use for synchronizing the test doesn't work
+// on deployments
+// @force-gate !deploy
 describe('PPR - partial hydration', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // the file-patching strategy we use for synchronizing the test doesn't work
-    // on deployments
-    skipDeployment: true,
   })
 
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     it.skip('only testable in production (non-deployment)', () => {})
     return
   }

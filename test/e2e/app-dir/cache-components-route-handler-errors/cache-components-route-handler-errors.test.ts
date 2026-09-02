@@ -5,16 +5,14 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('cache-components-route-handler-errors', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it("should error when route handlers use segment configs that aren't supported by cacheComponents", async () => {
     try {

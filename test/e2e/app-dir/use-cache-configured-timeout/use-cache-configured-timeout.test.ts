@@ -8,16 +8,14 @@ function expectedTimeoutErrorMessage(route: string) {
   return `Route "${route}": ${timeoutErrorMessage}`
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('use-cache-configured-timeout', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     describe('when a "use cache" fill is below the configured dev `useCacheTimeout`', () => {

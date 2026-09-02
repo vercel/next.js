@@ -2,16 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-custom-cache-handler-errors - get throws', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'get' },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('surfaces the cache handler error', async () => {
     const outputIndex = next.cliOutput.length
@@ -96,16 +94,14 @@ describe('app-custom-cache-handler-errors - get throws', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-custom-cache-handler-errors - set throws', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'set' },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('renders the page successfully', async () => {
     const outputIndex = next.cliOutput.length

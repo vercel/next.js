@@ -12,12 +12,17 @@ function getData(html: string) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Test Draft Mode', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
+
+  if (isNextDeploy) {
+    it('is excluded from deploy testing by @force-gate', () => {})
+  }
 
   if (isNextDev) {
     it('should start development application', async () => {

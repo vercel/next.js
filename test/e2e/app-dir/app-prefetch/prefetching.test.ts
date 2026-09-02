@@ -393,7 +393,8 @@ describe('app dir - prefetching', () => {
     })
   })
 
-  // These tests are skipped when deployed as they rely on runtime logs
+  // Deploy mode exclusion: This nested suite asserts runtime logs from the
+  // local Next.js process.
   if (!isNextDeploy) {
     describe('dynamic rendering', () => {
       describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
