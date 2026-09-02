@@ -128,7 +128,7 @@ async function getComments(slug, sort) {
 
 The comments depend on the URL, so on their own they belong to a per-link prefetch. Awaiting `unstable_navigation()` keeps them out of it, so they render when the user navigates.
 
-The slug and the cookie are both read below `unstable_navigation()` and passed as arguments, so `getComments` caches per post and sort order rather than per visitor. The URL is resolved by the time the deferred content renders, so `params` is available below the call.
+The slug and the cookie are both read below `unstable_navigation()` and passed as arguments, so `getComments` caches per post and sort order rather than per visitor. The URL is resolved by the time the deferred content renders, so `params` is available below `unstable_navigation()`.
 
 Put the directive on a function called below it, as `getComments` does here. `unstable_navigation()` cannot sit inside a cached scope, so not under [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
@@ -136,14 +136,46 @@ Put the directive on a function called below it, as `getComments` does here. `un
 
 Reach for it when the content below `unstable_navigation()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want every prefetch of the route to generate it.
 
+A prefetch of the route does not run that code at all, at either prefetch stage, so the requests it makes are not issued until the user navigates.
+
 Without `unstable_navigation`, keeping that content out of a prefetch would otherwise mean leaving it uncached.
 
-With `unstable_navigation()` the content can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache), given a lifetime, deferred to the navigation, and reused by the client-side router after the first time a user navigates into the route.
+With `unstable_navigation()` the content can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache), given a lifetime, and deferred to the navigation. Give it a [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time of five minutes or more and the client-side router reuses it after the first time a user navigates into the route. Below that, a [short lifetime keeps it out of the App Shell](/docs/app/api-reference/functions/cacheLife#prerendering-behavior), so each navigation fetches it again.
+
+### Keeping a route's prefetch static
+
+Nothing below `unstable_navigation()` renders during a prefetch. When every read of [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), `params`, and `searchParams` sits below it, the prerender a prefetch would trigger cannot produce more than the static output the build already generated, so the prefetch is served from that output instead. Shaping a route this way is an optional optimization: a static response can be cached in a CDN, so a link into the route costs no server CPU at all.
+
+```tsx filename="app/post/[slug]/page.tsx" highlight={17}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { unstable_navigation } from 'next/cache'
+
+export default function Page({ params }: PageProps<'/post/[slug]'>) {
+  return (
+    <>
+      <PostBody /> {/* static, and so is the whole prefetch */}
+      <Suspense fallback={<p>Loading comments...</p>}>
+        <Comments params={params} />
+      </Suspense>
+    </>
+  )
+}
+
+async function Comments({ params }: { params: Promise<{ slug: string }> }) {
+  await unstable_navigation()
+  const { slug } = await params
+  const sort = (await cookies()).get('comment-sort')?.value ?? 'newest'
+  return <CommentList items={await getComments(slug, sort)} />
+}
+```
+
+Adding UI above `unstable_navigation()` later is fine. A greeting that reads a cookie wakes a server for that part of the prefetch, and everything below stays deferred.
 
 ## Good to know
 
 - The function has no effect on the initial load of a page.
-- Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_navigation()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache). It keeps its cache lifetime, so navigating to the route again reuses the content instead of rendering it a second time.
+- Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_navigation()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache). It keeps its cache lifetime, and with a [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time of five minutes or more, the client-side router reuses it on a later navigation instead of rendering it again.
 - Reading `cookies()` or `headers()` below `unstable_navigation()` does not make the route's prefetches render per request, so they can still be served from static output. Those accesses are ignored, because they would not have resolved in a prefetch either.
 - A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.

@@ -128,9 +128,15 @@ Put the directive on a function called below it, as `getRecommendations` does he
 
 Reach for it when the content below `unstable_prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route prefetches.
 
+Producing the App Shell does not run that code, so the requests it makes are not issued until a per-link prefetch or the navigation.
+
 Keeping that content out of the shell would otherwise mean leaving it uncached. With `unstable_prefetch()` it can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), given a lifetime, and deferred to a per-link prefetch or the navigation.
 
 Uncached reads, values with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time, and anything behind `params` or `searchParams` are already left out of the shell on their own.
+
+### Keeping the App Shell static
+
+Nothing below `unstable_prefetch()` renders into the App Shell. When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) sits below it, the prerender a shell prefetch would trigger cannot produce more than the static output the build already generated, so the shell is served from that output instead. Shaping a route this way is an optional optimization: a static response can be cached in a CDN, so a default `<Link>` into the route costs no server CPU at all. A route that resolves `params` or `searchParams` gets that prerender instead, and so does the example above: it reads the session above `unstable_prefetch()`, so its shell renders once per visitor and only the recommendations are deferred.
 
 ## Good to know
 
