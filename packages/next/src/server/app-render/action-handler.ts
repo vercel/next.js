@@ -620,7 +620,7 @@ export async function handleAction({
 
   const handleUnrecognizedAction = (
     err: unknown,
-    statusCode: 400 | 409 = getUnrecognizedActionStatusCode(actionId)
+    statusCode: 400 | 409
   ): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
     // so we use a warning instead of an error.
@@ -665,7 +665,10 @@ export async function handleAction({
       actionId !== null && !mightBeServerReferenceId(actionId)
         ? getInvalidServerReferenceIdError(actionId)
         : getActionNotFoundError(actionId)
-    return handleUnrecognizedAction(error)
+    return handleUnrecognizedAction(
+      error,
+      getUnrecognizedActionStatusCode(actionId)
+    )
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -880,7 +883,10 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedAction(err)
+                return handleUnrecognizedAction(
+                  err,
+                  getUnrecognizedActionStatusCode(actionId)
+                )
               }
 
               boundActionArguments = await decodeReply<unknown[]>(
@@ -947,7 +953,10 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedAction(err)
+              return handleUnrecognizedAction(
+                err,
+                getUnrecognizedActionStatusCode(actionId)
+              )
             }
 
             // A fetch action with a non-multipart body.
@@ -1044,7 +1053,10 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedAction(err)
+                return handleUnrecognizedAction(
+                  err,
+                  getUnrecognizedActionStatusCode(actionId)
+                )
               }
 
               const busboy = (
@@ -1159,7 +1171,10 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedAction(err)
+              return handleUnrecognizedAction(
+                err,
+                getUnrecognizedActionStatusCode(actionId)
+              )
             }
 
             // A fetch action with a non-multipart body.
