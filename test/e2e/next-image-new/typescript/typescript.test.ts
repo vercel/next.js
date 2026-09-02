@@ -1,6 +1,9 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('TypeScript Image Component Build Errors', () => {
   if (isNextDev) {
     it('no-op in dev', () => {})
@@ -10,7 +13,6 @@ describe('TypeScript Image Component Build Errors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   it('should fail to build invalid usage of the Image component', async () => {
@@ -39,6 +41,9 @@ describe('TypeScript Image Component Build Errors', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('TypeScript Image Component Dev', () => {
   if (!isNextDev) {
     it('no-op in prod', () => {})
@@ -47,7 +52,6 @@ describe('TypeScript Image Component Dev', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should have image types when enabled', async () => {

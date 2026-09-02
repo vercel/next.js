@@ -5,16 +5,16 @@ import cheerio from 'cheerio'
 import { findPort } from 'next-test-utils'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite controls a local server or proxy process.
+// Calls `next.build()` and uses an in-test proxy in front of the Next
+// server; both rely on the local-process model and are not applicable to
+// deploy mode.
+// @force-gate !deploy
 describe('CSS Module client-side navigation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Calls `next.build()` and uses an in-test proxy in front of the Next
-    // server; both rely on the local-process model and are not applicable to
-    // deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let proxyServer: http.Server
   let proxyPort: number
