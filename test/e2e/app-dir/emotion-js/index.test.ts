@@ -1,19 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app dir - emotion-js', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@emotion/react': 'latest',
       '@emotion/cache': 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render emotion-js css with compiler.emotion option correctly', async () => {
     const browser = await next.browser('/')
